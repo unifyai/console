@@ -39,6 +39,8 @@ export interface Command {
   keybinding?: string;
   /** Optional shorthand */
   shorthand?: string;
+  /** Function to execute when this command is selected */
+  action?: (arg?: any, func?: () => void) => any;
 }
 
 /**

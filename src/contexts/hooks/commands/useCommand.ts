@@ -222,13 +222,27 @@ export function useCommand(args: UseCommandArgs) {
     // Filter local list
     setProjects(projects.filter((p) => p !== name));
 
+    if (tabUIActions && setTabQueryParam && interfaceDataActions && setInterfaceQueryParam && setProject) {
+      tabUIActions.setPending(true);
+      tabUIActions.setDataPending(true);
+      setTabQueryParam(null);
+      interfaceDataActions.setTabNames([]);
+      setInterfaceQueryParam(null);
+      setProject(null);
+    }
+
     return { info: "Project deleted successfully" } as unknown as ResponseProps;
   }, [
     deleteProjectMutation, 
     projectActions, 
     closeProject, 
     setProjects, 
-    projects
+    projects,
+    tabUIActions,
+    interfaceDataActions,
+    setTabQueryParam,
+    setInterfaceQueryParam,
+    setProject
   ]);
 
   const resetTabCommand = useCallback(async () => {
@@ -299,6 +313,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "project",
         icon: "Folder",
         disabled: false,
+        action: (proj) => {
+          selectProject(proj);
+        },
       },
       {
         id: "create-project",
@@ -306,6 +323,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "project",
         icon: "Plus",
         disabled: false,
+        action: (name: string) => {
+          createProject(name);
+        },
       },
       {
         id: "close-project",
@@ -313,6 +333,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "project",
         icon: "X",
         disabled: !projectId,
+        action: () => {
+          closeProject();
+        },
       },
       {
         id: "delete-project",
@@ -320,6 +343,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "project",
         icon: "Trash",
         disabled: !projectId,
+        action: (name: string) => {
+          deleteProject(name);
+        },
       },
       {
         id: "file-upload",
@@ -327,6 +353,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "interface",
         icon: "Upload",
         disabled: !projectId,
+        action: (fileUploadOpen: boolean) => {
+          setFileUpload(fileUploadOpen);
+        },
       },
       {
         id: "focus-pane",
@@ -334,6 +363,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "interface",
         icon: "Focus",
         disabled: !projectId || !tabNames.length,
+        action: (focusPaneOpen: boolean) => {
+          setFocusPane(focusPaneOpen);
+        },
       },
       {
         id: "global-context",
@@ -341,6 +373,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "interface",
         icon: "FolderTree",
         disabled: !projectId || !tabNames.length,
+        action: (globalContextOpen: boolean) => {
+          setGlobalContext(globalContextOpen);
+        },
       },
       {
         id: "save-interface",
@@ -348,6 +383,9 @@ export function useCommand(args: UseCommandArgs) {
         category: "interface",
         icon: "Save",
         disabled: !projectId || !tabNames.length,
+        action: (saveInterfaceOpen: boolean) => {
+          setSaveInterface(saveInterfaceOpen);
+        },
       },
       {
         id: "reset-tab",
@@ -355,9 +393,25 @@ export function useCommand(args: UseCommandArgs) {
         category: "interface",
         icon: "ListRestart",
         disabled: !projectId || !tabNames.length || !tabId,
+        action: () => {
+          resetTabCommand();
+        },
       }
     ];
-  }, [projectId, tabNames, tabId]);
+  }, [
+    projectId,
+    tabNames,
+    tabId,
+    selectProject,
+    createProject,
+    closeProject,
+    deleteProject,
+    setFileUpload,
+    setFocusPane,
+    setGlobalContext,
+    setSaveInterface,
+    resetTabCommand
+  ]);
 
   // Keep the zustand slice in-sync whenever `commands` changes
   useEffect(() => {

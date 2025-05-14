@@ -9,7 +9,7 @@ import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileProps, ResponseProps } from "@/types/common";
 import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
@@ -44,8 +44,11 @@ const ProjectButtons = ({
     tileActions: GranularTileActions;
 }) => {
     const router = useRouter();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     
     // State for dialog controls
+    const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
+    const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
     const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
     const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
     const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
@@ -97,8 +100,12 @@ const ProjectButtons = ({
         listProjectsQuery.refetch();
     }
 
-    // Use combined disabled state from prop and other sources
-    const isDisabled = !project || tabUIState?.pending;
+    useEffect(() => {
+        if (selectProjectsOpen || createProjectOpen || deleteProjectOpen)
+            setDropdownOpen(true);
+        else
+            setDropdownOpen(false);
+    }, [selectProjectsOpen, createProjectOpen, deleteProjectOpen]);
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
@@ -110,27 +117,34 @@ const ProjectButtons = ({
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
+                open={dropdownOpen}
+                setOpen={setDropdownOpen}
             >
                 <div className="w-fit flex flex-col items-center p-2">
-                    <div className="border-b pb-1">
+                    <div className="w-full border-b pb-1">
                         <FileDirectory
                             data={projectsData}
                             renamingFunction={projectActions.rename}
                             setterFunction={(proj) => selectProjectCommand(proj)}
                             type="Projects"
+                            text="Select Projects"
+                            variant="ghost"
                             defaultValue={project || undefined}
                             isAutocompleteOpen={defaultProject ? true : undefined}
                             onOpen={onOpen}
                             loading={listProjectsQuery.isLoading}
+                            customOpen={selectProjectsOpen}
+                            setCustomOpen={setSelectProjectsOpen}
                         />
                     </div>
-                    {project && <div className="border-b py-1">
+                    {project && <div className="w-full border-b py-1">
                         <CloseProject
                             onClick={() => closeProjectCommand()}
                             variant="ghost"
+                            text="Close Project"
                         />
                     </div>}
-                    {project && <div className="border-b py-1">
+                    {project && <div className="w-full border-b py-1">
                         <DeleteDialog
                             type="project"
                             args={[project]}
@@ -148,15 +162,20 @@ const ProjectButtons = ({
                             setCustomOpen={setDeleteProjectOpen}
                         />
                     </div>}
-                    {projects && <div className="pt-1">
+                    {projects && <div className="w-full pt-1">
                         <CreateProject 
                             creationFunction={async (name: string) => {
+                                if (createProjectCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Create project command not found"
+                                    } as ResponseProps);
+                                }
                                 return await createProjectCommand(name);
                             }}
                             createProjectOpen={createProjectOpen}
                             setCreateProjectOpen={setCreateProjectOpen}
                             paths={projects}
-                            text="Create project"
+                            text="Create Project"
                             variant="ghost"
                         />
                     </div>}
@@ -167,7 +186,14 @@ const ProjectButtons = ({
                 items={projects.map((project) => ({ label: project, value: project }))}
                 defaultValue={project || undefined}
                 isOpen={defaultProject ? true : undefined}
-                onSelect={(currentValue: string) => selectProjectCommand({ path: currentValue, type: "file" })}
+                onSelect={(currentValue: string) => {
+                    if (selectProjectCommand == undefined) {
+                        return Promise.resolve({
+                            detail: "Select projects command not found"
+                        } as ResponseProps);
+                    }
+                    return selectProjectCommand({ path: currentValue });
+                }}
                 onOpen={onOpen}
                 loading={listProjectsQuery.isLoading}
             />

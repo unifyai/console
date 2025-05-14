@@ -15,7 +15,7 @@ import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { SetStateAction, useMemo } from "react";
+import { SetStateAction, useEffect, useMemo, useState } from "react";
 
 import { useTab } from "@/contexts/hooks/tab";
 import { useProject } from "@/contexts/hooks/project";
@@ -44,14 +44,13 @@ const InterfaceButtons = ({
     disabled?: boolean,
 }) => {
     const router = useRouter();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     
     // Use hooks for tab operations
     const restoreTabMutation = useRestoreLastSavedTabWithTilesQuery();
-
-    const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
-    const setSaveInterfaceOpen = useStoreContext((state) => state.setSaveInterfaceOpen);
     
     // Get the project data and the contexts with granular access
+    const storeCommands = useStoreContext((s) => s.commands);
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
     const { data: projectDataState } = useProject(project);
@@ -142,6 +141,22 @@ const InterfaceButtons = ({
         }
     };
 
+    // action tab states
+    const fileUploadOpen = useStoreContext((s) => s.fileUploadOpen);
+    const globalContextOpen = useStoreContext((s) => s.globalContextOpen);
+    const setFileUploadOpen = useStoreContext((s) => s.setFileUploadOpen);
+    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
+    const setGlobalContextOpen = useStoreContext((s) => s.setGlobalContextOpen);
+    const setSaveInterfaceOpen = useStoreContext((s) => s.setSaveInterfaceOpen);
+    const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
+
+    useEffect(() => {
+        if (fileUploadOpen || globalContextOpen)
+            setDropdownOpen(true);
+        else
+            setDropdownOpen(false);
+    }, [fileUploadOpen, globalContextOpen]);
+
     return (
         <div className="flex items-center gap-2 px-4">
             <BaseDropdown
@@ -152,23 +167,28 @@ const InterfaceButtons = ({
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
+                open={dropdownOpen}
+                setOpen={setDropdownOpen}
             >
                 <div className="w-fit flex flex-col items-center p-2">
 
                     {/* File upload */}
-                    <div className="border-b pb-1">
+                    <div className="w-full border-b pb-1">
                         <FileUpload
                             contexts={contexts}
                             logsActions={logsActions}
                             project={project}
+                            customOpen={fileUploadOpen}
+                            setCustomOpen={setFileUploadOpen}
                         />
                     </div>
 
                     {/* Focus pane */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            tooltip="Open focus pane"
+                            text="Open Focus Pane"
+                            tooltip="Open Focus Pane"
                             icon={<FocusIcon />}
                             variant="ghost"
                             disabled={isDisabled}
@@ -177,7 +197,7 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Context selector */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ContextSelector
                             tabId={tabId || undefined}
                             interfaceId={interfaceId}
@@ -185,6 +205,8 @@ const InterfaceButtons = ({
                             context={tabDataState?.globalContext}
                             contexts={contexts}
                             setContext={handleContextChange}
+                            customOpen={globalContextOpen}
+                            setCustomOpen={setGlobalContextOpen}
                             logsActions={logsActions}
                             contextActions={contextActions}
                             setPending={tabUIActions?.setPending!}
@@ -192,9 +214,10 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Save button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
+                            text="Save Interface"
                             tooltip={!project ? "Select a project first" : "Save Interface"}
                             icon={saveIcon}
                             variant={variant}
@@ -204,49 +227,24 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Reset button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            tooltip={!project ? "Select a project first" : "Return to last saved tab"}
+                            text="Reset Interface"
+                            tooltip={!project ? "Select a project first" : "Reset Interface"}
                             icon={resetIcon}
                             variant="ghost"
                             disabled={isDisabled || tabUIState?.resetting}
-                            onClick={async () => {
-                                if (!tabName || !project || !tabUIActions) return;
-                                
-                                // Set resetting state
-                                tabUIActions.setResetting(true);
-                                
-                                try {
-                                    // Restore the tab from its checkpoint using the new hook
-                                    const result = await restoreTabMutation.mutateAsync({
-                                        interface_id: interfaceId,
-                                        tab_name: tabName,
-                                        interface_actions: interfaceActions,
-                                        tab_actions: tabActions,
-                                        tile_actions: tileActions
-                                    });
-                                    
-                                    // Log the result
-                                    console.log("Tab restore result:", result);
-                                    
-                                    // Update UI to show reset is complete
-                                    tabUIActions.setEdit(true);
-                                    router.refresh();
-                                } catch (error: any) {
-                                    console.error("Error restoring tab:", error);
-                                } finally {
-                                    // Reset the resetting state after a delay
-                                    setTimeout(() => {
-                                        tabUIActions.setResetting(false);
-                                    }, 1500);
+                            onClick={() => {
+                                if (resetInterfaceCommand) {
+                                    resetInterfaceCommand.action?.();
                                 }
                             }}
                         />
                     </div>
 
                     {/* Add tile button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <AddTile
                             project={project || ""}
                             interfaceId={interfaceId}
@@ -258,13 +256,14 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Show hidden items dropdown */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <BaseDropdown
                             button={
                                 <ActionButton
                                     variant="ghost"
                                     icon={<Eye />}
-                                    tooltip="Show hidden"
+                                    text="Show Hidden"
+                                    tooltip="Show Hidden"
                                     size="sm"
                                     disabled={hiddenItems.length === 0 || isDisabled}
                                 />
@@ -298,10 +297,11 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Paste button */}
-                    <div className="border-b py-1">
+                    <div className="w-full border-b py-1">
                         <ActionButton
                             variant="ghost"
                             icon={<Clipboard />}
+                            text="Paste"
                             tooltip="Paste"
                             disabled={!tabUIState?.copied || isDisabled}
                             onClick={handlePaste}
@@ -309,7 +309,7 @@ const InterfaceButtons = ({
                     </div>
 
                     {/* Color selector */}
-                    <div className="pt-1">
+                    <div className="w-full pt-1">
                         <ColorPicker
                             value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
                             onChange={(color) => syncedTabUIActions?.setColor(color)}
@@ -318,7 +318,8 @@ const InterfaceButtons = ({
                                 className="cursor-pointer hover:z-10"
                                 icon={<Palette />}
                                 variant="ghost"
-                                tooltip="Change tab primary color"
+                                text="Change Tab Color"
+                                tooltip="Change Tab Color"
                                 disabled={!project}
                             />
                         </ColorPicker>

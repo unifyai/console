@@ -22,6 +22,8 @@ interface FileUploadProps {
     project: string | null;
     contexts: Context[];
     logsActions: LogsActions;
+    customOpen?: boolean;
+    setCustomOpen?: (open: boolean) => void;
 }
 
 type ParsedData = {
@@ -35,8 +37,10 @@ type ColumnType = 'param' | 'entry';
 const MAX_PREVIEW_ROWS = 20;
 const ALLOWED_EXTENSIONS = ['.csv', '.jsonl', '.json'];
 
-export function FileUpload({ project, logsActions, contexts }: FileUploadProps) {
-    const [open, onOpenChange] = useState(false);
+export function FileUpload({ project, logsActions, contexts, customOpen, setCustomOpen }: FileUploadProps) {
+    const [open_, setOpen_] = useState(false);
+    const open = customOpen !== undefined ? customOpen : open_;
+    const setOpen = setCustomOpen || setOpen_;
     const [file, setFile] = useState<File | null>(null);
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [columnTypes, setColumnTypes] = useState<Record<string, ColumnType>>({});
@@ -378,7 +382,7 @@ export function FileUpload({ project, logsActions, contexts }: FileUploadProps) 
 
             if (response && response.info) {
                 toast.success(response.info, { id: toastId });
-                onOpenChange(false); // Close dialog on success
+                setOpen(false); // Close dialog on success
             } else if (response && response.detail) {
                 throw new Error(response.detail);
             } else {
@@ -406,13 +410,13 @@ export function FileUpload({ project, logsActions, contexts }: FileUploadProps) 
     return (
         <BaseDialog
             open={open}
-            setOpen={onOpenChange}
+            setOpen={setOpen}
             className="sm:max-w-[75vw] max-h-[90vh] flex flex-col" // Increased width slightly
             button={
                 <ActionButton
-                    // text="Upload Logs"
+                    text="Upload Logs"
                     icon={<Upload />}
-                    onClick={() => onOpenChange(true)}
+                    onClick={() => setOpen(true)}
                     tooltip="Upload logs from file (.csv, .jsonl, .json)"
                     variant="ghost"
                     disabled={!project}
