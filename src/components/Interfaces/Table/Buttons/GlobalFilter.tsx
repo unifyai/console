@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
 
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { TablesArguments } from "@/types/evals/logs";
+import { TableArguments } from "@/types/evals/logs";
 
 import ActionButton from "@/components/Common/Buttons/Action";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -19,7 +19,7 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
     setCommonFilter: (newValue: string | undefined) => void,
     logs: LogProps[] | GroupedLogProps[],
     currentTable: string,
-    tableArguments: TablesArguments,
+    tableArguments: TableArguments,
 }) => {
 
     /* Display loader when data updates */
@@ -51,7 +51,7 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
     const options = Object
         .entries(tableArguments)
             .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args?.available_fields ?? {})}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TablesArguments]?.available_fields ?? {})                   // Add all columns of current table
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments]?.available_fields ?? {})                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const onEnter = (e: KeyboardEvent<HTMLInputElement>) => {

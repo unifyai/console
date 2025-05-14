@@ -1,14 +1,14 @@
 import { TileData } from "@/types/evals/grid";
-import { PlotsArguments, TablesArguments } from "@/types/evals/logs";
+import { PlotArguments, TableArguments } from "@/types/evals/logs";
 
 /**
  * Builds plot arguments based on table arguments
  * Can be used by PlotWrapper
  */
 export function buildPlotArguments(
-  tableArguments: TablesArguments,
-  existingPlotArguments: PlotsArguments = {}
-): PlotsArguments {
+  tableArguments: TableArguments,
+  existingPlotArguments: PlotArguments = {}
+): PlotArguments {
   // Initialize with existing plot arguments or an empty object
   let plotArguments = { ...existingPlotArguments };
   
@@ -30,8 +30,8 @@ export function buildPlotArguments(
 export function updatePlotArgumentsForUsedTables(
   plotTile: TileData,
   tableTiles: TileData[],
-  plotArguments: PlotsArguments
-): PlotsArguments {
+  plotArguments: PlotArguments
+): PlotArguments {
   // Initialize with existing plot arguments
   const updatedPlotArguments = { ...plotArguments };
   

@@ -1,5 +1,5 @@
 import { TileData } from "@/types/evals/grid";
-import { TablesArguments, PlotsArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { buildTableArguments } from "./buildTableArguments";
 import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "./buildPlotArguments";
 
@@ -16,11 +16,11 @@ import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "./buildPlo
 export async function buildTabArguments(
   tiles: TileData[],
   fieldsMap: Record<string, LogFieldsResponseProps>,
-  existingTableArgs: TablesArguments = {},
-  existingPlotArgs: PlotsArguments = {}
+  existingTableArgs: TableArguments = {},
+  existingPlotArgs: PlotArguments = {}
 ): Promise<{
-  tableArguments: TablesArguments,
-  plotArguments: PlotsArguments
+  tableArguments: TableArguments,
+  plotArguments: PlotArguments
 }> {
   // Filter to get just the table and plot tiles
   const tableTiles = tiles.filter(t => t.type === "Table");

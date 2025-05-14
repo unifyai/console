@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { LogProps } from "@/types/evals/logs";
 import {
   Accordion,
@@ -48,7 +48,8 @@ import {
   Hash,
   Clock,
   MessagesSquare,
-  FileText
+  FileText,
+  Save
 } from "lucide-react";
 
 import {
@@ -58,11 +59,13 @@ import {
   gatherAllSubPathsMulti
 } from "@/utils/evals/pathUtils";
 
-import { ItemType, TileProps } from "@/types/evals/grid";
+import { ItemType, LogsActions, TileProps } from "@/types/evals/grid";
 
 import { createContext, useContextSelector } from "use-context-selector";
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
+import { LogComparisonProps } from "./Views/types";
+import { Span } from "@/types/evals/traces";
 
 //////////////////////////////////////////////////////////////////////////////
 // Type definitions
@@ -144,7 +147,9 @@ function getSelectionView(
   comps: any[],
   version: string,
   vers: string[],
+  baseLog: LogProps | undefined,
   baseLogIndex: number,
+  comparisonLogs: LogProps[] | undefined,
   compLogIndex: number[],
   diffMode: DiffMode,
   splitView: boolean,
@@ -153,198 +158,71 @@ function getSelectionView(
   prefix: string,
   parentPath: string,
   valueType: string,
+  fieldName: string,
+  isImmutable?: boolean,
   viewTracesAsDict?: boolean,
-  persistedTraceState?: PersistedTraceViewState
+  persistedTraceState?: PersistedTraceViewState,
+  cellEditMode?: boolean,
+  onSaveEdit?: LogComparisonProps['onSaveEdit'],
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void,
+  path?: (string | number)[],
+  logsActions?: LogsActions,
+  context: string | null = null,
 ) {
+  // Force diffMode to 'none' if cellEditMode is true
+  const effectiveDiffMode = cellEditMode ? "none" : diffMode;
+
+  // Common props for all views
+  const commonViewProps = {
+      value: val,
+      comparables: comps,
+      version: version,
+      comparableVersions: vers,
+      baseLogIndex: baseLogIndex,
+      comparisonLogsIndex: compLogIndex,
+      diffMode: effectiveDiffMode,
+      splitView: splitView,
+      displayMode: displayMode,
+      cellEditMode: cellEditMode,
+      onSaveEdit: onSaveEdit,
+      onGroupSaveEdit: onGroupSaveEdit,
+      path: path,
+  };
+
   // If user wants "raw"
   if (displayMode === "raw") {
-    return (
-      <RawView
-        value={val}
-        comparables={comps}
-        version={version}
-        comparableVersions={vers}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndex}
-        diffMode={diffMode}
-        splitView={splitView}
-      />
-    );
+    return <RawView {...commonViewProps} />;
   }
 
   // Check if we should override trace view
   if (valueType === "trace" && viewTracesAsDict) {
     // When viewTracesAsDict is true, render the trace as a dictionary
-    return (
-      <DictionaryView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-          nestingLevel={nestingLevel}
-          prefix={prefix}
-          parentPath={parentPath}
-          viewTracesAsDict={viewTracesAsDict}
-        />
-    );
+    return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
 
   // Use the determined type instead of re-unifying
   switch (valueType) {
     case "trace":
-      return (
-        <TraceView
-          value={Array.isArray(val) ? val : [val]}
-          comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-          persistedState={persistedTraceState}
-        />
-      );
+      return <TraceView {...commonViewProps} value={Array.isArray(val) ? val : [val]} comparables={comps.map((c) => (Array.isArray(c) ? c : c ? [c] : []))} persistedState={persistedTraceState} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "chat":
-      return (
-        <ChatOutView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <ChatOutView {...commonViewProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
     case "dict":
-      return (
-        <DictionaryView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-          nestingLevel={nestingLevel}
-          prefix={prefix}
-          parentPath={parentPath}
-          viewTracesAsDict={viewTracesAsDict}
-        />
-      );
+      return <DictionaryView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "list":
-      return (
-        <ListView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-          nestingLevel={nestingLevel}
-          prefix={prefix}
-          parentPath={parentPath}
-          viewTracesAsDict={viewTracesAsDict}
-        />
-      );
+      return <ListView {...commonViewProps} nestingLevel={nestingLevel} prefix={prefix} parentPath={parentPath} viewTracesAsDict={viewTracesAsDict} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName} onTraceUpdate={onTraceUpdate}/>;
     case "pdf":
-      return (
-        <PdfView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <PdfView {...commonViewProps} />;
     case "image":
-      return (
-        <ImageView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <ImageView {...commonViewProps} />;
     case "matrix":
-      return (
-        <MatrixView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <MatrixView {...commonViewProps} />;
     case "number":
-      return (
-        <NumberView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <NumberView {...commonViewProps} isImmutable={isImmutable}/>;
     case "timestamp":
-      return (
-        <TimestampView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
-    default:
-      return (
-        <StringView
-          value={val}
-          comparables={comps}
-          baseLogIndex={baseLogIndex}
-          comparisonLogsIndex={compLogIndex}
-          diffMode={diffMode}
-          splitView={splitView}
-          version={version}
-          comparableVersions={vers}
-          displayMode={displayMode}
-        />
-      );
+      return <TimestampView {...commonViewProps} isImmutable={isImmutable}/>;
+    default: // string
+      return <StringView {...commonViewProps} isImmutable={isImmutable}/>;
   }
 }
 
@@ -376,20 +254,22 @@ interface SelectionEntryProps {
   externalTraceState?: PersistedTraceViewState;
   dragAttributes?: DraggableAttributes;
   dragListeners?: SyntheticListenerMap;
+  fieldName: string;
+  isImmutable?: boolean;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { logIndex: number; source: SourceType; path: (string | number)[]; newValue: any }) => void;
+  onGroupSaveEdit?: (desc: { logIndices: number[]; source: SourceType; path: (string | number)[]; newValue: any }) => void;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
+  path?: (string | number)[];
+  logsActions: LogsActions;
+  context: string | null
 }
 
 /**
  * SelectionEntry Component
- * 
+ *
  * This component renders a single entry from a selected log, showing differnt views
  * based on the data type.
- * 
- * IMPORTANT: This component expects the following:
- * - baseLogIndex: 0-based index of the row in the selection (expected to be 0-based)
- * - comparisonLogsIndex: Array of 0-based indices for comparison rows
- * 
- * These indices are passed as-is to the view components, which should maintain them as 0-based
- * until final display in RowBadge.
  */
 export default function SelectionEntry({
   source = "entries",
@@ -416,310 +296,166 @@ export default function SelectionEntry({
   externalTraceState,
   dragAttributes,
   dragListeners,
+  fieldName,
+  isImmutable,
+  cellEditMode = false,
+  onSaveEdit,
+  onGroupSaveEdit,
+  onTraceUpdate,
+  path: incomingPath,
+  logsActions,
+  context
 }: SelectionEntryProps) {
-  // We need to access the expandRecursively and collapseRecursively functions from context
+  // Context access for expand/collapse
   const expandRecursively = useMemo(() => {
-    return (paths: string[]) => {
-      panelSetOpenKeys((prev) => {
-        const next = new Set(prev);
-        paths.forEach(path => next.add(path));
-        return next;
-      });
-    };
+    return (paths: string[]) => panelSetOpenKeys((prev) => new Set([...Array.from(prev), ...paths]));
   }, [panelSetOpenKeys]);
-  
+
   const collapseRecursively = useMemo(() => {
-    return (paths: string[]) => {
-      panelSetOpenKeys((prev) => {
+    return (paths: string[]) => panelSetOpenKeys((prev) => {
         const next = new Set(prev);
         paths.forEach(path => next.delete(path));
         return next;
       });
-    };
   }, [panelSetOpenKeys]);
-  
-  // Use panel-specific props directly
-  const openKeys = panelOpenKeys;
-  const setOpenKeys = panelSetOpenKeys;
 
-  // gather comparables
+  const openKeys = panelOpenKeys;
+  // const setOpenKeys = panelSetOpenKeys; // Not directly used below, but needed for context
+
   const comps = (comparisonLogs ?? []).map((cl) => {
     const container = source === "params" ? (cl.params || {}) : (cl.entries || {});
     const rawVal = container[property];
     if (source === "params" && rawVal && typeof rawVal === "object") {
-      return rawVal.paramValue; // param object with paramValue
+      return rawVal.paramValue;
     }
     return rawVal;
   });
-
-  // Possibly handle paramValue on the base as well
   let rawValue = value;
   if (source === "params" && value && typeof value === "object") {
     rawValue = value.paramValue;
   }
-
-  // Check if empty for conditional rendering later
   const allVals = [rawValue, ...comps];
-  const isEmpty = allVals.every(isEmptyOrBlank);
-
-  // find type - moved before early return
-  const unifiedType = !isEmpty ? unifyType(rawValue, comps) : "";
-  const icon = !isEmpty ? getTypeIcon(unifiedType) : null;
-  
-  // is it dict/list OR a trace viewed as dict?
+  const isEmpty = allVals.every(isEmptyOrBlank); // Still useful for conditional logic, just not for early return
+  const unifiedType = unifyType(rawValue, comps); // unifyType will return "string" if all are empty/null
+  const icon = getTypeIcon(unifiedType); // getTypeIcon will return Text icon for "string"
   const isTopLevelExpandable = !isEmpty && (unifiedType === "dict" || unifiedType === "list" || (unifiedType === "trace" && viewTracesAsDict));
-
-  // We'll pass nestingLevel=0 for top-level
   const childNesting = 0;
-
-  // Build the top-level path for dictionaries/lists - moved before early return
   const topLevelPath = useMemo(() => {
-    if (!isTopLevelExpandable) return ""; // Use updated condition
+    if (!isTopLevelExpandable) return "";
     const prefixStr = source === "entries" ? "entries" : "params";
-    // at top-level, we keep nestingLevel = 0
     return makePrefixedDictPath(prefixStr, 0, property);
-  }, [isTopLevelExpandable, property, source]); // Use updated condition
+  }, [isTopLevelExpandable, property, source]);
 
-  // We'll gather all subpaths for a fully recursive approach
-  // when user clicks the global expand button (the "FoldVertical / UnfoldVertical").
   const subPaths = useMemo(() => {
-    if (!isTopLevelExpandable || !topLevelPath) return []; // Use updated condition
+    if (!isTopLevelExpandable || !topLevelPath) return [];
     const prefixStr = source === "entries" ? "entries" : "params";
-
-    // In multi-mode, use gatherAllSubPathsMulti to include keys from comparables
     let paths: string[] = [];
     if (comps && comps.length > 0) {
       paths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, prefixStr, 0);
     } else {
-      // In single-mode, use the original gatherAllSubPaths
       paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
     }
-
     return paths;
-  }, [rawValue, isTopLevelExpandable, topLevelPath, source, comps, property]); // Use updated condition
+  }, [rawValue, isTopLevelExpandable, topLevelPath, source, comps, property]);
 
-  // check if all subPaths are in openKeys => allOpen
   const allOpen = useMemo(() => {
-    if (!isTopLevelExpandable || !subPaths.length) return false; // Use updated condition
-    
-    // Paths must be non-empty and every path must be in openKeys
+    if (!isTopLevelExpandable || !subPaths.length) return false;
     return subPaths.every(path => panelOpenKeys.has(path));
-  }, [isTopLevelExpandable, subPaths, panelOpenKeys]); // Use updated condition
-  
-  // Lift the trace view state here
-  // Separate UI state (stable) from scroll state (frequently changing)
-  // UI state for selections, expansions, etc.
-  const [traceUIState, setTraceUIState] = useState({
-    collapsedNodes: {} as Record<string, boolean>,
-    selectedNode: null as any | null,
-    selectedSpanId: "",
-    groupSignature: "",
-    traceExpandOpenKeys: new Set<string>(),
-  });
-  
-  // Separate scroll state that changes frequently
-  const [traceScrollState, setTraceScrollState] = useState({
-    leftScrollPosition: 0,
-    rightScrollPosition: 0,
-  });
+  }, [isTopLevelExpandable, subPaths, panelOpenKeys]);
 
-  // Memoize the persisted state object to prevent unnecessary re-renders
-  const persistedTraceState = useMemo(
-    () => {
-      // If external trace state is provided, use it
-      if (externalTraceState) {
-        return externalTraceState;
-      }
-      
-      // Otherwise, use our local state implementation with split state management
-      return {
-        // UI state elements
-        collapsedNodes: traceUIState.collapsedNodes,
-        setCollapsedNodes: (value: React.SetStateAction<Record<string, boolean>>) =>
-          setTraceUIState(prev => ({ 
-            ...prev, 
-            collapsedNodes: typeof value === "function" ? value(prev.collapsedNodes) : value 
-          })),
-        
-        selectedNode: traceUIState.selectedNode,
-        setSelectedNode: (value: React.SetStateAction<any | null>) =>
-          setTraceUIState(prev => ({ 
-            ...prev, 
-            selectedNode: typeof value === "function" ? value(prev.selectedNode) : value 
-          })),
-        
-        selectedSpanId: traceUIState.selectedSpanId,
-        setSelectedSpanId: (value: React.SetStateAction<string>) =>
-          setTraceUIState(prev => ({ 
-            ...prev, 
-            selectedSpanId: typeof value === "function" ? value(prev.selectedSpanId) : value 
-          })),
-        
-        groupSignature: traceUIState.groupSignature,
-        setGroupSignature: (value: React.SetStateAction<string>) =>
-          setTraceUIState(prev => ({ 
-            ...prev, 
-            groupSignature: typeof value === "function" ? value(prev.groupSignature) : value 
-          })),
-        
-        traceExpandOpenKeys: traceUIState.traceExpandOpenKeys,
-        setTraceExpandOpenKeys: (value: React.SetStateAction<Set<string>>) =>
-          setTraceUIState(prev => ({ 
-            ...prev, 
-            traceExpandOpenKeys: typeof value === "function" ? value(prev.traceExpandOpenKeys) : value 
-          })),
-        
-        // Scroll state elements
-        leftScrollPosition: traceScrollState.leftScrollPosition,
-        setLeftScrollPosition: (value: React.SetStateAction<number>) =>
-          setTraceScrollState(prev => ({ 
-            ...prev, 
-            leftScrollPosition: typeof value === "function" ? value(prev.leftScrollPosition) : value 
-          })),
-        
-        rightScrollPosition: traceScrollState.rightScrollPosition,
-        setRightScrollPosition: (value: React.SetStateAction<number>) =>
-          setTraceScrollState(prev => ({ 
-            ...prev, 
-            rightScrollPosition: typeof value === "function" ? value(prev.rightScrollPosition) : value 
-          })),
-      }
-    },
-    [
-      traceUIState, // Only depends on the UI state object
-      traceScrollState, // And the scroll state object
-      externalTraceState, 
-      property
-    ]
-  );
+  // Trace state management
+  const [traceUIState, setTraceUIState] = useState({ collapsedNodes: {} as Record<string, boolean>, selectedNode: null as any | null, selectedSpanId: "", groupSignature: "", traceExpandOpenKeys: new Set<string>(), });
+  const [traceScrollState, setTraceScrollState] = useState({ leftScrollPosition: 0, rightScrollPosition: 0, });
+  const persistedTraceState = useMemo(() => externalTraceState || { collapsedNodes: traceUIState.collapsedNodes, setCollapsedNodes: (v: any) => setTraceUIState(p => ({ ...p, collapsedNodes: typeof v === 'function' ? v(p.collapsedNodes) : v })), selectedNode: traceUIState.selectedNode, setSelectedNode: (v: any) => setTraceUIState(p => ({ ...p, selectedNode: typeof v === 'function' ? v(p.selectedNode) : v })), selectedSpanId: traceUIState.selectedSpanId, setSelectedSpanId: (v: any) => setTraceUIState(p => ({ ...p, selectedSpanId: typeof v === 'function' ? v(p.selectedSpanId) : v })), groupSignature: traceUIState.groupSignature, setGroupSignature: (v: any) => setTraceUIState(p => ({ ...p, groupSignature: typeof v === 'function' ? v(p.groupSignature) : v })), traceExpandOpenKeys: traceUIState.traceExpandOpenKeys, setTraceExpandOpenKeys: (v: any) => setTraceUIState(p => ({ ...p, traceExpandOpenKeys: typeof v === 'function' ? v(p.traceExpandOpenKeys) : v })), leftScrollPosition: traceScrollState.leftScrollPosition, setLeftScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, leftScrollPosition: typeof v === 'function' ? v(p.leftScrollPosition) : v })), rightScrollPosition: traceScrollState.rightScrollPosition, setRightScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, rightScrollPosition: typeof v === 'function' ? v(p.rightScrollPosition) : v })), }, [traceUIState, traceScrollState, externalTraceState, property]);
+  const valuePath: (string | number)[] = useMemo(() => incomingPath && incomingPath.length > 0 ? incomingPath : [property], [incomingPath, property]);
 
-  // Memoize the content to avoid unnecessary re-calculations
+  // Wrapper for single save edits (adds source)
+  const handleSaveEditForView = useCallback((desc: { logIndex: number; path: (string | number)[]; newValue: any }) => {
+    if (onSaveEdit) {
+      onSaveEdit({ ...desc, source: source });
+    }
+  }, [onSaveEdit, source]);
+
+  // Wrapper for group save edits (adds source)
+  const handleGroupSaveEditForView = useCallback((desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+      if (onGroupSaveEdit) {
+          onGroupSaveEdit({ ...desc, source: source });
+      }
+  }, [onGroupSaveEdit, source]);
+
+  // Render content memo (now passes both save handlers)
   const renderedContent = useMemo(() => {
-    // Skip calculation if empty
-    if (isEmpty) return null;
-    
+    // If isEmpty is true, unifiedType will be "string", so getSelectionView will render StringView
     return getSelectionView(
-      rawValue,
-      comps,
-      version,
-      comparableVersions,
-      baseLogIndex,
-      comparisonLogsIndex,
-      diffMode,
-      splitView,
-      displayMode,
-      childNesting, // now always 0 if top-level
-      source === "entries" ? "entries" : "params",
-      topLevelPath, // Pass the top-level path as parentPath
-      unifiedType, // Pass the unified type to avoid recalculating
-      viewTracesAsDict, // Now comes after valueType
-      persistedTraceState // Pass the persisted trace state
+      rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
+      diffMode, splitView, displayMode, childNesting, source === "entries" ? "entries" : "params",
+      topLevelPath, unifiedType, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
+      handleSaveEditForView, handleGroupSaveEditForView, onTraceUpdate, valuePath,
+      logsActions, context
     );
   }, [
-    rawValue,
-    comps,
-    version,
-    comparableVersions,
-    baseLogIndex,
-    comparisonLogsIndex,
-    diffMode,
-    splitView,
-    displayMode,
-    childNesting,
-    source,
-    topLevelPath,
-    unifiedType,
-    isEmpty,
-    viewTracesAsDict,
-    persistedTraceState
+    rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
+    diffMode, splitView, displayMode, childNesting, source, topLevelPath, unifiedType,
+    isEmpty, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
+    handleSaveEditForView, handleGroupSaveEditForView, onTraceUpdate, valuePath,
+    logsActions, context
   ]);
-  
-  // For the shadcn <AccordionItem>, we unify property => so the parent's "onValueChange" logic sees a simpler string
+
   const itemValue = property;
-  
-  // Return early if empty - after all hooks have been called
-  if (isEmpty) {
-    return null;
-  }
 
-  function handleDeselectColumn() {
-    onHideColumn?.(property);
-  }
+  function handleDeselectColumn() { onHideColumn?.(property); }
 
-  // global expand/collapse => fully recursive
+  // Global expand/collapse handler
   const handleGlobalExpandToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isTopLevelExpandable) return; // Use updated condition
-
-    // Always recalculate subPaths to ensure the most current state
-    // This fixes issues where the button action doesn't match its label
+    if (!isTopLevelExpandable) return;
     let currentSubPaths: string[] = [];
     if (comps && comps.length > 0) {
-      currentSubPaths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, 
-        source === "entries" ? "entries" : "params", 0);
+      currentSubPaths = gatherAllSubPathsMulti(rawValue, comps, topLevelPath, source === "entries" ? "entries" : "params", 0);
     } else {
-      currentSubPaths = gatherAllSubPaths(rawValue, topLevelPath, 
-        source === "entries" ? "entries" : "params", 0);
+      currentSubPaths = gatherAllSubPaths(rawValue, topLevelPath, source === "entries" ? "entries" : "params", 0);
     }
-    
-    // Check if any paths to process
     if (currentSubPaths.length === 0) return;
-
-    // Recalculate allOpen state using fresh paths
     const currentlyAllOpen = currentSubPaths.every(path => panelOpenKeys.has(path));
-
     if (currentlyAllOpen) {
-      // collapse everything recursively
-      // When collapsing, exclude the parent path to keep it open
       const childPaths = currentSubPaths.filter(path => path !== topLevelPath);
       collapseRecursively(childPaths);
     } else {
-      // expand everything recursively
       expandRecursively([...currentSubPaths]);
     }
   };
 
+  // Leaf check
+  const isLeaf = useMemo(() => (unifiedType === "trace" ? false : !isTopLevelExpandable), [unifiedType, isTopLevelExpandable]);
+
+  // Content node rendering
+  const contentNode = useMemo(() => renderedContent, [isLeaf, cellEditMode, rawValue, renderedContent]);
+
+  // No longer returning null if isEmpty is true. Always render the accordion item.
+  // if (isEmpty) return null; 
+
   return (
-    <AccordionItem
-      value={itemValue}
-    >
+    <AccordionItem value={itemValue}>
       <AccordionTrigger
         {...(dragAttributes ? { ...dragAttributes, ...dragListeners } : {})}
-        onClick={(evt) => {
-          // if we're in edit mode, block toggling
-          if (editMode) {
-            evt.preventDefault();
-            evt.stopPropagation();
-          }
-        }}
+        onClick={(evt) => { if (editMode) { evt.preventDefault(); evt.stopPropagation(); } }}
         className="flex items-center relative group"
       >
         <div className="inline-flex items-center gap-2">
-          {/* Type icon */}
           <Tooltip content={unifiedType}>
-            <span className="inline-flex items-center">
-              {icon}
-            </span>
+            <span className="inline-flex items-center">{icon}</span>
           </Tooltip>
-          
-          {/* Property name */}
-          <span className="inline-block align-middle">{property}</span>
-          
-          {/* Hide column button */}
+          <span className={`inline-block align-middle ${cellEditMode && isLeaf ? "cursor-text" : ""}`}>{property}</span>
           <ActionButton
             tooltip="Hide column"
             icon={<CircleMinus className="h-3 w-3" />}
             variant="ghost"
             size="sm"
-            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive hover:text-destructive-foreground p-0 flex items-center justify-center" 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeselectColumn();
-            }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive hover:text-destructive-foreground p-0 flex items-center justify-center"
+            onClick={(e) => { e.stopPropagation(); handleDeselectColumn(); }}
           />
         </div>
-
-        {!editMode && isTopLevelExpandable && subPaths.length > 0 && ( // Use updated condition
+        {!cellEditMode && !editMode && isTopLevelExpandable && subPaths.length > 0 && (
           <div className="absolute right-5 flex gap-1 items-center">
             <ActionButton
               variant="ghost"
@@ -731,12 +467,8 @@ export default function SelectionEntry({
           </div>
         )}
       </AccordionTrigger>
-
       <AccordionContent>
-        {/* Add a wrapper div with proper indentation for top-level items */}
-        <div className="border-l border-l-muted ml-4 pl-3 relative">
-          {renderedContent}
-        </div>
+        <div className="border-l border-l-muted ml-4 pl-3 relative">{contentNode}</div>
       </AccordionContent>
     </AccordionItem>
   );

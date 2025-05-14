@@ -1,11 +1,14 @@
 "use client";
 
 import React from "react";
+import { toast } from "sonner";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
  * Convert unknown value => string.
@@ -110,7 +113,7 @@ function groupVersionsForRows(
   compVers: string[]
 ) {
   const map = new Map<string, number[]>();
-  
+
   rows.forEach((r) => {
     const verStr =
       r === baseLogIndex
@@ -129,6 +132,72 @@ function groupVersionsForRows(
   }));
 }
 
+// Helper Component for a single editable field, now aware of its group
+const EditableStringField = ({
+  initialValue,
+  logIndices, // Pass all log indices for this group
+  path,
+  onGroupSave, // Use a group-aware save handler
+  isImmutable
+}: {
+  initialValue: string;
+  logIndices: number[]; // Indices sharing this value
+  path: (string | number)[];
+  onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  isImmutable?: boolean
+}) => {
+  const { draft, inputProps } = useEditablePrimitive<string>(
+    initialValue,
+    (newValue) => {
+      // Call the group save handler with all associated indices
+      onGroupSave({ logIndices, path, newValue });
+    }
+  );
+
+  const isMultiLine = draft.length > 80;
+
+  return (isImmutable
+    ? <Tooltip content="Immutable field cannot be edited">
+        <div>
+          {isMultiLine ? (
+            <textarea 
+              className="w-full border rounded p-1 text-sm font-mono"
+              rows={4}
+              disabled
+              {...inputProps}
+            />
+          ) : (
+            <input 
+              style={{
+                backgroundImage: "repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)"
+              }}
+              className="w-full border rounded p-1 text-sm font-mono"
+              type="text"
+              disabled 
+              {...inputProps}
+            />
+          )}
+        </div>
+      </Tooltip>
+    :  <div>
+        {isMultiLine ? (
+          <textarea 
+            rows={4} 
+            className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+            {...inputProps}
+          />
+        ) : (
+          <input 
+            type="text"
+              className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+            {...inputProps}
+          />
+        )}
+      </div>
+  );
+};
+
+
 export default function StringView({
   value,
   comparables,
@@ -139,9 +208,68 @@ export default function StringView({
   version = "",
   comparableVersions = [""],
   displayMode = "markdown",
-}: LogComparisonProps) {
+  cellEditMode = false,
+  onSaveEdit, // Expects { logIndex: number, path: ..., newValue: ... }
+  onGroupSaveEdit, // Expects { logIndices: number[], path: ..., newValue: ... }
+  path = [],
+  nested = false,
+  isImmutable
+}: LogComparisonProps  & { nested?: boolean, isImmutable?: boolean }) {
   // Prepare string values
   const singleMode = !comparables || comparables.length === 0;
+
+  // If editable => render editable fields
+  if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
+    const baseStr = toStringSafe(value);
+
+    // Group values by string content
+    const valueGroups = groupAllByValue(
+      baseStr,
+      comparables,
+      baseLogIndex,
+      comparisonLogsIndex
+    );
+
+     // Define the handler that will be called by EditableStringField's onSave
+    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+        if (onGroupSaveEdit) {
+            // Call the group save handler directly with all indices
+            onGroupSaveEdit({ logIndices, path, newValue });
+        } else if (onSaveEdit && logIndices.length > 0) {
+            // Fallback: Call single save for the first index if group save handler is not provided
+            // This might happen if the parent component doesn't implement onGroupSaveEdit yet
+            console.warn("Using single onSaveEdit for grouped field. Consider implementing onGroupSaveEdit.");
+            onSaveEdit({ logIndex: logIndices[0], path, newValue });
+        }
+    };
+
+    return (
+        <div className="space-y-3">
+            {valueGroups.map((group, index) => (
+                <div key={index}>
+                    {/* Display RowBadges for the logs sharing this value */}
+                    {!nested &&
+                    <div className="flex items-center gap-1 mb-1">
+                        <RowBadge rowNumbers={group.rows} mode="none" />
+                        <span className="text-xs text-muted-foreground">
+                            {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                        </span>
+                    </div>}
+                    {/* Render a single editable field for this group */}
+                    <EditableStringField
+                        initialValue={group.text}
+                        logIndices={group.rows}
+                        path={path}
+                        onGroupSave={handleGroupSave}
+                        isImmutable={isImmutable}
+                    />
+                </div>
+            ))}
+        </div>
+    );
+  }
+
+  // --- Read-only rendering logic ---
   const baseStr = toStringSafe(value);
   const compStrs = (comparables ?? []).map(toStringSafe);
 
@@ -204,7 +332,7 @@ export default function StringView({
             </div>
           </div>
         ) : (
-          <p className="italic text-sm text-muted-foreground">No string</p>
+          <p className="italic text-sm text-muted-foreground">No value</p>
         )}
       </div>
     );

@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { BaseTable } from "@/components/Common/Tables/Base";
 import DataTable from "@/components/Common/Tables/Data/Base";
 import FileDirectory from "@/components/Tree/Directory/FileDirectory";
-import { getLogsParameters, TablesArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogProps, LogsResponseProps, GroupedLogProps } from "@/types/evals/logs";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -76,7 +76,7 @@ const LogsTable = ({
   projects: string[] | undefined;
   project: string | undefined;
   logs: LogProps[] | GroupedLogProps[];
-  tableArguments: TablesArguments;
+  tableArguments: TableArguments;
   fields: LogFieldsResponseProps;
   entriesProperties: string[];
   paramsProperties: string[];

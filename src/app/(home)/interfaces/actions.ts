@@ -1,7 +1,7 @@
 "use server";
 
 import { TileProps } from "@/types/evals/grid";
-import { LogFieldsProps, getLogsParameters } from "@/types/evals/logs";
+import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
 import { ResponseProps } from "@/types/common";
 import { TilePosition, TableTileData, PlotTileData, ViewTileData, EditorTileData } from "@/types/evals/grid";
@@ -92,7 +92,7 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, _timestamp: string | null) => {
         "use server";
 
         try {
@@ -109,6 +109,7 @@ export const getLogs = async (apiKey: string) => {
                         .join("")  // Concatenate each `group_by` separately
                     : "")
                 + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
+                + (from_ids ? `&from_ids=${encodeURIComponent(from_ids)}` : "")
                 + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
                 + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
@@ -124,6 +125,61 @@ export const getLogs = async (apiKey: string) => {
         } catch (e) {
             console.log(`Failed to get logs error: ${e}`)
             return {"params":{},"logs":[],"count":0, "groups": []}
+        }
+    };
+};
+
+// update log
+export const updateLogs = async (apiKey: string) => {
+    return async (
+        project: string,
+        context: string | null,
+        logs: number[],
+        entries: LogItemProps,
+        params:  LogItemProps,
+        overwrite: boolean = true
+    ): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs`,
+                {
+                    method: "PUT",
+                    headers: { 
+                        apiKey: apiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ logs, project, context, params, entries, overwrite })
+                }
+            );
+
+            let data;
+            try {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    console.error(`[actions.ts updateLog] Received non-JSON response with status ${response.status}`);
+                    return { detail: "Received an invalid response from the server." };
+                }
+            } catch (parseError) {
+                console.error(`[actions.ts updateLog] Failed to parse JSON response ${parseError}`);
+                return { detail: "Received an invalid response from the server." };
+            }
+
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to update logs ${logs}: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+
+            const successMessage = data.info || `Tasks ${logs} successfully updated.`;
+            return { info: successMessage }
+
+        } catch (error) {
+            console.error(`[actions.ts updateLog] Error updating log ${logs}:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
         }
     };
 };
@@ -178,7 +234,7 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null) => {
         "use server";
 
         const response = await fetch(
@@ -194,6 +250,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
                     .join("")  // Concatenate each `group_by` separately
                 : "")
             + (groupSortingExpression ? `&group_sorting=${encodeURIComponent(groupSortingExpression)}` : "")
+            + (from_ids ? `&from_ids=${encodeURIComponent(from_ids)}` : "")
             + (from_fields ? `&from_fields=${encodeURIComponent(from_fields)}` : "")
             + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
             + (limit ? `&limit=${limit}` : "")

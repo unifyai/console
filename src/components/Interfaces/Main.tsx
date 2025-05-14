@@ -1,4 +1,4 @@
-import { PlotsArguments, TablesArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
+import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
 import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions, TileProps, GranularInterfaceActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
@@ -161,8 +161,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     )
 
     // Aggregate table arguments and init plot arguments
-    let tableArguments: TablesArguments = tableTiles.map((tile, idx) => {
-        let tableArguments_: TablesArguments = { [tile.name]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
+    let tableArguments: TableArguments = tableTiles.map((tile, idx) => {
+        let tableArguments_: TableArguments = { [tile.name]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const sortingExpression = sortingExpressions[idx];
         const groupingExpression = groupingExpressions[idx];
         const groupSortingExpression = groupSortingExpressions[idx];
@@ -176,7 +176,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         if (tile.column_context) tableArguments_[tile.name].getLogs_parameters["column_context"] = tile.column_context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
-    const plotArguments: PlotsArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, { ...args.getLogs_parameters }]));
+    const plotArguments: PlotArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, { ...args.getLogs_parameters }]));
 
     // Get logs with pagination, and plot logs subset for all tables
     let allLogsData: LogsResponseProps[] = Array(tableTiles.length).fill({ params: {}, logs: [], count: 0, groups: [] });

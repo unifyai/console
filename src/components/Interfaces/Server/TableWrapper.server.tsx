@@ -16,7 +16,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogsResponseProps, TablesArguments } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
 
 type TableWrapperActions = {
   tileActions: GranularTileActions;
@@ -66,7 +66,7 @@ export default async function TableWrapper({
   );
 
   // Get pre-built tableArguments from cache instead of building them here
-  const tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
+  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
   
   // // If no arguments found for this tile, log a warning but proceed with empty arguments
   // if (!tableArguments[tileName]) {

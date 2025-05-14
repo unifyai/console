@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { getLogsParameters, TablesArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
+import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import { DropdownMenuItem, DropdownMenuLabel } from "@/components/UI/dropdown-menu";
 import { LoaderCircle, Info, Plus } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -35,7 +35,7 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     context: string | undefined,
     columnContext: string | undefined,
     currentTable: string,
-    tableArguments: TablesArguments,
+    tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
     create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
@@ -51,7 +51,7 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     const options = Object
         .entries(tableArguments)
             .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TablesArguments].available_fields)                   // Add all columns of current table
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -120,7 +120,7 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     const onSubmit = () => {
 
         /* Build referenced arguments object */
-        let referencedTables : (keyof TablesArguments)[] = tables.filter(table => equation.includes(table))
+        let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
         const referencedArguments = Object.fromEntries(
             Object.entries(tableArguments)

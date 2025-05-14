@@ -21,7 +21,7 @@ import type {
   TabData,
   TileData
 } from "@/types/evals/grid";
-import { TablesArguments, PlotsArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
 type TabWrapperActions = {
   tabActions: GranularTabActions;
@@ -134,8 +134,8 @@ export default async function TabWrapper({
   }
   
   // Get existing arguments from cache
-  let tableArguments = qc.getQueryData<TablesArguments>(["tableArguments", tabId]) || {};
-  let plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
+  let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+  let plotArguments = qc.getQueryData<PlotArguments>(["plotArguments", tabId]) || {};
   
   // Build arguments for all tiles
   if (tableTiles.length > 0 || plotTiles.length > 0) {

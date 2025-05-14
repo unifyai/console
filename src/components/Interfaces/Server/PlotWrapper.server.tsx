@@ -14,7 +14,7 @@ import type {
   TileData,
   GranularTileActions,
 } from "@/types/evals/grid";
-import { PlotsArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
+import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 
 type PlotWrapperActions = {
   tileActions: GranularTileActions;
@@ -52,7 +52,7 @@ export default async function PlotWrapper({
   const tableTiles = allTiles.filter(t => t.type === "Table");
 
   // Get pre-built plotArguments from cache - all processing is done in TabWrapper
-  const plotArguments = qc.getQueryData<PlotsArguments>(["plotArguments", tabId]) || {};
+  const plotArguments = qc.getQueryData<PlotArguments>(["plotArguments", tabId]) || {};
     
   // Identify which tables are used in this plot by name
   const usedTableNames: string[] = [];

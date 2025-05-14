@@ -11,7 +11,7 @@ import PlotSettings from "./Sidebar";
 import { drawPlot } from "@/utils/evals/plots/main";
 import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Query/usePlotDataQuery";
 import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
-import { PlotsArguments } from "@/types/evals/logs";
+import { PlotArguments } from "@/types/evals/logs";
 
 const LogsPlot = ({ 
     tileId,
@@ -81,7 +81,7 @@ const LogsPlot = ({
 
     let metric = item?.metric ? item?.metric : "mean";
     let aggregateProperty = item?.plot_aggregate;
-    const groupings = Object.fromEntries(Object.entries(args as PlotsArguments).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
+    const groupings = Object.fromEntries(Object.entries(args as PlotArguments).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
     
     let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
     let [binCounts, setBinCounts] = useState([1, 100])
@@ -243,7 +243,7 @@ return (
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
-            args={args as PlotsArguments}
+            args={args as PlotArguments}
             setPlotDataItem={setPlotDataItem}
             logsActions={logsActions}
             fieldsActions={fieldsActions}

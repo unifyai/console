@@ -12,6 +12,7 @@ import {
   GalleryHorizontalEnd,
   LayoutGrid,
   Settings2,
+  Phone,
 } from "lucide-react";
 import { Endpoint } from "@/types/chat/endpoints";
 import {
@@ -267,6 +268,7 @@ const Messaging = ({
       sendMessage();
     }
   };
+  
 
   // Function to check if an endpoint is pinned
   const isEndpointPinned = (endpoint: Endpoint) => {

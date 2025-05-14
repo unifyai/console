@@ -1,7 +1,7 @@
 import React from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import LogsTable from "./Table/Table";
-import { getLogsParameters, TablesArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { getLogsParameters, TableArguments, LogFieldsProps, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedLogProps } from "@/types/evals/logs";
 import { extractLogsData } from "@/utils/evals/common";
 import Details from "./Details/Details";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -84,14 +84,14 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		Object
 			.entries(fields)
 			.filter(([name, { data_type, field_type }]) => context ? name.startsWith(context) : name)
-			.map(([name, { data_type, field_type, artifacts }]) => {
+			.map(([name, { data_type, field_type, artifacts, created_at, mutable }]) => {
 				const newName = context ? processContext("split", context, name) : name;
-				return [newName, { data_type, field_type, artifacts }];
+				return [newName, { data_type, field_type, artifacts, created_at, mutable }];
 			})
 	);
 	if (project) {
 
-		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, null, limit, offset, groupingExpression ? 0 : null, "False", _timestamp)
+		logsData = await logsActions.get(project, context ?? null, null, filterExpression, sortingExpression, groupingExpression, null, null, null, null, limit, offset, groupingExpression ? 0 : null, "False", _timestamp)
 		totalPages = Math.ceil(logsData.count / limit);
 
 		const xAxis = context ? processContext("merge", context, searchParams.x_axis)  : searchParams.x_axis
@@ -100,12 +100,12 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 		if (xAxis) {
 			let subset = xAxis
 			if (searchParams.plot_type === "Bar Chart") 
-				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, null, _timestamp)
+				plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, null, subset, null, null, 0, null, null, _timestamp)
 			else {
 				if (yAxis)
 					subset += `%26${yAxis}`
 					if (group) subset += `%26${group}`
-					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, subset, null, null, 0, null, null, _timestamp)
+					plotData = await logsActions.get(project, context ?? null, null, filterExpression, null, null, null, null, subset, null, null, 0, null, null, _timestamp)
 			}
 		}
 	}
@@ -114,7 +114,7 @@ const Main = async ({ searchParams, projectsActions, logsActions, fieldsActions,
 	
 	
 	/* Aggregate table arguments */
-	let tableArguments : TablesArguments = { 
+	let tableArguments : TableArguments = { 
 		"table": {
 			getLogs_parameters: {filter_expr: ""}, 
 			available_fields: Object.fromEntries(

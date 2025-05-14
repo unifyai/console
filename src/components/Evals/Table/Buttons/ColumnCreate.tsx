@@ -3,7 +3,7 @@
 import { KeyboardEventHandler, useState, useEffect } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { GroupedLogProps, LogProps, TablesArguments, getLogsParameters } from "@/types/evals/logs"
+import { GroupedLogProps, LogProps, TableArguments, getLogsParameters } from "@/types/evals/logs"
 import BaseButton from "@/components/Common/Buttons/Base";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
@@ -15,8 +15,8 @@ const ColumnCreate = ({ project, context, logs, currentTable, tableArguments, de
     project: string,
     context: string | undefined,
     logs: LogProps[] | GroupedLogProps[],
-    currentTable: keyof TablesArguments,
-    tableArguments: TablesArguments,
+    currentTable: keyof TableArguments,
+    tableArguments: TableArguments,
     derive: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     _setTimestamp: (_timestamp: string) => void
 }) => {
@@ -25,7 +25,7 @@ const ColumnCreate = ({ project, context, logs, currentTable, tableArguments, de
     const options = Object
         .entries(tableArguments)
             .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TablesArguments].available_fields)                   // Add all columns of current table
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -67,7 +67,7 @@ const ColumnCreate = ({ project, context, logs, currentTable, tableArguments, de
 
     // Handle submission    
     const onSubmit = () => {
-        let referencedTables : (keyof TablesArguments)[] = tables.filter(table => equation.includes(table))
+        let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
         const referencedArguments = Object.fromEntries(
             Object.entries(tableArguments)
