@@ -26,7 +26,6 @@ const ColumnUpdate = ({
     logs,
     update,
     setPending,
-    refresh,
     open,
     setOpen,
     updateLoading,
@@ -42,7 +41,6 @@ const ColumnUpdate = ({
     logs: LogProps[] | GroupedLogProps[]
     update: DerivedEntryActions["update"],
     setPending: (pending: boolean) => void,
-    refresh: () => Promise<ResponseProps>,
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     updateLoading: boolean,
@@ -100,10 +98,8 @@ const ColumnUpdate = ({
                 setOpen(false);
                 
                 // Refresh page
-                refresh().then(() => {
-                    router.refresh();
-                    setPending(true);
-                });
+                router.refresh();
+                setPending(true);
                 
                 return;
             } 

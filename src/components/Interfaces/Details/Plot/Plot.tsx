@@ -69,6 +69,8 @@ const LogsPlot = ({
         updatePlotDataItemWithUpdater
     } = usePlotDataQueryWithTracking(tileId);
 
+    console.log("[Plot] plotDataItem:", plotDataItem);
+
     const { data: args } = usePlotArgumentsQuery(tabId);
 
     // Init logs and handle local updates

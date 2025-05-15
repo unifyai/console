@@ -11,22 +11,24 @@ import { EditorTile } from '../../slices/selectors/editorTile';
  * Interface for tile data-related actions
  */
 export interface TileDataActions {
-   setContext: (context?: string) => void;
-   setTable: (table?: string) => void;
-   setAutoUpdate: (autoUpdate?: string) => void;
-   setFreeze: (freeze?: string) => void;
-   setFilters: (filters?: string) => void;
-   setCommonFilter: (commonFilter?: string) => void;
-   setMetric: (metric: string | undefined) => void;
-   setColumnContext: (columnContext?: string) => void;
-   setGrouping: (grouping?: string) => void;
-   
-   // Type-specific updates
-   updateTableTile: (updates: Partial<TableTile>) => void;
-   updatePlotTile: (updates: Partial<PlotTile>) => void;
-   updateViewTile: (updates: Partial<ViewTile>) => void;
-   updateEditorTile: (updates: Partial<EditorTile>) => void;
-  }
+  setContext: (context?: string) => void;
+  setTable: (table?: string) => void;
+  setAutoUpdate: (autoUpdate?: string) => void;
+  setFreeze: (freeze?: string) => void;
+  setFilters: (filters?: string) => void;
+  setCommonFilter: (commonFilter?: string) => void;
+  setMetric: (metric: string | undefined) => void;
+  setColumnContext: (columnContext?: string) => void;
+  // Combined method to update both context and column_context at once
+  setContextAndColumnContext: (context?: string, columnContext?: string) => void;
+  setGrouping: (grouping?: string) => void;
+  
+  // Type-specific updates
+  updateTableTile: (updates: Partial<TableTile>) => void;
+  updatePlotTile: (updates: Partial<PlotTile>) => void;
+  updateViewTile: (updates: Partial<ViewTile>) => void;
+  updateEditorTile: (updates: Partial<EditorTile>) => void;
+}
 
 /**
  * Custom hook to access tile data and related actions
@@ -200,6 +202,12 @@ export function useTileData(
     updateEditorTile: (updates) => {
       if (tileId) {
         storeUpdateEditorTile(tileId, updates);
+      }
+    },
+
+    setContextAndColumnContext: (context, columnContext) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { context, column_context: columnContext });
       }
     },
   }), [

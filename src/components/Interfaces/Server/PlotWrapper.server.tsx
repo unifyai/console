@@ -35,6 +35,7 @@ export default async function PlotWrapper({
   projectId: string;
   actions: PlotWrapperActions;
 }) {
+  console.log("PlotWrapper rendering...");
   const qc = getQueryClient();
   const tileId = tile.id || "";
 
@@ -81,16 +82,42 @@ export default async function PlotWrapper({
     }
   }
 
+  console.log("[PlotWrapper] usedTableNames:", usedTableNames);
+
+  // Get fields
+  const fields: LogFieldsResponseProps[] = await Promise.all(
+    tableTiles.map(tile => actions.fieldsActions.get(projectId, tile.context ?? null)
+  ));
+
   // Create plotFields object
-  const plotFields: {[name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string, mutable: "true" | "false", created_at: string}} = {};
+  const plotFields: LogFieldsResponseProps = tableTiles.map((tile, idx) => {
+    const columnContext = tile.column_context;
+    return Object.fromEntries(
+        Object
+            .entries(fields[idx])
+            .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
+            .map(([name, { data_type, field_type, artifacts, mutable, created_at }]) => {
+                const newName = columnContext ? processContext("split", columnContext, name) : name
+                return [`${tile.name}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
+            })
+    )
+  }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
+  console.log("[PlotWrapper] plotFields:", plotFields);
   
   // fetch plot data for each table using the already built plotArguments
   const plotData_ = await Promise.all(usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
     const tableTile = tableTiles.find(t => t.name === tableName);
+
+    // Also find the index of the table tile
+    const tableTileIndex = tableTiles.findIndex(t => t.name === tableName);
     
     // Skip if table not found or no plot arguments
     if (!tableTile || !plotArguments[tableName]) {
+      console.log("[PlotWrapper] tableName:", tableName);
+      console.log("[PlotWrapper] tableTile:", tableTile);
+      console.log("[PlotWrapper] plotArguments:", plotArguments);
       return { [tableName]: { plotLogs: [], plotFields: {} } };
     }
     
@@ -101,18 +128,16 @@ export default async function PlotWrapper({
     const subset = plotArguments[tableName].subset;
     const metric = plotArguments[tableName].metric;
     const grouping = plotArguments[tableName].grouping;
-    
+
+    console.log("[PlotWrapper] context:", context);
+    console.log("[PlotWrapper] columnContext:", columnContext);
+    console.log("[PlotWrapper] filterExpression:", filterExpression);
+    console.log("[PlotWrapper] subset:", subset);
+    console.log("[PlotWrapper] metric:", metric);
+    console.log("[PlotWrapper] grouping:", grouping);
+
     // Get fields for this table context
-    const tableFieldsData = await actions.fieldsActions.get(projectId, context ?? null);
-    const tableFields = tableFieldsData.docs || {};
-    
-    // Get table fields for plotFields
-    Object.entries(tableFields).forEach(([fieldName, fieldProps]) => {
-      const newFieldName = columnContext 
-        ? processContext("split", columnContext, fieldName) 
-        : fieldName;
-      plotFields[`${tableName}.${newFieldName}`] = fieldProps as any;
-    });
+    const tableFields = fields[tableTileIndex];
     
     // Get plot data
     let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
@@ -132,12 +157,14 @@ export default async function PlotWrapper({
         metric ? metric : "mean",
         subset ? subset.split("&") : []
       );
+      console.log("[PlotWrapper] metrics:", metrics);
       data.logs = convertMetricsToLogs(
         groupFields, 
         metric ? metric : "mean", 
-        tableFields as any, 
+        tableFields, 
         metrics as GroupedMetrics
       );
+      console.log("[PlotWrapper] data.logs:", data.logs);
     }
     else if (subset) {
       const rawData = await actions.logsActions.get(
@@ -150,7 +177,9 @@ export default async function PlotWrapper({
         null, null, null, null, null, 
         Date.now().toString()
       );
+      console.log("[PlotWrapper] rawData:", rawData);
       data = replaceParamsIndicesWithValues(rawData);
+      console.log("[PlotWrapper] data:", data);
     }
     
     // Return data for this table
@@ -164,6 +193,8 @@ export default async function PlotWrapper({
   
   // Reduce to a single object
   const plotDataByTable = plotData_.reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
+  console.log("[PlotWrapper] plotDataByTable:", plotDataByTable);
   
   // Process plot data
   let plotDataItem: PlotDataItem;
@@ -195,6 +226,8 @@ export default async function PlotWrapper({
       plotFields: plotFields
     };
   }
+
+  console.log("[PlotWrapper] plotDataItem:", plotDataItem);
 
   // Prefetch the plot data item
   await qc.prefetchQuery({

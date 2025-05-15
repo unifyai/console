@@ -86,6 +86,11 @@ export function usePlotTileSync(
   // Helper function to create wrapped setters
   const wrapPlotType = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setPlotType(value);
@@ -103,13 +108,19 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapPlotType] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapXAxis = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setXAxis(value);
@@ -127,13 +138,19 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapXAxis] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapYAxis = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setYAxis(value);
@@ -151,13 +168,19 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapYAxis] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapPlotGroupBy = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setPlotGroupBy(value);
@@ -175,13 +198,19 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapPlotGroupBy] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapPlotGroupByColors = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setPlotGroupByColors(value);
@@ -199,13 +228,19 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapPlotGroupByColors] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapAggregateProperty = (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     plotTileActions.setAggregateProperty(value);
@@ -223,7 +258,8 @@ export function usePlotTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapAggregateProperty] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };

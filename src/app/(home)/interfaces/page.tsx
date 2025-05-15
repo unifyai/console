@@ -213,27 +213,25 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     return (
         <div className="w-full h-full">
-            <Suspense fallback={<SkeletonLoader />}>
-                <InterfaceWrapper
-                    project={searchParams?.project ?? null}
-                    interface_={searchParams?.interface ?? null}
-                    tab={searchParams?.tab}
-                    actions={
-                        {
-                            projectsActions,
-                            logsActions,
-                            derivedEntryActions,
-                            contextActions,
-                            fieldsActions,
-                            codeActions,
-                            devboxActions,
-                            interfaceActions,
-                            tabActions,
-                            tileActions
-                        }
+            <InterfaceWrapper
+                project={searchParams?.project ?? null}
+                interface_={searchParams?.interface ?? null}
+                tab={searchParams?.tab}
+                actions={
+                    {
+                        projectsActions,
+                        logsActions,
+                        derivedEntryActions,
+                        contextActions,
+                        fieldsActions,
+                        codeActions,
+                        devboxActions,
+                        interfaceActions,
+                        tabActions,
+                        tileActions
                     }
-                />
-            </Suspense>
+                }
+            />
         </div>
     );
 };

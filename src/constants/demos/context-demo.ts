@@ -26,9 +26,9 @@ export default {
                 height: 8.0
             },
             context: "Sciences/Maths",
+            column_context: "",
             table_tile: {
                 table_type: "Data Table",
-                column_context: ""
             }
         },
         {
@@ -41,9 +41,9 @@ export default {
                 height: 8.0
             },
             context: "Sciences/Physics",
+            column_context: "",
             table_tile: {
                 table_type: "Data Table",
-                column_context: ""
             }
         },
         {
@@ -56,9 +56,9 @@ export default {
                 height: 8.0
             },
             context: "Arts/Literature",
+            column_context: "",
             table_tile: {
                 table_type: "Data Table",
-                column_context: ""
             }
         }
     ],

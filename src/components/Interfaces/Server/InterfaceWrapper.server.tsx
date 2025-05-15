@@ -6,6 +6,7 @@ import Interface from "../Interface";
 import TabWrapper from "./TabWrapper.server";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
 import { buildInterfaceStateForStore, buildProjectStateForStore, buildTabStateForStore } from "@/contexts/utils/stateBuilderUtils";
+import { getRedirectUrl } from "@/utils/redirects/getRedirectUrl";
 
 import type {
   ProjectsActions,
@@ -48,6 +49,8 @@ export default async function InterfaceWrapper({
   tab?: string;  // This is the tab name from query param
   actions: InterfaceWrapperActions;
 }) {
+
+  console.log("InterfaceWrapper rendering...");
   const qc = getQueryClient();
 
   /* Lightweight prefetch for projects and contexts */
@@ -113,19 +116,47 @@ export default async function InterfaceWrapper({
     currentInterface = interfaces[0];
   }
 
-  // Redirect if we have a project and interfaces but no interface in the URL
-  if (!interface_ && currentProject && currentInterface && currentInterface.name) {
-    redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&interface=${encodeURIComponent(currentInterface.name)}`);
-  }
-
   // Extract key interface properties needed for rendering
   let interfaceName = ""; // The name to use in query params
   let interfaceId = ""; // The UUID to use for API calls
+  let tabs: TabData[] = [];
 
   if (currentInterface) {
     interfaceName = currentInterface.name;
     interfaceId = currentInterface.id || "";
+
+    // Only fetch tabs if we have a valid interfaceId
+    if (interfaceId) {
+      // Prefetch tabs using the query client - use interfaceId for API calls
+      await qc.prefetchQuery({
+        queryKey: ["tabs", interfaceId],
+        queryFn: () => actions.tabActions.list(interfaceId, false)
+      });
+      
+      // Get tabs from cache
+      tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
+    }
   }
+
+  // Check if we need to redirect - the utility will create interface/tab if needed
+  // and return a URL that includes both interface and tab parameters when appropriate
+  const redirectUrl = await getRedirectUrl({
+    project,
+    interface_,
+    tab,
+    interfaces,
+    currentInterface,
+    tabs,
+    interfaceActions: actions.interfaceActions,
+    tabActions: actions.tabActions
+  });
+
+  if (redirectUrl) {
+    console.log("Redirecting to:", redirectUrl);
+    redirect(redirectUrl);
+  }
+
+  // If we reach here, no redirect is needed - continue with normal rendering
 
   // Build project state
   let projectState = {};
@@ -148,18 +179,8 @@ export default async function InterfaceWrapper({
   // Build interface state
   let interfaceState = {};
   if (currentInterface) {
-
-    // Prefetch tabs using the query client - use interfaceId for API calls
-    await qc.prefetchQuery({
-      queryKey: ["tabs", currentInterface.id],
-      queryFn: () => actions.tabActions.list(currentInterface.id!, false)
-    });
-
-    // Fetch the tabs and set them
-    const tabs = qc.getQueryData<TabData[]>(["tabs", currentInterface.id]) || [];
-
     // Extract the active tab id if available otherwise use the tab which matches with the tab prop
-    const activeTabId = tabs.find(tab_ => tab_.name === tab)?.id || currentInterface.active_tab_id ||undefined;
+    const activeTabId = tabs.find(tab_ => tab_.name === tab)?.id || currentInterface.active_tab_id || undefined;
 
     if (activeTabId && currentInterface.active_tab_id !== activeTabId) {
       // Update the active tab id
@@ -203,13 +224,18 @@ export default async function InterfaceWrapper({
           codeActions={actions.codeActions}
         >
           {currentInterface && (
-            <Suspense fallback={<SkeletonLoader />}>
+            // <Suspense fallback={
+            //   <div className="w-full h-full flex items-center justify-center">
+            //       <SkeletonLoader />
+            //   </div>
+            // }>
               <TabWrapper
                 project={currentProject}
                 interfaceId={interfaceId}
                 interfaceName={interfaceName}
                 tab={tab}
                 actions={{
+                  interfaceActions: actions.interfaceActions,
                   tabActions: actions.tabActions,
                   tileActions: actions.tileActions,
                   logsActions: actions.logsActions,
@@ -219,7 +245,7 @@ export default async function InterfaceWrapper({
                   codeActions: actions.codeActions
                 }}
               />
-            </Suspense>
+            // </Suspense>
           )}
         </Interface>
       </HydrationBoundary>

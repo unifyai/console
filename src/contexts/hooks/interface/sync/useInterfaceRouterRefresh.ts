@@ -1,3 +1,5 @@
+"use client";
+
 import { useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { InterfaceUIActions } from "../useInterfaceUI";
@@ -6,9 +8,9 @@ import { InterfaceUIActions } from "../useInterfaceUI";
  * Parameters for the router refresh function
  */
 export interface RouterRefreshParams {
-  /** setPending(true/false) around the transition */
-  withPending?: boolean;
-  /** List of external pending setters to call before and after the transition */
+  /** Clear pending state after the transition */
+  clearPending?: boolean;
+  /** List of external pending setters to clear after the transition */
   externalPendingSetters?: Array<(pending: boolean) => void>;
 }
 
@@ -18,13 +20,15 @@ export interface RouterRefreshParams {
  * during a server refresh operation.
  * 
  * Every call will:
- *   1. turn the requested UI flags and external pending states **on**
- *   2. perform `router.refresh()` inside a React transition
- *   3. turn the flags and external pending states **off** when the transition settles
+ *   1. Perform `router.refresh()` inside a React transition
+ *   2. Clear the requested UI flags and external pending states when the transition settles
  * 
  * The hook internally reference-counts concurrent refreshes, so if
  * multiple refreshes run in parallel, flags are cleared
  * only after the very last one completes.
+ * 
+ * NOTE: UI states are now set BEFORE server mutations in the wrapper 
+ * functions, rather than as part of the router refresh.
  * 
  * @param uiActions - The UI actions for the interface
  * @returns A function to trigger router refresh with pending state coordination
@@ -38,21 +42,9 @@ export function useInterfaceRouterRefresh(uiActions: InterfaceUIActions | null) 
   
   const refresh = useCallback(async (params?: RouterRefreshParams) => {
     const { 
-      withPending = true, 
+      clearPending = true, 
       externalPendingSetters = [] 
     } = params || {};
-    
-    // Set UI pending states if UI actions are available and requested
-    if (withPending && uiActions) {
-      uiActions.setPending(true);
-    }
-
-    // Always set external pending states if provided
-    if (externalPendingSetters && externalPendingSetters.length > 0) {
-      for (const setter of externalPendingSetters) {
-        setter(true);
-      }
-    }
     
     // Increment the counter before starting the transition
     counter.current += 1;
@@ -72,7 +64,7 @@ export function useInterfaceRouterRefresh(uiActions: InterfaceUIActions | null) 
           // Add a small delay to ensure a smoother UX
           setTimeout(() => {
             // Reset UI pending state if it was set
-            if (withPending && uiActions) {
+            if (clearPending && uiActions) {
               uiActions.setPending(false);
             }
 

@@ -6,11 +6,10 @@ import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
-import { FileProps, ResponseProps } from "@/types/common";
+import { ResponseProps } from "@/types/common";
 import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { useEffect, useState } from "react";
-import { useInterface } from "@/contexts/hooks/interface";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
 import AutoComplete from "../Common/Misc/AutoComplete";
@@ -157,6 +156,7 @@ const ProjectButtons = ({
                                 return await deleteProjectCommand(project);
                             }}
                             variant="ghost"
+                            text="Delete Project"
                             onDelete={() => {}}
                             customOpen={deleteProjectOpen}
                             setCustomOpen={setDeleteProjectOpen}

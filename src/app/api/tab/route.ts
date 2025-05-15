@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     const body = await request.json();
     // For POST, we always create a new resource, so the endpoint is fixed
-    console.log("POST request body:", body);
     return await fetch(
         `${baseUrl}/tab/`,
         {

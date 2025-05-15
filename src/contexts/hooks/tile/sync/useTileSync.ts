@@ -101,6 +101,7 @@ export function useTileSync(
   const filtersMutation = usePatchTileQuery();
   const contextMutation = usePatchTileQuery();
   const columnContextMutation = usePatchTileQuery();
+  const contextAndColumnContextMutation = usePatchTileQuery();
   const commonFilterMutation = usePatchTileQuery();
   const groupingMutation = usePatchTileQuery();
   const metricMutation = usePatchTileQuery();
@@ -123,6 +124,7 @@ export function useTileSync(
     filters: filtersMutation,
     context: contextMutation,
     column_context: columnContextMutation,
+    context_and_column_context: contextAndColumnContextMutation,
     common_filter: commonFilterMutation,
     grouping: groupingMutation,
     metric: metricMutation,
@@ -142,6 +144,12 @@ export function useTileSync(
   const wrapType = (type?: string) => {
     if (!metaActions || !tileName || !tabId || !granularTileActions) return;
     
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
+    
     // 1) Update local state immediately
     metaActions.setType(type);
 
@@ -153,8 +161,9 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
+        // 3. Refresh the router without setting states again
+        console.log("[wrapType] onSettled:", type);
+        refreshRouter( {clearLoading: true, clearPending: true} );
       }
     });
   };
@@ -174,6 +183,7 @@ export function useTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router
+        console.log("[wrapTable] onSettled:", table);
         refreshRouter();
       }
     });
@@ -181,6 +191,11 @@ export function useTileSync(
 
   const wrapFilters = (filters?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set loading state immediately
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setFilters(filters);
@@ -193,14 +208,21 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        // 3. Refresh the router
+        console.log("[wrapFilters] onSettled:", filters);
+        refreshRouter( {clearLoading: true} );
       }
     });
   };
 
   const wrapContext = (context?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setContext(context);
@@ -213,14 +235,21 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
+        // 3. Refresh the router - UI states already set
+        console.log("[wrapContext] onSettled:", context);
+        refreshRouter( { clearLoading: true, clearPending: true } );
       }
     });
   };
 
   const wrapColumnContext = (columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setColumnContext(columnContext);
@@ -233,14 +262,58 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
+        // 3. Refresh the router - UI states already set
+        console.log("[wrapColumnContext] onSettled:", columnContext);
+        refreshRouter( { clearLoading: true, clearPending: true } );
+      }
+    });
+  };
+
+  /**
+   * Efficiently updates both context and column_context together in a single operation
+   * to minimize UI flickering and reduce the number of router refreshes.
+   */
+  const wrapContextAndColumnContext = (context?: string, columnContext?: string) => {
+    if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
+    
+    // 1) Update both local states immediately
+    dataActions.setContext(context);
+    dataActions.setColumnContext(columnContext);
+    
+    // Create update object with both properties
+    const updateData: Partial<TileData> = {
+      context: context ?? null,
+      column_context: columnContext ?? null
+    } as Partial<TileData>;
+    
+    // 2) Single optimistic server update with both changes
+    contextAndColumnContextMutation.mutate({
+      tab_id: tabId,
+      name: tileName,
+      updateData,
+      actions: granularTileActions
+    }, {
+      onSettled: () => {
+        // 3. Single router refresh for both changes
+        console.log("[wrapContextAndColumnContext] onSettled:", context, columnContext);
+        refreshRouter( { clearLoading: true, clearPending: true } );
       }
     });
   };
 
   const wrapCommonFilter = (commonFilter?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set loading state immediately
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setCommonFilter(commonFilter);
@@ -253,14 +326,20 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        // 3. Refresh the router
+        console.log("[wrapCommonFilter] onSettled:", commonFilter);
+        refreshRouter( { clearLoading: true } );
       }
     });
   };
 
   const wrapGrouping = (grouping?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set loading state immediately
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setGrouping(grouping);
@@ -273,14 +352,20 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        // 3. Refresh the router
+        console.log("[wrapGrouping] onSettled:", grouping);
+        refreshRouter( { clearLoading: true } );
       }
     });
   };
 
   const wrapMetric = (metric?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set loading state immediately
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setMetric(metric);
@@ -293,14 +378,20 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        // 3. Refresh the router
+        console.log("[wrapMetric] onSettled:", metric);
+        refreshRouter( { clearLoading: true } );
       }
     });
   };
 
   const wrapFreeze = (freeze?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set loading state immediately
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     dataActions.setFreeze(freeze);
@@ -313,8 +404,9 @@ export function useTileSync(
       actions: granularTileActions
     }, {
       onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        // 3. Refresh the router
+        console.log("[wrapFreeze] onSettled:", freeze);
+        refreshRouter( { clearLoading: true } );
       }
     });
   };
@@ -334,6 +426,7 @@ export function useTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router
+        console.log("[wrapAutoUpdate] onSettled:", autoUpdate);
         refreshRouter();
       }
     });
@@ -397,6 +490,7 @@ export function useTileSync(
       setFilters: wrapFilters, 
       setContext: wrapContext,
       setColumnContext: wrapColumnContext,
+      setContextAndColumnContext: wrapContextAndColumnContext,
       setCommonFilter: wrapCommonFilter,
       setGrouping: wrapGrouping,
       setMetric: wrapMetric,

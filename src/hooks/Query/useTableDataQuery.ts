@@ -42,7 +42,13 @@ export function useTableDataQuery(
     placeholderData: EMPTY_TABLEDATAITEM,
     // The data is prefetched by the server component
     // so we don't need to provide a queryFn
-    staleTime: 30000, // 30 seconds before considering data stale
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!(tileId),
   });
 }
@@ -69,7 +75,13 @@ export function useTableDataQueryWithTracking(
   } = useQuery<TableDataItem>({
     queryKey: ["tableDataItem", tileId],
     placeholderData: EMPTY_TABLEDATAITEM,
-    staleTime: 30000,
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!(tileId),
   });
 
@@ -88,6 +100,7 @@ export function useTableDataQueryWithTracking(
   const updateWithTracking = useCallback((newData: Partial<TableDataItem>) => {
     // Update our local reference first
     tableDataItemRef.current = { ...tableDataItemRef.current, ...newData };
+    console.log("[updateWithTracking] Updating with tracking...");
     // Then call the actual mutation
     updateTableData(newData);
   }, [updateTableData]);
@@ -102,6 +115,8 @@ export function useTableDataQueryWithTracking(
     partialUpdates: Partial<TableDataItem>
   ) => {
     const result: any = { ...tableDataItemRef.current };
+
+    console.log("[mergeUpdatesIntoTableDataItem] partialUpdates:", partialUpdates);
     
     // Use the field-by-field merge approach from the original code
     Object.keys(partialUpdates).forEach(key => {
@@ -284,7 +299,7 @@ export function useUpdateTableDataItem(tileId: string) {
     mutationFn: async (newData) => {
       // In a real application, you would make an API call here
       // For now, we're just simulating a successful update
-      // console.log(`Updating table data for tile ${tileId}:`, newData);
+      console.log(`[updateTableDataItem] Updating table data for tile ${tileId}:`, newData);
       
       // Simulating API response
       return {
@@ -295,18 +310,19 @@ export function useUpdateTableDataItem(tileId: string) {
     
     // When mutate is called:
     onMutate: async (newData) => {
+      console.log(`[updateTableDataItem] onMutate:`, newData);
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["tableDataItem", tileId] });
       
       // Snapshot the previous value
       const previousData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
-      
+      console.log(`[updateTableDataItem] previousData:`, previousData);
       // Optimistically update to the new value
       queryClient.setQueryData<TableDataItem>(["tableDataItem", tileId], (old) => ({
         ...(old || {}),
         ...newData
       } as TableDataItem));
-      
+      console.log(`[updateTableDataItem] newData:`, newData);
       // Return a context object with the snapshotted value
       return { previousData };
     },
@@ -319,7 +335,8 @@ export function useUpdateTableDataItem(tileId: string) {
     
     // Always refetch after error or success to ensure cache is correct
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId] });
+      console.log(`[updateTableDataItem] onSettled:`, tileId);
+      queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId], refetchType: 'none' });
     },
   });
 }

@@ -39,6 +39,7 @@ export default async function TableWrapper({
   projectId: string;
   actions: TableWrapperActions;
 }) {
+  console.log("TableWrapper rendering...");
   const qc = getQueryClient();
   const tileId = tile.id || "";
   const tileName = tile.name; // We'll use this as the key in tableArguments

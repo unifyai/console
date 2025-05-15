@@ -1,3 +1,5 @@
+"use client";
+
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
@@ -5,9 +7,7 @@ import { useMemo } from "react";
 import { Braces, CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals/common";
-import { useRouter } from "next/navigation";
 import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
-import { ResponseProps } from "@/types/common";
 import RenderMenuItems from "@/components/Common/Dropdowns/RenderMenuItems";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
@@ -41,8 +41,6 @@ const ContextContent = ({
     tabActions?: GranularTabActions,
     tileActions?: GranularTileActions,
 }) => {
-    const router = useRouter();
-
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(
         tabId || null, 
@@ -65,11 +63,8 @@ const ContextContent = ({
 
     const finalSetContext = (syncedTileDataActions && item != undefined) ? (ctx: string) => {
         if (ctx !== item.context) {
-            // Update the tile's column_context
-            syncedTileDataActions.setColumnContext("");
-
-            // Update the tile's context
-            syncedTileDataActions.setContext(ctx);
+            // Update the tile's context and column_context
+            syncedTileDataActions.setContextAndColumnContext(ctx, "");
         }
     } : setContext;
 

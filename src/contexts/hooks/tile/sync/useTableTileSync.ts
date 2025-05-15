@@ -100,6 +100,13 @@ export function useTableTileSync(
   // Individual wrapper functions for each property
   const wrapTableType = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
+
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
     
     // 1) Update local state immediately
     tableTileActions.setTableType(value);
@@ -117,19 +124,26 @@ export function useTableTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true, withPending: true });
+        console.log("[wrapTableType] onSettled:", value);
+        refreshRouter({ clearLoading: true, clearPending: true });
       }
     });
   };
 
   const wrapSorting = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     tableTileActions.setSorting(value);
     
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
+
 
     // 2) Optimistic server update
     sortingMutation.mutate({
@@ -141,13 +155,19 @@ export function useTableTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapSorting] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
 
   const wrapGroupSorting = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     tableTileActions.setGroupSorting(value);
@@ -165,7 +185,8 @@ export function useTableTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapGroupSorting] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
@@ -267,6 +288,11 @@ export function useTableTileSync(
 
   const wrapPageNumber = (value: string | undefined) => {   
     if (!tableTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     tableTileActions.setPageNumber(value);
@@ -284,7 +310,8 @@ export function useTableTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapPageNumber] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };
@@ -311,7 +338,8 @@ export function useTableTileSync(
     tabId,
     tileId,
     granularTileActions,
-    refreshRouter
+    refreshRouter,
+    uiActions
   ]);
 
   if (!tableTileActions || !granularTileActions) {

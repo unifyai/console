@@ -7,7 +7,6 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
 import { buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
-import { redirect } from "next/navigation";
 import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 
 import type {
@@ -19,11 +18,13 @@ import type {
   GranularTabActions,
   GranularTileActions,
   TabData,
-  TileData
+  TileData,
+  GranularInterfaceActions
 } from "@/types/evals/grid";
 import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
 type TabWrapperActions = {
+  interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   logsActions: LogsActions;
@@ -46,6 +47,7 @@ export default async function TabWrapper({
   tab?: string;           // Tab name from query params
   actions: TabWrapperActions;
 }) {
+  console.log("TabWrapper rendering...");
   const qc = getQueryClient();
 
   // Handle case where no project is selected yet
@@ -85,12 +87,6 @@ export default async function TabWrapper({
     activeTab = tabs[0];
   }
   
-  // Redirect if we have a valid interface but no tab in the URL
-  if (!tab && project && interfaceName && activeTab && activeTab.name) {
-    // Use interfaceName (not interfaceId) in query params 
-    redirect(`/interfaces?project=${encodeURIComponent(project)}&interface=${encodeURIComponent(interfaceName)}&tab=${encodeURIComponent(activeTab.name)}`);
-  }
-  
   // If no active tab could be found, show a message
   if (!activeTab) {
     return <div className="flex items-center justify-center h-full">No tabs found</div>;
@@ -113,25 +109,12 @@ export default async function TabWrapper({
   const tableTiles = tiles.filter(t => t.type === "Table");
   const plotTiles = tiles.filter(t => t.type === "Plot");
   
-  // Get unique contexts from table tiles
-  const uniqueContexts = new Set<string>();
-  tableTiles.forEach(tile => {
-    if (tile.context) uniqueContexts.add(tile.context);
-  });
-  
-  // Fetch fields for all unique contexts
-  const fieldsMap: Record<string, LogFieldsResponseProps> = {};
-  if (project) {
-    const fieldsPromises = Array.from(uniqueContexts).map(context => 
-      actions.fieldsActions.get(project, context || null)
-    );
-    const fieldsResults = await Promise.all(fieldsPromises);
-    
-    // Create a map of context to fields
-    Array.from(uniqueContexts).forEach((context, index) => {
-      fieldsMap[context] = fieldsResults[index];
-    });
-  }
+  // Get fields
+  const fields: LogFieldsResponseProps[] = await Promise.all(
+    tableTiles.map(tile => actions.fieldsActions.get(project as string, tile.context ?? null)
+  ));
+
+  console.log("[TabWrapper] fields:", fields);
   
   // Get existing arguments from cache
   let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
@@ -140,13 +123,17 @@ export default async function TabWrapper({
   // Build arguments for all tiles
   if (tableTiles.length > 0 || plotTiles.length > 0) {
     const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
-      await buildTabArguments(tiles, fieldsMap, tableArguments, plotArguments);
+      await buildTabArguments(tiles, fields, tableArguments, plotArguments);
+
+    console.log("[TabWrapper] newTableArguments:", newTableArguments);
+    console.log("[TabWrapper] newPlotArguments:", newPlotArguments);
     
     // Store the built arguments in the cache
     qc.setQueryData(["tableArguments", tabId], newTableArguments);
     qc.setQueryData(["plotArguments", tabId], newPlotArguments);
     
   } else {
+    console.log("[TabWrapper] no tiles, initializing empty arguments");
     // Initialize empty arguments if no tiles
     qc.setQueryData(["tableArguments", tabId], {});
     qc.setQueryData(["plotArguments", tabId], {});
@@ -189,32 +176,38 @@ export default async function TabWrapper({
       <StoreSliceUpdater slice={slice} />
       
       <HydrationBoundary state={dehydrate(qc)}>
-        <Tab
-          tabId={tabId}
-          interfaceId={interfaceId}
-          projectId={project}
-          tabActions={actions.tabActions}
-          tileActions={actions.tileActions}
-          logsActions={actions.logsActions}
-          fieldsActions={actions.fieldsActions}
-          derivedEntryActions={actions.derivedEntryActions}
-          contextActions={actions.contextActions}
-          codeActions={actions.codeActions}
-        >
-          {tiles.map(tile => (
-            <React.Fragment key={tile.id}>
-              <Suspense fallback={<SkeletonLoader />}>
-                <TileCardWrapper
-                  tile={tile}
-                  tabId={tabId}
-                  interfaceId={interfaceId}
-                  projectId={project}
-                  actions={actions}
-                />
-              </Suspense>
-            </React.Fragment>
-          ))}
-        </Tab>
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+              <SkeletonLoader />
+          </div>
+        }>
+          <Tab
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={project}
+            tabActions={actions.tabActions}
+            tileActions={actions.tileActions}
+            logsActions={actions.logsActions}
+            fieldsActions={actions.fieldsActions}
+            derivedEntryActions={actions.derivedEntryActions}
+            contextActions={actions.contextActions}
+            codeActions={actions.codeActions}
+          >
+            {tiles.map(tile => (
+              <React.Fragment key={tile.id}>
+                <Suspense fallback={<SkeletonLoader />}>
+                  <TileCardWrapper
+                    tile={tile}
+                    tabId={tabId}
+                    interfaceId={interfaceId}
+                    projectId={project}
+                    actions={actions}
+                  />
+                </Suspense>
+              </React.Fragment>
+            ))}
+          </Tab>
+        </Suspense>
       </HydrationBoundary>
     </>
   );

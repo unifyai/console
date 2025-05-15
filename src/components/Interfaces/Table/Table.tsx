@@ -53,9 +53,9 @@ import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
 import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 const LogsTable = ({
   tileId,
@@ -117,6 +117,19 @@ const LogsTable = ({
     boundaries
   } = tableDataItem;
 
+  useWhyDidYouUpdate("LogsTable", [
+    fields,
+    logs,
+    params,
+    entriesProperties,
+    paramsProperties,
+    metrics,
+    logsData,
+    totalPages,
+    boundaries,
+    tableDataItem,
+  ])
+
   const tileName = tileMetaState?.name || "";
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
@@ -136,15 +149,6 @@ const LogsTable = ({
   // Get the item representation for the current tile
   const { itemActions } = useTileItem(tileId, tabId);
   const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-
-  // Setup query client for mutations
-  const queryClient = getQueryClient();
-
-  // Function to refresh the data by invalidating the query
-  const refresh = useCallback((): Promise<ResponseProps> => {
-    queryClient.invalidateQueries({ queryKey: ['table-data', tileId] });
-    return Promise.resolve({ status: 'success', message: 'Data refreshed' });
-  }, [queryClient, tileId]);
 
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
@@ -581,6 +585,7 @@ const LogsTable = ({
             logsActions={logsActions}
             contextActions={contextActions}
             setPending={setPending}
+            tileActions={tileActions}
           />
           <GlobalFilter
             interactive={interactive}
@@ -756,7 +761,6 @@ const LogsTable = ({
                       columnContext={item?.column_context}
                       getLogFieldsIds={logsActions.get}
                       deleteLogFields={logsActions.delete}
-                      refresh={refresh}
                       setPending={setPending}
                     />
                   )}
@@ -770,7 +774,6 @@ const LogsTable = ({
                       logs={logs}
                       create={derivedEntryActions.create}
                       setPending={setPending}
-                      refresh={refresh}
                       columnOrder={columnOrder}
                       setColumnOrder={setColumnOrder}
                       previousColumn={previousColumn}
@@ -790,7 +793,6 @@ const LogsTable = ({
                       logs={logs}
                       update={derivedEntryActions.update}
                       setPending={setPending}
-                      refresh={refresh}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
                       renderMode={renderMode as "button" | "menuItem"}
@@ -915,7 +917,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} refresh={refresh} setPending={setPending}/>
+                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

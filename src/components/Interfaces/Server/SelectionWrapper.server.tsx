@@ -27,6 +27,7 @@ export default async function SelectionWrapper({
   projectId,
   actions
 }: SelectionWrapperProps) {
+  console.log("SelectionWrapper rendering...");
   const qc = getQueryClient();
 
   // For Selection views, we need to prefetch the source table's data

@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from "react";
 import { GranularInterfaceActions, GranularTabActions } from "@/types/evals/grid";
 import { useCreateTabQuery, useUpdateTabQuery,  useDeleteTabQuery } from "@/hooks/Query/useTabsQuery";
@@ -8,16 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { Tab } from "@/contexts/slices/selectors/tab";
 import { useInterfaceRouterRefresh } from "./useInterfaceRouterRefresh";
 import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
-
-/**
- * Parameters for the router refresh function
- */
-export interface RouterRefreshParams {
-  /**
-   * Optional array of external pending state setters to coordinate with
-   */
-  externalPendingSetters?: ((pending: boolean) => void)[];
-}
 
 /**
  * Extended interface for InterfaceDataActions with additional parameters
@@ -61,7 +53,7 @@ export function useInterfaceSync(
   const deleteTabMutation = useDeleteTabQuery();
   
   // Get router refresh function with pending state handling
-  // const refreshRouter = useInterfaceRouterRefresh(interfaceUIActions ?? null);
+  const refreshRouter = useInterfaceRouterRefresh(interfaceUIActions ?? null);
 
   /**
    * Add a new tab to an interface with a generated UUID

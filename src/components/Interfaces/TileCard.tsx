@@ -11,10 +11,12 @@ import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTileItem, useTileUI } from '@/contexts/hooks/tile';
+import { useTile, useTileItem, useTileItemActions } from '@/contexts/hooks/tile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
+import { ConstructionOutlined } from "@mui/icons-material";
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -63,7 +65,7 @@ const TileCard = ({
   const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
 
   // Use granular tile hooks for tile-specific state
-  const { ui: tileUIState } = useTileUI(tileId, tabId);
+  const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
   
   // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTileActions } = useTileSync(tileId, tabId, tileActions);
@@ -73,10 +75,9 @@ const TileCard = ({
 
   const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[];
 
-  // Get the current item based on the tile name
-  const { itemActions } = useTileItem(tileId, tabId);
-  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-  const tileType = item?.tab;
+  const tileType = tileMetaState?.type ?? undefined;
+  const tileName = tileMetaState?.name;
+  const tableName = tileDataState?.table;
 
   return (
   <TileColorContext.Provider value={tileUIState?.color || null}>
@@ -88,8 +89,8 @@ const TileCard = ({
               context="tile"
               button={<ActionButton
                 tooltip="Select tile type"
-                text={item?.tab}
-                icon={item?.tab ? undefined : <Plus />}
+                text={tileType}
+                icon={tileType ? undefined : <Plus />}
                 variant="outline"
                 size="default"
               />}
@@ -99,14 +100,14 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      if (item?.name) {
+                      if (tileName) {
                         // If tabType is either a "Table" or "Plot" and the item.table is already set,
                         // then we need to first mark it as null
-                        if (tabType === "Table" || tabType === "Plot" && item.table) {
+                        if (tabType === "Table" || tabType === "Plot" && tableName) {
                           syncedTileDataActions?.setTable(undefined);
                         }
 
-                        if (item?.tab === undefined && tabType === "Table") {
+                        if (tileType === undefined && tabType === "Table") {
                           syncedTableTileActions?.setTableType("Data Table");
                         }
                         syncedTileMetaActions?.setType(tabType);
@@ -125,7 +126,7 @@ const TileCard = ({
               context="tile"
               button={<ActionButton
                 tooltip="Select table"
-                text={item?.table || "Select Table"}
+                text={tableName || "Select Table"}
                 variant="outline"
                 size="default"
               />}

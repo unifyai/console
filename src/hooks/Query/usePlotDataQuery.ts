@@ -22,7 +22,13 @@ export function usePlotDataQuery(tileId: string) {
     placeholderData: emptyPlotDataItem,
     // The data is prefetched by the server component
     // so we don't need to provide a queryFn
-    staleTime: 30000, // 30 seconds before considering data stale
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!tileId, // Only run the query if we have a valid tileId
   });
 }
@@ -103,7 +109,13 @@ export function usePlotArgumentsQuery(tabId: string | null) {
   return useQuery<PlotArguments>({
     queryKey: ["plotArguments", tabId],
     // The data is prefetched by the server component
-    staleTime: 30000, // 30 seconds before considering data stale
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!tabId, // Only run the query if we have a valid tabId
   });
 }
@@ -157,7 +169,7 @@ export function useUpdatePlotDataItem(tileId: string) {
     
     // Always refetch after error or success to ensure cache is correct
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["plotDataItem", tileId] });
+      queryClient.invalidateQueries({ queryKey: ["plotDataItem", tileId], refetchType: 'none' });
     },
   });
 }

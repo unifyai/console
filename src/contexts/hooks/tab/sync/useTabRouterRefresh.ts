@@ -1,13 +1,15 @@
+"use client";
+
 import { useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TabUIActions } from "@/contexts/hooks/tab";
 
 type RefreshOpts = {
-  /** setDataPending(true/false) around the transition */
-  withDataPending?: boolean;
-  /** setPending(true/false) around the transition */
-  withPending?: boolean;
-  /** List of external pending setters to call before and after the transition */
+  /** Clear pending state after the transition */
+  clearPending?: boolean;
+  /** Clear data pending state after the transition */
+  clearDataPending?: boolean;
+  /** List of external pending setters to call after the transition */
   externalPendingSetters?: Array<(pending: boolean) => void>;
 };
 
@@ -15,13 +17,15 @@ type RefreshOpts = {
  * Make `router.refresh()` tab-aware.
  *
  * Every call will:
- *   1. turn the requested UI flags and external pending states **on**
- *   2. perform `router.refresh()` inside a React transition
- *   3. turn the flags and external pending states **off** when the transition settles
+ *   1. Perform `router.refresh()` inside a React transition
+ *   2. Clear the requested UI flags and external pending states when the transition settles
  *
  * The hook internally reference-counts concurrent refreshes, so if
  * multiple refreshes run in parallel, flags are cleared
  * only after the very last one completes.
+ * 
+ * NOTE: UI states are now set BEFORE server mutations in the wrapper 
+ * functions, rather than as part of the router refresh.
  */
 export function useTabRouterRefresh(
   uiActions: TabUIActions | null
@@ -34,32 +38,12 @@ export function useTabRouterRefresh(
 
   /** call inside a setter */
   const refreshRouter = useCallback(
-    (opts: RefreshOpts = { withPending: false, withDataPending: false, externalPendingSetters: [] }) => {
+    (opts: RefreshOpts = { clearPending: true, clearDataPending: true, externalPendingSetters: [] }) => {
       const { 
-        withPending = false, 
-        withDataPending = false, 
+        clearPending = true, 
+        clearDataPending = true, 
         externalPendingSetters = [] 
       } = opts;
-
-      // Set UI pending states if UI actions are available
-      if (withPending) {
-        if (uiActions) {
-          uiActions.setPending(true);
-        }
-      }
-
-      if (withDataPending) {
-        if (uiActions) {
-          uiActions.setDataPending(true);
-        }
-      }
-
-      // Always set external pending states if provided
-      if (externalPendingSetters && externalPendingSetters.length > 0) {
-        for (const setter of externalPendingSetters) {
-          setter(true);
-        }
-      }
       
       counter.current += 1;
 
@@ -73,25 +57,19 @@ export function useTabRouterRefresh(
           counter.current -= 1;
 
           if (counter.current === 0) {
-            // last one finished – clear the requested flags
-            if (withPending) {
-                if (uiActions) {
-                    uiActions.setPending(false);
-                }
-            }
+            // Add a short delay before clearing UI states for smoother transitions
+            setTimeout(() => {
+              // last one finished – clear the requested flags
+              if (clearPending) uiActions?.setPending(false);
+              if (clearDataPending) uiActions?.setDataPending(false);
 
-            if (withDataPending) {
-                if (uiActions) {
-                    uiActions.setDataPending(false);
+              // Clear external pending states if provided
+              if (externalPendingSetters && externalPendingSetters.length > 0) {
+                for (const setter of externalPendingSetters) {
+                  setter(false);
                 }
-            }
-
-            // Always clear external pending states if provided
-            if (externalPendingSetters && externalPendingSetters.length > 0) {
-              for (const setter of externalPendingSetters) {
-                setter(false);
               }
-            }
+            }, 300);
           }
         }
       });

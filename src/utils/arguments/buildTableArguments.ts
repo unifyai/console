@@ -14,6 +14,10 @@ export async function buildTableArgumentsForTile(
 ): Promise<TableArguments> {
   const tileName = tile.name;
   const tableArguments = { ...existingArguments };
+
+  console.log("[buildTableArgumentsForTile] tile:", tile);
+  console.log("[buildTableArgumentsForTile] fields:", fields);
+  console.log("[buildTableArgumentsForTile] existingArguments:", existingArguments);
   
   // Build filter expression
   const filterExpression = buildFilterExpression(
@@ -57,6 +61,8 @@ export async function buildTableArgumentsForTile(
     getLogs_parameters: { filter_expr: "" },
     available_fields: {}
   };
+
+  console.log("[buildTableArgumentsForTile] tableArguments:", tableArguments);
   
   // Set filter expression
   tableArguments[tileName].getLogs_parameters.filter_expr = filterExpression || "";
@@ -79,18 +85,20 @@ export async function buildTableArgumentsForTile(
  */
 export async function buildTableArguments(
   tiles: TileData[],
-  fieldsMap: Record<string, LogFieldsResponseProps>,
+  fields: LogFieldsResponseProps[],
   existingArguments: TableArguments = {}
 ): Promise<TableArguments> {
   let tableArguments = { ...existingArguments };
   
   // Process each table tile
-  for (const tile of tiles) {
+  tiles.map(async (tile, index)  => {
     if (tile.table_tile) {
-      const fields = fieldsMap[tile.context || ""] || {};
-      tableArguments = await buildTableArgumentsForTile(tile, fields, tableArguments);
+      console.log("[buildTableArguments] fields:", fields[index]);
+      tableArguments = await buildTableArgumentsForTile(tile, fields[index], tableArguments);
     }
-  }
+  });
+
+  console.log("[buildTableArguments Final] tableArguments:", tableArguments);
   
   return tableArguments;
 } 

@@ -104,6 +104,11 @@ export function useTabData(
     })
   );
 
+  const itemsNeedRecompute = useStoreContext(state => {
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].itemsNeedRecompute;
+  });
+
   const tiles = useMemo(() => {
     if (!tabExists || !tabId || !tileIds.length) return EMPTY_TILES;
     
@@ -167,12 +172,7 @@ export function useTabData(
     });
     
     return tileMap;
-  }, [tabExists, tabId, tileIds, getTileItemActions, tabIdOrName]);
-
-  const itemsNeedRecompute = useStoreContext(state => {
-    if (!tabExists || !tabId) return false;
-    return state.tabsById[tabId].itemsNeedRecompute;
-  });
+  }, [tabExists, tabId, tileIds, itemsNeedRecompute, getTileItemActions, tabIdOrName]);
 
   // Create the grid items array with useMemo
   const itemsRef = useRef<TileProps[]>([]);

@@ -37,33 +37,40 @@ export default async function TileCardWrapper({
   projectId: string;
   actions: TileCardWrapperActions;
 }) {
+  console.log("TileCardWrapper rendering...");
   const qc = getQueryClient();
   
   return (
     <>
       <HydrationBoundary state={dehydrate(qc)}>
-        <TileCard
-          tileId={tile.id || ""}
-          tabId={tabId}
-          interfaceId={interfaceId}
-          projectId={projectId}
-          tileActions={actions.tileActions}
-          logsActions={actions.logsActions}
-          fieldsActions={actions.fieldsActions}
-          derivedEntryActions={actions.derivedEntryActions}
-          contextActions={actions.contextActions}
-          codeActions={actions.codeActions}
-        >
-          <Suspense fallback={<SkeletonLoader />}>
-            <TileWrapper
-              tile={tile}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              actions={actions}
-            />
-          </Suspense>
-        </TileCard>
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+              <SkeletonLoader />
+          </div>
+        }>
+          <TileCard
+            tileId={tile.id || ""}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            tileActions={actions.tileActions}
+            logsActions={actions.logsActions}
+            fieldsActions={actions.fieldsActions}
+            derivedEntryActions={actions.derivedEntryActions}
+            contextActions={actions.contextActions}
+            codeActions={actions.codeActions}
+          >
+            <Suspense fallback={<SkeletonLoader />}>
+              <TileWrapper
+                tile={tile}
+                tabId={tabId}
+                interfaceId={interfaceId}
+                projectId={projectId}
+                actions={actions}
+              />
+            </Suspense>
+          </TileCard>
+        </Suspense>
       </HydrationBoundary>
     </>
   );

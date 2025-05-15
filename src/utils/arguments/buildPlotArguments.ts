@@ -20,6 +20,8 @@ export function buildPlotArguments(
       )
     );
   }
+
+  console.log("[buildPlotArguments] plotArguments:", plotArguments);
   
   return plotArguments;
 }
@@ -61,6 +63,8 @@ export function updatePlotArgumentsForUsedTables(
       usedTableNames.push(tableName);
     }
   }
+
+  console.log("[updatePlotArgumentsForUsedTables] usedTableNames:", usedTableNames);
   
   // For tables actually used in this plot, update arguments
   usedTableNames.forEach(tableName => {
@@ -86,6 +90,8 @@ export function updatePlotArgumentsForUsedTables(
     if (tableTile.context) updatedPlotArguments[tableName].context = tableTile.context;
     if (tableTile.column_context) updatedPlotArguments[tableName].column_context = tableTile.column_context;
   });
+
+  console.log("[updatePlotArgumentsForUsedTables] updatedPlotArguments:", updatedPlotArguments);
   
   return updatedPlotArguments;
 } 

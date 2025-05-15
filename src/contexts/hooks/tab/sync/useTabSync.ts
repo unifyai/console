@@ -399,6 +399,13 @@ export function useTabSync(
       return;
     }
 
+    // Set UI states immediately before any operations
+
+    // Call external pending setter if provided
+    if (setPending) {
+      setPending(true);
+    }
+
     // 1) Update local state immediately
     tabDataActions.removeContextFromTab(context);
 
@@ -468,7 +475,7 @@ export function useTabSync(
     await Promise.all(promises);
       
     // Refresh the router to update UI with new data
-    // The pending state is handled by the router refresh hook
+    console.log("[wrapRemoveContextFromTab] onSettled:", context);
     refreshRouter({
       externalPendingSetters: setPending ? [setPending] : []
     });
@@ -485,6 +492,13 @@ export function useTabSync(
       return;
     }
 
+    // Set UI states immediately before any operations
+
+    // Call external pending setter if provided
+    if (setPending) {
+      setPending(true);
+    }
+
     // 1) Update local state immediately
     tabDataActions.setGlobalContext(context);
 
@@ -497,15 +511,15 @@ export function useTabSync(
         }
       },
       actions: tabActions
+    }, {
+      onSettled: () => {
+        // Refresh the router to update UI with new data
+        console.log("[wrapGlobalContext] onSettled:", context);
+        refreshRouter({
+          externalPendingSetters: setPending ? [setPending] : []
+        });
+      }
     });
-      
-    // 3) Refresh the router to update UI with new data
-    // The pending state is handled by the router refresh hook
-    if (setPending) {
-      refreshRouter({
-        externalPendingSetters: [setPending]
-      });
-    }
   };
 
   /**

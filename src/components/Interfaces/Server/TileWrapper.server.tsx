@@ -42,6 +42,7 @@ export default async function TileWrapper({
   projectId: string;
   actions: TileWrapperActions;
 }) {
+  console.log("TileWrapper rendering...");
   const qc = getQueryClient();
 
   // Render the appropriate server component based on tile type
@@ -108,22 +109,28 @@ export default async function TileWrapper({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <Tile
-        tileId={tile.id || ""}
-        tabId={tabId}
-        interfaceId={interfaceId}
-        projectId={projectId}
-        tileActions={actions.tileActions}
-        logsActions={actions.logsActions}
-        fieldsActions={actions.fieldsActions}
-        derivedEntryActions={actions.derivedEntryActions}
-        contextActions={actions.contextActions}
-        codeActions={actions.codeActions}
-        tableContent={tile.type === "Table" ? renderTileContent() : undefined}
-        plotContent={tile.type === "Plot" ? renderTileContent() : undefined}
-        viewContent={tile.type === "View" ? renderTileContent() : undefined}
-        editorContent={tile.type === "Editor" ? renderTileContent() : undefined}
-      />
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+        </div>
+      }>
+        <Tile
+          tileId={tile.id || ""}
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={projectId}
+          tileActions={actions.tileActions}
+          logsActions={actions.logsActions}
+          fieldsActions={actions.fieldsActions}
+          derivedEntryActions={actions.derivedEntryActions}
+          contextActions={actions.contextActions}
+          codeActions={actions.codeActions}
+          tableContent={tile.type === "Table" ? renderTileContent() : undefined}
+          plotContent={tile.type === "Plot" ? renderTileContent() : undefined}
+          viewContent={tile.type === "View" ? renderTileContent() : undefined}
+          editorContent={tile.type === "Editor" ? renderTileContent() : undefined}
+        />
+      </Suspense>
     </HydrationBoundary>
   );
 } 

@@ -55,9 +55,9 @@ for with_tool in [True, False]:
                 width: 7.0,
                 height: 8.0
             },
+            grouping: "Parameters/experiment",
             table_tile: {
                 table_type: "Data Table",
-                grouping: "Parameters/experiment",
                 sorting: "score@true"
             }
         },

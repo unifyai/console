@@ -299,7 +299,7 @@ const Interface = ({
         </div>
 
         {tabNames.length === 0 ? (
-          projectQueryParam && interfaceQueryParam && tabUIState?.pending ? (
+          (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
             <div className="flex justify-center">
               <Loader2 className="animate-spin my-36" />
             </div>

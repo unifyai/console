@@ -68,65 +68,6 @@ const Tab = ({
   // Get the unregisterTileRefs function from Zustand
   const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
 
-  // // Set up effect to fetch the latest tab when project or tab changes
-  // useEffect(() => {
-  //   if (projectId && tabId) {
-  //     // Store current selections in cookies
-  //     // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  //     // Cookies.set("project", projectId, { expires: expirationDate });
-  //     // Cookies.set("tab", tabId, { expires: expirationDate });
-      
-  //     // Only fetch data on initial mount or when project/tab actually changes
-  //     if (isInitialMount.current) {
-  //       getLatestTab();
-  //       isInitialMount.current = false;
-  //     }
-  //   }
-  //   // else if (!projectId) {
-  //   //   Cookies.remove("project");
-  //   // }
-  //   // else if (!tabId) {
-  //   //   Cookies.remove("tab");
-  //   // }
-  // }, [projectId, tabId, getLatestTab]);
-
-  // // Only call updateInterface when items have truly changed.
-  // useEffect(() => {
-  //   (() => {
-  //     try {
-  //       if (!tabUIState?.resetting) {
-  //         updateTab(null, tileProps);
-  //       }
-  //     } catch (err) {
-  //       console.error("updateTab failed:", err);
-  //     }
-  //   })();
-  // }, [tileProps, tabDataState?.globalContext]);
-
-  // // Trigger update when data changes in React Query (instead of table data)
-  // useEffect(() => {
-  //   if (!tabDataState || !tabUIActions || !tabDataActions) return;
-
-  //   // Use setTimeout to delay execution
-  //   setTimeout(() => {
-  //     // Reset loading states
-  //     if (interfaceUIState?.dataPending === true) {
-  //       interfaceUIActions.setDataPending(false);
-  //     }
-  //     if (tabUIState?.refreshing === true) {
-  //       tabUIActions.setRefreshing(false);
-  //     }
-
-  //     // If tab is pending or resetting, get latest data
-  //     if ((interfaceUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
-  //       getLatestTab();
-  //     }
-
-  //     // Reset resetting state
-  //     tabUIActions.setResetting(false);
-  //   }, 1500);
-  // }, [tileRefreshKey]);
-
   // End success green after 3 seconds
   useEffect(() => { 
     const timer = setTimeout(() => tabUIActions?.setSaveSuccess(undefined), 3000);

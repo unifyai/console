@@ -80,6 +80,11 @@ export function useEditorTileSync(
   // Individual wrapper functions for each property
   const wrapFileType = (value: string | undefined) => {
     if (!editorTileActions || !granularTileActions) return;
+
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+    }
     
     // 1) Update local state immediately
     editorTileActions.setFileType(value);
@@ -97,7 +102,8 @@ export function useEditorTileSync(
     }, {
       onSettled: () => {
         // 3. Refresh the router and set the loading state
-        refreshRouter({ withLoading: true });
+        console.log("[wrapFileType] onSettled:", value);
+        refreshRouter({ clearLoading: true });
       }
     });
   };

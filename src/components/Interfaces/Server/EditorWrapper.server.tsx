@@ -28,6 +28,7 @@ export default async function EditorWrapper({
   projectId,
   actions
 }: EditorWrapperProps) {
+  console.log("EditorWrapper rendering...");
   const qc = getQueryClient();
 
   // Prefetch editor content if available

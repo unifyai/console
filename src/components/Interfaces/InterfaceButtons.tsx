@@ -97,7 +97,7 @@ const InterfaceButtons = ({
     const handleContextChange = (ctx: string) => {
         if (syncedTabDataActions && tabUIActions && project && tabName) {
             // First update the tab's context using synchronized action
-            syncedTabDataActions.setGlobalContext(ctx, (pending) => tabUIActions.setPending(pending));
+            syncedTabDataActions.setGlobalContext(ctx, (pending) => tabUIActions.setDataPending(pending));
             
             // Then update each tile's context-related properties if needed
             tiles.forEach(tile => {
@@ -125,9 +125,6 @@ const InterfaceButtons = ({
                 }
             });
 
-            // Set data pending and refresh
-            tabUIActions.setDataPending(true);
-            router.refresh();
         }
     };
 

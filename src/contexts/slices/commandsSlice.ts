@@ -1,9 +1,6 @@
 import { StateCreator } from "zustand";
 import { StoreSlice } from "./slice";
 import { Command, CommandCategory, CommandIcon } from "./selectors/commands";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
-import { TabUIActions } from "../hooks/tab";
-import { InterfaceDataActions } from "../hooks/interface/useInterfaceData";
 
 // ----------------------------------------------------------------------------------
 // State & Actions Types
@@ -22,22 +19,7 @@ export interface CommandsActions {
     /** Remove a command by ID */
     removeCommand: (id: string) => void;
     /** Initialize all commands with dependencies */
-    updateCommands: (
-        projectActions: ProjectsActions,
-        interfaceActions: GranularInterfaceActions,
-        tabActions: GranularTabActions,
-        tileActions: GranularTileActions,
-        project: string | null,
-        tabNames: string[],
-        projects: string[],
-        setProject: (project: string | null) => void,
-        setTabQueryParam: (tab: string | null) => void,
-        setInterfaceQueryParam: (interface_: string | null) => void,
-        interfaceDataActions: InterfaceDataActions | null,
-        tabUIActions: TabUIActions | null,
-        setProjects: (projects: string[]) => void,
-        resetTab: () => void
-    ) => void;
+    updateCommands: (project: string | null, tabNames: string[]) => void;
 }
 
 export type CommandsSlice = CommandsState & CommandsActions;
@@ -75,22 +57,7 @@ export const createCommandsSlice: StateCreator<
             state.commands = state.commands.filter((c) => c.id !== id);
         }),
         
-    updateCommands: (
-        projectActions,
-        interfaceActions,
-        tabActions,
-        tileActions,
-        project,
-        tabNames,
-        projects,
-        setProject,
-        setTabQueryParam,
-        setInterfaceQueryParam,
-        interfaceDataActions,
-        tabUIActions,
-        setProjects,
-        resetTab
-    ) => {
+    updateCommands: (project, tabNames) => {
         // Only update if the commands array is empty or outdated
         if (get().commands.length === 0) {
             set((state) => {

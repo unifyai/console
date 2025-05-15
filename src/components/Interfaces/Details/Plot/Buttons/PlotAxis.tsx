@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/UI/button";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { RxBorderBottom, RxBorderLeft } from "react-icons/rx";
+import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, axis, plotType, logs, metric, setMetric }: {
     interactive: boolean
@@ -31,6 +32,9 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
     if (plotType === "Histogram" && axis === "Y") {
         return null;
     }
+
+    useWhyDidYouUpdate("PlotAxis", [fields]);
+    console.log("[PlotAxis] fields:", fields);
 
     /* Available options */
     let properties: string[];

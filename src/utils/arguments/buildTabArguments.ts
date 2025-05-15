@@ -15,7 +15,7 @@ import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "./buildPlo
  */
 export async function buildTabArguments(
   tiles: TileData[],
-  fieldsMap: Record<string, LogFieldsResponseProps>,
+  fields: LogFieldsResponseProps[],
   existingTableArgs: TableArguments = {},
   existingPlotArgs: PlotArguments = {}
 ): Promise<{
@@ -27,14 +27,18 @@ export async function buildTabArguments(
   const plotTiles = tiles.filter(t => t.type === "Plot");
   
   // Step 1: Build all TableArguments for every table tile
-  let tableArguments = await buildTableArguments(tableTiles, fieldsMap, existingTableArgs);
+  let tableArguments = await buildTableArguments(tableTiles, fields, existingTableArgs);
+  
+  console.log("[buildTabArguments] tableArguments:", tableArguments);
   
   // Step 2: Build base PlotArguments from TableArguments
   let plotArguments = buildPlotArguments(tableArguments, existingPlotArgs);
+  console.log("[buildTabArguments] plotArguments:", plotArguments);
   
   // Step 3: Update PlotArguments for each plot tile's specific needs
   for (const plotTile of plotTiles) {
     plotArguments = updatePlotArgumentsForUsedTables(plotTile, tableTiles, plotArguments);
+    console.log("[buildTabArguments] plotArguments:", plotArguments);
   }
   
   return { tableArguments, plotArguments };
