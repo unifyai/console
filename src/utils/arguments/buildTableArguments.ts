@@ -7,18 +7,14 @@ import { processContext } from "@/utils/evals/columnOperations";
  * Builds table arguments for a tile
  * Can be used by both TableWrapper and PlotWrapper
  */
-export async function buildTableArgumentsForTile(
+export function buildTableArgumentsForTile(
   tile: TileData,
   fields: LogFieldsResponseProps,
   existingArguments: TableArguments = {}
-): Promise<TableArguments> {
+): TableArguments {
   const tileName = tile.name;
   const tableArguments = { ...existingArguments };
 
-  console.log("[buildTableArgumentsForTile] tile:", tile);
-  console.log("[buildTableArgumentsForTile] fields:", fields);
-  console.log("[buildTableArgumentsForTile] existingArguments:", existingArguments);
-  
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
@@ -61,8 +57,6 @@ export async function buildTableArgumentsForTile(
     getLogs_parameters: { filter_expr: "" },
     available_fields: {}
   };
-
-  console.log("[buildTableArgumentsForTile] tableArguments:", tableArguments);
   
   // Set filter expression
   tableArguments[tileName].getLogs_parameters.filter_expr = filterExpression || "";
@@ -83,22 +77,20 @@ export async function buildTableArgumentsForTile(
 /**
  * Builds table arguments for multiple tiles
  */
-export async function buildTableArguments(
+export function buildTableArguments(
   tiles: TileData[],
   fields: LogFieldsResponseProps[],
   existingArguments: TableArguments = {}
-): Promise<TableArguments> {
+): TableArguments {
   let tableArguments = { ...existingArguments };
   
-  // Process each table tile
-  tiles.map(async (tile, index)  => {
+  // Process each table tile SEQUENTIALLY with a for loop
+  for (let i = 0; i < tiles.length; i++) {
+    const tile = tiles[i];
     if (tile.table_tile) {
-      console.log("[buildTableArguments] fields:", fields[index]);
-      tableArguments = await buildTableArgumentsForTile(tile, fields[index], tableArguments);
+      tableArguments = buildTableArgumentsForTile(tile, fields[i], tableArguments);
     }
-  });
+  }
 
-  console.log("[buildTableArguments Final] tableArguments:", tableArguments);
-  
   return tableArguments;
 } 

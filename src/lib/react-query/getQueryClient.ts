@@ -13,12 +13,14 @@ function makeQueryClient() {
     })
 }
 
+let serverQueryClient: QueryClient | undefined = undefined
 let browserQueryClient: QueryClient | undefined = undefined
 
 export function getQueryClient() {
   if (isServer) {
     // Server: always make a new query client
-    return makeQueryClient()
+    if (!serverQueryClient) serverQueryClient = makeQueryClient()
+    return serverQueryClient
   } else {
     // Browser: make a new query client if we don't already have one
     // This is very important, so we don't re-make a new client if React

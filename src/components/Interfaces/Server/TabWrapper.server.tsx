@@ -114,8 +114,6 @@ export default async function TabWrapper({
     tableTiles.map(tile => actions.fieldsActions.get(project as string, tile.context ?? null)
   ));
 
-  console.log("[TabWrapper] fields:", fields);
-  
   // Get existing arguments from cache
   let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
   let plotArguments = qc.getQueryData<PlotArguments>(["plotArguments", tabId]) || {};
@@ -123,17 +121,14 @@ export default async function TabWrapper({
   // Build arguments for all tiles
   if (tableTiles.length > 0 || plotTiles.length > 0) {
     const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
-      await buildTabArguments(tiles, fields, tableArguments, plotArguments);
+      buildTabArguments(tiles, fields, tableArguments, plotArguments);
 
-    console.log("[TabWrapper] newTableArguments:", newTableArguments);
-    console.log("[TabWrapper] newPlotArguments:", newPlotArguments);
-    
     // Store the built arguments in the cache
     qc.setQueryData(["tableArguments", tabId], newTableArguments);
     qc.setQueryData(["plotArguments", tabId], newPlotArguments);
     
   } else {
-    console.log("[TabWrapper] no tiles, initializing empty arguments");
+
     // Initialize empty arguments if no tiles
     qc.setQueryData(["tableArguments", tabId], {});
     qc.setQueryData(["plotArguments", tabId], {});

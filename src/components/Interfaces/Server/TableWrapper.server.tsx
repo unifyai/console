@@ -3,10 +3,8 @@ import { getQueryClient } from '@/lib/react-query/getQueryClient'
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../Table/Table";
-import { buildFilterExpression } from "@/utils/evals/filters";
+import { buildTableDataItem, getGroupSortingObject, getSortingObject } from "@/utils/data/buildTableDataItem";
 import { processContext } from "@/utils/evals/columnOperations";
-import { getLogsDetails } from "@/utils/evals/common";
-import { TableDataItem } from "@/types/evals/grid";
 
 import type {
   LogsActions,
@@ -17,6 +15,7 @@ import type {
   GranularTileActions,
 } from "@/types/evals/grid";
 import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
+import { buildFilterExpression } from "@/utils/evals/filters";
 
 type TableWrapperActions = {
   tileActions: GranularTileActions;
@@ -44,6 +43,9 @@ export default async function TableWrapper({
   const tileId = tile.id || "";
   const tileName = tile.name; // We'll use this as the key in tableArguments
 
+  // Get pre-built tableArguments from cache instead of building them here
+  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+
   // Prefetch fields
   await qc.prefetchQuery({
     queryKey: ["fields", projectId, tile.context],
@@ -52,30 +54,7 @@ export default async function TableWrapper({
 
   // Get fields from cache
   const fields = qc.getQueryData<LogFieldsResponseProps>(["fields", projectId, tile.context]) || {};
-  const prefixes = Object.keys(fields).map(
-    key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
-  ).filter(key => key != null);
-  const columnContexts = Array.from(
-    new Set(prefixes.map(prefix => {
-        const parts = prefix.split("/");
-        let context = "";
-        return parts.map(part => {
-              context += part + "/";
-              return context;
-          });    
-      }).flat().sort())
-  );
 
-  // Get pre-built tableArguments from cache instead of building them here
-  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
-  
-  // // If no arguments found for this tile, log a warning but proceed with empty arguments
-  // if (!tableArguments[tileName]) {
-  //   console.warn(`No table arguments found for tile ${tileId} in the cache`);
-  // }
-
-  // The rest of the tableDataItem calculation remains unchanged
-  
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
@@ -86,27 +65,15 @@ export default async function TableWrapper({
   );
 
   // Handle sorting
-  const sortingObject = tile.table_tile?.sorting ? Object.fromEntries(
-    tile.table_tile.sorting.split(",").map(value => [
-      tile.column_context ? processContext("merge", tile.column_context, value.split("@")[0]) : value.split("@")[0],
-      value.split("@")[1].replace("true", "descending").replace("false", "ascending")
-    ]))
-    : "";
+  const sortingObject = tile.table_tile?.sorting ? getSortingObject(tile) : "";
   const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
 
   // Handle grouping
   const groupingExpression = tile.grouping || null;
 
   // Handle group sorting
-  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? Object.fromEntries(
-    tile.table_tile.group_sorting.split(",").map(value => {
-      const group = tile.column_context ? processContext("merge", tile.column_context, tile.grouping!.split(",")[0]) : tile.grouping!.split(",")[0] 
-      const field = tile.column_context ? processContext("merge", tile.column_context, value.split("@")[0]) : value.split("@")[0]
-      const direction = value.split("@")[1].replace("true", "descending").replace("false", "ascending")
-      const metric = tile.metric ?? "mean"
-      return [group, {field, direction, metric}]
-    }))
-  : "";
+  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? 
+    getGroupSortingObject(tile) : "";
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Prefetch logs data
@@ -137,28 +104,16 @@ export default async function TableWrapper({
   // Get logs data from cache
   const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
 
-  // Get logs details
-  const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-    logsData,
-    fields,
-    tile.context ?? null,
-    tile.column_context ?? null,
-    projectId,
-    filterExpression,
-    groupingExpression,
-    tile.metric,
-    tile.table_tile?.sorting ?? null,
-    undefined,
-    actions.logsActions
-  );
+  // Build table data item
+  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, actions.logsActions);
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)
   if (tableArguments[tileName]) {
     tableArguments[tileName].available_fields = Object.fromEntries(
       Object.entries(fields)
         .filter((([field, attributes]) => 
-          entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
-          .concat(paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
+          tableDataItem.entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
+          .concat(tableDataItem.paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
           .includes(field))
         )
     );
@@ -166,25 +121,6 @@ export default async function TableWrapper({
     // Update the cache with available fields
     qc.setQueryData(["tableArguments", tabId], tableArguments);
   }
-
-  // Construct table data item
-  const tableDataItem: TableDataItem = {
-    columnContexts: columnContexts,
-    baseIndex: tile.table_tile?.selected,
-    hiddenColumns: tile.table_tile?.hidden_columns,
-    columnOrdering: tile.table_tile?.column_order,
-    selection: tile.table_tile?.selected,
-    fields,
-    logsData,
-    totalPages: Math.ceil(logsData.count / limit),
-    entriesProperties,
-    paramsProperties,
-    logs,
-    params,
-    metrics,
-    boundaries,
-    metric: tile.metric ?? "mean"
-  };
 
   // Prefetch the table data item
   await qc.prefetchQuery({
