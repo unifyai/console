@@ -1,11 +1,9 @@
-import { Suspense } from "react";
 import { getQueryClient } from '@/lib/react-query/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Interface from "../Interface";
 import TabWrapper from "./TabWrapper.server";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
-import { buildInterfaceStateForStore, buildProjectStateForStore, buildTabStateForStore } from "@/contexts/utils/stateBuilderUtils";
+import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { getRedirectUrl } from "@/utils/redirects/getRedirectUrl";
 
 import type {
@@ -200,9 +198,16 @@ export default async function InterfaceWrapper({
     // If we have an interface name but no data yet
     interfaceState = { activeInterfaceId: interface_ };
   }
+
+  const globalStoreState = buildGlobalStateForStore(
+    projects,
+    currentProject,
+    interfaceId,
+  );
   
   // Merge states
   const initialState = {
+    ...globalStoreState,
     ...projectState,
     ...interfaceState
   };

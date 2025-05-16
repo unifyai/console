@@ -44,7 +44,7 @@ export default async function TableWrapper({
   const tileName = tile.name; // We'll use this as the key in tableArguments
 
   // Get pre-built tableArguments from cache instead of building them here
-  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};
+  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {} as TableArguments;
 
   // Prefetch fields
   await qc.prefetchQuery({
@@ -53,7 +53,7 @@ export default async function TableWrapper({
   });
 
   // Get fields from cache
-  const fields = qc.getQueryData<LogFieldsResponseProps>(["fields", projectId, tile.context]) || {};
+  const fields = qc.getQueryData<LogFieldsResponseProps>(["fields", projectId, tile.context]) || {} as LogFieldsResponseProps;
 
   // Build filter expression
   const filterExpression = buildFilterExpression(

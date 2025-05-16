@@ -12,6 +12,23 @@ export interface IServerStateData extends Partial<IStoreState> {
 }
 
 /**
+ * Build global store state
+ */
+export function buildGlobalStateForStore(
+  projects: string[],
+  activeProjectId: string | null,
+  activeInterfaceId: string | null,
+  activeTabId?: string | null,
+): IServerStateData {
+  return {
+    projects: projects,
+    activeProjectId: activeProjectId,
+    activeInterfaceId: activeInterfaceId,
+    activeTabId: activeTabId,
+  };
+}
+
+/**
  * Build initial state for a project or multiple projects
  */
 export function buildProjectStateForStore(

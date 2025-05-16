@@ -353,7 +353,6 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 columnContext,
                 currentProject,
                 filterExpressions[idx],
-                groupingExpressions[idx],
                 tile.metric,
                 sorting,
                 undefined,

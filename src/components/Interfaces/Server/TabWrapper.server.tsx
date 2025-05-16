@@ -108,11 +108,19 @@ export default async function TabWrapper({
   // Filter to get table and plot tiles
   const tableTiles = tiles.filter(t => t.type === "Table");
   const plotTiles = tiles.filter(t => t.type === "Plot");
-  
+
   // Get fields
-  const fields: LogFieldsResponseProps[] = await Promise.all(
-    tableTiles.map(tile => actions.fieldsActions.get(project as string, tile.context ?? null)
-  ));
+  await Promise.all(
+    tableTiles.map(tile =>
+      qc.prefetchQuery({
+        queryKey: ["fields", project, tile.context ?? null],
+        queryFn: () => actions.fieldsActions.get(project as string, tile.context ?? null),
+      })
+    )
+  );
+  const fields: LogFieldsResponseProps[] = tableTiles.map(tile =>
+    qc.getQueryData(["fields", project, tile.context ?? null]) as LogFieldsResponseProps
+  );
 
   // Get existing arguments from cache
   let tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {};

@@ -542,3 +542,58 @@ export function useLogLengths(
     return result;
   }, [tileIds, tableDataItemsMap, tabDataActions]);
 }
+
+/**
+ * Hook to get tiles from a tab
+ * @param tabId The ID of the tab
+ * @returns Array of tiles
+ */
+export function useTilesFromTab(tabId: string | null | undefined): Tile[] {
+  // Step 1: Subscribe to raw data - get the tab and all tiles in the store
+  const tiles = useStoreContext(
+    useShallow(state => {
+      // If no tabId, return empty array
+      if (!tabId) return EMPTY_TILES;
+      
+      // Get the tab to find its tile IDs
+      const tab = state.tabsById[tabId];
+      if (!tab || !tab.tileIds || !tab.tileIds.length) return EMPTY_TILES;
+      
+      // Get all tiles for this tab and filter by type
+      return tab.tileIds
+        .map(tileId => state.tilesById[tileId])
+    })
+  );
+  
+  // Step 2: Memoize the result to prevent unnecessary re-renders
+  return useMemo(() => tiles as Tile[], [tiles]);
+}
+
+
+/**
+ * Hook to get tiles from a tab filtered by type
+ * @param tabId The ID of the tab
+ * @param type The type of tiles to filter by (e.g., 'Table', 'Plot')
+ * @returns Array of tiles of the specified type
+ */
+export function useTilesFromTabByType(tabId: string | null | undefined, type: string): Tile[] {
+  // Step 1: Subscribe to raw data - get the tab and all tiles in the store
+  const tiles = useStoreContext(
+    useShallow(state => {
+      // If no tabId, return empty array
+      if (!tabId) return EMPTY_TILES;
+      
+      // Get the tab to find its tile IDs
+      const tab = state.tabsById[tabId];
+      if (!tab || !tab.tileIds || !tab.tileIds.length) return EMPTY_TILES;
+      
+      // Get all tiles for this tab and filter by type
+      return tab.tileIds
+        .map(tileId => state.tilesById[tileId])
+        .filter(tile => tile && tile.type === type);
+    })
+  );
+  
+  // Step 2: Memoize the result to prevent unnecessary re-renders
+  return useMemo(() => tiles as Tile[], [tiles]);
+}

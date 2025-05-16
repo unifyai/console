@@ -96,7 +96,7 @@ function updateLogs(
                 const context = item.context ?? null;
                 const column_context = item.column_context ?? null;
                 const sorting = item.sorting ?? null;
-                return getLogsDetails( logsData, fields, context, column_context, project, filterExpression, groupingExpression, item.metric, sorting, undefined, logsActions).then(details => ({ ...details, fields, logsData, columnContexts })); // Pass details and previous data
+                return getLogsDetails( logsData, fields, context, column_context, project, filterExpression, item.metric, sorting, undefined, logsActions).then(details => ({ ...details, fields, logsData, columnContexts })); // Pass details and previous data
             })
             .then(({ entriesProperties, paramsProperties, logs, params, metrics, boundaries, fields, logsData, columnContexts }) => {
                 if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');

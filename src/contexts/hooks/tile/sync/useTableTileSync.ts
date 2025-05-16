@@ -186,7 +186,7 @@ export function useTableTileSync(
       onSettled: () => {
         // 3. Refresh the router and set the loading state
         console.log("[wrapGroupSorting] onSettled:", value);
-        refreshRouter({ clearLoading: true });
+        // refreshRouter({ clearLoading: true });
       }
     });
   };

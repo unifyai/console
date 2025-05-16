@@ -138,7 +138,7 @@ const LogsTable = ({
   const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTileActions, tableTile } = useTileSync(tileId, tabId, tileActions);
+  const { actions: syncedTileActions, tableTile } = useTileSync(tileId, tabId, tileActions, logsActions, fieldsActions);
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const { tableTileActions } = tableTile ?? { tableTileActions: null };
   

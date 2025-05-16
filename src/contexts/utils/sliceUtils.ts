@@ -24,10 +24,12 @@ import * as editorTileLogic from "../slices/selectors/editorTile";
  * @param tile - The Tile object from the zustand store
  * @returns A partial TileData object suitable for API operations
  */
-export function convertTileToTileData(tile: Tile): Partial<TileData> {
-  if (!tile) return {};
+export function convertTileToTileData(tile: Tile): TileData {
+  if (!tile) return {} as TileData;
 
-  const tileData: Partial<TileData> = {
+  const tileData: TileData = {
+    id: tile.id,
+    tab_id: tile.tabId || "",
     name: tile.name,
     type: tile.type || "Table",
     position: tile.position || { x: 0, y: 0, width: 4, height: 4 },
@@ -52,7 +54,7 @@ export function convertTileToTileData(tile: Tile): Partial<TileData> {
 
   // Add table tile data if present
   if (tile.tableTile) {
-    const tableTile: Partial<TableTileData> = {};
+    const tableTile: TableTileData = {};
     
     // Only add properties that aren't null
     if (tile.tableTile.table_type !== null && tile.tableTile.table_type !== undefined) 
@@ -79,7 +81,7 @@ export function convertTileToTileData(tile: Tile): Partial<TileData> {
 
   // Add plot tile data if present
   if (tile.plotTile) {
-    const plotTile: Partial<PlotTileData> = {};
+    const plotTile: PlotTileData = {};
     
     // Only add properties that aren't null
     if (tile.plotTile.plot_type !== null && tile.plotTile.plot_type !== undefined) 
@@ -106,7 +108,7 @@ export function convertTileToTileData(tile: Tile): Partial<TileData> {
 
   // Add view tile data if present
   if (tile.viewTile) {
-    const viewTile: Partial<ViewTileData> = {};
+    const viewTile: ViewTileData = {};
     
     // Only add properties that aren't null
     if (tile.viewTile.base_index !== null && tile.viewTile.base_index !== undefined) 
@@ -117,9 +119,12 @@ export function convertTileToTileData(tile: Tile): Partial<TileData> {
 
   // Add editor tile data if present
   if (tile.editorTile) {
-    const editorTile: Partial<EditorTileData> = {};
+    const editorTile: EditorTileData = {};
     
     // Only add properties that aren't null
+    // ToDo: Migrate orchestra model to rename file_path to file_name
+    // if (tile.editorTile.file_path !== null && tile.editorTile.file_path !== undefined) 
+    //   editorTile.file_path = tile.editorTile.file_path;
     if (tile.editorTile.file_type !== null && tile.editorTile.file_type !== undefined) 
       editorTile.file_type = tile.editorTile.file_type;
     if (tile.editorTile.content !== null && tile.editorTile.content !== undefined) 

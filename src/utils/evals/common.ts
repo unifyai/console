@@ -143,7 +143,6 @@ export const getLogsDetails = async (
   column_context: string | null,
   project: string | null,
   filterExpression: string | null,
-  groupingExpression: string | null,
   metric: string | undefined,
   sorting: string | null,
   hiddenColumns: string | undefined,

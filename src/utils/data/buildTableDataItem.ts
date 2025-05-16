@@ -49,7 +49,6 @@ export async function buildTableDataItem(
     tile.column_context || null,
     projectId,
     filterExpression,
-    tile.grouping || null,
     tile.metric,
     tile.table_tile?.sorting || null,
     tile.table_tile?.hidden_columns,

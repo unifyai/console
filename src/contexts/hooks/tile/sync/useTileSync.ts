@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { usePatchTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions } from "@/types/evals/grid";
+import { GranularTileActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 import { useTile, TileActions } from "../useTile";
 import { usePlotTileSync, PlotTileSyncResult } from "./usePlotTileSync";
 import { useTableTileSync, TableTileSyncResult } from "./useTableTileSync";
@@ -11,6 +11,9 @@ import { useTileRouterRefresh } from "./useTileRouterRefresh";
 import { TileData } from "@/types/evals/grid";
 import { TileUIActions } from "../useTileUI";
 import { TileMetaActions } from "../useTileMeta";
+import { usePatchTileQueryOptimistic } from "@/hooks/Query/usePatchTileQueryOptimistic";
+import { selectTileByTabIdAndName } from "@/contexts/selectors/tile";
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 
 /**
  * Properties of the base Tile that will be synced with the server
@@ -62,7 +65,9 @@ export interface TileSyncResult {
 export function useTileSync(
   tileId: string | null,
   tabId: string | null,
-  granularTileActions?: GranularTileActions
+  granularTileActions?: GranularTileActions,
+  logsActions?: LogsActions,
+  fieldsActions?: FieldsActions
 ): TileSyncResult {
   // Get the original tile state and actions
   const {
@@ -95,6 +100,9 @@ export function useTileSync(
   // React router refresh handling
   const refreshRouter = useTileRouterRefresh(uiActions);
 
+  // Get the store API reference - can be used to get state outside of React's render cycle
+  const storeApi = useStoreApiContext();
+
   // Create individual mutation hooks for each property
   const typeMutation = usePatchTileQuery();
   const tableMutation = usePatchTileQuery();
@@ -103,7 +111,7 @@ export function useTileSync(
   const columnContextMutation = usePatchTileQuery();
   const contextAndColumnContextMutation = usePatchTileQuery();
   const commonFilterMutation = usePatchTileQuery();
-  const groupingMutation = usePatchTileQuery();
+  const groupingMutation = usePatchTileQueryOptimistic();
   const metricMutation = usePatchTileQuery();
   const freezeMutation = usePatchTileQuery();
   const autoUpdateMutation = usePatchTileQuery();
@@ -344,17 +352,25 @@ export function useTileSync(
     // 1) Update local state immediately
     dataActions.setGrouping(grouping);
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
+
     // 2) Optimistic server update
     groupingMutation.mutate({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
       updateData: { grouping: grouping ?? null } as Partial<TileData>,
-      actions: granularTileActions
+      actions: granularTileActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+      projectId: state.activeProjectId || ""
     }, {
       onSettled: () => {
         // 3. Refresh the router
         console.log("[wrapGrouping] onSettled:", grouping);
-        refreshRouter( { clearLoading: true } );
+        uiActions.setLoading(false);
       }
     });
   };
