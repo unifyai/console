@@ -226,27 +226,36 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         return () => subscription.unsubscribe();
     }, [watchHireForm]);
 
-    const handleOpenHireDialog = () => {
+    const handleOpenHireDialog = React.useCallback(() => {
         resetHireForm(); 
         setIsAssistantPresetsOpen(true); 
         // Reset preset filters to default when opening dialog
         setPresetAgeFilter('all');
         setPresetRegionFilter('all');
         setPresetGenderFilter('all');
+        // Auto populate hire dialog with an assistant preset on dialog open
+        if (allAssistantPresets.length > 0) {
+            const presetsToChooseFrom = allAssistantPresets; 
+            const randomIndex = Math.floor(Math.random() * presetsToChooseFrom.length);
+            const randomPreset = presetsToChooseFrom[randomIndex];
+            if (randomPreset) {
+                handleAssistantPresetSelect(randomPreset);
+            }
+        }
         // Initial load of presets for the dialog will be handled by effects
         setIsHireDialogOpen(true);
-    };
+    }, [resetHireForm, setIsAssistantPresetsOpen, setPresetAgeFilter, setPresetRegionFilter, setIsHireDialogOpen, allAssistantPresets]);
 
-    const handleHireImageRemove = () => {
+    const handleHireImageRemove = React.useCallback(() => {
         const currentPreview = getHireValues("imagePreview");
         if (currentPreview && currentPreview.startsWith('blob:')) {
             URL.revokeObjectURL(currentPreview);
         }
         setHireValue("imageFile", null);
         setHireValue("imagePreview", null);
-    };
+    }, [getHireValues, setHireValue]);
 
-    const handleAssistantPresetSelect = (preset: AssistantPreset) => {
+    const handleAssistantPresetSelect = React.useCallback((preset: AssistantPreset) => {
         handleHireImageRemove(); 
         setHireValue("first_name", preset.first_name, { shouldValidate: true });
         setHireValue("surname", preset.surname, { shouldValidate: true });
@@ -255,7 +264,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         setHireValue("about", preset.about, { shouldValidate: true });
         setHireValue("imagePreview", preset.profile_photo); // This could be a GCS URL from presets
         clearHireErrors();
-    };
+    }, [handleHireImageRemove, setHireValue, clearHireErrors]);
 
      const uploadImageToGCS = async (file: File, signedUrl: string): Promise<boolean> => {
          try {
@@ -345,7 +354,9 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 // We need to make sure the name shown in toast is correct.
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId, duration: 4000 });
                 setIsHireDialogOpen(false); 
-                await fetchAssistants(false); 
+                await fetchAssistants(false);
+                const newAssistant = result.assistant as Assistant 
+                handleShowProfile(newAssistant.agent_id);
             } else {
                 const errorResult = result as ResponseProps;
                 const errorMessage = errorResult?.detail || "Failed to hire assistant.";
@@ -585,6 +596,17 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         fetchStatuses();
          // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); 
+
+    const initialLoadProcessedRef = React.useRef(false);
+    React.useEffect(() => {
+        if (!isLoadingAssistants && !initialLoadProcessedRef.current) {
+            initialLoadProcessedRef.current = true; 
+    
+            if (!assistantError && assistants.length === 0) {
+                handleOpenHireDialog();
+            }
+        }
+    }, [assistants, isLoadingAssistants, assistantError, handleOpenHireDialog]);
 
     React.useEffect(() => {
         if (isLoadingAssistants) return;

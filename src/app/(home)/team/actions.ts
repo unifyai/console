@@ -214,8 +214,9 @@ export const createAssistant = async (apiKey: string) => {
                 return { detail: errorMessage };
             }
 
-            const successMessage = data.info || `Assistant created successfully.`;
-            return { info: successMessage }
+            const successMessage = `Assistant created successfully.`;
+            const createdAssistant = data.info as Assistant;
+            return { info: successMessage, assistant: createdAssistant }
 
         } catch (error) {
             console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
