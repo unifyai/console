@@ -376,14 +376,20 @@ export default function NavMenu() {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <button
-          onClick={() => onUnfavouriteClick(item.favId, item.title)}
-          className="p-1 ml-1 text-muted-foreground hover:text-primary focus:outline-none group-data-[collapsible=icon]:hidden flex-shrink-0"
-          aria-label={`Remove ${item.title} from favourites`}
-          title={`Remove ${item.title} from favourites`}
-        >
-          <Star className="w-4 h-4" fill="currentColor"/>
-        </button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onUnfavouriteClick(item.favId, item.title)}
+                className="p-1 ml-1 text-muted-foreground hover:text-primary focus:outline-none group-data-[collapsible=icon]:hidden flex-shrink-0"
+                aria-label={`Remove ${item.title} from favourites`}
+              >
+                <Star className="w-4 h-4" fill="currentColor"/>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right"><p>{`Remove ${item.title} from favourites`}</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </SidebarMenuItem>
     );
   };
@@ -428,8 +434,7 @@ export default function NavMenu() {
 
                     {renderMenuItem(usageProjectItem, isActive(usageProjectItem), true, state)}
                     
-                    
-                    {projects.length > 0 && (
+                    {projects.length > 0 && state === "expanded" && (
                       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                         <SortableContext items={projects.map(p=>p.id)} strategy={verticalListSortingStrategy}>
                           {projects.map((p) => (
