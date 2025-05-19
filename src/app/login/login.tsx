@@ -94,7 +94,7 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
                     <div className="flex gap-[30px] font-medium">
                         <LayoutDashboard className="h-fit text-green-500"/>
                         <p>
-                            <span className="font-bold">Iterate</span> with flexible interfaces to tweak your assistant's behavior.
+                            <span className="font-bold">Iterate</span> with flexible interfaces to tweak your assistant.
                         </p>
                     </div>
                 </div>
