@@ -152,21 +152,8 @@ export default function TimelineViewButton({
 
   // For single trace mode, we'll modify the data to center the bars
   const processedChartData = useMemo(() => {
-    if (!isSingleTrace) return chartData;
-    
-    // For single trace, add a centering offset to position the bar in the middle
-    return chartData.map(item => {
-      const traceIndex = baseTrace ? 0 : 1;
-      const startKey = `start-${traceIndex}`;
-      const lengthKey = `length-${traceIndex}`;
-      
-      return {
-        ...item,
-        // If we have a valid length, center it
-        [startKey]: item[lengthKey] > 0 ? 0.3 : 0 // Add a small offset to center the bar
-      };
-    });
-  }, [chartData, isSingleTrace, baseTrace]);
+    return chartData;
+  }, [chartData]);
   
   // Define findFirstActivityTime in a useMemo to avoid recreation
   const findFirstActivityTime = useMemo(() => {
