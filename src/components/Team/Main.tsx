@@ -4,7 +4,7 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Team/AssistantList";
 import { TaskList } from "@/components/Team/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantFormData, AssistantPreset } from "@/types/team/assistant";
+import { Assistant, AssistantActions, AssistantFormData, AssistantPreset, Voice, VoicePreset as VoicePresetType } from "@/types/team/assistant"; // Updated imports
 import { Task, TaskActions,  } from "@/types/team/task";
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
 import { AssistantProfilePanel } from './AssistantProfile';
@@ -25,7 +25,8 @@ import { Button } from '@/components/UI/button';
 import { useForm } from "react-hook-form";
 import { HireForm } from '@/components/Team/AssistantHireForm';
 import { PresetsPanel } from '@/components/Team/AssistantHirePresetsList';
-import assistantPresetsConstant from "@/constants/assistants/assistant_presets";
+import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
+import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { LayoutList, Loader2, Shuffle, X } from 'lucide-react';
 
 const TASK_PAGE_LIMIT = 20;
@@ -95,7 +96,6 @@ interface MainProps {
 }
 
 export default function Main({ taskActions, assistantActions }: MainProps) {
-    // Assistant state
     const [assistants, setAssistants] = React.useState<Assistant[]>([]);
     const [isLoadingAssistants, setIsLoadingAssistants] = React.useState(true);
     const [assistantError, setAssistantError] = React.useState<string | null>(null);
@@ -140,6 +140,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         defaultValues: {
             first_name: '', surname: '', age: null, region: null, about: null,
             imageFile: null, imagePreview: null,
+            voice_id: (voicePresetsConstant as VoicePresetType[])[0]?.id || null, 
         },
     });
     const { setValue: setHireValue, watch: watchHireForm, reset: resetHireForm, getValues: getHireValues, setError: setHireError, clearErrors: clearHireErrors } = hireFormMethods;
@@ -219,15 +220,20 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
             handleAssistantPresetSelect(randomPreset);
         }
     };
-    
+
     // --- Hire Dialog Logic ---
     React.useEffect(() => {
         const subscription = watchHireForm(() => {});
         return () => subscription.unsubscribe();
     }, [watchHireForm]);
-
+    
     const handleOpenHireDialog = React.useCallback(() => {
-        resetHireForm(); 
+        const defaultVoice = (voicePresetsConstant as VoicePresetType[])[0];
+        resetHireForm({
+            first_name: '', surname: '', age: null, region: null, about: null,
+            imageFile: null, imagePreview: null,
+            voice_id: defaultVoice?.id || null,
+        });
         setIsAssistantPresetsOpen(true); 
         // Reset preset filters to default when opening dialog
         setPresetAgeFilter('all');
@@ -262,7 +268,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         setHireValue("age", preset.age, { shouldValidate: true });
         setHireValue("region", preset.region, { shouldValidate: true });
         setHireValue("about", preset.about, { shouldValidate: true });
-        setHireValue("imagePreview", preset.profile_photo); // This could be a GCS URL from presets
+        setHireValue("imagePreview", preset.profile_photo);
+        setHireValue("voice_id", preset.voice_id);
         clearHireErrors();
     }, [handleHireImageRemove, setHireValue, clearHireErrors]);
 
@@ -346,12 +353,15 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 setIsHireSubmitting(false);
                 return;
             }
+            if (!data.voice_id) {
+                setHireError("voice_id", { type: "manual", message: "No voice id provided." });
+                toast.error("No voice selected.", { id: toastId }); setIsHireSubmitting(false); return;
+            }
 
-            const result = await assistantActions.assistant.create(data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about);
+            const result = await assistantActions.assistant.create(data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about, data.voice_id
+            );
 
             if ("info" in result) {
-                // The actual created assistant data isn't returned by this 'create' action directly.
-                // We need to make sure the name shown in toast is correct.
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId, duration: 4000 });
                 setIsHireDialogOpen(false); 
                 await fetchAssistants(false);
@@ -363,7 +373,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 console.error("Error response from createAssistant action:", errorResult);
                 toast.error(errorMessage, { id: toastId, duration: 5000 });
             }
-
         } catch (error: any) {
             console.error("Unhandled error in handleHireFormSubmit:", error);
             toast.error(`An error occurred: ${error.message}`, { id: toastId, duration: 5000 });
@@ -523,11 +532,11 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
 
     const updateAssistantProfile = React.useCallback(async (id: string, about: string | null, phone: string | null, email: string | null): Promise<ResponseProps> => {
         try {
-            const result = await assistantActions.assistant.update(id, about, phone, email);
+            const result = await assistantActions.assistant.update(id, about, phone, email, null);
              if (result && 'detail' in result) {
                  throw new Error((result as ResponseProps).detail);
              }
-
+            
             const updatedAssistant = assistants.find(a => a.agent_id === id);
             let signedProfilePhotoUrl = updatedAssistant?.signedProfilePhotoUrl; 
             if (updatedAssistant && isGcsPhoto(updatedAssistant.profile_photo) && !signedProfilePhotoUrl) {
@@ -683,6 +692,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                             onClose={handleProfileClose}
                             onUpdateProfile={updateAssistantProfile}
                             onDeleteAssistant={handleDeleteAssistant}
+                            assistantActions={assistantActions}
                         />
                     </motion.div>
                 )}
@@ -751,14 +761,14 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                                 <Shuffle className="h-4 w-4" />
                             </Button>
                         </div>
-                         <HireForm
-                            formMethods={hireFormMethods}
-                            onSubmit={handleHireFormSubmit}
-                            onImageRemove={handleHireImageRemove}
-                            isSubmitting={isHireSubmitting}
+                        <HireForm 
+                            formMethods={hireFormMethods} 
+                            onSubmit={handleHireFormSubmit} 
+                            onImageRemove={handleHireImageRemove} 
+                            isSubmitting={isHireSubmitting} 
+                            assistantActions={assistantActions} 
                         />
                     </div>
-
                      {isAssistantPresetsOpen && (
                         <motion.div
                             key="hire-presets-panel"

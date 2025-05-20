@@ -3,7 +3,8 @@ import { LogItemProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/eva
 import { Task } from "@/types/team/task";
 import { Storage } from "@google-cloud/storage";
 import { v4 as uuidv4 } from 'uuid';
-import { Assistant } from "@/types/team/assistant";
+import { Assistant, Voice, CartesiaVoiceInfo } from "@/types/team/assistant";
+import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
 
 // --- GCS Setup  ---
 // Initializing storage bucket
@@ -61,7 +62,7 @@ export const listAssistants = async (apiKey: string) => {
             try {
                 const contentType = response.headers.get("content-type");
                 if (contentType && contentType.includes("application/json")) {
-                    data = await response.json();
+                data = await response.json();
                 } else {
                     console.error(`[actions.ts listAssistants] Received non-JSON response with status ${response.status}`);
                     return { detail: "Received an invalid response from the server." };
@@ -72,7 +73,7 @@ export const listAssistants = async (apiKey: string) => {
             }
 
             if (!response.ok) {
-                const errorMessage = data.detail || `Failed to delete assistant: ${response.statusText}`;
+                const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`;
                 return { detail: errorMessage };
             }
 
@@ -132,7 +133,7 @@ export const deleteAssistant = async (apiKey: string) => {
 };
 
 export const updateAssistant = async (apiKey: string) => {
-    return async (assistantId: string, about: string | null, phone: string | null, email: string | null): Promise<ResponseProps> => {
+    return async (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -144,7 +145,7 @@ export const updateAssistant = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({about, email, phone})
+                    body: JSON.stringify({about, email, phone, voice_id})
                 }
             );
 
@@ -179,7 +180,7 @@ export const updateAssistant = async (apiKey: string) => {
 };
 
 export const createAssistant = async (apiKey: string) => {
-    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null ): Promise<ResponseProps> => {
+    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null ): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -191,7 +192,7 @@ export const createAssistant = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, max_parallel: 10, weekly_limit: 40 })
+                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, voice_id, max_parallel: 10, weekly_limit: 40 })
                 }
             );
 
@@ -210,14 +211,14 @@ export const createAssistant = async (apiKey: string) => {
             }
 
             if (!response.ok) {
-                const errorMessage = data.detail || `Failed to update assistant: ${response.statusText}`;
+                const errorMessage = data.detail || `Failed to create assistant: ${response.statusText}`;
                 return { detail: errorMessage };
             }
 
             const successMessage = `Assistant created successfully.`;
             const createdAssistant = data.info as Assistant;
             return { info: successMessage, assistant: createdAssistant }
-
+           
         } catch (error) {
             console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
@@ -564,3 +565,110 @@ export const updateTask = async (apiKey: string) => {
 
     }
 }
+
+// --- Voice Actions (Orchestra DB ) ---
+export const listVoicesFromOrchestra = async (apiKey: string) => {
+    return async (): Promise<Voice[] | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, { method: "GET", headers: { apiKey: apiKey }});
+            const data = await response.json();
+            if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
+            return (data.info || data) as Voice[]; // Orchestra returns { info: VoiceRead[] }
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const createVoiceInOrchestra = async (apiKey: string) => {
+    return async (cartesia_voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage): Promise<(Voice & {info?: string}) | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
+                method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify({ voice_id: cartesia_voice_id, name, description, gender, language })
+            });
+            const data = await response.json();
+            if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
+             // Orchestra returns { info: VoiceRead }
+            return { ...(data.info as Voice), info: `Voice ${name} registered.` };
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const deleteVoiceFromOrchestra = async (apiKey: string) => {
+    return async (cartesia_voice_id: string): Promise<ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${cartesia_voice_id}`, { method: "DELETE", headers: { apiKey: apiKey }});
+            if (!response.ok && response.status !== 404) { // Allow 404 as "already deleted"
+                 const data = await response.json().catch(() => ({}));
+                return { detail: data.detail || `Failed: ${response.statusText}` };
+            }
+            return { info: `Voice record ${cartesia_voice_id} deleted from DB.` };
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const cloneVoiceOnCartesia = async (apiKeyForProxyAuth: string) => { // apiKey might be used by proxy route for its own auth
+    return async (formData: FormData): Promise<CartesiaVoiceInfo | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/clone`, { 
+                method: "POST", 
+                headers: { apiKey: apiKeyForProxyAuth }, // Auth for your proxy route
+                body: formData 
+            });
+            const data = await response.json();
+            if (!response.ok) return { detail: data.detail || `Cartesia clone failed: ${response.statusText}` };
+            return data as CartesiaVoiceInfo; // Proxy returns CartesiaVoiceInfo structure
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const localizeVoiceOnCartesia = async (apiKeyForProxyAuth: string) => {
+    return async (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender): Promise<CartesiaVoiceInfo | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/localize`, {
+                method: "POST", headers: { apiKey: apiKeyForProxyAuth, "Content-Type": "application/json" },
+                body: JSON.stringify({ baseCartesiaVoiceId, name, description, targetLanguage, originalSpeakerGender })
+            });
+            const data = await response.json();
+            if (!response.ok) return { detail: data.detail || `Cartesia localization failed: ${response.statusText}` };
+            return data as CartesiaVoiceInfo;
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const deleteVoiceFromCartesia = async (apiKeyForProxyAuth: string) => {
+    return async (cartesiaVoiceId: string): Promise<ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/${cartesiaVoiceId}`, { // Path based on user's file structure
+                method: "DELETE", headers: { apiKey: apiKeyForProxyAuth }
+            });
+             if (!response.ok && response.status !== 404 && response.status !== 204 && response.status !== 200) { // Allow 404, 204, 200 as success/already done
+                const data = await response.json().catch(() => ({}));
+                return { detail: data.detail || `Cartesia delete failed: ${response.statusText}` };
+            }
+            return { info: `Voice ${cartesiaVoiceId} deleted from Cartesia.` };
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};
+
+export const generateTTS = async (apiKeyForProxyAuth: string) => {
+    return async (cartesiaVoiceId: string, text: string, language: SupportedLanguage): Promise<Blob | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/tts`, {
+                method: "POST", headers: { apiKey: apiKeyForProxyAuth, "Content-Type": "application/json" },
+                body: JSON.stringify({ cartesiaVoiceId, text, language })
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                return { detail: data.detail || `TTS failed: ${response.statusText}` };
+            }
+            return await response.blob();
+        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
+    };
+};

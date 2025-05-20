@@ -1,16 +1,28 @@
 import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Team/Main";
 import { 
+    // Task actions
     getTasks, 
     updateTask,
     getUniqueFieldValues,
+    // Assistant actions
     listAssistants, 
     createAssistant,
     deleteAssistant, 
     updateAssistant, 
+    // Photo actions
     uploadPhoto,
     downloadPhoto, 
     deletePhoto,
+    // Orchestra Voice Actions
+    listVoicesFromOrchestra,
+    createVoiceInOrchestra,
+    deleteVoiceFromOrchestra,
+    // Cartesia Voice Actions
+    cloneVoiceOnCartesia,
+    localizeVoiceOnCartesia,
+    deleteVoiceFromCartesia,
+    generateTTS,
 } from "./actions";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
@@ -37,6 +49,17 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
             upload: await uploadPhoto(userId),
             download: await downloadPhoto(),
             delete: await deletePhoto()
+        },
+        "voice": {
+            // Orchestra DB Voice Management
+            listVoicesFromOrchestra: await listVoicesFromOrchestra(apiKey),
+            createVoiceInOrchestra: await createVoiceInOrchestra(apiKey),
+            deleteVoiceFromOrchestra: await deleteVoiceFromOrchestra(apiKey),
+            // Cartesia Operations (via Frontend Proxies)
+            cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey), // apiKey for proxy auth
+            localizeVoiceOnCartesia: await localizeVoiceOnCartesia(apiKey),
+            deleteVoiceFromCartesia: await deleteVoiceFromCartesia(apiKey),
+            generateTTS: await generateTTS(apiKey),
         }
     }
     
@@ -48,7 +71,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
 
     return (
         <div className="w-full h-full">
-            <Main assistantActions={assistantActions} taskActions={taskActions}/>
+            <Main assistantActions={assistantActions} taskActions={taskActions} currentUserId={userId} />
         </div>
     );
 };

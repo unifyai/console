@@ -7,7 +7,14 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
-import { AssistantFormData } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption, VoicePreset as VoicePresetType } from '@/types/team/assistant';
+import { VoiceCustomization } from './VoiceCustomization'; 
+import { Button } from '../UI/button';
+import { Volume2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
+import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
 
@@ -16,37 +23,72 @@ interface HireFormProps {
   onSubmit: (data: AssistantFormData) => void;
   onImageRemove: () => void;
   isSubmitting: boolean;
-  // No need for 'children' prop if submit button is inside
+  assistantActions: AssistantActions; 
 }
 
-export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }: HireFormProps) {
-  const { register, handleSubmit, formState: { errors }, watch, setValue, getValues } = formMethods; // Added getValues
+export function HireForm({ 
+    formMethods, 
+    onSubmit, 
+    onImageRemove, 
+    isSubmitting,
+    assistantActions,
+}: HireFormProps) {
+  const { register, handleSubmit, formState: { errors }, watch, setValue, getValues } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
+  const aboutText = watch("about");
+  const selectedVoiceId = watch("voice_id");
+  const selectedVoiceLanguageCode = watch("voice_language"); // This is now string | null
+
+  const [isPlayingAbout, setIsPlayingAbout] = React.useState(false);
+  const [isPlayingSkills, setIsPlayingSkills] = React.useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const handleFileChange = (file: File | null) => {
-    const currentPreview = getValues("imagePreview"); // Use getValues here
-    if (currentPreview && currentPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(currentPreview);
-    }
-
-    setValue("imageFile", file, { shouldValidate: false }); // No change needed here
-
-    if (file) {
-      const newPreviewUrl = URL.createObjectURL(file);
-      setValue("imagePreview", newPreviewUrl);
-    } else {
-      setValue("imagePreview", null);
-    }
+    const currentPreview = getValues("imagePreview");
+    if (currentPreview && currentPreview.startsWith('blob:')) URL.revokeObjectURL(currentPreview);
+    setValue("imageFile", file, { shouldValidate: false });
+    if (file) setValue("imagePreview", URL.createObjectURL(file));
+    else setValue("imagePreview", null);
   };
 
-  // This internal submit handler is called by RHF's handleSubmit
-  const internalOnSubmit = (data: AssistantFormData) => {
-      onSubmit(data); // Call the prop onSubmit passed from parent
+  const internalOnSubmit = (data: AssistantFormData) => onSubmit(data); 
+
+  const playTTS = async (text: string | null | undefined, setIsPlayingState: React.Dispatch<React.SetStateAction<boolean>>) => {
+    if (!text || !selectedVoiceId || !selectedVoiceLanguageCode) {
+        toast.error("Please select a voice and ensure text is available to preview.");
+        return;
+    }
+    if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause(); audioRef.current.currentTime = 0;
+        setIsPlayingState(false); 
+        if (setIsPlayingState === setIsPlayingAbout && isPlayingAbout) return;
+        if (setIsPlayingState === setIsPlayingSkills && isPlayingSkills) return;
+    }
+
+    setIsPlayingState(true);
+    const toastId = toast.loading("Generating audio preview...");
+
+    try {
+        // Ensure selectedVoiceLanguageCode is of type SupportedLanguage
+        const result = await assistantActions.voice.generateTTS(selectedVoiceId, text, selectedVoiceLanguageCode as SupportedLanguage);
+        if (result instanceof Blob) {
+            const audioURL = URL.createObjectURL(result);
+            if (audioRef.current) {
+                audioRef.current.src = audioURL;
+                audioRef.current.play().catch(e => { toast.error("Could not play audio.", { id: toastId }); setIsPlayingState(false); });
+                audioRef.current.onended = () => { setIsPlayingState(false); URL.revokeObjectURL(audioURL); };
+            }
+            toast.success("Audio preview ready.", { id: toastId, duration: 2000 });
+        } else {
+            toast.error(result.detail || "Failed to generate TTS.", { id: toastId }); setIsPlayingState(false);
+        }
+    } catch (error: any) {
+        toast.error(`TTS Error: ${error.message}`, { id: toastId }); setIsPlayingState(false);
+    }
   };
 
   return (
-    // Use the form's handleSubmit which wraps internalOnSubmit
     <form onSubmit={handleSubmit(internalOnSubmit)} className="space-y-6 h-full flex flex-col"> 
      {/* Disable fieldset during submission */}
      <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
@@ -56,7 +98,7 @@ export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }:
               previewUrl={imagePreviewUrl}
               onFileChange={handleFileChange}
               onRemove={onImageRemove}
-              className="flex-shrink-0 pt-2" // Adjusted padding
+              className="flex-shrink-0 pt-2"
               disabled={isSubmitting}
             />
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
@@ -110,31 +152,67 @@ export function HireForm({ formMethods, onSubmit, onImageRemove, isSubmitting }:
           </div>
 
           <Separator />
+            <div>
+                <Label className="text-base font-semibold">Voice Configuration</Label>
+                <p className="text-xs text-muted-foreground mb-2">Select a preset voice or create a new one.</p>
+                <VoiceCustomization
+                    assistantActions={assistantActions}
+                    onVoiceSelected={(voiceId, languageCode) => {
+                        setValue("voice_id", voiceId, { shouldValidate: true });
+                        setValue("voice_language", languageCode, { shouldValidate: true });
+                    }}
+                    initialVoiceId={getValues("voice_id")}
+                    initialLanguageCode={getValues("voice_language")}
+                    disabled={isSubmitting}
+                />
+                 {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
+            </div>
+
+          <Separator />
 
           {/* About Section */}
           <div className="space-y-2">
-            <Label htmlFor="about" className="text-base font-semibold">About</Label>
-            <Textarea
-              id="about"
-              placeholder="Describe the persona's background, personality, etc."
-              className="min-h-[100px]"
-              aria-invalid={errors.about ? "true" : "false"}
-              {...register("about", { required: "About description is required" })}
-            />
-             {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
+            <div className="flex justify-between items-center"> 
+              <Label htmlFor="about" className="text-base font-semibold">About</Label> 
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => playTTS(aboutText, setIsPlayingAbout)}
+                disabled={isSubmitting || isPlayingAbout || !selectedVoiceId || !aboutText}
+                title="Preview About" className="h-7 w-7"
+              > {isPlayingAbout 
+                  ? <Loader2 className="h-4 w-4 animate-spin" /> 
+                  : <Volume2 className="h-4 w-4" />
+                } 
+              </Button> 
+            </div>
+            <Textarea id="about" placeholder="Persona background, personality..." className="min-h-[100px]" {...register("about", { required: "About description is required" })}/>
+            {errors.about && <p className="text-sm text-destructive mt-1">{errors.about.message}</p>}
           </div>
 
           <Separator />
 
-          {/* Skills Section (Static - No validation needed) */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold">Skills</Label>
-            <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
-              {staticSkillsText}
-            </p>
+            <div className="flex justify-between items-center">
+              <Label className="text-base font-semibold">Skills</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => playTTS(staticSkillsText, setIsPlayingSkills)}
+                disabled={isSubmitting || isPlayingSkills || !selectedVoiceId}
+                title="Preview Skills" className="h-7 w-7"
+              > {isPlayingSkills 
+                  ? <Loader2 className="h-4 w-4 animate-spin" /> 
+                  : <Volume2 className="h-4 w-4" />
+                } 
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50"> {staticSkillsText} </p>
           </div>
+          <audio ref={audioRef} className="hidden" />
      </fieldset>
-
     </form>
   );
 }

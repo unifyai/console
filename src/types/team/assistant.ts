@@ -1,11 +1,12 @@
 import { ResponseProps } from "../common";
+import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
 
+// Assistant profile types
 export interface Assistant {
   agent_id: string;
-  // Profile fields
   first_name: string;
   surname: string;
-  profile_photo: string;
+  profile_photo: string; 
   age: number | null;
   region: string | null;
   about: string | null;
@@ -21,27 +22,66 @@ export interface Assistant {
   updated_at: string;
   // Client-side generated signed URL for GCS photos
   signedProfilePhotoUrl?: string;
+  // Cartesia voice id
+  voice_id: string | null;
 }
 
 export type AssistantPreset =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel'>
-  & { gender?: 'male' | 'female' }; // Add gender here as well
+  & { gender?: 'male' | 'female'; voice_id: string };
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender'>
-  & {imageFile?: File | null; imagePreview?: string | null;};
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
+  & { imageFile?: File | null;  imagePreview?: string | null; voice_id?: string | null, voice_language?: string | null };
 
+// Assistant voice types
+export interface Voice {
+  voice_id: string; // Cartesia Voice ID (PK in your 'voices' table)
+  name: string; 
+  description: string;
+  gender: string; // 'female', 'male' - consistent with Cartesia
+  language: string; // language code e.g. 'en'
+}
+
+export interface CartesiaVoiceInfo {
+    id: string; // Cartesia ID
+    name: string;
+    description?: string;
+    language: SupportedLanguage;
+    gender: CartesiaGender; // for presets if gender is not strictly male/female
+}
+
+export interface VoicePreset {
+  id: string,
+  name: string,
+  description: string,
+  gender: CartesiaGender,
+  language: SupportedLanguage
+}
+
+export type VoiceOption = CartesiaVoiceInfo & {  isPreset?: boolean; isUserVoiceInOrchestra?: boolean };
 
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null) => Promise<ResponseProps>;
-    update: (assistantId: string, about: string | null, phone: string | null, email: string | null) => Promise<ResponseProps>;
+    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null,voice_id: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
+    update: (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
   "photo": {    
     upload: (contentType: string, fileSize: number) => Promise<{ signedUrl: string, filePath: string, bucketName: string } | ResponseProps>;
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
     delete: (filePathOrUrl: string) => Promise<ResponseProps>;
+  },
+  "voice": {
+    // Orchestra DB Voice Management
+    listVoicesFromOrchestra: () => Promise<Voice[] | ResponseProps>; 
+    createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
+    deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>; 
+    // Cartesia Operations (via frontend proxies)
+    cloneVoiceOnCartesia: (formData: FormData) => Promise<CartesiaVoiceInfo | ResponseProps>; 
+    localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<CartesiaVoiceInfo | ResponseProps>;
+    deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
+    generateTTS: (cartesiaVoiceId: string, text: string, language: SupportedLanguage) => Promise<Blob | ResponseProps>;
   }
 }
