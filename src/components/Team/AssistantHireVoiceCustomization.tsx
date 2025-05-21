@@ -341,7 +341,7 @@ export function VoiceCustomization({
 
                 <TooltipProvider delayDuration={100}>
                     <Tooltip><TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handlePlayVoicePreview(voice);}} disabled={disabled || isProcessingCreate}>
+                        <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handlePlayVoicePreview(voice);}} disabled={disabled || isProcessingCreate}>
                             {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
                         </Button>
                     </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
@@ -349,14 +349,14 @@ export function VoiceCustomization({
 
                 <TooltipProvider delayDuration={100}>
                     <Tooltip><TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
                     </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Localize "${voice.name}"`}</p></TooltipContent></Tooltip>
                 </TooltipProvider>
                 
                 {voice.isUserVoiceInOrchestra && (
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10" )} onClick={(e)=>{e.stopPropagation();handleDeleteUserVoice(voice);}} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>
+                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10" )} onClick={(e)=>{e.stopPropagation();handleDeleteUserVoice(voice);}} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
                 )}
@@ -386,7 +386,7 @@ export function VoiceCustomization({
                     {createMode === 'clone' && (<>
                         <div> <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
                             {!cloneFileName ? (<label className="mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled||isProcessingCreate}> <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span> <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e)=>{const f=e.target.files?.[0]; if(f){setCloneFile(f);setCloneFileName(f.name);}}} disabled={disabled||isProcessingCreate}/> </label>) 
-                            : (<div className="mt-0.5 flex items-center justify-between p-1.5 border rounded-md bg-muted/50 text-sm h-9"> <span className="truncate">{cloneFileName}</span> <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)}
+                            : (<div className="mt-0.5 flex items-center justify-between p-1.5 border rounded-md bg-muted/50 text-sm h-9"> <span className="truncate">{cloneFileName}</span> <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e=>setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
@@ -403,7 +403,7 @@ export function VoiceCustomization({
                             </div>
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip><TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} >
+                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} >
                                         <Trash2 className="h-4 w-4"/>
                                     </Button>
                                 </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>Cancel localization</p></TooltipContent></Tooltip>
@@ -417,7 +417,7 @@ export function VoiceCustomization({
                         <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e=>setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled||isProcessingCreate}/></div>
                     </>)}
                     
-                    <Button onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled||isProcessingCreate}>
+                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled||isProcessingCreate}>
                         {isProcessingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4" /> } Create & Select Voice
                     </Button>
                 </TabsContent>
