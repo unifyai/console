@@ -32,7 +32,7 @@ export type AssistantPreset =
 
 export type AssistantFormData =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
-  & { imageFile?: File | null;  imagePreview?: string | null; voice_id?: string | null, voice_language?: string | null };
+  & { imageFile?: File | null;  imagePreview?: string | null; voice_id?: string, voice_name?: string, voice_description?: string, voice_gender?: CartesiaGender, voice_language?: SupportedLanguage, voice_exists?: boolean };
 
 // Assistant voice types
 export interface Voice {
@@ -44,11 +44,11 @@ export interface Voice {
 }
 
 export interface CartesiaVoiceInfo {
-    id: string; // Cartesia ID
+  id: string; // Cartesia ID
   name: string;
   description?: string | null;
   language: SupportedLanguage;
-    gender: CartesiaGender; // for presets if gender is not strictly male/female
+  gender: CartesiaGender; // for presets if gender is not strictly male/female
 }
 
 export interface VoicePreset {
@@ -76,7 +76,7 @@ export interface AssistantActions {
   "voice": {
     // Orchestra DB Voice Management
     listVoicesFromOrchestra: () => Promise<Voice[] | ResponseProps>; 
-    createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
+    createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
     deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>;
     // Cartesia Operations (via frontend proxies)
     cloneVoiceOnCartesia: (formData: FormData) => Promise<CartesiaVoiceInfo | ResponseProps>; 

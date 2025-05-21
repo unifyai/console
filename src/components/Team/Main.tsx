@@ -140,7 +140,12 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         defaultValues: {
             first_name: '', surname: '', age: null, region: null, about: null,
             imageFile: null, imagePreview: null,
-            voice_id: (voicePresetsConstant as VoicePresetType[])[0]?.id || null, 
+            voice_id: (voicePresetsConstant as VoicePresetType[])[0].id, 
+            voice_name: (voicePresetsConstant as VoicePresetType[])[0].name,
+            voice_language: (voicePresetsConstant as VoicePresetType[])[0].language,
+            voice_description: (voicePresetsConstant as VoicePresetType[])[0].description,
+            voice_gender: (voicePresetsConstant as VoicePresetType[])[0].gender,
+            voice_exists: false,
         },
     });
     const { setValue: setHireValue, watch: watchHireForm, reset: resetHireForm, getValues: getHireValues, setError: setHireError, clearErrors: clearHireErrors } = hireFormMethods;
@@ -232,7 +237,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         resetHireForm({
             first_name: '', surname: '', age: null, region: null, about: null,
             imageFile: null, imagePreview: null,
-            voice_id: defaultVoice?.id || null,
+            voice_id: defaultVoice.id, voice_name: defaultVoice.name, voice_description: defaultVoice.description, voice_language: defaultVoice.language, voice_gender: defaultVoice.gender
         });
         setIsAssistantPresetsOpen(true); 
         // Reset preset filters to default when opening dialog
@@ -299,8 +304,36 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         clearHireErrors();
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
-
+        
         try {
+            
+            // --- Form validation ---
+            const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
+            if (!ageNumber || isNaN(ageNumber) || ageNumber <= 0) {
+                setHireError("age", { type: "manual", message: "Valid age is required." });
+                toast.error("Invalid age provided.", { id: toastId });
+                setIsHireSubmitting(false);
+                return;
+            }
+
+            if (!data.voice_id||!data.voice_name||!data.voice_gender||!data.voice_language) {
+                setHireError("voice_id", { type: "manual", message: "No voice provided." });
+                toast.error("No voice selected.", { id: toastId }); setIsHireSubmitting(false); return;
+            }
+
+            // --- Voice creation ---
+            if (!data.voice_exists) {
+                const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
+                    data.voice_id, data.voice_name, data.voice_description || data.voice_name, data.voice_gender, data.voice_language
+                );
+                if ('detail' in voiceCreationResponse) { 
+                    console.error(`[Main.tsx] Error creating voice in orchestra: ${voiceCreationResponse.detail}.`, { id: toastId, duration: 7000 });
+                    toast.error(`Error creating assistant voice, aborting.`, { id: toastId, duration: 7000 });
+                    return;
+                }
+            }
+
+            // --- Custom image creation ---
             const imageFile = data.imageFile;
 
             if (imageFile instanceof File) {
@@ -312,7 +345,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 if ('detail' in createImageResult) {
                     const errorMsg = createImageResult.detail;
                     console.error("Error from createImage action:", createImageResult);
-                    toast.error(errorMsg, { id: toastId });
+                    toast.error("Error creating assistant image, aborting.", { id: toastId });
                     setIsHireSubmitting(false);
                     return;
                 }
@@ -346,20 +379,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                  return;
             }
 
-            const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-            if (!ageNumber || isNaN(ageNumber) || ageNumber <= 0) {
-                setHireError("age", { type: "manual", message: "Valid age is required." });
-                toast.error("Invalid age provided.", { id: toastId });
-                setIsHireSubmitting(false);
-                return;
-            }
-            if (!data.voice_id) {
-                setHireError("voice_id", { type: "manual", message: "No voice id provided." });
-                toast.error("No voice selected.", { id: toastId }); setIsHireSubmitting(false); return;
-            }
-
-            const result = await assistantActions.assistant.create(data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about, data.voice_id
-            );
+            // --- Assistant creation ---
+            const result = await assistantActions.assistant.create(data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about, data.voice_id);
 
             if ("info" in result) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId, duration: 4000 });
@@ -727,8 +748,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                  isAssistantPresetsOpen && "max-w-6xl" 
              )} onInteractOutside={(e) => { if (isHireSubmitting) e.preventDefault(); }}>
                  <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-                    <DialogTitle>Hire New Assistant</DialogTitle>
-                    <DialogDescription>Define the profile for your new team member. Select a preset or fill out the details.</DialogDescription>
+                    <DialogTitle>Hire Assistant</DialogTitle>
+                    <DialogDescription>Hire an existing assistant or create your own.</DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-1 min-h-0 overflow-hidden">

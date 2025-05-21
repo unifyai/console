@@ -101,9 +101,13 @@ export function HireForm({
                 </div>
                 <VoiceCustomization
                     assistantActions={assistantActions}
-                    onVoiceSelected={(voiceId, languageCode) => {
-                        setValue("voice_id", voiceId, { shouldValidate: !!voiceId }); 
-                        setValue("voice_language", languageCode, { shouldValidate: !!languageCode });
+                    onVoiceSelected={(selectedVoice) => {
+                        setValue("voice_id", selectedVoice?.id, { shouldValidate: !!selectedVoice?.id }); 
+                        setValue("voice_name", selectedVoice?.name, { shouldValidate: !!selectedVoice?.name });
+                        setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
+                        setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
+                        setValue("voice_language", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
+                        setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra, { shouldValidate: !!selectedVoice?.isUserVoiceInOrchestra });
                     }}
                     initialVoiceId={getValues("voice_id")}
                     initialLanguageCode={getValues("voice_language") as SupportedLanguage | null}

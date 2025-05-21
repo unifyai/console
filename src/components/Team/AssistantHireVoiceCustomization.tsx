@@ -89,7 +89,7 @@ const getRandomSampleLine = (language: SupportedLanguage): string => {
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions;
-    onVoiceSelected: (voiceId: string | null, languageCode: SupportedLanguage | null) => void;
+    onVoiceSelected: (selectedVoice: VoiceOption | null) => void;
     initialVoiceId?: string | null;
     initialLanguageCode?: SupportedLanguage | string | null; 
     disabled?: boolean;
@@ -178,7 +178,7 @@ export function VoiceCustomization({
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
         setSelectedCartesiaVoiceId(voice.id); 
-        onVoiceSelected(voice.id, voice.language as SupportedLanguage);
+        onVoiceSelected({...voice, isUserVoiceInOrchestra: userVoicesFromOrchestra.map(v => v.id).includes(voice.id)});
     };
 
     const handleLocalizeRequest = (baseVoice: VoiceOption) => {
@@ -209,7 +209,7 @@ export function VoiceCustomization({
             }
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
-            if (selectedCartesiaVoiceId === voiceToDelete.id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null, null); }
+            if (selectedCartesiaVoiceId === voiceToDelete.id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null); }
         } catch (error: any) { 
             console.error("[VoiceCustomization.tsx] Error deleting voice:", error.message); 
             toast.error(`Error deleting voice: ${error.message}`, { id: toastId }); 
@@ -228,6 +228,7 @@ export function VoiceCustomization({
         const toastId = toast.loading("Creating voice...");
 
         try {
+            // --- Create voice in Cartesia through localization or cloning
             if (createMode === 'clone') {
                 if (!cloneFile||!cloneName||!cloneLanguage) { toast.error("File, Name, Language required.", {id:toastId}); setIsProcessingCreate(false); return; }
                 const formData = new FormData();
@@ -242,7 +243,8 @@ export function VoiceCustomization({
                 );
             }
 
-            if (cartesiaOpResult && 'id' in cartesiaOpResult) { 
+            // --- Create voice in orchestra from new Cartesia voice
+            if (cartesiaOpResult && 'voice_id' in cartesiaOpResult) { 
                 const cartesiaInfo = cartesiaOpResult as CartesiaVoiceInfo;
                 const dbResult = await assistantActions.voice.createVoiceInOrchestra(
                     cartesiaInfo.id, cartesiaInfo.name, cartesiaInfo.description || '',
@@ -254,17 +256,23 @@ export function VoiceCustomization({
                     toast.error(`Error creating voice: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                 } else {
                     toast.success(`Voice "${(dbResult as OrchestraVoiceRecord).name}" created & selected!`, { id: toastId });
-                    onVoiceSelected((dbResult as OrchestraVoiceRecord).voice_id, (dbResult as OrchestraVoiceRecord).language as SupportedLanguage); 
+                    onVoiceSelected({
+                        id: (dbResult as OrchestraVoiceRecord).voice_id,
+                        name: (dbResult as OrchestraVoiceRecord).name,
+                        gender: (dbResult as OrchestraVoiceRecord).gender as CartesiaGender,
+                        language: (dbResult as OrchestraVoiceRecord).language as SupportedLanguage,
+                        description: (dbResult as OrchestraVoiceRecord).description,
+                        isUserVoiceInOrchestra: true
+                    }); 
                     setSelectedCartesiaVoiceId((dbResult as OrchestraVoiceRecord).voice_id);
                     fetchUserVoicesFromOrchestra(); resetCreateForm(); setActiveTab('select');
                 }
-            } else if (cartesiaOpResult && 'detail' in cartesiaOpResult) { 
-                console.error("[VoiceCustomization.tsx] Error creating voice", (cartesiaOpResult as ResponseProps).detail);
-                toast.error("Error creating voice", { id: toastId });
+
             } else { 
                 console.error("[VoiceCustomization.tsx] Error creating voice", (cartesiaOpResult as ResponseProps).detail);
-                toast.error("Error creating voice.", { id: toastId }); 
+                toast.error("Error creating voice", { id: toastId });
             }
+
         } catch (error: any) { 
             console.error("[VoiceCustomization.tsx] Error creating voice", error.message);
             toast.error(`Error creating voice`, { id: toastId });

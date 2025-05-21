@@ -580,12 +580,12 @@ export const listVoicesFromOrchestra = async (apiKey: string) => {
 };
 
 export const createVoiceInOrchestra = async (apiKey: string) => {
-    return async (cartesia_voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage): Promise<(Voice & {info?: string}) | ResponseProps> => {
+    return async (voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage): Promise<(Voice & {info?: string}) | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
                 method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ voice_id: cartesia_voice_id, name, description, gender, language })
+                body: JSON.stringify({ voice_id, name, description, gender, language })
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
@@ -596,15 +596,15 @@ export const createVoiceInOrchestra = async (apiKey: string) => {
 };
 
 export const deleteVoiceFromOrchestra = async (apiKey: string) => {
-    return async (cartesia_voice_id: string): Promise<ResponseProps> => {
+    return async (voice_id: string): Promise<ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${cartesia_voice_id}`, { method: "DELETE", headers: { apiKey: apiKey }});
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${voice_id}`, { method: "DELETE", headers: { apiKey: apiKey }});
             if (!response.ok && response.status !== 404) { // Allow 404 as "already deleted"
                  const data = await response.json().catch(() => ({}));
                 return { detail: data.detail || `Failed: ${response.statusText}` };
             }
-            return { info: `Voice record ${cartesia_voice_id} deleted from DB.` };
+            return { info: `Voice record ${voice_id} deleted from DB.` };
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
