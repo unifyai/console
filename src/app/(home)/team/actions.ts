@@ -655,21 +655,3 @@ export const deleteVoiceFromCartesia = async (apiKey: string) => {
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
-
-export const generateTTS = async (apiKey: string) => {
-    return async (cartesiaVoiceId: string, text: string, language: SupportedLanguage): Promise<ArrayBuffer | ResponseProps> => {
-        "use server";
-        try {
-            if (!language) return { detail: "Language is required for TTS."};
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/tts`, {
-                method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ cartesiaVoiceId, text, language })
-            });
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                return { detail: data.detail || `TTS failed: ${response.statusText}` };
-            }
-            return await response.arrayBuffer(); // Return ArrayBuffer instead of Blob
-        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
-    };
-};

@@ -12,7 +12,7 @@ import {
     AssistantActions, 
     VoiceOption, 
     CartesiaVoiceInfo,
-    Voice as OrchestraVoiceRecord // Represents a voice record from your Orchestra DB
+    Voice as OrchestraVoiceRecord
 } from '@/types/team/assistant';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { Globe, Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react';
@@ -40,13 +40,52 @@ const cartesiaLocalizeGenderOptions: { value: CartesiaGender; label: string }[] 
     { value: "female", label: "Female" }, { value: "male", label: "Male" },
 ];
 
-const sampleTTSLines = [
-    "Hello, how can I assist you today?",
-    "I'm here to help with any questions you might have.",
-    "The weather today is quite pleasant, isn't it?",
-    "Please tell me more about what you're looking for.",
-    "Let's work together to find a solution."
-];
+// Language-specific sample lines
+const sampleTTSLinesByLanguage: Record<SupportedLanguage | string, string[]> = {
+    en: [
+        "Hello, how can I assist you today?",
+        "I'm here to help with any questions you might have.",
+        "The weather today is quite pleasant, isn't it?",
+    ],
+    es: [
+        "Hola, ¿en qué puedo ayudarte hoy?",
+        "Estoy aquí para ayudar con cualquier pregunta que puedas tener.",
+        "El clima hoy es bastante agradable, ¿no es así?",
+    ],
+    fr: [
+        "Bonjour, comment puis-je vous aider aujourd'hui?",
+        "Je suis là pour répondre à toutes vos questions.",
+        "Le temps aujourd'hui est plutôt agréable, n'est-ce pas?",
+    ],
+    de: [
+        "Hallo, wie kann ich Ihnen heute helfen?",
+        "Ich bin hier, um bei allen Fragen zu helfen, die Sie möglicherweise haben.",
+        "Das Wetter heute ist ziemlich angenehm, nicht wahr?",
+    ],
+    // Add more languages and 3 lines for each
+    ja: [
+        "こんにちは、今日はどのようにお手伝いできますか？",
+        "ご不明な点がございましたら、お気軽にお問い合わせください。",
+        "今日の天気はとても気持ちがいいですね。",
+    ],
+    zh: [
+        "你好，今天我能为你做些什么？",
+        "如果您有任何问题，我随时在这里提供帮助。",
+        "今天的天气真不错，不是吗？",
+    ],
+    // Fallback for languages not explicitly defined
+    default: [
+        "This is a test sentence.",
+        "Can you hear my voice clearly?",
+        "I hope you have a wonderful day!",
+    ]
+};
+
+const getRandomSampleLine = (language: SupportedLanguage): string => {
+    const lines = sampleTTSLinesByLanguage[language] || sampleTTSLinesByLanguage.default;
+    return lines[Math.floor(Math.random() * lines.length)];
+};
+
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions;
@@ -196,7 +235,7 @@ export function VoiceCustomization({
                 );
             }
 
-            if (cartesiaOpResult && 'id' in cartesiaOpResult) { // Successfully created/localized on Cartesia
+            if (cartesiaOpResult && 'id' in cartesiaOpResult) { 
                 const cartesiaInfo = cartesiaOpResult as CartesiaVoiceInfo;
                 toast.success(`Voice "${cartesiaInfo.name}" on Cartesia. Registering...`, { id: toastId });
                 const dbResult = await assistantActions.voice.createVoiceInOrchestra(
@@ -206,9 +245,9 @@ export function VoiceCustomization({
 
                 if ('detail' in dbResult) { toast.error(`DB registration failed: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                 } else {
-                    toast.success(`Voice "${dbResult.name}" fully created & selected!`, { id: toastId });
-                    onVoiceSelected(dbResult.voice_id, dbResult.language as SupportedLanguage); 
-                    setSelectedCartesiaVoiceId(dbResult.voice_id);
+                    toast.success(`Voice "${(dbResult as OrchestraVoiceRecord).name}" fully created & selected!`, { id: toastId });
+                    onVoiceSelected((dbResult as OrchestraVoiceRecord).voice_id, (dbResult as OrchestraVoiceRecord).language as SupportedLanguage); 
+                    setSelectedCartesiaVoiceId((dbResult as OrchestraVoiceRecord).voice_id);
                     fetchUserVoicesFromOrchestra(); resetCreateForm(); setActiveTab('select');
                 }
             } else if (cartesiaOpResult && 'detail' in cartesiaOpResult) { toast.error((cartesiaOpResult as ResponseProps).detail, { id: toastId });
@@ -218,29 +257,44 @@ export function VoiceCustomization({
     };
 
     const handlePlayVoicePreview = async (voice: VoiceOption) => {
-        if (isPlayingPreviewForVoiceId === voice.id) { // If same voice is playing, stop it
+        if (isPlayingPreviewForVoiceId === voice.id) { 
             if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
             setIsPlayingPreviewForVoiceId(null); return;
         }
-        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause(); // Stop any other playing preview
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
 
-        const randomLine = sampleTTSLines[Math.floor(Math.random() * sampleTTSLines.length)];
+        const randomLine = getRandomSampleLine(voice.language);
         setIsPlayingPreviewForVoiceId(voice.id);
-        const toastId = toast.loading(`Generating preview for "${voice.name}"...`);
         try {
-            const result = await assistantActions.voice.generateTTS(voice.id, randomLine, voice.language);
-            if (result instanceof Blob) {
-                const audioURL = URL.createObjectURL(result);
-                if (audioRef.current) {
-                    audioRef.current.src = audioURL;
-                    audioRef.current.play().catch(e => { toast.error("Audio play error.", { id: toastId }); setIsPlayingPreviewForVoiceId(null); });
-                    audioRef.current.onended = () => { setIsPlayingPreviewForVoiceId(null); URL.revokeObjectURL(audioURL); };
-                }
-                toast.dismiss(toastId); // Or success: "Preview ready."
-            } else { toast.error(result.detail || "TTS failed.", { id: toastId }); setIsPlayingPreviewForVoiceId(null); }
-        } catch (e:any) { toast.error(`TTS Error: ${e.message}`,{id:toastId}); setIsPlayingPreviewForVoiceId(null); }
-    };
+            const response = await fetch(`/api/voices/tts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cartesiaVoiceId: voice.id, text: randomLine, language: voice.language })
+            });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: "TTS generation failed" }));
+                setIsPlayingPreviewForVoiceId(null); return;
+            }
+            
+            const blob = await response.blob();
+            if (blob.size === 0) {
+                setIsPlayingPreviewForVoiceId(null); return;
+            }
+
+            const audioURL = URL.createObjectURL(blob);
+            if (audioRef.current) {
+                audioRef.current.src = audioURL;
+                audioRef.current.play().catch(e => { 
+                    console.error(`[VoiceCustomization.tsx] TTS Error: {e.message}`)
+                    setIsPlayingPreviewForVoiceId(null); 
+                });
+                audioRef.current.onended = () => { setIsPlayingPreviewForVoiceId(null); URL.revokeObjectURL(audioURL); };
+            }
+        } catch (e:any) { 
+            console.error(`[VoiceCustomization.tsx] TTS Error: ${e.message}`); 
+            setIsPlayingPreviewForVoiceId(null); }
+    };
 
     const VoiceListItem = ({ voice }: { voice: VoiceOption }) => {
         const isSelected = selectedCartesiaVoiceId === voice.id;
@@ -305,11 +359,7 @@ export function VoiceCustomization({
                     </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="create" className="mt-2 p-3 border rounded-md space-y-3">
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-0.5 flex items-center">
-                        {createMode === 'clone' ? 'Clone Voice from Audio Clip' : `Localize: ${localizeBaseVoiceInfo?.name || 'N/A'}`}
-                         {createMode === 'localize' && <Button variant="ghost" size="icon" className="h-6 w-6 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} title="Cancel localization"><Trash2 className="h-3.5 w-3.5"/></Button>}
-                    </h4>
+                <TabsContent value="create" className="p-3 border rounded-md space-y-3">
                     
                     {createMode === 'clone' && (<>
                         <div> <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
@@ -324,12 +374,24 @@ export function VoiceCustomization({
                     </>)}
 
                     {createMode === 'localize' && localizeBaseVoiceInfo && (<>
-                        <div className="p-1.5 border rounded-md bg-muted/50 text-sm h-9 flex items-center"> Base Voice: <span className="font-semibold ml-1">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> </div>
+                        <div className="py-1 px-2 border rounded-md bg-muted/50 text-sm h-9 flex items-center justify-between"> 
+                            <div className="flex items-center">
+                                <span>Base Voice: </span> 
+                                <span className="font-semibold ml-1">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> 
+                            </div>
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip><TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} >
+                                        <Trash2 className="h-4 w-4"/>
+                                    </Button>
+                                </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>Cancel localization</p></TooltipContent></Tooltip>
+                            </TooltipProvider>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div><Label htmlFor="localize-name" className="text-xs">New Voice Name</Label><Input id="localize-name" value={localizeNewName} onChange={e=>setLocalizeNewName(e.target.value)} className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
                             <div> <Label htmlFor="localize-target-lang" className="text-xs">Target Language</Label> <Select value={localizeTargetLanguage} onValueChange={(v) => setLocalizeTargetLanguage(v as LocalizeTargetLanguage)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Target Lang..." /></SelectTrigger> <SelectContent>{languageOptions.filter(l => l.value !== localizeBaseVoiceInfo.language).map(l=><SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent> </Select> </div>
                         </div>
-                        <div> <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender</Label> <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger> <SelectContent>{cartesiaLocalizeGenderOptions.map(g=><SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent> </Select> </div>
+                        <div> <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender</Label> <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={true}> <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger> <SelectContent>{cartesiaLocalizeGenderOptions.map(g=><SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent> </Select> </div>
                         <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e=>setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled||isProcessingCreate}/></div>
                     </>)}
                     

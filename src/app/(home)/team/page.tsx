@@ -22,7 +22,6 @@ import {
     cloneVoiceOnCartesia,
     localizeVoiceOnCartesia,
     deleteVoiceFromCartesia,
-    generateTTS,
 } from "./actions";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
@@ -59,7 +58,6 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
             cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey), // apiKey for proxy auth
             localizeVoiceOnCartesia: await localizeVoiceOnCartesia(apiKey),
             deleteVoiceFromCartesia: await deleteVoiceFromCartesia(apiKey),
-            generateTTS: await generateTTS(apiKey),
         }
     }
     
