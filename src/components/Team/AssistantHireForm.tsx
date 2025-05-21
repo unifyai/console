@@ -8,7 +8,7 @@ import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant'; // Removed unused VoiceOption, VoicePresetType
-import { VoiceCustomization } from './VoiceCustomization'; 
+import { VoiceCustomization } from './AssistantHireVoiceCustomization'; 
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Volume2, User, LetterText, BriefcaseBusiness } from 'lucide-react';
 
