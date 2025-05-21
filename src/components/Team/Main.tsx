@@ -692,7 +692,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                             onClose={handleProfileClose}
                             onUpdateProfile={updateAssistantProfile}
                             onDeleteAssistant={handleDeleteAssistant}
-                            assistantActions={assistantActions}
                         />
                     </motion.div>
                 )}

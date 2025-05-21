@@ -82,6 +82,6 @@ export interface AssistantActions {
     cloneVoiceOnCartesia: (formData: FormData) => Promise<CartesiaVoiceInfo | ResponseProps>; 
     localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<CartesiaVoiceInfo | ResponseProps>;
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
-    generateTTS: (cartesiaVoiceId: string, text: string, language: SupportedLanguage) => Promise<Blob | ResponseProps>;
+    generateTTS: (cartesiaVoiceId: string, text: string, language: SupportedLanguage) => Promise<ArrayBuffer | ResponseProps>;
   }
 }

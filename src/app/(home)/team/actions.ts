@@ -609,13 +609,13 @@ export const deleteVoiceFromOrchestra = async (apiKey: string) => {
     };
 };
 
-export const cloneVoiceOnCartesia = async (apiKeyForProxyAuth: string) => { // apiKey might be used by proxy route for its own auth
+export const cloneVoiceOnCartesia = async (apiKey: string) => { // apiKey might be used by proxy route for its own auth
     return async (formData: FormData): Promise<CartesiaVoiceInfo | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/clone`, { 
                 method: "POST", 
-                headers: { apiKey: apiKeyForProxyAuth }, // Auth for your proxy route
+                headers: { apiKey: apiKey }, // Auth for your proxy route
                 body: formData 
             });
             const data = await response.json();
@@ -625,12 +625,12 @@ export const cloneVoiceOnCartesia = async (apiKeyForProxyAuth: string) => { // a
     };
 };
 
-export const localizeVoiceOnCartesia = async (apiKeyForProxyAuth: string) => {
+export const localizeVoiceOnCartesia = async (apiKey: string) => {
     return async (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender): Promise<CartesiaVoiceInfo | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/localize`, {
-                method: "POST", headers: { apiKey: apiKeyForProxyAuth, "Content-Type": "application/json" },
+                method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
                 body: JSON.stringify({ baseCartesiaVoiceId, name, description, targetLanguage, originalSpeakerGender })
             });
             const data = await response.json();
@@ -640,12 +640,12 @@ export const localizeVoiceOnCartesia = async (apiKeyForProxyAuth: string) => {
     };
 };
 
-export const deleteVoiceFromCartesia = async (apiKeyForProxyAuth: string) => {
+export const deleteVoiceFromCartesia = async (apiKey: string) => {
     return async (cartesiaVoiceId: string): Promise<ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/${cartesiaVoiceId}`, { // Path based on user's file structure
-                method: "DELETE", headers: { apiKey: apiKeyForProxyAuth }
+                method: "DELETE", headers: { apiKey: apiKey }
             });
              if (!response.ok && response.status !== 404 && response.status !== 204 && response.status !== 200) { // Allow 404, 204, 200 as success/already done
                 const data = await response.json().catch(() => ({}));
@@ -656,19 +656,20 @@ export const deleteVoiceFromCartesia = async (apiKeyForProxyAuth: string) => {
     };
 };
 
-export const generateTTS = async (apiKeyForProxyAuth: string) => {
-    return async (cartesiaVoiceId: string, text: string, language: SupportedLanguage): Promise<Blob | ResponseProps> => {
+export const generateTTS = async (apiKey: string) => {
+    return async (cartesiaVoiceId: string, text: string, language: SupportedLanguage): Promise<ArrayBuffer | ResponseProps> => {
         "use server";
         try {
+            if (!language) return { detail: "Language is required for TTS."};
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/tts`, {
-                method: "POST", headers: { apiKey: apiKeyForProxyAuth, "Content-Type": "application/json" },
+                method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
                 body: JSON.stringify({ cartesiaVoiceId, text, language })
             });
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
                 return { detail: data.detail || `TTS failed: ${response.statusText}` };
             }
-            return await response.blob();
+            return await response.arrayBuffer(); // Return ArrayBuffer instead of Blob
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };

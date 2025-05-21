@@ -71,7 +71,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
 
     return (
         <div className="w-full h-full">
-            <Main assistantActions={assistantActions} taskActions={taskActions} currentUserId={userId} />
+            <Main assistantActions={assistantActions} taskActions={taskActions} />
         </div>
     );
 };

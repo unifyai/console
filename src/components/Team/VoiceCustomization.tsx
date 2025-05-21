@@ -252,47 +252,52 @@ export function VoiceCustomization({
 
     const VoiceListItem = ({ voice }: { voice: VoiceOption }) => (
         <div 
-            className={cn("flex items-center gap-3 p-2.5 rounded-md hover:bg-muted cursor-pointer border",
-                selectedCartesiaVoiceId === voice.id ? "bg-primary/10 border-primary" : "border-transparent hover:border-muted-foreground/30"
+            className={cn("flex items-center gap-3 p-2.5 rounded-md hover:bg-muted cursor-pointer border items-center",
+                selectedCartesiaVoiceId === voice.id ? "bg-primary text-white" : "border-transparent hover:border-muted-foreground/30"
             )}
             onClick={() => handleSelectVoiceDisplay(voice)}
         >
             <span className="text-lg">{getLanguageFlag(voice.language)}</span>
             <span className="flex-1 truncate font-medium text-sm" title={voice.name}>{voice.name}</span>
             {voice.description && (
-                 <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={(e)=>e.stopPropagation()}><Info className="h-4 w-4"/></Button></TooltipTrigger><TooltipContent side="top" className="max-w-xs text-xs"><p>{voice.description}</p></TooltipContent></Tooltip></TooltipProvider>
+                 <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={(e)=>e.stopPropagation()}><Info className="h-4 w-4"/></Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-xs"><p>{voice.description}</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-700" onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} title={`Localize "${voice.name}"`} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} title={`Localize "${voice.name}"`} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
             {voice.isUserVoiceInOrchestra && (<Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/90" onClick={(e)=>{e.stopPropagation();handleDeleteUserVoice(voice);}} title={`Delete "${voice.name}"`} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>)}
         </div>
     );
 
     return (
-        <div className={cn("p-1 border rounded-md", disabled && "opacity-70 cursor-not-allowed")}>
+        <div className={cn("", disabled && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'select' | 'create')} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 h-9">
-                    <TabsTrigger value="select" disabled={disabled}>Select Existing Voice</TabsTrigger>
-                    <TabsTrigger value="create" disabled={disabled}>Create New Voice</TabsTrigger>
+                    <TabsTrigger value="select" disabled={disabled}>Select Voice</TabsTrigger>
+                    <TabsTrigger value="create" disabled={disabled}>Create Voice</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="select" className="mt-1">
                     <ScrollArea className="h-[200px] p-2 border rounded-md">
-                        {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin"/></div>}
-                        {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
                         <div className="space-y-1.5"> {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : v.isUserVoiceInOrchestra ? 'u-' : 'c-') + v.id} voice={v} />)} </div>
+                        {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
+                        {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin"/></div>}
                     </ScrollArea>
                 </TabsContent>
 
                 <TabsContent value="create" className="mt-2 p-3 border rounded-md space-y-4">
-                    <h4 className="text-sm font-semibold text-muted-foreground mb-1">
-                        {createMode === 'clone' ? 'Clone Voice from Audio Clip' : `Localize: ${localizeBaseVoiceInfo?.name || 'N/A'}`}
-                         {createMode === 'localize' && <Button variant="ghost" size="icon" className="h-6 w-6 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} title="Cancel localization"><Trash2 className="h-3.5 w-3.5"/></Button>}
-                    </h4>
                     
                     {createMode === 'clone' && (<>
                         <div> <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
-                            {!cloneFileName ? (<label className="mt-1 flex justify-center w-full h-20 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled||isProcessingCreate}> <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span> <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e)=>{const f=e.target.files?.[0]; if(f){setCloneFile(f);setCloneFileName(f.name);}}} disabled={disabled||isProcessingCreate}/> </label>) 
-                            : (<div className="mt-1 flex items-center justify-between p-2 border rounded-md bg-muted/50 text-sm"> <span className="truncate">{cloneFileName}</span> <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)}
+                            {!cloneFileName 
+                                ? (<label className="mt-1 flex justify-center w-full h-20 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled||isProcessingCreate}> <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span> <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e)=>{const f=e.target.files?.[0]; if(f){setCloneFile(f);setCloneFileName(f.name);}}} disabled={disabled||isProcessingCreate}/> </label>) 
+                                : (<div className="mt-1 flex items-center justify-between p-2 border rounded-md bg-muted/50 text-sm"> <span className="truncate">{cloneFileName}</span> <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)
+                            }
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e=>setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
@@ -302,7 +307,11 @@ export function VoiceCustomization({
                     </>)}
 
                     {createMode === 'localize' && localizeBaseVoiceInfo && (<>
-                        <div className="p-2 border rounded-md bg-muted/50 text-sm"> Base Voice: <span className="font-semibold">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> </div>
+                        <div className="p-2 flex items-center border rounded-md bg-muted/50 text-sm"> 
+                            Base Voice: 
+                            <span className="font-semibold">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> 
+                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} title="Cancel localization"><Trash2 className="h-3.5 w-3.5"/></Button>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div><Label htmlFor="localize-name" className="text-xs">New Voice Name</Label><Input id="localize-name" value={localizeNewName} onChange={e=>setLocalizeNewName(e.target.value)} className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
                             <div> <Label htmlFor="localize-target-lang" className="text-xs">Target Language</Label> <Select value={localizeTargetLanguage} onValueChange={(v) => setLocalizeTargetLanguage(v as LocalizeTargetLanguage)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Target Lang..." /></SelectTrigger> <SelectContent>{languageOptions.filter(l => l.value !== localizeBaseVoiceInfo.language).map(l=><SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent> </Select> </div>

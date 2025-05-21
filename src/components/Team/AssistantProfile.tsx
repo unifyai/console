@@ -4,8 +4,8 @@ import { Button } from "@/components/UI/button";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle, Volume2, Languages } from "lucide-react";
-import type { Assistant, AssistantActions, VoiceOption } from '@/types/team/assistant'; // Updated import
+import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import type { Assistant } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
 import ActionButton from '../Common/Buttons/Action';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -21,52 +21,27 @@ import {
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
 import { toast } from "sonner";
-import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
     onClose: () => void;
-    onUpdateProfile: (id: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null) => Promise<any>;
+    onUpdateProfile: (id: string, about: string | null, phone: string | null, email: string | null) => Promise<any>;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
-    assistantActions: AssistantActions; 
 }
 
 export function AssistantProfilePanel({
     assistant,
     onClose,
     onUpdateProfile,
-    onDeleteAssistant,
-    assistantActions
+    onDeleteAssistant
 }: AssistantProfilePanelProps) {
 
     const [about, setAbout] = React.useState(assistant?.about || '');
     const [isEditingAbout, setIsEditingAbout] = React.useState(false);
     const [isSavingAbout, setIsSavingAbout] = React.useState(false);
     const originalAbout = React.useRef(assistant?.about || '');
-    
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
-    
-    const [isPlayingAbout, setIsPlayingAbout] = React.useState(false);
-    const audioRef = React.useRef<HTMLAudioElement | null>(null);
-
-    const [userVoices, setUserVoices] = React.useState<VoiceOption[]>([]);
-    React.useEffect(() => {
-        const fetchVoices = async () => {
-            const result = await assistantActions.voice.listVoicesFromOrchestra();
-            if (Array.isArray(result)) {
-                setUserVoices(result.map(v => ({...v, id: v.voice_id, isUserVoiceInOrchestra: true, language: v.language as SupportedLanguage, gender: v.gender as 'male'|'female'|'other' })));
-            }
-        };
-        fetchVoices();
-    }, [assistantActions.voice]);
-
-    const [assistantLanguage, setAssistantLanguage] = React.useState<SupportedLanguage | undefined>()
-    React.useEffect(() => {
-        const language = userVoices.find(v => v.id === assistant.voice_id)?.language
-        setAssistantLanguage(language)
-    }, [userVoices, assistant])
 
     React.useEffect(() => {
         if (assistant) {
@@ -89,11 +64,12 @@ export function AssistantProfilePanel({
         setIsSavingAbout(true);
         const toastId = toast.loading("Updating profile...");
         try {
-            await onUpdateProfile(assistant.agent_id, about, assistant.phone, assistant.email, assistant.voice_id);
+            await onUpdateProfile(assistant.agent_id, about, assistant.phone, assistant.email);
             originalAbout.current = about;
             setIsEditingAbout(false);
             toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
         } catch (error) {
+            console.error("Failed to update about section:", error);
             toast.error(`Failed to update 'About': ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
         } finally {
             setIsSavingAbout(false);
@@ -107,81 +83,24 @@ export function AssistantProfilePanel({
 
      const handleDeleteConfirm = async () => {
         if (!assistant || isDeleting) return;
+
         setIsDeleting(true);
         try {
             await onDeleteAssistant(assistant);
-            setIsAlertOpen(false); 
+            setIsAlertOpen(false);
         } catch (error) {
+             console.error("Error occurred during delete confirmation (handled by parent):", error)
              setIsAlertOpen(false);
         } finally {
              setIsDeleting(false);
         }
      };
 
-    const playTTSAbout = async () => {
-
-        if (!assistant.voice_id || !assistantLanguage || !about) {
-            toast.error("Assistant voice not set or 'About' is empty.");
-            return;
-        }
-        if (audioRef.current && !audioRef.current.paused) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlayingAbout(false);
-            return; 
-        }
-
-        setIsPlayingAbout(true);
-        const toastId = toast.loading("Generating audio preview...");
-        try {
-            const result = await assistantActions.voice.generateTTS(
-                assistant.voice_id, 
-                about, 
-                assistantLanguage as SupportedLanguage
-            );
-            if (result instanceof Blob) {
-                const audioURL = URL.createObjectURL(result);
-                if (audioRef.current) {
-                    audioRef.current.src = audioURL;
-                    audioRef.current.play().catch(e => {
-                        console.error("Error playing audio:", e);
-                        toast.error("Could not play audio.", { id: toastId });
-                        setIsPlayingAbout(false);
-                    });
-                    audioRef.current.onended = () => {
-                        setIsPlayingAbout(false);
-                        URL.revokeObjectURL(audioURL);
-                    };
-                }
-                toast.success("Audio preview ready.", { id: toastId, duration: 2000 });
-            } else {
-                toast.error(result.detail || "Failed to generate TTS.", { id: toastId });
-                setIsPlayingAbout(false);
-            }
-        } catch (error: any) {
-            toast.error(`TTS Error: ${error.message}`, { id: toastId });
-            setIsPlayingAbout(false);
-        }
-    };
 
     if (!assistant) return null;
 
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
     const displayName = `${assistant.first_name} ${assistant.surname}`;
-    
-    let voiceDisplayName = assistant.voice_id || 'N/A';
-    if (assistant.voice_id) {
-        const presetVoice = (voicePresetsConstant as VoiceOption[]).find(vp => vp.id === assistant.voice_id);
-        if (presetVoice) {
-            voiceDisplayName = presetVoice.name;
-        } else {
-            const userDbVoice = userVoices.find(uv => uv.id === assistant.voice_id);
-            if (userDbVoice) {
-                voiceDisplayName = userDbVoice.name;
-            }
-        }
-    }
-
 
     return (
         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
@@ -224,22 +143,8 @@ export function AssistantProfilePanel({
                         {/* About Section */}
                         {/* Keep 'group' on the outer div for hover detection */}
                         <div className="px-4 sm:px-6 space-y-2 group">
-                             <div className="flex justify-between items-center">
-                                <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About</Label>
-                                {assistant.voice_id && assistantLanguage && (
-                                    <Button 
-                                        type="button" 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        onClick={playTTSAbout}
-                                        disabled={isPlayingAbout || !about}
-                                        title="Preview About with selected voice"
-                                        className="h-7 w-7"
-                                    >
-                                        {isPlayingAbout ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-                                    </Button>
-                                )}
-                            </div>
+                            <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About</Label>
+                            {/* Added a wrapper div and made IT relative */}
                             <div className="relative">
                                 <Textarea
                                     id={`about-${assistant.agent_id}`}
@@ -281,8 +186,9 @@ export function AssistantProfilePanel({
                                         />
                                     </div>
                                 )}
-                            </div>
+                            </div> {/* End relative wrapper */}
                         </div>
+
                         <Separator />
 
                         {/* Contact Section */}
@@ -317,7 +223,6 @@ export function AssistantProfilePanel({
                         </Button>
                     </AlertDialogTrigger>
                 </div>
-                <audio ref={audioRef} className="hidden" />
             </div>
 
             {/* Alert Dialog Content */}
