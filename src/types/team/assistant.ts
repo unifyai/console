@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
+import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage, Gender } from "@cartesia/cartesia-js/api";
 
 // Assistant profile types
 export interface Assistant {
@@ -39,27 +39,11 @@ export interface Voice {
   voice_id: string; // Cartesia Voice ID (PK in your 'voices' table)
   name: string; 
   description: string;
-  gender: string; // 'female', 'male' - consistent with Cartesia
-  language: string; // language code e.g. 'en'
+  gender: Gender; // 'female', 'male' - consistent with Cartesia
+  language: SupportedLanguage; // language code e.g. 'en'
 }
 
-export interface CartesiaVoiceInfo {
-  id: string; // Cartesia ID
-  name: string;
-  description?: string | null;
-  language: SupportedLanguage;
-  gender: CartesiaGender; // for presets if gender is not strictly male/female
-}
-
-export interface VoicePreset {
-  id: string,
-  name: string,
-  description: string,
-  gender: CartesiaGender,
-  language: SupportedLanguage
-}
-
-export type VoiceOption = CartesiaVoiceInfo & {  isPreset?: boolean; isUserVoiceInOrchestra?: boolean };
+export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?: boolean };
 
 export interface AssistantActions {
   "assistant": {
@@ -79,8 +63,8 @@ export interface AssistantActions {
     createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
     deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>;
     // Cartesia Operations (via frontend proxies)
-    cloneVoiceOnCartesia: (formData: FormData) => Promise<CartesiaVoiceInfo | ResponseProps>; 
-    localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<CartesiaVoiceInfo | ResponseProps>;
+    cloneVoiceOnCartesia: (formData: FormData) => Promise<Voice | ResponseProps>; 
+    localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<Voice | ResponseProps>;
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
   }
 }

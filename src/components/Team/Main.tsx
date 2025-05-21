@@ -4,7 +4,7 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Team/AssistantList";
 import { TaskList } from "@/components/Team/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantFormData, AssistantPreset, Voice, VoicePreset as VoicePresetType } from "@/types/team/assistant"; // Updated imports
+import { Assistant, AssistantActions, AssistantFormData, AssistantPreset, Voice } from "@/types/team/assistant"; // Updated imports
 import { Task, TaskActions,  } from "@/types/team/task";
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
 import { AssistantProfilePanel } from './AssistantProfile';
@@ -28,6 +28,7 @@ import { PresetsPanel } from '@/components/Team/AssistantHirePresetsList';
 import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { LayoutList, Loader2, Shuffle, X } from 'lucide-react';
+import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 
 const TASK_PAGE_LIMIT = 20;
 const PRESETS_PAGE_LIMIT = 12;
@@ -140,11 +141,11 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         defaultValues: {
             first_name: '', surname: '', age: null, region: null, about: null,
             imageFile: null, imagePreview: null,
-            voice_id: (voicePresetsConstant as VoicePresetType[])[0].id, 
-            voice_name: (voicePresetsConstant as VoicePresetType[])[0].name,
-            voice_language: (voicePresetsConstant as VoicePresetType[])[0].language,
-            voice_description: (voicePresetsConstant as VoicePresetType[])[0].description,
-            voice_gender: (voicePresetsConstant as VoicePresetType[])[0].gender,
+            voice_id: (voicePresetsConstant as Voice[])[0].voice_id, 
+            voice_name: (voicePresetsConstant as Voice[])[0].name,
+            voice_language: (voicePresetsConstant as Voice[])[0].language as SupportedLanguage,
+            voice_description: (voicePresetsConstant as Voice[])[0].description,
+            voice_gender: (voicePresetsConstant as Voice[])[0].gender as Gender,
             voice_exists: false,
         },
     });
@@ -233,11 +234,11 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     }, [watchHireForm]);
     
     const handleOpenHireDialog = React.useCallback(() => {
-        const defaultVoice = (voicePresetsConstant as VoicePresetType[])[0];
+        const defaultVoice = (voicePresetsConstant as Voice[])[0];
         resetHireForm({
             first_name: '', surname: '', age: null, region: null, about: null,
             imageFile: null, imagePreview: null,
-            voice_id: defaultVoice.id, voice_name: defaultVoice.name, voice_description: defaultVoice.description, voice_language: defaultVoice.language, voice_gender: defaultVoice.gender
+            voice_id: defaultVoice.voice_id, voice_name: defaultVoice.name, voice_description: defaultVoice.description, voice_language: defaultVoice.language, voice_gender: defaultVoice.gender
         });
         setIsAssistantPresetsOpen(true); 
         // Reset preset filters to default when opening dialog

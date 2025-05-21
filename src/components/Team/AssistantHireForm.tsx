@@ -7,7 +7,7 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
-import { AssistantFormData, AssistantActions } from '@/types/team/assistant'; // Removed unused VoiceOption, VoicePresetType
+import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization'; 
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Volume2, User, LetterText, BriefcaseBusiness } from 'lucide-react';
@@ -102,7 +102,7 @@ export function HireForm({
                 <VoiceCustomization
                     assistantActions={assistantActions}
                     onVoiceSelected={(selectedVoice) => {
-                        setValue("voice_id", selectedVoice?.id, { shouldValidate: !!selectedVoice?.id }); 
+                        setValue("voice_id", selectedVoice?.voice_id, { shouldValidate: !!selectedVoice?.voice_id }); 
                         setValue("voice_name", selectedVoice?.name, { shouldValidate: !!selectedVoice?.name });
                         setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
                         setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });

@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
     AssistantActions, 
     VoiceOption, 
-    CartesiaVoiceInfo,
-    Voice as OrchestraVoiceRecord
+    Voice
 } from '@/types/team/assistant';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { Globe, Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react';
@@ -108,9 +107,9 @@ export function VoiceCustomization({
     const [selectedCartesiaVoiceId, setSelectedCartesiaVoiceId] = React.useState<string | null>(initialVoiceId);
 
     const [presetVoices] = React.useState<VoiceOption[]>(
-        (voicePresetsConstant as CartesiaVoiceInfo[]).map(vp => ({ 
+        (voicePresetsConstant as Voice[]).map(vp => ({ 
             ...vp, 
-            id: vp.id, 
+            id: vp.voice_id, 
             language: vp.language,
             gender: vp.gender,
             isPreset: true 
@@ -153,8 +152,8 @@ export function VoiceCustomization({
         try {
             const result = await assistantActions.voice.listVoicesFromOrchestra();
             if (Array.isArray(result)) {
-                setUserVoicesFromOrchestra(result.map((v: OrchestraVoiceRecord) => ({ 
-                    id: v.voice_id, 
+                setUserVoicesFromOrchestra(result.map((v: Voice) => ({ 
+                    voice_id: v.voice_id, 
                     name: v.name,
                     description: v.description,
                     language: v.language as SupportedLanguage,
@@ -177,8 +176,8 @@ export function VoiceCustomization({
     }, [initialVoiceId]);
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
-        setSelectedCartesiaVoiceId(voice.id); 
-        onVoiceSelected({...voice, isUserVoiceInOrchestra: userVoicesFromOrchestra.map(v => v.id).includes(voice.id)});
+        setSelectedCartesiaVoiceId(voice.voice_id); 
+        onVoiceSelected({...voice, isUserVoiceInOrchestra: userVoicesFromOrchestra.map(v => v.voice_id).includes(voice.voice_id)});
     };
 
     const handleLocalizeRequest = (baseVoice: VoiceOption) => {
@@ -193,23 +192,23 @@ export function VoiceCustomization({
     };
 
     const handleDeleteUserVoice = async (voiceToDelete: VoiceOption) => {
-        if (!voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.id) return;
+        if (!voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) return;
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
-            const cartesiaDeleteResult = await assistantActions.voice.deleteVoiceFromCartesia(voiceToDelete.id);
+            const cartesiaDeleteResult = await assistantActions.voice.deleteVoiceFromCartesia(voiceToDelete.voice_id);
             if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found"))) {
                 console.error("[VoiceCustomization.tsx] Error deleting voice:", cartesiaDeleteResult.detail); 
                 toast.error(cartesiaDeleteResult.detail, { id: toastId }); 
                 return;
             }
-            const dbDeleteResult = await assistantActions.voice.deleteVoiceFromOrchestra(voiceToDelete.id);
+            const dbDeleteResult = await assistantActions.voice.deleteVoiceFromOrchestra(voiceToDelete.voice_id);
             if (dbDeleteResult.detail) {
                 console.error("[VoiceCustomization.tsx] Error deleting voice:", cartesiaDeleteResult.detail); 
                 toast.error(`Error deleting voice: ${dbDeleteResult.detail}.`, { id: toastId, duration: 5000 }); return;
             }
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
-            if (selectedCartesiaVoiceId === voiceToDelete.id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null); }
+            if (selectedCartesiaVoiceId === voiceToDelete.voice_id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null); }
         } catch (error: any) { 
             console.error("[VoiceCustomization.tsx] Error deleting voice:", error.message); 
             toast.error(`Error deleting voice: ${error.message}`, { id: toastId }); 
@@ -224,7 +223,7 @@ export function VoiceCustomization({
 
     const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
-        let cartesiaOpResult: CartesiaVoiceInfo | ResponseProps | null = null;
+        let cartesiaOpResult: Voice | ResponseProps | null = null;
         const toastId = toast.loading("Creating voice...");
 
         try {
@@ -238,16 +237,16 @@ export function VoiceCustomization({
             } else { 
                 if (!localizeBaseVoiceInfo||!localizeNewName||!localizeTargetLanguage||!localizeOriginalGender) { toast.error("Base voice, Name, Target Language, Gender required.", {id:toastId}); setIsProcessingCreate(false); return; }
                 cartesiaOpResult = await assistantActions.voice.localizeVoiceOnCartesia(
-                    localizeBaseVoiceInfo.id, localizeNewName, localizeNewDescription,
+                    localizeBaseVoiceInfo.voice_id, localizeNewName, localizeNewDescription,
                     localizeTargetLanguage, localizeOriginalGender
                 );
             }
 
             // --- Create voice in orchestra from new Cartesia voice
             if (cartesiaOpResult && 'voice_id' in cartesiaOpResult) { 
-                const cartesiaInfo = cartesiaOpResult as CartesiaVoiceInfo;
+                const cartesiaInfo = cartesiaOpResult as Voice;
                 const dbResult = await assistantActions.voice.createVoiceInOrchestra(
-                    cartesiaInfo.id, cartesiaInfo.name, cartesiaInfo.description || '',
+                    cartesiaInfo.voice_id, cartesiaInfo.name, cartesiaInfo.description || '',
                     cartesiaInfo.gender, cartesiaInfo.language
                 );
 
@@ -255,16 +254,16 @@ export function VoiceCustomization({
                     console.error(`[VoiceCustomization.tsx] Error creating voice in orchestra: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                     toast.error(`Error creating voice: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                 } else {
-                    toast.success(`Voice "${(dbResult as OrchestraVoiceRecord).name}" created & selected!`, { id: toastId });
+                    toast.success(`Voice "${(dbResult as Voice).name}" created & selected!`, { id: toastId });
                     onVoiceSelected({
-                        id: (dbResult as OrchestraVoiceRecord).voice_id,
-                        name: (dbResult as OrchestraVoiceRecord).name,
-                        gender: (dbResult as OrchestraVoiceRecord).gender as CartesiaGender,
-                        language: (dbResult as OrchestraVoiceRecord).language as SupportedLanguage,
-                        description: (dbResult as OrchestraVoiceRecord).description,
+                        voice_id: (dbResult as Voice).voice_id,
+                        name: (dbResult as Voice).name,
+                        gender: (dbResult as Voice).gender as CartesiaGender,
+                        language: (dbResult as Voice).language as SupportedLanguage,
+                        description: (dbResult as Voice).description,
                         isUserVoiceInOrchestra: true
                     }); 
-                    setSelectedCartesiaVoiceId((dbResult as OrchestraVoiceRecord).voice_id);
+                    setSelectedCartesiaVoiceId((dbResult as Voice).voice_id);
                     fetchUserVoicesFromOrchestra(); resetCreateForm(); setActiveTab('select');
                 }
 
@@ -280,19 +279,19 @@ export function VoiceCustomization({
     };
 
     const handlePlayVoicePreview = async (voice: VoiceOption) => {
-        if (isPlayingPreviewForVoiceId === voice.id) { 
+        if (isPlayingPreviewForVoiceId === voice.voice_id) { 
             if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
             setIsPlayingPreviewForVoiceId(null); return;
         }
         if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
 
         const randomLine = getRandomSampleLine(voice.language);
-        setIsPlayingPreviewForVoiceId(voice.id);
+        setIsPlayingPreviewForVoiceId(voice.voice_id);
         try {
             const response = await fetch(`/api/voices/tts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cartesiaVoiceId: voice.id, text: randomLine, language: voice.language })
+                body: JSON.stringify({ cartesiaVoiceId: voice.voice_id, text: randomLine, language: voice.language })
             });
 
             if (!response.ok) {
@@ -320,7 +319,7 @@ export function VoiceCustomization({
     };
 
     const VoiceListItem = ({ voice }: { voice: VoiceOption }) => {
-        const isSelected = selectedCartesiaVoiceId === voice.id;
+        const isSelected = selectedCartesiaVoiceId === voice.voice_id;
         return (
         <div 
             className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
@@ -343,7 +342,7 @@ export function VoiceCustomization({
                 <TooltipProvider delayDuration={100}>
                     <Tooltip><TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handlePlayVoicePreview(voice);}} disabled={disabled || isProcessingCreate}>
-                            {isPlayingPreviewForVoiceId === voice.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
+                            {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
                         </Button>
                     </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
                 </TooltipProvider>
@@ -376,7 +375,7 @@ export function VoiceCustomization({
 
                 <TabsContent value="select" className="mt-1">
                     <ScrollArea className="h-[200px] p-2 border rounded-md">
-                        <div className="space-y-1"> {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : v.isUserVoiceInOrchestra ? 'u-' : 'c-') + v.id} voice={v} />)} </div>
+                        <div className="space-y-1"> {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : v.isUserVoiceInOrchestra ? 'u-' : 'c-') + v.voice_id} voice={v} />)} </div>
                         {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin"/></div>}
                         {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
                     </ScrollArea>

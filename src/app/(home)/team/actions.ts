@@ -3,7 +3,7 @@ import { LogItemProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/eva
 import { Task } from "@/types/team/task";
 import { Storage } from "@google-cloud/storage";
 import { v4 as uuidv4 } from 'uuid';
-import { Assistant, Voice, CartesiaVoiceInfo } from "@/types/team/assistant";
+import { Assistant, Voice } from "@/types/team/assistant";
 import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
 
 // --- GCS Setup  ---
@@ -610,7 +610,7 @@ export const deleteVoiceFromOrchestra = async (apiKey: string) => {
 };
 
 export const cloneVoiceOnCartesia = async (apiKey: string) => { // apiKey might be used by proxy route for its own auth
-    return async (formData: FormData): Promise<CartesiaVoiceInfo | ResponseProps> => {
+    return async (formData: FormData): Promise<Voice | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/clone`, { 
@@ -620,13 +620,13 @@ export const cloneVoiceOnCartesia = async (apiKey: string) => { // apiKey might 
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Cartesia clone failed: ${response.statusText}` };
-            return data as CartesiaVoiceInfo; // Proxy returns CartesiaVoiceInfo structure
+            return data as Voice; // Proxy returns Voice structure
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
 
 export const localizeVoiceOnCartesia = async (apiKey: string) => {
-    return async (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender): Promise<CartesiaVoiceInfo | ResponseProps> => {
+    return async (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender): Promise<Voice | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/voices/user/localize`, {
@@ -635,7 +635,7 @@ export const localizeVoiceOnCartesia = async (apiKey: string) => {
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Cartesia localization failed: ${response.statusText}` };
-            return data as CartesiaVoiceInfo;
+            return data as Voice;
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error." }; }
     };
 };
