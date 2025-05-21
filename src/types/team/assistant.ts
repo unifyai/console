@@ -11,6 +11,8 @@ export interface Assistant {
   region: string | null;
   about: string | null;
   gender?: 'male' | 'female';
+  // Voice fields
+  voice_id: string | null; // Cartesia Voice ID
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -22,8 +24,6 @@ export interface Assistant {
   updated_at: string;
   // Client-side generated signed URL for GCS photos
   signedProfilePhotoUrl?: string;
-  // Cartesia voice id
-  voice_id: string | null;
 }
 
 export type AssistantPreset =
@@ -45,9 +45,9 @@ export interface Voice {
 
 export interface CartesiaVoiceInfo {
     id: string; // Cartesia ID
-    name: string;
-    description?: string;
-    language: SupportedLanguage;
+  name: string;
+  description?: string | null;
+  language: SupportedLanguage;
     gender: CartesiaGender; // for presets if gender is not strictly male/female
 }
 
@@ -77,11 +77,11 @@ export interface AssistantActions {
     // Orchestra DB Voice Management
     listVoicesFromOrchestra: () => Promise<Voice[] | ResponseProps>; 
     createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
-    deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>; 
+    deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>;
     // Cartesia Operations (via frontend proxies)
     cloneVoiceOnCartesia: (formData: FormData) => Promise<CartesiaVoiceInfo | ResponseProps>; 
     localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<CartesiaVoiceInfo | ResponseProps>;
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
-    generateTTS: (cartesiaVoiceId: string, text: string, language: SupportedLanguage) => Promise<ArrayBuffer | ResponseProps>;
+    generateTTS: (cartesiaVoiceId: string, text: string, language: SupportedLanguage) => Promise<Blob | ResponseProps>;
   }
 }

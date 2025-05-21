@@ -12,16 +12,16 @@ import {
     AssistantActions, 
     VoiceOption, 
     CartesiaVoiceInfo,
-    Voice as OrchestraVoice // Renamed to avoid confusion with Cartesia's concepts
+    Voice as OrchestraVoiceRecord // Represents a voice record from your Orchestra DB
 } from '@/types/team/assistant';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { Globe, Trash2, UploadCloud, Loader2, Info, CheckCircle2 } from 'lucide-react';
+import { Globe, Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
+import { ResponseProps } from '@/types/common';
 
-// Language options for UI (ensure these are valid SupportedLanguage for Cartesia)
 const languageOptions: { value: SupportedLanguage; label: string; flag: string }[] = [
     { value: "en", label: "English", flag: "🇬🇧" }, { value: "es", label: "Spanish", flag: "🇪🇸" },
     { value: "fr", label: "French", flag: "🇫🇷" }, { value: "de", label: "German", flag: "🇩🇪" },
@@ -36,23 +36,23 @@ const languageOptions: { value: SupportedLanguage; label: string; flag: string }
 const getLanguageFlag = (langCode: string | undefined) => languageOptions.find(l => l.value === langCode)?.flag || "🏳️";
 const getLanguageLabel = (langCode: string | undefined) => languageOptions.find(l => l.value === langCode)?.label || langCode?.toUpperCase() || "N/A";
 
-const genderOptions: { value: CartesiaGender; label: string }[] = [
-    { value: "female", label: "Female" },
-    { value: "male", label: "Male" },
-    // Cartesia's Gender type doesn't include 'other', but originalSpeakerGender for localize does.
-    // For cloning, Cartesia infers gender. For localization, it's required.
-];
 const cartesiaLocalizeGenderOptions: { value: CartesiaGender; label: string }[] = [
-    { value: "female", label: "Female" },
-    { value: "male", label: "Male" },
+    { value: "female", label: "Female" }, { value: "male", label: "Male" },
 ];
 
+const sampleTTSLines = [
+    "Hello, how can I assist you today?",
+    "I'm here to help with any questions you might have.",
+    "The weather today is quite pleasant, isn't it?",
+    "Please tell me more about what you're looking for.",
+    "Let's work together to find a solution."
+];
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions;
     onVoiceSelected: (voiceId: string | null, languageCode: SupportedLanguage | null) => void;
     initialVoiceId?: string | null;
-    initialLanguageCode?: SupportedLanguage | string | null; // Allow string for initial prop flexibility
+    initialLanguageCode?: SupportedLanguage | string | null; 
     disabled?: boolean;
 }
 
@@ -71,9 +71,9 @@ export function VoiceCustomization({
     const [presetVoices] = React.useState<VoiceOption[]>(
         (voicePresetsConstant as CartesiaVoiceInfo[]).map(vp => ({ 
             ...vp, 
-            id: vp.id, // Cartesia ID is the primary ID for presets
-            language: vp.language as SupportedLanguage,
-            gender: vp.gender as CartesiaGender,
+            id: vp.id, 
+            language: vp.language,
+            gender: vp.gender,
             isPreset: true 
         }))
     );
@@ -97,7 +97,6 @@ export function VoiceCustomization({
     const [cloneName, setCloneName] = React.useState('');
     const [cloneDescription, setCloneDescription] = React.useState('');
     const [cloneLanguage, setCloneLanguage] = React.useState<SupportedLanguage>('en');
-    // Cartesia's clone 'mode' is fixed to 'stability' in this example, can be added if needed
 
     const [localizeBaseVoiceInfo, setLocalizeBaseVoiceInfo] = React.useState<VoiceOption | null>(null);
     const [localizeNewName, setLocalizeNewName] = React.useState('');
@@ -106,14 +105,17 @@ export function VoiceCustomization({
     const [localizeOriginalGender, setLocalizeOriginalGender] = React.useState<CartesiaGender>('female');
     
     const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
+    const [isPlayingPreviewForVoiceId, setIsPlayingPreviewForVoiceId] = React.useState<string | null>(null);
+    const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
 
     const fetchUserVoicesFromOrchestra = React.useCallback(async () => {
         setIsLoadingUserVoices(true);
         try {
             const result = await assistantActions.voice.listVoicesFromOrchestra();
             if (Array.isArray(result)) {
-                setUserVoicesFromOrchestra(result.map((v: OrchestraVoice) => ({ 
-                    id: v.voice_id, // This is Cartesia ID from your Orchestra
+                setUserVoicesFromOrchestra(result.map((v: OrchestraVoiceRecord) => ({ 
+                    id: v.voice_id, 
                     name: v.name,
                     description: v.description,
                     language: v.language as SupportedLanguage,
@@ -121,19 +123,13 @@ export function VoiceCustomization({
                     isUserVoiceInOrchestra: true 
                 })));
             } else {
-                toast.error(result.detail || "Failed to load custom voices from Orchestra.");
-                setUserVoicesFromOrchestra([]);
+                toast.error(result.detail || "Failed to load custom voices."); setUserVoicesFromOrchestra([]);
             }
-        } catch (error: any) {
-            toast.error(`Error loading custom voices: ${error.message}`);
-        } finally {
-            setIsLoadingUserVoices(false);
-        }
+        } catch (error: any) { toast.error(`Error loading voices: ${error.message}`);
+        } finally { setIsLoadingUserVoices(false); }
     }, [assistantActions.voice]);
 
-    React.useEffect(() => {
-        fetchUserVoicesFromOrchestra();
-    }, [fetchUserVoicesFromOrchestra]);
+    React.useEffect(() => { fetchUserVoicesFromOrchestra(); }, [fetchUserVoicesFromOrchestra]);
     
     React.useEffect(() => {
         setSelectedCartesiaVoiceId(initialVoiceId);
@@ -141,7 +137,7 @@ export function VoiceCustomization({
     }, [initialVoiceId]);
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
-        setSelectedCartesiaVoiceId(voice.id); // voice.id is Cartesia ID
+        setSelectedCartesiaVoiceId(voice.id); 
         onVoiceSelected(voice.id, voice.language as SupportedLanguage);
     };
 
@@ -151,40 +147,27 @@ export function VoiceCustomization({
         setLocalizeNewName(`${baseVoice.name} (${getLanguageLabel(targetLangDefault)})`);
         setLocalizeNewDescription(`Localized version of ${baseVoice.name} in ${getLanguageLabel(targetLangDefault)}`);
         setLocalizeTargetLanguage(targetLangDefault as LocalizeTargetLanguage);
-        setLocalizeOriginalGender(baseVoice.gender === 'male' || baseVoice.gender === 'female' ? baseVoice.gender : 'female'); // Default if 'other'
-        setCreateMode('localize');
-        setActiveTab('create');
-        setCloneFile(null); setCloneFileName(null); // Clear clone form state
+        setLocalizeOriginalGender(baseVoice.gender === 'male' || baseVoice.gender === 'female' ? baseVoice.gender : 'female');
+        setCreateMode('localize'); setActiveTab('create');
+        setCloneFile(null); setCloneFileName(null);
     };
 
     const handleDeleteUserVoice = async (voiceToDelete: VoiceOption) => {
-        if (!voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.id) return; // id is Cartesia ID
+        if (!voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.id) return;
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
-            // 1. Delete from Cartesia
             const cartesiaDeleteResult = await assistantActions.voice.deleteVoiceFromCartesia(voiceToDelete.id);
-            if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found"))) { // Allow "not found" as success from Cartesia
-                toast.error(cartesiaDeleteResult.detail, { id: toastId });
-                return;
+            if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found"))) {
+                toast.error(cartesiaDeleteResult.detail, { id: toastId }); return;
             }
-            toast.success("Deleted from Cartesia (or already gone).", {id: toastId, duration: 1500});
-
-            // 2. Delete from your Orchestra
             const dbDeleteResult = await assistantActions.voice.deleteVoiceFromOrchestra(voiceToDelete.id);
             if (dbDeleteResult.detail) {
-                toast.error(`Orchestra record deletion failed: ${dbDeleteResult.detail}. Please check console. Voice may still exist on Cartesia.`, { id: toastId, duration: 5000 });
-                return;
+                toast.error(`DB record deletion failed: ${dbDeleteResult.detail}.`, { id: toastId, duration: 5000 }); return;
             }
-            
-            toast.success(`Voice "${voiceToDelete.name}" fully deleted.`, { id: toastId });
+            toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
-            if (selectedCartesiaVoiceId === voiceToDelete.id) {
-                setSelectedCartesiaVoiceId(null);
-                onVoiceSelected(null, null);
-            }
-        } catch (error: any) {
-            toast.error(`Error deleting voice: ${error.message}`, { id: toastId });
-        }
+            if (selectedCartesiaVoiceId === voiceToDelete.id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null, null); }
+        } catch (error: any) { toast.error(`Error deleting voice: ${error.message}`, { id: toastId }); }
     };
     
     const resetCreateForm = (switchToCloneMode: boolean = true) => {
@@ -195,84 +178,116 @@ export function VoiceCustomization({
 
     const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
-        let cartesiaVoiceInfo: CartesiaVoiceInfo | null = null;
+        let cartesiaOpResult: CartesiaVoiceInfo | ResponseProps | null = null;
         const toastId = toast.loading("Creating voice on Cartesia...");
 
         try {
             if (createMode === 'clone') {
-                if (!cloneFile || !cloneName || !cloneLanguage) {
-                    toast.error("File, Name, and Language are required for cloning.", { id: toastId }); setIsProcessingCreate(false); return;
-                }
+                if (!cloneFile||!cloneName||!cloneLanguage) { toast.error("File, Name, Language required.", {id:toastId}); setIsProcessingCreate(false); return; }
                 const formData = new FormData();
-                formData.append('file', cloneFile);
-                formData.append('name', cloneName);
-                formData.append('description', cloneDescription);
-                formData.append('language', cloneLanguage);
-                // formData.append('mode', 'stability'); // If mode is configurable
-
-                const result = await assistantActions.voice.cloneVoiceOnCartesia(formData);
-                if ('detail' in result) { toast.error(result.detail, { id: toastId }); setIsProcessingCreate(false); return; }
-                cartesiaVoiceInfo = result as CartesiaVoiceInfo;
-            } else { // Localize
-                if (!localizeBaseVoiceInfo || !localizeNewName || !localizeTargetLanguage || !localizeOriginalGender) {
-                    toast.error("Base voice, New Name, Target Language, and Original Gender are required for localization.", { id: toastId }); setIsProcessingCreate(false); return;
-                }
-                const result = await assistantActions.voice.localizeVoiceOnCartesia(
+                formData.append('file', cloneFile); formData.append('name', cloneName);
+                formData.append('description', cloneDescription); formData.append('language', cloneLanguage);
+                cartesiaOpResult = await assistantActions.voice.cloneVoiceOnCartesia(formData);
+            } else { 
+                if (!localizeBaseVoiceInfo||!localizeNewName||!localizeTargetLanguage||!localizeOriginalGender) { toast.error("Base voice, Name, Target Language, Gender required.", {id:toastId}); setIsProcessingCreate(false); return; }
+                cartesiaOpResult = await assistantActions.voice.localizeVoiceOnCartesia(
                     localizeBaseVoiceInfo.id, localizeNewName, localizeNewDescription,
                     localizeTargetLanguage, localizeOriginalGender
                 );
-                if ('detail' in result) { toast.error(result.detail, { id: toastId }); setIsProcessingCreate(false); return; }
-                cartesiaVoiceInfo = result as CartesiaVoiceInfo;
             }
 
-            if (cartesiaVoiceInfo) {
-                toast.success(`Voice "${cartesiaVoiceInfo.name}" created on Cartesia. Registering...`, { id: toastId });
+            if (cartesiaOpResult && 'id' in cartesiaOpResult) { // Successfully created/localized on Cartesia
+                const cartesiaInfo = cartesiaOpResult as CartesiaVoiceInfo;
+                toast.success(`Voice "${cartesiaInfo.name}" on Cartesia. Registering...`, { id: toastId });
                 const dbResult = await assistantActions.voice.createVoiceInOrchestra(
-                    cartesiaVoiceInfo.id, cartesiaVoiceInfo.name, cartesiaVoiceInfo.description || '',
-                    cartesiaVoiceInfo.gender, cartesiaVoiceInfo.language
+                    cartesiaInfo.id, cartesiaInfo.name, cartesiaInfo.description || '',
+                    cartesiaInfo.gender, cartesiaInfo.language
                 );
 
-                if ('detail' in dbResult) {
-                    toast.error(`Failed to register voice in Orchestra: ${dbResult.detail}. Voice exists on Cartesia.`, { id: toastId, duration: 7000 });
+                if ('detail' in dbResult) { toast.error(`DB registration failed: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                 } else {
-                    toast.success(`Voice "${dbResult.name}" fully created and selected!`, { id: toastId });
-                    onVoiceSelected(dbResult.voice_id, dbResult.language as SupportedLanguage); // dbResult.voice_id is Cartesia ID
+                    toast.success(`Voice "${dbResult.name}" fully created & selected!`, { id: toastId });
+                    onVoiceSelected(dbResult.voice_id, dbResult.language as SupportedLanguage); 
                     setSelectedCartesiaVoiceId(dbResult.voice_id);
-                    fetchUserVoicesFromOrchestra();
-                    resetCreateForm();
-                    setActiveTab('select');
+                    fetchUserVoicesFromOrchestra(); resetCreateForm(); setActiveTab('select');
                 }
-            }
-        } catch (error: any) {
-            toast.error(`Creation failed: ${error.message}`, { id: toastId });
-        } finally {
-            setIsProcessingCreate(false);
-        }
+            } else if (cartesiaOpResult && 'detail' in cartesiaOpResult) { toast.error((cartesiaOpResult as ResponseProps).detail, { id: toastId });
+            } else { toast.error("Unknown error from Cartesia operation.", { id: toastId }); }
+        } catch (error: any) { toast.error(`Creation failed: ${error.message}`, { id: toastId });
+        } finally { setIsProcessingCreate(false); }
     };
 
-    const VoiceListItem = ({ voice }: { voice: VoiceOption }) => (
+    const handlePlayVoicePreview = async (voice: VoiceOption) => {
+        if (isPlayingPreviewForVoiceId === voice.id) { // If same voice is playing, stop it
+            if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+            setIsPlayingPreviewForVoiceId(null); return;
+        }
+        if (audioRef.current && !audioRef.current.paused) audioRef.current.pause(); // Stop any other playing preview
+
+        const randomLine = sampleTTSLines[Math.floor(Math.random() * sampleTTSLines.length)];
+        setIsPlayingPreviewForVoiceId(voice.id);
+        const toastId = toast.loading(`Generating preview for "${voice.name}"...`);
+        try {
+            const result = await assistantActions.voice.generateTTS(voice.id, randomLine, voice.language);
+            if (result instanceof Blob) {
+                const audioURL = URL.createObjectURL(result);
+                if (audioRef.current) {
+                    audioRef.current.src = audioURL;
+                    audioRef.current.play().catch(e => { toast.error("Audio play error.", { id: toastId }); setIsPlayingPreviewForVoiceId(null); });
+                    audioRef.current.onended = () => { setIsPlayingPreviewForVoiceId(null); URL.revokeObjectURL(audioURL); };
+                }
+                toast.dismiss(toastId); // Or success: "Preview ready."
+            } else { toast.error(result.detail || "TTS failed.", { id: toastId }); setIsPlayingPreviewForVoiceId(null); }
+        } catch (e:any) { toast.error(`TTS Error: ${e.message}`,{id:toastId}); setIsPlayingPreviewForVoiceId(null); }
+    };
+
+
+    const VoiceListItem = ({ voice }: { voice: VoiceOption }) => {
+        const isSelected = selectedCartesiaVoiceId === voice.id;
+        return (
         <div 
-            className={cn("flex items-center gap-3 p-2.5 rounded-md hover:bg-muted cursor-pointer border items-center",
-                selectedCartesiaVoiceId === voice.id ? "bg-primary text-white" : "border-transparent hover:border-muted-foreground/30"
+            className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
+                isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30"
             )}
             onClick={() => handleSelectVoiceDisplay(voice)}
         >
-            <span className="text-lg">{getLanguageFlag(voice.language)}</span>
+            <span className="text-md">{getLanguageFlag(voice.language)}</span>
             <span className="flex-1 truncate font-medium text-sm" title={voice.name}>{voice.name}</span>
-            {voice.description && (
-                 <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={(e)=>e.stopPropagation()}><Info className="h-4 w-4"/></Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs text-xs"><p>{voice.description}</p></TooltipContent>
-                    </Tooltip>
+            
+            <div className={cn("flex items-center p-0 m-0 gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip><TooltipTrigger asChild>
+                        <span className={cn("cursor-default p-1 mr-1 rounded-md", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e)=>e.stopPropagation()}>
+                             <Info className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
+                        </span>
+                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{voice.description || "No description."}</p></TooltipContent></Tooltip>
                 </TooltipProvider>
-            )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} title={`Localize "${voice.name}"`} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
-            {voice.isUserVoiceInOrchestra && (<Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/90" onClick={(e)=>{e.stopPropagation();handleDeleteUserVoice(voice);}} title={`Delete "${voice.name}"`} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>)}
+
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip><TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handlePlayVoicePreview(voice);}} disabled={disabled || isProcessingCreate}>
+                            {isPlayingPreviewForVoiceId === voice.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Play className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip><TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10" )} onClick={(e)=>{e.stopPropagation();handleLocalizeRequest(voice);}} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
+                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Localize "${voice.name}"`}</p></TooltipContent></Tooltip>
+                </TooltipProvider>
+                
+                {voice.isUserVoiceInOrchestra && (
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip><TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10" )} onClick={(e)=>{e.stopPropagation();handleDeleteUserVoice(voice);}} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>
+                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
+                    </TooltipProvider>
+                )}
+            </div>
         </div>
-    );
+    )};
+
 
     return (
         <div className={cn("", disabled && "opacity-70 cursor-not-allowed")}>
@@ -284,40 +299,38 @@ export function VoiceCustomization({
 
                 <TabsContent value="select" className="mt-1">
                     <ScrollArea className="h-[200px] p-2 border rounded-md">
-                        <div className="space-y-1.5"> {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : v.isUserVoiceInOrchestra ? 'u-' : 'c-') + v.id} voice={v} />)} </div>
-                        {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
+                        <div className="space-y-1"> {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : v.isUserVoiceInOrchestra ? 'u-' : 'c-') + v.id} voice={v} />)} </div>
                         {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin"/></div>}
+                        {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
                     </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="create" className="mt-2 p-3 border rounded-md space-y-4">
+                <TabsContent value="create" className="mt-2 p-3 border rounded-md space-y-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-0.5 flex items-center">
+                        {createMode === 'clone' ? 'Clone Voice from Audio Clip' : `Localize: ${localizeBaseVoiceInfo?.name || 'N/A'}`}
+                         {createMode === 'localize' && <Button variant="ghost" size="icon" className="h-6 w-6 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} title="Cancel localization"><Trash2 className="h-3.5 w-3.5"/></Button>}
+                    </h4>
                     
                     {createMode === 'clone' && (<>
                         <div> <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
-                            {!cloneFileName 
-                                ? (<label className="mt-1 flex justify-center w-full h-20 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled||isProcessingCreate}> <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span> <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e)=>{const f=e.target.files?.[0]; if(f){setCloneFile(f);setCloneFileName(f.name);}}} disabled={disabled||isProcessingCreate}/> </label>) 
-                                : (<div className="mt-1 flex items-center justify-between p-2 border rounded-md bg-muted/50 text-sm"> <span className="truncate">{cloneFileName}</span> <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)
-                            }
+                            {!cloneFileName ? (<label className="mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled||isProcessingCreate}> <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span> <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e)=>{const f=e.target.files?.[0]; if(f){setCloneFile(f);setCloneFileName(f.name);}}} disabled={disabled||isProcessingCreate}/> </label>) 
+                            : (<div className="mt-0.5 flex items-center justify-between p-1.5 border rounded-md bg-muted/50 text-sm h-9"> <span className="truncate">{cloneFileName}</span> <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={()=>{setCloneFile(null);setCloneFileName(null);}} disabled={disabled||isProcessingCreate}><Trash2 className="h-4 w-4"/></Button> </div>)}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-2">
                             <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e=>setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
                             <div> <Label htmlFor="clone-language" className="text-xs">Language of Clip</Label> <Select value={cloneLanguage} onValueChange={(v) => setCloneLanguage(v as SupportedLanguage)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Lang..." /></SelectTrigger> <SelectContent>{languageOptions.map(l=><SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent> </Select> </div>
                         </div>
-                        <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e=>setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm" disabled={disabled||isProcessingCreate}/></div>
+                        <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e=>setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled||isProcessingCreate}/></div>
                     </>)}
 
                     {createMode === 'localize' && localizeBaseVoiceInfo && (<>
-                        <div className="p-2 flex items-center border rounded-md bg-muted/50 text-sm"> 
-                            Base Voice: 
-                            <span className="font-semibold">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> 
-                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} title="Cancel localization"><Trash2 className="h-3.5 w-3.5"/></Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="p-1.5 border rounded-md bg-muted/50 text-sm h-9 flex items-center"> Base Voice: <span className="font-semibold ml-1">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span> </div>
+                        <div className="grid grid-cols-2 gap-2">
                             <div><Label htmlFor="localize-name" className="text-xs">New Voice Name</Label><Input id="localize-name" value={localizeNewName} onChange={e=>setLocalizeNewName(e.target.value)} className="h-8 text-sm" disabled={disabled||isProcessingCreate}/></div>
                             <div> <Label htmlFor="localize-target-lang" className="text-xs">Target Language</Label> <Select value={localizeTargetLanguage} onValueChange={(v) => setLocalizeTargetLanguage(v as LocalizeTargetLanguage)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Target Lang..." /></SelectTrigger> <SelectContent>{languageOptions.filter(l => l.value !== localizeBaseVoiceInfo.language).map(l=><SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent> </Select> </div>
                         </div>
                         <div> <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender</Label> <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={disabled||isProcessingCreate}> <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger> <SelectContent>{cartesiaLocalizeGenderOptions.map(g=><SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent> </Select> </div>
-                        <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e=>setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm" disabled={disabled||isProcessingCreate}/></div>
+                        <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e=>setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled||isProcessingCreate}/></div>
                     </>)}
                     
                     <Button onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled||isProcessingCreate}>
@@ -325,6 +338,7 @@ export function VoiceCustomization({
                     </Button>
                 </TabsContent>
             </Tabs>
+            <audio ref={audioRef} className="hidden" />
         </div>
     );
 }
