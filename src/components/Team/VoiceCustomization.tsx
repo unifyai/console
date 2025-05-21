@@ -162,9 +162,10 @@ export function VoiceCustomization({
                     isUserVoiceInOrchestra: true 
                 })));
             } else {
-                toast.error(result.detail || "Failed to load custom voices."); setUserVoicesFromOrchestra([]);
+                console.error(result.detail || "Failed to load custom voices.");
+                setUserVoicesFromOrchestra([]);
             }
-        } catch (error: any) { toast.error(`Error loading voices: ${error.message}`);
+        } catch (error: any) { console.error(`Error loading voices: ${error.message}`);
         } finally { setIsLoadingUserVoices(false); }
     }, [assistantActions.voice]);
 
@@ -197,16 +198,22 @@ export function VoiceCustomization({
         try {
             const cartesiaDeleteResult = await assistantActions.voice.deleteVoiceFromCartesia(voiceToDelete.id);
             if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found"))) {
-                toast.error(cartesiaDeleteResult.detail, { id: toastId }); return;
+                console.error("[VoiceCustomization.tsx] Error deleting voice:", cartesiaDeleteResult.detail); 
+                toast.error(cartesiaDeleteResult.detail, { id: toastId }); 
+                return;
             }
             const dbDeleteResult = await assistantActions.voice.deleteVoiceFromOrchestra(voiceToDelete.id);
             if (dbDeleteResult.detail) {
-                toast.error(`DB record deletion failed: ${dbDeleteResult.detail}.`, { id: toastId, duration: 5000 }); return;
+                console.error("[VoiceCustomization.tsx] Error deleting voice:", cartesiaDeleteResult.detail); 
+                toast.error(`Error deleting voice: ${dbDeleteResult.detail}.`, { id: toastId, duration: 5000 }); return;
             }
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
             if (selectedCartesiaVoiceId === voiceToDelete.id) { setSelectedCartesiaVoiceId(null); onVoiceSelected(null, null); }
-        } catch (error: any) { toast.error(`Error deleting voice: ${error.message}`, { id: toastId }); }
+        } catch (error: any) { 
+            console.error("[VoiceCustomization.tsx] Error deleting voice:", error.message); 
+            toast.error(`Error deleting voice: ${error.message}`, { id: toastId }); 
+        }
     };
     
     const resetCreateForm = (switchToCloneMode: boolean = true) => {
@@ -218,7 +225,7 @@ export function VoiceCustomization({
     const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
         let cartesiaOpResult: CartesiaVoiceInfo | ResponseProps | null = null;
-        const toastId = toast.loading("Creating voice on Cartesia...");
+        const toastId = toast.loading("Creating voice...");
 
         try {
             if (createMode === 'clone') {
@@ -237,22 +244,30 @@ export function VoiceCustomization({
 
             if (cartesiaOpResult && 'id' in cartesiaOpResult) { 
                 const cartesiaInfo = cartesiaOpResult as CartesiaVoiceInfo;
-                toast.success(`Voice "${cartesiaInfo.name}" on Cartesia. Registering...`, { id: toastId });
                 const dbResult = await assistantActions.voice.createVoiceInOrchestra(
                     cartesiaInfo.id, cartesiaInfo.name, cartesiaInfo.description || '',
                     cartesiaInfo.gender, cartesiaInfo.language
                 );
 
-                if ('detail' in dbResult) { toast.error(`DB registration failed: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
+                if ('detail' in dbResult) { 
+                    console.error(`[VoiceCustomization.tsx] Error creating voice in orchestra: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
+                    toast.error(`Error creating voice: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
                 } else {
-                    toast.success(`Voice "${(dbResult as OrchestraVoiceRecord).name}" fully created & selected!`, { id: toastId });
+                    toast.success(`Voice "${(dbResult as OrchestraVoiceRecord).name}" created & selected!`, { id: toastId });
                     onVoiceSelected((dbResult as OrchestraVoiceRecord).voice_id, (dbResult as OrchestraVoiceRecord).language as SupportedLanguage); 
                     setSelectedCartesiaVoiceId((dbResult as OrchestraVoiceRecord).voice_id);
                     fetchUserVoicesFromOrchestra(); resetCreateForm(); setActiveTab('select');
                 }
-            } else if (cartesiaOpResult && 'detail' in cartesiaOpResult) { toast.error((cartesiaOpResult as ResponseProps).detail, { id: toastId });
-            } else { toast.error("Unknown error from Cartesia operation.", { id: toastId }); }
-        } catch (error: any) { toast.error(`Creation failed: ${error.message}`, { id: toastId });
+            } else if (cartesiaOpResult && 'detail' in cartesiaOpResult) { 
+                console.error("[VoiceCustomization.tsx] Error creating voice", (cartesiaOpResult as ResponseProps).detail);
+                toast.error("Error creating voice", { id: toastId });
+            } else { 
+                console.error("[VoiceCustomization.tsx] Error creating voice", (cartesiaOpResult as ResponseProps).detail);
+                toast.error("Error creating voice.", { id: toastId }); 
+            }
+        } catch (error: any) { 
+            console.error("[VoiceCustomization.tsx] Error creating voice", error.message);
+            toast.error(`Error creating voice`, { id: toastId });
         } finally { setIsProcessingCreate(false); }
     };
 
