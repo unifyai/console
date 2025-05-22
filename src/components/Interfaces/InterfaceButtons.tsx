@@ -1,6 +1,6 @@
 "use client";
 
-import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions } from "@/types/evals/grid";
+import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import { Eye, Hammer, SquareMousePointer, Info, Ellipsis } from "lucide-react";
 import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
@@ -32,6 +32,8 @@ const InterfaceButtons = ({
     tabActions,
     tileActions,
     interfaceActions,
+    projectsActions,
+    fieldsActions,
     disabled,
 }: {
     tabIdOrName: string | null,
@@ -41,6 +43,8 @@ const InterfaceButtons = ({
     tabActions: GranularTabActions,
     tileActions: GranularTileActions,
     interfaceActions: GranularInterfaceActions,
+    projectsActions: ProjectsActions,
+    fieldsActions: FieldsActions,
     disabled?: boolean,
 }) => {
     const router = useRouter();
@@ -206,6 +210,8 @@ const InterfaceButtons = ({
                             setCustomOpen={setGlobalContextOpen}
                             logsActions={logsActions}
                             contextActions={contextActions}
+                            projectsActions={projectsActions}
+                            fieldsActions={fieldsActions}
                             setPending={tabUIActions?.setPending!}
                         />
                     </div>

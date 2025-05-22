@@ -2,13 +2,13 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook to restore a complete interface structure (interface, tab, and tiles) from checkpoints
  */
 export function useRestoreLastSavedTabWithTilesQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ 

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Tile from "../Tile";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
@@ -17,11 +17,13 @@ import type {
   ContextActions,
   CodeActions,
   TileData,
-  GranularTileActions
+  GranularTileActions,
+  ProjectsActions
 } from "@/types/evals/grid";
 
 type TileWrapperActions = {
   tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -42,7 +44,7 @@ export default async function TileWrapper({
   projectId: string;
   actions: TileWrapperActions;
 }) {
-  console.log("TileWrapper rendering...");
+  console.log("[TileWrapper] Rendering...");
   const qc = getQueryClient();
 
   // Render the appropriate server component based on tile type
@@ -60,7 +62,8 @@ export default async function TileWrapper({
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions,
               derivedEntryActions: actions.derivedEntryActions,
-              contextActions: actions.contextActions
+              contextActions: actions.contextActions,
+              projectsActions: actions.projectsActions
             }}
           />
         );
@@ -74,7 +77,9 @@ export default async function TileWrapper({
             actions={{
               tileActions: actions.tileActions,
               logsActions: actions.logsActions,
-              fieldsActions: actions.fieldsActions
+              fieldsActions: actions.fieldsActions,
+              projectsActions: actions.projectsActions,
+              contextActions: actions.contextActions
             }}
           />
         );
@@ -98,7 +103,11 @@ export default async function TileWrapper({
             projectId={projectId}
             actions={{
               codeActions: actions.codeActions,
-              tileActions: actions.tileActions
+              tileActions: actions.tileActions,
+              projectsActions: actions.projectsActions,
+              contextActions: actions.contextActions,
+              logsActions: actions.logsActions,
+              fieldsActions: actions.fieldsActions
             }}
           />
         );
@@ -119,6 +128,7 @@ export default async function TileWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
+          projectsActions={actions.projectsActions}
           tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}

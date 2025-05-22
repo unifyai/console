@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTabActions, TabData } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook to fetch all tabs for an interface
@@ -167,7 +167,7 @@ export function useGetTabWithTilesUnifiedQuery(
  * Hook to create a new tab
  */
 export function useCreateTabQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -244,7 +244,7 @@ export function useCreateTabQuery() {
  * Hook to update a tab by name
  */
 export function useUpdateTabQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -285,7 +285,7 @@ export function useUpdateTabQuery() {
  * Hook to update a tab by ID
  */
 export function useUpdateTabByIdQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -327,7 +327,7 @@ export function useUpdateTabByIdQuery() {
  * Unified hook to update a tab by either ID or name
  */
 export function useUpdateTabUnifiedQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -407,7 +407,7 @@ export function useUpdateTabUnifiedQuery() {
  * Hook to delete a tab by name
  */
 export function useDeleteTabQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -446,7 +446,7 @@ export function useDeleteTabQuery() {
  * Hook to delete a tab by ID
  */
 export function useDeleteTabByIdQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -497,7 +497,7 @@ export function useDeleteTabByIdQuery() {
  * Unified hook to delete a tab by either ID or name
  */
 export function useDeleteTabUnifiedQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -559,7 +559,7 @@ export function useDeleteTabUnifiedQuery() {
  * Hook to create a checkpoint for a tab by name
  */
 export function useCreateTabCheckpointQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -585,7 +585,7 @@ export function useCreateTabCheckpointQuery() {
  * Hook to create a checkpoint for a tab by ID
  */
 export function useCreateTabCheckpointByIdQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -609,7 +609,7 @@ export function useCreateTabCheckpointByIdQuery() {
  * Unified hook to create a checkpoint for a tab by either ID or name
  */
 export function useCreateTabCheckpointUnifiedQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

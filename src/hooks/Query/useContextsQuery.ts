@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ContextActions } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook to fetch all contexts for a project
@@ -25,7 +25,7 @@ export function useListContextsQuery(
  * Hook to create a new context
  */
 export function useCreateContextQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -52,7 +52,7 @@ export function useCreateContextQuery() {
  * Hook to delete a context
  */
 export function useDeleteContextQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

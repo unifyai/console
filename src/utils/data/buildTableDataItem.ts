@@ -42,6 +42,7 @@ export async function buildTableDataItem(
   );
 
   // Get logs details
+  const tGetLogsDetails = performance.now();
   const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
     logsData,
     fields,
@@ -54,6 +55,8 @@ export async function buildTableDataItem(
     tile.table_tile?.hidden_columns,
     logsActions
   );
+  const tGetLogsDetailsEnd = performance.now();
+  console.log(`[perf] getLogsDetails: ${(tGetLogsDetailsEnd - tGetLogsDetails).toFixed(2)} ms`);
 
   const limit = 20; // Default page size
 
@@ -114,6 +117,7 @@ export async function fetchAndBuildTableDataItem(
   const limit = 20;
   const offset = tile.table_tile?.page_number ? parseInt(tile.table_tile.page_number) * limit : 0;
   
+  const tGetLogs = performance.now();
   const logsData = await logsActions.get(
     projectId,
     tile.context || null,
@@ -131,9 +135,16 @@ export async function fetchAndBuildTableDataItem(
     null,
     Date.now().toString()
   );
+  const tGetLogsEnd = performance.now();
+  console.log(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
 
   // Build table data item using the fetched logs data
-  return buildTableDataItem(tile, fields, logsData, projectId, logsActions);
+  const tBuildTableDataItem = performance.now();
+  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions);
+  const tBuildTableDataItemEnd = performance.now();
+  console.log(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
+
+  return tableDataItem;
 }
 
 /**

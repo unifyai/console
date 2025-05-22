@@ -9,7 +9,7 @@ import { useTabData } from "@/contexts/hooks/tab";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
-import { GranularTileActions } from "@/types/evals/grid";
+import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 
 const Editor = ({
     tileId,
@@ -17,17 +17,33 @@ const Editor = ({
     interfaceId,
     projectId,
     codeActions,
-    tileActions
+    tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
 }: {
     tileId: string,
     tabId: string,
     interfaceId: string,
     projectId: string,
     codeActions: CodeActions,
-    tileActions: GranularTileActions
+    tileActions: GranularTileActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions
 }) => {
     // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { editorTile: editorTileState, editorTileActions } = useEditorTileSync(tileId, tabId, tileActions);
+    const { editorTile: editorTileState, editorTileActions } = useEditorTileSync(
+        tileId,
+        tabId,
+        tileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
+    );
     const { data: tabData } = useTabData(tabId, interfaceId);
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);

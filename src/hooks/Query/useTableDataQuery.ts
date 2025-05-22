@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueries, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { TableDataItem } from "@/types/evals/grid";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import { useQueryClient } from "@tanstack/react-query";
 import { useTileMeta } from "@/contexts/hooks/tile";
 import { TableArguments } from "@/types/evals/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
@@ -293,7 +293,7 @@ export function useTableArgumentsQuery(
  * @returns A mutation object that can be used to update table data
  */
 export function useUpdateTableDataItem(tileId: string) {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation<TableDataItem, Error, Partial<TableDataItem>, { previousData?: TableDataItem }>({
     mutationFn: async (newData) => {

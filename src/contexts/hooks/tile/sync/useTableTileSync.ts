@@ -2,11 +2,14 @@
 
 import { useMemo } from "react";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions } from "@/types/evals/grid";
+import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { useTableTile, TableActions } from "../useTableTile";
 import { useTileUI } from "../useTileUI";
 import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
+import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+import { selectTileByTabIdAndName } from "@/contexts/selectors/tile";
 
 /**
  * Properties of the TableTile that will be synced with the server
@@ -60,29 +63,33 @@ export interface TableTileSyncResult {
 export function useTableTileSync(
   tileId: string | null,
   tabId: string | null,
-  granularTileActions?: GranularTileActions
+  granularTileActions?: GranularTileActions,
+  projectsActions?: ProjectsActions,
+  contextActions?: ContextActions,
+  logsActions?: LogsActions,
+  fieldsActions?: FieldsActions
 ): TableTileSyncResult {
   // Get the original table tile state and actions
-  const { tableTile, tableTileActions, exists } = useTableTile(tileId, tabId, );
+  const { tableTile, tableTileActions, exists } = useTableTile(tileId, tabId);
 
   // Get UI actions to update loading state
   const { meta } = useTileMeta(tileId, tabId);
   const { uiActions } = useTileUI(tileId, tabId);
   const tileName = meta?.name;
 
-  // React router refresh handling
-  const refreshRouter = useTileRouterRefresh(uiActions);
+  // Get the store API reference - can be used to get state outside of React's render cycle
+  const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const tableTypeMutation = usePatchSpecializedTileQuery<"Table">();
-  const sortingMutation = usePatchSpecializedTileQuery<"Table">();
-  const groupSortingMutation = usePatchSpecializedTileQuery<"Table">();
+  const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
+  const sortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
+  const groupSortingMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
   const columnOrderMutation = usePatchSpecializedTileQuery<"Table">();
   const hiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
   const columnsPinLeftMutation = usePatchSpecializedTileQuery<"Table">();
   const columnsPinRightMutation = usePatchSpecializedTileQuery<"Table">();
   const selectedMutation = usePatchSpecializedTileQuery<"Table">();
-  const pageNumberMutation = usePatchSpecializedTileQuery<"Table">();
+  const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
@@ -98,7 +105,7 @@ export function useTableTileSync(
   };
 
   // Individual wrapper functions for each property
-  const wrapTableType = (value: string | undefined) => {
+  const wrapTableType = async (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
 
 
@@ -114,23 +121,33 @@ export function useTableTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    tableTypeMutation.mutate({
+    await tableTypeMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Table",
       updateData: { table_type: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapTableType] onSettled:", value);
-        refreshRouter({ clearLoading: true, clearPending: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapTableType] onSettled:", value);
+      uiActions?.setLoading(false);
+      uiActions?.setPending(false);
     });
   };
 
-  const wrapSorting = (value: string | undefined) => {
+  const wrapSorting = async (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -144,24 +161,32 @@ export function useTableTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
 
     // 2) Optimistic server update
-    sortingMutation.mutate({
+    await sortingMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Table",
       updateData: { sorting: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapSorting] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapSorting] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapGroupSorting = (value: string | undefined) => {
+  const wrapGroupSorting = async (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -175,19 +200,28 @@ export function useTableTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    groupSortingMutation.mutate({
+    await groupSortingMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Table",
       updateData: { group_sorting: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapGroupSorting] onSettled:", value);
-        // refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapGroupSorting] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
@@ -286,7 +320,7 @@ export function useTableTileSync(
     });
   };
 
-  const wrapPageNumber = (value: string | undefined) => {   
+  const wrapPageNumber = async (value: string | undefined) => {   
     if (!tableTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -300,19 +334,28 @@ export function useTableTileSync(
     // Don't attempt server update if we don't have required info   
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    pageNumberMutation.mutate({
+    await pageNumberMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,   
+      projectId: state.activeProjectId || "",
       tileType: "Table",
       updateData: { page_number: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapPageNumber] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+    projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapPageNumber] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
@@ -338,7 +381,6 @@ export function useTableTileSync(
     tabId,
     tileId,
     granularTileActions,
-    refreshRouter,
     uiActions
   ]);
 

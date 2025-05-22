@@ -1,4 +1,4 @@
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import Interface from "../Interface";
 import TabWrapper from "./TabWrapper.server";
@@ -22,6 +22,8 @@ import type {
   TabData
 } from "@/types/evals/grid";
 import { redirect } from "next/navigation";
+import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import { Suspense } from 'react';
 
 type InterfaceWrapperActions = {
   projectsActions: ProjectsActions;
@@ -48,7 +50,7 @@ export default async function InterfaceWrapper({
   actions: InterfaceWrapperActions;
 }) {
 
-  console.log("InterfaceWrapper rendering...");
+  console.log("[InterfaceWrapper] Rendering...");
   const qc = getQueryClient();
 
   /* Lightweight prefetch for projects and contexts */
@@ -77,9 +79,10 @@ export default async function InterfaceWrapper({
 
   // Get or create devbox
   let devbox = null;
-  if (currentProject) {
-    await qc.prefetchQuery({
-      queryKey: ["devbox"],
+  try {
+    if (currentProject) {
+      await qc.prefetchQuery({
+        queryKey: ["devbox"],
       queryFn: () => actions.devboxActions.get(),
     });
     devbox = qc.getQueryData(["devbox"]) || null;
@@ -87,7 +90,10 @@ export default async function InterfaceWrapper({
     // If devbox is not found, create it
     if (!devbox) {
       await actions.devboxActions.create();
+      }
     }
+  } catch (error) {
+    console.error("[InterfaceWrapper] Error creating devbox:", error);
   }
 
   // Get interfaces
@@ -150,7 +156,7 @@ export default async function InterfaceWrapper({
   });
 
   if (redirectUrl) {
-    console.log("Redirecting to:", redirectUrl);
+    console.log("[InterfaceWrapper] Redirecting to:", redirectUrl);
     redirect(redirectUrl);
   }
 
@@ -216,43 +222,54 @@ export default async function InterfaceWrapper({
   return (
     <StoreInitializer initialState={initialState}>
       <HydrationBoundary state={dehydrate(qc)}>
-        <Interface
-          interfaceId={interfaceId}
-          projectsActions={actions.projectsActions}
-          interfaceActions={actions.interfaceActions}
-          tabActions={actions.tabActions}
-          tileActions={actions.tileActions}
-          logsActions={actions.logsActions}
-          fieldsActions={actions.fieldsActions}
-          derivedEntryActions={actions.derivedEntryActions}
-          contextActions={actions.contextActions}
-          codeActions={actions.codeActions}
-        >
-          {currentInterface && (
-            // <Suspense fallback={
-            //   <div className="w-full h-full flex items-center justify-center">
-            //       <SkeletonLoader />
-            //   </div>
-            // }>
-              <TabWrapper
-                project={currentProject}
-                interfaceId={interfaceId}
-                interfaceName={interfaceName}
-                tab={tab}
-                actions={{
-                  interfaceActions: actions.interfaceActions,
-                  tabActions: actions.tabActions,
-                  tileActions: actions.tileActions,
-                  logsActions: actions.logsActions,
-                  fieldsActions: actions.fieldsActions,
-                  derivedEntryActions: actions.derivedEntryActions,
-                  contextActions: actions.contextActions,
-                  codeActions: actions.codeActions
-                }}
-              />
-            // </Suspense>
-          )}
-        </Interface>
+        <div className="w-full h-full">
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center">
+                <SkeletonLoader />
+              </div>
+            }
+          >
+            <Interface
+              interfaceId={interfaceId}
+              projectsActions={actions.projectsActions}
+              interfaceActions={actions.interfaceActions}
+              tabActions={actions.tabActions}
+              tileActions={actions.tileActions}
+              logsActions={actions.logsActions}
+              fieldsActions={actions.fieldsActions}
+              derivedEntryActions={actions.derivedEntryActions}
+              contextActions={actions.contextActions}
+              codeActions={actions.codeActions}
+            >
+              {currentInterface && (
+                // <Suspense fallback={
+                //   <div className="w-full h-full flex items-center justify-center">
+                //       <SkeletonLoader />
+                //   </div>
+                // }>
+                  <TabWrapper
+                    project={currentProject}
+                    interfaceId={interfaceId}
+                    interfaceName={interfaceName}
+                    tab={tab}
+                    actions={{
+                      projectsActions: actions.projectsActions,
+                      interfaceActions: actions.interfaceActions,
+                      tabActions: actions.tabActions,
+                      tileActions: actions.tileActions,
+                      logsActions: actions.logsActions,
+                      fieldsActions: actions.fieldsActions,
+                      derivedEntryActions: actions.derivedEntryActions,
+                      contextActions: actions.contextActions,
+                      codeActions: actions.codeActions,
+                    }}
+                  />
+                // </Suspense>
+              )}
+            </Interface>
+          </Suspense>
+        </div>
       </HydrationBoundary>
     </StoreInitializer>
   );

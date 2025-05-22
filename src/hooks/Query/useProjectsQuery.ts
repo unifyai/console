@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ProjectsActions } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Hook to fetch all projects
@@ -36,7 +36,7 @@ export function useGetProjectByIdQuery(projectId: string | null, actions: Projec
  * Hook to create a new project
  */
 export function useCreateOnlyProjectQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -59,7 +59,7 @@ export function useCreateOnlyProjectQuery() {
  * Hook to update a project
  */
 export function useUpdateProjectQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -84,7 +84,7 @@ export function useUpdateProjectQuery() {
  * Hook to delete a project
  */
 export function useDeleteProjectQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

@@ -7,14 +7,16 @@ import {
   TableDataItem, 
   PlotDataItem,
   LogsActions,
-  FieldsActions
+  FieldsActions,
+  ProjectsActions,
+  ContextActions
 } from '@/types/evals/grid';
 import { 
   LogFieldsResponseProps, 
   TableArguments, 
   PlotArguments 
 } from '@/types/evals/logs';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 import { fetchAndBuildTableDataItem } from '@/utils/data/buildTableDataItem';
 import { buildPlotDataItem, getUsedTableNames } from '@/utils/data/buildPlotDataItem';
 import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
@@ -22,6 +24,11 @@ import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { selectTilesForTab } from '@/contexts/selectors/tile';
 import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { processContext } from '@/utils/evals/columnOperations';
+import { selectProjectById } from '@/contexts/selectors/project';
+import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
+
+// Define TileType as a string union if not imported
+type TileType = "Table" | "Plot" | "View" | "Editor";
 
 /**
  * Hook to patch a specialized tile with optimistic updates that cascade to related data
@@ -30,8 +37,10 @@ import { processContext } from '@/utils/evals/columnOperations';
  * 2. Updates tab arguments for both table and plot tiles
  * 3. For plot tiles that depend on the updated table: rebuilds PlotDataItem
  */
-export function usePatchSpecializedTileQueryOptimistic() {
-  const queryClient = getQueryClient();
+export function usePatchSpecializedTileQueryOptimistic<
+T extends TileType
+>() {
+  const queryClient = useQueryClient();
   const storeApi = useStoreApiContext();
   
   return useMutation({
@@ -39,17 +48,27 @@ export function usePatchSpecializedTileQueryOptimistic() {
       tab_id, 
       name, 
       tileType,
-      updateData, 
+      updateData,
+      refetchProjects = false,
+      refetchContexts = false,
+      refetchFields = true,
       actions,
+      projectsActions,
+      contextActions,
       logsActions,
       fieldsActions,
       projectId
     }: { 
       tab_id: string; 
       name: string;
-      tileType: "Table" | "Plot" | "View" | "Editor";
+      tileType: T;
       updateData: Record<string, any>; 
+      refetchProjects: boolean;
+      refetchContexts: boolean;
+      refetchFields: boolean;
       actions: GranularTileActions;
+      projectsActions: ProjectsActions;
+      contextActions: ContextActions;
       logsActions: LogsActions;
       fieldsActions: FieldsActions;
       projectId: string;
@@ -63,7 +82,12 @@ export function usePatchSpecializedTileQueryOptimistic() {
         name, 
         tileType,
         updateData, 
+        refetchProjects,
+        refetchContexts,
+        refetchFields,
         actions,
+        projectsActions,
+        contextActions,
         logsActions,
         fieldsActions,
         projectId
@@ -86,6 +110,7 @@ export function usePatchSpecializedTileQueryOptimistic() {
       
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
+      const projectData = selectProjectById(state, projectId);
       const tilesInTabData = selectTilesForTab(state, tab_id).map(tile => convertTileToTileData(tile));
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
@@ -100,83 +125,74 @@ export function usePatchSpecializedTileQueryOptimistic() {
         throw new Error(`Tile ${name} not found in tab ${tab_id}`);
       }
       
-      // Create specialized updates based on tile type
-      const specializedUpdates = (() => {
-        switch(tileType) {
-          case 'Table':
-            return {
-              table_tile: {
-                ...optimisticTile.table_tile,
-                ...updateData
-              }
-            };
-          case 'Plot':
-            return {
-              plot_tile: {
-                ...optimisticTile.plot_tile,
-                ...updateData
-              }
-            };
-          case 'View':
-            return {
-              view_tile: {
-                ...optimisticTile.view_tile,
-                ...updateData
-              }
-            };
-          case 'Editor':
-            return {
-              editor_tile: {
-                ...optimisticTile.editor_tile,
-                ...updateData
-              }
-            };
-          default:
-            return {};
-        }
-      })();
-      
-      // Create an optimistic tile with the updates applied
-      const updatedOptimisticTile: TileData = {
-        ...optimisticTile,
-        ...specializedUpdates
-      };
-      
-      // Update the tiles list in the cache with our optimistic tile
-      const updatedTilesInTab = tilesInTabData.map(tile => 
-        (tile.tab_id === tab_id && tile.name === name) ? updatedOptimisticTile : tile
-      );
-      
-      queryClient.setQueryData(['tiles', tab_id], updatedTilesInTab);
-      queryClient.setQueryData(tileKey, updatedOptimisticTile);
+      // Update the tiles list in the cache
+      queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
+      queryClient.setQueryData(tileKey, optimisticTile);
       
       // Update specialized data too
       const specializedData = (() => {
         switch(tileType) {
-          case 'Table': return updatedOptimisticTile.table_tile;
-          case 'Plot': return updatedOptimisticTile.plot_tile;
-          case 'View': return updatedOptimisticTile.view_tile;
-          case 'Editor': return updatedOptimisticTile.editor_tile;
+          case 'Table': return optimisticTile.table_tile;
+          case 'Plot': return optimisticTile.plot_tile;
+          case 'View': return optimisticTile.view_tile;
+          case 'Editor': return optimisticTile.editor_tile;
           default: return null;
         }
       })();
       
       queryClient.setQueryData(specializedTileKey, specializedData);
+
+      // Build or fetch projects and contexts
+      const projectsAndContexts = await fetchOrBuildProjectsAndContexts(
+        queryClient,
+        projectId,
+        refetchProjects,
+        refetchContexts,
+        projectsActions,
+        contextActions
+      );
+      const projects = projectsAndContexts.projects;
+      const contexts = projectsAndContexts.contexts;
+
+      // Update the contexts in the store
+      if (refetchProjects) {
+        storeApi.setState({
+          ...state,
+          projects: projects,
+        });
+      }
+
+      if (refetchContexts) {
+        storeApi.setState({
+          ...state,
+          projectsById: {
+            ...state.projectsById,
+            [projectId]: {
+              ...projectData,
+              contexts: contexts
+            }
+          }
+        });
+      }
+
+      // Build or fetch fields for all table tiles
+      const fieldsArray: LogFieldsResponseProps[] = await fetchOrBuildFields(
+        queryClient,
+        tableTilesData,
+        projectId,
+        refetchFields,
+        fieldsActions
+      );
       
       // Get existing table and plot arguments from cache
       const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tab_id]) || {} as TableArguments;
       const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
 
-      // Try to get fields from the cache first
-      let fieldsArray: LogFieldsResponseProps[] = tableTilesData.map(tile =>
-        queryClient.getQueryData(["fields", projectId, tile.context ?? null]) as LogFieldsResponseProps
-      );
-
       // Build arguments for all tiles
       if (tableTilesData.length > 0 || plotTilesData.length > 0) {
         try {
           const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
-          buildTabArguments(updatedTilesInTab as TileData[], fieldsArray, existingTableArgs, existingPlotArgs);
+          buildTabArguments(tilesInTabData as TileData[], fieldsArray, existingTableArgs, existingPlotArgs);
 
           // Store the built arguments in the cache
           queryClient.setQueryData(["tableArguments", tab_id], newTableArguments);
@@ -194,11 +210,11 @@ export function usePatchSpecializedTileQueryOptimistic() {
       if (tileType === "Table") {
         try {
           // Get fields from cache
-          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, updatedOptimisticTile?.context]) || {} as LogFieldsResponseProps;
+          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTile?.context]) || {} as LogFieldsResponseProps;
           
           // Build the new TableDataItem
           const tableDataItem = await fetchAndBuildTableDataItem(
-            updatedOptimisticTile,
+            optimisticTile,
             fields,
             projectId,
             logsActions
@@ -206,12 +222,12 @@ export function usePatchSpecializedTileQueryOptimistic() {
 
           // Update available fields in the tableArguments (if we have tableArguments for this tile)
           const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
-          if (tableArguments[updatedOptimisticTile.name]) {
-            tableArguments[updatedOptimisticTile.name].available_fields = Object.fromEntries(
+          if (tableArguments[optimisticTile.name]) {
+            tableArguments[optimisticTile.name].available_fields = Object.fromEntries(
               Object.entries(fields)
                 .filter((([field, attributes]) => 
-                  tableDataItem.entriesProperties.map(property => updatedOptimisticTile.column_context ? processContext("merge", updatedOptimisticTile.column_context, property) : property)
-                  .concat(tableDataItem.paramsProperties.map(property => updatedOptimisticTile.column_context ? processContext("merge", updatedOptimisticTile.column_context, property) : property))
+                  tableDataItem.entriesProperties.map(property => optimisticTile.column_context ? processContext("merge", optimisticTile.column_context, property) : property)
+                  .concat(tableDataItem.paramsProperties.map(property => optimisticTile.column_context ? processContext("merge", optimisticTile.column_context, property) : property))
                   .includes(field))
                 )
             );
@@ -221,7 +237,7 @@ export function usePatchSpecializedTileQueryOptimistic() {
           }
         
           // Update the TableDataItem in the cache
-          queryClient.setQueryData(['tableDataItem', updatedOptimisticTile.id], tableDataItem);
+          queryClient.setQueryData(['tableDataItem', optimisticTile.id], tableDataItem);
         } catch (error) {
           console.error("Error building optimistic TableDataItem:", error);
         }
@@ -235,14 +251,14 @@ export function usePatchSpecializedTileQueryOptimistic() {
           
           if (tileType === 'Table') {
             // If we're updating a table, look for plots that use this table
-            const tileName = updatedOptimisticTile?.name;
+            const tileName = optimisticTile?.name;
             plotTilesToUpdate = plotTilesData.filter(plotTile => {
               const usedTables = getUsedTableNames(plotTile);
               return usedTables.includes(tileName as string);
             });
           } else if (tileType === 'Plot') {
             // If we're updating a plot that affects plot data, just update that plot
-            plotTilesToUpdate = [updatedOptimisticTile];
+            plotTilesToUpdate = [optimisticTile];
           }
           
           // Update each plot that needs updating

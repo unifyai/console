@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PlotDataItem } from "@/types/evals/grid";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import { useQueryClient } from "@tanstack/react-query";
 import { PlotArguments } from "@/types/evals/logs";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 
@@ -128,7 +128,7 @@ export function usePlotArgumentsQuery(tabId: string | null) {
  * @returns A mutation object that can be used to update plot data
  */
 export function useUpdatePlotDataItem(tileId: string) {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation<PlotDataItem, Error, Partial<PlotDataItem>, { previousData?: PlotDataItem }>({
     mutationFn: async (newData) => {

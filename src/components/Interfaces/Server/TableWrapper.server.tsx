@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../Table/Table";
@@ -13,6 +13,7 @@ import type {
   ContextActions,
   TileData,
   GranularTileActions,
+  ProjectsActions,
 } from "@/types/evals/grid";
 import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
@@ -23,6 +24,7 @@ type TableWrapperActions = {
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
+  projectsActions: ProjectsActions;
 };
 
 export default async function TableWrapper({
@@ -38,7 +40,7 @@ export default async function TableWrapper({
   projectId: string;
   actions: TableWrapperActions;
 }) {
-  console.log("TableWrapper rendering...");
+  console.log("[TableWrapper] Rendering...");
   const qc = getQueryClient();
   const tileId = tile.id || "";
   const tileName = tile.name; // We'll use this as the key in tableArguments
@@ -145,6 +147,7 @@ export default async function TableWrapper({
           fieldsActions={actions.fieldsActions}
           derivedEntryActions={actions.derivedEntryActions}
           contextActions={actions.contextActions}
+          projectsActions={actions.projectsActions}
         />
       </Suspense>
     </HydrationBoundary>

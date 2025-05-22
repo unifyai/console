@@ -2,11 +2,13 @@
 
 import { useMemo } from "react";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions, } from "@/types/evals/grid";
+import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { usePlotTile, PlotActions } from "../usePlotTile";
 import { useTileUI } from "../useTileUI";
 import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "../useTileMeta";
+import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 
 /**
  * Properties of the PlotTile that will be synced with the server
@@ -52,7 +54,11 @@ export interface PlotTileSyncResult {
 export function usePlotTileSync(
   tileId: string | null,
   tabId: string | null,
-  granularTileActions?: GranularTileActions
+  granularTileActions?: GranularTileActions,
+  projectsActions?: ProjectsActions,
+  contextActions?: ContextActions,
+  logsActions?: LogsActions,
+  fieldsActions?: FieldsActions
 ): PlotTileSyncResult {
   // Get the original plot tile state and actions
   const { plotTile, plotTileActions, exists } = usePlotTile(tileId, tabId);
@@ -62,16 +68,16 @@ export function usePlotTileSync(
   const { uiActions } = useTileUI(tileId, tabId);
   const tileName = meta?.name;
 
-  // React router refresh handling
-  const refreshRouter = useTileRouterRefresh(uiActions);
+  // Get the store API reference - can be used to get state outside of React's render cycle
+  const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const plotTypeMutation = usePatchSpecializedTileQuery<"Plot">();
-  const xAxisMutation = usePatchSpecializedTileQuery<"Plot">();
-  const yAxisMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotGroupByMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotGroupByColorsMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotAggregateMutation = usePatchSpecializedTileQuery<"Plot">();
+  const plotTypeMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const xAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const yAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const plotGroupByMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const plotGroupByColorsMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const plotAggregateMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
@@ -84,7 +90,7 @@ export function usePlotTileSync(
   };
 
   // Helper function to create wrapped setters
-  const wrapPlotType = (value: string | undefined) => {
+  const wrapPlotType = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -98,23 +104,32 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    plotTypeMutation.mutate({
+    await plotTypeMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_type: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapPlotType] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapPlotType] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapXAxis = (value: string | undefined) => {
+  const wrapXAxis = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -128,23 +143,32 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    xAxisMutation.mutate({
+    await xAxisMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { x_axis: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapXAxis] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapXAxis] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapYAxis = (value: string | undefined) => {
+  const wrapYAxis = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -158,23 +182,32 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    yAxisMutation.mutate({
+    await yAxisMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { y_axis: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapYAxis] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapYAxis] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapPlotGroupBy = (value: string | undefined) => {
+  const wrapPlotGroupBy = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -188,23 +221,32 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    plotGroupByMutation.mutate({
+    await plotGroupByMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_group_by: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapPlotGroupBy] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapPlotGroupBy] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapPlotGroupByColors = (value: string | undefined) => {
+  const wrapPlotGroupByColors = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -218,23 +260,32 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    plotGroupByColorsMutation.mutate({
+    await plotGroupByColorsMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_group_by_colors: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapPlotGroupByColors] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapPlotGroupByColors] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
-  const wrapAggregateProperty = (value: string | undefined) => {
+  const wrapAggregateProperty = async (value: string | undefined) => {
     if (!plotTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -248,19 +299,28 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    plotAggregateMutation.mutate({
+    await plotAggregateMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_aggregate: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapAggregateProperty] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapAggregateProperty] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
@@ -283,7 +343,6 @@ export function usePlotTileSync(
     tabId,
     tileName,
     granularTileActions,
-    refreshRouter
   ]);
 
   if (!plotTileActions || !granularTileActions) {

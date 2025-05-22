@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, Suspense, lazy, ReactElement } from 
 import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition, ProjectsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/refRegistry';
@@ -18,6 +18,7 @@ interface TabComponentProps {
   tabId: string;
   interfaceId: string;
   projectId: string;
+  projectsActions: ProjectsActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   logsActions: LogsActions;
@@ -32,6 +33,7 @@ const Tab = ({
   tabId,
   interfaceId,
   projectId,
+  projectsActions,
   tabActions,
   tileActions,
   logsActions,
@@ -142,6 +144,7 @@ const Tab = ({
             derivedEntryActions={derivedEntryActions}
             contextActions={contextActions}
             codeActions={codeActions}
+            projectsActions={projectsActions}
           />
         </Suspense>
       );
@@ -190,49 +193,59 @@ const Tab = ({
   }
 
   return (
-    <ResponsiveReactGridLayout
-        onLayoutChange={onLayoutChange}
-        className="layout interactive-grid flex-1 mx-1"
-        cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
-        rowHeight={105}
-        margin={[0, 0]}
-        containerPadding={[0, 0]}
-        isDraggable={tabUIState?.edit && !dragResizeDisabled}
-        isResizable={tabUIState?.edit && !dragResizeDisabled}
-        draggableHandle=".drag"
-        resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
-    >
-      {tilesToRender.map(({ tileId, element }) => {
-        const item = tileProps.find(prop => prop.id === tileId);
-        if (!item || !item.visible) return null;
+    <Suspense
+      fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <SkeletonLoader />
+        </div>
+      }
+    >  
+      <ResponsiveReactGridLayout
+          onLayoutChange={onLayoutChange}
+          className="layout interactive-grid flex-1 mx-1"
+          cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+          rowHeight={105}
+          margin={[0, 0]}
+          containerPadding={[0, 0]}
+          isDraggable={tabUIState?.edit && !dragResizeDisabled}
+          isResizable={tabUIState?.edit && !dragResizeDisabled}
+          draggableHandle=".drag"
+          resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
+      >
+        {tilesToRender.map(({ tileId, element }) => {
+          const item = tileProps.find(prop => prop.id === tileId);
+          if (!item || !item.visible) return null;
 
-        return (
-          <div
-            key={item.id}
-            data-grid={item}
-            className="relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Server-rendered or client-rendered TileCard */}
-            {element}
+          return (
+            <div
+              key={item.id}
+              data-grid={item}
+              className="relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Server-rendered or client-rendered TileCard */}
+              {element}
 
-            {/* Extra client-side controls */}
-            <TileButtons
-              tileId={item.id}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              contexts={contexts}
-              tabActions={tabActions}
-              tileActions={tileActions}
-              logsActions={logsActions}
-              contextActions={contextActions}
-              codeActions={codeActions}
-            />
-          </div>
-        );
-      })}
-    </ResponsiveReactGridLayout>
+              {/* Extra client-side controls */}
+              <TileButtons
+                tileId={item.id}
+                tabId={tabId}
+                interfaceId={interfaceId}
+                projectId={projectId}
+                contexts={contexts}
+                tabActions={tabActions}
+                tileActions={tileActions}
+                logsActions={logsActions}
+                contextActions={contextActions}
+                codeActions={codeActions}
+                projectsActions={projectsActions}
+                fieldsActions={fieldsActions}
+              />
+            </div>
+          );
+        })}
+      </ResponsiveReactGridLayout>
+    </Suspense>
   );
 };
 

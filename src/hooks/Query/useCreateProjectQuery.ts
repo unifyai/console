@@ -9,7 +9,7 @@ import {
   GranularTabActions, 
   GranularTileActions,
 } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Input interface for the project creation process
@@ -40,7 +40,7 @@ export interface ProjectCreationResult {
  * A hook to create a complete project with interface, tab, and tiles
  */
 export function useCreateProjectQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (input: ProjectCreationInput): Promise<ProjectCreationResult> => {

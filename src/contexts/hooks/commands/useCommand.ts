@@ -100,7 +100,7 @@ export function useCommand(args: UseCommandArgs) {
   /* -------------------------------------------------------------------------- */
 
   const selectProject = useCallback(async (proj: FileProps | undefined) => {
-    if (!setProject || !setTabQueryParam) return;
+    if (!setProject || !setTabQueryParam || !setInterfaceQueryParam) return;
 
     const newProj = proj ? proj.path : null;
     
@@ -108,12 +108,6 @@ export function useCommand(args: UseCommandArgs) {
     tabUIActions?.setPending(true);
     tabUIActions?.setDataPending(true);
     interfaceDataActions?.setTabNames([]);
-    
-    // Clear tab query param immediately
-    setTabQueryParam(null);
-    
-    // Set project first
-    setProject(newProj);
     
     // Then fetch interfaces for this project if it's not null
     if (newProj && setInterfaceQueryParam) {
@@ -123,16 +117,24 @@ export function useCommand(args: UseCommandArgs) {
         
         // If interfaces exist, select the first one
         if (interfacesList && interfacesList.length > 0) {
+          setTabQueryParam(null);
           setInterfaceQueryParam(interfacesList[0].name);
+          setProject(newProj);
         } else {
-          setInterfaceQueryParam(null);
+          setTabQueryParam("tab1");
+          setInterfaceQueryParam("interface1");
+          setProject(newProj);
         }
       } catch (error) {
         console.error("Error fetching interfaces for project", error);
-        setInterfaceQueryParam(null);
+        setTabQueryParam("tab1");
+        setInterfaceQueryParam("interface1");
+        setProject(newProj);
       }
-    } else if (setInterfaceQueryParam) {
-      setInterfaceQueryParam(null);
+    } else {
+      setTabQueryParam("tab1");
+      setInterfaceQueryParam("interface1");
+      setProject(newProj);
     }
   }, [
     tabUIActions, 

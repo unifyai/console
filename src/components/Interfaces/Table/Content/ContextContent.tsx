@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { Braces, CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/evals/common";
-import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import RenderMenuItems from "@/components/Common/Dropdowns/RenderMenuItems";
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
@@ -27,6 +27,8 @@ const ContextContent = ({
     logsActions,
     tabActions: serverTabActions,
     tileActions: serverTileActions,
+    projectsActions,
+    fieldsActions,
 }: {
     projectId?: string,
     tabId?: string,
@@ -40,6 +42,8 @@ const ContextContent = ({
     logsActions: LogsActions,
     tabActions?: GranularTabActions,
     tileActions?: GranularTileActions,
+    projectsActions?: ProjectsActions,
+    fieldsActions?: FieldsActions
 }) => {
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(
@@ -55,6 +59,10 @@ const ContextContent = ({
         tileId || null,
         tabId || null,
         serverTileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
     );
     const syncedTileDataActions = syncedTileActions?.data ?? null;
 

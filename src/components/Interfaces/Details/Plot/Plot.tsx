@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-import { LogsActions, FieldsActions, PlotDataItem, GranularTileActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, PlotDataItem, GranularTileActions, ContextActions, ProjectsActions } from "@/types/evals/grid";
 import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
@@ -19,6 +19,8 @@ const LogsPlot = ({
     interfaceId,
     projectId,
     tileActions,
+    projectsActions,
+    contextActions,
     logsActions,
     fieldsActions,
 }: {
@@ -27,6 +29,8 @@ const LogsPlot = ({
     interfaceId: string,
     projectId: string,
     tileActions: GranularTileActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
@@ -39,7 +43,15 @@ const LogsPlot = ({
     } = useTile(tileId, tabId);
 
     // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { plotTileActions } = usePlotTileSync(tileId, tabId, tileActions);
+    const { plotTileActions } = usePlotTileSync(
+        tileId,
+        tabId,
+        tileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
+    );
 
     const { itemActions } = useTileItem(tileId, tabId);
     

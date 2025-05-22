@@ -3,7 +3,7 @@
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import BaseDialog from "../../../Common/Dialogs/Base";
-import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import { FolderTree } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -27,6 +27,8 @@ const ContextSelector = ({
     tileActions,
     logsActions,
     contextActions,
+    projectsActions,
+    fieldsActions,
     setPending,
 }: {
     tileId?: string,
@@ -43,6 +45,8 @@ const ContextSelector = ({
     tileActions?: GranularTileActions,
     logsActions: LogsActions,
     contextActions: ContextActions,
+    projectsActions: ProjectsActions,
+    fieldsActions: FieldsActions,
     setPending: (pending: boolean) => void,
 }) => {
     const [open_, setOpen_] = useState(false);
@@ -111,6 +115,8 @@ const ContextSelector = ({
                             logsActions={logsActions}
                             tabActions={tabActions}
                             tileActions={tileActions}
+                            projectsActions={projectsActions}
+                            fieldsActions={fieldsActions}
                         />
                     }
                 />
@@ -141,6 +147,8 @@ const ContextSelector = ({
                         logsActions={logsActions}
                         tabActions={tabActions}
                         tileActions={tileActions}
+                        projectsActions={projectsActions}
+                        fieldsActions={fieldsActions}
                     />
                 </BaseDropdown>
             )}

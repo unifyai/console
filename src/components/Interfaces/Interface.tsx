@@ -192,8 +192,6 @@ const Interface = ({
         tabUIActions.setSaveSuccess(true);
       }
       
-      // Refresh the UI
-      router.refresh();
     } catch (error) {
       console.error("Failed to save tab:", error);
       if (tabUIActions) {
@@ -246,125 +244,140 @@ const Interface = ({
   return (
     <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
       <Toaster richColors position="bottom-right" closeButton />
-      <Tabs
-        value={tabQueryParam || undefined}
-        onValueChange={handleTabChange}
-        className="w-full h-full flex flex-col tutorial-details-panel"
+      {/* ---------------------------------------------------------
+          Top-level Suspense: covers the whole Tabs area so that
+          the user sees a Skeleton while the server-rendered Tabs
+          (and their children) are still being streamed / hydrated.
+        --------------------------------------------------------- */}
+      <Suspense
+        fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+          </div>
+        }
       >
-        <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
-          {/* Project buttons and add/delete buttons */}
-          <ProjectButtons
-            tabIdOrName={tabQueryParam || ""}
-            interfaceId={interfaceId}
-            projectQueryParam={projectQueryParam}
-            defaultProject={false}
-            setTabQueryParam={setTabQueryParam}
-            setInterfaceQueryParam={setInterfaceQueryParam}
-            setProjectQueryParam={setProjectQueryParam}
-            projectActions={projectsActions}
-            interfaceActions={interfaceActions}
-            tabActions={tabActions}
-            tileActions={tileActions}
-          />
-
-          <div className="flex flex-row gap-2 items-center">
-            <AutoComplete
-              type={"Actions"}
-              items={storeCommands.map((cmd: Command) => ({
-                label: cmd.label,
-                value: cmd.id,
-                icon: cmd.icon ? iconMap[cmd.icon] : undefined,
-                disabled: cmd.disabled
-              }))}
-              defaultValue={undefined}
-              isOpen={undefined}
-              onSelect={(commandId: string) => handleCommand(commandId)}
-              onOpen={() => {}}
-              loading={false}
+        <Tabs
+          value={tabQueryParam || undefined}
+          onValueChange={handleTabChange}
+          className="w-full h-full flex flex-col tutorial-details-panel"
+        >
+          <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
+            {/* Project buttons and add/delete buttons */}
+            <ProjectButtons
+              tabIdOrName={tabQueryParam || ""}
+              interfaceId={interfaceId}
+              projectQueryParam={projectQueryParam}
+              defaultProject={false}
+              setTabQueryParam={setTabQueryParam}
+              setInterfaceQueryParam={setInterfaceQueryParam}
+              setProjectQueryParam={setProjectQueryParam}
+              projectActions={projectsActions}
+              interfaceActions={interfaceActions}
+              tabActions={tabActions}
+              tileActions={tileActions}
             />
-            {tabUIState?.resetting && <Loader2 className="animate-spin" />}
+
+            <div className="flex flex-row gap-2 items-center">
+              <AutoComplete
+                type={"Actions"}
+                items={storeCommands.map((cmd: Command) => ({
+                  label: cmd.label,
+                  value: cmd.id,
+                  icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+                  disabled: cmd.disabled
+                }))}
+                defaultValue={undefined}
+                isOpen={undefined}
+                onSelect={(commandId: string) => handleCommand(commandId)}
+                onOpen={() => {}}
+                loading={false}
+              />
+              {tabUIState?.resetting && <Loader2 className="animate-spin" />}
+            </div>
+
+            {/* Interface buttons */}
+            <InterfaceButtons
+              tabIdOrName={tabQueryParam || ""}
+              interfaceId={interfaceId}
+              logsActions={logsActions}
+              contextActions={contextActions}
+              interfaceActions={interfaceActions}
+              tabActions={tabActions}
+              tileActions={tileActions}
+              projectsActions={projectsActions}
+              fieldsActions={fieldsActions}
+              disabled={saveTabWithTilesMutation.isPending}
+            />
           </div>
 
-          {/* Interface buttons */}
-          <InterfaceButtons
-            tabIdOrName={tabQueryParam || ""}
-            interfaceId={interfaceId}
-            logsActions={logsActions}
-            contextActions={contextActions}
-            interfaceActions={interfaceActions}
-            tabActions={tabActions}
-            tileActions={tileActions}
-            disabled={saveTabWithTilesMutation.isPending}
-          />
-        </div>
+          {tabNames.length === 0 ? (
+            (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
+              <div className="flex justify-center">
+                <Loader2 className="animate-spin my-36" />
+              </div>
+            ) : !projectQueryParam && !interfaceQueryParam ? (
+              <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
+                <DefaultProject
+                  projectActions={projectsActions}
+                  interfaceActions={interfaceActions}
+                  tabActions={tabActions}
+                  tileActions={tileActions}
+                  logsActions={logsActions}
+                  codeActions={codeActions}
+                  derivedEntryActions={derivedEntryActions}
+                  setTabQueryParam={setTabQueryParam}
+                  setInterfaceQueryParam={setInterfaceQueryParam}
+                  setProjectQueryParam={setProjectQueryParam}
+                />
+              </Suspense>
+            ) : null
+          ) : (
+            tabNames.map((tabName: string, idx: number) => (
+              <TabsContent
+                key={idx}
+                value={tabName}
+                className="mb-auto tutorial-selection-pane relative"
+              >
+                {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
+                  <div className="flex justify-center">
+                    <Loader2 className="animate-spin my-36" />
+                  </div>
+                ) : tabQueryParam != tabName ? (
+                  <div key={idx} className="flex text-center justify-center">
+                    <Loader2 className="animate-spin my-36" />
+                  </div>
+                ) : (
+                  // Replace Tab component with the server-rendered children
+                  <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
+                    {/* <Tab
+                      tabId={tabQueryParam || ""}
+                      interfaceId={interfaceId}
+                      projectId={projectQueryParam || ""}
+                      logsActions={logsActions}
+                      fieldsActions={fieldsActions}
+                      derivedEntryActions={derivedEntryActions}
+                      contextActions={contextActions}
+                      codeActions={codeActions}
+                    /> */}
+                    {children}
+                  </Suspense>
+                )}
+              </TabsContent>
+            ))
+          )}
 
-        {tabNames.length === 0 ? (
-          (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
-            <div className="flex justify-center">
-              <Loader2 className="animate-spin my-36" />
-            </div>
-          ) : !projectQueryParam && !interfaceQueryParam ? (
-            <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
-              <DefaultProject
-                projectActions={projectsActions}
-                interfaceActions={interfaceActions}
-                tabActions={tabActions}
-                tileActions={tileActions}
-                logsActions={logsActions}
-                codeActions={codeActions}
-                derivedEntryActions={derivedEntryActions}
-                setTabQueryParam={setTabQueryParam}
-                setInterfaceQueryParam={setInterfaceQueryParam}
-                setProjectQueryParam={setProjectQueryParam}
-              />
-            </Suspense>
-          ) : null
-        ) : (
-          tabNames.map((tabName: string, idx: number) => (
-            <TabsContent
-              key={idx}
-              value={tabName}
-              className="mb-auto tutorial-selection-pane relative"
-            >
-              {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
-                <div className="flex justify-center">
-                  <Loader2 className="animate-spin my-36" />
-                </div>
-              ) : tabQueryParam != tabName ? (
-                <div key={idx} className="flex text-center justify-center">
-                  <Loader2 className="animate-spin my-36" />
-                </div>
-              ) : (
-                // Replace Tab component with the server-rendered children
-                <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
-                  {/* <Tab
-                    tabId={tabQueryParam || ""}
-                    interfaceId={interfaceId}
-                    projectId={projectQueryParam || ""}
-                    logsActions={logsActions}
-                    fieldsActions={fieldsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                    codeActions={codeActions}
-                  /> */}
-                  {children}
-                </Suspense>
-              )}
-            </TabsContent>
-          ))
-        )}
-
-        {/* Interface tabs */}
-        {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
-          <InterfaceTabs
-            tabIdOrName={tabQueryParam || ""}
-            interfaceId={interfaceId}
-            interfaceActions={interfaceActions}
-            tabActions={tabActions}
-            setTabQueryParam={setTabQueryParam}
-          />
-        </div>}
-      </Tabs>
+          {/* Interface tabs */}
+          {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
+            <InterfaceTabs
+              tabIdOrName={tabQueryParam || ""}
+              interfaceId={interfaceId}
+              interfaceActions={interfaceActions}
+              tabActions={tabActions}
+              setTabQueryParam={setTabQueryParam}
+            />
+          </div>}
+        </Tabs>
+      </Suspense>
 
       {/* Focus Dialog */}
       {focusPaneOpen && (
@@ -381,6 +394,7 @@ const Interface = ({
                 derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
                 codeActions={codeActions}
+                projectsActions={projectsActions}
               />
             </Suspense>
           </DialogContent>

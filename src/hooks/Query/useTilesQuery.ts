@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTileActions, TileData, TilePosition } from '@/types/evals/grid';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 // Define TileType as a string union if not imported
 type TileType = "Table" | "Plot" | "View" | "Editor";
@@ -100,7 +100,7 @@ export function useGetTileUnifiedQuery(
  * Hook to create a new tile
  */
 export function useCreateTileQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -141,7 +141,7 @@ export function useCreateTileQuery() {
  * Hook to update a tile
  */
 export function useUpdateTileQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -198,7 +198,7 @@ export function useUpdateTileQuery() {
  * Note: This method needs to be added to the GranularTileActions interface
  */
 export function useUpdateTilesPositionsQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -247,7 +247,7 @@ export function useUpdateTilesPositionsQuery() {
  * Hook to delete a tile
  */
 export function useDeleteTileQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 
@@ -364,7 +364,7 @@ export function useTileDataQuery(
  * Hook to patch a tile by name
  */
 export function usePatchTileQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({
@@ -425,7 +425,7 @@ export function usePatchTileQuery() {
 export function usePatchSpecializedTileQuery<
   T extends TileType
 >() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ 

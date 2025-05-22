@@ -9,7 +9,7 @@ import { TabUIActions } from "../useTabUI";
 import { v4 as uuidv4 } from 'uuid';
 import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { Tile } from "@/contexts/slices/selectors/tile";
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Extended interface for TabDataActions with additional parameters
@@ -59,6 +59,9 @@ export function useTabSync(
   
   // Get router refresh function with pending state handling
   const refreshRouter = useTabRouterRefresh(tabUIActions ?? null);
+
+  // Get the query client
+  const queryClient = useQueryClient();
 
   /**
    * Initialize a tile with a generated UUID
@@ -346,7 +349,6 @@ export function useTabSync(
       });
       
       // Copy associated data from React Query cache
-      const queryClient = getQueryClient();
       
       // Copy tableDataItem if this is a table type
       if (type === 'Table' || sourceTile.tableTile) {

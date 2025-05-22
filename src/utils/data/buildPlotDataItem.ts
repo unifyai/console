@@ -23,6 +23,7 @@ export async function buildPlotDataItem(
   const plotFields = createPlotFields(tableTiles, fields);
   
   // Fetch plot data for each table using the already built plotArguments
+  const tFetchPlotDataByTable = performance.now();
   const plotDataByTable = await fetchPlotDataByTable(
     plotTile,
     usedTableNames,
@@ -33,7 +34,9 @@ export async function buildPlotDataItem(
     projectId,
     logsActions
   );
-  
+  const tFetchPlotDataByTableEnd = performance.now();
+  console.log(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
+
   // Process plot data
   let plotDataItem: PlotDataItem;
   

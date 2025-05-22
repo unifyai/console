@@ -9,7 +9,7 @@ import { Badge } from "../UI/badge";
 import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TutorialButton from "./TutorialButton";
-import { LogsActions, ContextActions, CodeActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
+import { LogsActions, ContextActions, CodeActions, GranularTileActions, GranularTabActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
@@ -17,7 +17,7 @@ import { getTileButtonsRef } from '@/utils/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
-const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabActions, tileActions, logsActions, contextActions}: {
+const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
     tabId: string;
     interfaceId: string;
@@ -28,6 +28,8 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
     logsActions: LogsActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
+    projectsActions: ProjectsActions;
+    fieldsActions: FieldsActions;
 }) => {
     const { meta: tileMetaState, data: tileDataState, ui: tileUIState} = useTile(tileId, tabId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId);
@@ -38,7 +40,13 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
     const syncedTabDataActions = syncedTabActions?.data ?? null;
 
     // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { actions: syncedTileActions } = useTileSync(tileId, tabId, tileActions);
+    const { actions: syncedTileActions } = useTileSync(
+        tileId, tabId, tileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
+    );
     const syncedTileUIActions = syncedTileActions?.ui ?? null;
 
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
@@ -96,6 +104,8 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                     }
                     setPending={tabUIActions.setPending}
                     tileActions={tileActions}
+                    projectsActions={projectsActions}
+                    fieldsActions={fieldsActions}
                 />}
                 {(columnContext) && tileType == "Table" && <ContextSelector
                     tileId={tileId}
@@ -114,6 +124,8 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                     </Tooltip>}
                     setPending={tabUIActions.setPending}
                     tileActions={tileActions}
+                    projectsActions={projectsActions}
+                    fieldsActions={fieldsActions}
                 />}
             </div>
             <div className="flex-1 flex justify-end gap-2 mb-auto opacity-0 hover:opacity-100">

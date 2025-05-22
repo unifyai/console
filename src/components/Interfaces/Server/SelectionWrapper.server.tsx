@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Selection from "../Details/Selection/Selection";
@@ -27,7 +27,7 @@ export default async function SelectionWrapper({
   projectId,
   actions
 }: SelectionWrapperProps) {
-  console.log("SelectionWrapper rendering...");
+  console.log("[SelectionWrapper] Rendering...");
   const qc = getQueryClient();
 
   // For Selection views, we need to prefetch the source table's data

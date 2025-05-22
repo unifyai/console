@@ -2,11 +2,13 @@
 
 import { useMemo } from "react";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions } from "@/types/evals/grid";
+import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { useEditorTile, EditorActions } from "../useEditorTile";
 import { useTileUI } from "../useTileUI";
 import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "../useTileMeta";
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 
 /**
  * Properties of the EditorTile that will be synced with the server
@@ -52,7 +54,11 @@ export interface EditorTileSyncResult {
 export function useEditorTileSync(
   tileId: string | null,
   tabId: string | null,
-  granularTileActions?: GranularTileActions
+  granularTileActions?: GranularTileActions,
+  projectsActions?: ProjectsActions,
+  contextActions?: ContextActions,
+  logsActions?: LogsActions,
+  fieldsActions?: FieldsActions
 ): EditorTileSyncResult {
   // Get the original editor tile state and actions
   const { editorTile, editorTileActions, exists } = useEditorTile(tileId, tabId);
@@ -62,11 +68,11 @@ export function useEditorTileSync(
   const { uiActions } = useTileUI(tileId, tabId);
   const tileName = meta?.name;
 
-  // React router refresh handling
-  const refreshRouter = useTileRouterRefresh(uiActions);
+  // Get the store API reference - can be used to get state outside of React's render cycle
+  const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const fileTypeMutation = usePatchSpecializedTileQuery<"Editor">();
+  const fileTypeMutation = usePatchSpecializedTileQueryOptimistic<"Editor">();
   const contentMutation = usePatchSpecializedTileQuery<"Editor">();
   const fileNameMutation = usePatchSpecializedTileQuery<"Editor">();
 
@@ -78,7 +84,7 @@ export function useEditorTileSync(
   };
 
   // Individual wrapper functions for each property
-  const wrapFileType = (value: string | undefined) => {
+  const wrapFileType = async (value: string | undefined) => {
     if (!editorTileActions || !granularTileActions) return;
 
     // Set UI states immediately before any operations
@@ -92,19 +98,28 @@ export function useEditorTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+
     // 2) Optimistic server update
-    fileTypeMutation.mutate({
+    await fileTypeMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       tileType: "Editor",
       updateData: { file_type: value ?? null },
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router and set the loading state
-        console.log("[wrapFileType] onSettled:", value);
-        refreshRouter({ clearLoading: true });
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router and set the loading state
+      console.log("[wrapFileType] onSettled:", value);
+      uiActions?.setLoading(false);
     });
   };
 
@@ -162,7 +177,6 @@ export function useEditorTileSync(
     tabId,
     tileName,
     granularTileActions,
-    refreshRouter
   ]);
 
   if (!editorTileActions || !granularTileActions) {

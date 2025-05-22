@@ -1,14 +1,18 @@
 import { Suspense } from "react";
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import Editor from "../Details/Editor/Editor";
 
 import type {
   CodeActions,
-  TileData
+  TileData,
+  ProjectsActions,
+  ContextActions,
+  LogsActions,
+  FieldsActions,
+  GranularTileActions
 } from "@/types/evals/grid";
-import { GranularTileActions } from "@/types/evals/grid";
 
 type EditorWrapperProps = {
   tile: TileData;
@@ -18,6 +22,10 @@ type EditorWrapperProps = {
   actions: {
     codeActions: CodeActions;
     tileActions: GranularTileActions;
+    projectsActions: ProjectsActions;
+    contextActions: ContextActions;
+    logsActions: LogsActions;
+    fieldsActions: FieldsActions;
   };
 };
 
@@ -28,7 +36,7 @@ export default async function EditorWrapper({
   projectId,
   actions
 }: EditorWrapperProps) {
-  console.log("EditorWrapper rendering...");
+  console.log("[EditorWrapper] Rendering...");
   const qc = getQueryClient();
 
   // Prefetch editor content if available
@@ -56,6 +64,10 @@ export default async function EditorWrapper({
             projectId={projectId}
             codeActions={actions.codeActions}
             tileActions={actions.tileActions}
+            projectsActions={actions.projectsActions}
+            contextActions={actions.contextActions}
+            logsActions={actions.logsActions}
+            fieldsActions={actions.fieldsActions}
           />
         </Suspense>
       </div>

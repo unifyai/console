@@ -12,7 +12,7 @@ import {
   DerivedEntryActions
 } from '@/types/evals/grid';
 import { getLogsParameters } from '@/types/evals/logs';
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Input interface for the demo creation process
@@ -52,7 +52,7 @@ export interface DemoCreationResult {
  * A hook to create a complete demo with interface, tab, and tiles
  */
 export function useCreateDemoQuery() {
-  const queryClient = getQueryClient();
+  const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (input: DemoCreationInput): Promise<DemoCreationResult> => {
@@ -64,10 +64,14 @@ export function useCreateDemoQuery() {
         code,
         actions
       } = input;
+
+      console.log("[useCreateDemoQuery] Creating demo with input:", input);
       
       // Run code if provided
       if (code && actions.codeActions) {
+        console.log("[useCreateDemoQuery] Running code...");
         await actions.codeActions.run({ "main.py": code }, "main.py", "");
+        console.log("[useCreateDemoQuery] Code ran successfully");
       }
       
       try {
@@ -92,6 +96,8 @@ export function useCreateDemoQuery() {
           name, 
           safeInterfaceProps.color
         );
+
+        console.log("[useCreateDemoQuery] Created interface:", createdInterface);
         
         // Step 2: Create tab under the interface
         if (!demoTab.name) {
@@ -109,6 +115,8 @@ export function useCreateDemoQuery() {
           tabName, 
           safeTabProps
         );
+
+        console.log("[useCreateDemoQuery] Created tab:", createdTab);
         
         // Step 3: Create all tiles in parallel
         const createdTiles = await Promise.all(
@@ -154,6 +162,8 @@ export function useCreateDemoQuery() {
             );
           })
         );
+
+        console.log("[useCreateDemoQuery] Created tiles:", createdTiles);
         
         // Step 4: Handle derived columns if needed
         if (derivedColumns && actions.derivedEntryActions) {

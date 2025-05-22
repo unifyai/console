@@ -32,7 +32,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
-import { TableDataItem, TileProps, GranularTileActions } from "@/types/evals/grid";
+import { TableDataItem, TileProps, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
@@ -63,6 +63,7 @@ const LogsTable = ({
   interfaceId,
   projectId,
   tileActions,
+  projectsActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
@@ -73,6 +74,7 @@ const LogsTable = ({
   interfaceId: string;
   projectId: string | undefined;
   tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
@@ -117,19 +119,6 @@ const LogsTable = ({
     boundaries
   } = tableDataItem;
 
-  useWhyDidYouUpdate("LogsTable", [
-    fields,
-    logs,
-    params,
-    entriesProperties,
-    paramsProperties,
-    metrics,
-    logsData,
-    totalPages,
-    boundaries,
-    tableDataItem,
-  ])
-
   const tileName = tileMetaState?.name || "";
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
@@ -138,7 +127,15 @@ const LogsTable = ({
   const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTileActions, tableTile } = useTileSync(tileId, tabId, tileActions, logsActions, fieldsActions);
+  const { actions: syncedTileActions, tableTile } = useTileSync(
+    tileId,
+    tabId,
+    tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
+  );
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const { tableTileActions } = tableTile ?? { tableTileActions: null };
   
@@ -586,6 +583,8 @@ const LogsTable = ({
             contextActions={contextActions}
             setPending={setPending}
             tileActions={tileActions}
+            projectsActions={projectsActions}
+            fieldsActions={fieldsActions}
           />
           <GlobalFilter
             interactive={interactive}

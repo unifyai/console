@@ -6,17 +6,15 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { icons, tabTypes } from "@/constants/logs";
-import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTile, useTileItem, useTileItemActions } from '@/contexts/hooks/tile';
+import { useTile } from '@/contexts/hooks/tile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
-import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
-import { ConstructionOutlined } from "@mui/icons-material";
 
 const Tile = lazy(() => import('./Tile'));
 
@@ -26,6 +24,7 @@ interface TileCardProps {
   interfaceId: string;
   projectId: string;
   tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
@@ -40,6 +39,7 @@ const TileCard = ({
   interfaceId,
   projectId,
   tileActions,
+  projectsActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
@@ -68,7 +68,13 @@ const TileCard = ({
   const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
   
   // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
-  const { actions: syncedTileActions } = useTileSync(tileId, tabId, tileActions);
+  const { actions: syncedTileActions } = useTileSync(
+    tileId, tabId, tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
+  );
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const syncedTileMetaActions = syncedTileActions?.meta ?? null;
   const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
@@ -166,6 +172,7 @@ const TileCard = ({
                 derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
                 codeActions={codeActions}
+                projectsActions={projectsActions}
             />
           )}
         </Suspense>

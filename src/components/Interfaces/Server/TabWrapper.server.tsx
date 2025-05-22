@@ -2,7 +2,7 @@ import React, { Suspense } from "react";
 import Tab from "../Tab";
 import TileCardWrapper from "./TileCardWrapper.server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { getQueryClient } from '@/lib/react-query/getQueryClient';
+import getQueryClient from '@/app/getQueryClient';;
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreSliceUpdater } from "@/contexts/providers/StoreSliceUpdater";
 import { buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
@@ -19,11 +19,13 @@ import type {
   GranularTileActions,
   TabData,
   TileData,
-  GranularInterfaceActions
+  GranularInterfaceActions,
+  ProjectsActions
 } from "@/types/evals/grid";
 import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
 type TabWrapperActions = {
+  projectsActions: ProjectsActions;
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
@@ -47,7 +49,7 @@ export default async function TabWrapper({
   tab?: string;           // Tab name from query params
   actions: TabWrapperActions;
 }) {
-  console.log("TabWrapper rendering...");
+  console.log("[TabWrapper] Rendering...");
   const qc = getQueryClient();
 
   // Handle case where no project is selected yet
@@ -188,6 +190,7 @@ export default async function TabWrapper({
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={project}
+            projectsActions={actions.projectsActions}
             tabActions={actions.tabActions}
             tileActions={actions.tileActions}
             logsActions={actions.logsActions}

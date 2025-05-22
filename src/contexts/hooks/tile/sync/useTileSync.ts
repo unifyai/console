@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { usePatchTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions, LogsActions, FieldsActions } from "@/types/evals/grid";
+import { GranularTileActions, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/evals/grid";
 import { useTile, TileActions } from "../useTile";
 import { usePlotTileSync, PlotTileSyncResult } from "./usePlotTileSync";
 import { useTableTileSync, TableTileSyncResult } from "./useTableTileSync";
@@ -66,6 +66,8 @@ export function useTileSync(
   tileId: string | null,
   tabId: string | null,
   granularTileActions?: GranularTileActions,
+  projectsActions?: ProjectsActions,
+  contextActions?: ContextActions,
   logsActions?: LogsActions,
   fieldsActions?: FieldsActions
 ): TileSyncResult {
@@ -86,35 +88,40 @@ export function useTileSync(
   const plotTileSync = usePlotTileSync(
     tileId,
     tabId,
-    granularTileActions
+    granularTileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
   );
 
   const tableTileSync = useTableTileSync(
     tileId,
     tabId,
-    granularTileActions
+    granularTileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions,
   );
 
   const tileName = meta?.name;
-
-  // React router refresh handling
-  const refreshRouter = useTileRouterRefresh(uiActions);
 
   // Get the store API reference - can be used to get state outside of React's render cycle
   const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const typeMutation = usePatchTileQuery();
-  const tableMutation = usePatchTileQuery();
-  const filtersMutation = usePatchTileQuery();
-  const contextMutation = usePatchTileQuery();
-  const columnContextMutation = usePatchTileQuery();
-  const contextAndColumnContextMutation = usePatchTileQuery();
-  const commonFilterMutation = usePatchTileQuery();
+  const typeMutation = usePatchTileQueryOptimistic();
+  const tableMutation = usePatchTileQueryOptimistic();
+  const filtersMutation = usePatchTileQueryOptimistic();
+  const contextMutation = usePatchTileQueryOptimistic();
+  const columnContextMutation = usePatchTileQueryOptimistic();
+  const contextAndColumnContextMutation = usePatchTileQueryOptimistic();
+  const commonFilterMutation = usePatchTileQueryOptimistic();
   const groupingMutation = usePatchTileQueryOptimistic();
-  const metricMutation = usePatchTileQuery();
-  const freezeMutation = usePatchTileQuery();
-  const autoUpdateMutation = usePatchTileQuery();
+  const metricMutation = usePatchTileQueryOptimistic();
+  const freezeMutation = usePatchTileQueryOptimistic();
+  const autoUpdateMutation = usePatchTileQueryOptimistic();
 
   const colorMutation = usePatchTileQuery();
   const visibleMutation = usePatchTileQuery();
@@ -149,7 +156,7 @@ export function useTileSync(
   };
 
   // Individual wrapper functions for each property
-  const wrapType = (type?: string) => {
+  const wrapType = async (type?: string) => {
     if (!metaActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set UI states immediately before any operations
@@ -161,18 +168,30 @@ export function useTileSync(
     // 1) Update local state immediately
     metaActions.setType(type);
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
+
     // 2) Optimistic server update
-    typeMutation.mutate({
+    await typeMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { type: type ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router without setting states again
-        console.log("[wrapType] onSettled:", type);
-        refreshRouter( {clearLoading: true, clearPending: true} );
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router without setting states again
+      console.log("[wrapType] onSettled:", type);
+      uiActions.setLoading(false);
+      uiActions.setPending(false);
     });
   };
 
@@ -181,23 +200,30 @@ export function useTileSync(
     
     // 1) Update local state immediately
     dataActions.setTable(table);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
     tableMutation.mutate({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { table: table ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapTable] onSettled:", table);
-        refreshRouter();
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
     });
   };
 
-  const wrapFilters = (filters?: string) => {
+  const wrapFilters = async (filters?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set loading state immediately
@@ -207,23 +233,34 @@ export function useTileSync(
     
     // 1) Update local state immediately
     dataActions.setFilters(filters);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
-    filtersMutation.mutate({
+    await filtersMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { filters: filters ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapFilters] onSettled:", filters);
-        refreshRouter( {clearLoading: true} );
-      }
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapFilters] onSettled:", filters);
+      uiActions.setLoading(false);
     });
   };
 
-  const wrapContext = (context?: string) => {
+  const wrapContext = async (context?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set UI states immediately before any operations
@@ -235,22 +272,34 @@ export function useTileSync(
     // 1) Update local state immediately
     dataActions.setContext(context);
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
+
     // 2) Optimistic server update
-    contextMutation.mutate({
+    await contextMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { context: context ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router - UI states already set
-        console.log("[wrapContext] onSettled:", context);
-        refreshRouter( { clearLoading: true, clearPending: true } );
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router - UI states already set
+      console.log("[wrapContext] onSettled:", context);
+      uiActions.setLoading(false);
+      uiActions.setPending(false);
     });
   };
 
-  const wrapColumnContext = (columnContext?: string) => {
+  const wrapColumnContext = async (columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set UI states immediately before any operations
@@ -261,19 +310,31 @@ export function useTileSync(
     
     // 1) Update local state immediately
     dataActions.setColumnContext(columnContext);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
-    columnContextMutation.mutate({
+    await columnContextMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { column_context: columnContext ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router - UI states already set
-        console.log("[wrapColumnContext] onSettled:", columnContext);
-        refreshRouter( { clearLoading: true, clearPending: true } );
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router - UI states already set
+      console.log("[wrapColumnContext] onSettled:", columnContext);
+      uiActions.setLoading(false);
+      uiActions.setPending(false);
     });
   };
 
@@ -281,8 +342,11 @@ export function useTileSync(
    * Efficiently updates both context and column_context together in a single operation
    * to minimize UI flickering and reduce the number of router refreshes.
    */
-  const wrapContextAndColumnContext = (context?: string, columnContext?: string) => {
+  const wrapContextAndColumnContext = async (context?: string, columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
+
+    // ──────── ⏱ start end-to-end timer ────────
+    const tStartCtxCol = performance.now();
     
     // Set UI states immediately before any operations
     if (uiActions) {
@@ -293,6 +357,10 @@ export function useTileSync(
     // 1) Update both local states immediately
     dataActions.setContext(context);
     dataActions.setColumnContext(columnContext);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // Create update object with both properties
     const updateData: Partial<TileData> = {
@@ -301,21 +369,36 @@ export function useTileSync(
     } as Partial<TileData>;
     
     // 2) Single optimistic server update with both changes
-    contextAndColumnContextMutation.mutate({
+    await contextAndColumnContextMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Single router refresh for both changes
-        console.log("[wrapContextAndColumnContext] onSettled:", context, columnContext);
-        refreshRouter( { clearLoading: true, clearPending: true } );
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Single router refresh for both changes
+      console.log("[wrapContextAndColumnContext] onSettled:", context, columnContext);
+      uiActions.setLoading(false);
+      uiActions.setPending(false);
+
+        // ──────── ⏱ end end-to-end timer ────────
+        console.log(
+          `[perf] wrapContextAndColumnContext total: ${(
+            performance.now() - tStartCtxCol
+        ).toFixed(2)} ms`
+      );
     });
   };
 
-  const wrapCommonFilter = (commonFilter?: string) => {
+  const wrapCommonFilter = async (commonFilter?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set loading state immediately
@@ -326,22 +409,33 @@ export function useTileSync(
     // 1) Update local state immediately
     dataActions.setCommonFilter(commonFilter);
 
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
+
     // 2) Optimistic server update
-    commonFilterMutation.mutate({
+    await commonFilterMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { common_filter: commonFilter ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapCommonFilter] onSettled:", commonFilter);
-        refreshRouter( { clearLoading: true } );
-      }
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapCommonFilter] onSettled:", commonFilter);
+      uiActions.setLoading(false);
     });
   };
 
-  const wrapGrouping = (grouping?: string) => {
+  const wrapGrouping = async (grouping?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set loading state immediately
@@ -357,25 +451,28 @@ export function useTileSync(
     const tile = selectTileByTabIdAndName(state, tabId, tileName);
 
     // 2) Optimistic server update
-    groupingMutation.mutate({
+    await groupingMutation.mutateAsync({
       id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { grouping: grouping ?? null } as Partial<TileData>,
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
       actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
       logsActions: logsActions as LogsActions,
       fieldsActions: fieldsActions as FieldsActions,
-      projectId: state.activeProjectId || ""
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapGrouping] onSettled:", grouping);
-        uiActions.setLoading(false);
-      }
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapGrouping] onSettled:", grouping);
+      uiActions.setLoading(false);
     });
   };
 
-  const wrapMetric = (metric?: string) => {
+  const wrapMetric = async (metric?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set loading state immediately
@@ -385,23 +482,34 @@ export function useTileSync(
     
     // 1) Update local state immediately
     dataActions.setMetric(metric);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
-    metricMutation.mutate({
+    await metricMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { metric: metric ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapMetric] onSettled:", metric);
-        refreshRouter( { clearLoading: true } );
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapMetric] onSettled:", metric);
+      uiActions.setLoading(false);
     });
   };
 
-  const wrapFreeze = (freeze?: string) => {
+  const wrapFreeze = async (freeze?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // Set loading state immediately
@@ -411,40 +519,61 @@ export function useTileSync(
     
     // 1) Update local state immediately
     dataActions.setFreeze(freeze);
-    
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
+
     // 2) Optimistic server update
-    freezeMutation.mutate({
+    await freezeMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { freeze: freeze ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapFreeze] onSettled:", freeze);
-        refreshRouter( { clearLoading: true } );
-      }
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapFreeze] onSettled:", freeze);
+      uiActions.setLoading(false);
     });
   };
 
-  const wrapAutoUpdate = (autoUpdate?: string) => {
+  const wrapAutoUpdate = async (autoUpdate?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // 1) Update local state immediately
     dataActions.setAutoUpdate(autoUpdate);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
-    autoUpdateMutation.mutate({
+    await autoUpdateMutation.mutateAsync({
+      id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
+      projectId: state.activeProjectId || "",
       updateData: { auto_update: autoUpdate ?? null } as Partial<TileData>,
-      actions: granularTileActions
-    }, {
-      onSettled: () => {
-        // 3. Refresh the router
-        console.log("[wrapAutoUpdate] onSettled:", autoUpdate);
-        refreshRouter();
-      }
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router
+      console.log("[wrapAutoUpdate] onSettled:", autoUpdate);
     });
   };
 

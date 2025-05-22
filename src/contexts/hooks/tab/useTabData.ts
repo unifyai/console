@@ -277,6 +277,7 @@ export function useTabData(
             ...initialState,
             id: initialState?.id || tileName,
             name: tileName,
+            tabId: tabId,
           }
         );
       }
@@ -301,6 +302,7 @@ export function useTabData(
             ...initialState,
             name: newTileName,
             id: initialState?.id || newTileName,
+            tabId: tabId,
           }
         );
       }

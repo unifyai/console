@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsPlot from "../Details/Plot/Plot";
@@ -10,6 +10,8 @@ import type {
   FieldsActions,
   TileData,
   GranularTileActions,
+  ProjectsActions,
+  ContextActions
 } from "@/types/evals/grid";
 import { PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
@@ -17,6 +19,8 @@ type PlotWrapperActions = {
   tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
+  projectsActions: ProjectsActions;
+  contextActions: ContextActions;
 };
 
 export default async function PlotWrapper({
@@ -32,7 +36,7 @@ export default async function PlotWrapper({
   projectId: string;
   actions: PlotWrapperActions;
 }) {
-  console.log("PlotWrapper rendering...");
+  console.log("[PlotWrapper] Rendering...");
   const qc = getQueryClient();
   const tileId = tile.id || "";
 
@@ -88,6 +92,8 @@ export default async function PlotWrapper({
           tileActions={actions.tileActions}
           logsActions={actions.logsActions}
           fieldsActions={actions.fieldsActions}
+          projectsActions={actions.projectsActions}
+          contextActions={actions.contextActions}
         />
       </Suspense>
     </HydrationBoundary>

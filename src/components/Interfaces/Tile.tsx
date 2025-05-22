@@ -1,6 +1,6 @@
 "use client";
 
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { useEffect, Suspense, lazy } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
@@ -21,6 +21,7 @@ interface TileComponentProps {
     tabId: string;
     interfaceId: string;
     projectId: string;
+    projectsActions: ProjectsActions;
     tileActions: GranularTileActions;
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
@@ -38,6 +39,7 @@ const Tile = ({
     tabId,
     interfaceId,
     projectId,
+    projectsActions,
     tileActions,
     logsActions,
     fieldsActions,
@@ -108,6 +110,7 @@ const Tile = ({
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
+                            projectsActions={projectsActions}
                         />
                     </Suspense>
                 );
@@ -126,6 +129,8 @@ const Tile = ({
                             tileActions={tileActions}
                             logsActions={logsActions}
                             fieldsActions={fieldsActions}
+                            projectsActions={projectsActions}
+                            contextActions={contextActions}
                         />
                     </Suspense>
                 );
@@ -158,6 +163,10 @@ const Tile = ({
                             projectId={projectId}
                             codeActions={codeActions}
                             tileActions={tileActions}
+                            projectsActions={projectsActions}
+                            contextActions={contextActions}
+                            fieldsActions={fieldsActions}
+                            logsActions={logsActions}
                         />
                     </div>
                 );

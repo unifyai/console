@@ -1,6 +1,4 @@
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
-import { Suspense } from "react";
 
 import {
     getLogFields,
@@ -86,8 +84,8 @@ import {
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
-import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
+import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
 
 const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string, tab?: string } }) => {
     // get user and api key
@@ -212,27 +210,25 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     );
 
     return (
-        <div className="w-full h-full">
-            <InterfaceWrapper
-                project={searchParams?.project ?? null}
-                interface_={searchParams?.interface ?? null}
-                tab={searchParams?.tab}
-                actions={
-                    {
-                        projectsActions,
-                        logsActions,
-                        derivedEntryActions,
-                        contextActions,
-                        fieldsActions,
-                        codeActions,
-                        devboxActions,
-                        interfaceActions,
-                        tabActions,
-                        tileActions
-                    }
+        <InterfaceWrapper
+            project={searchParams?.project ?? null}
+            interface_={searchParams?.interface ?? null}
+            tab={searchParams?.tab}
+            actions={
+                {
+                    projectsActions,
+                    logsActions,
+                    derivedEntryActions,
+                    contextActions,
+                    fieldsActions,
+                    codeActions,
+                    devboxActions,
+                    interfaceActions,
+                    tabActions,
+                    tileActions
                 }
-            />
-        </div>
+            }
+        />
     );
 };
 

@@ -8,7 +8,6 @@ import { InterfaceDataActions } from "../useInterfaceData";
 import { InterfaceUIActions } from "../useInterfaceUI";
 import { v4 as uuidv4 } from 'uuid';
 import { Tab } from "@/contexts/slices/selectors/tab";
-import { useInterfaceRouterRefresh } from "./useInterfaceRouterRefresh";
 import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
 
 /**
@@ -52,9 +51,6 @@ export function useInterfaceSync(
   const updateTabMutation = useUpdateTabQuery();
   const deleteTabMutation = useDeleteTabQuery();
   
-  // Get router refresh function with pending state handling
-  const refreshRouter = useInterfaceRouterRefresh(interfaceUIActions ?? null);
-
   /**
    * Add a new tab to an interface with a generated UUID
    */

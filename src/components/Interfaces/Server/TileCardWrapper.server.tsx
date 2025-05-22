@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import TileCard from "../TileCard";
 import TileWrapper from "./TileWrapper.server";
-import { getQueryClient } from '@/lib/react-query/getQueryClient'
+import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
@@ -12,7 +12,8 @@ import type {
   ContextActions,
   CodeActions,
   GranularTileActions,
-  TileData
+  TileData,
+  ProjectsActions
 } from "@/types/evals/grid";
 
 type TileCardWrapperActions = {
@@ -22,6 +23,7 @@ type TileCardWrapperActions = {
   contextActions: ContextActions;
   codeActions: CodeActions;
   tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
 };
 
 export default async function TileCardWrapper({
@@ -37,7 +39,7 @@ export default async function TileCardWrapper({
   projectId: string;
   actions: TileCardWrapperActions;
 }) {
-  console.log("TileCardWrapper rendering...");
+  console.log("[TileCardWrapper] Rendering...");
   const qc = getQueryClient();
   
   return (
@@ -59,6 +61,7 @@ export default async function TileCardWrapper({
             derivedEntryActions={actions.derivedEntryActions}
             contextActions={actions.contextActions}
             codeActions={actions.codeActions}
+            projectsActions={actions.projectsActions}
           >
             <Suspense fallback={<SkeletonLoader />}>
               <TileWrapper
