@@ -67,10 +67,9 @@ export function AssistantListItem({
                 <span className="text-sm font-medium truncate">{displayName}</span>
             </div>
 
-            {/* Chat / Profile buttons visible on hover/selection */}
+            {/* Profile button */}
             <div className={cn(
-                "flex items-center gap-1 transition-opacity flex-shrink-0",
-                isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                "flex items-center gap-1 flex-shrink-0 opacity-100"
             )}>
                 <ActionButton
                     tooltip="View profile"
