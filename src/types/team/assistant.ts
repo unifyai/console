@@ -9,6 +9,7 @@ export interface Assistant {
   age: number | null;
   region: string | null;
   about: string | null;
+  gender?: 'male' | 'female';
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -24,9 +25,10 @@ export interface Assistant {
 
 export type AssistantPreset =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel'>
+  & { gender?: 'male' | 'female' }; // Add gender here as well
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender'>
   & {imageFile?: File | null; imagePreview?: string | null;};
 
 

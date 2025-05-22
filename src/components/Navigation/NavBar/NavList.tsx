@@ -1,48 +1,32 @@
-import { useMemo } from "react";
 import { NavItem } from "@/types/navigation";
 import {
-  Key,
-  MessageSquare,
-  CreditCard,
-  ChartLine,
-  ArrowBigRightDash,
-  LayoutDashboard,
-  Gauge,
+  LayoutDashboard, // For Interfaces
+  Users,           // For Team
+  CreditCard,      // For Billing
+  ChartLine,       // For the static Usage project link (though defined in NavMenu)
 } from "lucide-react";
 
 const NavList = (): NavItem[] => {
-  // Just return your main nav items—do NOT include "Profile" here
+  // Defines the main navigation items that will be structured in NavMenu
   return [
     {
+      title: "Team",
+      icon: Users,
+      href: "/team",
+    },
+    {
       title: "Interfaces",
-      icon: LayoutDashboard,
+      icon: LayoutDashboard, // This will be the main collapsible "Interfaces"
       href: "/interfaces",
-    },
-    {
-      title: "Chat",
-      icon: MessageSquare,
-      href: "/chat",
-    },
-    {
-      title: "Keys",
-      icon: Key,
-      href: "/keys",
-    },
-    {
-      title: "Endpoints",
-      icon: ArrowBigRightDash,
-      href: "/endpoints",
-    },
-    {
-      title: "Usage",
-      icon: Gauge,
-      href: "/usage",
     },
     {
       title: "Billing",
       icon: CreditCard,
       href: "/billing",
     },
+    // Note: "Profile" is handled separately in NavMenu.
+    // "Usage", "Chat", "Keys", "Endpoints" are removed as per requirements.
+    // The static "Usage" project link (/interfaces?project=Usage) will be defined directly in NavMenu.
   ];
 };
 

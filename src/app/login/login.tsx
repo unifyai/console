@@ -8,6 +8,7 @@ import loginImage2 from "@/public/icons/login-2.png";
 import loginImage3 from "@/public/icons/login-3.png";
 import GoogleIcon from "@/public/icons/google-icon.png";
 import GithubIcon from "@/public/icons/github-icon.png";
+import { PhoneCall, ClipboardList, LayoutDashboard } from "lucide-react";
 
 interface LoginProps {
     // eslint-disable-next-line no-unused-vars
@@ -29,14 +30,11 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
         >
             <div className="flex flex-1 flex-col gap-[40px]">
                 <h1
-                    className="text-5xl text-transparent bg-clip-text bg-gradient-to-br from-[#0A0C13] to-[#606264]"
+                    className="text-4xl sm:text-5xl text-gray-800 leading-tight text-center lg:text-left"
                 >
-                    <span>
-                        {"Build AI "}
-                    </span>
-                    <span className="font-semibold">
-                        {"Your Way"}
-                    </span>
+                    Hire <span className="font-bold">AIs</span>
+                    <br />
+                    not <span className="font-bold">APIs</span>
                 </h1>
                 <div className="flex flex-col gap-3">
                     <div
@@ -82,21 +80,21 @@ const LoginFragment = ({ onLogin: handleLogin, error }: LoginProps) => {
                 </div>
                 <div className="flex flex-col gap-[40px]">
                     <div className="flex gap-[30px] font-medium">
-                        <Image src={loginImage2} alt="Convert code" className="h-fit" />
+                        <PhoneCall className="h-fit text-green-500"/>
                         <p>
-                            Deploy through any endpoint with a single API.
+                            <span className="font-bold">Call</span> your assistant to handle any task for you
                         </p>
                     </div>
                     <div className="flex gap-[30px] font-medium">
-                        <Image src={loginImage1} alt="Convert code" className="h-fit" />
+                        <ClipboardList className="h-fit text-green-500"/>
                         <p>
-                            Iterate on your workflows with customized interfaces.
+                            <span className="font-bold">Delegate.</span> Let your assistant pick up calls, emails and messages.
                         </p>
                     </div>
                     <div className="flex gap-[30px] font-medium">
-                        <Image src={loginImage3} alt="Convert code" className="h-fit" />
+                        <LayoutDashboard className="h-fit text-green-500"/>
                         <p>
-                            Monitor your applications with flexible dashboards.
+                            <span className="font-bold">Iterate</span> with flexible interfaces to tweak your assistant.
                         </p>
                     </div>
                 </div>

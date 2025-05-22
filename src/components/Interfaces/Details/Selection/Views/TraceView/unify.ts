@@ -3,11 +3,11 @@ import { Span } from "@/types/evals/traces";
 export const colorPalette = ["#9333ea", "#3b82f6", "#22c55e", "#f43f5e", "#eab308"];
 
 /** 
- * unifyByName => merges multiple arrays by “span_name”, for multi-diff.
+ * unifyByName => merges multiple arrays by "span_name", for multi-diff.
  * Produces an array of MergedSpan objects (spanName, baseSpan, comparableSpans, children).
  */
 export function unifyByName(traces: Span[][]): any[] {
-  // Each “trace array” => mapNameToSpan[] 
+  // Each "trace array" => mapNameToSpan[] 
   const mapList = traces.map((arr) => {
     const m = new Map<string, Span[]>();
     arr.forEach((s) => {
@@ -45,11 +45,19 @@ export function unifyByName(traces: Span[][]): any[] {
   return merged;
 }
 
+// Row structure emitted for the BarChart
+export interface ChartRow {
+  label: string;
+  [key: `start-${number}`]: number;
+  [key: `length-${number}`]: number;
+  [key: `running-${number}`]: boolean;
+}
+
 /** 
  * unifyTracesForChart => merges multiple traces for Gantt (BarChart).
  */
-export function unifyTracesForChart(allTraces: Span[][]) {
-  const mapList = allTraces.map((arr) => groupFlattenedCalls(arr));
+export function unifyTracesForChart(allTraces: Span[][], nowSecs: number = 0): ChartRow[] {
+  const mapList = allTraces.map((arr) => groupFlattenedCalls(arr, nowSecs));
   const allLabels = new Set<string>();
   mapList.forEach((m) => {
     for (const label of Array.from(m.keys())) {
@@ -57,14 +65,14 @@ export function unifyTracesForChart(allTraces: Span[][]) {
     }
   });
 
-  const chartRows: any[] = [];
+  const chartRows: ChartRow[] = [];
   for (const label of Array.from(allLabels)) {
     const baseArray = mapList[0].get(label) || [];
     const otherArrays = mapList.slice(1).map((m) => m.get(label) || []);
     const maxLen = Math.max(baseArray.length, ...otherArrays.map((a) => a.length));
 
     for (let i = 0; i < maxLen; i++) {
-      const row: any = { label: maxLen > 1 ? `${label} (#${i + 1})` : label };
+      const row: ChartRow = { label: maxLen > 1 ? `${label} (#${i + 1})` : label };
       mapList.forEach((mapForTrace, traceIndex) => {
         const arr = mapForTrace.get(label) || [];
         const call = arr[i];
@@ -73,9 +81,11 @@ export function unifyTracesForChart(allTraces: Span[][]) {
           const length = call.end - call.start;
           row[`start-${traceIndex}`] = start;
           row[`length-${traceIndex}`] = length;
+          row[`running-${traceIndex}`] = call.running;
         } else {
           row[`start-${traceIndex}`] = 0;
           row[`length-${traceIndex}`] = 0;
+          row[`running-${traceIndex}`] = false;
         }
       });
       chartRows.push(row);
@@ -89,11 +99,12 @@ interface FlattenedCall {
   label: string;
   start: number;
   end: number;
+  running: boolean;
 }
 
 /** groupFlattenedCalls => flatten each span, grouping them by label. */
-function groupFlattenedCalls(spans: Span[]): Map<string, FlattenedCall[]> {
-  const flattenedSpans = flattenSpans(spans);
+function groupFlattenedCalls(spans: Span[], nowSecs: number = 0): Map<string, FlattenedCall[]> {
+  const flattenedSpans = flattenSpans(spans, nowSecs);
   const map = new Map<string, FlattenedCall[]>();
   flattenedSpans.forEach((fc) => {
     const arr = map.get(fc.label) || [];
@@ -104,19 +115,34 @@ function groupFlattenedCalls(spans: Span[]): Map<string, FlattenedCall[]> {
 }
 
 /** flattenSpans => collect (label=span_name, start=offset, end=offset+exec_time). */
-function flattenSpans(spans: Span[]): FlattenedCall[] {
+function flattenSpans(spans: Span[], nowSecs: number = 0): FlattenedCall[] {
   const results: FlattenedCall[] = [];
+
   function traverse(span: Span) {
     const start = span.offset ?? 0;
-    const end = start + (span.exec_time ?? 0);
+    const running = isRunning(span);
+    const duration = running ? Math.max(0.001, nowSecs - start) : (span.exec_time ?? 0);
+    const end = start + duration;
+
     results.push({
       id: span.id,
       label: span.span_name,
       start,
       end,
+      running,
     });
+
     span.child_spans?.forEach(traverse);
   }
+
   spans.forEach(traverse);
   return results;
+}
+
+// Helper to detect if a span is currently running (i.e. not completed yet)
+function isRunning(span: Span): boolean {
+  // Consider the span running until it is explicitly completed OR it already has a stable exec_time.
+  // Many providers leave `completed = false` while streaming, but once `exec_time` is populated we
+  // can treat it as finished even if `completed` hasn't flipped yet.
+  return span.completed === false || span.exec_time === undefined || span.exec_time === null;
 }

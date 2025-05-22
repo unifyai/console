@@ -5,7 +5,7 @@
  * { detail: error_message } for unsuccessful responses
 */
 export interface ResponseProps {
-    [key: string]: string
+    [key: string]: string | any
 }
 
 export interface FileProps {

@@ -291,7 +291,7 @@ function DictionarySectionItem({
       allPaths.every(path => persistedState.traceExpandOpenKeys.has(path));
 
     setAllExpanded(allPathsExpanded);
-  }, [persistedState?.traceExpandOpenKeys, title, baseVal]);
+  }, [persistedState, persistedState?.traceExpandOpenKeys, title, baseVal]);
 
   // Handlers for expand/collapse actions
   const handleExpandAll = (e: React.MouseEvent) => {
@@ -553,7 +553,7 @@ function PatchDetailPanel({
     [path, spanPathSegments]
   );
 
-  // Early return after all hooks are declared
+  // Early return AFTER all hooks are declared (including findSpanById)
   if (!node.baseSpanRef && !node.targetSpanRef) {
     return <p className="italic text-sm">No base or target data</p>;
   }
@@ -626,6 +626,25 @@ function findSpanByNameInRow(
     "Cost": <DollarSign className="h-4 w-4 text-primary" />,
     "ID": <IdCard className="h-4 w-4 text-primary" />,
     "IDs": <IdCard className="h-4 w-4 text-primary" />,
+  };
+
+  // --------------------------------------------------------------
+  // Helper to fetch the freshest Span by its ID from `allTraces`.
+  // Declared before any early returns to satisfy React Hooks rules.
+  // --------------------------------------------------------------
+  const findSpanById = (id: string): Span | undefined => {
+    const stack: Span[] = [];
+    allTraces.forEach((arr) => {
+      stack.push(...(arr as Span[]));
+    });
+    while (stack.length) {
+      const s = stack.pop()!;
+      if (s.id === id) return s;
+      if (s.child_spans && s.child_spans.length) {
+        stack.push(...s.child_spans);
+      }
+    }
+    return undefined;
   };
 
   // Helper to render a standard accordion item (updated to pass onGroupSaveEdit)
@@ -707,14 +726,9 @@ function findSpanByNameInRow(
         </div>
         { (node.baseSpanRef || node.targetSpanRef) && (
           <TimelineViewButton
-            baseTrace={
-              node.baseSpanRef ? [node.baseSpanRef] : undefined
-            }
-            targetTrace={
-              node.targetSpanRef && node.targetSpanRef !== node.baseSpanRef
-                ? [node.targetSpanRef]
-                : undefined
-            }
+            baseSpanId={node.baseSpanRef?.id}
+            targetSpanId={node.targetSpanRef && node.targetSpanRef !== node.baseSpanRef ? node.targetSpanRef.id : undefined}
+            findSpanById={findSpanById}
           />
         )}
       </div>
@@ -1707,15 +1721,12 @@ export default function UnifiedTraceView({
   const multiMode = rowIndexes.length > 1;
   const baseRowSpans = useMemo(() => liveBaseTrace, [liveBaseTrace]);
 
-  function minimalSpanHierarchy(span: Span): any {
-    return {
-      name: span.span_name,
-      children: (span.child_spans ?? []).map(minimalSpanHierarchy),
-    };
-  }
-  function minimalSpanTree(spans: Span[]): any {
-    return spans.map(minimalSpanHierarchy);
-  }
+  const minimalSpanHierarchy = React.useCallback((span: Span): any => ({
+    name: span.span_name,
+    children: (span.child_spans ?? []).map(minimalSpanHierarchy),
+  }), []);
+
+  const minimalSpanTree = React.useCallback((spans: Span[]): any => spans.map(minimalSpanHierarchy), [minimalSpanHierarchy]);
 
   const groupedRows = useMemo(() => {
     const result: { signature: string; rowIndices: number[] }[] = [];
@@ -1737,7 +1748,7 @@ export default function UnifiedTraceView({
       result.push({ signature, rowIndices: rows });
     }
     return result;
-  }, [liveAllTraces, liveComparisonTraces, rowIndexes]);
+  }, [liveAllTraces, liveComparisonTraces, rowIndexes, minimalSpanTree]);
 
   function labelForGroupRows(rows: number[]): string {
     if (!rows.length) return "--";
@@ -1753,12 +1764,12 @@ export default function UnifiedTraceView({
     return arr;
   }, [groupedRows]);
 
-  function unifyGroupIntoOne(targetRowIndices: number[]): Span[] {
+  const unifyGroupIntoOne = React.useCallback((targetRowIndices: number[]): Span[] => {
     if (!targetRowIndices.length) return [];
     const firstTargetRow = targetRowIndices[0];
     const indexInLiveAllTraces = rowIndexes.indexOf(firstTargetRow);
     return indexInLiveAllTraces !== -1 ? (liveAllTraces[indexInLiveAllTraces] ?? []) : [];
-  }
+  }, [rowIndexes, liveAllTraces]);
 
 
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
@@ -1774,7 +1785,7 @@ export default function UnifiedTraceView({
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
     const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
     return computeSpanDiffByName(baseWrapped, groupWrapped);
-  }, [groupSignature, groupedRows, baseRowSpans, liveAllTraces, rowIndexes]);
+  }, [groupSignature, groupedRows, baseRowSpans, liveAllTraces, unifyGroupIntoOne]);
 
 
   const groupCompareRows = useMemo(() => {
@@ -1857,7 +1868,7 @@ export default function UnifiedTraceView({
     const currentSetSelectedSpanId = persistedState ? persistedState.setSelectedSpanId : setLocalSelectedSpanId;
     currentSetSelectedNode(n);
     currentSetSelectedSpanId(n ? (n.baseSpanRef?.id || n.targetSpanRef?.id || n.name) : "");
-  }, [persistedState, localSelectedNode, localSelectedSpanId, setLocalSelectedNode, setLocalSelectedSpanId]); // Add local states to dep array
+  }, [persistedState, setLocalSelectedNode, setLocalSelectedSpanId]); // Add local states to dep array
 
   const handleGroupChange = React.useCallback((val: string) => {
     setGroupSignature(val);
