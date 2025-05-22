@@ -33,8 +33,8 @@ interface MainProps {
 export default function Main({ taskActions, assistantActions }: MainProps) {
     // --- UI Panel Management ---
     const {
-        chatTargetAssistantId, isChatOpen, profileAssistantId, isProfileOpen,
-        handleChat, handleChatClose, handleShowProfile, handleProfileClose,
+        profileAssistantId, isProfileOpen,
+        handleShowProfile, handleProfileClose,
     } = usePanelManager();
 
     // --- Assistant Data & Actions ---
@@ -158,7 +158,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     };
 
     // --- Memoized values for props ---
-    const chatAssistant = React.useMemo(() => assistants.find(a => a.agent_id === chatTargetAssistantId) || null, [assistants, chatTargetAssistantId]);
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
     const isCombinedLoadingInitial = isLoadingAssistants || (initialTaskFetchTriggered && isLoadingInitialTasks);
 
@@ -174,12 +173,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                         isLoading={isLoadingAssistants}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
-                        chatTargetAssistantId={chatTargetAssistantId}
                         onShowProfile={handleShowProfile}
-                        onChat={handleChat}
-                        isChatOpen={isChatOpen}
-                        chatAssistant={chatAssistant}
-                        onChatClose={handleChatClose}
                         onOpenHireDialog={handleOpenHireDialog}
                     />
                 </div>

@@ -10,20 +10,13 @@ interface AssistantListItemProps {
     assistant: Assistant;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
-    onChat: (id: string) => void;
 }
 
 export function AssistantListItem({
     assistant,
     isSelected,
     onShowProfile,
-    onChat,
 }: AssistantListItemProps) {
-
-    const handleChatClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onChat(assistant.agent_id);
-    };
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -79,12 +72,6 @@ export function AssistantListItem({
                 "flex items-center gap-1 transition-opacity flex-shrink-0",
                 isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             )}>
-                <ActionButton
-                    tooltip="Chat with assistant"
-                    icon={<MessageSquare className="h-4 w-4" />}
-                    onClick={handleChatClick}
-                    size="sm"
-                />
                 <ActionButton
                     tooltip="View profile"
                     icon={<Contact className="h-4 w-4" />}

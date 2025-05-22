@@ -4,7 +4,6 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { Search, WifiOff, UserPlus } from "lucide-react";
 import type { Assistant } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
-import { ChatOverlay } from "../AssistantChat";
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 
@@ -13,12 +12,7 @@ interface AssistantListProps {
     isLoading: boolean;
     error: string | null;
     profileAssistantId: string | null;
-    chatTargetAssistantId: string | null;
     onShowProfile: (id: string) => void;
-    onChat: (id: string) => void;
-    isChatOpen: boolean;
-    chatAssistant: Assistant | null;
-    onChatClose: () => void;
     onOpenHireDialog: () => void;
 }
 
@@ -27,12 +21,7 @@ export function AssistantList({
     isLoading,
     error,
     profileAssistantId,
-    chatTargetAssistantId,
     onShowProfile,
-    onChat,
-    isChatOpen,
-    chatAssistant,
-    onChatClose,
     onOpenHireDialog
 }: AssistantListProps) {
 
@@ -49,7 +38,7 @@ export function AssistantList({
 
     // Approx height of header search bar area + button
     const headerHeight = 70; // Adjusted approx height
-    const scrollAreaHeight = isChatOpen ? `calc(100% - 45vh - ${headerHeight}px)` : `calc(100% - ${headerHeight}px)`;
+    const scrollAreaHeight = `calc(100% - ${headerHeight}px)`;
 
     return (
         <div className="flex flex-col h-full bg-background">
@@ -102,7 +91,6 @@ export function AssistantList({
                                 assistant={assistant}
                                 isSelected={profileAssistantId === assistant.agent_id}
                                 onShowProfile={onShowProfile}
-                                onChat={onChat}
                             />
                         ))
                     ) : searchTerm ? (
@@ -112,13 +100,6 @@ export function AssistantList({
                     )}
                 </div>
             </ScrollArea>
-
-            {/* Chat Overlay*/}
-            <ChatOverlay
-                isOpen={isChatOpen && !!chatAssistant && chatAssistant.agent_id === chatTargetAssistantId}
-                assistant={chatAssistant}
-                onClose={onChatClose}
-            />
         </div>
     );
 }
