@@ -229,8 +229,8 @@ export function VoiceCustomization({
                         </div>
                         <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e => setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate} /></div>
                     </>)}
-                     {createMode === 'localize' && !localizeBaseVoiceInfo && (
-                        <p className="text-sm text-muted-foreground text-center py-4">Select a voice from the 'Select Voice' tab and click the <Globe className="inline h-4 w-4"/> icon to localize it.</p>
+                    {createMode === 'localize' && !localizeBaseVoiceInfo && (
+                        <p className="text-sm text-muted-foreground text-center py-4">Select a voice from the Select Voice tab and click the <Globe className="inline h-4 w-4"/> icon to localize it.</p>
                     )}
 
 
