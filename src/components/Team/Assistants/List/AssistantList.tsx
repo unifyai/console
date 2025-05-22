@@ -6,6 +6,7 @@ import type { Assistant } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 interface AssistantListProps {
     assistants: Assistant[];
@@ -40,6 +41,9 @@ export function AssistantList({
     const headerHeight = 70; // Adjusted approx height
     const scrollAreaHeight = `calc(100% - ${headerHeight}px)`;
 
+    const canHireNewAssistant = assistants.length === 0;
+    const isHireButtonDisabled = isLoading || !canHireNewAssistant;
+
     return (
         <div className="flex flex-col h-full bg-background">
 
@@ -57,16 +61,31 @@ export function AssistantList({
                             disabled={isLoading || !!error}
                         />
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm" // Match size with input height
-                        className="h-8 items-center" // Explicit height
-                        onClick={onOpenHireDialog} // Call handler to open dialog
-                        disabled={isLoading} // Disable if still loading assistants
-                    >
-                        <UserPlus className="h-4 w-4" />
-                        New
-                    </Button>
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip open={!canHireNewAssistant && !isLoading ? undefined : false}> {/* Conditionally control open state for tooltip */}
+                            <TooltipTrigger asChild>
+                                {/* The button itself needs to be wrapped or be a direct child for TooltipTrigger to work correctly when disabled */}
+                                <span tabIndex={isHireButtonDisabled ? 0 : -1}> 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 items-center"
+                                        onClick={onOpenHireDialog}
+                                        disabled={isHireButtonDisabled}
+                                        aria-disabled={isHireButtonDisabled}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        New
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            {!canHireNewAssistant && !isLoading && (
+                                <TooltipContent side="bottom" align="end">
+                                    <p>Multi-assistant team available soon</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
                  </div>
             </div>
 
