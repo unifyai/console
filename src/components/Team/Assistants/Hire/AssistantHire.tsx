@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantFormData, AssistantPreset, AssistantActions } from '@/types/team/assistant';
@@ -20,6 +19,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     currentFilteredPresets: AssistantPreset[];
     handleHireFormSubmitInternal: (e?: React.BaseSyntheticEvent<object, any, any>) => Promise<void>;
     children: React.ReactNode;
+    isProcessingVoice?: boolean;
 }
 
 export function AssistantHire ({
@@ -31,13 +31,23 @@ export function AssistantHire ({
     handleRandomizePreset,
     currentFilteredPresets,
     handleHireFormSubmitInternal,
-    children
+    children,
+    isProcessingVoice
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
+    const isDialogBusy = isHireSubmitting || isProcessingVoice;
 
     return (
-        <Dialog open={isHireDialogOpen} onOpenChange={(open) => { if (!isHireSubmitting) setIsHireDialogOpen(open); }}>
-            <DialogContent className={cn("max-w-4xl h-[85vh] flex flex-col p-0 gap-0", isAssistantPresetsOpen && "max-w-6xl")} onInteractOutside={(e) => { if (isHireSubmitting) e.preventDefault(); }}>
+        <Dialog 
+            open={isHireDialogOpen} 
+            onOpenChange={(open) => { 
+                if (!isDialogBusy) setIsHireDialogOpen(open); 
+            }}
+        >
+            <DialogContent 
+                className={cn("max-w-4xl h-[85vh] flex flex-col p-0 gap-0", isAssistantPresetsOpen && "max-w-6xl")} 
+                onInteractOutside={(e) => { if (isDialogBusy) e.preventDefault(); }}
+            >
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
                     <DialogTitle>Hire Assistant</DialogTitle>
                     <DialogDescription>Hire an existing assistant or create your own.</DialogDescription>
@@ -49,14 +59,14 @@ export function AssistantHire ({
                         <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip><TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isHireSubmitting}>
+                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isDialogBusy}>
                                         <LayoutList className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent></Tooltip>
                             </TooltipProvider>
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip><TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={handleRandomizePreset} disabled={isHireSubmitting || currentFilteredPresets.length === 0}>
+                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={handleRandomizePreset} disabled={isDialogBusy || currentFilteredPresets.length === 0}>
                                         <Shuffle className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{"Randomize from Presets"}</p></TooltipContent></Tooltip>
@@ -82,10 +92,11 @@ export function AssistantHire ({
 
                 <DialogFooter className="px-6 py-3 border-t flex-shrink-0">
                     <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isHireSubmitting}>Cancel</Button>
+                        <Button type="button" variant="outline" disabled={isDialogBusy}>Cancel</Button>
                     </DialogClose>
-                    <Button type="button" onClick={handleHireFormSubmitInternal} className="bg-green-600 hover:bg-green-700 text-white" disabled={isHireSubmitting}>
-                        {isHireSubmitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Hiring...</>) : "Hire Assistant"}
+                    <Button type="button" onClick={handleHireFormSubmitInternal} className="bg-green-600 hover:bg-green-700 text-white" disabled={isDialogBusy}>
+                        {isHireSubmitting || isProcessingVoice ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Hiring...</>) :
+                         "Hire Assistant"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

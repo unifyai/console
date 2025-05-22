@@ -1,4 +1,3 @@
-// src/components/Team/AssistantHireForm.tsx
 'use client';
 
 import * as React from 'react';
@@ -19,6 +18,7 @@ export interface HireFormProps {
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
   isSubmitting: boolean;
   assistantActions: AssistantActions;
+  onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
 }
 
 export function HireForm({
@@ -26,6 +26,7 @@ export function HireForm({
     onSubmit,
     isSubmitting,
     assistantActions,
+    onVoiceProcessingStateChange,
 }: HireFormProps) {
   const { register, formState: { errors }, watch, setValue, getValues } = formMethods;
 
@@ -102,6 +103,7 @@ export function HireForm({
                     }}
                     initialVoiceId={getValues("voice_id")}
                     disabled={isSubmitting}
+                    onProcessingStateChange={onVoiceProcessingStateChange}
                 />
                  {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
                  {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}

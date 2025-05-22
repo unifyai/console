@@ -45,7 +45,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         refreshAssistants,
         deleteAssistant,
         updateAssistantProfile,
-    } = useAssistants(assistantActions);
+    } = useAssistants(assistantActions); 
 
     // --- Task Filters & Data ---
     const {
@@ -72,6 +72,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     // --- Hire Assistant Dialog & Form ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
+    const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); // New state
 
     const {
         displayedPresets, loadMorePresets, canLoadMorePresets, isLoadingMorePresets,
@@ -111,7 +112,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 handleOpenHireDialog();
             }
         }
-    }, [assistants, isLoadingAssistants, assistantError]); // handleOpenHireDialog dependency removed if not changing
+    }, [assistants, isLoadingAssistants, assistantError]); 
 
 
     // --- Callbacks for UI interaction ---
@@ -121,6 +122,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         setPresetAgeFilter('all');
         setPresetRegionFilter('all');
         setPresetGenderFilter('all');
+        setIsDialogBusyProcessingVoice(false); // Reset voice processing state
 
         const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (assistantPresetsConstant as AssistantPreset[]);
         if (presetsToUse.length > 0) {
@@ -150,8 +152,8 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     const onDeleteAssistantSubmit = async (assistant: Assistant) => {
         const success = await deleteAssistant(assistant);
         if (success) {
-            handleProfileClose(); // Close profile panel on successful deletion
-            setAssignedFilter(prev => prev.filter(id => id !== assistant.agent_id)); // Update task filter
+            handleProfileClose(); 
+            setAssignedFilter(prev => prev.filter(id => id !== assistant.agent_id)); 
         } else {
             throw new Error("Deletion failed in hook.");
         }
@@ -234,12 +236,14 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 handleRandomizePreset={handleRandomizePreset}
                 currentFilteredPresets={currentFilteredPresets}
                 handleHireFormSubmitInternal={handleHireFormSubmitInternal}
+                isProcessingVoice={isDialogBusyProcessingVoice}
             >
                 <HireForm
                     formMethods={hireFormMethods}
                     onSubmit={handleHireFormSubmitInternal}
                     isSubmitting={isHireSubmitting}
                     assistantActions={assistantActions}
+                    onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
                 />
                 <PresetsPanel                                    
                     displayedPresets={displayedPresets}

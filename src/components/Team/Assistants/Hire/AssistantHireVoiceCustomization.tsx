@@ -27,6 +27,7 @@ interface VoiceCustomizationProps {
     onVoiceSelected: (selectedVoice: VoiceOption | null) => void;
     initialVoiceId?: string | null;
     disabled?: boolean;
+    onProcessingStateChange?: (isProcessing: boolean) => void;
 }
 
 export function VoiceCustomization({
@@ -34,6 +35,7 @@ export function VoiceCustomization({
     onVoiceSelected,
     initialVoiceId = null,
     disabled = false,
+    onProcessingStateChange,
 }: VoiceCustomizationProps) {
     const [activeTab, setActiveTab] = React.useState<'select' | 'create'>('select');
     const [selectedCartesiaVoiceId, setSelectedCartesiaVoiceId] = React.useState<string | null>(initialVoiceId);
@@ -64,12 +66,20 @@ export function VoiceCustomization({
         cloneName, setCloneName, cloneDescription, setCloneDescription, cloneLanguage, setCloneLanguage,
         localizeBaseVoiceInfo, localizeNewName, setLocalizeNewName,
         localizeNewDescription, setLocalizeNewDescription, localizeTargetLanguage, setLocalizeTargetLanguage,
-        localizeOriginalGender, setLocalizeOriginalGender, // This is now set by prepareForLocalize
+        localizeOriginalGender, setLocalizeOriginalGender, 
         isProcessingCreate,
         handleCreateAndSelect,
-        resetCreateForm, // Use this from hook
+        resetCreateForm, 
         prepareForLocalize,
     } = useVoiceCreator(assistantActions.voice, handleVoiceCreatedAndSelectedByHook, fetchUserVoices);
+
+    // Effect to inform parent about processing state changes
+    React.useEffect(() => {
+        if (onProcessingStateChange) {
+            onProcessingStateChange(isProcessingCreate);
+        }
+    }, [isProcessingCreate, onProcessingStateChange]);
+
 
     const {
         playPreview,
@@ -79,7 +89,7 @@ export function VoiceCustomization({
 
     React.useEffect(() => {
         setSelectedCartesiaVoiceId(initialVoiceId);
-        if (initialVoiceId && activeTab !== 'select') { // Ensure correct tab if initialVoiceId is present
+        if (initialVoiceId && activeTab !== 'select') { 
              const voice = allDisplayableVoices.find(v => v.voice_id === initialVoiceId);
              if (voice) {
                 setActiveTab('select');
@@ -90,22 +100,25 @@ export function VoiceCustomization({
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
         setSelectedCartesiaVoiceId(voice.voice_id);
-        onVoiceSelected(voice); // The voice object from hook already has isUserVoiceInOrchestra
+        onVoiceSelected(voice); 
     };
 
     const handleLocalizeRequestFromList = (baseVoice: VoiceOption) => {
-        prepareForLocalize(baseVoice, languageOptions); // Pass languageOptions if hook needs it
+        prepareForLocalize(baseVoice, languageOptions); 
         setActiveTab('create');
     };
 
     const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
         const isSelected = selectedCartesiaVoiceId === voice.voice_id;
+        const itemIsDisabled = disabled || isProcessingCreate; // Disable item interactions if any creation is ongoing or main form disabled
+
         return (
             <div
                 className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
-                    isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30"
+                    isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30",
+                    itemIsDisabled && "opacity-60 cursor-not-allowed hover:bg-transparent" // Style for disabled item
                 )}
-                onClick={() => handleSelectVoiceDisplay(voice)}
+                onClick={() => !itemIsDisabled && handleSelectVoiceDisplay(voice)}
             >
                 <span className="text-md">{getLanguageFlag(voice.language)}</span>
                 <span className="flex-1 truncate font-medium text-sm" title={voice.name}>{voice.name}</span>
@@ -113,7 +126,7 @@ export function VoiceCustomization({
                 <div className={cn("flex items-center p-0 m-0 gap-1 sm:gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()}>
+                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()} disabled={itemIsDisabled}>
                                 <Info className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{voice.description || "No description."}</p></TooltipContent></Tooltip>
@@ -121,7 +134,7 @@ export function VoiceCustomization({
 
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={disabled || isProcessingCreate || isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null /* disable only if actively playing THIS voice */}>
+                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null) }>
                                 {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
@@ -129,14 +142,14 @@ export function VoiceCustomization({
 
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); handleLocalizeRequestFromList(voice); }} disabled={disabled || isProcessingCreate}><Globe className="h-4 w-4" /></Button>
+                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); handleLocalizeRequestFromList(voice); }} disabled={itemIsDisabled}><Globe className="h-4 w-4" /></Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Localize "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
 
                     {voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip><TooltipTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); deleteUserVoice(voice); }} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); deleteUserVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
                             </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
                         </TooltipProvider>
                     )}
@@ -148,11 +161,11 @@ export function VoiceCustomization({
 
 
     return (
-        <div className={cn("", disabled && "opacity-70 cursor-not-allowed")}>
+        <div className={cn("", (disabled || isProcessingCreate) && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'select' | 'create')} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 h-9">
-                    <TabsTrigger value="select" disabled={disabled}>Select Voice</TabsTrigger>
-                    <TabsTrigger value="create" disabled={disabled}>Create Voice</TabsTrigger>
+                    <TabsTrigger value="select" disabled={disabled || isProcessingCreate}>Select Voice</TabsTrigger>
+                    <TabsTrigger value="create" disabled={disabled || isProcessingCreate}>Create Voice</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="select" className="mt-1">
@@ -222,7 +235,7 @@ export function VoiceCustomization({
                         </div>
                         <div>
                             <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender (of base voice)</Label>
-                            <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={disabled || isProcessingCreate /* Usually Cartesia determines this, but API might need it */}>
+                            <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={disabled || isProcessingCreate }>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                                 <SelectContent>{cartesiaLocalizeGenderOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent>
                             </Select>
