@@ -45,7 +45,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         refreshAssistants,
         deleteAssistant,
         updateAssistantProfile,
-    } = useAssistants(assistantActions.assistant, assistantActions.photo);
+    } = useAssistants(assistantActions);
 
     // --- Task Filters & Data ---
     const {

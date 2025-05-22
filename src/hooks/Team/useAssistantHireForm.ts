@@ -1,4 +1,3 @@
-// src/hooks/useHireAssistantForm.ts
 import * as React from 'react';
 import { useForm } from "react-hook-form";
 import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset } from '@/types/team/assistant';
@@ -64,8 +63,11 @@ export function useAssistantHireForm(
         clearErrors();
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
+        let assistantEmail: string | null = null;
+        let assistantPhoneNumber: string | null = null;
 
         try {
+            // --- Validate Form Data ---
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
                 setError("age", { type: "manual", message: "Valid age is required." });
@@ -78,38 +80,65 @@ export function useAssistantHireForm(
                 toast.error("No voice selected.", { id: toastId }); setIsSubmitting(false); return;
             }
 
+            // --- Create Email ---
+            const emailResult = await assistantActions.contact.createEmail(data.first_name, data.surname);
+            if ('detail' in emailResult) {
+                console.error(`[useAssistantHireForm.ts] Email creation failed: ${emailResult.detail}`);
+                toast.error(`Email creation failed. Hiring aborted.`, { id: toastId, duration: 5000 });
+                setIsSubmitting(false); return;
+            }
+            assistantEmail = emailResult.email;
+
+            // --- Create Phone Number ---
+            const phoneResult = await assistantActions.contact.createPhoneNumber();
+            if ('detail' in phoneResult) {
+                console.error(`[useAssistantHireForm.ts] Phone number provisioning failed: ${phoneResult.detail}`);
+                toast.error(`Phone number provisioning failed. Hiring aborted.`, { id: toastId, duration: 5000 });
+                // Consider cleanup for email if phone fails, or proceed without phone? For now, fail.
+                setIsSubmitting(false); return;
+            }
+            assistantPhoneNumber = phoneResult.phoneNumber;
+
+            // --- Register Voice in Orchestra if not existing ---
             if (!data.voice_exists) { 
+                toast.loading("Registering voice...", { id: toastId });
                 const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language
                 );
                 if ('detail' in voiceCreationResponse) {
                     console.error(`[useAssistantHireForm.ts] Error registering voice: ${voiceCreationResponse.detail}. Hire aborted.`);
-                    toast.error(`Error creating voice. Hiring aborted.`, { id: toastId, duration: 7000 });
+                    toast.error(`Error registering voice. Hiring aborted.`, { id: toastId, duration: 7000 });
                     setIsSubmitting(false); return;
                 }
+                toast.success("Voice registered.", { id: toastId, duration: 2000 });
             }
 
+            // --- Upload Profile Photo ---
             const imageFile = data.imageFile;
             if (imageFile instanceof File) {
                 const createImageResult = await assistantActions.photo.upload(imageFile.type, imageFile.size);
                 if ('detail' in createImageResult) {
                     console.error(`[useAssistantHireForm.ts] Image creation error: ${createImageResult.detail}. Hire aborted.`);
-                    toast.error(`Error creating photo. Hiring aborted.`, { id: toastId });
+                    toast.error(`Error preparing photo. Hiring aborted.`, { id: toastId });
                     setIsSubmitting(false); return;
                 }
                 const { signedUrl, filePath, bucketName } = createImageResult;
                 const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
                 if (!uploadSuccess) {
+                    // uploadImageToGCS already shows a toast
                     setIsSubmitting(false); return; 
                 }
                 finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${filePath}`;
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
                 finalImageUrlToSend = data.imagePreview; 
             }
-            
+
+            // --- Create Assistant in Orchestra ---
             const result = await assistantActions.assistant.create(
-                data.first_name, data.surname, ageNumber, data.region, finalImageUrlToSend, data.about, data.voice_id
+                data.first_name, data.surname, ageNumber, data.region, 
+                finalImageUrlToSend, data.about, data.voice_id,
+                assistantEmail, assistantPhoneNumber
             );
 
             if ("assistant" in result && result.assistant) {
@@ -119,23 +148,22 @@ export function useAssistantHireForm(
             } else {
                 const errorResult = result as ResponseProps;
                 console.error("[useAssistantHireForm.ts] ", errorResult?.detail || "Failed to hire assistant.");
-                toast.error("Failed to hire assistant.", { id: toastId });
+                toast.error(`Failed to hire assistant: ${errorResult.detail || 'Unknown error'}`, { id: toastId });
             }
         } catch (error: any) {
-            console.error(`An error occurred: ${error.message}`, { id: toastId });
-            toast.error(`Failed to hire assistant.`, { id: toastId });
+            console.error(`An error occurred during assistant hiring: ${error.message}`, error);
+            toast.error(`Failed to hire assistant: ${error.message || 'An unexpected error occurred.'}`, { id: toastId });
         } finally {
             setIsSubmitting(false);
         }
     };
-
 
     return {
         hireFormMethods,
         isSubmitting,
         onSubmit: reactHookFormHandleSubmit(submitAssistantData),
         handleImageRemove,
-        selectPreset, // Expose this new method
-        resetForm: reset // Expose reset if needed externally
+        selectPreset, 
+        resetForm: reset 
     };
 }

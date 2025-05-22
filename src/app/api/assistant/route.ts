@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const response = await fetch(
-            `${process.env.ORCHESTRA_URL}/v0/assistant`,
+            `${baseUrl}/v0/assistant`,
             {
                 method: "POST",
                 headers: {
@@ -33,8 +33,7 @@ export async function POST(request: NextRequest) {
             }
         );
 
-        const responseClone = response.clone();
-        const responseData = await responseClone.json().catch(e => {
+        const responseData = await response.json().catch(e => {
             console.error("Failed to parse JSON response from Unify API", e);
             return { error: "Invalid JSON response from backend API", status: response.status };
         });

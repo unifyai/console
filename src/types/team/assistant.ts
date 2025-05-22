@@ -48,7 +48,7 @@ export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null,voice_id: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
+    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null,voice_id: string | null, email: string | null, phone: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
@@ -66,5 +66,11 @@ export interface AssistantActions {
     cloneVoiceOnCartesia: (formData: FormData) => Promise<Voice | ResponseProps>; 
     localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<Voice | ResponseProps>;
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
+  },
+  "contact": {
+    createEmail: (firstName: string, lastName: string) => Promise<{ email: string; user?: any; } | ResponseProps>;
+    createPhoneNumber: () => Promise<{ phoneNumber: string } | ResponseProps>;
+    deleteEmail: (primaryEmail: string) => Promise<ResponseProps>;
+    deletePhoneNumber: (phoneNumber: string) => Promise<ResponseProps>;
   }
 }

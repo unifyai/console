@@ -4,6 +4,7 @@ import { getTasks, updateTask, getUniqueFieldValues } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, deletePhoto } from "@/lib/team/photo";
 import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestra, cloneVoiceOnCartesia, localizeVoiceOnCartesia, deleteVoiceFromCartesia  } from "@/lib/team/voice";
+import { createAssistantEmail, createAssistantPhoneNumber, deleteAssistantEmail, deleteAssistantPhoneNumber } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
 import { signOut } from "next-auth/react";
@@ -39,6 +40,12 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
             cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey), // apiKey for proxy auth
             localizeVoiceOnCartesia: await localizeVoiceOnCartesia(apiKey),
             deleteVoiceFromCartesia: await deleteVoiceFromCartesia(apiKey),
+        },
+        "contact": {
+            createEmail: await createAssistantEmail(apiKey),
+            createPhoneNumber: await createAssistantPhoneNumber(apiKey),
+            deleteEmail: await deleteAssistantEmail(apiKey),
+            deletePhoneNumber: await deleteAssistantPhoneNumber(apiKey),
         }
     }
     

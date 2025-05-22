@@ -6,9 +6,10 @@ import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/team/gcs-utils';
 
 export function useAssistants(
-    assistantActions: AssistantActions['assistant'],
-    photoActions: AssistantActions['photo']
+    allActions: AssistantActions
 ) {
+    const { assistant: assistantActions, photo: photoActions, contact: contactActions } = allActions;
+
     const [assistants, setAssistants] = React.useState<Assistant[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
@@ -82,25 +83,48 @@ export function useAssistants(
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
         const photoPath = assistantToDelete.profile_photo;
         const isGcs = isGcsPhoto(photoPath);
+        const assistantEmail = assistantToDelete.email;
+        const assistantPhone = assistantToDelete.phone;
+
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
         try {
+            // 1. Delete the main assistant record from Orchestra
             const deleteResult = await assistantActions.delete(assistantId);
             if (deleteResult.detail) {
                 throw new Error(deleteResult.detail || "Failed to delete assistant record.");
             }
 
+            // 2. Attempt to delete email if it exists
+            if (assistantEmail) {
+                const emailDeleteResult = await contactActions.deleteEmail(assistantEmail);
+                if (emailDeleteResult.detail) {
+                    console.error(`Could not delete email ${assistantEmail} for ${displayName}: ${emailDeleteResult.detail}`);
+                }
+            }
+
+            // 3. Attempt to delete phone number if it exists
+            if (assistantPhone) {
+                const phoneDeleteResult = await contactActions.deletePhoneNumber(assistantPhone);
+                if (phoneDeleteResult.detail) {
+                    console.error(`Could not delete phone ${assistantPhone} for ${displayName}: ${phoneDeleteResult.detail}`);
+                }
+            }
+
+            // 4. Attempt to delete profile photo from GCS
             if (isGcs && photoPath) {
                 try {
                     const photoDeleteResult = await photoActions.delete(photoPath);
                     if (photoDeleteResult.detail && !photoDeleteResult.info?.includes("not found")) {
-                        console.warn(`Could not delete profile photo for ${displayName} (ID: ${assistantId}). Path: ${photoPath}`, { description: photoDeleteResult.detail });
+                        console.error(`Could not delete profile photo for ${displayName} (ID: ${assistantId}). Path: ${photoPath}`, { description: photoDeleteResult.detail });
                         // Not throwing error here, as main assistant deletion was successful
                     }
                 } catch (photoError: any) {
                     console.error(`Error during GCS photo deletion for ${displayName} (ID: ${assistantId}):`, photoError);
                 }
             }
+
+            // 5. Update local state
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
             toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
@@ -117,9 +141,6 @@ export function useAssistants(
         about: string | null,
         phone: string | null,
         email: string | null,
-        // voiceId is now part of the assistant data, passed from the profile if needed.
-        // For this example, we assume voice_id is not changed through this specific profile update.
-        // If it were, it would be another param.
         currentVoiceId: string | null
     ): Promise<boolean> => {
         const toastId = toast.loading("Updating profile...");
@@ -129,12 +150,9 @@ export function useAssistants(
                 throw new Error((result as ResponseProps).detail);
             }
 
-            // Fetch the single updated assistant to get a fresh signed URL if needed
-            // Or, update locally and try to refresh signed URL
             setAssistants(prev => prev.map(a => {
                 if (a.agent_id === id) {
                     const updatedAssistant = { ...a, about, phone, email };
-                    // Attempt to refresh signed URL if it was a GCS photo and didn't have one or it might expire
                     if (isGcsPhoto(updatedAssistant.profile_photo)) {
                         photoActions.download(updatedAssistant.profile_photo).then(res => {
                             if (res.signedUrl) {
@@ -160,7 +178,7 @@ export function useAssistants(
 
     return {
         assistants,
-        setAssistants, // Expose if Main.tsx needs to directly manipulate for other reasons
+        setAssistants, 
         isLoading,
         error,
         refreshAssistants: fetchAssistantsWithDetails,
