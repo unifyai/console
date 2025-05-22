@@ -7,7 +7,7 @@ import { Separator } from "@/components/UI/separator";
 import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import type { Assistant } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
-import ActionButton from '../Common/Buttons/Action';
+import ActionButton from '../../Common/Buttons/Action';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import {
     AlertDialog,

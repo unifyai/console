@@ -1,3 +1,4 @@
+// src/components/Team/AssistantHireForm.tsx
 'use client';
 
 import * as React from 'react';
@@ -8,54 +9,44 @@ import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
-import { VoiceCustomization } from './AssistantHireVoiceCustomization'; 
-import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { Volume2, User, LetterText, BriefcaseBusiness } from 'lucide-react';
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
 
-interface HireFormProps {
+export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
-  onSubmit: (data: AssistantFormData) => void;
-  onImageRemove: () => void; // This is for the parent (Main.tsx) to call when a preset is selected
+  onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
   isSubmitting: boolean;
-  assistantActions: AssistantActions; 
+  assistantActions: AssistantActions;
 }
 
-export function HireForm({ 
-    formMethods, 
-    onSubmit, 
-    onImageRemove,
+export function HireForm({
+    formMethods,
+    onSubmit,
     isSubmitting,
     assistantActions,
 }: HireFormProps) {
-  const { register, handleSubmit, formState: { errors }, watch, setValue, getValues } = formMethods;
+  const { register, formState: { errors }, watch, setValue, getValues } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
 
-  // This function is passed to ImageUpload. It's called when a new file is selected.
   const handleNewFileForUpload = (file: File | null) => {
     const currentPreview = getValues("imagePreview");
-    // If there was a previous local file preview, revoke its object URL
     if (currentPreview && currentPreview.startsWith('blob:')) {
       URL.revokeObjectURL(currentPreview);
     }
-
-    setValue("imageFile", file, { shouldValidate: false }); // Store the new file object
+    setValue("imageFile", file, { shouldValidate: false });
     if (file) {
-      setValue("imagePreview", URL.createObjectURL(file)); // Create and set new preview URL
+      setValue("imagePreview", URL.createObjectURL(file));
     } else {
-      // If the file selection was cancelled or cleared
-      setValue("imagePreview", null); // Clear preview if no file
+      setValue("imagePreview", null);
     }
   };
 
-  const internalOnSubmit = (data: AssistantFormData) => onSubmit(data); 
-
   return (
-    <form onSubmit={handleSubmit(internalOnSubmit)} className="space-y-6 h-full flex flex-col"> 
+    <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
      <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
-
           <div className="space-y-2">
             <div className='flex gap-2 items-center text-muted-foreground'>
               <User className="h-4 w-4"/>
@@ -102,15 +93,14 @@ export function HireForm({
                 <VoiceCustomization
                     assistantActions={assistantActions}
                     onVoiceSelected={(selectedVoice) => {
-                        setValue("voice_id", selectedVoice?.voice_id, { shouldValidate: !!selectedVoice?.voice_id }); 
+                        setValue("voice_id", selectedVoice?.voice_id, { shouldValidate: !!selectedVoice?.voice_id });
                         setValue("voice_name", selectedVoice?.name, { shouldValidate: !!selectedVoice?.name });
                         setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
                         setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
                         setValue("voice_language", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
-                        setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra, { shouldValidate: !!selectedVoice?.isUserVoiceInOrchestra });
+                        setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
                     }}
                     initialVoiceId={getValues("voice_id")}
-                    initialLanguageCode={getValues("voice_language") as SupportedLanguage | null}
                     disabled={isSubmitting}
                 />
                  {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}

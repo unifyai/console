@@ -7,7 +7,7 @@ import { Send, Mic, Bot, X } from "lucide-react";
 import type { Assistant } from "@/types/team/assistant";
 import { faker } from '@faker-js/faker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import ActionButton from '../Common/Buttons/Action';
+import ActionButton from '../../Common/Buttons/Action';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 

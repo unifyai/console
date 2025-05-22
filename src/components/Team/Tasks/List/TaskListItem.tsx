@@ -3,7 +3,7 @@ import { Badge } from "@/components/UI/badge";
 import { Save, Undo2, Loader2 } from "lucide-react";
 import type { Task, TaskActions } from "@/types/team/task";
 import type { Assistant } from "@/types/team/assistant";
-import ActionButton from '../Common/Buttons/Action';
+import ActionButton from '../../../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
 import {

@@ -1,0 +1,184 @@
+import { ResponseProps } from "@/types/common";
+import { Assistant } from "@/types/team/assistant";
+
+export const listAssistants = async (apiKey: string) => {
+    return async (): Promise<Assistant[] | ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant`,
+                {
+                    method: "GET",
+                    headers: { apiKey: apiKey },
+                }
+            );
+
+            let data;
+            try {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+                } else {
+                    console.error(`[actions.ts listAssistants] Received non-JSON response with status ${response.status}`);
+                    return { detail: "Received an invalid response from the server." };
+                }
+            } catch (parseError) {
+                console.error(`[actions.ts listAssistants] Failed to parse JSON response ${parseError}`);
+                return { detail: "Received an invalid response from the server." };
+            }
+
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+
+            if ("info" in data) {   // In case data is nested inside an info property
+                return data.info as Assistant[]
+            }
+            return data as Assistant[]
+
+        } catch (error) {
+            console.error(`[actions.ts listAssistants] Error fetching assistants:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
+        }
+
+    };
+};
+
+export const deleteAssistant = async (apiKey: string) => {
+    return async (assistantId: string): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
+                { method: "DELETE", headers: { apiKey: apiKey } }
+            );
+
+            if (!response.ok) {
+                // Handle actual errors (4xx, 5xx)
+                let errorData;
+                let errorMessage = `Failed to delete assistant: ${response.statusText} (Status: ${response.status})`;
+                try {
+                    // Try to parse error details if response is JSON
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        errorData = await response.json();
+                        errorMessage = errorData?.detail || errorMessage;
+                    } else {
+                        // Log non-JSON error body if needed for debugging
+                        // const errorText = await response.text();
+                        // console.error("Non-JSON error response body:", errorText);
+                    }
+                } catch (parseError) {
+                    console.error(`[actions.ts deleteAssistant] Failed to parse error JSON response: ${parseError}`);
+                }
+                return { detail: errorMessage };
+            }
+
+            return { info: `Assistant ${assistantId} deleted successfully.` };
+    
+        } catch (error) {
+            console.error(`[actions.ts deleteAssistant] Error deleting assistant ${assistantId}:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
+        }
+    };
+};
+
+export const updateAssistant = async (apiKey: string) => {
+    return async (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
+                {
+                    method: "PATCH",
+                    headers: {
+                         apiKey: apiKey,
+                         "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({about, email, phone, voice_id})
+                }
+            );
+
+            let data;
+            try {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    console.error(`[actions.ts updateAssistant] Received non-JSON response with status ${response.status}`);
+                    return { detail: "Received an invalid response from the server." };
+                }
+            } catch (parseError) {
+                console.error(`[actions.ts updateAssistant] Failed to parse JSON response ${parseError}`);
+                return { detail: "Received an invalid response from the server." };
+            }
+
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to update assistant: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+
+            const successMessage = data.info || `Assistant ${assistantId} updated successfully.`;
+            return { info: successMessage }
+
+        } catch (error) {
+            console.error(`[actions.ts updateAssistant] Error updating assistant ${assistantId}:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
+        }
+    };
+};
+
+export const createAssistant = async (apiKey: string) => {
+    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null ): Promise<ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant`,
+                {
+                    method: "POST",
+                    headers: {
+                        apiKey: apiKey,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, voice_id, max_parallel: 10, weekly_limit: 40 })
+                }
+            );
+
+            let data;
+            try {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    console.error(`[actions.ts createAssistant] Received non-JSON response with status ${response.status}`);
+                    return { detail: "Received an invalid response from the server." };
+                }
+            } catch (parseError) {
+                console.error(`[actions.ts createAssistant] Failed to parse JSON response ${parseError}`);
+                return { detail: "Received an invalid response from the server." };
+            }
+
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to create assistant: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+
+            const successMessage = `Assistant created successfully.`;
+            const createdAssistant = data.info as Assistant;
+            return { info: successMessage, assistant: createdAssistant }
+           
+        } catch (error) {
+            console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
+        }
+    };
+};

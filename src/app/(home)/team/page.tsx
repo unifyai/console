@@ -1,28 +1,9 @@
 import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Team/Main";
-import { 
-    // Task actions
-    getTasks, 
-    updateTask,
-    getUniqueFieldValues,
-    // Assistant actions
-    listAssistants, 
-    createAssistant,
-    deleteAssistant, 
-    updateAssistant, 
-    // Photo actions
-    uploadPhoto,
-    downloadPhoto, 
-    deletePhoto,
-    // Orchestra Voice Actions
-    listVoicesFromOrchestra,
-    createVoiceInOrchestra,
-    deleteVoiceFromOrchestra,
-    // Cartesia Voice Actions
-    cloneVoiceOnCartesia,
-    localizeVoiceOnCartesia,
-    deleteVoiceFromCartesia,
-} from "./actions";
+import { getTasks, updateTask, getUniqueFieldValues } from "@/lib/team/task";
+import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
+import { uploadPhoto, downloadPhoto, deletePhoto } from "@/lib/team/photo";
+import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestra, cloneVoiceOnCartesia, localizeVoiceOnCartesia, deleteVoiceFromCartesia  } from "@/lib/team/voice";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
 import { signOut } from "next-auth/react";

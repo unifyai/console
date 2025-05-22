@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { Search, WifiOff, UserPlus } from "lucide-react";
 import type { Assistant } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
-import { ChatOverlay } from "./AssistantChat";
+import { ChatOverlay } from "../AssistantChat";
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 
