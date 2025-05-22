@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
-import { Save, Undo2, Loader2 } from "lucide-react";
-import type { Task, TaskActions } from "@/types/team/task";
-import type { Assistant } from "@/types/team/assistant";
+import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap } from "lucide-react"; 
+import { Task, TaskActions, Status as TaskStatusEnum, Priority as TaskPriorityEnum } from "@/types/team/task"; 
 import ActionButton from '../../../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
@@ -11,7 +10,6 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/UI/accordion";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import {
   Tooltip,
   TooltipContent,
@@ -19,17 +17,15 @@ import {
   TooltipTrigger,
 } from "@/components/UI/tooltip"
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { toast } from 'sonner'; // Import toast
-
+import { toast } from 'sonner'; 
 
 interface TaskListItemProps {
     task: Task;
-    assistantMap: Map<string, Assistant>;
     updateTask: TaskActions['update'];
-    onTaskUpdate: (taskId: string, updatedFields: Partial<Task>) => void;
+    onTaskUpdate: (taskId: number, updatedFields: Partial<Task>) => void;
 }
 
-export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: TaskListItemProps) {
+export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemProps) {
 
     const [description, setDescription] = React.useState(task.description);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -38,26 +34,57 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
     const originalDescription = React.useRef(task.description);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-    // Reset state if the task prop changes
     React.useEffect(() => {
         if (task.description !== description && !isEditing) {
             setDescription(task.description ?? '');
             originalDescription.current = task.description ?? '';
         }
         if (saveError) setSaveError(null);
-    }, [task.id, task.description, description, isEditing, saveError]);
+    }, [task.task_id, task.description, description, isEditing, saveError]);
 
 
-    const getStatusVariant = (status: Task["status"]): "default" | "secondary" | "outline" | "destructive" => {
+    const getStatusVariant = (status: TaskStatusEnum): "default" | "secondary" | "outline" | "destructive" => {
         switch (status) {
-           case "Completed": return "default";
-           case "In Progress": return "secondary";
-           case "Recurring": return "outline";
-           case "Queued": return "secondary";
-           case "Review": return "destructive";
+           case TaskStatusEnum.completed: return "default"; 
+           case TaskStatusEnum.active: return "secondary"; 
+           case TaskStatusEnum.queued: return "secondary"; 
+           case TaskStatusEnum.scheduled: return "outline"; 
+           case TaskStatusEnum.paused: return "outline";
+           case TaskStatusEnum.failed: return "destructive"; 
+           case TaskStatusEnum.cancelled: return "destructive";
            default: return "secondary";
        }
     };
+
+    const getPriorityDisplay = (priority: TaskPriorityEnum | undefined) => {
+        const p = priority || TaskPriorityEnum.normal;
+        let icon: React.ReactNode = null;
+        let textColor = "text-muted-foreground"; // Default for Normal
+
+        switch (p) {
+            case TaskPriorityEnum.urgent: 
+                icon = <Zap className="h-3.5 w-3.5 text-red-500 mr-1" />;
+                textColor = "text-red-500";
+                break;
+            case TaskPriorityEnum.high: 
+                icon = <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mr-1" />;
+                textColor = "text-orange-500";
+                break;
+            case TaskPriorityEnum.low: 
+                icon = <Zap className="h-3.5 w-3.5 text-green-500 opacity-70 mr-1" />; // Example for low, adjust as needed
+                textColor = "text-green-600";
+                break;
+            case TaskPriorityEnum.normal:
+                // No icon for normal, or a very subtle one if preferred
+                break;
+        }
+        return (
+            <span className={cn("flex items-center justify-center text-xs capitalize", textColor)}>
+                {icon}
+                {p}
+            </span>
+        );
+    }
 
     const handleDescriptionChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setDescription(event.target.value);
@@ -68,7 +95,7 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
     };
 
     const handleSaveChanges = async (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent accordion toggle
+        e.stopPropagation(); 
         if (isSaving || description === originalDescription.current) return;
 
         setIsSaving(true);
@@ -76,28 +103,24 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
         const toastId = toast.loading("Saving description...");
 
         try {
-            const idNumber = parseInt(task.id, 10);
-            if (isNaN(idNumber)) {
-                 throw new Error("Invalid Task ID format.");
-            }
-
             const response = await updateTask(
-                [idNumber],
-                { description: description }
+                [task.task_id],
+                { description: description } 
             );
 
             if (response && (response.message || response.detail)) {
                 throw new Error(response.message || response.detail || "Failed to update task description.");
             }
 
-            onTaskUpdate(task.id, { description: description });
+            onTaskUpdate(task.task_id, { description: description });
+            originalDescription.current = description; 
             setIsEditing(false);
             toast.success("Description saved.", { id: toastId });
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error("Failed to save task description:", errorMsg);
-            setSaveError(errorMsg); // Set local error state
+            setSaveError(errorMsg); 
             toast.error(`Save failed: ${errorMsg}`, { id: toastId });
         } finally {
             setIsSaving(false);
@@ -114,82 +137,70 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
     const handleContentInteraction = (e: React.MouseEvent) => {
        e.stopPropagation();
     }
+    
+    const formattedDeadline = task.deadline ? new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No deadline';
+    const fullDeadline = task.deadline ? new Date(task.deadline).toLocaleString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "Not set";
 
-    const getAssistantById = (id: string): Assistant | undefined => {
-        return assistantMap.get(id);
-    }
-
-    const getAssistantAvatarUrl = (id: string): string | undefined => {
-        const assistant = getAssistantById(id);
-        return assistant?.signedProfilePhotoUrl || assistant?.profile_photo;
-    }
 
     return (
-        <AccordionItem value={task.id} className="border-b group px-2">
+        <AccordionItem value={String(task.task_id)} className="border-b group px-2"> 
             <AccordionTrigger
                 className={cn(
                     "hover:bg-muted/50 hover:no-underline text-left",
                     "p-0",
-                    "[&>svg]:hidden"
+                    "[&>svg]:hidden" 
                 )}
             >
                 <div className={cn(
-                     "grid w-full items-center gap-x-4 px-3 py-3",
-                     "grid-cols-[minmax(0,_1fr)_auto_100px]"
+                     "grid w-full items-center gap-x-2 px-3 py-3", // Reduced gap-x for tighter columns
+                     "grid-cols-[minmax(0,_1fr)_90px_110px_100px]" // Name | Priority | Deadline | Status
                  )}>
                     <div className="min-w-0 overflow-hidden">
-                        <span className="font-medium text-sm break-words truncate" title={task.title}>
-                            {task.title}
+                        <span className="font-medium text-sm break-words truncate" title={task.name}>
+                            {task.name}
                         </span>
                     </div>
+
+                    <div className="flex items-center justify-center text-center">
+                         <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="cursor-default truncate">
+                                        {getPriorityDisplay(task.priority)}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="capitalize">{task.priority || "Normal"} Priority</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground text-center truncate">
+                        <TooltipProvider delayDuration={100}>
+                             <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className={cn("flex items-center justify-center gap-1 cursor-default", !task.deadline && "italic")}>
+                                        {task.deadline && <CalendarDays className="h-3.5 w-3.5 flex-shrink-0"/>}
+                                        {formattedDeadline}
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Deadline: {fullDeadline}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+
                     <div className="text-center">
-                        <Badge variant={getStatusVariant(task.status)} className="whitespace-nowrap">
+                        <Badge variant={getStatusVariant(task.status)} className="whitespace-nowrap capitalize">
                             {task.status}
                         </Badge>
-                    </div>
-                    <div className="flex items-center justify-center -space-x-2 overflow-hidden">
-                         {task.assignedAssistantIds.length > 0 ? (
-                            <TooltipProvider delayDuration={100}>
-                                {task.assignedAssistantIds.slice(0, 3).map(id => {
-                                    const assistant = getAssistantById(id);
-                                    const name = assistant ? `${assistant.first_name} ${assistant.surname}` : 'Unknown';
-                                    const fallback = assistant ? `${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase() : '??';
-                                    const avatarUrl = getAssistantAvatarUrl(id);
-                                    return (
-                                         <Tooltip key={id}>
-                                            <TooltipTrigger asChild>
-                                                <Avatar className="h-6 w-6 border-2 border-background cursor-default">
-                                                    <AvatarImage src={avatarUrl} alt={name} />
-                                                    <AvatarFallback className="text-xs">{fallback}</AvatarFallback>
-                                                </Avatar>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{name}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    );
-                                })}
-                                {task.assignedAssistantIds.length > 3 && (
-                                     <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Avatar className="h-6 w-6 border-2 border-background bg-muted text-muted-foreground cursor-default">
-                                                <AvatarFallback className="text-xs">+{task.assignedAssistantIds.length - 3}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{task.assignedAssistantIds.length} assigned</p>
-                                        </TooltipContent>
-                                     </Tooltip>
-                                )}
-                             </TooltipProvider>
-                         ) : (
-                             <span className="text-xs text-muted-foreground">Unassigned</span>
-                         )}
                     </div>
                 </div>
             </AccordionTrigger>
             <AccordionContent
-                className="p-4 pt-0 bg-muted/10 relative" // Added relative positioning for error message
+                className="p-4 pt-0 bg-muted/10 relative" 
                 onClick={handleContentInteraction}
             >
                  <div className='relative group/desc'>
@@ -199,7 +210,7 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
                              saveError ? "border-destructive" :
                              isEditing ? "border-primary" : "border-transparent group-hover/desc:border-input focus-within:border-input"
                          )}
-                         style={{ maxHeight: '200px' }} // Set max height for scroll
+                         style={{ maxHeight: '200px' }} 
                      >
                         <Textarea
                             ref={textareaRef}
@@ -210,10 +221,9 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
                             className={cn(
                                 "text-sm text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 resize-none w-full block",
                                 "!border-0 !outline-none !ring-0 !shadow-none p-2",
-                                "min-h-[80px]", // Adjusted min-height
+                                "min-h-[80px]", 
                                 isEditing ? "bg-background" : "bg-transparent"
                             )}
-                             // Calculate rows dynamically or set a fixed reasonable number
                             rows={Math.max(3, description?.split('\n').length ?? 1)}
                         />
                     </ScrollArea>
@@ -242,7 +252,6 @@ export function TaskListItem({ task, assistantMap, updateTask, onTaskUpdate }: T
                             />
                         </div>
                      )}
-                     {/* Error Message Display - Positioned below textarea */}
                     {saveError && (
                          <p className="text-xs text-destructive mt-1 px-1 absolute -bottom-5 left-1">
                              Error: {saveError}

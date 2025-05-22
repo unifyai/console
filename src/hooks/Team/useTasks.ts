@@ -1,46 +1,74 @@
 import * as React from 'react';
-import { Task, TaskActions } from '@/types/team/task';
+import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task'; // Updated imports
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
 import { toast } from 'sonner';
 
 const TASK_PAGE_LIMIT = 20;
 
-// Helper function (can be in a lib file)
+// Helper function to map backend log entry to frontend Task type
 const mapLogToTask = (log: LogProps): Task | null => {
-    const id = log?.id;
-    const title = log?.entries?.title as string | undefined;
-    const description = log?.entries?.description as string | undefined;
-    const status = log?.entries?.status as string | undefined;
-    const assigned = log?.entries?.assignedAssistantIds as string[] | string | undefined;
-
-    if (!id || typeof title !== 'string') {
-        console.warn("Skipping log due to missing id or title:", log);
+    const entries = log?.entries || {};
+    
+    const task_id = entries?.task_id as string | undefined;
+    const name = entries?.name as string | undefined;
+    const description = entries?.description as string | undefined;
+    const status = entries?.status as Status | undefined;
+    const priority = entries?.priority as Priority | undefined;
+    const deadline = entries?.deadline as string | undefined;
+    
+    // Basic validation for core fields
+    if (typeof task_id !== 'number' || typeof name !== 'string') {
+        console.warn("Skipping log due to missing or invalid task_id or name:", log);
         return null;
     }
-    let assignedIds: string[] = [];
-    if (Array.isArray(assigned)) {
-        assignedIds = assigned.map(String).filter(id => id);
-    } else if (typeof assigned === 'string' && assigned.trim()) {
-        assignedIds = [assigned.trim()];
-    }
 
-    return { id, title, description, status, assignedAssistantIds: assignedIds };
+    // Safely parse schedule, repeatPattern from entries
+    // It's crucial that the backend sends these as structured objects if they exist
+    const scheduleData = entries?.schedule;
+    const schedule: Schedule = {
+        next_task: typeof scheduleData?.next_task === 'number' ? scheduleData.next_task : undefined,
+        prev_task: typeof scheduleData?.prev_task === 'number' ? scheduleData.prev_task : undefined,
+        start_time: typeof scheduleData?.start_time === 'string' ? scheduleData.start_time : undefined,
+    };
+
+    const repeatData = entries?.repeat;
+    let repeat: RepeatPattern | undefined = undefined;
+    if (repeatData && typeof repeatData.frequency === 'string' && typeof repeatData.interval === 'number') {
+        repeat = {
+            frequency: repeatData.frequency as RepeatPattern['frequency'],
+            interval: repeatData.interval,
+            weekdays: Array.isArray(repeatData.weekdays) ? repeatData.weekdays as RepeatPattern['weekdays'] : undefined,
+            count: typeof repeatData.count === 'number' ? repeatData.count : undefined,
+            until: typeof repeatData.until === 'string' ? repeatData.until : undefined,
+        };
+    }
+    
+    return {
+        task_id,
+        name,
+        description: description || "",
+        status: status || Status.queued,
+        schedule,
+        deadline,
+        repeat,
+        priority: priority || Priority.normal,
+    };
 };
 
 export function useTasks(
     taskActions: TaskActions,
     filterExpression: string | null,
-    initialFetchTriggered: boolean // To prevent fetching on initial mount if filters aren't ready
+    initialFetchTriggered: boolean 
 ) {
     const [tasks, setTasks] = React.useState<Task[]>([]);
     const [offset, setOffset] = React.useState(0);
     const [totalCount, setTotalCount] = React.useState(0);
     const [hasMoreTasks, setHasMoreTasks] = React.useState(true);
-    const [isLoadingInitial, setIsLoadingInitial] = React.useState(false); // Changed: only true when actively fetching initial
+    const [isLoadingInitial, setIsLoadingInitial] = React.useState(false); 
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
     const [taskError, setTaskError] = React.useState<string | null>(null);
     const [currentFilterExprForFetch, setCurrentFilterExprForFetch] = React.useState<string | null>(null);
-
+    const initialLoadAttemptedRef = React.useRef(false);
 
     const fetchTasksInternal = React.useCallback(async (expr: string | null, isInitialLoad = true) => {
         if (!isInitialLoad && isLoadingMore) return;
@@ -65,7 +93,7 @@ export function useTasks(
             if ('detail' in response && response.detail) {
                 throw new Error(response.detail);
             }
-            const logsResponse = response as LogsResponseProps; // Cast after check
+            const logsResponse = response as LogsResponseProps; 
             const fetchedLogs = Array.isArray(logsResponse.logs) ? logsResponse.logs : [];
             const mappedTasks: Task[] = fetchedLogs.map(mapLogToTask).filter((task): task is Task => task !== null);
 
@@ -88,27 +116,31 @@ export function useTasks(
                 setTasks([]);
                 setHasMoreTasks(false);
             } else {
-                setHasMoreTasks(false); // Stop further loading attempts on error
+                setHasMoreTasks(false); 
             }
         } finally {
             if (isInitialLoad) setIsLoadingInitial(false);
             setIsLoadingMore(false);
         }
-    }, [taskActions, offset, isLoadingMore, hasMoreTasks, tasks.length]); // tasks.length for totalCount fallback
+    }, [taskActions, offset, isLoadingMore, hasMoreTasks, tasks.length]); 
 
-    // Effect to trigger initial load or reload when filterExpression changes
     React.useEffect(() => {
-        if (initialFetchTriggered) { 
-            // Only fetch if the consuming component signals it's ready
-            // Check if filterExpression has actually changed from the last one used for fetching
-            if (filterExpression !== currentFilterExprForFetch) {
-                 fetchTasksInternal(filterExpression, true);
+        if (initialFetchTriggered) {
+            // Fetch if it's the first time `initialFetchTriggered` is true for this hook instance,
+            // OR if the filter expression has changed since the last fetch.
+            if (!initialLoadAttemptedRef.current || filterExpression !== currentFilterExprForFetch) {
+                fetchTasksInternal(filterExpression, true);
+                initialLoadAttemptedRef.current = true; // Mark that an initial load attempt has been made
             }
+        } else {
+            // If initialFetchTriggered becomes false (e.g., component re-mount or specific parent logic),
+            // reset the ref to allow a new "initial" fetch when it becomes true again.
+            initialLoadAttemptedRef.current = false;
         }
     }, [filterExpression, initialFetchTriggered, fetchTasksInternal, currentFilterExprForFetch]);
 
     const fetchMoreTasksCallback = React.useCallback(() => {
-        if (!isLoadingInitial && !isLoadingMore && hasMoreTasks && !taskError) { // also check taskError to prevent load if previous failed
+        if (!isLoadingInitial && !isLoadingMore && hasMoreTasks && !taskError) { 
             fetchTasksInternal(currentFilterExprForFetch, false);
         }
     }, [isLoadingInitial, isLoadingMore, hasMoreTasks, taskError, fetchTasksInternal, currentFilterExprForFetch]);
@@ -118,11 +150,10 @@ export function useTasks(
     }, [fetchTasksInternal, currentFilterExprForFetch]);
 
 
-    // Callback for optimistic updates
-    const updateLocalTask = React.useCallback((taskId: string, updatedFields: Partial<Task>) => {
+    const updateLocalTask = React.useCallback((taskId: number, updatedFields: Partial<Task>) => {
         setTasks(prevTasks =>
             prevTasks.map(task =>
-                task.id === taskId
+                task.task_id === taskId
                     ? { ...task, ...updatedFields }
                     : task
             )
@@ -134,8 +165,8 @@ export function useTasks(
         fetchMoreTasks: fetchMoreTasksCallback,
         hasMoreTasks,
         isLoadingMore,
-        isLoadingInitial: isLoadingInitial && tasks.length === 0, // More accurate initial loading
-        initialLoadError: taskError, // Renamed for clarity
+        isLoadingInitial: isLoadingInitial && tasks.length === 0, 
+        initialLoadError: taskError, 
         refreshTasks,
         updateLocalTask,
         totalCount

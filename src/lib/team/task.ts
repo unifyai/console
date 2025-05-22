@@ -14,7 +14,7 @@ export const getTasks = async (apiKey: string) => {
             if (limit !== null) {
                 url += `&limit=${limit}`;
             }
-            if (offset !== null) { // Add offset to the URL query
+            if (offset !== null) { 
                 url += `&offset=${offset}`;
             }
             const response = await fetch(
@@ -28,11 +28,11 @@ export const getTasks = async (apiKey: string) => {
                 if (contentType && contentType.includes("application/json")) {
                     data = await response.json();
                 } else {
-                    console.error(`[actions.ts getTasks] Received non-JSON response with status ${response.status}`);
+                    console.error(`[task.ts getTasks] Received non-JSON response with status ${response.status}`);
                     return { detail: "Received an invalid response from the server." };
                 }
             } catch (parseError) {
-                console.error(`[actions.ts getTasks] Failed to parse JSON response ${parseError}`);
+                console.error(`[task.ts getTasks] Failed to parse JSON response ${parseError}`);
                 return { detail: "Received an invalid response from the server." };
             }
 
@@ -45,7 +45,7 @@ export const getTasks = async (apiKey: string) => {
             return data as LogsResponseProps
 
         } catch (error) {
-            console.error(`[actions.ts getTasks] Error fetching tasks:`, error);
+            console.error(`[task.ts getTasks] Error fetching tasks:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
         }
@@ -73,11 +73,11 @@ export const getUniqueFieldValues = async (apiKey: string) => {
                 if (contentType && contentType.includes("application/json")) {
                     data = await response.json();
                 } else {
-                    console.error(`[actions.ts getTaskGroups] Received non-JSON response with status ${response.status}`);
+                    console.error(`[task.ts getTaskGroups] Received non-JSON response with status ${response.status}`);
                     return { detail: "Received an invalid response from the server." };
                 }
             } catch (parseError) {
-                console.error(`[actions.ts getTaskGroups] Failed to parse JSON response: ${parseError}`);
+                console.error(`[task.ts getTaskGroups] Failed to parse JSON response: ${parseError}`);
                 return { detail: "Received an invalid response from the server." };
             }
 
@@ -97,13 +97,13 @@ export const getUniqueFieldValues = async (apiKey: string) => {
                 const uniqueKeys = Array.from(new Set(groupData.flatMap(item => item.key).filter(key => key != null)));
                 return uniqueKeys;
             } else {
-                console.warn(`[actions.ts getTaskGroups] Response format unexpected or missing group data for field '${groupByField}'. Data:`, data);
+                console.warn(`[task.ts getTaskGroups] Response format unexpected or missing group data for field '${groupByField}'. Data:`, data);
                 // Return empty array if structure is not as expected but response was OK
                 return [];
             }
 
         } catch (error) {
-            console.error(`[actions.ts getTaskGroups] Error fetching task groups for ${groupByField}:`, error);
+            console.error(`[task.ts getTaskGroups] Error fetching task groups for ${groupByField}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
         }
@@ -141,11 +141,11 @@ export const updateTask = async (apiKey: string) => {
                 if (contentType && contentType.includes("application/json")) {
                     data = await response.json();
                 } else {
-                    console.error(`[actions.ts updateTask] Received non-JSON response with status ${response.status}`);
+                    console.error(`[task.ts updateTask] Received non-JSON response with status ${response.status}`);
                     return { detail: "Received an invalid response from the server." };
                 }
             } catch (parseError) {
-                console.error(`[actions.ts updateTask] Failed to parse JSON response ${parseError}`);
+                console.error(`[task.ts updateTask] Failed to parse JSON response ${parseError}`);
                 return { detail: "Received an invalid response from the server." };
             }
 
@@ -158,7 +158,7 @@ export const updateTask = async (apiKey: string) => {
             return { info: successMessage }
 
         } catch (error) {
-            console.error(`[actions.ts updateTask] Error updating task ${logs}:`, error);
+            console.error(`[task.ts updateTask] Error updating task ${logs}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
         }

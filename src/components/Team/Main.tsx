@@ -5,7 +5,7 @@ import { AssistantList } from "@/components/Team/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Team/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
 import { Assistant, AssistantActions, AssistantPreset } from "@/types/team/assistant";
-import { TaskActions } from "@/types/team/task";
+import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
 import { toast, Toaster } from "sonner";
 import { AssistantProfilePanel } from './Assistants/AssistantProfile';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -17,7 +17,6 @@ import { PresetsPanel } from '@/components/Team/Assistants/Hire/Presets/Assistan
 import { useAssistants } from '@/hooks/Team/useAssistants';
 import { useTaskFilters } from '@/hooks/Team/useTaskFilters';
 import { useTasks } from '@/hooks/Team/useTasks';
-import { useTaskStatuses } from '@/hooks/Team/useTaskStatuses';
 import { useAssistantPresets } from '@/hooks/Team/useAssistantPresets';
 import { useAssistantHireForm } from '@/hooks/Team/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Team/usePanelManager';
@@ -51,11 +50,13 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
     const {
         searchTermInput, setSearchTermInput,
         statusFilter, setStatusFilter,
-        assignedFilter, setAssignedFilter,
+        priorityFilter, setPriorityFilter,
+        deadlineFilter, setDeadlineFilter,
         filterExpression,
     } = useTaskFilters();
 
-    const [initialTaskFetchTriggered, setInitialTaskFetchTriggered] = React.useState(false);
+    // Tasks can start fetching immediately
+    const [initialTaskFetchTriggered, setInitialTaskFetchTriggered] = React.useState(true);
 
     const {
         tasks, fetchMoreTasks, hasMoreTasks, isLoadingMore: isLoadingMoreTasks,
@@ -63,16 +64,16 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         updateLocalTask,
     } = useTasks(taskActions, filterExpression, initialTaskFetchTriggered);
 
-    const {
-        availableStatuses, isLoading: isLoadingStatuses,
-        error: statusFetchError,
-    } = useTaskStatuses(taskActions);
+
+    const availableTaskStatuses = React.useMemo(() => {
+        return ['all', ...Object.values(TaskStatusEnum)];
+    }, []);
 
 
     // --- Hire Assistant Dialog & Form ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
-    const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); // New state
+    const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
 
     const {
         displayedPresets, loadMorePresets, canLoadMorePresets, isLoadingMorePresets,
@@ -98,11 +99,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
 
 
     // --- Effects ---
-    React.useEffect(() => {
-        if (!isLoadingAssistants && !initialTaskFetchTriggered) {
-            setInitialTaskFetchTriggered(true);
-        }
-    }, [isLoadingAssistants, initialTaskFetchTriggered]);
 
     const initialAssistantLoadProcessedRef = React.useRef(false);
     React.useEffect(() => {
@@ -122,7 +118,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         setPresetAgeFilter('all');
         setPresetRegionFilter('all');
         setPresetGenderFilter('all');
-        setIsDialogBusyProcessingVoice(false); // Reset voice processing state
+        setIsDialogBusyProcessingVoice(false); 
 
         const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (assistantPresetsConstant as AssistantPreset[]);
         if (presetsToUse.length > 0) {
@@ -153,7 +149,6 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
         const success = await deleteAssistant(assistant);
         if (success) {
             handleProfileClose(); 
-            setAssignedFilter(prev => prev.filter(id => id !== assistant.agent_id)); 
         } else {
             throw new Error("Deletion failed in hook.");
         }
@@ -161,7 +156,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
-    const isCombinedLoadingInitial = isLoadingAssistants || (initialTaskFetchTriggered && isLoadingInitialTasks);
+    const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
 
     return (
         <>
@@ -172,6 +167,7 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 <div className={cn("h-full transition-all duration-300 ease-in-out relative border-r", "w-1/3 lg:w-[400px] xl:w-[450px] flex-shrink-0")}>
                     <AssistantList
                         assistants={assistants}
+                        assistantError={assistantError}
                         isLoading={isLoadingAssistants}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
@@ -208,20 +204,19 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                         fetchMoreTasks={fetchMoreTasks}
                         hasMoreTasks={hasMoreTasks}
                         isLoadingMore={isLoadingMoreTasks}
-                        isLoadingInitial={isCombinedLoadingInitial}
+                        isLoadingInitial={isCombinedLoadingInitial} 
                         initialLoadError={taskLoadError}
-                        allAssistants={assistants}
                         searchTerm={searchTermInput}
                         setSearchTerm={setSearchTermInput}
                         statusFilter={statusFilter}
                         setStatusFilter={setStatusFilter}
-                        assignedFilter={assignedFilter}
-                        setAssignedFilter={setAssignedFilter}
+                        priorityFilter={priorityFilter}
+                        setPriorityFilter={setPriorityFilter}
+                        deadlineFilter={deadlineFilter}
+                        setDeadlineFilter={setDeadlineFilter}
                         updateTask={taskActions.update}
                         onTaskUpdate={updateLocalTask}
-                        availableStatuses={availableStatuses}
-                        isLoadingStatuses={isLoadingStatuses}
-                        statusFetchError={statusFetchError}
+                        availableStatuses={availableTaskStatuses}
                     />
                 </div>
             </div>
@@ -236,14 +231,14 @@ export default function Main({ taskActions, assistantActions }: MainProps) {
                 handleRandomizePreset={handleRandomizePreset}
                 currentFilteredPresets={currentFilteredPresets}
                 handleHireFormSubmitInternal={handleHireFormSubmitInternal}
-                isProcessingVoice={isDialogBusyProcessingVoice}
+                isProcessingVoice={isDialogBusyProcessingVoice} 
             >
                 <HireForm
                     formMethods={hireFormMethods}
                     onSubmit={handleHireFormSubmitInternal}
                     isSubmitting={isHireSubmitting}
                     assistantActions={assistantActions}
-                    onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
+                    onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                 />
                 <PresetsPanel                                    
                     displayedPresets={displayedPresets}

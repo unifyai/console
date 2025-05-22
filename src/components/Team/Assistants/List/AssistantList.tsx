@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface AssistantListProps {
     assistants: Assistant[];
+    assistantError: string | null;
     isLoading: boolean;
     error: string | null;
     profileAssistantId: string | null;
@@ -19,6 +20,7 @@ interface AssistantListProps {
 
 export function AssistantList({
     assistants,
+    assistantError,
     isLoading,
     error,
     profileAssistantId,
@@ -41,7 +43,7 @@ export function AssistantList({
     const headerHeight = 70; // Adjusted approx height
     const scrollAreaHeight = `calc(100% - ${headerHeight}px)`;
 
-    const canHireNewAssistant = assistants.length === 0;
+    const canHireNewAssistant = !assistantError && assistants.length === 0;
     const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
     return (

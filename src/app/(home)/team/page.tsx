@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Team/Main";
-import { getTasks, updateTask, getUniqueFieldValues } from "@/lib/team/task";
+import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, deletePhoto } from "@/lib/team/photo";
 import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestra, cloneVoiceOnCartesia, localizeVoiceOnCartesia, deleteVoiceFromCartesia  } from "@/lib/team/voice";
@@ -52,7 +52,6 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
     const taskActions: TaskActions = {
         get: await getTasks(apiKey),
         update: await updateTask(apiKey),
-        unique: await getUniqueFieldValues(apiKey),
     }
 
     return (
