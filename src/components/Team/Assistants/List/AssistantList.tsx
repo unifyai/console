@@ -4,35 +4,31 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { Search, WifiOff, UserPlus } from "lucide-react";
 import type { Assistant } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
-import { ChatOverlay } from "./AssistantChat";
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 interface AssistantListProps {
     assistants: Assistant[];
+    assistantError: string | null;
     isLoading: boolean;
     error: string | null;
     profileAssistantId: string | null;
-    chatTargetAssistantId: string | null;
+    activityLogAssistantId: string | null;
     onShowProfile: (id: string) => void;
-    onChat: (id: string) => void;
-    isChatOpen: boolean;
-    chatAssistant: Assistant | null;
-    onChatClose: () => void;
+    onShowActivityLog: (id: string) => void;
     onOpenHireDialog: () => void;
 }
 
 export function AssistantList({
     assistants,
+    assistantError,
     isLoading,
     error,
     profileAssistantId,
-    chatTargetAssistantId,
+    activityLogAssistantId,
     onShowProfile,
-    onChat,
-    isChatOpen,
-    chatAssistant,
-    onChatClose,
+    onShowActivityLog,
     onOpenHireDialog
 }: AssistantListProps) {
 
@@ -49,7 +45,10 @@ export function AssistantList({
 
     // Approx height of header search bar area + button
     const headerHeight = 70; // Adjusted approx height
-    const scrollAreaHeight = isChatOpen ? `calc(100% - 45vh - ${headerHeight}px)` : `calc(100% - ${headerHeight}px)`;
+    const scrollAreaHeight = `calc(100% - ${headerHeight}px)`;
+
+    const canHireNewAssistant = !assistantError && assistants.length === 0;
+    const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
     return (
         <div className="flex flex-col h-full bg-background">
@@ -68,16 +67,31 @@ export function AssistantList({
                             disabled={isLoading || !!error}
                         />
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm" // Match size with input height
-                        className="h-8 items-center" // Explicit height
-                        onClick={onOpenHireDialog} // Call handler to open dialog
-                        disabled={isLoading} // Disable if still loading assistants
-                    >
-                        <UserPlus className="h-4 w-4" />
-                        New
-                    </Button>
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip open={!canHireNewAssistant && !isLoading ? undefined : false}> {/* Conditionally control open state for tooltip */}
+                            <TooltipTrigger asChild>
+                                {/* The button itself needs to be wrapped or be a direct child for TooltipTrigger to work correctly when disabled */}
+                                <span tabIndex={isHireButtonDisabled ? 0 : -1}> 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 items-center"
+                                        onClick={onOpenHireDialog}
+                                        disabled={isHireButtonDisabled}
+                                        aria-disabled={isHireButtonDisabled}
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        New
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            {!canHireNewAssistant && !isLoading && (
+                                <TooltipContent side="bottom" align="end">
+                                    <p>Multi-assistant team available soon</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
                  </div>
             </div>
 
@@ -100,9 +114,9 @@ export function AssistantList({
                             <AssistantListItem
                                 key={assistant.agent_id}
                                 assistant={assistant}
-                                isSelected={profileAssistantId === assistant.agent_id}
+                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id} // Highlight if selected for profile OR activity
                                 onShowProfile={onShowProfile}
-                                onChat={onChat}
+                                onShowActivityLog={onShowActivityLog}
                             />
                         ))
                     ) : searchTerm ? (
@@ -112,13 +126,6 @@ export function AssistantList({
                     )}
                 </div>
             </ScrollArea>
-
-            {/* Chat Overlay*/}
-            <ChatOverlay
-                isOpen={isChatOpen && !!chatAssistant && chatAssistant.agent_id === chatTargetAssistantId}
-                assistant={chatAssistant}
-                onClose={onChatClose}
-            />
         </div>
     );
 }

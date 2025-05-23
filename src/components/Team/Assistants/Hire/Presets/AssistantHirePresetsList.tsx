@@ -9,7 +9,7 @@ import { Label } from '@/components/UI/label';
 
 const PRESET_ITEM_APPROX_HEIGHT = 90; // Approximate height of one PresetListItem + gap for threshold calculation
 
-interface PresetsPanelProps {
+export interface PresetsPanelProps {
   displayedPresets: AssistantPreset[];
   onPresetSelect: (preset: AssistantPreset) => void;
   onClose: () => void;

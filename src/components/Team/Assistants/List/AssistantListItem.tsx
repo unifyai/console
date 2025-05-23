@@ -1,33 +1,33 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { MessageSquare, Phone, Mail, Contact } from "lucide-react";
+import { MessageSquare, Phone, Mail, Contact, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Assistant } from "@/types/team/assistant";
-import ActionButton from '../Common/Buttons/Action';
+import ActionButton from '../../../Common/Buttons/Action';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
 
 interface AssistantListItemProps {
     assistant: Assistant;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
-    onChat: (id: string) => void;
+    onShowActivityLog: (id: string) => void;
 }
 
 export function AssistantListItem({
     assistant,
     isSelected,
     onShowProfile,
-    onChat,
+    onShowActivityLog,
 }: AssistantListItemProps) {
-
-    const handleChatClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onChat(assistant.agent_id);
-    };
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onShowProfile(assistant.agent_id);
+    }
+
+    const handleActivityLogClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onShowActivityLog(assistant.agent_id);
     }
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
@@ -74,15 +74,14 @@ export function AssistantListItem({
                 <span className="text-sm font-medium truncate">{displayName}</span>
             </div>
 
-            {/* Chat / Profile buttons visible on hover/selection */}
+            {/* Action buttons */}
             <div className={cn(
-                "flex items-center gap-1 transition-opacity flex-shrink-0",
-                isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                "flex items-center gap-1 flex-shrink-0 opacity-100"
             )}>
                 <ActionButton
-                    tooltip="Chat with assistant"
-                    icon={<MessageSquare className="h-4 w-4" />}
-                    onClick={handleChatClick}
+                    tooltip="View activity"
+                    icon={<History className="h-4 w-4" />}
+                    onClick={handleActivityLogClick}
                     size="sm"
                 />
                 <ActionButton

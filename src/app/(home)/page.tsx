@@ -22,7 +22,7 @@ export default function Home() {
     const redirectUser = async () => {
       try {
         const user = await initializeUser();
-        const redirectUrl = "/team";
+        const redirectUrl = "/interfaces";
         router.push(redirectUrl);
       } catch (error) {
         console.error("Error initializing user:", error);

@@ -4,7 +4,7 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
     return await fetch(
-        `${baseUrl}/assistant`,
+        `${baseUrl}/assistant/voice`,
         {
             method: "GET",
             headers: {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const response = await fetch(
-            `${baseUrl}/v0/assistant`,
+            `${process.env.ORCHESTRA_URL}/v0/assistant/voice`,
             {
                 method: "POST",
                 headers: {
@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json().catch(e => {
+        const responseClone = response.clone();
+        const responseData = await responseClone.json().catch(e => {
             console.error("Failed to parse JSON response from Unify API", e);
             return { error: "Invalid JSON response from backend API", status: response.status };
         });
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
         return response;
 
     } catch (error: any) {
-        console.error("Error fetching Unify API in /api/assistant POST:", error);
+        console.error("Error fetching Unify API in /api/assistant/voice POST:", error);
         return NextResponse.json({ error: "Failed to connect to backend API", details: error.message }, { status: 500 });
     }
 }

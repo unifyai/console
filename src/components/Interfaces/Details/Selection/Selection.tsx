@@ -359,12 +359,12 @@ export default function Selection({
         );
         if (response.detail) {
           console.error("[DEBUG] handleSaveMany – error", response.detail);
-          toast.error(`Failed to update log entry: ${response.detail}`);
+          toast.error(`Failed to update log entry`);
           return;
         }
       } catch (err: any) {
         console.error("[DEBUG] handleSaveMany – backend error", err);
-        toast.error(`Save failed: ${err.message || 'Unknown error'}`);
+        toast.error(`Failed to update log entry`);
         return;
       }
 
