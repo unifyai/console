@@ -85,7 +85,7 @@ export function useVoiceCreator(
 
                 if ('detail' in dbResult) {
                     console.error(`[useVoiceCreator.ts] Error creating voice in orchestra: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
-                    toast.error(`Error creating voice: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
+                    toast.error(`Error creating voice.`, { id: toastId, duration: 7000 });
                     // Consider trying to delete the Cartesia voice here if DB registration fails
                 } else {
                     const newVoiceData = (dbResult as (Voice & {info?:string})).info ? dbResult as Voice : dbResult as Voice; // Handle if Orchestra returns {info: Voice}
@@ -100,8 +100,8 @@ export function useVoiceCreator(
                 }
             } else {
                 const errorDetail = (cartesiaOpResult as ResponseProps)?.detail || "Unknown Cartesia operation error.";
-                console.error(`[useVoiceCreator.ts] Error creating voice in orchestra: ${errorDetail}.`, { id: toastId, duration: 7000 });
-                toast.error(`Cartesia operation failed`, { id: toastId });
+                console.error(`[useVoiceCreator.ts] Error creating voice in Cartesia: ${errorDetail}.`, { id: toastId, duration: 7000 });
+                toast.error(`Error creating voice`, { id: toastId });
             }
 
         } catch (error: any) {

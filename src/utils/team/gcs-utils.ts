@@ -17,13 +17,11 @@ export async function uploadImageToGCS (file: File, signedUrl: string): Promise<
         if (!response.ok) {
             const errorText = await response.text();
             console.error("[gcs-utils.ts ]GCS Upload Failed:", response.status, errorText);
-            toast.error(`Image upload failed: ${response.statusText} (Status: ${response.status})`);
             return false;
         }
         return true;
     } catch (error: any) {
        console.error("[gcs-utils.ts ] Error during GCS fetch:", error);
-       toast.error(`Image upload network error: ${error.message}`);
        return false;
     }
 };

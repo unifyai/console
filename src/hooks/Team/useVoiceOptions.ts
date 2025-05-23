@@ -69,7 +69,7 @@ export function useVoiceOptions(
             const cartesiaDeleteResult = await assistantVoiceActions.deleteVoiceFromCartesia(voiceToDelete.voice_id);
             if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found") || cartesiaDeleteResult.info?.includes("assumed already deleted"))) {
                 console.error(`[useVoiceOptions.ts] Cartesia delete error: ${cartesiaDeleteResult.detail}.`, { id: toastId });
-                toast.error(`Error deleting voice: ${cartesiaDeleteResult.detail}.`, { id: toastId });
+                toast.error(`Error deleting voice.`, { id: toastId });
                 return false; // Decide if you want to stop or proceed to DB deletion
             }
 
@@ -86,7 +86,8 @@ export function useVoiceOptions(
             if (onVoiceDeleted) onVoiceDeleted(voiceToDelete.voice_id);
             return true;
         } catch (error: any) {
-            toast.error(`Error deleting voice: ${error.message}`, { id: toastId });
+            console.error(`[useVoiceOptions.ts] Error deleting voice: ${error.message}`)
+            toast.error(`Error deleting voice`, { id: toastId });
             return false;
         }
     };

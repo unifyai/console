@@ -63,11 +63,11 @@ export function useAssistants(
 
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching assistants.";
-            console.error("Assistant fetch error in hook:", errorMsg);
             setError(errorMsg);
             setAssistants([]);
-            if (toastId) toast.error(`Failed to load assistants: ${errorMsg}`, { id: toastId });
-            else if(showLoadingToast) toast.error(`Failed to load assistants: ${errorMsg}`);
+            console.error("Assistant fetch error in hook:", errorMsg);
+            if (toastId) toast.error(`Failed to load assistants`, { id: toastId });
+            else if(showLoadingToast) toast.error(`Failed to load assistants`);
         } finally {
             setIsLoading(false);
         }
@@ -130,8 +130,8 @@ export function useAssistants(
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
-            toast.error(`Failed to remove ${displayName}: ${errorMsg}`, { id: toastId });
             console.error(`[useAssistants] Error during deletion process for ${displayName}:`, errorMsg);
+            toast.error(`Failed to remove ${displayName}`, { id: toastId });
             return false;
         }
     }, [assistantActions, photoActions]);

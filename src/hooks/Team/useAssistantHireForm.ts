@@ -148,11 +148,11 @@ export function useAssistantHireForm(
             } else {
                 const errorResult = result as ResponseProps;
                 console.error("[useAssistantHireForm.ts] ", errorResult?.detail || "Failed to hire assistant.");
-                toast.error(`Failed to hire assistant: ${errorResult.detail || 'Unknown error'}`, { id: toastId });
+                toast.error(`Failed to hire assistant'}`, { id: toastId });
             }
         } catch (error: any) {
             console.error(`An error occurred during assistant hiring: ${error.message}`, error);
-            toast.error(`Failed to hire assistant: ${error.message || 'An unexpected error occurred.'}`, { id: toastId });
+            toast.error(`Failed to hire assistant'}`, { id: toastId });
         } finally {
             setIsSubmitting(false);
         }

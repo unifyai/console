@@ -70,7 +70,7 @@ export function AssistantProfilePanel({
             toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
         } catch (error) {
             console.error("Failed to update about section:", error);
-            toast.error(`Failed to update 'About': ${error instanceof Error ? error.message : 'Unknown error'}`, { id: toastId });
+            toast.error(`Failed to update 'About'`, { id: toastId });
         } finally {
             setIsSavingAbout(false);
         }

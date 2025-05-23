@@ -119,9 +119,9 @@ export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemPro
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error("Failed to save task description:", errorMsg);
             setSaveError(errorMsg); 
-            toast.error(`Save failed: ${errorMsg}`, { id: toastId });
+            console.error("Failed to save task description:", errorMsg);
+            toast.error(`Failed to save task description`, { id: toastId });
         } finally {
             setIsSaving(false);
         }
