@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task'; // Updated imports
+import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task';
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
 import { toast } from 'sonner';
 
@@ -7,6 +7,7 @@ const TASK_PAGE_LIMIT = 20;
 
 // Helper function to map backend log entry to frontend Task type
 const mapLogToTask = (log: LogProps): Task | null => {
+    const log_id = log?.id;
     const entries = log?.entries || {};
     
     const task_id = entries?.task_id as string | undefined;
@@ -17,7 +18,7 @@ const mapLogToTask = (log: LogProps): Task | null => {
     const deadline = entries?.deadline as string | undefined;
     
     // Basic validation for core fields
-    if (typeof task_id !== 'number' || typeof name !== 'string') {
+    if (!entries || typeof log_id !== 'number' || typeof task_id !== 'number' || typeof name !== 'string') {
         console.warn("Skipping log due to missing or invalid task_id or name:", log);
         return null;
     }
@@ -44,6 +45,7 @@ const mapLogToTask = (log: LogProps): Task | null => {
     }
     
     return {
+        log_id,
         task_id,
         name,
         description: description || "",

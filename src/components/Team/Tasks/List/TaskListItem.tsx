@@ -104,7 +104,7 @@ export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemPro
 
         try {
             const response = await updateTask(
-                [task.task_id],
+                [task.log_id],
                 { description: description } 
             );
 

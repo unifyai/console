@@ -57,6 +57,7 @@ export interface RepeatPattern {
 
 // Corresponds to unity.task_list_manager.types.task.Task
 export interface Task {
+  log_id: number;
   task_id: number;
   name: string;
   description: string;
