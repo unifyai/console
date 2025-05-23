@@ -14,7 +14,9 @@ interface AssistantListProps {
     isLoading: boolean;
     error: string | null;
     profileAssistantId: string | null;
+    activityLogAssistantId: string | null;
     onShowProfile: (id: string) => void;
+    onShowActivityLog: (id: string) => void;
     onOpenHireDialog: () => void;
 }
 
@@ -24,7 +26,9 @@ export function AssistantList({
     isLoading,
     error,
     profileAssistantId,
+    activityLogAssistantId,
     onShowProfile,
+    onShowActivityLog,
     onOpenHireDialog
 }: AssistantListProps) {
 
@@ -110,8 +114,9 @@ export function AssistantList({
                             <AssistantListItem
                                 key={assistant.agent_id}
                                 assistant={assistant}
-                                isSelected={profileAssistantId === assistant.agent_id}
+                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id} // Highlight if selected for profile OR activity
                                 onShowProfile={onShowProfile}
+                                onShowActivityLog={onShowActivityLog}
                             />
                         ))
                     ) : searchTerm ? (

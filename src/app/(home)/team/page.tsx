@@ -7,8 +7,10 @@ import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestr
 import { createAssistantEmail, createAssistantPhoneNumber, deleteAssistantEmail, deleteAssistantPhoneNumber } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
+import { ActivityLogActions } from "@/types/team/activity";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { getMessages } from "@/lib/team/activity";
 
 const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
     const user = await getCurrentUser();
@@ -54,9 +56,13 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
         update: await updateTask(apiKey),
     }
 
+    const activityLogActions: ActivityLogActions = {
+        get: await getMessages(apiKey),
+    }
+
     return (
         <div className="w-full h-full">
-            <Main assistantActions={assistantActions} taskActions={taskActions} />
+            <Main assistantActions={assistantActions} taskActions={taskActions} activityLogActions={activityLogActions} />
         </div>
     );
 };

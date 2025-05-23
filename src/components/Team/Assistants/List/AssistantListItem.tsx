@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { MessageSquare, Phone, Mail, Contact } from "lucide-react";
+import { MessageSquare, Phone, Mail, Contact, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Assistant } from "@/types/team/assistant";
 import ActionButton from '../../../Common/Buttons/Action';
@@ -10,17 +10,24 @@ interface AssistantListItemProps {
     assistant: Assistant;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
+    onShowActivityLog: (id: string) => void;
 }
 
 export function AssistantListItem({
     assistant,
     isSelected,
     onShowProfile,
+    onShowActivityLog,
 }: AssistantListItemProps) {
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onShowProfile(assistant.agent_id);
+    }
+
+    const handleActivityLogClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onShowActivityLog(assistant.agent_id);
     }
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
@@ -67,10 +74,16 @@ export function AssistantListItem({
                 <span className="text-sm font-medium truncate">{displayName}</span>
             </div>
 
-            {/* Profile button */}
+            {/* Action buttons */}
             <div className={cn(
                 "flex items-center gap-1 flex-shrink-0 opacity-100"
             )}>
+                <ActionButton
+                    tooltip="View activity"
+                    icon={<History className="h-4 w-4" />}
+                    onClick={handleActivityLogClick}
+                    size="sm"
+                />
                 <ActionButton
                     tooltip="View profile"
                     icon={<Contact className="h-4 w-4" />}
