@@ -1,9 +1,10 @@
 import { TableDataItem, TileData } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { getLogsDetails } from "@/utils/evals/common";
 import { LogsActions } from "@/types/evals/grid";
 import { processContext } from "@/utils/evals/columnOperations";
+import { maybeFlattenGroupedLogs } from "../evals/grouping";
 
 /**
  * Builds a TableDataItem from logs data and other inputs
@@ -14,7 +15,8 @@ export async function buildTableDataItem(
   fields: LogFieldsResponseProps,
   logsData: LogsResponseProps,
   projectId: string,
-  logsActions: LogsActions
+  logsActions: LogsActions,
+  previousLogs?: LogProps[] | GroupedLogProps[]
 ): Promise<TableDataItem> {
   // Build filter expression
   const filterExpression = buildFilterExpression(
@@ -60,6 +62,11 @@ export async function buildTableDataItem(
 
   const limit = 20; // Default page size
 
+  let newCells: string[] = [];
+  if (previousLogs) {
+    newCells = getNewCells(previousLogs, logs);
+  }
+
   // Construct table data item
   const tableDataItem: TableDataItem = {
     columnContexts: columnContexts,
@@ -76,7 +83,8 @@ export async function buildTableDataItem(
     params,
     metrics,
     boundaries,
-    metric: tile.metric ?? "mean"
+    metric: tile.metric ?? "mean",
+    newCells: newCells
   };
 
   return tableDataItem;
@@ -90,7 +98,8 @@ export async function fetchAndBuildTableDataItem(
   tile: TileData,
   fields: LogFieldsResponseProps,
   projectId: string,
-  logsActions: LogsActions
+  logsActions: LogsActions,
+  previousLogs?: LogProps[] | GroupedLogProps[]
 ): Promise<TableDataItem> {
   // Build filter expression
   const filterExpression = buildFilterExpression(
@@ -140,7 +149,7 @@ export async function fetchAndBuildTableDataItem(
 
   // Build table data item using the fetched logs data
   const tBuildTableDataItem = performance.now();
-  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions);
+  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
   console.log(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
 
@@ -192,3 +201,26 @@ export function getGroupSortingObject(tile: TileData) {
     })
   );
 } 
+
+/**
+ * Helper function to identify new cells in the table
+ */
+export function getNewCells(previousLogs: LogProps[] | GroupedLogProps[], logs: LogProps[] | GroupedLogProps[]) {
+  let newCells: string[] = [];
+    const flattenedLogs = maybeFlattenGroupedLogs(logs);
+    if (flattenedLogs.length) {
+        const flattenedTableLogs = maybeFlattenGroupedLogs(previousLogs)
+        const previousCells = flattenedTableLogs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+            return entryCells.concat(paramCells);
+        });
+        newCells = flattenedLogs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+            return entryCells.concat(paramCells);
+        });
+        newCells = newCells.filter(id => !previousCells.includes(id));
+    }
+    return newCells;
+}

@@ -23,10 +23,8 @@ import { Toaster } from 'sonner';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
-import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
 
 // Lazy load components
-const Tab = lazy(() => import('./Tab'));
 const DefaultProject = lazy(() => import('./DefaultProject'));
 const FocusDialog = lazy(() => import('./FocusDialog'));
 const EditTileName = lazy(() => import('./EditTileName'));
@@ -242,215 +240,217 @@ const Interface = ({
   };
 
   return (
-    <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
-      <Toaster richColors position="bottom-right" closeButton />
-      {/* ---------------------------------------------------------
-          Top-level Suspense: covers the whole Tabs area so that
-          the user sees a Skeleton while the server-rendered Tabs
-          (and their children) are still being streamed / hydrated.
-        --------------------------------------------------------- */}
-      <Suspense
-        fallback={
-          <div className="w-full h-full flex items-center justify-center">
-            <SkeletonLoader />
-          </div>
-        }
-      >
-        <Tabs
-          value={tabQueryParam || undefined}
-          onValueChange={handleTabChange}
-          className="w-full h-full flex flex-col tutorial-details-panel"
-        >
-          <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
-            {/* Project buttons and add/delete buttons */}
-            <ProjectButtons
-              tabIdOrName={tabQueryParam || ""}
-              interfaceId={interfaceId}
-              projectQueryParam={projectQueryParam}
-              defaultProject={false}
-              setTabQueryParam={setTabQueryParam}
-              setInterfaceQueryParam={setInterfaceQueryParam}
-              setProjectQueryParam={setProjectQueryParam}
-              projectActions={projectsActions}
-              interfaceActions={interfaceActions}
-              tabActions={tabActions}
-              tileActions={tileActions}
-            />
-
-            <div className="flex flex-row gap-2 items-center">
-              <AutoComplete
-                type={"Actions"}
-                items={storeCommands.map((cmd: Command) => ({
-                  label: cmd.label,
-                  value: cmd.id,
-                  icon: cmd.icon ? iconMap[cmd.icon] : undefined,
-                  disabled: cmd.disabled
-                }))}
-                defaultValue={undefined}
-                isOpen={undefined}
-                onSelect={(commandId: string) => handleCommand(commandId)}
-                onOpen={() => {}}
-                loading={false}
-              />
-              {tabUIState?.resetting && <Loader2 className="animate-spin" />}
+    <div className="w-full h-full">
+      <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
+        <Toaster richColors position="bottom-right" closeButton />
+        {/* ---------------------------------------------------------
+            Top-level Suspense: covers the whole Tabs area so that
+            the user sees a Skeleton while the server-rendered Tabs
+            (and their children) are still being streamed / hydrated.
+          --------------------------------------------------------- */}
+        <Suspense
+          fallback={
+            <div className="w-full h-full flex items-center justify-center">
+              <SkeletonLoader />
             </div>
-
-            {/* Interface buttons */}
-            <InterfaceButtons
-              tabIdOrName={tabQueryParam || ""}
-              interfaceId={interfaceId}
-              logsActions={logsActions}
-              contextActions={contextActions}
-              interfaceActions={interfaceActions}
-              tabActions={tabActions}
-              tileActions={tileActions}
-              projectsActions={projectsActions}
-              fieldsActions={fieldsActions}
-              disabled={saveTabWithTilesMutation.isPending}
-            />
-          </div>
-
-          {tabNames.length === 0 ? (
-            (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
-              <div className="flex justify-center">
-                <Loader2 className="animate-spin my-36" />
-              </div>
-            ) : !projectQueryParam && !interfaceQueryParam ? (
-              <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
-                <DefaultProject
-                  projectActions={projectsActions}
-                  interfaceActions={interfaceActions}
-                  tabActions={tabActions}
-                  tileActions={tileActions}
-                  logsActions={logsActions}
-                  codeActions={codeActions}
-                  derivedEntryActions={derivedEntryActions}
-                  setTabQueryParam={setTabQueryParam}
-                  setInterfaceQueryParam={setInterfaceQueryParam}
-                  setProjectQueryParam={setProjectQueryParam}
-                />
-              </Suspense>
-            ) : null
-          ) : (
-            tabNames.map((tabName: string, idx: number) => (
-              <TabsContent
-                key={idx}
-                value={tabName}
-                className="mb-auto tutorial-selection-pane relative"
-              >
-                {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
-                  <div className="flex justify-center">
-                    <Loader2 className="animate-spin my-36" />
-                  </div>
-                ) : tabQueryParam != tabName ? (
-                  <div key={idx} className="flex text-center justify-center">
-                    <Loader2 className="animate-spin my-36" />
-                  </div>
-                ) : (
-                  // Replace Tab component with the server-rendered children
-                  <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
-                    {/* <Tab
-                      tabId={tabQueryParam || ""}
-                      interfaceId={interfaceId}
-                      projectId={projectQueryParam || ""}
-                      logsActions={logsActions}
-                      fieldsActions={fieldsActions}
-                      derivedEntryActions={derivedEntryActions}
-                      contextActions={contextActions}
-                      codeActions={codeActions}
-                    /> */}
-                    {children}
-                  </Suspense>
-                )}
-              </TabsContent>
-            ))
-          )}
-
-          {/* Interface tabs */}
-          {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
-            <InterfaceTabs
-              tabIdOrName={tabQueryParam || ""}
-              interfaceId={interfaceId}
-              interfaceActions={interfaceActions}
-              tabActions={tabActions}
-              setTabQueryParam={setTabQueryParam}
-            />
-          </div>}
-        </Tabs>
-      </Suspense>
-
-      {/* Focus Dialog */}
-      {focusPaneOpen && (
-        <Dialog open={true} onOpenChange={() => setFocusPaneOpen(false)}>
-          <DialogContent className="min-w-full h-full overflow-y-auto">
-            <Suspense fallback={<SkeletonLoader />}>
-              <FocusDialog
+          }
+        >
+          <Tabs
+            value={tabQueryParam || undefined}
+            onValueChange={handleTabChange}
+            className="w-full h-full flex flex-col tutorial-details-panel"
+          >
+            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
+              {/* Project buttons and add/delete buttons */}
+              <ProjectButtons
                 tabIdOrName={tabQueryParam || ""}
                 interfaceId={interfaceId}
-                projectId={projectQueryParam || ""}
+                projectQueryParam={projectQueryParam}
+                defaultProject={false}
+                setTabQueryParam={setTabQueryParam}
+                setInterfaceQueryParam={setInterfaceQueryParam}
+                setProjectQueryParam={setProjectQueryParam}
+                projectActions={projectsActions}
+                interfaceActions={interfaceActions}
+                tabActions={tabActions}
                 tileActions={tileActions}
-                logsActions={logsActions}
-                fieldsActions={fieldsActions}
-                derivedEntryActions={derivedEntryActions}
-                contextActions={contextActions}
-                codeActions={codeActions}
-                projectsActions={projectsActions}
               />
-            </Suspense>
-          </DialogContent>
-        </Dialog>
-      )}
 
-      {/* Edit Tile Name Dialog */}
-      {tabUIState?.edit && tabUIState?.editTile && (
-        <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
-          <EditTileName
-            tabIdOrName={tabQueryParam || ""}
-            interfaceId={interfaceId}
-            tabActions={tabActions}
-            tileActions={tileActions}
-          />
-        </Suspense>
-      )}
-
-      {/* Save Dialog */}
-      {saveInterfaceOpen && (
-        <Dialog open={true} onOpenChange={() => setSaveInterfaceOpen(false)}>
-          <DialogContent className="w-1/4">
-            <div className="mt-4 flex flex-col gap-4">
-              <div>
-                Are you sure you want to save the changes to{" "}
-                <span className="font-semibold">{tabQueryParam}</span>?
+              <div className="flex flex-row gap-2 items-center">
+                <AutoComplete
+                  type={"Actions"}
+                  items={storeCommands.map((cmd: Command) => ({
+                    label: cmd.label,
+                    value: cmd.id,
+                    icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+                    disabled: cmd.disabled
+                  }))}
+                  defaultValue={undefined}
+                  isOpen={undefined}
+                  onSelect={(commandId: string) => handleCommand(commandId)}
+                  onOpen={() => {}}
+                  loading={false}
+                />
+                {tabUIState?.resetting && <Loader2 className="animate-spin" />}
               </div>
-              <div className="flex flex-col gap-2">
-                {saveTabWithTilesMutation.isPending && (
-                  <div className="text-sm text-center">
-                    <Loader2 className="h-4 w-4 inline-block mr-2 animate-spin" />
-                    Saving changes...
-                  </div>
-                )}
-                {saveTabWithTilesMutation.isError && (
-                  <div className="text-sm text-destructive text-center">
-                    Error saving changes: {saveTabWithTilesMutation.error?.message || "Unknown error"}
-                    <br />
-                    Please try again.
-                  </div>
-                )}
-                <div className="flex justify-end pr-2">
-                  <ActionButton
-                    className="w-fit remove cursor-pointer mr-0 justify-self-end"
-                    onClick={handleSaveDialog}
-                    text="Save"
-                    tooltip="Save changes to tab and all tiles"
-                    variant="primary"
-                    disabled={saveTabWithTilesMutation.isPending}
+
+              {/* Interface buttons */}
+              <InterfaceButtons
+                tabIdOrName={tabQueryParam || ""}
+                interfaceId={interfaceId}
+                logsActions={logsActions}
+                contextActions={contextActions}
+                interfaceActions={interfaceActions}
+                tabActions={tabActions}
+                tileActions={tileActions}
+                projectsActions={projectsActions}
+                fieldsActions={fieldsActions}
+                disabled={saveTabWithTilesMutation.isPending}
+              />
+            </div>
+
+            {tabNames.length === 0 ? (
+              (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
+                <div className="flex justify-center">
+                  <Loader2 className="animate-spin my-36" />
+                </div>
+              ) : !projectQueryParam && !interfaceQueryParam ? (
+                <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
+                  <DefaultProject
+                    projectActions={projectsActions}
+                    interfaceActions={interfaceActions}
+                    tabActions={tabActions}
+                    tileActions={tileActions}
+                    logsActions={logsActions}
+                    codeActions={codeActions}
+                    derivedEntryActions={derivedEntryActions}
+                    setTabQueryParam={setTabQueryParam}
+                    setInterfaceQueryParam={setInterfaceQueryParam}
+                    setProjectQueryParam={setProjectQueryParam}
                   />
+                </Suspense>
+              ) : null
+            ) : (
+              tabNames.map((tabName: string, idx: number) => (
+                <TabsContent
+                  key={idx}
+                  value={tabName}
+                  className="mb-auto tutorial-selection-pane relative"
+                >
+                  {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
+                    <div className="flex justify-center">
+                      <Loader2 className="animate-spin my-36" />
+                    </div>
+                  ) : tabQueryParam != tabName ? (
+                    <div key={idx} className="flex text-center justify-center">
+                      <Loader2 className="animate-spin my-36" />
+                    </div>
+                  ) : (
+                    // Replace Tab component with the server-rendered children
+                    <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
+                      {/* <Tab
+                        tabId={tabQueryParam || ""}
+                        interfaceId={interfaceId}
+                        projectId={projectQueryParam || ""}
+                        logsActions={logsActions}
+                        fieldsActions={fieldsActions}
+                        derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
+                        codeActions={codeActions}
+                      /> */}
+                      {children}
+                    </Suspense>
+                  )}
+                </TabsContent>
+              ))
+            )}
+
+            {/* Interface tabs */}
+            {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
+              <InterfaceTabs
+                tabIdOrName={tabQueryParam || ""}
+                interfaceId={interfaceId}
+                interfaceActions={interfaceActions}
+                tabActions={tabActions}
+                setTabQueryParam={setTabQueryParam}
+              />
+            </div>}
+          </Tabs>
+        </Suspense>
+
+        {/* Focus Dialog */}
+        {focusPaneOpen && (
+          <Dialog open={true} onOpenChange={() => setFocusPaneOpen(false)}>
+            <DialogContent className="min-w-full h-full overflow-y-auto">
+              <Suspense fallback={<SkeletonLoader />}>
+                <FocusDialog
+                  tabIdOrName={tabQueryParam || ""}
+                  interfaceId={interfaceId}
+                  projectId={projectQueryParam || ""}
+                  tileActions={tileActions}
+                  logsActions={logsActions}
+                  fieldsActions={fieldsActions}
+                  derivedEntryActions={derivedEntryActions}
+                  contextActions={contextActions}
+                  codeActions={codeActions}
+                  projectsActions={projectsActions}
+                />
+              </Suspense>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Edit Tile Name Dialog */}
+        {tabUIState?.edit && tabUIState?.editTile && (
+          <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
+            <EditTileName
+              tabIdOrName={tabQueryParam || ""}
+              interfaceId={interfaceId}
+              tabActions={tabActions}
+              tileActions={tileActions}
+            />
+          </Suspense>
+        )}
+
+        {/* Save Dialog */}
+        {saveInterfaceOpen && (
+          <Dialog open={true} onOpenChange={() => setSaveInterfaceOpen(false)}>
+            <DialogContent className="w-1/4">
+              <div className="mt-4 flex flex-col gap-4">
+                <div>
+                  Are you sure you want to save the changes to{" "}
+                  <span className="font-semibold">{tabQueryParam}</span>?
+                </div>
+                <div className="flex flex-col gap-2">
+                  {saveTabWithTilesMutation.isPending && (
+                    <div className="text-sm text-center">
+                      <Loader2 className="h-4 w-4 inline-block mr-2 animate-spin" />
+                      Saving changes...
+                    </div>
+                  )}
+                  {saveTabWithTilesMutation.isError && (
+                    <div className="text-sm text-destructive text-center">
+                      Error saving changes: {saveTabWithTilesMutation.error?.message || "Unknown error"}
+                      <br />
+                      Please try again.
+                    </div>
+                  )}
+                  <div className="flex justify-end pr-2">
+                    <ActionButton
+                      className="w-fit remove cursor-pointer mr-0 justify-self-end"
+                      onClick={handleSaveDialog}
+                      text="Save"
+                      tooltip="Save changes to tab and all tiles"
+                      variant="primary"
+                      disabled={saveTabWithTilesMutation.isPending}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 };

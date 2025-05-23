@@ -91,6 +91,7 @@ export function useTileMeta(
 
   // Get store actions for meta updates
   const storeUpdateTile = useStoreContext(state => state.updateTile);
+  const storeSetType = useStoreContext(state => state.setType);
 
   // Memoize the metadata object to prevent unnecessary rerenders
   const meta = useMemo<Partial<TileMeta> | null>(() => {
@@ -116,7 +117,7 @@ export function useTileMeta(
     
     setType: (type) => {
       if (tileId) {
-        storeUpdateTile(tileId, { type });
+        storeSetType(tileId, type);
       }
     },
     
@@ -139,7 +140,7 @@ export function useTileMeta(
         storeUpdateTile(tileId, { minH });
       }
     }
-  }), [tileId, position, storeUpdateTile]);
+  }), [tileId, position, storeUpdateTile, storeSetType]);
 
   return {
     meta,

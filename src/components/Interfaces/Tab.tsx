@@ -193,59 +193,51 @@ const Tab = ({
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="w-full h-full flex items-center justify-center">
-          <SkeletonLoader />
-        </div>
-      }
-    >  
-      <ResponsiveReactGridLayout
-          onLayoutChange={onLayoutChange}
-          className="layout interactive-grid flex-1 mx-1"
-          cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
-          rowHeight={105}
-          margin={[0, 0]}
-          containerPadding={[0, 0]}
-          isDraggable={tabUIState?.edit && !dragResizeDisabled}
-          isResizable={tabUIState?.edit && !dragResizeDisabled}
-          draggableHandle=".drag"
-          resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
-      >
-        {tilesToRender.map(({ tileId, element }) => {
-          const item = tileProps.find(prop => prop.id === tileId);
-          if (!item || !item.visible) return null;
+    <ResponsiveReactGridLayout
+        onLayoutChange={onLayoutChange}
+        className="layout interactive-grid flex-1 mx-1"
+        cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+        rowHeight={105}
+        margin={[0, 0]}
+        containerPadding={[0, 0]}
+        isDraggable={tabUIState?.edit && !dragResizeDisabled}
+        isResizable={tabUIState?.edit && !dragResizeDisabled}
+        draggableHandle=".drag"
+        resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
+    >
+      {tilesToRender.map(({ tileId, element }) => {
+        const item = tileProps.find(prop => prop.id === tileId);
+        if (!item || !item.visible) return null;
 
-          return (
-            <div
-              key={item.id}
-              data-grid={item}
-              className="relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Server-rendered or client-rendered TileCard */}
-              {element}
+        return (
+          <div
+            key={item.id}
+            data-grid={item}
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Server-rendered or client-rendered TileCard */}
+            {element}
 
-              {/* Extra client-side controls */}
-              <TileButtons
-                tileId={item.id}
-                tabId={tabId}
-                interfaceId={interfaceId}
-                projectId={projectId}
-                contexts={contexts}
-                tabActions={tabActions}
-                tileActions={tileActions}
-                logsActions={logsActions}
-                contextActions={contextActions}
-                codeActions={codeActions}
-                projectsActions={projectsActions}
-                fieldsActions={fieldsActions}
-              />
-            </div>
-          );
-        })}
-      </ResponsiveReactGridLayout>
-    </Suspense>
+            {/* Extra client-side controls */}
+            <TileButtons
+              tileId={item.id}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              contexts={contexts}
+              tabActions={tabActions}
+              tileActions={tileActions}
+              logsActions={logsActions}
+              contextActions={contextActions}
+              codeActions={codeActions}
+              projectsActions={projectsActions}
+              fieldsActions={fieldsActions}
+            />
+          </div>
+        );
+      })}
+    </ResponsiveReactGridLayout>
   );
 };
 

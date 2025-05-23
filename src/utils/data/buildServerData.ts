@@ -103,3 +103,55 @@ export async function fetchOrBuildFields(
     queryClient.getQueryData(["fields", projectId, tile.context ?? null]) as LogFieldsResponseProps
   );
 }
+
+/*
+* Builds the projects, contexts, and fields for all table tiles in a tab
+* either from the cache or from the server based
+* on the fetchProjects, fetchContexts, and fetchFields flags
+*/
+export async function fetchOrBuildProjectsContextsFields(
+  queryClient: QueryClient,
+  tiles: TileData[],
+  projectId: string,
+  refetchProjects: boolean,
+  refetchContexts: boolean,
+  refetchFields: boolean,
+  projectsActions: ProjectsActions,
+  contextActions: ContextActions,
+  fieldsActions: FieldsActions,
+) {
+  const tStart = performance.now();
+  const { projects, contexts } = await fetchOrBuildProjectsAndContexts(
+    queryClient,
+    projectId,
+    refetchProjects,
+    refetchContexts,
+    projectsActions,
+    contextActions
+  );
+  console.log(
+    `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildProjectsAndContexts: ${(
+      performance.now() - tStart
+    ).toFixed(2)} ms`
+  );
+  const tFields = performance.now();
+  const fieldsArray: LogFieldsResponseProps[] = await fetchOrBuildFields(
+    queryClient,
+    tiles,
+    projectId,
+    refetchFields,
+    fieldsActions
+  );
+  console.log(
+    `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildFields: ${(
+      performance.now() - tFields
+    ).toFixed(2)} ms`
+  );
+  console.log(
+    `[perf] fetchOrBuildProjectsContextsFields – total: ${(
+      performance.now() - tStart
+    ).toFixed(2)} ms`
+  );
+
+  return { projects, contexts, fields: fieldsArray };
+}

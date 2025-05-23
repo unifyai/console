@@ -222,54 +222,44 @@ export default async function InterfaceWrapper({
   return (
     <StoreInitializer initialState={initialState}>
       <HydrationBoundary state={dehydrate(qc)}>
-        <div className="w-full h-full">
-          <Suspense
-            fallback={
-              <div className="w-full h-full flex items-center justify-center">
-                <SkeletonLoader />
-              </div>
-            }
-          >
-            <Interface
-              interfaceId={interfaceId}
-              projectsActions={actions.projectsActions}
-              interfaceActions={actions.interfaceActions}
-              tabActions={actions.tabActions}
-              tileActions={actions.tileActions}
-              logsActions={actions.logsActions}
-              fieldsActions={actions.fieldsActions}
-              derivedEntryActions={actions.derivedEntryActions}
-              contextActions={actions.contextActions}
-              codeActions={actions.codeActions}
-            >
-              {currentInterface && (
-                // <Suspense fallback={
-                //   <div className="w-full h-full flex items-center justify-center">
-                //       <SkeletonLoader />
-                //   </div>
-                // }>
-                  <TabWrapper
-                    project={currentProject}
-                    interfaceId={interfaceId}
-                    interfaceName={interfaceName}
-                    tab={tab}
-                    actions={{
-                      projectsActions: actions.projectsActions,
-                      interfaceActions: actions.interfaceActions,
-                      tabActions: actions.tabActions,
-                      tileActions: actions.tileActions,
-                      logsActions: actions.logsActions,
-                      fieldsActions: actions.fieldsActions,
-                      derivedEntryActions: actions.derivedEntryActions,
-                      contextActions: actions.contextActions,
-                      codeActions: actions.codeActions,
-                    }}
-                  />
-                // </Suspense>
-              )}
-            </Interface>
-          </Suspense>
-        </div>
+        <Interface
+          interfaceId={interfaceId}
+          projectsActions={actions.projectsActions}
+          interfaceActions={actions.interfaceActions}
+          tabActions={actions.tabActions}
+          tileActions={actions.tileActions}
+          logsActions={actions.logsActions}
+          fieldsActions={actions.fieldsActions}
+          derivedEntryActions={actions.derivedEntryActions}
+          contextActions={actions.contextActions}
+          codeActions={actions.codeActions}
+        >
+          {currentInterface && (
+            // <Suspense fallback={
+            //   <div className="w-full h-full flex items-center justify-center">
+            //       <SkeletonLoader />
+            //   </div>
+            // }>
+              <TabWrapper
+                project={currentProject}
+                interfaceId={interfaceId}
+                interfaceName={interfaceName}
+                tab={tab}
+                actions={{
+                  projectsActions: actions.projectsActions,
+                  interfaceActions: actions.interfaceActions,
+                  tabActions: actions.tabActions,
+                  tileActions: actions.tileActions,
+                  logsActions: actions.logsActions,
+                  fieldsActions: actions.fieldsActions,
+                  derivedEntryActions: actions.derivedEntryActions,
+                  contextActions: actions.contextActions,
+                  codeActions: actions.codeActions,
+                }}
+              />
+            // </Suspense>
+          )}
+        </Interface>
       </HydrationBoundary>
     </StoreInitializer>
   );

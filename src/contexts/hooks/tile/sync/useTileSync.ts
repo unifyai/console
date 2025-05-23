@@ -121,7 +121,7 @@ export function useTileSync(
   const groupingMutation = usePatchTileQueryOptimistic();
   const metricMutation = usePatchTileQueryOptimistic();
   const freezeMutation = usePatchTileQueryOptimistic();
-  const autoUpdateMutation = usePatchTileQueryOptimistic();
+  const autoUpdateMutation = usePatchTileQuery();
 
   const colorMutation = usePatchTileQuery();
   const visibleMutation = usePatchTileQuery();
@@ -344,9 +344,6 @@ export function useTileSync(
    */
   const wrapContextAndColumnContext = async (context?: string, columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
-
-    // ──────── ⏱ start end-to-end timer ────────
-    const tStartCtxCol = performance.now();
     
     // Set UI states immediately before any operations
     if (uiActions) {
@@ -388,13 +385,6 @@ export function useTileSync(
       console.log("[wrapContextAndColumnContext] onSettled:", context, columnContext);
       uiActions.setLoading(false);
       uiActions.setPending(false);
-
-        // ──────── ⏱ end end-to-end timer ────────
-        console.log(
-          `[perf] wrapContextAndColumnContext total: ${(
-            performance.now() - tStartCtxCol
-        ).toFixed(2)} ms`
-      );
     });
   };
 
@@ -546,34 +536,18 @@ export function useTileSync(
     });
   };
 
-  const wrapAutoUpdate = async (autoUpdate?: string) => {
+  const wrapAutoUpdate = (autoUpdate?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
     // 1) Update local state immediately
     dataActions.setAutoUpdate(autoUpdate);
-
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
-    const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
     // 2) Optimistic server update
-    await autoUpdateMutation.mutateAsync({
-      id: tile?.id || "",
+    autoUpdateMutation.mutate({
       tab_id: tabId,
       name: tileName,
-      projectId: state.activeProjectId || "",
       updateData: { auto_update: autoUpdate ?? null } as Partial<TileData>,
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
       actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
-      // 3. Refresh the router
-      console.log("[wrapAutoUpdate] onSettled:", autoUpdate);
     });
   };
 

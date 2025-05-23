@@ -55,7 +55,6 @@ import { shallow } from "zustand/vanilla/shallow";
 import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
-import { useWhyDidYouUpdate } from "@/contexts/utils/sliceUtils";
 
 const LogsTable = ({
   tileId,
@@ -650,19 +649,17 @@ const LogsTable = ({
           <RefreshLogs
             tileId={tileId}
             tabId={tabId}
-            interfaceId={interfaceId}
             projectId={projectId}
             pending={showSpinner}
-            fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
-            hiddenColumns={item?.hidden_columns}
             groupingExpression={groupingExpression}
             groupSortingExpression={groupSortingExpression}
-            updateTableDataItem={updateTableDataItemWithUpdater}
+            tileActions={tileActions}
             logsActions={logsActions}
+            projectsActions={projectsActions}
+            contextActions={contextActions}
             fieldsActions={fieldsActions}
-            logs={logs}
           />
         </div>
       )}

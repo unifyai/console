@@ -143,11 +143,8 @@ export function usePatchTileQueryOptimistic() {
       
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
-      console.log("[usePatchTileQueryOptimistic] state:", state);
       const projectData = selectProjectById(state, projectId);
-      console.log("[usePatchTileQueryOptimistic] projectData:", projectData);
       const tilesInTabData = selectTilesForTab(state, tab_id).map(tile => convertTileToTileData(tile));
-      console.log("[usePatchTileQueryOptimistic] tilesInTabData:", tilesInTabData);
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
 
@@ -313,18 +310,19 @@ export function usePatchTileQueryOptimistic() {
             });
           } else if (tileType === 'Plot') {
             // If we're updating a plot that affects plot data, just update that plot
-            if (updateData.context !== undefined || 
-                updateData.filters !== undefined || 
-                updateData.common_filter !== undefined) {
+            if (optimisticTile) {
               plotTilesToUpdate = [optimisticTile as TileData];
             }
           }
+          
+          console.log("[usePatchTileQueryOptimistic] plotTilesToUpdate:", plotTilesToUpdate);
           
           // Update each plot that needs updating
           const tPlotDataItem = performance.now();
           const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
           for (const plotTile of plotTilesToUpdate) {
             try {
+              console.log("[usePatchTileQueryOptimistic] building plotDataItem for:", plotTile.name);
               // Build the updated PlotDataItem
               const plotDataItem = await buildPlotDataItem(
                 plotTile,
@@ -334,6 +332,7 @@ export function usePatchTileQueryOptimistic() {
                 projectId,
                 logsActions
               );
+              console.log("[usePatchTileQueryOptimistic] plotDataItem:", plotDataItem);
               
               // Update the cache with the new PlotDataItem
               queryClient.setQueryData(['plotDataItem', plotTile.id], plotDataItem);

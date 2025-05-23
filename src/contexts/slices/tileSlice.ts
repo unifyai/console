@@ -23,6 +23,7 @@ export interface TileActions {
   removeTile: (tabId: string, tileId: string) => void;
   renameTile: (tabId: string, sourceTileId: string, newTileName: string) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
+  setType: (tileId: string, type?: string) => void;
   // Ref registration flag
   registerTileRefs: (tileId: string) => void;
   unregisterTileRefs: (tileId: string) => void;
@@ -212,6 +213,36 @@ export const createTileSlice: StateCreator<
       if (tileUpdated) {
         state.tilesById[tileId] = updatedTile;
       }
+    }
+  }),
+
+  setType: (tileId, type) => set(state => {
+    // We need to make sure that if the tile already had type specific data,
+    // we remove it
+    if (!type || (type && type !== state.tilesById[tileId].type)) {
+      if (state.tilesById[tileId].type === 'Table') {
+        state.tilesById[tileId].tableTile = null;
+      } else if (state.tilesById[tileId].type === 'Plot') {
+        state.tilesById[tileId].plotTile = null;
+      } else if (state.tilesById[tileId].type === 'View') {
+        state.tilesById[tileId].viewTile = null;
+      } else if (state.tilesById[tileId].type === 'Editor') {
+        state.tilesById[tileId].editorTile = null;
+      }
+    }
+
+    // Then change the type in the tile
+    state.tilesById[tileId].type = type;
+
+    // Then make sure the new type specific data is initialized if needed
+    if (type === 'Table') {
+      state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
+    } else if (type === 'Plot') {
+      state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
+    } else if (type === 'View') {
+      state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+    } else if (type === 'Editor') {
+      state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
     }
   }),
 }); 

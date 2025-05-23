@@ -67,6 +67,7 @@ export interface TableDataItem {
     groupedMetrics?: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } },
     boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
     metric: string,
+    newCells?: string[]
 }
 
 export interface PlotDataItem {
