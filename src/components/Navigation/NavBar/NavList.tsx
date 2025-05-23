@@ -9,11 +9,12 @@ import {
 const NavList = (): NavItem[] => {
   // Defines the main navigation items that will be structured in NavMenu
   return [
-    {
-      title: "Team",
-      icon: Users,
-      href: "/team",
-    },
+    // Temporarily hide Team page
+    // {
+    //   title: "Team",
+    //   icon: Users,
+    //   href: "/team",
+    // },
     {
       title: "Interfaces",
       icon: LayoutDashboard, // This will be the main collapsible "Interfaces"
