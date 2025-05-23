@@ -23,9 +23,6 @@ export interface PlotTileData {
   plot_group_by?: string | null;      // Used in addition to groupBy for compatibility
   bin_count?: string | null;          // Number of bins for histograms
   regression_line?: string | null;    // Whether to show regression line
-  
-  // Plot data item
-  plotDataItem?: PlotDataItem;
 }
 
 // Plot tile UI - UI-related state
@@ -45,8 +42,7 @@ export const PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS: (keyof PlotTile)[] = [
 
 // plotTileKeys: all fields for PlotTile
 export const PLOT_TILE_KEYS: (keyof PlotTile)[] = [
-  ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS,
-  "plotDataItem"
+  ...PLOT_TILE_PROPS_KEYS_AS_PLOT_TILE_KEYS
 ];
 
 /**
@@ -65,13 +61,6 @@ export function initPlotTile(initialState: Partial<PlotTile> = {}): PlotTile {
     plot_group_by_colors: initialState.plot_group_by_colors !== undefined ? initialState.plot_group_by_colors : null,
     bin_count: initialState.bin_count !== undefined ? initialState.bin_count : null,
     regression_line: initialState.regression_line !== undefined ? initialState.regression_line : null,
-
-    // Fields from PlotDataItem
-    plotDataItem: {
-      plotLogs: initialState.plotDataItem?.plotLogs || [],
-      plotArguments: initialState.plotDataItem?.plotArguments || {},
-      plotFields: initialState.plotDataItem?.plotFields || {},
-    } as PlotDataItem,
 
     ...initialState,
   } as PlotTile;

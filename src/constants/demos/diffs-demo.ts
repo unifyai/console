@@ -2,30 +2,6 @@ export default {
     gif: "string_diffs_dark",
     link: "interfaces/views#diffs",
     description: "The view pane supports very expressive diffs across cells.",
-    project: "diffs-demo",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 7.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table",
-            selected: "320993_Entries/msg,320992_Entries/msg,320991_Entries/msg"
-        },
-        {
-            i: "View",
-            x: 7.0,
-            y: 0.0,
-            w: 5.0,
-            h: 8.0,
-            tab: "View",
-            table: "Table"
-        }
-    ],
-    new_counter: 2,
     code: `import unify
 from datetime import datetime
 
@@ -58,5 +34,47 @@ unify.log(
     dct={"a": 1, "b": 3, "c": 4},
     lst=[1, 2, 3, 4],
 )
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "diffs-demo",
+        name: "interface1",
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 7.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table",
+                selected: "320993_Entries/msg,320992_Entries/msg,320991_Entries/msg"
+            }
+        },
+        {
+            name: "View",
+            type: "View",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 5.0,
+                height: 8.0
+            },
+            table: "Table",
+            view_tile: {}
+        }
+    ],
+    new_counter: 2
 }

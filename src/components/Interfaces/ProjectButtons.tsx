@@ -6,39 +6,53 @@ import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
-import { FileProps, ResponseProps } from "@/types/common";
-import { TabActions, ProjectsActions } from "@/types/evals/grid";
+import { ResponseProps } from "@/types/common";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useState, useEffect } from "react";
-import { useInterface } from "@/contexts/hooks/interface";
+import { useEffect, useState } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
 import AutoComplete from "../Common/Misc/AutoComplete";
 import BaseDropdown from "../Common/Dropdowns/Base";
+import { useCommand } from "@/contexts/hooks/commands/useCommand";
+import { useListProjectsQuery } from "@/hooks/Query/useProjectsQuery";
 
 const ProjectButtons = ({
+    tabIdOrName,
     interfaceId,
-    tabQueryParam,
     projectQueryParam,
     defaultProject,
     setProjectQueryParam,
+    setInterfaceQueryParam,
     setTabQueryParam,
-    projectActions: serverProjectActions,
-    tabActions: serverTabActions,
+    projectActions,
+    interfaceActions,
+    tabActions,
+    tileActions,
 }: {
+    tabIdOrName: string | null;
     interfaceId: string;
-    tabQueryParam: string | null;
     projectQueryParam: string | null;
     defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
+    setInterfaceQueryParam: (interface_: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
-    tabActions: TabActions;
+    interfaceActions: GranularInterfaceActions;
+    tabActions: GranularTabActions;
+    tileActions: GranularTileActions;
 }) => {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-
+    
+    // State for dialog controls
+    const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
+    const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
+    const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
+    const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
+    const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+    const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+    
     // Global states
     const project = projectQueryParam;
     const projects = useStoreContext((s) => s.projects);
@@ -46,32 +60,44 @@ const ProjectButtons = ({
     const setProjects = useStoreContext((s) => s.setProjects);
     const setProject = setProjectQueryParam;
 
-    // Get commands from store
-    const storeCommands = useStoreContext((s) => s.commands);
-
     // Interface states and actions with granular access
-    const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabIdOrName || "");
+
+    // Use React Query to load projects
+    const listProjectsQuery = useListProjectsQuery(projectActions);
+    
+    // Initialize command hooks with minimal parameters
+    const commandHooks = useCommand({
+        projectId: project,
+        interfaceId,
+        tabId: tabIdOrName,
+        setProject,
+        setTabQueryParam,
+        setInterfaceQueryParam,
+        projectActions,
+        interfaceActions,
+        tabActions,
+        tileActions,
+    });
+    
+    const { 
+        selectProject: selectProjectCommand, 
+        createProject: createProjectCommand, 
+        closeProject: closeProjectCommand, 
+        deleteProject: deleteProjectCommand
+    } = commandHooks;
+
+    // Use React Query to load projects
+    useEffect(() => {
+        if (listProjectsQuery.data) {
+            setProjects(listProjectsQuery.data);
+        }
+    }, [listProjectsQuery.data, setProjects]);
 
     const onOpen = () => {
-        setLoading(true);
-        serverProjectActions.get().then(projects => {
-            setProjects(projects);
-            setLoading(false);
-        });
+        // Refetch projects using React Query
+        listProjectsQuery.refetch();
     }
-
-    // action tab states
-    const selectProjectsCommand = storeCommands.find(cmd => cmd.id === "select-projects");
-    const createProjectCommand = storeCommands.find(cmd => cmd.id === "create-project");
-    const closeProjectCommand = storeCommands.find(cmd => cmd.id === "close-project");
-    const deleteProjectCommand = storeCommands.find(cmd => cmd.id === "delete-project");
-    const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
-    const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
-    const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
-    const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
-    const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
-    const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
 
     useEffect(() => {
         if (selectProjectsOpen || createProjectOpen || deleteProjectOpen)
@@ -97,31 +123,24 @@ const ProjectButtons = ({
                     <div className="w-full border-b pb-1">
                         <FileDirectory
                             data={projectsData}
-                            renamingFunction={serverProjectActions.rename}
-                            setterFunction={(proj: FileProps | undefined) => {
-                                if (selectProjectsCommand == undefined) {
-                                    return Promise.resolve({
-                                        detail: "Select projects command not found"
-                                    } as ResponseProps);
-                                }
-                                return selectProjectsCommand.action(proj);
-                            }}
+                            renamingFunction={projectActions.rename}
+                            setterFunction={(proj) => selectProjectCommand(proj)}
                             type="Projects"
-                            text="Select projects"
+                            text="Select Projects"
                             variant="ghost"
                             defaultValue={project || undefined}
                             isAutocompleteOpen={defaultProject ? true : undefined}
                             onOpen={onOpen}
-                            loading={loading}
+                            loading={listProjectsQuery.isLoading}
                             customOpen={selectProjectsOpen}
                             setCustomOpen={setSelectProjectsOpen}
                         />
                     </div>
                     {project && <div className="w-full border-b py-1">
                         <CloseProject
-                            onClick={() => closeProjectCommand?.action()}
+                            onClick={() => closeProjectCommand()}
                             variant="ghost"
-                            text="Close project"
+                            text="Close Project"
                         />
                     </div>}
                     {project && <div className="w-full border-b py-1">
@@ -129,34 +148,34 @@ const ProjectButtons = ({
                             type="project"
                             args={[project]}
                             deletingFunction={async () => {
-                                if (deleteProjectCommand == undefined) {
+                                if (!project) {
                                     return Promise.resolve({
-                                        detail: "Delete project command not found"
-                                    } as ResponseProps);
+                                        detail: "No project selected"
+                                    } as unknown as ResponseProps);
                                 }
-                                return await deleteProjectCommand?.action();
+                                return await deleteProjectCommand(project);
                             }}
                             variant="ghost"
-                            text="Delete project"
-                            onDelete={deleteProjectCommand?.onAction}
+                            text="Delete Project"
+                            onDelete={() => {}}
                             customOpen={deleteProjectOpen}
                             setCustomOpen={setDeleteProjectOpen}
                         />
                     </div>}
                     {projects && <div className="w-full pt-1">
-                        <CreateProject
-                            creationFunction={(name: string) => {
+                        <CreateProject 
+                            creationFunction={async (name: string) => {
                                 if (createProjectCommand == undefined) {
                                     return Promise.resolve({
                                         detail: "Create project command not found"
                                     } as ResponseProps);
                                 }
-                                return createProjectCommand.action(name);
+                                return await createProjectCommand(name);
                             }}
                             createProjectOpen={createProjectOpen}
                             setCreateProjectOpen={setCreateProjectOpen}
                             paths={projects}
-                            text="Create project"
+                            text="Create Project"
                             variant="ghost"
                         />
                     </div>}
@@ -168,21 +187,21 @@ const ProjectButtons = ({
                 defaultValue={project || undefined}
                 isOpen={defaultProject ? true : undefined}
                 onSelect={(currentValue: string) => {
-                    if (selectProjectsCommand == undefined) {
+                    if (selectProjectCommand == undefined) {
                         return Promise.resolve({
                             detail: "Select projects command not found"
                         } as ResponseProps);
                     }
-                    return selectProjectsCommand.action({ path: currentValue });
+                    return selectProjectCommand({ path: currentValue });
                 }}
                 onOpen={onOpen}
-                loading={loading}
+                loading={listProjectsQuery.isLoading}
             />
             <ActionButton
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={!project || interfaceUIState?.pending || interfaceUIState?.dataPending}
+                disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
                 onClick={() => {
                     tabUIActions?.setRefreshing(true);
                     router.refresh();

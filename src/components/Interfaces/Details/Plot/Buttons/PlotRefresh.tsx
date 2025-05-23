@@ -231,7 +231,7 @@ const PlotRefresh = ({tileId, tabId, interfaceId, projectId, pending, args, setP
 }) => {
     
     // Get access to the tab context and actions with granular access
-    const { data: tabDataState } = useTab(tabId, interfaceId, projectId);
+    const { data: tabDataState } = useTab(tabId, interfaceId);
     
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
@@ -246,9 +246,9 @@ const PlotRefresh = ({tileId, tabId, interfaceId, projectId, pending, args, setP
             .filter(Boolean) as string[];
     }, [tiles]);
 
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { itemActions } = useTileItem(tileId, tabId);
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-    const { dataActions: tileDataActions } = useTile(tileId, tabId, interfaceId, projectId);
+    const { dataActions: tileDataActions } = useTile(tileId, tabId);
 
     /* Auto refresh */
     const autoUpdateRef = useRef(item?.auto_update === "true");

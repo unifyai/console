@@ -49,29 +49,29 @@ export interface ProjectActions {
 
 /**
  * Custom hook to access and manage project state
- * @param projectName The name of the project to access
+ * @param projectIdOrName The ID or name of the project to access
  * @returns Object containing project state and actions
  */
-export function useProject(projectName: string | null) {
+export function useProject(projectIdOrName: string | null) {
   // Use specialized hooks
   const {
     meta,
     metaActions,
     projectId,
     projectExists
-  } = useProjectMeta(projectName);
+  } = useProjectMeta(projectIdOrName);
   
   const {
     data,
     dataActions,
     interfaceIds,
-  } = useProjectData(projectName);
+  } = useProjectData(projectIdOrName);
   
   const {
     ui,
     uiActions,
     activeInterfaceId
-  } = useProjectUI(projectName);
+  } = useProjectUI(projectIdOrName);
   
   // const {
   //   operations,
@@ -138,7 +138,7 @@ export function useProject(projectName: string | null) {
   }, [meta, data, ui]);
 
   // Use projectId to conditionally return values, but only after all hooks are called
-  if (projectName === null) {
+  if (projectIdOrName === null) {
     return DEFAULT_USE_PROJECT_RETURN;
   }
 
@@ -152,6 +152,7 @@ export function useProject(projectName: string | null) {
     uiActions,
     actions,
     // operationsActions,
-    exists: projectExists
+    exists: projectExists,
+    projectId
   };
 } 

@@ -11,37 +11,37 @@ import { EditorTile } from '../../slices/selectors/editorTile';
  * Interface for tile data-related actions
  */
 export interface TileDataActions {
-   setContext: (context?: string) => void;
-   setTable: (table?: string) => void;
-   setAutoUpdate: (autoUpdate?: string) => void;
-   setFreeze: (freeze?: string) => void;
-   setFilters: (filters?: string) => void;
-   setCommonFilter: (commonFilter?: string) => void;
-   setMetric: (metric: string | undefined) => void;
-   
-   // Type-specific updates
-   updateTableTile: (updates: Partial<TableTile>) => void;
-   updatePlotTile: (updates: Partial<PlotTile>) => void;
-   updateViewTile: (updates: Partial<ViewTile>) => void;
-   updateEditorTile: (updates: Partial<EditorTile>) => void;
-  }
+  setContext: (context?: string) => void;
+  setTable: (table?: string) => void;
+  setAutoUpdate: (autoUpdate?: string) => void;
+  setFreeze: (freeze?: string) => void;
+  setFilters: (filters?: string) => void;
+  setCommonFilter: (commonFilter?: string) => void;
+  setMetric: (metric: string | undefined) => void;
+  setColumnContext: (columnContext?: string) => void;
+  // Combined method to update both context and column_context at once
+  setContextAndColumnContext: (context?: string, columnContext?: string) => void;
+  setGrouping: (grouping?: string) => void;
+  
+  // Type-specific updates
+  updateTableTile: (updates: Partial<TableTile>) => void;
+  updatePlotTile: (updates: Partial<PlotTile>) => void;
+  updateViewTile: (updates: Partial<ViewTile>) => void;
+  updateEditorTile: (updates: Partial<EditorTile>) => void;
+}
 
 /**
  * Custom hook to access tile data and related actions
- * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing tile data, actions, and related state
  */
 export function useTileData(
-  tileName: string | null,
-  tabName: string | null,
-  interfaceName: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Use the tile meta hook to get common tile info
-  const {tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
+  const {tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
 
   // Subscribe to data properties
   const context = useStoreContext(state => {
@@ -79,6 +79,16 @@ export function useTileData(
     return state.tilesById[tileId].metric;
   });
 
+  const columnContext = useStoreContext(state => {
+    if (!tileExists || !tileId) return null;
+    return state.tilesById[tileId].column_context;
+  });
+
+  const grouping = useStoreContext(state => {
+    if (!tileExists || !tileId) return null;
+    return state.tilesById[tileId].grouping;
+  });
+
   // Get store actions for data management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
@@ -98,6 +108,8 @@ export function useTileData(
       filters,
       common_filter: commonFilter,
       metric,
+      column_context: columnContext,
+      grouping,
     };
   }, [
     tileExists, 
@@ -108,6 +120,8 @@ export function useTileData(
     filters, 
     commonFilter,
     metric,
+    columnContext,
+    grouping,
   ]);
 
   // Memoize the data actions to prevent unnecessary re-renders
@@ -123,7 +137,7 @@ export function useTileData(
         storeUpdateTile(tileId, { table });
       }
     },
-    
+
     setAutoUpdate: (autoUpdate) => {
       if (tileId) {
         storeUpdateTile(tileId, { auto_update: autoUpdate });
@@ -153,6 +167,18 @@ export function useTileData(
         storeUpdateTile(tileId, { metric });
       }
     },
+
+    setColumnContext: (columnContext) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { column_context: columnContext });
+      }
+    },
+
+    setGrouping: (grouping) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { grouping });
+      }
+    },
     
     // Type-specific updates
     updateTableTile: (updates) => {
@@ -176,6 +202,12 @@ export function useTileData(
     updateEditorTile: (updates) => {
       if (tileId) {
         storeUpdateEditorTile(tileId, updates);
+      }
+    },
+
+    setContextAndColumnContext: (context, columnContext) => {
+      if (tileId) {
+        storeUpdateTile(tileId, { context, column_context: columnContext });
       }
     },
   }), [

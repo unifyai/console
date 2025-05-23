@@ -1,13 +1,12 @@
 "use client";
 
-import { Dispatch, SetStateAction, useMemo } from "react";
+import { useMemo } from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
@@ -15,28 +14,29 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const FocusDialog = ({
+    tabIdOrName,
     interfaceId,
     projectId,
-    tabId,
-    updateTab,
+    tileActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,
     contextActions,
     codeActions,
+    projectsActions,
 }: {
+    tabIdOrName: string;
     interfaceId: string;
     projectId: string;
-    tabId: string;
+    tileActions: GranularTileActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
     contextActions: ContextActions,
     codeActions: CodeActions,
-    updateTab: (savedTab?: any, updatedTileProps?: any) => Promise<ResponseProps>;
+    projectsActions: ProjectsActions,
 }) => {
-    const { ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabId, interfaceId);
-    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
+    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabIdOrName, interfaceId);
 
     // Get tile props using the getItems function from the tabActions
     const tileProps = useMemo(() => {
@@ -48,35 +48,36 @@ const FocusDialog = ({
         [tabUIState?.focusedTileNames]
     );
 
+    const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
+
     const focusedTileItems: [TileProps | undefined, TileProps | undefined] = safeFocusedTileNames.map(
         focusedTileName => {
-            const index = tileProps.findIndex(item => item.i === focusedTileName);
+            const index = tileProps.findIndex(item => item.name === focusedTileName);
             const item = index !== -1 ? tileProps[index] : undefined;
             return index !== -1 ? item : undefined;
         }
     ) as [TileProps | undefined, TileProps | undefined];
 
     const tiles = focusedTileItems.map((item: TileProps | undefined, idx: number) => {
-        const index = tileProps.findIndex(it => it.i === item?.i);
         return (
             item
                 ? <div className="h-full relative pt-2">
                     <TileCard
-                        index={index}
-                        tileId={item.i}
-                        tabId={tabId}
+                        tileId={item.id}
+                        tabId={tabMetaState?.id || ""}
                         interfaceId={interfaceId}
                         projectId={projectId}
-                        updateTab={updateTab}
+                        tileActions={tileActions}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                         codeActions={codeActions}
+                        projectsActions={projectsActions}
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
                         <div>
-                            <Badge variant="primary">{item.i}</Badge>
+                            <Badge variant="primary">{item.name}</Badge>
                         </div>
                         <div className="mb-auto">
                             <ActionButton
@@ -105,16 +106,16 @@ const FocusDialog = ({
                                 size="default"
                             />}
                         >
-                            {tileProps.filter(item => !safeFocusedTileNames.includes(item.i)).map((item, idx_) => <DropdownMenuItem
+                            {tileProps.filter(item => !safeFocusedTileNames.includes(item.name)).map((item, idx_) => <DropdownMenuItem
                                 key={idx_}
                                 onSelect={() => {
                                     const newFocusedTileNames = [...safeFocusedTileNames];
-                                    newFocusedTileNames[idx] = item.i;
+                                    newFocusedTileNames[idx] = item.name;
                                     tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
                                 }}
                                 className="w-64 flex justify-between items-center"
                             >
-                                <span>{item.i}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
+                                <span>{item.name}</span>{item.tab ? icons[item.tab as keyof typeof icons] : ""}
                             </DropdownMenuItem>)}
                         </BaseDropdown>
                     </div>

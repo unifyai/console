@@ -5,7 +5,6 @@ import { useTileUI } from './useTileUI';
 import { useTileData } from './useTileData';
 import { Tile } from '../../slices/selectors/tile';
 import { TileProps } from '@/types/evals/grid';
-import { constructHierarchicalId } from '@/contexts/utils/sliceUtils';
 import { convertTileToTileItem, convertTileItemToTile } from './tileItemUtils';
 import { useTableTile } from './useTableTile';
 import { usePlotTile } from './usePlotTile';
@@ -60,39 +59,35 @@ export function createTileItemActions(
 
 /**
  * Custom hook to access tile item conversion utilities
- * @param tileName The name of the tile to access
- * @param tabName The name of the tab containing the tile
- * @param interfaceName The name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName The ID or name of the tab containing the tile
  * @returns Object containing tile item conversion actions
  */
 export function useTileItem(
-  tileName: string | null,
-  tabName: string | null,
-  interfaceName: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName: string | null
 ) {
   // Use the existing hooks to get all necessary tile information
-  const { meta, tileId, tileExists } = useTileMeta(tileName, tabName, interfaceName, projectName);
-  const { ui } = useTileUI(tileName, tabName, interfaceName, projectName);
-  const { data } = useTileData(tileName, tabName, interfaceName, projectName);
+  const { meta, tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName);
+  const { ui } = useTileUI(tileIdOrName, tabIdOrName);
+  const { data } = useTileData(tileIdOrName, tabIdOrName);
 
   // Use type-specific hooks based on the tile type
   const {
     tableTile,
-  } = useTableTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useTableTile(tileIdOrName, tabIdOrName || null);
   
   const {
     plotTile,
-  } = usePlotTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = usePlotTile(tileIdOrName, tabIdOrName || null);
   
   const {
     viewTile,
-  } = useViewTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useViewTile(tileIdOrName, tabIdOrName || null);
 
   const {
     editorTile,
-  } = useEditorTile(tileName, tabName || null, interfaceName || null, projectName);
+  } = useEditorTile(tileIdOrName, tabIdOrName || null);
 
   // Get store actions for data management
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -140,41 +135,54 @@ export function useTileItemActions() {
   
   // Create a memoized function to get tile item actions
   const getTileItemActions = useCallback((
-    tileName: string,
-    tabName: string | null,
-    interfaceName: string | null = null,
-    projectName: string | null = null
+    tileIdOrName: string,
+    tabIdOrName: string | null
   ) => {
-    if (!tileName || !tabName) return null;
+    if (!tileIdOrName || !tabIdOrName) return null;
     
     // Get state from store
     const state = storeApi.getState();
     
-    // Resolve hierarchical IDs 
-    const projectId = projectName || state.activeProjectId;
-    if (!projectId) return null;
+    // First attempt: direct ID lookup
+    let tileLookup = state.tilesById[tileIdOrName];
     
-    const interfaceId = interfaceName 
-      ? (interfaceName.includes('>') ? interfaceName : constructHierarchicalId(interfaceName, [projectId]))
-      : state.activeInterfaceId;
-    if (!interfaceId) return null;
-    
-    const resolvedTabId = tabName.includes('>') 
-      ? tabName 
-      : constructHierarchicalId(tabName, [interfaceId]);
-    
-    const resolvedTileId = tileName.includes('>')
-      ? tileName
-      : constructHierarchicalId(tileName, [resolvedTabId]);
-    
-    // Get the tile from state
-    const tile = state.tilesById[resolvedTileId];
-    if (!tile) return null;
+    // Second attempt: Find by tab and name
+    if (!tileLookup) {
+      // Find the tab ID first (might be an ID or a name)
+      let tabId = tabIdOrName;
+      
+      // If tabID isn't found directly, try to find the tab by name
+      if (!state.tabsById[tabId]) {
+        const interfaceId = state.activeInterfaceId;
+        if (interfaceId) {
+          // Look for tab with this name in the interface
+          const tabs = Object.values(state.tabsById).filter(
+            tab => tab.name === tabIdOrName && tab.interfaceId === interfaceId
+          );
+          if (tabs.length > 0) {
+            tabId = tabs[0].id || '';
+          }
+        }
+      }
+      
+      // Now look for a tile with matching name and tab ID
+      if (tabId && state.tabsById[tabId]) {
+        const tiles = Object.values(state.tilesById).filter(
+          tile => tile.name === tileIdOrName && tile.tabId === tabId
+        );
+        if (tiles.length > 0) {
+          tileLookup = tiles[0];
+        }
+      }
+    }
+
+    // If no tile found, return null
+    if (!tileLookup) return null;
     
     // Create actions for this tile using the factory function
     return createTileItemActions(
-      resolvedTileId,
-      tile,
+      tileLookup.id,
+      tileLookup,
       state.updateTile,
     );
   }, [storeApi]);

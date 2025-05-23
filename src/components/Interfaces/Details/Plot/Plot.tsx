@@ -2,20 +2,25 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-import { LogsActions, FieldsActions, PlotDataItem } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, PlotDataItem, GranularTileActions, ContextActions, ProjectsActions } from "@/types/evals/grid";
 import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
-import { useInterface } from "@/contexts/hooks/interface";
 import { drawPlot } from "@/utils/evals/plots/main";
+import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Query/usePlotDataQuery";
+import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
+import { PlotArguments } from "@/types/evals/logs";
 
 const LogsPlot = ({ 
     tileId,
     tabId,
     interfaceId,
     projectId,
+    tileActions,
+    projectsActions,
+    contextActions,
     logsActions,
     fieldsActions,
 }: {
@@ -23,6 +28,9 @@ const LogsPlot = ({
     tabId: string,
     interfaceId: string,
     projectId: string,
+    tileActions: GranularTileActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions
 }) => {
@@ -31,54 +39,55 @@ const LogsPlot = ({
     const {
         ui: tileUIState,
         dataActions: tileDataActions,
-        actions: tileActions,
         plotTile: plotTileState,
-        plotTileActions,
-    } = useTile(tileId, tabId, interfaceId, projectId);
+    } = useTile(tileId, tabId);
 
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { plotTileActions } = usePlotTileSync(
+        tileId,
+        tabId,
+        tileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
+    );
+
+    const { itemActions } = useTileItem(tileId, tabId);
     
     // Get access to the tab context and actions with granular access
-    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId, projectId);
-    const { ui: interfaceUIState } = useInterface(interfaceId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
+
     useEffect(() => {
-      if (containerRef.current) {
-          (containerRef.current as any).__hoveredLog = tabUIState?.hoveredLog;
-          (containerRef.current as any).__setHoveredLog = tabUIActions?.setHoveredLog;
-      }
-    }, [tabUIState?.hoveredLog, tabUIActions?.setHoveredLog]);
-    
+        if (containerRef.current) {
+            (containerRef.current as any).__hoveredLog = tabUIState?.hoveredLog;
+            (containerRef.current as any).__setHoveredLog = tabUIActions?.setHoveredLog;
+        }
+      }, [tabUIState?.hoveredLog, tabUIActions?.setHoveredLog]);
+
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
     // UI state from the tab
     const interactive = tabUIState?.interactive || false;
-    const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending || false;
+    const pending = tabUIState?.pending || tileUIState?.pending || false;
 
-    // Use the plotDataItem from the tile's plot data
-    const plotDataItem = useMemo(() => plotTileState?.plotDataItem || {
-        plotLogs: [],
-        plotArguments: {},
-        plotFields: {}
-    } as PlotDataItem, [plotTileState?.plotDataItem]);
+    // Use React Query to access plotDataItem and plotArguments
+    const { 
+        plotDataItem,
+        isLoading: isPlotDataLoading,
+        isError: isPlotDataError,
+        error: plotDataError,
+        updatePlotDataItemWithUpdater
+    } = usePlotDataQueryWithTracking(tileId);
 
-    const setPlotDataItem = (newPlotDataItemOrUpdater: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)) => {
-        // Update plotDataItem in the store
-        if (plotTileActions && plotTileState) {
-          if (typeof newPlotDataItemOrUpdater === 'function') {
-            // Handle function updater pattern: (prev) => next
-            const updaterFn = newPlotDataItemOrUpdater as (prev: PlotDataItem) => PlotDataItem;
-            const newPlotDataItem = updaterFn(plotDataItem);
-            plotTileActions.setPlotDataItem(newPlotDataItem);
-          } else {
-            // Handle direct value update
-            plotTileActions.setPlotDataItem(newPlotDataItemOrUpdater);
-          }
-        }
-    }
+    const { data: args } = usePlotArgumentsQuery(tabId);
 
     // Init logs and handle local updates
-    const {plotLogs: logs, plotArguments: args, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+    const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+    
+    // PlotSettings component needs setPlotDataItem to update the plot
+    const setPlotDataItem = updatePlotDataItemWithUpdater;
 
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);
@@ -95,7 +104,7 @@ const LogsPlot = ({
 
     let metric = item?.metric ? item?.metric : "mean";
     let aggregateProperty = item?.plot_aggregate;
-    const groupings = Object.fromEntries(Object.entries(args).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
+    const groupings = Object.fromEntries(Object.entries(args as PlotArguments).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
     
     let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
     let [binCounts, setBinCounts] = useState([1, 100])
@@ -260,7 +269,7 @@ return (
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
-            args={args}
+            args={args as PlotArguments}
             setPlotDataItem={setPlotDataItem}
             logsActions={logsActions}
             fieldsActions={fieldsActions}

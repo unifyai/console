@@ -2,29 +2,49 @@ export default {
     gif: "scatter_two_groups_dark",
     link: "interfaces/plots#scatter-graphs",
     description: "If we want to group across multiple independent variables, we can just create a new derived column to express the desired group.",
-    project: "scatter-demo3",
-    name: "tab1",
-    items: [
+    // Granular interface structure
+    interface: {
+        project_id: "scatter-demo3",
+        name: "interface1"
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
         {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table"
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table"
+            }
         },
         {
-            i: "Plot",
-            x: 7.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Plot",
-            x_axis: "Table.age",
-            y_axis: "Table.salary",
-            plot_group_by: "Table.identity",
-            regression_line: "true"
+            name: "Plot",
+            type: "Plot",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            plot_tile: {
+                plot_type: "Scatter",
+                x_axis: "Table.age",
+                y_axis: "Table.salary",
+                plot_group_by: "Table.identity",
+                regression_line: "true"
+            }
         }
     ],
     new_counter: 2,

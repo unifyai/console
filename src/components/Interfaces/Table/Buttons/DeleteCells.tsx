@@ -10,23 +10,20 @@ import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import { useRouter } from "next/navigation";
 
-const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext, refresh, setPending }: {
+const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext, setPending }: {
 	project: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
 	deleteLogFields: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 	context: string | undefined,
 	columnContext: string | undefined,
-    refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void
 }) => {
 
 	const router = useRouter();
     const onDelete = () => {
-        refresh().then(() => {
-            router.refresh();
-            setPending(true);
-        });
+        router.refresh();
+        setPending(true);
     }
 
 	const [showDialog, setShowDialog] = useState(false);

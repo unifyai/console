@@ -1,34 +1,50 @@
 "use client";
 
-import { useTile } from "@/contexts/hooks/tile";
 import CodeBlock from "../../CodeBlock";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/UI/input";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import ActionButton from "@/components/Common/Buttons/Action";
 import { fileTypes } from "@/constants/logs";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { CodeActions } from "@/types/evals/grid";
-import { useTab, useTabData } from "@/contexts/hooks/tab";
+import { useTabData } from "@/contexts/hooks/tab";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-
+import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
+import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 
 const Editor = ({
     tileId,
     tabId,
     interfaceId,
     projectId,
-    codeActions
+    codeActions,
+    tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
 }: {
     tileId: string,
     tabId: string,
     interfaceId: string,
     projectId: string,
-    codeActions: CodeActions
+    codeActions: CodeActions,
+    tileActions: GranularTileActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
+    logsActions: LogsActions,
+    fieldsActions: FieldsActions
 }) => {
-    const { editorTile: editorTileState, editorTileActions } = useTile(tileId, tabId, interfaceId, projectId);
-    const { data: tabData } = useTabData(tabId, interfaceId, projectId);
+    // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { editorTile: editorTileState, editorTileActions } = useEditorTileSync(
+        tileId,
+        tabId,
+        tileActions,
+        projectsActions,
+        contextActions,
+        logsActions,
+        fieldsActions
+    );
+    const { data: tabData } = useTabData(tabId, interfaceId);
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");

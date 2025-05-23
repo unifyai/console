@@ -1,14 +1,17 @@
+"use client";
+
 import React, {
   useMemo,
   useState,
   useCallback,
   useEffect,
-  useRef,
+  useRef
 } from "react";
 import SelectionHints from "./Hints";
-import { TileProps, TableDataItem, LogsActions  } from "@/types/evals/grid";
+import { TileProps, LogsActions  } from "@/types/evals/grid";
 import { getDeep, setDeep } from "@/utils/objectPath";
 import { LogItemProps } from "@/types/evals/logs";
+
 import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
@@ -29,8 +32,8 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-  viewTracesAsDict: boolean;
-  cellEditMode: boolean;
+  viewTracesAsDict: false,
+  cellEditMode: false,
 }
 
 // Default values for a new panel
@@ -50,11 +53,13 @@ const defaultPanelState: PanelState = {
   viewTracesAsDict: false,
   cellEditMode: false,
 };
+
 import SelectionPanel from "@/components/Interfaces/Details/Selection/SelectionPanel";
 import { toast } from "sonner";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
 
 /*******************************************************************************
  * Main "Selection" Component
@@ -63,52 +68,53 @@ import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 export default function Selection({
   tileId,
   tabId,
-  interfaceId,
   projectId,
   logsActions,
 }: {
   tileId: string;
   tabId: string;
-  interfaceId: string;
   projectId: string;
   logsActions: LogsActions;
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
-  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId, interfaceId);
+  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId);
+  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId);
 
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
-  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable, tableTileActions: hookTableTileActions } = useTile(
-    item?.table || "",
+  const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
+    item?.table || "", 
     tabId,
-    interfaceId,
-    projectId
   );
-  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId);
 
-  // Use the provided tableTileActions from the store
-  const tableTileActions = useMemo(() => hookTableTileActions, [hookTableTileActions]);
+  // Use React Query to access tableDataItem
+  const { 
+    tableData: tableDataItem,
+    isLoading: isTableDataLoading,
+    isError: isTableDataError,
+    error: tableDataError,
+    mergeUpdatesIntoTableDataItem,
+    updateLogsDeep
+  } = useTableDataQueryWithTracking(item?.table || null, tabId || null);
 
   // Get table fields
-  const fields = useMemo(() => tableTileStateWithTable?.tableDataItem?.fields || {}, [tableTileStateWithTable?.tableDataItem?.fields]);
-
+  const fields = useMemo(() => tableDataItem?.fields || [], [tableDataItem]);
 
   // Create equivalent references to match the old pattern
-  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() ||
-  { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+  const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
+    { name: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
-  const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
 
   // Get table context
   const context = useMemo(() => tableItem.context ?? null, [tableItem.context]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
-    if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
+    if (tileActionsWithId && item.name == tileMetaStateWithId?.name) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
     else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
@@ -133,7 +139,7 @@ export default function Selection({
       if (underscorePos < 1) return token;
       const rowPart = token.slice(0, underscorePos); // e.g. "277932"
       let colPart = token.slice(underscorePos + 1);  // e.g. "Entries/trace" or "Entries/context1/fieldA"
-
+      
       // Remove only the "Entries/" or "Parameters/" prefix if present, but preserve internal slashes
       let sanitizedCol = colPart;
       if (colPart.startsWith("Entries/")) {
@@ -141,11 +147,11 @@ export default function Selection({
       } else if (colPart.startsWith("Parameters/")) {
         sanitizedCol = colPart.substring("Parameters/".length);
       }
-
+      
       return rowPart + "_" + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
     });
   }, [selection_]);
-
+  
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
     return map;
@@ -165,14 +171,14 @@ export default function Selection({
     if (columnOrdering_ && columnOrdering_.length > 0) {
       const entryColumns = new Set<string>();
       const paramColumns = new Set<string>();
-
+      
       columnOrdering_.split(',').forEach(col => {
         // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
         if (col.startsWith('Parameters/')) {
           // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
           const paramName = col.substring('Parameters/'.length);
           paramColumns.add(paramName);
-        }
+        } 
         else if (col.startsWith('Entries/')) {
           // Extract the entry name without the "Entries/" prefix but preserve internal slashes
           const entryName = col.substring('Entries/'.length);
@@ -180,18 +186,18 @@ export default function Selection({
         }
         // Skip other entries like "Parameters" or "Entries" or "RowNumbering" which are categories
       });
-
+      
       return {
         entries: Array.from(entryColumns),
         params: Array.from(paramColumns)
       };
     }
-
+    
     // Fallback: if no columnOrdering_, gather from logs (less reliable)
     // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
     const paramColumns = new Set<string>();
-
+    
     logs.forEach(log => {
       if (log.entries) {
         Object.keys(log.entries).forEach(key => entryColumns.add(key));
@@ -200,7 +206,7 @@ export default function Selection({
         Object.keys(log.params).forEach(key => paramColumns.add(key));
       }
     });
-
+    
     return {
       entries: Array.from(entryColumns),
       params: Array.from(paramColumns)
@@ -218,9 +224,9 @@ export default function Selection({
   // Helper to rollback optimistic change when network fails
   const rollbackLogs = useCallback((prevLogs: any[] | undefined) => {
     if (!prevLogs) return;
-    tableTileActions?.mergeUpdatesIntoTableDataItem({ logs: prevLogs });
-  }, [tableTileActions]);
-
+    mergeUpdatesIntoTableDataItem({ logs: prevLogs });
+  }, [mergeUpdatesIntoTableDataItem]);
+  
   /*******************************************************************************
    * Panel States - Keep track of each panel's state
    ******************************************************************************/
@@ -238,7 +244,7 @@ export default function Selection({
       }
     }));
   }, []);
-
+  
   // Keep panelStates in sync with panelCount
   useEffect(() => {
     setPanelStates(prev => {
@@ -262,14 +268,14 @@ export default function Selection({
       desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
     ) => {
 
-      if (!tableTileActions) {
-        console.warn("[DEBUG] handleSaveMany] Missing tableTileActions – optimistic update skipped");
+      if (!tableDataItem) {
+        console.warn("[DEBUG] handleSaveMany] Missing tableDataItem – optimistic update skipped");
         return;
       }
       if (!rowIds.length) return;
 
       // Snapshot previous logs for potential rollback
-      const prevLogs = tableTileStateWithTable?.tableDataItem?.logs;
+      const prevLogs = tableDataItem?.logs;
 
       // --- Casting logic for null/undefined original values ---
       const prevLogForOriginalValue = prevLogs?.find(log => String(log.id) === rowIds[0]); // Use first rowId for type checking if multiple are updated
@@ -301,17 +307,17 @@ export default function Selection({
       // Manually construct the *full* updated field for the backend
       // Find the relevant log in the *previous* state (before optimistic update) to correctly build the patch
       const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]); 
-      
+
       if (!prevLogForUpdate) {
         console.error("Could not find the log in the previous state to construct update payload.");
-        if (tableTileActions) rollbackLogs(prevLogs);
+        if (tableDataItem) rollbackLogs(prevLogs);
         toast.error("Failed to update log: Inconsistent log data.");
         return;
       }
-      
+
       let entriesUpdate: LogItemProps = {};
       let paramsUpdate: LogItemProps = {};
-      
+
       if (desc.source === 'entries') {
         if (desc.path.length > 0) {
           const topLevelKey = desc.path[0] as string;
@@ -342,7 +348,7 @@ export default function Selection({
           }
         }
       }
-      
+
       try {
         const response = await logsActions.update(
           projectId,
@@ -361,14 +367,14 @@ export default function Selection({
         toast.error(`Failed to update log entry`);
         return;
       }
-      
+
       // Optimistic local state update provided the endpoint call is successful
-      if (tableTileActions) {
-        tableTileActions.updateLogsDeep(rowIds, desc);
+      if (updateLogsDeep) {
+        updateLogsDeep(rowIds, desc);
       }
 
     },
-    [projectId, context, tableTileActions, tableTileStateWithTable?.tableDataItem?.logs, rollbackLogs, logsActions.update, fields]
+    [projectId, context, updateLogsDeep, tableDataItem?.logs, rollbackLogs, logsActions.update, fields]
   );
 
   /*******************************************************************************
@@ -393,7 +399,7 @@ export default function Selection({
           // Get the panel state or use default if not found
           // Use nullish coalescing instead of || to only use default when truly missing
           const panelState = panelStates[idx] ?? { ...defaultPanelState };
-
+          
           // Ensure all properties that should be objects are initialized
           if (!panelState.localOpenKeys) panelState.localOpenKeys = new Set<string>();
           if (!panelState.savedOpenKeys) panelState.savedOpenKeys = new Set<string>();
@@ -405,7 +411,7 @@ export default function Selection({
           if (!panelState.paramOrder) panelState.paramOrder = [];
           if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
           if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
-
+          
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
               {idx > 0 && <div className="w-px bg-border self-stretch mx-1" />}
@@ -414,7 +420,7 @@ export default function Selection({
                 panelId={idx}
                 // Pass panel state and updater function
                 panelState={panelState}
-                onPanelStateChange={(updates) => updatePanelState(idx, updates)}
+                onPanelStateChange={(updates) => updatePanelState(idx, updates as PanelState)}
                 fields={fields}
                 logs={logs}
                 sortedLogs={sortedLogs}
@@ -432,7 +438,7 @@ export default function Selection({
                 onPanelCountChange={setPanelCount}
                 onSaveMany={handleSaveMany}
                 logsActions={logsActions}
-                tableTileActions={tableTileActions}
+                updateLogsDeep={updateLogsDeep}
                 context={context}
               />
             </React.Fragment>

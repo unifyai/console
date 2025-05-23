@@ -8,6 +8,7 @@ import { EDITOR_TILE_KEYS, EditorTile } from "../slices/selectors/editorTile";
 import { useRef } from "react";
 import { useEffect } from "react";
 import { StoreSlice, Tab } from "../slices/slice";
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData } from "@/types/evals/grid";
 
 // Import the domain logic from selector files
 import * as interfaceLogic from "../slices/selectors/interface";
@@ -17,6 +18,124 @@ import * as tableTileLogic from "../slices/selectors/tableTile";
 import * as plotTileLogic from "../slices/selectors/plotTile";
 import * as viewTileLogic from "../slices/selectors/viewTile";
 import * as editorTileLogic from "../slices/selectors/editorTile";
+
+/**
+ * Utility to convert Tile state from zustand to TileData format for API operations
+ * @param tile - The Tile object from the zustand store
+ * @returns A partial TileData object suitable for API operations
+ */
+export function convertTileToTileData(tile: Tile): TileData {
+  if (!tile) return {} as TileData;
+
+  const tileData: TileData = {
+    id: tile.id,
+    tab_id: tile.tabId || "",
+    name: tile.name,
+    type: tile.type || "Table",
+    position: tile.position || { x: 0, y: 0, width: 4, height: 4 },
+    visible: tile.visible,
+    locked: tile.locked,
+    color: tile.color,
+  };
+
+  // Handle nullable fields with proper undefined conversion
+  if (tile.minW !== null && tile.minW !== undefined) tileData.minW = tile.minW;
+  if (tile.minH !== null && tile.minH !== undefined) tileData.minH = tile.minH;
+  if (tile.context !== null && tile.context !== undefined) tileData.context = tile.context;
+  if (tile.table !== null && tile.table !== undefined) tileData.table = tile.table;
+  if (tile.auto_update !== null && tile.auto_update !== undefined) tileData.auto_update = tile.auto_update;
+  if (tile.freeze !== null && tile.freeze !== undefined) tileData.freeze = tile.freeze;
+  if (tile.filters !== null && tile.filters !== undefined) tileData.filters = tile.filters;
+  if (tile.common_filter !== null && tile.common_filter !== undefined) tileData.common_filter = tile.common_filter;
+  if (tile.metric !== null && tile.metric !== undefined) tileData.metric = tile.metric;
+  if (tile.column_context !== null && tile.column_context !== undefined) tileData.column_context = tile.column_context;
+  if (tile.grouping !== null && tile.grouping !== undefined) tileData.grouping = tile.grouping;
+  if (tile.color !== null && tile.color !== undefined) tileData.color = tile.color;
+
+  // Add table tile data if present
+  if (tile.tableTile) {
+    const tableTile: TableTileData = {};
+    
+    // Only add properties that aren't null
+    if (tile.tableTile.table_type !== null && tile.tableTile.table_type !== undefined) 
+      tableTile.table_type = tile.tableTile.table_type;
+    if (tile.tableTile.page_number !== null && tile.tableTile.page_number !== undefined) 
+      tableTile.page_number = tile.tableTile.page_number;
+    if (tile.tableTile.column_order !== null && tile.tableTile.column_order !== undefined) 
+      tableTile.column_order = tile.tableTile.column_order;
+    if (tile.tableTile.hidden_columns !== null && tile.tableTile.hidden_columns !== undefined) 
+      tableTile.hidden_columns = tile.tableTile.hidden_columns;
+    if (tile.tableTile.sorting !== null && tile.tableTile.sorting !== undefined) 
+      tableTile.sorting = tile.tableTile.sorting;
+    if (tile.tableTile.group_sorting !== null && tile.tableTile.group_sorting !== undefined) 
+      tableTile.group_sorting = tile.tableTile.group_sorting;
+    if (tile.tableTile.columns_pin_left !== null && tile.tableTile.columns_pin_left !== undefined) 
+      tableTile.columns_pin_left = tile.tableTile.columns_pin_left;
+    if (tile.tableTile.columns_pin_right !== null && tile.tableTile.columns_pin_right !== undefined) 
+      tableTile.columns_pin_right = tile.tableTile.columns_pin_right;
+    if (tile.tableTile.selected !== null && tile.tableTile.selected !== undefined) 
+      tableTile.selected = tile.tableTile.selected;
+    
+    tileData.table_tile = tableTile;
+  }
+
+  // Add plot tile data if present
+  if (tile.plotTile) {
+    const plotTile: PlotTileData = {};
+    
+    // Only add properties that aren't null
+    if (tile.plotTile.plot_type !== null && tile.plotTile.plot_type !== undefined) 
+      plotTile.plot_type = tile.plotTile.plot_type;
+    if (tile.plotTile.plot_scale_x !== null && tile.plotTile.plot_scale_x !== undefined) 
+      plotTile.plot_scale_x = tile.plotTile.plot_scale_x;
+    if (tile.plotTile.plot_scale_y !== null && tile.plotTile.plot_scale_y !== undefined) 
+      plotTile.plot_scale_y = tile.plotTile.plot_scale_y;
+    if (tile.plotTile.plot_aggregate !== null && tile.plotTile.plot_aggregate !== undefined) 
+      plotTile.plot_aggregate = tile.plotTile.plot_aggregate;
+    if (tile.plotTile.x_axis !== null && tile.plotTile.x_axis !== undefined) 
+      plotTile.x_axis = tile.plotTile.x_axis;
+    if (tile.plotTile.y_axis !== null && tile.plotTile.y_axis !== undefined) 
+      plotTile.y_axis = tile.plotTile.y_axis;
+    if (tile.plotTile.plot_group_by !== null && tile.plotTile.plot_group_by !== undefined) 
+      plotTile.plot_group_by = tile.plotTile.plot_group_by;
+    if (tile.plotTile.bin_count !== null && tile.plotTile.bin_count !== undefined) 
+      plotTile.bin_count = tile.plotTile.bin_count;
+    if (tile.plotTile.regression_line !== null && tile.plotTile.regression_line !== undefined) 
+      plotTile.regression_line = tile.plotTile.regression_line;
+    
+    tileData.plot_tile = plotTile;
+  }
+
+  // Add view tile data if present
+  if (tile.viewTile) {
+    const viewTile: ViewTileData = {};
+    
+    // Only add properties that aren't null
+    if (tile.viewTile.base_index !== null && tile.viewTile.base_index !== undefined) 
+      viewTile.base_index = tile.viewTile.base_index;
+    
+    tileData.view_tile = viewTile;
+  }
+
+  // Add editor tile data if present
+  if (tile.editorTile) {
+    const editorTile: EditorTileData = {};
+    
+    // Only add properties that aren't null
+    // ToDo: Migrate orchestra model to rename file_path to file_name
+    // if (tile.editorTile.file_path !== null && tile.editorTile.file_path !== undefined) 
+    //   editorTile.file_path = tile.editorTile.file_path;
+    if (tile.editorTile.file_type !== null && tile.editorTile.file_type !== undefined) 
+      editorTile.file_type = tile.editorTile.file_type;
+    if (tile.editorTile.content !== null && tile.editorTile.content !== undefined) 
+      editorTile.content = tile.editorTile.content;
+    
+    tileData.editor_tile = editorTile;
+  }
+
+  return tileData;
+}
+
 /**
  * A helper to do partial shallow checks:
  *  - For atomic types (string, number, boolean, null/undefined), compare by strict equality (===).
@@ -256,9 +375,9 @@ export function getParentId(hierarchicalId: string): string {
 }
 
 /**
- * Add a tile to a tab
+ * Paste a copied tile to a tab
  */
-export function addTile(
+export function pasteCopiedTile(
   state: WritableDraft<StoreSlice>,
   tabId: string,
   sourceTileId: string,
@@ -288,10 +407,12 @@ export function addTile(
     } else if (newTile.type === 'Editor' && !newTile.editorTile) {
       state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
     }
-  }
-  
+
     // Add the tile to the tab
-  state.tabsById[tabId] = tabLogic.addTileId(tab, newTileId, sourceTileId);
+    const newTileName = initialState?.name || newTile.name;
+    state.tabsById[tabId] = tabLogic.addTile(tab, newTileId, newTileName, sourceTileId);
+
+  }
 }
 
 /**
@@ -308,10 +429,45 @@ export function removeTile(
   if (!tab || !tile) return;
   
   // Remove the tile
+  const tileName = tile.name;
   delete state.tilesById[tileId];
-  
-  // Update the tab's tileIds array
-  state.tabsById[tabId] = tabLogic.removeTileId(tab, tileId);
+
+  // Then update any references to this tile in other tiles
+  // (This is for tiles that reference other tiles by name)
+  Object.keys(state.tilesById).forEach(id => {
+    const tile = state.tilesById[id];
+
+    let updateTile = false;
+
+    // Update `table` references for View tiles
+    if (tile.table === tileName) {
+      tile.table = null;
+      updateTile = true;
+    }
+
+    // Update x_axis, y_axis, and plot_group_by references for Plot tiles
+    if (tile.type === 'Plot' && tile.plotTile) {
+      if (tile.plotTile.x_axis?.includes(tileName + ".")) {
+        tile.plotTile.x_axis = null;
+        updateTile = true;
+      }
+      if (tile.plotTile?.y_axis?.includes(tileName + ".")) {
+        tile.plotTile.y_axis = null;
+        updateTile = true;
+      }
+      if (tile.plotTile?.plot_group_by?.includes(tileName + ".")) {
+        tile.plotTile.plot_group_by = null;
+        updateTile = true;
+      }
+    }
+
+    if (updateTile) {
+      state.tilesById[id] = tile;
+    }
+  });
+
+  // Update the tab's tileIds and tileNames arrays
+  state.tabsById[tabId] = tabLogic.removeTile(tab, tileId, tile.name);
 }
 
 /**
@@ -321,19 +477,21 @@ export function renameTile(
   state: WritableDraft<StoreSlice>,
   tabId: string,
   sourceTileId: string,
-  newTileId: string,
-  initialState: Partial<Tile> | undefined
+  newTileName: string,
 ): void {
   const tab = state.tabsById[tabId];
   if (!tab) return;
 
-  addTile(state, tabId, sourceTileId, newTileId, initialState);
+  // Get the source tile
+  const sourceTile = state.tilesById[sourceTileId];
+  if (!sourceTile) return;
+
+  // Rename the tile
+  const sourceTileName = sourceTile.name;
+  state.tilesById[sourceTileId].name = newTileName;
 
   // Then update any references to this tile in other tiles
   // (This is for tiles that reference other tiles by name)
-  const { name: sourceTileName } = deconstructHierarchicalId(sourceTileId);
-  const { name: newTileName } = deconstructHierarchicalId(newTileId);
-
   Object.keys(state.tilesById).forEach(id => {
     const tile = state.tilesById[id];
 
@@ -366,8 +524,10 @@ export function renameTile(
     }
   });
 
-  // Remove the source tile
-  removeTile(state, tabId, sourceTileId);
+  // Update the tab's tileNames array to replace the sourceTileName with the newTileName
+  if (tab.tileNames) {
+    tab.tileNames = tab.tileNames.map(name => name === sourceTileName ? newTileName : name);
+  }
 }
 
 /**
@@ -376,64 +536,50 @@ export function renameTile(
 export function addTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  sourceTabId: string,
-  newTabId: string,
+  newTabName: string,
   initialState: Partial<Tab> | undefined,
-  renaming: boolean = false,
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
 
-  // Get the source tab
-  const sourceTab = state.tabsById[sourceTabId];
+  if (!interfaceObj) return;
 
-  if (!interfaceObj || !sourceTab) return;
+  const newTabId = initialState?.id || null;
 
-  // Update the tab's tileIds array by replacing tabName substrings with newName substrings
-  const newTileIds = sourceTab.tileIds?.map(id => id.replace(sourceTabId, newTabId));
+  if (!newTabId) return;
 
   // Only initialize if it doesn't exist
   if (!state.tabsById[newTabId]) {
+    // First, set any existing active tabs to inactive
+    if (interfaceObj.activeTabId && state.tabsById[interfaceObj.activeTabId]) {
+      state.tabsById[interfaceObj.activeTabId].active = false;
+    }
+
+    // Create the new tab and mark it as active
     const newTab = tabLogic.initTab(newTabId, {
-      ...sourceTab,
-      // tileIds: newTileIds,
       ...initialState,
+      active: true
     });
     state.tabsById[newTabId] = newTab;
-  }
 
-  const { name: newTabName } = deconstructHierarchicalId(newTabId);
 
-  // Update the interface's tabIds array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
-
-  // Update the interface's tabNames array using the proper function
-  state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTabName);
-
-  if (renaming) {
-    // Now copy over the tiles from the source tab but with the new tile ids and names
-    sourceTab.tileIds.forEach((sourceTileId, index) => {
-      const tile = state.tilesById[sourceTileId];
-      const newTileId = newTileIds[index];
-
-      if (tile) {
-        state.tilesById[newTileId] = tileLogic.initTile(newTileId, {
-          ...tile,
-          id: newTileId,
-          tabId: newTabId,
-        });
-
-        // Initialize type-specific data if needed
-        if (tile.type === 'Table' && !tile.tableTile) {
-          state.tilesById[newTileId].tableTile = tableTileLogic.initTableTile();
-        } else if (tile.type === 'Plot' && !tile.plotTile) {
-          state.tilesById[newTileId].plotTile = plotTileLogic.initPlotTile();
-        } else if (tile.type === 'View' && !tile.viewTile) {
-          state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
-        } else if (tile.type === 'Editor' && !tile.editorTile) {
-          state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
-        }
+    // Mark other tabs as inactive
+    Object.keys(state.tabsById).forEach(id => {
+      if (id !== newTabId) {
+        state.tabsById[id].active = false;
       }
     });
+    
+    // Update the interface's tabIds array using the proper function
+    state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
+    
+    // Update the interface's tabNames array using the proper function
+    state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTab.name || "");
+    
+    // Set this tab as the active tab in the interface
+    state.interfacesById[interfaceId].activeTabId = newTabId;
+    
+    // Set this tab as the global active tab
+    state.activeTabId = newTabId;
   }
 }
 
@@ -443,26 +589,19 @@ export function addTab(
 export function removeTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  tabId: string
+  tabName: string
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-  const tab = state.tabsById[tabId];
+  const tabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === tabName);
   
-  if (!interfaceObj || !tab) return;
+  if (!interfaceObj || !tabId) return;
+  
+  const tab = state.tabsById[tabId];
   
   // Clean up associated tiles
   if (tab.tileIds) {
     tab.tileIds.forEach(tileId => {
-      const tile = state.tilesById[tileId];
-      if (tile) {
-        // Clean up tile-specific data
-        if (tile.type === 'Table') state.tilesById[tileId].tableTile = null;
-        else if (tile.type === 'Plot') state.tilesById[tileId].plotTile = null;
-        else if (tile.type === 'View') state.tilesById[tileId].viewTile = null;
-        else if (tile.type === 'Editor') state.tilesById[tileId].editorTile = null;
-      }
-      // Remove the tile
-      delete state.tilesById[tileId];
+      removeTile(state, tabId, tileId);
     });
   }
   
@@ -471,17 +610,21 @@ export function removeTab(
   
   // Update the interface's tabIds and tabNames arrays
   if (interfaceObj.tabIds) {
-    interfaceObj.tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
+    state.interfacesById[interfaceId].tabIds = interfaceObj.tabIds.filter(tid => tid !== tabId);
   }
   if (interfaceObj.tabNames) {
-    interfaceObj.tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
+    state.interfacesById[interfaceId].tabNames = interfaceObj.tabNames.filter(name => name !== tab.name);
   }
   
   // Reset active tab if it matches the removed tab
   if (state.activeTabId === tabId) {
     state.activeTabId = null;
   }
-
+  
+  // Reset active tab in the interface if it matches the removed tab
+  if (interfaceObj.activeTabId === tabId) {
+    state.interfacesById[interfaceId].activeTabId = null;
+  }
 }
 
 /**
@@ -490,27 +633,31 @@ export function removeTab(
 export function renameTab(
   state: WritableDraft<StoreSlice>,
   interfaceId: string,
-  sourceTabId: string,
-  newTabId: string,
-  initialState: Partial<Tab> | undefined
+  sourceTabName: string,
+  newTabName: string,
 ): void {
   const interfaceObj = state.interfacesById[interfaceId];
-
+  
   // Get the source tab
+  const sourceTabId = Object.keys(state.tabsById).find(id => state.tabsById[id].name === sourceTabName);
+
+  if (!interfaceObj || !sourceTabId) return;
+
   const sourceTab = state.tabsById[sourceTabId];
-
-  if (!interfaceObj || !sourceTab) return;
-
-  // Add the new tab
-  addTab(state, interfaceId, sourceTabId, newTabId, initialState, true);
-
-  // Reset active tab if it matches the removed tab to the new tab
-  if (state.activeTabId === sourceTabId) {
-    state.activeTabId = newTabId;
+  
+  // Store the old name before changing it
+  const oldTabName = sourceTab.name;
+  
+  // Change the name of the tab
+  sourceTab.name = newTabName;
+  
+  // Update the interface's tabNames array if the old name exists
+  if (interfaceObj.tabNames && oldTabName) {
+    const nameIndex = interfaceObj.tabNames.indexOf(oldTabName);
+    if (nameIndex >= 0) {
+      state.interfacesById[interfaceId].tabNames[nameIndex] = newTabName;
+    }
   }
-
-  // Now remove the source tab
-  removeTab(state, interfaceId, sourceTabId);
 }
 
 /**
@@ -539,8 +686,8 @@ export function removeContextFromTab(
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;
       }
-      if (tile.tableTile?.column_context === context && context !== undefined) {
-        tile.tableTile.column_context = undefined;
+      if (tile?.column_context === context && context !== undefined) {
+        tile.column_context = undefined;
         tile.pending = true;
         tile.itemsNeedRecompute = true;
         itemsNeedRecompute = true;

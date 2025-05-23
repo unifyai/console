@@ -1,203 +1,151 @@
 import { StateCreator } from "zustand";
-import { ProjectsActions, TabActions, TabProps, TileProps } from "@/types/evals/grid";
 import { StoreSlice } from "./slice";
-import { defaultItems, defaultNewCounter } from "@/constants/logs";
-import { FileProps, ResponseProps } from "@/types/common";
-import { TabUIActions } from "../hooks/tab";
-import { InterfaceUIActions } from "../hooks/interface/useInterfaceUI";
-import { InterfaceDataActions } from "../hooks/interface/useInterfaceData";
+import { Command, CommandCategory, CommandIcon } from "./selectors/commands";
 
-export interface Command {
-    id: string;
-    label: string;
-    description?: string;
-    action: (arg?: string | FileProps | TabProps | undefined | null, func?: () => void) => Promise<ResponseProps>;
-    onAction?: () => Promise<void>;
-    disabled: boolean;
-    category: "project" | "interface";
-    icon?: string;
-}
+// ----------------------------------------------------------------------------------
+// State & Actions Types
+// ----------------------------------------------------------------------------------
 
 export interface CommandsState {
-    // State
+    // Flat list of available commands
     commands: Command[];
 }
 
 export interface CommandsActions {
-    // Actions
-    updateCommands: (
-        projectActions: ProjectsActions,
-        tabActions: TabActions,
-        project: string | null,
-        tabNames: string[],
-        projects: string[],
-        setProject: (project: string | null) => void,
-        setTabQueryParam: (tab: string | null) => void,
-        interfaceUIActions: InterfaceUIActions,
-        interfaceDataActions: InterfaceDataActions,
-        tabUIActions: TabUIActions,
-        setProjects: (projects: string[]) => void,
-        updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
-    ) => void;
+    /** Set the entire commands list */
+    setCommands: (cmds: Command[]) => void;
+    /** Add a single command */
+    addCommand: (cmd: Command) => void;
+    /** Remove a command by ID */
+    removeCommand: (id: string) => void;
+    /** Initialize all commands with dependencies */
+    updateCommands: (project: string | null, tabNames: string[]) => void;
 }
 
 export type CommandsSlice = CommandsState & CommandsActions;
+
+// ----------------------------------------------------------------------------------
+// Slice Factory
+// ----------------------------------------------------------------------------------
 
 export const createCommandsSlice: StateCreator<
     StoreSlice,
     [["zustand/immer", never]],
     [],
     CommandsSlice
-> = (set) => ({
+> = (set, get) => ({
+    // ------------------------------
+    // Initial State
+    // ------------------------------
     commands: [],
-    updateCommands: (
-        projectActions,
-        tabActions,
-        project,
-        tabNames,
-        projects,
-        setProject,
-        setTabQueryParam,
-        interfaceUIActions,
-        interfaceDataActions,
-        tabUIActions,
-        setProjects,
-        updateTab,
-    ) => {
-        // Only update if the commands array is empty
+
+    // ------------------------------
+    // Actions
+    // ------------------------------
+    setCommands: (cmds) =>
         set((state) => {
-            if (state.commands.length === 0) {
-                return {
-                    commands: [
-                        {
-                            id: "select-projects",
-                            label: "Select projects",
-                            action: (proj: FileProps | undefined) => {
-                                const newProj = proj ? proj.path : null;
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                interfaceDataActions?.setTabNames([]);
-                                setTabQueryParam(null);
-                                setProject(newProj);
-                            },
-                            disabled: false,
-                            category: "project",
-                            icon: "Folder"
-                        },
-                        {
-                            id: "create-project",
-                            label: "Create project",
-                            action: async (name: string) => {
-                                return await projectActions.create(name).then(async () => {
-                                    await tabActions.create(
-                                        "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
-                                    );
-                                    const tabCreate = await tabActions.create(
-                                        "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
-                                    );
-                                    setProject(name);
-                                    setTabQueryParam("tab1");
-                                    interfaceUIActions?.setPending(true);
-                                    interfaceUIActions?.setDataPending(true);
-                                    interfaceDataActions?.setTabNames(["tab1"]);
-                                    setProjects([...projects, name]);
-                                    return tabCreate;
-                                });
-                            },
-                            disabled: false,
-                            category: "project",
-                            icon: "Plus"
-                        },
-                        {
-                            id: "close-project",
-                            label: "Close project",
-                            action: () => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setProject(null);
-                            },
-                            disabled: !project,
-                            category: "project",
-                            icon: "X"
-                        },
-                        {
-                            id: "delete-project",
-                            label: "Delete project",
-                            action: async () => {
-                                await Promise.all(tabNames.map(tabName => tabActions.delete(
-                                    tabName, project as string, true
-                                )))
-                                await Promise.all(tabNames.map(tabName => tabActions.delete(
-                                    tabName, project as string, false
-                                )))
-                                return await projectActions.delete(project as string);
-                            },
-                            onAction: () => {
-                                interfaceUIActions?.setPending(true);
-                                interfaceUIActions?.setDataPending(true);
-                                setTabQueryParam(null);
-                                interfaceDataActions?.setTabNames([]);
-                                setProject(null);
-                                projectActions.get().then(projects => setProjects(projects));
-                            },
-                            disabled: !project,
-                            category: "project",
-                            icon: "Trash"
-                        },
-                        {
-                            id: "file-upload",
-                            label: "Upload files",
-                            action: () => {},
-                            disabled: !project,
-                            category: "interface",
-                            icon: "Upload"
-                        },
-                        {
-                            id: "focus-pane",
-                            label: "Open focus pane",
-                            action: () => {},
-                            disabled: !project || !tabNames.length,
-                            category: "interface",
-                            icon: "Focus"
-                        },
-                        {
-                            id: "global-context",
-                            label: "Edit global context",
-                            action: () => {},
-                            disabled: !project || !tabNames.length,
-                            category: "interface",
-                            icon: "FolderTree"
-                        },
-                        {
-                            id: "save-interface",
-                            label: "Save interface",
-                            action: () => {},
-                            disabled: !project || !tabNames.length,
-                            category: "interface",
-                            icon: "Save"
-                        },
-                        {
-                            id: "reset-interface",
-                            label: "Reset interface",
-                            action: (savedTab: TabProps | null, refresh: () => void) => {
-                                updateTab(savedTab).then(() => {
-                                    tabUIActions?.setResetting(true);
-                                    tabUIActions?.setEdit(true);
-                                    refresh();
-                                }).catch(error => {
-                                    console.error("Error updating interface:", error);
-                                });
-                            },
-                            disabled: !project || !tabNames.length,
-                            category: "interface",
-                            icon: "ListRestart"
-                        }
-                    ]
-                };
-            }
-            return state;
-        });
+            state.commands = cmds;
+        }),
+
+    addCommand: (cmd) =>
+        set((state) => {
+            state.commands.push(cmd);
+        }),
+
+    removeCommand: (id) =>
+        set((state) => {
+            state.commands = state.commands.filter((c) => c.id !== id);
+        }),
+        
+    updateCommands: (project, tabNames) => {
+        // Only update if the commands array is empty or outdated
+        if (get().commands.length === 0) {
+            set((state) => {
+                state.commands = [
+                    {
+                        id: "select-projects",
+                        label: "Select Projects",
+                        category: "project" as CommandCategory,
+                        icon: "Folder" as CommandIcon,
+                        disabled: false
+                    },
+                    {
+                        id: "create-project",
+                        label: "Create Project",
+                        category: "project" as CommandCategory,
+                        icon: "Plus" as CommandIcon,
+                        disabled: false
+                    },
+                    {
+                        id: "close-project",
+                        label: "Close Project",
+                        category: "project" as CommandCategory,
+                        icon: "X" as CommandIcon,
+                        disabled: !project
+                    },
+                    {
+                        id: "delete-project",
+                        label: "Delete Project",
+                        category: "project" as CommandCategory,
+                        icon: "Trash" as CommandIcon,
+                        disabled: !project
+                    },
+                    {
+                        id: "file-upload",
+                        label: "Upload Files",
+                        category: "interface" as CommandCategory,
+                        icon: "Upload" as CommandIcon,
+                        disabled: !project
+                    },
+                    {
+                        id: "focus-pane",
+                        label: "Open focus pane",
+                        category: "interface" as CommandCategory,
+                        icon: "Focus" as CommandIcon,
+                        disabled: !project || !tabNames.length
+                    },
+                    {
+                        id: "global-context",
+                        label: "Edit global context",
+                        category: "interface" as CommandCategory,
+                        icon: "FolderTree" as CommandIcon,
+                        disabled: !project || !tabNames.length
+                    },
+                    {
+                        id: "save-interface",
+                        label: "Save interface",
+                        category: "interface" as CommandCategory,
+                        icon: "Save" as CommandIcon,
+                        disabled: !project || !tabNames.length
+                    },
+                    {
+                        id: "reset-tab",
+                        label: "Reset interface",
+                        category: "interface" as CommandCategory,
+                        icon: "ListRestart" as CommandIcon,
+                        disabled: !project || !tabNames.length
+                    }
+                ];
+            });
+        } else {
+            // Just update the disabled states based on current conditions
+            set((state) => {
+                state.commands = state.commands.map(cmd => {
+                    switch (cmd.id) {
+                        case "close-project":
+                        case "delete-project":
+                        case "file-upload":
+                            return { ...cmd, disabled: !project };
+                        case "focus-pane":
+                        case "global-context":
+                        case "save-interface":
+                        case "reset-tab":
+                            return { ...cmd, disabled: !project || !tabNames.length };
+                        default:
+                            return cmd;
+                    }
+                });
+            });
+        }
     }
 }); 
