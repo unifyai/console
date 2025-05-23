@@ -1,19 +1,19 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions, TileProps, GranularInterfaceActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
 // import { cookies } from "next/headers";
 import { defaultNewCounter } from "@/constants/logs";
-import { defaultItems } from "@/constants/logs";
+import { defaultTiles } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
 import { Suspense } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { buildInitialState } from "@/contexts/utils/stateBuilderUtils";
 import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
+import Interface from "./Interface";
 
-const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, tabActions, codeActions, devboxActions }: {
+const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, tabActions, granularTabActions, tileActions, codeActions, devboxActions }: {
     tab: string | undefined,
     project: string | undefined,
     projectsActions: ProjectsActions,
@@ -21,7 +21,10 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     derivedEntryActions: DerivedEntryActions,
     fieldsActions: FieldsActions,
     contextActions: ContextActions,
+    interfaceActions: GranularInterfaceActions,
     tabActions: TabActions,
+    granularTabActions: GranularTabActions,
+    tileActions: GranularTileActions,
     codeActions: CodeActions,
     devboxActions: DevboxActions
 }) => {
@@ -97,7 +100,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         name: tab_1 as string,
         project: currentProject,
         context: undefined,
-        items: defaultItems,
+        items: [] as TileProps[],
         new_counter: defaultNewCounter
     } as TabProps;
     
@@ -163,18 +166,18 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
 
     // Aggregate table arguments and init plot arguments
     let tableArguments: TableArguments = tableTiles.map((tile, idx) => {
-        let tableArguments_: TableArguments = { [tile.i]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
+        let tableArguments_: TableArguments = { [tile.name]: {getLogs_parameters: { filter_expr: "" }, available_fields: {}} };
         const sortingExpression = sortingExpressions[idx];
         const groupingExpression = groupingExpressions[idx];
         const groupSortingExpression = groupSortingExpressions[idx];
-        if (tile.filters) tableArguments_[tile.i].getLogs_parameters["column_filters"] = tile.filters;
-        if (tile.common_filter) tableArguments_[tile.i].getLogs_parameters["common_filter"] = tile.common_filter;
-        if (tile.freeze) tableArguments_[tile.i].getLogs_parameters["freeze"] = tile.freeze;
-        if (sortingExpression) tableArguments_[tile.i].getLogs_parameters["sorting"] = sortingExpression;
-        if (groupingExpression) tableArguments_[tile.i].getLogs_parameters["grouping"] = groupingExpression;
-        if (groupSortingExpression) tableArguments_[tile.i].getLogs_parameters["group_sorting"] = groupSortingExpression;
-        if (tile.context) tableArguments_[tile.i].getLogs_parameters["context"] = tile.context;
-        if (tile.column_context) tableArguments_[tile.i].getLogs_parameters["column_context"] = tile.column_context;
+        if (tile.filters) tableArguments_[tile.name].getLogs_parameters["column_filters"] = tile.filters;
+        if (tile.common_filter) tableArguments_[tile.name].getLogs_parameters["common_filter"] = tile.common_filter;
+        if (tile.freeze) tableArguments_[tile.name].getLogs_parameters["freeze"] = tile.freeze;
+        if (sortingExpression) tableArguments_[tile.name].getLogs_parameters["sorting"] = sortingExpression;
+        if (groupingExpression) tableArguments_[tile.name].getLogs_parameters["grouping"] = groupingExpression;
+        if (groupSortingExpression) tableArguments_[tile.name].getLogs_parameters["group_sorting"] = groupSortingExpression;
+        if (tile.context) tableArguments_[tile.name].getLogs_parameters["context"] = tile.context;
+        if (tile.column_context) tableArguments_[tile.name].getLogs_parameters["column_context"] = tile.column_context;
         return tableArguments_;
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
     const plotArguments: PlotArguments = Object.fromEntries(Object.entries(tableArguments).map(([table, args]) => [table, { ...args.getLogs_parameters }]));
@@ -193,7 +196,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
                 .map(([name, { data_type, field_type, artifacts, mutable, created_at }]) => {
                     const newName = columnContext ? processContext("split", columnContext, name) : name
-                    return [`${tile.i}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
+                    return [`${tile.name}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
                 })
         )
     }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -229,10 +232,10 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             // get all tables that are used in the plot
             let tableIdx1 = -1;
             if (tile.x_axis && tile.x_axis.includes("."))
-                tableIdx1 = tableTiles.findIndex(it => it.i == tile.x_axis?.split(".")[0]);
+                tableIdx1 = tableTiles.findIndex(it => it.name == tile.x_axis?.split(".")[0]);
             let tableIdx2 = -1;
             if (tile.y_axis && tile.y_axis.includes("."))
-                tableIdx2 = tableTiles.findIndex(it => it.i == tile.y_axis?.split(".")[0]);
+                tableIdx2 = tableTiles.findIndex(it => it.name == tile.y_axis?.split(".")[0]);
             const tables = [tableIdx1, tableIdx2 != tableIdx1 ? tableIdx2 : -1].filter(it => it != -1);
 
             // fetch plot data for each table
@@ -247,13 +250,13 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 const filters = table?.filters
                 const metric = table?.metric
                 const grouping = table?.grouping
-                if (metric) plotArguments[table.i]["metric"] = metric
-                if (grouping) plotArguments[table.i]["grouping"] = grouping
-                if (filters) plotArguments[table.i]["column_filters"] = filters
-                if (commonFilter) plotArguments[table.i]["common_filter"] = commonFilter
-                if (freeze) plotArguments[table.i]["freeze"] = freeze
-                if (context) plotArguments[table.i]["context"] = context
-                if (columnContext) plotArguments[table.i]["column_context"] = columnContext;
+                if (metric) plotArguments[table.name]["metric"] = metric
+                if (grouping) plotArguments[table.name]["grouping"] = grouping
+                if (filters) plotArguments[table.name]["column_filters"] = filters
+                if (commonFilter) plotArguments[table.name]["common_filter"] = commonFilter
+                if (freeze) plotArguments[table.name]["freeze"] = freeze
+                if (context) plotArguments[table.name]["context"] = context
+                if (columnContext) plotArguments[table.name]["column_context"] = columnContext;
 
                 const filterExpression = filterExpressions[tableIdx];
 
@@ -277,12 +280,12 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                         group = columnContext ? processContext("merge", columnContext, group) : group;
                         subset += `&${group}`
                     }
-                    if (subset) plotArguments[table.i]["subset"] = subset
+                    if (subset) plotArguments[table.name]["subset"] = subset
 
                     /* Get raw logs values or grouped metrics as logs */
                     if (
                         (tile.plot_aggregate && tile.plot_aggregate.split(".").length > 1) // `plot_aggregate` has the format `table.column`
-                        && tile.plot_aggregate.split(".")[0] === table.i                  // `table` in `plot_aggregate` is the current table name
+                        && tile.plot_aggregate.split(".")[0] === table.name                  // `table` in `plot_aggregate` is the current table name
                         && grouping                                                      // the current table has grouping applied
                     ) {
                         const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(tile.plot_aggregate.split(".")[1]) + 1)
@@ -295,9 +298,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                     }
 
                 }
-                return { [table.i]: {
+                return { [table.name]: {
                     plotLogs: data.logs as LogProps[] || [],
-                    plotArguments: plotArguments,
                     plotFields: plotFields
                 } };
             }))).reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -320,16 +322,14 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                             return { ...acc, ...prefixedLog };
                         }, {}) as LogProps;
                     }) : [],
-                    plotArguments: plotArguments,
                     plotFields: plotFields
                 };
-                plotData[tile.i] = mergedPlotData;
+                plotData[tile.name] = mergedPlotData;
             }
             else {
                 // if no tables are used in the plot, return empty plot data
-                plotData[tile.i] = {
+                plotData[tile.name] = {
                     plotLogs: [],
-                    plotArguments: {},
                     plotFields: plotFields
                 }
             }
@@ -347,14 +347,12 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             const hiddenColumns = tile.hidden_columns;
 
             const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
-                tile,
                 logsData,
                 fields[idx],
                 context,
                 columnContext,
                 currentProject,
                 filterExpressions[idx],
-                groupingExpressions[idx],
                 tile.metric,
                 sorting,
                 undefined,
@@ -362,7 +360,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             );
 
             // Append available fields to the table attributes
-            tableArguments[tile.i].available_fields = 
+            tableArguments[tile.name].available_fields = 
             Object.fromEntries(
                 Object.entries(fields[idx])
                     .filter((([field, attributes]) => 
@@ -379,7 +377,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
             const baseIndex = tile.base_index;
 
             return {
-                [tile.i]: {
+                [tile.name]: {
                     fields: fields[idx],
                     columnContexts: columnContexts[idx],
                     hiddenColumns,
@@ -453,45 +451,26 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
         })
     }
 
-    // Now build the initial state
-    const initialState: Partial<IStoreState> = buildInitialState(
-        currentTabName,
-        tabNamesTemp,
-        currentInterfaceName,
-        currentProjectName,
-        projects,
-        contexts,
-        tabs,
-        tabsData,
-        tableData,
-        plotData,
-        tableArguments,
-        limit,
-        offsets,
-    );
-
-    // Initialize operations as an empty object in the initial state
-    initialState.operations = {};
-
-    // Mark this state as coming from the server
-    (initialState as any).stateSource = 'server';
-
     return (
         <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">
                 <SkeletonLoader />
             </div>
         }>
-            <StoreInitializer 
-                initialState={initialState}
+            <Interface
+                interfaceId={currentInterfaceName}
                 projectsActions={projectsActions}
+                interfaceActions={interfaceActions}
+                tabActions={granularTabActions}
+                tileActions={tileActions}
                 logsActions={logsActions}
-                derivedEntryActions={derivedEntryActions}
                 fieldsActions={fieldsActions}
+                derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
-                tabActions={tabActions}
                 codeActions={codeActions}
-            />
+            >
+                <div>Hello</div>
+            </Interface>
         </Suspense>
     );
 };

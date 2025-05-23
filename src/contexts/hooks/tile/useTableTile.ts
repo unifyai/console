@@ -1,10 +1,8 @@
 import { useMemo } from "react";
-import { useStoreContext, useStoreApiContext } from "../../providers/StoreProvider";
+import { useStoreContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { TableTile, TableTileMeta, TableTileData, TableTileUI } from "../../slices/selectors/tableTile";
 import { useShallow } from "zustand/react/shallow";
-import { TableDataItem } from "@/types/evals/grid";
-import { setDeep } from "@/utils/objectPath";
 
 /**
  * Default return value when no tile is specified or tile doesn't exist
@@ -38,18 +36,10 @@ export interface TableTileDataActions {
   setColumnOrder: (columnOrder: string | undefined) => void;
   setHiddenColumns: (hiddenColumns: string | undefined) => void;
   setSorting: (sorting: string | undefined) => void;
-  setGrouping: (grouping: string | undefined) => void;
   setGroupSorting: (groupSorting: string | undefined) => void;
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
   setColumnsPinRight: (columnsPinRight: string | undefined) => void;
   setSelected: (selected: string | undefined) => void;
-  setTableDataItem: (tableDataItem: TableDataItem | undefined) => void;
-  updateTableDataItem: (updates: Partial<TableDataItem>) => void;
-  mergeUpdatesIntoTableDataItem: (updates: Partial<TableDataItem>) => void;
-  updateLogsDeep: (
-    rowIds: string[],
-    desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
-  ) => void;
 }
 
 /**
@@ -58,7 +48,6 @@ export interface TableTileDataActions {
 export interface TableTileUIActions {
   setLimit: (limit: number) => void;
   setOffset: (offset: number) => void;
-  setColumnContext: (columnContext: string | undefined) => void;
   setPageNumber: (pageNumber: string | undefined) => void;
 }
 
@@ -72,20 +61,16 @@ export interface TableActions extends
 
 /**
  * Custom hook to access table-specific tile state and actions
- * @param tileName The name of the tile to access
- * @param tabName Optional name of the tab containing the tile
- * @param interfaceName Optional name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing table-specific tile state, actions, and existence flag
  */
 export function useTableTile(
-  tileName: string | null,
-  tabName?: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName?: string | null
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId, tileExists } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName || null);
+  const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
   
   // Get the tile type to check if it's a table
   const tileType = useStoreContext(state => {
@@ -118,12 +103,10 @@ export function useTableTile(
       column_order: tableTile.column_order,
       hidden_columns: tableTile.hidden_columns,
       sorting: tableTile.sorting,
-      grouping: tableTile.grouping,
       group_sorting: tableTile.group_sorting,
       columns_pin_left: tableTile.columns_pin_left,
       columns_pin_right: tableTile.columns_pin_right,
       selected: tableTile.selected,
-      tableDataItem: tableTile.tableDataItem
     } as TableTileData;
   }, [
     isTableTile,
@@ -132,12 +115,10 @@ export function useTableTile(
     tableTile?.column_order,
     tableTile?.hidden_columns,
     tableTile?.sorting,
-    tableTile?.grouping,
     tableTile?.group_sorting,
     tableTile?.columns_pin_left,
     tableTile?.columns_pin_right,
     tableTile?.selected,
-    tableTile?.tableDataItem,
   ]);
 
   // Access store for table-specific UI state
@@ -147,7 +128,6 @@ export function useTableTile(
     return {
       limit: tableTile.limit,
       offset: tableTile.offset,
-      column_context: tableTile.column_context,
       page_number: tableTile.page_number
     } as TableTileUI;
   }, [
@@ -155,15 +135,11 @@ export function useTableTile(
     tileId,
     tableTile?.limit,
     tableTile?.offset,
-    tableTile?.column_context,
     tableTile?.page_number,
   ]);
 
   // Get store update functions
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
-  const storeUpdateTableDataItem = useStoreContext(state => state.updateTableDataItem);
-  const storeMergeUpdatesIntoTableDataItem = useStoreContext(state => state.mergeUpdatesIntoTableDataItem);
-  const storeApi = useStoreApiContext();
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
@@ -206,13 +182,6 @@ export function useTableTile(
         storeUpdateTableTile(tileId, update);
       },
       
-      setGrouping: (grouping) => {
-        const update: Partial<TableTile> = { 
-          grouping
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-      
       setGroupSorting: (groupSorting) => {
         const update: Partial<TableTile> = { 
           group_sorting: groupSorting
@@ -240,80 +209,8 @@ export function useTableTile(
         };
         storeUpdateTableTile(tileId, update);
       },
-
-      setTableDataItem: (tableDataItem) => {
-        const update: Partial<TableTile> = { 
-          tableDataItem
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-
-      updateTableDataItem: (updates) => {
-        if (tileId) {
-          storeUpdateTableDataItem(tileId, updates);
-        }
-      },
-
-      mergeUpdatesIntoTableDataItem: (updates) => {
-        if (tileId) {
-          storeMergeUpdatesIntoTableDataItem(tileId, updates);
-        }
-      },
-
-      updateLogsDeep: (rowIds, desc) => {
-
-        if (!tileId || rowIds.length === 0) {
-          console.log("[DEBUG] Aborting updateLogsDeep – missing tileId or empty rowIds");
-          return;
-        }
-
-        // Latest state snapshot
-        const state = storeApi.getState() as any;
-        const tileObj = state.tilesById?.[tileId];
-        const currentLogs: any[] | undefined = tileObj?.tableTile?.tableDataItem?.logs;
-
-        if (!currentLogs) {
-          console.log("[DEBUG] No currentLogs found – aborting");
-          return; // safety guard
-        }
-
-        const idSet = new Set(rowIds.map(String));
-
-        let changed = false;
-        const nextLogs = currentLogs.map((l: any) => {
-          if (!idSet.has(String(l.id))) return l;
-
-          const container = desc.source === "params" ? l.params ?? {} : l.entries ?? {};
-          const updated = setDeep(container, desc.path, desc.newValue);
-
-          if (updated === container) return l; // no real change
-
-          changed = true;
-
-          return {
-            ...l,
-            ...(desc.source === "params" ? { params: updated } : { entries: updated }),
-          };
-        });
-
-        if (!changed) {
-          console.log("[DEBUG] updateLogsDeep detected no changes – skipping state merge");
-          return; // nothing mutated
-        }
-
-        // IMPORTANT: Arrays should replace, not deep-merge. Use updateTableDataItem.
-        storeUpdateTableDataItem(tileId, {
-          logs: nextLogs,
-        });
-
-        // Guard: avoid clobbering entire container if path is empty
-        if (desc.path.length === 0) {
-          console.warn("[DEBUG] updateLogsDeep – empty path, skipping to avoid overwriting container", { desc });
-          return;
-        }
-      },
     };
-  }, [isTableTile, tileId, storeUpdateTableDataItem, storeMergeUpdatesIntoTableDataItem, storeApi]);
+  }, [isTableTile, tileId, storeUpdateTableTile]);
 
   // Create memoized UI actions
   const tableUIActions = useMemo<TableTileUIActions | null>(() => {
@@ -330,13 +227,6 @@ export function useTableTile(
       setOffset: (offset) => {
         const update: Partial<TableTile> = { 
           offset
-        };
-        storeUpdateTableTile(tileId, update);
-      },
-      
-      setColumnContext: (columnContext) => {
-        const update: Partial<TableTile> = { 
-          column_context: columnContext
         };
         storeUpdateTableTile(tileId, update);
       },
@@ -373,7 +263,7 @@ export function useTableTile(
   }, [tableMetaActions, tableDataActions, tableUIActions]);
 
   // If no tile name is provided or tile doesn't exist, return default
-  if (!tileName || !isTableTile) {
+  if (!tileIdOrName || !isTableTile) {
     return DEFAULT_USE_TABLE_TILE_RETURN;
   }
 

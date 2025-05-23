@@ -1,7 +1,5 @@
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
-import { Suspense } from "react";
-import Main from "@/components/Interfaces/Main";
+
 import {
     getLogFields,
     deleteLogs,
@@ -13,10 +11,6 @@ import {
     getProjects,
     createProject,
     renameProject,
-    createInterface,
-    updateInterface,
-    getInterface,
-    deleteInterface,
     createDerivedEntry,
     updateDerivedEntry,
     createContext,
@@ -26,11 +20,74 @@ import {
     runCode,
     getDevbox,
     createDevbox,
+    // Interface actions
+    listInterfaces,
+    getInterfaceByName,
+    getInterfaceById,
+    getInterfaceUnified,
+    createNewInterface,
+    updateInterfaceByName,
+    updateInterfaceById,
+    updateInterfaceUnified,
+    deleteInterfaceByName,
+    deleteInterfaceById,
+    deleteInterfaceUnified,
+    createInterfaceCheckpoint,
+    createInterfaceCheckpointById,
+    createInterfaceCheckpointUnified,
+    // Tab actions
+    listTabs,
+    getTabByName,
+    getTabById,
+    getTabUnified,
+    createTab,
+    updateTabByName,
+    updateTabById,
+    updateTabUnified,
+    deleteTabByName,
+    deleteTabById,
+    deleteTabUnified,
+    createTabCheckpointByName,
+    createTabCheckpointById,
+    createTabCheckpointUnified,
+    // Tile actions
+    listTiles,
+    getTileByName,
+    getTileById,
+    getTileUnified,
+    createTile,
+    updateTileByName,
+    updateTileById,
+    updateTileUnified,
+    patchTileByName,
+    patchTileById,
+    patchTileUnified,
+    patchSpecializedTileByName,
+    patchSpecializedTileById,
+    patchSpecializedTileUnified,
+    deleteTileByName,
+    deleteTileById,
+    deleteTileUnified,
+    createTileCheckpointByName,
+    createTileCheckpointById,
+    createTileCheckpointUnified,
+    getInterfaceCheckpointUnified,
+    getTabCheckpointById,
+    getTabCheckpointUnified,
+    getTileCheckpointUnified,
+    getInterfaceCheckpointByName,
+    getTabCheckpointByName,
+    getTileCheckpointByName,
+    getInterfaceCheckpointById,
+    getTileCheckpointById
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
+import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
 
-const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, tab?: string } }) => {
+const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string, tab?: string } }) => {
     // get user and api key
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const user = await getCurrentUser();
@@ -41,7 +98,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     const userId = user.id;
     const apiKey = user.apiKey;
 
-    // get server actions
+    // get server actions - Legacy actions for backward compatibility
     const projectsActions = {
         get: await getProjects(apiKey),
         create: await createProject(apiKey),
@@ -56,57 +113,122 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         delete: await deleteLogs(apiKey),
         getLatest: await getLatestTimestamp(apiKey),
         update: await updateLogs(apiKey)
-    }
+    };
 
     const derivedEntryActions = {
         create: await createDerivedEntry(apiKey),
         update: await updateDerivedEntry(apiKey)
-    }
+    };
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
-    }
+    };
 
     const contextActions = {
         get: await getContexts(apiKey),
         create: await createContext(apiKey),
         delete: await deleteContext(apiKey)
-    }
-
-    const tabActions = {
-        // TODO: In future versions, we'll support multiple interfaces per project
-        create: await createInterface(apiKey),
-        update: await updateInterface(apiKey),
-        get: await getInterface(apiKey),
-        delete: await deleteInterface(apiKey),
-    }
+    };
 
     const codeActions = {
         run: await runCode(apiKey, userId),
-    }
+    };
 
     const devboxActions = {
         get: await getDevbox(apiKey, userId),
         create: await createDevbox(apiKey, userId),
-    }
+    };
+
+    // Create the granular actions using the factory functions
+    const interfaceActions: GranularInterfaceActions = await createInterfaceActions(
+        listInterfaces,
+        getInterfaceByName, 
+        getInterfaceById, 
+        createNewInterface, 
+        updateInterfaceByName, 
+        updateInterfaceById, 
+        deleteInterfaceByName, 
+        deleteInterfaceById, 
+        createInterfaceCheckpoint,
+        createInterfaceCheckpointById,
+        getInterfaceUnified,
+        updateInterfaceUnified,
+        deleteInterfaceUnified,
+        createInterfaceCheckpointUnified,
+        getInterfaceCheckpointByName,
+        getInterfaceCheckpointById,
+        getInterfaceCheckpointUnified,
+        apiKey
+    );
+
+    const tabActions: GranularTabActions = await createTabActions(
+        listTabs,
+        getTabByName,
+        getTabById,
+        getTabUnified,
+        createTab,
+        updateTabByName,
+        updateTabById,
+        updateTabUnified,
+        deleteTabByName,
+        deleteTabById,
+        deleteTabUnified,
+        createTabCheckpointByName,
+        createTabCheckpointById,
+        createTabCheckpointUnified,
+        getTabCheckpointByName,
+        getTabCheckpointById,
+        getTabCheckpointUnified,
+        apiKey
+    );
+
+    const tileActions: GranularTileActions = await createTileActions(
+        listTiles,
+        getTileByName,
+        getTileById,
+        getTileUnified,
+        createTile,
+        updateTileByName,
+        updateTileById, 
+        updateTileUnified,
+        patchTileByName,
+        patchTileById,
+        patchTileUnified,
+        patchSpecializedTileByName,
+        patchSpecializedTileById,
+        patchSpecializedTileUnified,
+        deleteTileByName,
+        deleteTileById,
+        deleteTileUnified,
+        createTileCheckpointByName,
+        createTileCheckpointById,
+        createTileCheckpointUnified,
+        getTileCheckpointByName,
+        getTileCheckpointById,
+        getTileCheckpointUnified,
+        apiKey
+    );
 
     return (
-        <div className="w-full h-full">
-            <Suspense fallback={<SkeletonLoader />}>
-                <Main
-                    project={searchParams?.project}
-                    tab={searchParams?.tab}
-                    projectsActions={projectsActions}
-                    logsActions={logsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                    fieldsActions={fieldsActions}
-                    tabActions={tabActions}
-                    codeActions={codeActions}
-                    devboxActions={devboxActions}
-                />
-            </Suspense>
-        </div>
+        <InterfaceWrapper
+            project={searchParams?.project ?? null}
+            interface_={searchParams?.interface ?? null}
+            tab={searchParams?.tab}
+            actions={
+                {
+                    projectsActions,
+                    logsActions,
+                    derivedEntryActions,
+                    contextActions,
+                    fieldsActions,
+                    codeActions,
+                    devboxActions,
+                    interfaceActions,
+                    tabActions,
+                    tileActions
+                }
+            }
+        />
     );
 };
 

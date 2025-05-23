@@ -14,9 +14,9 @@ const EMPTY_TAB_IDS: string[] = [];
  */
 export interface InterfaceDataActions {
   // Tab management
-  addTab: (tabName: string, newName: string, initialState?: Partial<Tab>) => void;
+  addTab: (newTabName: string, initialState?: Partial<Tab>) => void;
   removeTab: (tabName: string) => void;
-  renameTab: (tabName: string, newName: string) => void;
+  renameTab: (sourceTabName: string, newTabName: string) => void;
   getTabNames: () => string[];
   setTabNames: (tabNames: string[]) => void;
   getTabIds: () => string[];
@@ -25,17 +25,17 @@ export interface InterfaceDataActions {
 
 /**
  * Custom hook to access interface data and related actions
- * @param interfaceName The name of the interface to access
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param interfaceIdOrName The ID or name of the interface to access
+ * @param projectIdOrName Optional project ID or name
  * @returns Object containing interface data, actions, and other related state
  */
-export function useInterfaceData(interfaceName: string | null, projectName?: string | null) {
+export function useInterfaceData(interfaceIdOrName: string | null, projectIdOrName?: string | null) {
   // Use the meta hook to get common interface info
   const { 
     interfaceId, 
     activeProjectId, 
     interfaceExists 
-  } = useInterfaceMeta(interfaceName, projectName);
+  } = useInterfaceMeta(interfaceIdOrName, projectIdOrName);
 
   // Granular subscriptions to Data properties using useShallow for arrays and objects
   const tabNames = useStoreContext(state => {
@@ -70,28 +70,16 @@ export function useInterfaceData(interfaceName: string | null, projectName?: str
 
   // Memoize the data actions to prevent unnecessary re-renders
   const dataActions = useMemo<InterfaceDataActions>(() => ({
-    addTab: (tabName, newName, initialState = {}) => {
-      if (activeProjectId && interfaceId) {
-        // Check if the tabIds are already hierarchical
-        const sourceTabId = tabName.includes('>')
-          ? tabName
-          : `${interfaceId}>${tabName}`;
-        
-        const newTabId = newName.includes('>')
-          ? newName
-          : `${interfaceId}>${newName}`;
-
+    addTab: (newTabName, initialState = {}) => {
+      if (interfaceId) {
         // Add the new tab to the interface
         storeAddTab(
           interfaceId,
-          sourceTabId,
-          newTabId,
+          newTabName,
           {
-            id: newTabId,
-            name: newName,
-            projectId: activeProjectId,
-            interfaceId: interfaceId,
-            ...initialState
+            ...initialState,
+            id: initialState?.id || newTabName,
+            name: newTabName,
           }
         );
       }
@@ -99,38 +87,18 @@ export function useInterfaceData(interfaceName: string | null, projectName?: str
 
     removeTab: (tabName) => {
       if (activeProjectId && interfaceId) {
-        // Check if the tab ID is already hierarchical
-        const hierarchicalTabId = tabName.includes('>')
-          ? tabName
-          : `${interfaceId}>${tabName}`;
-        
         // Remove the tab
-        storeRemoveTab(interfaceId, hierarchicalTabId);
+        storeRemoveTab(interfaceId, tabName);
       }
     },
 
-    renameTab: (tabName, newName) => {
+    renameTab: (sourceTabName, newTabName) => {
       if (activeProjectId && interfaceId) {
-        // Check if the tabIds are already hierarchical
-        const sourceTabId = tabName.includes('>')
-          ? tabName
-          : `${interfaceId}>${tabName}`;
-        
-        const newTabId = newName.includes('>')
-          ? newName
-          : `${interfaceId}>${newName}`;
-
-        // Rename the tab to the interface
+        // Rename the tab
         storeRenameTab(
           interfaceId,
-          sourceTabId,
-          newTabId,
-          {
-            id: newTabId,
-            name: newName,
-            projectId: activeProjectId,
-            interfaceId: interfaceId,
-          }
+          sourceTabName,
+          newTabName,
         );
       }
     },

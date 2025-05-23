@@ -23,28 +23,27 @@ export interface TabUIActions {
   setTilesPending: (pending: boolean) => void;
   setColor: (color: string | undefined) => void;
   setHoveredLog: (hoveredLog: string | undefined) => void;
+  setEditTile: (editTile: string | undefined) => void;
+  setDataPending: (dataPending: boolean) => void;
+  setPending: (pending: boolean) => void;
 }
 
 /**
  * Custom hook to access tab UI state and actions
- * @param tabName The name of the tab to access
- * @param interfaceName Optional interface name (if not provided, active interface will be used)
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tabIdOrName The ID or name of the tab to access
+ * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab UI state and actions
  */
 export function useTabUI(
-  tabName: string | null, 
-  interfaceName?: string | null,
-  projectName?: string | null
+  tabIdOrName: string | null, 
+  interfaceIdOrName?: string | null
 ) {
 
   // Use the meta hook to get common tab info
   const { 
     tabId, 
-    activeProjectId, 
-    activeInterfaceId, 
     tabExists 
-  } = useTabMeta(tabName, interfaceName, projectName);
+  } = useTabMeta(tabIdOrName, interfaceIdOrName);
 
   // Get tileIds from the store
   const tileIds = useStoreContext(
@@ -55,11 +54,6 @@ export function useTabUI(
   );
 
   // Granular subscriptions to UI properties
-  const projectIdFromState = useStoreContext(state => {
-    if (!tabExists || !tabId) return null;
-    return state.tabsById[tabId].projectId;
-  });
-  
   const interfaceIdFromState = useStoreContext(state => {
     if (!tabExists || !tabId) return null;
     return state.tabsById[tabId].interfaceId;
@@ -122,6 +116,21 @@ export function useTabUI(
     return state.tabsById[tabId].hoveredLog;
   })
 
+  const editTile = useStoreContext(state => { 
+    if (!tabExists || !tabId) return undefined;
+    return state.tabsById[tabId].editTile;
+  });
+
+  const dataPending = useStoreContext(state => {
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].dataPending;
+  });
+
+  const pending = useStoreContext(state => {  
+    if (!tabExists || !tabId) return false;
+    return state.tabsById[tabId].pending;
+  });
+
   // Get store actions needed for UI
   const storeUpdateTab = useStoreContext(state => state.updateTab);
   const storeUpdateTile = useStoreContext(state => state.updateTile);
@@ -131,7 +140,6 @@ export function useTabUI(
     if (!tabExists) return null;
     
     return {
-      projectId: projectIdFromState,
       interfaceId: interfaceIdFromState,
       focusedTileNames: focusedTileNames,
       saveSuccess,
@@ -143,11 +151,13 @@ export function useTabUI(
       deleting,
       refreshing,
       color,
-      hoveredLog
+      hoveredLog,
+      editTile,
+      dataPending,
+      pending,
     };
   }, [
     tabExists,
-    projectIdFromState,
     interfaceIdFromState,
     focusedTileNames,
     saveSuccess,
@@ -159,7 +169,10 @@ export function useTabUI(
     deleting,
     refreshing,
     color,
-    hoveredLog
+    hoveredLog,
+    editTile,
+    dataPending,
+    pending,
   ]);
 
   // Memoize the UI actions
@@ -222,11 +235,7 @@ export function useTabUI(
       if (tabId && tileIds.length) {
         // Update all tiles in the tab
         tileIds.forEach(tileId => {
-          const hierarchicalTileId = tileId.includes('>')
-            ? tileId
-            : `${tabId}>${tileId}`;
-          
-          storeUpdateTile(hierarchicalTileId, { pending });
+          storeUpdateTile(tileId, { pending });
         });
       }
     },
@@ -241,7 +250,25 @@ export function useTabUI(
       if (tabId) {
         storeUpdateTab(tabId, { hoveredLog })
       }
-    }
+    },
+
+    setEditTile: (editTile) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { editTile });
+      }
+    },
+
+    setDataPending: (dataPending) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { dataPending });
+      }
+    },
+
+    setPending: (pending) => {
+      if (tabId) {
+        storeUpdateTab(tabId, { pending });
+      }
+    },
   }), [
     tabId,
     tileIds,

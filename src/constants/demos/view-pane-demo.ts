@@ -2,30 +2,6 @@ export default {
     gif: "view_pair_table_dark",
     link: "interfaces/views",
     description: "The view pane acts as an expressive viewer for whatever cell(s) are selected in the table. These cells can be part of the same row, different rows, different columns, or any combination. In all cases, all of the data will be shown in the view pane.",
-    project: "view-pane-demo",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 7.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table",
-            selected: "320925_Entries/age,320924_Entries/how_10x,320925_Entries/catchphrase,320924_Entries/catchphrase,320923_Entries/catchphrase,320921_Entries/catchphrase,320918_Entries/age,320920_Entries/catchphrase,320921_Entries/age"
-        },
-        {
-            i: "View",
-            x: 7.0,
-            y: 0.0,
-            w: 5.0,
-            h: 8.0,
-            tab: "View",
-            table: "Table"
-        }
-    ],
-    new_counter: 2,
     code: `import unify
 import random
 from datetime import datetime, timedelta
@@ -79,5 +55,47 @@ for age, catchphrase, last_login, otp in zip(
         open_task_progress=otp,
         will_to_live=random.choice([True, False]),
     )
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "view-pane-demo",
+        name: "interface1"
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 7.0,
+                height: 8.0
+            },
+            selected: "320925_Entries/age,320924_Entries/how_10x,320925_Entries/catchphrase,320924_Entries/catchphrase,320923_Entries/catchphrase,320921_Entries/catchphrase,320918_Entries/age,320920_Entries/catchphrase,320921_Entries/age",
+            table_tile: {
+                table_type: "Data Table"
+            }
+        },
+        {
+            name: "View",
+            type: "View",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 5.0,
+                height: 8.0
+            },
+            table: "Table",
+            view_tile: {}
+        }
+    ],
+    new_counter: 2
 }

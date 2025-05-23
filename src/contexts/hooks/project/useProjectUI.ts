@@ -12,15 +12,15 @@ export interface ProjectUIActions {
 
 /**
  * Custom hook to access project UI state and actions
- * @param projectName The name of the project to access
+ * @param projectIdOrName The ID or name of the project to access
  * @returns Object containing project UI state and actions
  */
-export function useProjectUI(projectName: string | null) {
+export function useProjectUI(projectIdOrName: string | null) {
   // Use the meta hook to get common project info
   const { 
     projectId, 
     projectExists 
-  } = useProjectMeta(projectName);
+  } = useProjectMeta(projectIdOrName);
 
   // Granular subscriptions to UI properties
   const activeInterfaceId = useStoreContext(state => {

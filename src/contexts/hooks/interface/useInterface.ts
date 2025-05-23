@@ -16,7 +16,8 @@ const DEFAULT_USE_INTERFACE_RETURN = {
   uiActions: null,
   operationsActions: null,
   actions: null,
-  exists: false
+  exists: false,
+  interfaceId: null
 };
 
 /**
@@ -36,11 +37,11 @@ export interface InterfaceActions {
 
 /**
  * Custom hook to access all interface state and actions
- * @param interfaceName The name of the interface to access
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param interfaceIdOrName The ID or name of the interface to access
+ * @param projectIdOrName Optional project ID or name
  * @returns Object containing all interface state, actions, and existence flag
  */
-export function useInterface(interfaceName: string | null, projectName?: string | null) {
+export function useInterface(interfaceIdOrName: string | null, projectIdOrName?: string | null) {
   // Use specialized hooks
   const {
     meta,
@@ -48,20 +49,20 @@ export function useInterface(interfaceName: string | null, projectName?: string 
     interfaceId,
     activeProjectId,
     interfaceExists
-  } = useInterfaceMeta(interfaceName, projectName);
+  } = useInterfaceMeta(interfaceIdOrName, projectIdOrName);
   
   const {
     data,
     dataActions,
     tabIds,
     tabNames
-  } = useInterfaceData(interfaceName, projectName);
+  } = useInterfaceData(interfaceIdOrName, projectIdOrName);
   
   const {
     ui,
     uiActions,
     activeTabId
-  } = useInterfaceUI(interfaceName, projectName);
+  } = useInterfaceUI(interfaceIdOrName, projectIdOrName);
   
   // const {
   //   operations,
@@ -123,7 +124,7 @@ export function useInterface(interfaceName: string | null, projectName?: string 
   }, [meta, data, ui]);
 
   // Use interfaceId to conditionally return values, but only after all hooks are called
-  if (interfaceName === null) {
+  if (interfaceIdOrName === null) {
     return DEFAULT_USE_INTERFACE_RETURN;
   }
 
@@ -137,6 +138,7 @@ export function useInterface(interfaceName: string | null, projectName?: string 
     uiActions,
     // operationsActions,
     actions,
-    exists: interfaceExists
+    exists: interfaceExists,
+    interfaceId
   };
 } 

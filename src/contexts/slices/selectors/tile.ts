@@ -37,12 +37,12 @@ export interface TileData {
   filters?: string | null;
   common_filter?: string | null;
   metric?: string | null;         // Current metric being displayed
+  column_context?: string | null;
+  grouping?: string | null;
 }
 
 // Tile UI state - UI-related state
 export interface TileUI {
-  projectId: string | null;
-  interfaceId: string | null;
   tabId: string | null;
   visible?: boolean;
   locked?: boolean;
@@ -68,12 +68,13 @@ export interface Tile extends TileMeta, TileData, TileUI {
 // a Tile into a TileProps
 export const TILE_PROPS_KEYS_AS_TILE_KEYS: (keyof Tile)[] = [
   "id","name","type","position","minW","minH","context","table","auto_update",
-  "freeze","filters","common_filter","metric","visible","moved","static","color",
+  "freeze","filters","common_filter","metric","column_context","grouping",
+  "visible","moved","static","color",
 ];
 
 export const TILE_KEYS: (keyof Tile)[] = [
   ...TILE_PROPS_KEYS_AS_TILE_KEYS,
-  "projectId","interfaceId","tabId","locked","pending","loading", "error",
+  "tabId","locked","pending","loading", "error",
   "itemsNeedRecompute","tableTile","plotTile","viewTile","editorTile"
 ];
 
@@ -100,10 +101,10 @@ export function initTile(tileId: string, initialState: Partial<Tile> = {}): Tile
     filters: initialState.filters !== undefined ? initialState.filters : null,
     common_filter: initialState.common_filter !== undefined ? initialState.common_filter : null,
     metric: initialState.metric !== undefined ? initialState.metric : null,
+    column_context: initialState.column_context !== undefined ? initialState.column_context : null,
+    grouping: initialState.grouping !== undefined ? initialState.grouping : null,
     
     // UI
-    projectId: initialState.projectId || null,
-    interfaceId: initialState.interfaceId || null,
     tabId: initialState.tabId || null,
     visible: initialState.visible,
     locked: initialState.locked !== undefined ? initialState.locked : false,

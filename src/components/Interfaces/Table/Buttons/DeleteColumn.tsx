@@ -15,20 +15,17 @@ type ColumnDeleteProps = {
     context: string | undefined,
     columnContext: string | undefined,
     column: string,
-    refresh: () => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     getLogFieldsIds: LogsActions["get"],
     deleteLogFields: LogsActions["delete"]
 }
     
-const ColumnDelete = ({ interactive, project, column, refresh, setPending, deleteLogFields, context, columnContext }: ColumnDeleteProps) => {
+const ColumnDelete = ({ interactive, project, column, setPending, deleteLogFields, context, columnContext }: ColumnDeleteProps) => {
 	
     const router = useRouter();
     const onDelete = () => {
-        refresh().then(() => {
-            router.refresh();
-            setPending(true);
-        });
+        router.refresh();
+        setPending(true);
     }
 
     const [showDialog, setShowDialog] = useState(false);

@@ -1,6 +1,3 @@
-import { TabProps } from "@/types/evals/grid";
-import { TableArguments } from "@/types/evals/logs";
-
 // Tab metadata - core identifying information
 export interface TabMeta {
   id: string | null;
@@ -10,22 +7,18 @@ export interface TabMeta {
   visible: boolean;
   active: boolean;
   order: number;
-  tabCreated: boolean;
-  tempTabCreated: boolean;
 }
 
 // Tab data - business data and relationships
 export interface TabData {
   globalContext?: string;
-  savedTab: TabProps | null; // This needs to match exactly the TabProps type from grid.ts
-  tableArguments: TableArguments;
   tileIds: string[]; // References to tiles instead of containing them directly
+  tileNames: string[]; // Names of tiles in the tab
   itemsNeedRecompute: boolean; // Flag to indicate when items need recomputing
 }
 
 // Tab UI state - UI-related state
 export interface TabUI {
-  projectId: string | null;
   interfaceId: string | null;
   focusedTileNames: [string | undefined, string | undefined];
   saveSuccess?: boolean;
@@ -38,6 +31,9 @@ export interface TabUI {
   refreshing: boolean;
   color?: string;
   hoveredLog?: string;
+  editTile: string | undefined;
+  dataPending: boolean;
+  pending: boolean;
 }
 
 // Combined Tab state definition
@@ -54,19 +50,16 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     visible: initialState.visible !== undefined ? initialState.visible : true,
     active: initialState.active !== undefined ? initialState.active : false,
     order: initialState.order !== undefined ? initialState.order : 0,
-    tabCreated: initialState.tabCreated !== undefined ? initialState.tabCreated : false,
-    tempTabCreated: initialState.tempTabCreated !== undefined ? initialState.tempTabCreated : false,
     // createdAt: initialState.createdAt || new Date().toISOString(),
     // updatedAt: initialState.updatedAt || new Date().toISOString(),
     
     // Data
     globalContext: initialState.globalContext,
-    savedTab: initialState.savedTab !== undefined ? initialState.savedTab : null,
-    tableArguments: initialState.tableArguments || {},
     tileIds: initialState.tileIds || [],
+    tileNames: initialState.tileNames || [],
+    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
     
     // UI
-    projectId: initialState.projectId || null,
     interfaceId: initialState.interfaceId || null,
     focusedTileNames: initialState.focusedTileNames !== undefined ? initialState.focusedTileNames : [undefined, undefined],
     saveSuccess: initialState.saveSuccess,
@@ -79,8 +72,10 @@ export function initTab(tabId: string, initialState: Partial<Tab> = {}): Tab {
     refreshing: initialState.refreshing !== undefined ? initialState.refreshing : false,
     color: initialState.color,
     hoveredLog: initialState.hoveredLog,
-    itemsNeedRecompute: initialState.itemsNeedRecompute !== undefined ? initialState.itemsNeedRecompute : false,
-    
+    editTile: initialState.editTile,
+    dataPending: initialState.dataPending !== undefined ? initialState.dataPending : false,
+    pending: initialState.pending !== undefined ? initialState.pending : false,
+
     ...initialState,
   };
 }
@@ -114,7 +109,7 @@ export function setTabProperty<K extends keyof Tab>(
 /**
  * Add a tile to a tab
  */
-export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab {
+export function addTile(tab: Tab, tileId: string, tileName: string, insert_after?: string): Tab {
   // If the tile already exists in the tab, don't add it again
   if (tab.tileIds.includes(tileId)) {
     return tab;
@@ -122,20 +117,24 @@ export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab 
   
   // Create a new array with the new tile ID
   const tileIds = [...tab.tileIds];
+  const tileNames = [...tab.tileNames];
   if (insert_after) {
     const index = tileIds.indexOf(insert_after);
     if (index !== -1) {
       tileIds.splice(index + 1, 0, tileId);
+      tileNames.splice(index + 1, 0, tileName);
     }
   }
   else {
     tileIds.push(tileId);
+    tileNames.push(tileName);
   }
   
   // Return the updated tab
   return {
     ...tab,
     tileIds,
+    tileNames,
     // updatedAt: new Date().toISOString()
   };
 }
@@ -143,20 +142,24 @@ export function addTileId(tab: Tab, tileId: string, insert_after?: string): Tab 
 /**
  * Remove a tile from a tab
  */
-export function removeTileId(tab: Tab, tileId: string): Tab {
+export function removeTile(tab: Tab, tileId: string, tileName: string): Tab {
   // Filter out the tile ID to remove
   const tileIds = tab.tileIds.filter(id => id !== tileId);
+
+  // Filter out the tile names  
+  const tileNames = tab.tileNames.filter(name => name !== tileName);
   
   // Update the focused tiles if needed
-  let focusedTileIds = [...tab.focusedTileNames] as [string | undefined, string | undefined];
-  if (focusedTileIds[0] === tileId) focusedTileIds[0] = undefined;
-  if (focusedTileIds[1] === tileId) focusedTileIds[1] = undefined;
+  let focusedTileNames = [...tab.focusedTileNames] as [string | undefined, string | undefined];
+  if (focusedTileNames[0] === tileName) focusedTileNames[0] = undefined;
+  if (focusedTileNames[1] === tileName) focusedTileNames[1] = undefined;
   
   // Return the updated tab
   return {
     ...tab,
     tileIds,
-    focusedTileNames: focusedTileIds,
+    tileNames,
+    focusedTileNames,
     // updatedAt: new Date().toISOString()
   };
 }

@@ -56,6 +56,15 @@ export const createGlobalSlice: StateCreator<
     state.projects = projects;
   }),
 
+  // Global state reset action
+  resetState: (newState) => set({ ...newState }),
+
+  // Global state update action
+  updateState: (updates) => set((state) => ({
+    ...state,
+    ...updates,
+  })),
+
   setSelectProjectsOpen: (open) => set(state => {
     state.selectProjectsOpen = open;
   }),
@@ -83,13 +92,4 @@ export const createGlobalSlice: StateCreator<
   setSaveInterfaceOpen: (open) => set(state => {
     state.saveInterfaceOpen = open;
   }),
-
-  // Global state reset action
-  resetState: (newState) => set({ ...newState }),
-
-  // Global state update action
-  updateState: (updates) => set((state) => ({
-    ...state,
-    ...updates,
-  })),
-});
+}); 

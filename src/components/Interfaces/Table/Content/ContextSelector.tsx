@@ -3,15 +3,14 @@
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import BaseDialog from "../../../Common/Dialogs/Base";
-import { Context, ContextActions, LogsActions } from "@/types/evals/grid";
+import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import { FolderTree } from "lucide-react";
-import { ResponseProps } from "@/types/common";
 import { useMemo, useState } from "react";
 
 import { useTileItem } from "@/contexts/hooks/tile";
-import { useTableTile } from "@/contexts/hooks/tile/useTableTile";
 import { useProjectData } from "@/contexts/hooks/project";
 import ContextContent from "./ContextContent";
+import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 
 const ContextSelector = ({
     tileId,
@@ -24,10 +23,13 @@ const ContextSelector = ({
     customOpen,
     setCustomOpen,
     button,
+    tabActions,
+    tileActions,
     logsActions,
     contextActions,
-    refresh,
-    setPending
+    projectsActions,
+    fieldsActions,
+    setPending,
 }: {
     tileId?: string,
     tabId?: string,
@@ -39,10 +41,13 @@ const ContextSelector = ({
     customOpen?: boolean,
     setCustomOpen?: (customOpen: boolean) => void,
     button?: React.ReactNode,
+    tabActions?: GranularTabActions,
+    tileActions?: GranularTileActions,
     logsActions: LogsActions,
     contextActions: ContextActions,
-    refresh: () => Promise<ResponseProps>,
-    setPending: (pending: boolean) => void
+    projectsActions: ProjectsActions,
+    fieldsActions: FieldsActions,
+    setPending: (pending: boolean) => void,
 }) => {
     const [open_, setOpen_] = useState(false);
     const [start, setStart] = useState(true);
@@ -51,13 +56,19 @@ const ContextSelector = ({
     const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
 
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
-    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null, interfaceId || null);
+    const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
 
-    const { tableTile: tableTileState } = useTableTile(tileId || null, tabId || null, interfaceId || null, projectId || null);
+    // Use React Query to access tableDataItem
+    const { 
+        data: tableDataItem,
+        isLoading: isTableDataLoading,
+        isError: isTableDataError,
+        error: tableDataError
+    } = useTableDataQuery(tileId || null, tabId || null);
 
     const emptyLogs = useMemo(() => {
-        return tableTileState?.tableDataItem?.logs?.length == 0;
-    }, [tableTileState?.tableDataItem?.logs]);
+        return tableDataItem?.logs?.length == 0;
+    }, [tableDataItem?.logs]);
 
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
 
@@ -90,19 +101,24 @@ const ContextSelector = ({
                     />}
                     open={!projectId ? false : open ? true : undefined}
                     setOpen={commonSetOpenHandler}
-                    body={<ContextContent
-                        projectId={projectId}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        tileId={tileId}
-                        contexts={contexts}
-                        context={context}
-                        setContext={setContext}
-                        refresh={refresh}
-                        setPending={setPending}
-                        contextActions={contextActions}
-                        logsActions={logsActions}
-                    />}
+                    body={
+                        <ContextContent
+                            projectId={projectId}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            tileId={tileId}
+                            contexts={contexts}
+                            context={context}
+                            setContext={setContext}
+                            setPending={setPending}
+                            contextActions={contextActions}
+                            logsActions={logsActions}
+                            tabActions={tabActions}
+                            tileActions={tileActions}
+                            projectsActions={projectsActions}
+                            fieldsActions={fieldsActions}
+                        />
+                    }
                 />
             ) : (
                 <BaseDropdown
@@ -126,10 +142,13 @@ const ContextSelector = ({
                         contexts={contexts}
                         context={context}
                         setContext={setContext}
-                        refresh={refresh}
                         setPending={setPending}
                         contextActions={contextActions}
                         logsActions={logsActions}
+                        tabActions={tabActions}
+                        tileActions={tileActions}
+                        projectsActions={projectsActions}
+                        fieldsActions={fieldsActions}
                     />
                 </BaseDropdown>
             )}

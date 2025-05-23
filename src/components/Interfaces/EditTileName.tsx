@@ -1,47 +1,76 @@
 "use client";
 
-import { Dispatch, SetStateAction, useState } from "react";
+import { useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
 import { Dialog, DialogContent } from "../UI/dialog";
 import { Input } from "../UI/input";
 import { useTab } from "@/contexts/hooks/tab";
-import { useTileUI } from "@/contexts/hooks/tile";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
+import { GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 
 const EditTileName = ({
-    tabId,
+    tabIdOrName,
     interfaceId,
-    editTile,
-    setEditTile,
+    tabActions,
+    tileActions
 }: {
-    tabId: string,
+    tabIdOrName: string,
     interfaceId: string,
-    editTile: string | undefined,
-    setEditTile: Dispatch<SetStateAction<string | undefined>>,
+    tabActions: GranularTabActions,
+    tileActions: GranularTileActions
 }) => {
     const [newTileName, setNewTileName] = useState<string>();
+    const [errorMsg, setErrorMsg]     = useState<string>();
 
-    const { ui: interfaceUIState } = useInterfaceUI(interfaceId);
-    const { ui: tabUIState, dataActions: tabDataActions } = useTab(tabId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName, interfaceId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-    const readOnly = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
+    const readOnly = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
+
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(tabIdOrName, interfaceId, tabActions, tileActions);
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
+
+    const resetAndClose = () => {
+        tabUIActions?.setEditTile(undefined);
+        setNewTileName(undefined);
+    };
 
     // edit tile name
     const saveTileName = () => {
-        if (newTileName && editTile && tabDataActions) {
+        if (!newTileName?.trim()) {
+            setErrorMsg("Tile name cannot be empty");
+            return;
+        }
+
+        if (newTileName && tabUIState?.editTile && syncedTabDataActions) {
+            const currentNames = syncedTabDataActions.getTileNames();
+            // Prevent renaming to the SAME name (case-insensitive)
+            const duplicate =
+                currentNames
+                    .filter((n) => n !== tabUIState?.editTile) // allow keeping the same name
+                    .some((n) => n.toLowerCase() === newTileName.trim().toLowerCase());
+
+            if (duplicate) {
+                setErrorMsg(`A tile called “${newTileName.trim()}” already exists`);
+                return;
+            }
+
             // Use the new renameTile method which handles both
             // updating the tile name and updating references
-            tabDataActions.renameTile(editTile, newTileName);
+            // Get the tileId for the given tileName
+            const tileId = syncedTabDataActions.getTileId(tabUIState?.editTile);
+            if (tileId) {
+                syncedTabDataActions.renameTile(tileId, newTileName);
+            }
         }
-        setEditTile(undefined);
-        setNewTileName(undefined);
+        resetAndClose();
     };
 
     return (
         <Dialog open={true} onOpenChange={() => {
-            setEditTile(undefined);
+            tabUIActions?.setEditTile(undefined);
             setNewTileName(undefined);
         }}>
             <DialogContent className="w-72">
@@ -49,9 +78,12 @@ const EditTileName = ({
                     {readOnly && <div className="text-sm text-muted-foreground">Please wait while tiles are loading...</div>}
                     <div className="flex gap-2">
                         <Input
-                            placeholder={readOnly ? editTile : "Enter new tile name..."}
+                            placeholder={readOnly ? tabUIState?.editTile : "Enter new tile name..."}
                             value={newTileName || ""}
-                            onInput={(input) => setNewTileName(input.currentTarget.value)}
+                            onInput={(input) => {
+                                setNewTileName(input.currentTarget.value);
+                                if (errorMsg) setErrorMsg(undefined); // clear on typing
+                            }}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                     saveTileName();
@@ -69,6 +101,9 @@ const EditTileName = ({
                             disabled={readOnly}
                         />
                     </div>
+                    {errorMsg && (
+                        <div className="text-sm text-destructive pl-1">{errorMsg}</div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

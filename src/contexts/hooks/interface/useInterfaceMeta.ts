@@ -14,34 +14,41 @@ export interface InterfaceMetaActions {
 
 /**
  * Custom hook to access interface metadata and related actions
- * @param interfaceName The name of the interface to access
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param interfaceIdOrName The ID or name of the interface to access
+ * @param projectIdOrName Optional project ID or name
  * @returns Object containing interface metadata, actions, and related IDs
  */
-export function useInterfaceMeta(interfaceName: string | null, projectName?: string | null) {
+export function useInterfaceMeta(interfaceIdOrName: string | null, projectIdOrName?: string | null) {
   // Get active project ID if not provided
   const activeProjectId = useStoreContext(state => 
-    projectName ? projectName : state.activeProjectId
+    projectIdOrName ? projectIdOrName : state.activeProjectId
   );
 
-  // Construct hierarchical ID if needed
+  // First attempt: Look for the interface directly by ID
+  const interfaceInStoreById = useStoreContext(state => {
+    if (!interfaceIdOrName) return null;
+    return state.interfacesById[interfaceIdOrName] || null;
+  });
+
+  // Second attempt: Find the interface by project + name combination
+  const interfaceInStoreByName = useStoreContext(state => {
+    if (!interfaceIdOrName || !activeProjectId || interfaceInStoreById) return null;
+    
+    // Find interface with matching name and project ID
+    return Object.values(state.interfacesById).find(
+      iface => iface.name === interfaceIdOrName && iface.projectId === activeProjectId
+    ) || null;
+  });
+
+  // Determine the interface ID based on lookup results
   const interfaceId = useMemo(() => {
-    if (!interfaceName) return null;
-    
-    // Check if the interfaceId already has the hierarchical format
-    if (interfaceName.includes('>')) {
-      return interfaceName;
-    }
-    
-    // Otherwise, construct it
-    return activeProjectId ? `${activeProjectId}>${interfaceName}` : interfaceName;
-  }, [interfaceName, activeProjectId]);
+    if (!interfaceIdOrName) return null;
+    if (interfaceInStoreById) return interfaceIdOrName;
+    return interfaceInStoreByName?.id || null;
+  }, [interfaceIdOrName, interfaceInStoreById, interfaceInStoreByName]);
 
   // Check if the interface exists
-  const interfaceExists = useStoreContext(state => {
-    if (!interfaceId || !activeProjectId) return false;
-    return !!state.interfacesById[interfaceId];
-  });
+  const interfaceExists = !!interfaceId && !!(interfaceInStoreById || interfaceInStoreByName);
 
   // Granular subscriptions to Meta properties
   const id = interfaceId;

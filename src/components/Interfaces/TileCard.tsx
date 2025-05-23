@@ -1,92 +1,102 @@
 "use client";
 
-import React, { useMemo, Suspense, lazy, useRef } from "react";
+import React, { useMemo, Suspense, lazy, useEffect } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { fileTypes, icons, tabTypes } from "@/constants/logs";
-import { ResponseProps } from "@/types/common";
-import { DerivedEntryActions, FieldsActions, ContextActions, TabProps, TileProps, CodeActions } from "@/types/evals/grid";
+import { icons, tabTypes } from "@/constants/logs";
+import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTileData, useTileUI } from '@/contexts/hooks/tile';
-import { useLogLengths } from "@/contexts/hooks/useStore";
+import { useTile } from '@/contexts/hooks/tile';
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { getTileCardRef } from '@/utils/refRegistry';
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
 const Tile = lazy(() => import('./Tile'));
 
 interface TileCardProps {
-  index: number;
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string;
-  updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
+  tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
-  tileButtonsRef?: React.RefObject<HTMLDivElement>
+  children?: React.ReactNode;
 }
 
 const TileCard = ({
-  index,
   tileId,
   tabId,
   interfaceId,
   projectId,
-  updateTab,
+  tileActions,
+  projectsActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
   codeActions,
-  tileButtonsRef
+  children
 }: TileCardProps) => {
 
-  const tileCardRef = useRef<HTMLDivElement>(null);
+  // Get refs from the registry instead of creating or receiving them via props
+  const tileCardRef = getTileCardRef(tileId);
+  
+  // Register that this tile has initialized its refs via Zustand
+  const registerTileRefs = useStoreContext(state => state.registerTileRefs);
+  
+  // Register refs on mount
+  useEffect(() => {
+    registerTileRefs(tileId);
+    // Clean up is handled by the parent component 
+  }, [tileId, registerTileRefs]);
 
   // Use tab hooks for tab-level state
   const { ui: tabUIState } = useTabUI(tabId, interfaceId);
   const { dataActions: tabDataActions } = useTabData(tabId, interfaceId);
-  
+
   // Use granular tile hooks for tile-specific state
-  const {ui: tileUIState} = useTileUI(tileId, tabId, interfaceId);
-  const { dataActions: tileDataActions } = useTileData(tileId, tabId, interfaceId);
-
-  // Get tile props using the getItems function from the tabDataActions
-  const tileProps = useMemo(() => {
-    return !tabDataActions ? [] : tabDataActions.getItems();
-  }, [tabDataActions]);
-
-  const tableNames = useMemo(() => {
-    // Only return table names for table tiles
-    // Return should be an array of strings only
-    return tileProps.map((item: TileProps) => item.tab === "Table" ? item.i : null).filter(Boolean) as string[];
-  }, [tileProps]);
-
-  // Get the current item based on the index prop
-  const item = tileProps[index];
-  const tab = item?.tab;
+  const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
   
-  // Define logsLengths as a computed property based on the tiles
-  const logsLengths = useLogLengths();
+  // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedTileActions } = useTileSync(
+    tileId, tabId, tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
+  );
+  const syncedTileDataActions = syncedTileActions?.data ?? null;
+  const syncedTileMetaActions = syncedTileActions?.meta ?? null;
+  const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
+
+  const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[];
+
+  const tileType = tileMetaState?.type ?? undefined;
+  const tileName = tileMetaState?.name;
+  const tableName = tileDataState?.table;
 
   return (
-  <TileColorContext.Provider value={tileUIState?.color  || null}>
+  <TileColorContext.Provider value={tileUIState?.color || null}>
     <div ref={tileCardRef} className="relative flex w-full h-full border">
-      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tab) ? "mt-4" : tab ? "mt-2" : "justify-center")}>
+      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tileType) ? "mt-4" : tileType ? "mt-2" : "justify-center")}>
         <div className="flex gap-4 z-20">
           {tabUIState?.edit && <div className="w-fit">
             <BaseDropdown
               context="tile"
               button={<ActionButton
                 tooltip="Select tile type"
-                text={item?.tab}
-                icon={item?.tab ? undefined : <Plus />}
+                text={tileType}
+                icon={tileType ? undefined : <Plus />}
                 variant="outline"
                 size="default"
               />}
@@ -96,17 +106,17 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      if (item?.i) {
+                      if (tileName) {
                         // If tabType is either a "Table" or "Plot" and the item.table is already set,
                         // then we need to first mark it as null
-                        if (tabType === "Table" || tabType === "Plot" && item.table) {
-                          tileDataActions?.setTable("");
+                        if (tabType === "Table" || tabType === "Plot" && tableName) {
+                          syncedTileDataActions?.setTable(undefined);
                         }
 
-                        if (item?.tab === undefined && tabType === "Table") {
-                          tabDataActions?.updateTableTile(item.i, { table_type: "Data Table" });
+                        if (tileType === undefined && tabType === "Table") {
+                          syncedTableTileActions?.setTableType("Data Table");
                         }
-                        tabDataActions?.updateTile(item.i, { type: tabType });
+                        syncedTileMetaActions?.setType(tabType);
                       }
                     }}
                     className="w-64 flex justify-between items-center"
@@ -117,12 +127,12 @@ const TileCard = ({
               })}
             </BaseDropdown>
           </div>}
-          {tab && tabUIState?.edit && tab === "View" && <div className="w-fit">
+          {tileType && tabUIState?.edit && tileType === "View" && <div className="w-fit">
             <BaseDropdown
               context="tile"
               button={<ActionButton
                 tooltip="Select table"
-                text={item?.table || "Select Table"}
+                text={tableName || "Select Table"}
                 variant="outline"
                 size="default"
               />}
@@ -132,13 +142,11 @@ const TileCard = ({
                   <DropdownMenuItem
                     key={idx}
                     onSelect={() => {
-                      tileDataActions?.setTable(tile);
+                      syncedTileDataActions?.setTable(tile);
                     }}
-                    disabled={!logsLengths[tile]}
                     className="w-64"
                   >
                     {tile}
-                    {logsLengths[tile] ? "" : " (empty table)"}
                   </DropdownMenuItem>
                 )
               })}
@@ -152,20 +160,21 @@ const TileCard = ({
             <SkeletonLoader />
           </div>
         }>
-          <Tile
-              tileId={item?.i}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              updateTab={updateTab}
-              logsActions={logsActions}
-              fieldsActions={fieldsActions}
-              derivedEntryActions={derivedEntryActions}
-              contextActions={contextActions}
-              codeActions={codeActions}
-              tileButtonsRef={tileButtonsRef}
-              tileCardRef={tileCardRef}
-          />
+          {children || (
+            <Tile
+                tileId={tileId}
+                tabId={tabId}
+                interfaceId={interfaceId}
+                projectId={projectId}
+                tileActions={tileActions}
+                logsActions={logsActions}
+                fieldsActions={fieldsActions}
+                derivedEntryActions={derivedEntryActions}
+                contextActions={contextActions}
+                codeActions={codeActions}
+                projectsActions={projectsActions}
+            />
+          )}
         </Suspense>
 
       </div>

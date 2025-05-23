@@ -5,13 +5,12 @@ import ActionButton from "../Common/Buttons/Action";
 import { useTileUI } from "@/contexts/hooks";
 import { Palette } from "lucide-react";
 
-const TabColorPicker = ({tileName, tabName, interfaceName}: {
-    tileName: string,
-    tabName: string,
-    interfaceName: string
+const TabColorPicker = ({tileId, tabId}: {
+    tileId: string,
+    tabId: string,
 }) => {
 
-    const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileName, tabName, interfaceName);
+    const {ui: tileUIState, uiActions: tileUIActions} = useTileUI(tileId, tabId);
 
     return (
         <ColorPicker

@@ -21,15 +21,15 @@ export interface ProjectDataActions {
 
 /**
  * Custom hook to access project data and related actions
- * @param projectName The name of the project to access
+ * @param projectIdOrName The ID or name of the project to access
  * @returns Object containing project data, actions, and other related state
  */
-export function useProjectData(projectName: string | null) {
+export function useProjectData(projectIdOrName: string | null) {
   // Use the meta hook to get common project info
   const { 
     projectId, 
     projectExists 
-  } = useProjectMeta(projectName);
+  } = useProjectMeta(projectIdOrName);
 
   // Granular subscriptions to Data properties using useShallow for arrays and objects
   const description = useStoreContext(state => {
