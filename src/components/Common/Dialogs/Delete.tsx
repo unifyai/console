@@ -7,13 +7,15 @@ import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
 
-const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setShowDialog, onDelete, icon = <Trash/>, text, expectedResponseType, className }: {
+const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setShowDialog, customOpen, setCustomOpen, onDelete, icon = <Trash/>, text, expectedResponseType, className }: {
     args: any[],
     type: string
     deletingFunction: (...args: any[]) => Promise<ResponseProps | string>,
     variant?: "secondary" | "destructive" | "outline" | "ghost" | "link" | "warning",
     showDialog?: boolean,
-    setShowDialog?: Dispatch<SetStateAction<boolean>>
+    setShowDialog?: (open: boolean) => any,
+    customOpen?: boolean,
+    setCustomOpen?: (open: boolean) => any,
     onDelete?: () => void,
     icon?: ReactNode,
     text?: string,
@@ -50,7 +52,9 @@ const DeleteDialog = ({ args, type, deletingFunction, showDialog, variant, setSh
     };
 
     // Dialog state and content
-    const [open, setOpen] = useState(false)
+    const [open_, setOpen_] = useState(false);
+    const open = customOpen == undefined ? open_ : customOpen;
+    const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
     const onOpen = () => showDialog && setShowDialog ? setShowDialog(!showDialog) : setOpen(!open);
     const tooltip = `Delete ${type}`
     const onClick = (e:any) => {

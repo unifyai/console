@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import ActionButton from "../Common/Buttons/Action";
-import { DerivedEntryActions, TabActions, LogsActions, ProjectsActions, TileProps, CodeActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, ProjectsActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -21,148 +21,151 @@ import { CopyButton } from "../Common/Buttons/Copy";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import CodeBlock from "./CodeBlock";
 
+// Import the unified demo query hook
+import { useCreateDemoQuery } from "@/hooks/Query/useDemoQuery";
+
 const DefaultProject = ({
     projectActions,
+    interfaceActions,
     tabActions,
+    tileActions,
     logsActions,
     codeActions,
     derivedEntryActions,
     setTabQueryParam,
+    setInterfaceQueryParam,
     setProjectQueryParam
 }: {
     projectActions: ProjectsActions,
-    tabActions: TabActions,
+    interfaceActions: GranularInterfaceActions,
+    tabActions: GranularTabActions,
+    tileActions: GranularTileActions,
     logsActions: LogsActions,
-    codeActions: CodeActions
+    codeActions: CodeActions,
     derivedEntryActions: DerivedEntryActions,
     setTabQueryParam: (value: string | null) => void,
+    setInterfaceQueryParam: (value: string | null) => void,
     setProjectQueryParam: (value: string | null) => void,
 }) => {
     // Access projects getter and setter from the store
     const projects = useStoreContext(state => state.projects);
 
-    const disabled = projects == undefined
-    const [pendingLocal, setPendingLocal] = useState(false);
-    const [error, setError] = useState(false);
+    // Initialize the unified demo creation mutation hook
+    const createDemoMutation = useCreateDemoQuery();
+
+    // Use React Query's state management
+    const isPending = createDemoMutation.isPending;
+    const isError = createDemoMutation.isError;
+
+    const disabled = projects == undefined;
     const [imageDialog, setImageDialog] = useState(false);
     const [demo, setDemo] = useQueryState("demo");
     const [create, setCreate] = useQueryState("create");
     const demosTree = buildNestedDropdownTree(Object.keys(demos));
     const {
-        project: demoProject,
-        name: demoName,
-        items: demoItems,
-        new_counter: demoNewCounter,
         code: demoCode,
         gif: demoGif,
         link: demoLink,
         description: demoDescription,
-        derived_columns: demoDerivedColumns
+        derived_columns: demoDerivedColumns,
+        interface: demoInterface,
+        tab: demoTab,
+        tiles: demoTiles
     } = demos[
         Object.keys(demos).includes(demo || "")
             ? demo || ""
             : Object.keys(demos)[0]
         ];
 
-    const storeDemo = (
-        demoProject: string,
-        demoName: string,
-        demoItems: TileProps[],
-        demoNewCounter: number,
-        demoDerivedColumns: {
-            project: string;
-            context?: string | undefined;
-            key: string;
-            equation: string;
-            referenced_logs: {
-                [table_name: string]: getLogsParameters;
-            };
-        } | undefined
-    ) => {
-        if (projects?.includes(demoProject)) {
+    const storeDemo = async () => {
+        if (!demoInterface || !demoTab || !demoTiles) {
+            return;
+        }
+
+        if (projects?.includes(demoInterface.project_id || "")) {
             setTimeout(() => {
-                setProjectQueryParam(demoProject);
+                setProjectQueryParam(demoInterface.project_id || null);
                 setCreate(null);
             }, 3000);
-        } else {
-            setPendingLocal(true);
-            codeActions.run({ "main.py": demoCode }, "main.py", "").then(() => {
-                tabActions.create(
-                    demoName, demoProject, undefined, demoItems, demoNewCounter, true, undefined
-                ).then(() => {
-                    if (demoDerivedColumns != undefined) {
-                        derivedEntryActions.create(
-                            demoDerivedColumns.project,
-                            demoDerivedColumns.context,
-                            demoDerivedColumns.key,
-                            demoDerivedColumns.equation,
-                            demoDerivedColumns.referenced_logs
-                        ).then(() => {
-                            setTimeout(() => {
-                                setPendingLocal(false);
-                                setProjectQueryParam(demoProject);
-                                setTabQueryParam(demoName);
-                                setDemo(null);
-                                setCreate(null);
-                            }, 3000);
-                        });
-                    } else {
-                        setTimeout(() => {
-                            setPendingLocal(false);
-                            setProjectQueryParam(demoProject);
-                            setTabQueryParam(demoName);
-                            setDemo(null);
-                            setCreate(null);
-                        }, 3000);
-                    }
-                });
-            }).catch(() => {
-                projectActions.delete(demoProject);
-                setPendingLocal(false);
-                setError(true);
+            return;
+        }
+        
+        try {
+            // Make sure the demo data meets the expected types for the useCreateDemoQuery hook
+            // by ensuring all required fields are defined
+            const verifiedInterface: InterfaceData = {
+                ...demoInterface,
+                // Ensure project_id is defined (required by the hook)
+                project_id: demoInterface.project_id || "",
+            };
+            
+            const verifiedTab: TabData = {
+                ...demoTab,
+                // Other fields are optional
+            };
+            
+            // Create verified tile objects with position formatting
+            const verifiedTiles: TileData[] = demoTiles.map(tile => ({
+                ...tile,
+                // All other fields come from the demo data
+            }));
+            
+            // Use the unified demo creation hook with type-safe inputs
+            await createDemoMutation.mutateAsync({
+                interface: verifiedInterface,
+                tab: verifiedTab,
+                tiles: verifiedTiles,
+                derivedColumns: demoDerivedColumns,
+                code: demoCode,
+                actions: {
+                    interfaceActions,
+                    tabActions,
+                    tileActions,
+                    codeActions,
+                    derivedEntryActions
+                }
             });
+            
+            // After all operations complete successfully
+            setTimeout(() => {
+                setProjectQueryParam(demoInterface.project_id || null);
+                setInterfaceQueryParam(demoInterface.name || null);
+                setTabQueryParam(demoTab.name);
+                setDemo(null);
+                setCreate(null);
+            }, 3000);
+            
+        } catch (error) {
+            console.error("Error creating demo:", error);
+            // Error handling is now managed by the hook
         }
     };
+
+    // Reset mutations if there was an error
+    useEffect(() => {
+        if (isError) {
+            createDemoMutation.reset();
+        }
+    }, [isError]);
 
     useEffect(() => {
         if (demo == null)
             setDemo(Object.keys(demos)[0]);
-        if (create && demo) {
-            const {
-                project: demoProject,
-                name: demoName,
-                items: demoItems,
-                new_counter: demoNewCounter,
-                derived_columns: demoDerivedColumns
-            } = demos[demo];
-            storeDemo(
-                demoProject,
-                demoName,
-                demoItems,
-                demoNewCounter,
-                demoDerivedColumns
-            );
+        if (create && demo && !isPending) {
+            storeDemo();
         }
-    });
-
-    useEffect(() => {
-        if (error) {
-            setTimeout(() => {
-                setError(false);
-            }, 5000);
-        }
-    }, [error]);
+    }, [create, demo, isPending]);
 
     return <>
         <div className="h-[94vh] flex flex-col gap-4 items-center">
             <div className="mt-4 flex justify-center font-semibold">
-                {create
+                {create && isPending
                     ? "Creating the project, please wait..."
                     : "Please select a project, create a project or select a demo below"
                 }
             </div>
             <div className="my-auto">
-                {error && <div className="my-2 text-destructive">
+                {isError && <div className="my-2 text-destructive">
                     Error running demo, please try again.
                 </div>}
                 <div className="flex gap-8">
@@ -171,7 +174,7 @@ const DefaultProject = ({
                             <div className="w-fit">
                                 <BaseDropdown
                                     button={<ActionButton
-                                        tooltip={"Select Demo"}
+                                        tooltip={"Select demo"}
                                         text={"Select Demo"}
                                         variant={"outline"}
                                         size="default"
@@ -224,16 +227,10 @@ const DefaultProject = ({
                             code={demoCode}
                             language="python"
                             demoLink={demoLink}
-                            pending={pendingLocal}
+                            pending={isPending}
                             create={create}
-                            onRun={(_: string) => storeDemo(
-                                demoProject,
-                                demoName,
-                                demoItems,
-                                demoNewCounter,
-                                demoDerivedColumns
-                            )}
-                            disabled={disabled}
+                            onRun={(_: string) => storeDemo()}
+                            disabled={disabled || isPending}
                             readOnly={true}
                         />
                     </div>

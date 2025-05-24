@@ -13,14 +13,18 @@ import { Form } from "@/components/UI/form"
 import SettingButton from "../Buttons/Setting";
 import { useKey } from "react-use";
 
-export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, disabled }: {
+export default function CreateDialog ({ type, creationFunction, CreateSchema, form, Fields, extraFormActions, customOpen, setCustomOpen, disabled, text, variant="outline" }: {
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
     form: UseFormReturn<any, any, undefined>
     Fields: ReactNode,
     extraFormActions?: (data: z.infer<typeof CreateSchema>) => void,
+    customOpen?: boolean,
+    setCustomOpen?: (open: boolean) => any,
     disabled?: boolean,
+    text?: string
+    variant?: "outline" | "ghost",
 }) {
     // Define messages
     const messages = {
@@ -49,13 +53,15 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     };
 
     // Dialog state and content 
-    const [open, setOpen] = useState(false)
+    const [open_, setOpen_] = useState(false);
+    const open = customOpen == undefined ? open_ : customOpen;
+    const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
     const onOpen = () => {
         setOpen(!open);
     }
     
     const tooltip = `Create ${type}`
-    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} />
+    const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} text={text} variant={variant}/>
     
     const title = tooltip
     const body =    success ? messages["success"] : error ? messages["error"] : Fields;

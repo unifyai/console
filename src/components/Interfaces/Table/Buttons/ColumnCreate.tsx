@@ -30,7 +30,7 @@ const extractSharedPath = (firstColumnName: string, secondColumnName: string) =>
 
 const extractColumnPath = (columnName: string) => columnName.split("/").slice(1, -1).join("/")
 
-const ColumnCreate = ({ project, context, columnContext, currentTable, tableArguments, logs, create, setPending, refresh, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ project, context, columnContext, currentTable, tableArguments, logs, create, setPending, columnOrder, setColumnOrder, previousColumn, setOpen }: {
     project: string,
     context: string | undefined,
     columnContext: string | undefined,
@@ -39,7 +39,6 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     logs: LogProps[] | GroupedLogProps[],
     create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
-    refresh: () => Promise<ResponseProps>,
     columnOrder: string[],
     setColumnOrder: (order: string[]) => void,
     previousColumn: string,
@@ -152,10 +151,8 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
                 setColumnOrder(newOrder);
                 
                 // Refresh page
-                refresh().then(() => {
-                    router.refresh();
-                    setPending(true);
-                });
+                router.refresh();
+                setPending(true);
                 
                 return;
             } 

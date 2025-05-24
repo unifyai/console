@@ -2,9 +2,22 @@ import React from "react";
 import { Span } from "@/types/evals/traces";
 import { LogComparisonProps } from "../types";
 import UnifiedTraceView, { PersistedTraceViewState } from "./TraceView";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 interface TraceViewProps extends LogComparisonProps {
+  isImmutable?: boolean;
   persistedState?: PersistedTraceViewState;
+  cellEditMode?: boolean;
+  onSaveEdit?: (desc: { logIndex: number; path: (string | number)[]; newValue: any }) => void;
+  onGroupSaveEdit?: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void;
+  onTraceUpdate?: (logIndex: number, fieldName: string, newTrace: Span[]) => void;
+  path?: (string | number)[];
+  logsActions?: LogsActions,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  fieldName: string
 }
 
 const TraceView: React.FC<TraceViewProps> = ({
@@ -16,6 +29,17 @@ const TraceView: React.FC<TraceViewProps> = ({
   splitView = false,
   displayMode = "markdown",
   persistedState,
+  isImmutable,
+  cellEditMode,
+  onSaveEdit,
+  onGroupSaveEdit,
+  onTraceUpdate,
+  path,
+  logsActions,
+  context,
+  baseLog,
+  comparisonLogs,
+  fieldName
 }) => {
   // Ensure the base "value" is an array of spans
   if (!Array.isArray(value)) {
@@ -39,6 +63,17 @@ const TraceView: React.FC<TraceViewProps> = ({
       splitView={splitView}
       displayMode={displayMode}
       persistedState={persistedState}
+      isImmutable={isImmutable}
+      cellEditMode={cellEditMode}
+      onSaveEdit={onSaveEdit}
+      onGroupSaveEdit={onGroupSaveEdit}
+      onTraceUpdate={onTraceUpdate}
+      path={path}
+      logsActions={logsActions}
+      context={context || null}
+      baseLog={baseLog}
+      comparisonLogs={comparisonLogs}
+      fieldName={fieldName}
     />
   );
 };

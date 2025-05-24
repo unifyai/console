@@ -23,7 +23,7 @@ export function BasePopover({
   ...restContentProps
 }: BasePopoverProps) {
 
-  const finalClassName = `${className ? className : "w-fit px-[50px]"}`;
+  const finalClassName = `${className ? className : "w-fit px-[20px]"}`;
 
   const popoverContent = context === "tile"
       ? <TilePopoverContent className={finalClassName} {...restContentProps}>

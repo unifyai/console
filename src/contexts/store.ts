@@ -50,10 +50,12 @@ export function createStore(initialState?: Partial<IStoreState>) {
           })),
 
           // Global update action
-          updateState: (updates: Partial<IStoreState>) => set((state) => ({
-            ...state,
-            ...updates,
-          })),
+          updateState: (updates: Partial<IStoreState>) => set((state) => {
+            return {
+              ...state,
+              ...updates,
+            };
+          }),
         };
       }),
       {

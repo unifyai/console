@@ -36,6 +36,8 @@ import {
   isTimestamp,
 } from "@/utils/evals/selection";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
+import { LogsActions } from "@/types/evals/grid";
+import { LogProps } from "@/types/evals/logs";
 
 /******************************************************************************
  * A tiny helper to capitalize or otherwise format a role for display.
@@ -58,103 +60,56 @@ function pickDataView(
   compLogIndexes: number[],
   diffMode: LogComparisonProps["diffMode"],
   splitView: boolean,
-  displayMode: "text" | "markdown" | undefined
+  displayMode: LogComparisonProps["displayMode"],
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
+  cellEditMode?: boolean,
+  onSaveEdit?: LogComparisonProps["onSaveEdit"],
+  onGroupSaveEdit?: LogComparisonProps['onGroupSaveEdit'],
+  isImmutable?: boolean
 ) {
   let finalValue = baseValue;
   if (finalValue === undefined && comparables && comparables.length > 0) {
     finalValue = comparables.find((c) => c !== undefined);
   }
 
+   const commonProps = {
+      value: baseValue,
+      comparables: comparables,
+      baseLogIndex: baseLogIndex,
+      comparisonLogsIndex: compLogIndexes,
+      diffMode: diffMode,
+      splitView: splitView,
+      displayMode: displayMode,
+      cellEditMode: cellEditMode,
+      onSaveEdit: onSaveEdit,
+      onGroupSaveEdit: onGroupSaveEdit,
+  }
+
+
   if (isDict(finalValue)) {
-    return (
-      <DictionaryView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <DictionaryView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isList(finalValue)) {
-    return (
-      <ListView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <ListView {...commonProps} isImmutable={isImmutable} logsActions={logsActions} context={context} baseLog={baseLog} comparisonLogs={comparisonLogs} fieldName={fieldName}/>;
   }
   if (isImage(finalValue)) {
-    return (
-      <ImageView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <ImageView {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
-    return (
-      <MatrixView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <MatrixView {...commonProps} />;
   }
   if (isNumber(finalValue)) {
-    return (
-      <NumberView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <NumberView {...commonProps} isImmutable={isImmutable}/>;
   }
   if (isTimestamp(finalValue)) {
-    return (
-      <TimestampView
-        value={baseValue}
-        comparables={comparables}
-        baseLogIndex={baseLogIndex}
-        comparisonLogsIndex={compLogIndexes}
-        diffMode={diffMode}
-        splitView={splitView}
-        displayMode={displayMode}
-      />
-    );
+    return <TimestampView {...commonProps} isImmutable={isImmutable}/>;
   }
   // fallback => string
-  return (
-    <StringView
-      value={baseValue}
-      comparables={comparables}
-      baseLogIndex={baseLogIndex}
-      comparisonLogsIndex={compLogIndexes}
-      diffMode={diffMode}
-      splitView={splitView}
-      displayMode={displayMode}
-    />
-  );
+  return <StringView {...commonProps} isImmutable={isImmutable}/>;
 }
 
 /******************************************************************************
@@ -230,9 +185,26 @@ export default function ChatOutView({
   baseLogIndex,
   comparisonLogsIndex,
   diffMode = "none",
+  isImmutable,
   splitView = false,
   displayMode = "markdown",
-}: LogComparisonProps) {
+  cellEditMode = false,
+  onSaveEdit,
+  onGroupSaveEdit,
+  path = [],
+  fieldName,
+  context,
+  baseLog,
+  comparisonLogs,
+  logsActions,
+}: LogComparisonProps & {
+  isImmutable?: boolean,
+  fieldName: string,
+  context: string | null,
+  baseLog: LogProps | undefined,
+  comparisonLogs: LogProps[] | undefined,
+  logsActions?: LogsActions,  
+}) {
   // SINGLE MODE
   const singleMode = !comparables || comparables.length === 0;
   if (singleMode) {
@@ -244,6 +216,10 @@ export default function ChatOutView({
     delete leftover.usage;
     const model = leftover.model ?? "";
     delete leftover.model;
+
+    // Build paths for child views
+    const usagePath = [...path, 'usage'];
+    const metadataPath = [...path]; // Base path for leftovers
 
     return (
       <div className="space-y-4 w-full">
@@ -264,6 +240,8 @@ export default function ChatOutView({
                     const label = formatRole(role);
                     const mainContent = choice.message?.content ?? "";
                     const toolCalls = choice.message?.tool_calls ?? [];
+                    const contentPath = [...path, 'choices', idx, 'message', 'content'];
+                    const toolCallsPath = [...path, 'choices', idx, 'message', 'tool_calls'];
 
                     return (
                       <div
@@ -277,7 +255,9 @@ export default function ChatOutView({
                             copyMessage="Copied!"
                           />
                         </div>
-                        {renderMessageContent(mainContent)}
+                        {/* Pass edit props down to potentially editable content */}
+                        {pickDataView(mainContent, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
+
 
                         {/* Tool calls section */}
                         {toolCalls.length > 0 && (
@@ -288,9 +268,8 @@ export default function ChatOutView({
                               content={JSON.stringify(toolCalls, null, 2)}
                               copyMessage="Copied!"
                             />
-                            <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                              {JSON.stringify(toolCalls, null, 2)}
-                            </pre>
+                            {/* Tool calls are usually complex, less likely to be directly edited, but pass handlers */}
+                            {pickDataView(toolCalls, [], baseLogIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                           </div>
                         )}
                       </div>
@@ -320,6 +299,10 @@ export default function ChatOutView({
                     diffMode={diffMode}
                     splitView={splitView}
                     displayMode={displayMode}
+                    cellEditMode={cellEditMode}
+                    onSaveEdit={onSaveEdit}
+                    onGroupSaveEdit={onGroupSaveEdit}
+                    path={[...path, 'model']}
                   />
                 </div>
               </AccordionContent>
@@ -336,7 +319,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode)}
+                  {pickDataView(usage, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -352,7 +335,7 @@ export default function ChatOutView({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border-l ml-4 pl-1">
-                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode)}
+                  {pickDataView(leftover, [], baseLogIndex, [], diffMode, splitView, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -375,7 +358,7 @@ export default function ChatOutView({
   );
   const unified = unifyChoices(baseChoices, compChoiceArrays);
 
-  // usage leftover 
+  // usage leftover
   const usageBase = baseObj.usage;
   const usageComps = compObjs.map((co) => co.usage);
   const leftover: Record<string, any> = { ...baseObj };
@@ -466,8 +449,8 @@ export default function ChatOutView({
                   if (!combined.length) return null;
 
                   // Filter out blocks where all messages are empty
-                  const allEmpty = combined.every(m => 
-                    (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) && 
+                  const allEmpty = combined.every(m =>
+                    (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
                     (!m.toolCalls || m.toolCalls.length === 0)
                   );
                   if (allEmpty) return null;
@@ -496,6 +479,8 @@ export default function ChatOutView({
                             </div>
                             {asstParts.map((m) => {
                               const label = formatRole(m.role);
+                               const contentPath = [...path, 'choices', i, 'message', 'content']; // Path to content
+                               const toolCallsPath = [...path, 'choices', i, 'message', 'tool_calls']; // Path to tool calls
                               return (
                                 <TabsContent
                                   key={m.rowIndex}
@@ -510,7 +495,8 @@ export default function ChatOutView({
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                    {renderMessageContent(m.content)}
+                                    {/* Pass edit props */}
+                                    {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -522,9 +508,8 @@ export default function ChatOutView({
                                           content={JSON.stringify(m.toolCalls, null, 2)}
                                           copyMessage="Copied!"
                                         />
-                                        <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                          {JSON.stringify(m.toolCalls, null, 2)}
-                                        </pre>
+                                        {/* Pass edit props */}
+                                        {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -545,13 +530,15 @@ export default function ChatOutView({
                                     key={m.rowIndex}
                                     value={String(m.rowIndex)}
                                   >
-                                    Row {m.rowIndex}
+                                    Row {m.rowIndex + 1}
                                   </TabsTrigger>
                                 ))}
                               </TabsList>
                             </div>
                             {userParts.map((m) => {
                               const label = formatRole(m.role);
+                               const contentPath = [...path, 'choices', i, 'message', 'content'];
+                               const toolCallsPath = [...path, 'choices', i, 'message', 'tool_calls'];
                               return (
                                 <TabsContent
                                   key={m.rowIndex}
@@ -566,7 +553,8 @@ export default function ChatOutView({
                                         copyMessage="Copied!"
                                       />
                                     </div>
-                                    {renderMessageContent(m.content)}
+                                     {/* Pass edit props */}
+                                     {pickDataView(m.content, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
@@ -578,9 +566,8 @@ export default function ChatOutView({
                                           content={JSON.stringify(m.toolCalls, null, 2)}
                                           copyMessage="Copied!"
                                         />
-                                        <pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">
-                                          {JSON.stringify(m.toolCalls, null, 2)}
-                                        </pre>
+                                         {/* Pass edit props */}
+                                         {pickDataView(m.toolCalls, [], m.rowIndex, [], "none", false, displayMode, fieldName, context, baseLog, comparisonLogs, logsActions, cellEditMode, onSaveEdit, onGroupSaveEdit, isImmutable)}
                                       </div>
                                     )}
                                   </div>
@@ -613,6 +600,10 @@ export default function ChatOutView({
                   diffMode={diffMode}
                   splitView={splitView}
                   displayMode={displayMode}
+                  cellEditMode={cellEditMode}
+                  onSaveEdit={onSaveEdit}
+                  onGroupSaveEdit={onGroupSaveEdit} // Pass group save
+                  path={[...path, 'model']} // Path to model
                 />
               </div>
             </AccordionContent>
@@ -634,7 +625,16 @@ export default function ChatOutView({
                     comparisonLogsIndex,
                     diffMode,
                     splitView,
-                    displayMode
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -657,7 +657,16 @@ export default function ChatOutView({
                     comparisonLogsIndex,
                     diffMode,
                     splitView,
-                    displayMode
+                    displayMode,
+                    fieldName,
+                    context,
+                    baseLog,
+                    comparisonLogs,
+                    logsActions,
+                    cellEditMode,
+                    onSaveEdit,
+                    onGroupSaveEdit,
+                    isImmutable
                   )}
                 </div>
               </AccordionContent>
@@ -690,8 +699,8 @@ export default function ChatOutView({
                 if (!combined.length) return null;
 
                 // Filter out blocks where all messages are empty
-                const allEmpty = combined.every(m => 
-                  (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) && 
+                const allEmpty = combined.every(m =>
+                  (!m.content || (typeof m.content === 'string' && m.content.trim() === '')) &&
                   (!m.toolCalls || m.toolCalls.length === 0)
                 );
                 if (allEmpty) return null;
@@ -875,6 +884,10 @@ export default function ChatOutView({
                 comparisonLogsIndex={comparisonLogsIndex}
                 diffMode={diffMode}
                 splitView={splitView}
+                cellEditMode={cellEditMode}
+                onSaveEdit={onSaveEdit}
+                onGroupSaveEdit={onGroupSaveEdit}
+                path={[...path, 'model']}
               />
             </div>
           </AccordionContent>
@@ -896,7 +909,16 @@ export default function ChatOutView({
                   comparisonLogsIndex,
                   diffMode,
                   splitView,
-                  displayMode
+                  displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
+                  cellEditMode,
+                  onSaveEdit,
+                  onGroupSaveEdit,
+                  isImmutable
                 )}
               </div>
             </AccordionContent>
@@ -919,7 +941,16 @@ export default function ChatOutView({
                   comparisonLogsIndex,
                   diffMode,
                   splitView,
-                  displayMode
+                  displayMode,
+                  fieldName,
+                  context,
+                  baseLog,
+                  comparisonLogs,
+                  logsActions,
+                  cellEditMode,
+                  onSaveEdit,
+                  onGroupSaveEdit,
+                  isImmutable
                 )}
               </div>
             </AccordionContent>

@@ -44,12 +44,6 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       return;
     }
     
-    // // Create an operation ID for this update
-    // const updateOpId = OPERATIONS.STORE_UPDATE(Date.now());
-    
-    // // Track the operation
-    // storeActions.trackOperation(updateOpId, 'pending');
-    
     try {
       const prevState = initialStateRef.current;
       
@@ -67,16 +61,16 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
         // Reset the entire state
         storeActions.resetState(initialState);
         initialStateRef.current = initialState;
-        // storeActions.trackOperation(updateOpId, 'success');
         return;
       }
 
+      // For server states, we want to be more careful with merging
       if (isServerReload) {
-        // Apply granular updates for server-side reloads
+        // We need to preserve operations and user-added entities in server reloads
+        // So we apply granular updates and only update what was explicitly included in the server state
         applyGranularUpdates(prevState, initialState, storeActions);
       } else {
-        // For client-side mutations, just update the entire state
-        // This avoids processing unnecessary granular updates
+        // For client-side mutations, reset the state but preserve the stateSource property
         const stateWithoutSource = { ...initialState };
         delete (stateWithoutSource as any).stateSource;
         storeActions.resetState(stateWithoutSource);
@@ -84,19 +78,10 @@ function StoreUpdater({ initialState }: { initialState: Partial<IStoreState> }) 
       
       // Update ref to current state
       initialStateRef.current = initialState;
-      
-      // // Mark operation as successful
-      // storeActions.trackOperation(updateOpId, 'success');
     } catch (error) {
-      // // Mark operation as failed
-      // storeActions.trackOperation(
-      //   updateOpId, 
-      //   'error', 
-      //   error instanceof Error ? error.message : String(error)
-      // );
       console.error('Error updating store:', error);
     }
-  }, [initialState, storeActions]);
+  }, [initialState, storeActions, resetting]);
   
   // // Update the operations ref when operations change
   // // This allows us to preserve operations during resets
@@ -120,6 +105,10 @@ function applyGranularUpdates(
   newState: Partial<IStoreState>,
   actions: any
 ) {
+  // If the new state is explicitly marked as coming from server,
+  // we should handle it more carefully to avoid race conditions
+  const isServerState = (newState as any)?.stateSource === 'server';
+  
   // Update global navigation state
   if (prevState.activeProjectId !== newState.activeProjectId && newState.activeProjectId) {
     actions.setActiveProject(newState.activeProjectId);
@@ -142,29 +131,43 @@ function applyGranularUpdates(
   }
   
   // Update entity collections using granular update methods
-  updateProjectsCollection(
-    prevState.projectsById, 
-    newState.projectsById, 
-    actions.updateProject
-  );
+  // Only process updates that were explicitly included in the server state
+  // to avoid overwriting client changes with stale data
+  if (newState.projectsById) {
+    updateProjectsCollection(
+      prevState.projectsById, 
+      newState.projectsById, 
+      actions.updateProject,
+      isServerState
+    );
+  }
   
-  updateInterfacesCollection(
-    prevState.interfacesById, 
-    newState.interfacesById, 
-    actions.updateInterface
-  );
+  if (newState.interfacesById) {
+    updateInterfacesCollection(
+      prevState.interfacesById, 
+      newState.interfacesById, 
+      actions.updateInterface,
+      isServerState
+    );
+  }
   
-  updateTabsCollection(
-    prevState.tabsById, 
-    newState.tabsById, 
-    actions.updateTab
-  );
+  if (newState.tabsById) {
+    updateTabsCollection(
+      prevState.tabsById, 
+      newState.tabsById, 
+      actions.updateTab,
+      isServerState
+    );
+  }
   
-  updateTilesCollection(
-    prevState.tilesById, 
-    newState.tilesById, 
-    actions.updateTile
-  );
+  if (newState.tilesById) {
+    updateTilesCollection(
+      prevState.tilesById, 
+      newState.tilesById, 
+      actions.updateTile,
+      isServerState
+    );
+  }
 }
 
 /**
@@ -174,7 +177,8 @@ function applyGranularUpdates(
 function updateProjectsCollection(
   prevCollection: Record<string, any> | undefined,
   newCollection: Record<string, any> | undefined,
-  updateProject: (projectId: string, updates: any) => void
+  updateProject: (projectId: string, updates: any) => void,
+  isServerState: boolean
 ) {
   if (!prevCollection || !newCollection) {
     return;
@@ -191,8 +195,14 @@ function updateProjectsCollection(
     const prevProject = prevCollection[projectId];
     const newProject = newCollection[projectId];
     
-    // Skip if the project is the same reference or if it was removed (handled elsewhere)
-    if (prevProject === newProject || (!newProject && prevProject)) {
+    // Skip if the project is the same reference
+    if (prevProject === newProject) {
+      continue;
+    }
+    
+    // For server states, we only want to add new items or update existing ones
+    // But we don't want to delete items that aren't in the server state (which might be partial)
+    if (isServerState && !newProject) {
       continue;
     }
     
@@ -210,7 +220,8 @@ function updateProjectsCollection(
 function updateInterfacesCollection(
   prevCollection: Record<string, any> | undefined,
   newCollection: Record<string, any> | undefined,
-  updateInterface: (interfaceId: string, updates: any) => void
+  updateInterface: (interfaceId: string, updates: any) => void,
+  isServerState: boolean
 ) {
   if (!prevCollection || !newCollection) {
     return;
@@ -227,8 +238,14 @@ function updateInterfacesCollection(
     const prevInterface = prevCollection[interfaceId];
     const newInterface = newCollection[interfaceId];
     
-    // Skip if the interface is the same reference or if it was removed (handled elsewhere)
-    if (prevInterface === newInterface || (!newInterface && prevInterface)) {
+    // Skip if the interface is the same reference
+    if (prevInterface === newInterface) {
+      continue;
+    }
+    
+    // For server states, we only want to add new items or update existing ones
+    // But we don't want to delete items that aren't in the server state
+    if (isServerState && !newInterface) {
       continue;
     }
     
@@ -246,7 +263,8 @@ function updateInterfacesCollection(
 function updateTabsCollection(
   prevCollection: Record<string, any> | undefined,
   newCollection: Record<string, any> | undefined,
-  updateTab: (tabId: string, updates: any) => void
+  updateTab: (tabId: string, updates: any) => void,
+  isServerState: boolean
 ) {
   if (!prevCollection || !newCollection) {
     return;
@@ -263,8 +281,14 @@ function updateTabsCollection(
     const prevTab = prevCollection[tabId];
     const newTab = newCollection[tabId];
     
-    // Skip if the tab is the same reference or if it was removed (handled elsewhere)
-    if (prevTab === newTab || (!newTab && prevTab)) {
+    // Skip if the tab is the same reference
+    if (prevTab === newTab) {
+      continue;
+    }
+    
+    // For server states, we only want to add new items or update existing ones
+    // But we don't want to delete items that aren't in the server state
+    if (isServerState && !newTab) {
       continue;
     }
     
@@ -282,7 +306,8 @@ function updateTabsCollection(
 function updateTilesCollection(
   prevCollection: Record<string, any> | undefined,
   newCollection: Record<string, any> | undefined,
-  updateTile: (tileId: string, updates: any) => void
+  updateTile: (tileId: string, updates: any) => void,
+  isServerState: boolean
 ) {
   if (!prevCollection || !newCollection) {
     return;
@@ -299,8 +324,14 @@ function updateTilesCollection(
     const prevTile = prevCollection[tileId];
     const newTile = newCollection[tileId];
     
-    // Skip if the tile is the same reference or if it was removed (handled elsewhere)
-    if (prevTile === newTile || (!newTile && prevTile)) {
+    // Skip if the tile is the same reference
+    if (prevTile === newTile) {
+      continue;
+    }
+    
+    // For server states, we only want to add new items or update existing ones
+    // But we don't want to delete items that aren't in the server state
+    if (isServerState && !newTile) {
       continue;
     }
     

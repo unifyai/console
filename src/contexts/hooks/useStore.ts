@@ -6,6 +6,10 @@ import { Project } from '../slices/selectors/project';
 import { Interface } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
 import { Tile } from '../slices/selectors/tile';
+import { useTileMeta } from './tile/useTileMeta';
+import { useTabMeta } from './tab/useTabMeta';
+import { useTableDataQueries, useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTabData } from './tab/useTabData';
 
 // Define stable fallback references
 const EMPTY_PROJECTS: string[] = [];
@@ -513,24 +517,83 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
 /**
  * Hook to get log lengths for all table tiles
  */
-export function useLogLengths(): Record<string, number> {
-  // Step 1: Subscribe to raw tile data using useShallow
+export function useLogLengths(
+  tileIds: string[],
+  tabId: string
+): Record<string, number> {
+  // Retrieve the logs from the tableDataItem
+  const { dataActions: tabDataActions } = useTabData(tabId);
+  const tableDataItemsMap = useTableDataQueries(tileIds);
+
+  /**
+   * Build a `{ tileName: logLength }` map.
+   */
+  return useMemo(() => {
+    const result: Record<string, number> = {};
+
+    tileIds.forEach((id) => {
+      const item = tableDataItemsMap?.[id];
+      const name = tabDataActions?.getTileName(id);
+      if (!name || !item) return;
+
+      result[name] = item?.logs?.length || 0;
+    });
+
+    return result;
+  }, [tileIds, tableDataItemsMap, tabDataActions]);
+}
+
+/**
+ * Hook to get tiles from a tab
+ * @param tabId The ID of the tab
+ * @returns Array of tiles
+ */
+export function useTilesFromTab(tabId: string | null | undefined): Tile[] {
+  // Step 1: Subscribe to raw data - get the tab and all tiles in the store
   const tiles = useStoreContext(
     useShallow(state => {
-      if (!state.tilesById || Object.keys(state.tilesById).length === 0) return null;
-      return state.tilesById;
+      // If no tabId, return empty array
+      if (!tabId) return EMPTY_TILES;
+      
+      // Get the tab to find its tile IDs
+      const tab = state.tabsById[tabId];
+      if (!tab || !tab.tileIds || !tab.tileIds.length) return EMPTY_TILES;
+      
+      // Get all tiles for this tab and filter by type
+      return tab.tileIds
+        .map(tileId => state.tilesById[tileId])
     })
   );
   
-  // Step 2: Memoize the transformation of raw data
-  return useMemo(() => {
-    if (!tiles) return EMPTY_RECORD;
-    
-    return Object.values(tiles).reduce((acc: Record<string, number>, tile: Tile) => {
-      if (tile && tile.type === 'Table' && tile.name) {
-        acc[tile.name] = tile.tableTile?.tableDataItem?.logs?.length || 0;
-      }
-      return acc;
-    }, {});
-  }, [tiles]);
+  // Step 2: Memoize the result to prevent unnecessary re-renders
+  return useMemo(() => tiles as Tile[], [tiles]);
+}
+
+
+/**
+ * Hook to get tiles from a tab filtered by type
+ * @param tabId The ID of the tab
+ * @param type The type of tiles to filter by (e.g., 'Table', 'Plot')
+ * @returns Array of tiles of the specified type
+ */
+export function useTilesFromTabByType(tabId: string | null | undefined, type: string): Tile[] {
+  // Step 1: Subscribe to raw data - get the tab and all tiles in the store
+  const tiles = useStoreContext(
+    useShallow(state => {
+      // If no tabId, return empty array
+      if (!tabId) return EMPTY_TILES;
+      
+      // Get the tab to find its tile IDs
+      const tab = state.tabsById[tabId];
+      if (!tab || !tab.tileIds || !tab.tileIds.length) return EMPTY_TILES;
+      
+      // Get all tiles for this tab and filter by type
+      return tab.tileIds
+        .map(tileId => state.tilesById[tileId])
+        .filter(tile => tile && tile.type === type);
+    })
+  );
+  
+  // Step 2: Memoize the result to prevent unnecessary re-renders
+  return useMemo(() => tiles as Tile[], [tiles]);
 }

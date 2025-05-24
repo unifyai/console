@@ -11,7 +11,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
-import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/evals/table";
@@ -32,7 +32,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { searchParamToFilters } from "@/utils/evals/filters";
 import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
-import { TableDataItem, TileProps, TabProps } from "@/types/evals/grid";
+import { TableDataItem, TileProps, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/evals/columns";
 import ColumnCreate from "@/components/Interfaces/Table/Buttons/ColumnCreate";
@@ -43,6 +43,7 @@ import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
+import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 
@@ -51,83 +52,59 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useInterface } from "@/contexts/hooks/interface";
+import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useRouter } from "next/navigation"; // Import useRouter
 
 const LogsTable = ({
   tileId,
   tabId,
   interfaceId,
   projectId,
+  tileActions,
+  projectsActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
-  updateTab,
 }: {
   tileId: string;
   tabId: string;
   interfaceId: string;
   projectId: string | undefined;
+  tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions,
   contextActions: ContextActions,
-  updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>,
 }) => {
+  const router = useRouter(); // Initialize useRouter
 
   // Get access to the project data and actions
   const { data: projectDataState } = useProject(projectId ?? null);
-  const { ui: interfaceUIState } = useInterface(interfaceId);
   const contexts = projectDataState?.contexts || [];
 
   // Get access to the tab data and actions with granular access
-  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId, projectId);
+  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
   const context_ = tabDataState?.globalContext;
-  const tableArguments = tabDataState?.tableArguments as unknown as TableArguments;
-  const filterExpression = tableArguments?.[tileId]?.getLogs_parameters?.filter_expr || null;
-  const sortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.sorting || null;
-  const groupingExpression = tableArguments?.[tileId]?.getLogs_parameters?.grouping || null;
-  const groupSortingExpression = tableArguments?.[tileId]?.getLogs_parameters?.group_sorting || null;
-  
+
   // Use granular hooks for better performance
   const {
+    meta: tileMetaState,
     ui: tileUIState,
     tableTile: tableTileState,
     uiActions: tileUIActions,
-    dataActions: tileDataActions,
-    tableTileActions,
-  } = useTile(tileId, tabId, interfaceId, projectId);
-  
-  // Get access to the table tile specific data and actions with granular access
-  const limit = tableTileState?.limit as number;
-  const offset = tableTileState?.offset as number;
-  
-  // Get the item representation for the current tile
-  const { itemActions } = useTileItem(tileId, tabId, interfaceId);
-  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+  } = useTile(tileId, tabId);
 
-  // Use the tableDataItem from the tile's table data
-  const defaultTableDataItem = useMemo(() => ({
-    columnContexts: [],
-    baseIndex: undefined,
-    hiddenColumns: undefined,
-    columnOrdering: undefined,
-    selection: undefined,
-    fields: {},
-    logsData: { params: {}, logs: [], count: 0, groups: {} },
-    totalPages: 0,
-    entriesProperties: [],
-    paramsProperties: [],
-    logs: [],
-    params: [],
-    metrics: {},
-    groupedMetrics: {},
-    boundaries: { minimums: {}, maximums: {} },
-    metric: ""
-  } as TableDataItem), []);
-  const tableDataItem = tableTileState?.tableDataItem || defaultTableDataItem;
-
-  const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
+  // Use the enhanced hook that includes state tracking
+  const { 
+    tableData: tableDataItem, 
+    isLoading: isTableDataLoading,
+    isError: isTableDataError,
+    error: tableDataError,
+    updateTableDataItemWithUpdater
+  } = useTableDataQueryWithTracking(tileId || null, tabId || null);
 
   const {
     fields,
@@ -141,6 +118,36 @@ const LogsTable = ({
     boundaries
   } = tableDataItem;
 
+  const tileName = tileMetaState?.name || "";
+  const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
+  const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
+  const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
+  const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;
+  const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
+
+  // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedTileActions, tableTile } = useTileSync(
+    tileId,
+    tabId,
+    tileActions,
+    projectsActions,
+    contextActions,
+    logsActions,
+    fieldsActions
+  );
+  const syncedTileDataActions = syncedTileActions?.data ?? null;
+  const { tableTileActions } = tableTile ?? { tableTileActions: null };
+  
+  // Get access to the table tile specific data and actions with granular access
+  const limit = tableTileState?.limit as number;
+  const offset = tableTileState?.offset as number;
+  
+  // Get the item representation for the current tile
+  const { itemActions } = useTileItem(tileId, tabId);
+  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+  const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
+
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
   const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
@@ -153,15 +160,15 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = tabUIState?.interactive || false;
-  const pending = interfaceUIState?.pending || interfaceUIState?.dataPending || tileUIState?.pending;
+  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
-  const [showSpinner, setShowSpinner] = useState(pending || !tableTileState?.tableDataItem?.logs);
+  const [showSpinner, setShowSpinner] = useState(pending || !logs);
 
   useEffect(() => {
-    setShowSpinner(pending || !tableDataItem?.logs);
-  }, [pending, tableDataItem?.logs]);
+    setShowSpinner(pending || !logs);
+  }, [pending, logs]);
 
   // Get base and comparison logs
   const selectedCells = item?.selected ? item?.selected.split(",") : [];
@@ -303,7 +310,7 @@ const LogsTable = ({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = (filtersObj: FiltersByColumn) => {
     const keys = Object.keys(filtersObj);
-    tileDataActions?.setFilters(
+    syncedTileDataActions?.setFilters(
       keys.length
         ? Object.entries(filtersObj)
           .map(([cKey, val]) =>
@@ -328,7 +335,7 @@ const LogsTable = ({
 
   const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
   const setGrouping = (g: GroupingState) =>
-    tableTileActions?.setGrouping(g.length ? g.join(",") : undefined);
+    syncedTileDataActions?.setGrouping(g.length ? g.join(",") : undefined);
 
   const groupSorting: ColumnSort[] = groupSortingStr
     ? groupSortingStr.split(",").map((c) => {
@@ -374,6 +381,7 @@ const LogsTable = ({
     transform: null
   });
 
+  // Table state management
   const state = {
     tableDataItem,
     selectedCells,
@@ -391,9 +399,8 @@ const LogsTable = ({
     draggingColumnPinner,
   };
   const setState = {
-    setTableDataItem: (newTableDataItem: TableDataItem) => tableTileActions?.setTableDataItem(newTableDataItem),
     setSelectedCells: (cells: string[]) => tableTileActions?.setSelected(cells.join(",")),
-    setMetric: (newMetric: string) => tileDataActions?.setMetric(newMetric),
+    setMetric: (newMetric: string) => syncedTileDataActions?.setMetric(newMetric),
     setSorting,
     setGroupSorting,
     setColumnVisibility,
@@ -402,7 +409,7 @@ const LogsTable = ({
     setGrouping,
     setColumnPinning,
     setColumnSizing,
-    setContext: (newContext: string) => tableTileActions?.setColumnContext(newContext),
+    setContext: (newContext: string) => syncedTileDataActions?.setColumnContext(newContext),
     setDraggingColumns,
     setDraggingColumnPinner,
   };
@@ -494,46 +501,6 @@ const LogsTable = ({
     }
   }, [columnIDs, manualColumnOrderOverride]);
 
-  // Function for full table data item replacement
-  const updateTableDataItem = (newTableDataItem: TableDataItem) => {
-    if (tableTileActions && item?.i) {
-      tableTileActions.updateTableDataItem(newTableDataItem);
-    }
-  }
-
-  // Function for partial updates (more efficient)
-  const mergeUpdatesIntoTableDataItem = (
-    partialUpdates: Partial<TableDataItem>
-  ) => {
-    if (tableTileActions && item?.i) {
-      tableTileActions.mergeUpdatesIntoTableDataItem(partialUpdates)
-    }
-  }
-
-  // Adapter that accepts an updater function as well as partial updates
-  // and handles both direct overwriting updates as well as partial updates.
-  // If no partialUpdates are provided, the updater function will be used to update the tableDataItem.
-  // There is an optional merge parameter that defaults to false.
-  // If merge is true, the updates will be merged into the previous tableDataItem using mergeUpdatesIntoTableDataItem.
-  // If merge is false, the updates will overwrite the previous tableDataItem using updateTableDataItem.
-  const updateTableDataItemWithUpdater = (
-    updater?: (prev: TableDataItem) => TableDataItem,
-    partialUpdates?: Partial<TableDataItem>,
-    merge?: boolean
-  ) => {
-    const deferringFn = merge ? mergeUpdatesIntoTableDataItem : updateTableDataItem;
-
-    if (updater) {
-      if (partialUpdates) {
-        deferringFn(partialUpdates as TableDataItem);
-      } else {
-        deferringFn(updater(tableDataItem));
-      }
-    } else if (partialUpdates) {
-      deferringFn(partialUpdates as TableDataItem);
-    }
-  }
-
   // Helper function to safely access the property
   function safeUpdatedFilterExpression(item: TableDataItem): boolean {
     return (item as any).updatedFilterExpression;
@@ -596,7 +563,7 @@ const LogsTable = ({
     metric,
     fields,
     logsActions,
-    item?.i,
+    item?.name,
   ]);
 
   // Top area: filters, page, etc.
@@ -613,16 +580,18 @@ const LogsTable = ({
             context={item?.context || context_}
             logsActions={logsActions}
             contextActions={contextActions}
-            refresh={() => updateTab()}
             setPending={setPending}
+            tileActions={tileActions}
+            projectsActions={projectsActions}
+            fieldsActions={fieldsActions}
           />
           <GlobalFilter
             interactive={interactive}
             logsFilters={logsFilters}
             commonFilter={commonFilter}
-            setCommonFilter={tileDataActions?.setCommonFilter!}
+            setCommonFilter={syncedTileDataActions?.setCommonFilter!}
             logs={logs}
-            currentTable={item?.i || ""}
+            currentTable={item?.name || ""}
             tableArguments={tableArguments}
           />
           <VisibilityFilter
@@ -631,9 +600,30 @@ const LogsTable = ({
             setColumnVisibility={setColumnVisibility}
             context={item?.context ?? null}
           />
+           {projectId && (
+            <CreateEmptyLogRow
+              projectId={projectId}
+              globalContext={item?.context || context_}
+              fields={tableDataItem.fields}
+              interactive={interactive}
+              createLogsAction={logsActions.create}
+              onSuccess={() => {
+                // No need to call updateTab anymore since whenever we mutate
+                // tracked properties, we mutate the server state using the sync hooks
+                router.refresh();
+                setPending(true);
+              }}
+              onError={(errorMessage) => {
+                // Handle error, e.g., show a toast notification
+                console.error("Failed to create log:", errorMessage);
+                // You might want to use a more sophisticated error display mechanism
+                alert(`Error: ${errorMessage}`);
+              }}
+            />
+          )}
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); tileDataActions?.setCommonFilter(undefined)}}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
         </div>
       )}
       {projectId && (
@@ -659,19 +649,17 @@ const LogsTable = ({
           <RefreshLogs
             tileId={tileId}
             tabId={tabId}
-            interfaceId={interfaceId}
             projectId={projectId}
             pending={showSpinner}
-            fields={fields}
             filterExpression={filterExpression}
             sortingExpression={sortingExpression}
-            hiddenColumns={item?.hidden_columns}
             groupingExpression={groupingExpression}
             groupSortingExpression={groupSortingExpression}
-            updateTableDataItem={updateTableDataItemWithUpdater}
+            tileActions={tileActions}
             logsActions={logsActions}
+            projectsActions={projectsActions}
+            contextActions={contextActions}
             fieldsActions={fieldsActions}
-            logs={logs}
           />
         </div>
       )}
@@ -681,8 +669,11 @@ const LogsTable = ({
   // Handle cell deselection from clicks
   const containerRef = useRef<HTMLDivElement>(null); 
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
-    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTablePreferences"])
+    if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTable", "LogsTablePreferences"])
   }
+
+  //Ref for auto scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   return (
     <div
@@ -698,7 +689,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableTop && tableTop}
-          <div className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div ref={scrollContainerRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
             {projectId ? (
               <div className="relative flex-col gap-2">
                 {/* "summaryPending" can optionally show a small loader over the table if you like */}
@@ -710,6 +701,7 @@ const LogsTable = ({
                   columns={columns}
                   state={state}
                   setState={setState}
+                  scrollContainerRef={scrollContainerRef}
                   ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                     <ColumnGroupBy
                       interactive={interactive}
@@ -765,7 +757,6 @@ const LogsTable = ({
                       columnContext={item?.column_context}
                       getLogFieldsIds={logsActions.get}
                       deleteLogFields={logsActions.delete}
-                      refresh={() => updateTab()}
                       setPending={setPending}
                     />
                   )}
@@ -774,12 +765,11 @@ const LogsTable = ({
                       project={projectId}
                       context={item?.context}
                       columnContext={item?.column_context}
-                      currentTable={item?.i || ""}
+                      currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
                       create={derivedEntryActions.create}
                       setPending={setPending}
-                      refresh={() => updateTab()}
                       columnOrder={columnOrder}
                       setColumnOrder={setColumnOrder}
                       previousColumn={previousColumn}
@@ -794,12 +784,11 @@ const LogsTable = ({
                       open={open}
                       setOpen={setOpen}
                       previousEquation={fields[sanitizeId(colId)].artifacts}
-                      currentTable={item?.i || ""}
+                      currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
                       update={derivedEntryActions.update}
                       setPending={setPending}
-                      refresh={() => updateTab()}
                       updateLoading={updateLoading}
                       setUpdateLoading={setUpdateLoading}
                       renderMode={renderMode as "button" | "menuItem"}
@@ -924,7 +913,7 @@ const LogsTable = ({
                     </FooterCell>
                   }
                   ExtraComponents={(table) => {
-                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} refresh={() => updateTab()} setPending={setPending}/>
+                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
                   }}
                   ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

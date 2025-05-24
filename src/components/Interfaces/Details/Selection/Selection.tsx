@@ -1,20 +1,24 @@
+"use client";
+
 import React, {
   useMemo,
   useState,
   useCallback,
   useEffect,
+  useRef
 } from "react";
 import SelectionHints from "./Hints";
-import ActionButton from "@/components/Common/Buttons/Action";
-import { SquareSplitHorizontal } from "lucide-react";
-import { TileProps, TableDataItem  } from "@/types/evals/grid";
+import { TileProps, LogsActions  } from "@/types/evals/grid";
+import { getDeep, setDeep } from "@/utils/objectPath";
+import { LogItemProps } from "@/types/evals/logs";
 
 import {
   buildIndexToColumnsMapFromId,
   buildRowIndicesInSelectionOrder,
-} from "./SelectionUtils";
+  PythonType,
+  castToPythonType
+} from "@/components/Interfaces/Details/Selection/SelectionUtils";
 
-// Define the PanelState interface to store panel-specific settings
 interface PanelState {
   displayMode: "markdown" | "text" | "raw";
   diffModeIdx: number;
@@ -28,7 +32,8 @@ interface PanelState {
   paramOrder: string[];
   localOpenKeys: Set<string>;
   savedOpenKeys: Set<string>;
-  viewTracesAsDict: boolean;  // New state for trace view mode
+  viewTracesAsDict: false,
+  cellEditMode: false,
 }
 
 // Default values for a new panel
@@ -45,13 +50,16 @@ const defaultPanelState: PanelState = {
   paramOrder: [],
   localOpenKeys: new Set<string>(),
   savedOpenKeys: new Set<string>(),
-  viewTracesAsDict: false,  // Default to standard TraceView
+  viewTracesAsDict: false,
+  cellEditMode: false,
 };
 
-import SelectionPanel from "./SelectionPanel";
+import SelectionPanel from "@/components/Interfaces/Details/Selection/SelectionPanel";
+import { toast } from "sonner";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
+import { useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
 
 /*******************************************************************************
  * Main "Selection" Component
@@ -60,40 +68,53 @@ import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 export default function Selection({
   tileId,
   tabId,
-  interfaceId,
   projectId,
+  logsActions,
 }: {
   tileId: string;
   tabId: string;
-  interfaceId: string;
   projectId: string;
+  logsActions: LogsActions;
 }) {
   /******************************************************************************
    * Prepare sorted logs & selection data
    ******************************************************************************/
-  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId, interfaceId, projectId);
-  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId, interfaceId);
+  const { meta: tileMetaStateWithId, actions: tileActionsWithId } = useTile(tileId, tabId);
+  const { itemActions: tileItemActionsWithId } = useTileItem(tileId, tabId);
 
   const item = useMemo(() => tileItemActionsWithId?.asTileItem(), [tileItemActionsWithId]);
 
   // Get the table tile this selection references
   const { meta: tileMetaStateWithTable, tableTile: tableTileStateWithTable, actions: tileActionsWithTable } = useTile(
     item?.table || "", 
-    tabId, 
-    interfaceId, 
-    projectId
+    tabId,
   );
-  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId, interfaceId);
+  const { itemActions: tileItemActionsWithTable } = useTileItem(item?.table || "", tabId);
+
+  // Use React Query to access tableDataItem
+  const { 
+    tableData: tableDataItem,
+    isLoading: isTableDataLoading,
+    isError: isTableDataError,
+    error: tableDataError,
+    mergeUpdatesIntoTableDataItem,
+    updateLogsDeep
+  } = useTableDataQueryWithTracking(item?.table || null, tabId || null);
+
+  // Get table fields
+  const fields = useMemo(() => tableDataItem?.fields || [], [tableDataItem]);
 
   // Create equivalent references to match the old pattern
   const tableItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || 
-    { i: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
+    { name: item?.table, x: -1, y: -1, w: -1, h: -1 } as TileProps, [tileItemActionsWithTable, item?.table]);
   const relevantItem = useMemo(() => tileItemActionsWithTable?.asTileItem() || undefined, [tileItemActionsWithTable]);
-  const tableDataItem = useMemo(() => tableTileStateWithTable?.tableDataItem || {} as TableDataItem, [tableTileStateWithTable]);
+
+  // Get table context
+  const context = useMemo(() => tableItem.context ?? null, [tableItem.context]);
 
   // Create a generic updateItem function that checks property existence
   const updateItem = useCallback((item: TileProps, propName: string) => (value: any) => {
-    if (tileActionsWithId && item.i == tileMetaStateWithId?.name) {
+    if (tileActionsWithId && item.name == tileMetaStateWithId?.name) {
       tileActionsWithId.updateTile({ [propName]: value });
     }
     else if (tileActionsWithTable && item.table == tileMetaStateWithTable?.name) {
@@ -196,6 +217,15 @@ export default function Selection({
    * Panel Count State
    ******************************************************************************/
   const [panelCount, setPanelCount] = useState(1);
+
+  // Ref to keep the latest in-flight PATCH so we can abort outdated ones
+  const bulkPatchAbortRef = useRef<AbortController | null>(null);
+
+  // Helper to rollback optimistic change when network fails
+  const rollbackLogs = useCallback((prevLogs: any[] | undefined) => {
+    if (!prevLogs) return;
+    mergeUpdatesIntoTableDataItem({ logs: prevLogs });
+  }, [mergeUpdatesIntoTableDataItem]);
   
   /*******************************************************************************
    * Panel States - Keep track of each panel's state
@@ -209,7 +239,7 @@ export default function Selection({
     setPanelStates(prev => ({
       ...prev,
       [panelId]: {
-        ...prev[panelId],
+        ...(prev[panelId] ?? { ...defaultPanelState }), // Use default if panel doesn't exist yet
         ...updates
       }
     }));
@@ -228,6 +258,124 @@ export default function Selection({
       return newStates;
     });
   }, [panelCount]);
+
+  /*******************************************************************************
+   * Save-many handler – optimistic update + backend PUT
+   ******************************************************************************/
+  const handleSaveMany = useCallback(
+    async (
+      rowIds: string[],
+      desc: { source: "entries" | "params"; path: (string | number)[]; newValue: any }
+    ) => {
+
+      if (!tableDataItem) {
+        console.warn("[DEBUG] handleSaveMany] Missing tableDataItem – optimistic update skipped");
+        return;
+      }
+      if (!rowIds.length) return;
+
+      // Snapshot previous logs for potential rollback
+      const prevLogs = tableDataItem?.logs;
+
+      // --- Casting logic for null/undefined original values ---
+      const prevLogForOriginalValue = prevLogs?.find(log => String(log.id) === rowIds[0]); // Use first rowId for type checking if multiple are updated
+      if (prevLogForOriginalValue) {
+        const originalValueAtPath = getDeep(prevLogForOriginalValue[desc.source] ?? {}, desc.path);
+        // Check if original was null/undefined and the new value is a string
+        if ((originalValueAtPath === null || originalValueAtPath === undefined) && typeof desc.newValue === 'string') {
+          if (desc.path.length > 0) { // Ensure path is not empty
+            const topLevelFieldName = String(desc.path[0]);
+            // Use the corresponding field to get the type
+            const fieldInfo = fields[topLevelFieldName]; 
+            if (fieldInfo && fieldInfo.data_type) {
+              const pyType = fieldInfo.data_type as PythonType; // e.g., "int", "str", "list"
+              const castedResult = castToPythonType(desc.newValue, pyType);
+              if (castedResult && typeof castedResult === 'object' && 'error' in castedResult) {
+                // If casting fails, show a warning. desc.newValue remains the user-provided string.
+                // toast.warning(`Could not cast "${desc.newValue}" to type "${pyType}". Saving as string. Error: ${castedResult.error}`);
+              } else {
+                // Casting was successful, update desc.newValue
+                desc.newValue = castedResult;
+              }
+            } else {
+              console.warn(`Field info or data_type for '${topLevelFieldName}' not found. Saving as string.`);
+            }
+          }
+        }
+      }
+
+      // Manually construct the *full* updated field for the backend
+      // Find the relevant log in the *previous* state (before optimistic update) to correctly build the patch
+      const prevLogForUpdate = prevLogs?.find(log => String(log.id) === rowIds[0]); 
+
+      if (!prevLogForUpdate) {
+        console.error("Could not find the log in the previous state to construct update payload.");
+        if (tableDataItem) rollbackLogs(prevLogs);
+        toast.error("Failed to update log: Inconsistent log data.");
+        return;
+      }
+
+      let entriesUpdate: LogItemProps = {};
+      let paramsUpdate: LogItemProps = {};
+
+      if (desc.source === 'entries') {
+        if (desc.path.length > 0) {
+          const topLevelKey = desc.path[0] as string;
+          const originalTopLevelValue = getDeep(prevLogForUpdate.entries ?? {}, [topLevelKey]);
+          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          entriesUpdate = { [topLevelKey as string]: updatedValueContainer };
+        } else {
+          // This case (empty path) should ideally not happen for field updates.
+          console.warn("Attempting to update 'entries' with an empty path. New value:", desc.newValue);
+          if (typeof desc.newValue === 'object' && desc.newValue !== null) {
+             entriesUpdate = desc.newValue as LogItemProps;
+          } else {
+            return;
+          }
+        }
+      } else {
+        if (desc.path.length > 0) {
+          const topLevelKey = desc.path[0] as string;
+          const originalTopLevelValue = getDeep(prevLogForUpdate.params ?? {}, [topLevelKey]);
+          const updatedValueContainer = setDeep(originalTopLevelValue, desc.path.slice(1), desc.newValue);
+          paramsUpdate = { [topLevelKey as string]: updatedValueContainer };
+        } else {
+          console.warn("Attempting to update 'params' with an empty path. New value:", desc.newValue);
+          if (typeof desc.newValue === 'object' && desc.newValue !== null) {
+            paramsUpdate = desc.newValue as LogItemProps;
+          } else {
+            return;
+          }
+        }
+      }
+
+      try {
+        const response = await logsActions.update(
+          projectId,
+          context,
+          rowIds.map(id => parseInt(id, 10)),
+          entriesUpdate,
+          paramsUpdate
+        );
+        if (response.detail) {
+          console.error("[DEBUG] handleSaveMany – error", response.detail);
+          toast.error(`Failed to update log entry`);
+          return;
+        }
+      } catch (err: any) {
+        console.error("[DEBUG] handleSaveMany – backend error", err);
+        toast.error(`Failed to update log entry`);
+        return;
+      }
+
+      // Optimistic local state update provided the endpoint call is successful
+      if (updateLogsDeep) {
+        updateLogsDeep(rowIds, desc);
+      }
+
+    },
+    [projectId, context, updateLogsDeep, tableDataItem?.logs, rollbackLogs, logsActions.update, fields]
+  );
 
   /*******************************************************************************
    * If no rows selected, just show hints
@@ -262,6 +410,7 @@ export default function Selection({
           if (!panelState.entryOrder) panelState.entryOrder = [];
           if (!panelState.paramOrder) panelState.paramOrder = [];
           if (panelState.viewTracesAsDict === undefined) panelState.viewTracesAsDict = false; // Initialize if missing
+          if (panelState.cellEditMode === undefined) panelState.cellEditMode = false; // Initialize if missing
           
           return (
             <React.Fragment key={`panel-fragment-${idx}`}>
@@ -271,7 +420,8 @@ export default function Selection({
                 panelId={idx}
                 // Pass panel state and updater function
                 panelState={panelState}
-                onPanelStateChange={(updates) => updatePanelState(idx, updates)}
+                onPanelStateChange={(updates) => updatePanelState(idx, updates as PanelState)}
+                fields={fields}
                 logs={logs}
                 sortedLogs={sortedLogs}
                 params={params}
@@ -283,10 +433,13 @@ export default function Selection({
                 updateItem={updateItem}
                 initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
                 allPossibleColumns={allPossibleColumns}
-                // Pass down selection/panel info
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}
                 onPanelCountChange={setPanelCount}
+                onSaveMany={handleSaveMany}
+                logsActions={logsActions}
+                updateLogsDeep={updateLogsDeep}
+                context={context}
               />
             </React.Fragment>
           );

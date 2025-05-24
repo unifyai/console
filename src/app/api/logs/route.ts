@@ -45,3 +45,31 @@ export async function POST(request: NextRequest) {
         },
     );
 }
+
+export async function PUT(request: NextRequest) {
+    const apiKey = request.headers.get("apiKey");
+
+    let body;
+    try {
+        body = await request.json();
+    } catch (error) {
+        console.error("Failed to parse JSON body in PUT /api/logs:", error);
+        return new Response(JSON.stringify({ error: "Invalid request body" }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    return await fetch(
+        `${baseUrl}/logs`,
+        {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                "accept": "application/json"
+            },
+            body: JSON.stringify(body)
+        }
+    );
+}

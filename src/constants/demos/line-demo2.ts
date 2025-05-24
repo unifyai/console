@@ -2,32 +2,6 @@ export default {
     gif: "line_group_dark",
     link: "interfaces/plots#line-graphs",
     description: "Plot the speed of different models across time, which are being continually streamed.",
-    project: "line-demo2",
-    name: "tab1",
-    items: [
-        {
-            i: "Table",
-            x: 0.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Table",
-            table_type: "Data Table"
-        },
-        {
-            i: "Plot",
-            x: 7.0,
-            y: 0.0,
-            w: 6.0,
-            h: 8.0,
-            tab: "Plot",
-            plot_type: "Line Chart",
-            x_axis: "Table.time",
-            y_axis: "Table.speed",
-            plot_group_by: "Table.model"
-        }
-    ],
-    new_counter: 2,
     code: `import unify
 import random
 from datetime import datetime
@@ -46,5 +20,50 @@ for i in range(10):
             time=datetime.now().isoformat(),
             speed=speed+random.uniform(-3, 3)
         )
-`
+`,
+    // Granular interface structure
+    interface: {
+        project_id: "line-demo2",
+        name: "interface1"
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
+        {
+            name: "Table",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            table_tile: {
+                table_type: "Data Table"
+            }
+        },
+        {
+            name: "Plot",
+            type: "Plot",
+            position: {
+                x: 7.0,
+                y: 0.0,
+                width: 6.0,
+                height: 8.0
+            },
+            plot_tile: {
+                plot_type: "Line Chart",
+                x_axis: "Table.time",
+                y_axis: "Table.speed",
+                plot_group_by: "Table.model"
+            }
+        }
+    ],
+    new_counter: 2
 }

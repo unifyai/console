@@ -7,24 +7,23 @@ import { useInterfaceMeta } from './useInterfaceMeta';
  * Interface for interface-related UI actions
  */
 export interface InterfaceUIActions {
-  setActiveTabId: (tabName: string | null) => void;
-  setDataPending: (dataPending: boolean) => void;
+  setActiveTabId: (tabId: string | null) => void;
   setPending: (pending: boolean) => void;
 }
 
 /**
  * Custom hook to access interface UI state and actions
- * @param interfaceName The name of the interface to access
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param interfaceIdOrName The ID or name of the interface to access
+ * @param projectIdOrName Optional project ID or name
  * @returns Object containing interface UI state and actions
  */
-export function useInterfaceUI(interfaceName: string | null, projectName?: string | null) {
+export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName?: string | null) {
   // Use the meta hook to get common interface info
   const { 
     interfaceId, 
     activeProjectId, 
     interfaceExists 
-  } = useInterfaceMeta(interfaceName, projectName);
+  } = useInterfaceMeta(interfaceIdOrName, projectIdOrName);
 
   // Granular subscriptions to UI properties
   const projectIdFromState = useStoreContext(state => {
@@ -35,16 +34,6 @@ export function useInterfaceUI(interfaceName: string | null, projectName?: strin
   const activeTabId = useStoreContext(state => {
     if (!interfaceExists || !interfaceId) return null;
     return state.interfacesById[interfaceId].activeTabId;
-  });
-  
-  const dataPending = useStoreContext(state => {
-    if (!interfaceExists || !interfaceId) return false;
-    return state.interfacesById[interfaceId].dataPending;
-  });
-  
-  const pending = useStoreContext(state => {
-    if (!interfaceExists || !interfaceId) return false;
-    return state.interfacesById[interfaceId].pending;
   });
 
   // Get store actions for UI state management
@@ -58,47 +47,33 @@ export function useInterfaceUI(interfaceName: string | null, projectName?: strin
     return {
       projectId: projectIdFromState,
       activeTabId,
-      dataPending,
-      pending,
     };
   }, [
     interfaceExists, 
     projectIdFromState, 
     activeTabId,
-    dataPending,
-    pending,
   ]);
 
   // Memoize the UI actions to prevent unnecessary re-renders
   const uiActions = useMemo<InterfaceUIActions>(() => ({
-    setActiveTabId: (tabName) => {
+    setActiveTabId: (tabId) => {
       if (activeProjectId && interfaceId) {
-        // Check if the tab ID is already hierarchical
-        const hierarchicalTabId = tabName && !tabName.includes('>')
-          ? `${interfaceId}>${tabName}`
-          : tabName;
-        
         // Set the active tab at the global level
-        if (hierarchicalTabId) {
-          storeSetActiveTab(interfaceId, hierarchicalTabId);
+        if (tabId) {
+          storeSetActiveTab(interfaceId, tabId);
         }
         
         // Update the interface's active tab
-        storeUpdateInterface(interfaceId, { activeTabId: hierarchicalTabId });
-      }
-    },
-
-    setDataPending: (dataPending) => {
-      if (interfaceId) {
-        storeUpdateInterface(interfaceId, { dataPending });
+        storeUpdateInterface(interfaceId, { activeTabId: tabId });
       }
     },
 
     setPending: (pending) => {
-      if (interfaceId) {
+      if (activeProjectId && interfaceId) {
         storeUpdateInterface(interfaceId, { pending });
       }
     },
+
   }), [
     activeProjectId, 
     interfaceId, 

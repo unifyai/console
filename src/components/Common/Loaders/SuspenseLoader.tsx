@@ -26,7 +26,7 @@ const SuspenseLoader = ({
         <Suspense
             fallback={
                 <div className="flex flex-col gap-2 items-center self-center">
-                    <p className="text-gray-500">{message}</p>
+                    <p className="text-foreground">{message}</p>
                     <LoadingIcon height={100} width={100} />
                 </div>
             }

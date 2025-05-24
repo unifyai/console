@@ -100,7 +100,7 @@ const DataTableCell = ({
   // - Applied background color on any index cell if all non aggregated, non placeholder, non grouped cells in the same row are selected
   const [hovered, setHovered] = useState(false);
   const isSelectableCell = (cell: Cell<any, unknown>) =>
-    !cell.getIsGrouped() && !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible() && (cell.column.id === "RowNumbering" || cell.getValue() !== undefined)
+    !cell.getIsAggregated() && !cell.getIsPlaceholder() && cell.column.getIsVisible() && (cell.column.id === "RowNumbering" || cell.getValue() !== undefined)
   const isAllRowSelected = (cell: Cell<any, unknown>) => {
     const dataCells = cell.getContext().row.getAllCells().filter(c => isSelectableCell(c) && c.column.id != "RowNumbering")
     const allSelected = dataCells.every(c => isCellSelected(c))
@@ -200,7 +200,7 @@ const DataTableCell = ({
 
       <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
 
-      {ExtraCellContent && !hasSkeletonLogs && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
+      {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
 
       {selectedCells.length > 0 && selectedCells.indexOf(cell.id) === selectedCells.length - 1 &&
         <CornerDownLeft className="absolute z-20 text-white bottom-1 right-0.5 w-5 h-3 font-bold"/>

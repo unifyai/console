@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useStoreContext } from "../../providers/StoreProvider";
 import { useTileMeta } from "./useTileMeta";
 import { PlotTile, PlotTileMeta, PlotTileData, PlotTileUI } from '../../slices/selectors/plotTile';
-import { PlotDataItem } from '@/types/evals/grid';
 import { useShallow } from "zustand/react/shallow";
 
 /**
@@ -22,9 +21,6 @@ export const DEFAULT_PLOT_TILE_UI: PlotTileUI = {};
 
 // Default plot tile meta actions
 export const DEFAULT_PLOT_TILE_META_ACTIONS: PlotTileMetaActions = {};
-
-// Default plot tile UI actions
-export const DEFAULT_PLOT_TILE_UI_ACTIONS: PlotTileUIActions = {};
 
 /**
  * Interface for plot tile meta actions
@@ -46,7 +42,6 @@ export interface PlotTileDataActions {
   setPlotGroupBy: (plotGroupBy: string | undefined) => void;
   setBinCount: (binCount: string | undefined) => void;
   setRegressionLine: (regressionLine: string | undefined) => void;
-  setPlotDataItem: (plotDataItem: PlotDataItem | undefined) => void;
 }
 
 /**
@@ -54,6 +49,7 @@ export interface PlotTileDataActions {
  */
 export interface PlotTileUIActions {
   // UI actions will be empty as per PlotTileUI
+  setPlotGroupByColors: (plotGroupByColors: string | undefined) => void;
 }
 
 /**
@@ -66,20 +62,16 @@ export interface PlotActions extends
 
 /**
  * Custom hook to access plot-specific tile state and actions
- * @param tileName The name of the tile to access
- * @param tabName Optional name of the tab containing the tile
- * @param interfaceName Optional name of the interface containing the tab
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tileIdOrName The ID or name of the tile to access
+ * @param tabIdOrName Optional ID or name of the tab containing the tile
  * @returns Object containing plot-specific tile state, actions, and existence flag
  */
 export function usePlotTile(
-  tileName: string | null,
-  tabName?: string | null,
-  interfaceName?: string | null,
-  projectName?: string | null
+  tileIdOrName: string | null,
+  tabIdOrName?: string | null
 ) {
   // Get tile meta information using the useTileMeta hook
-  const { tileId, tileExists } = useTileMeta(tileName, tabName || null, interfaceName || null, projectName || null);
+  const { tileId, tileExists } = useTileMeta(tileIdOrName, tabIdOrName || null);
   
   // Get the tile type to check if it's a plot
   const tileType = useStoreContext(
@@ -119,7 +111,6 @@ export function usePlotTile(
       plot_group_by: plotTile.plot_group_by,
       bin_count: plotTile.bin_count,
       regression_line: plotTile.regression_line,
-      plotDataItem: plotTile.plotDataItem
     } as PlotTileData;
   }, [
     isPlotTile,
@@ -133,15 +124,20 @@ export function usePlotTile(
     plotTile?.plot_group_by,
     plotTile?.bin_count,
     plotTile?.regression_line,
-    plotTile?.plotDataItem,
   ]);
 
   // Access store for plot-specific UI state
   const plotUI = useMemo(() => {
-    if (!isPlotTile || !tileId) return null;
+    if (!isPlotTile || !tileId || !plotTile) return null;
     // Return empty object as per PlotTileUI interface
-    return DEFAULT_PLOT_TILE_UI as PlotTileUI;
-  }, [isPlotTile, tileId]);
+    return {
+      plot_group_by_colors: plotTile.plot_group_by_colors,
+    } as PlotTileUI;
+  }, [
+    isPlotTile, 
+    tileId,
+    plotTile?.plot_group_by_colors,
+  ]);
 
   // Get store update functions
   const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
@@ -222,12 +218,6 @@ export function usePlotTile(
         storeUpdatePlotTile(tileId, update);
       },
 
-      setPlotDataItem: (plotDataItem) => {
-        const update: Partial<PlotTile> = { 
-          plotDataItem: plotDataItem 
-        };
-        storeUpdatePlotTile(tileId, update);
-      }
     };
   }, [isPlotTile, tileId, storeUpdatePlotTile]);
 
@@ -236,7 +226,14 @@ export function usePlotTile(
     if (!isPlotTile || !tileId) return null;
     
     // Return empty object as per PlotTileUI interface
-    return DEFAULT_PLOT_TILE_UI_ACTIONS as PlotTileUIActions;
+    return {
+      setPlotGroupByColors: (plotGroupByColors) => {
+        const update: Partial<PlotTile> = { 
+          plot_group_by_colors: plotGroupByColors
+        };
+        storeUpdatePlotTile(tileId, update);
+      },
+    } as PlotTileUIActions;
   }, [isPlotTile, tileId]);
 
   // Build a final `plotTile` object from the separate meta, data, and UI objects
@@ -262,7 +259,7 @@ export function usePlotTile(
   }, [plotMetaActions, plotDataActions, plotUIActions]);
 
   // If no tile name is provided or tile doesn't exist, return default
-  if (!tileName || !isPlotTile) {
+  if (!tileIdOrName || !isPlotTile) {
     return DEFAULT_USE_PLOT_TILE_RETURN;
   }
 

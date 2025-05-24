@@ -1,39 +1,40 @@
-import { TileProps } from "@/types/evals/grid";
+import { GranularTabActions, GranularTileActions, TileProps } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
-import { useInterface } from "@/contexts/hooks/interface";
-import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
-import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useTabSync } from "@/contexts/hooks/tab/sync";
 
 const AddTile = ({
-    project,
-    interfaceId,
     tabId,
-    newCounter,
+    interfaceId,
+    project,
     anyTileLoading,
-    setNewCounter,
+    tabActions, 
+    tileActions,
 }: {
-    project: string | null,
-    interfaceId: string,
     tabId: string,
-    newCounter: number,
+    interfaceId: string,
+    project: string | null,
     anyTileLoading: boolean,
-    setNewCounter: (newCounter: number) => void,
+    tabActions: GranularTabActions,
+    tileActions: GranularTileActions,
 }) => {
     // Get tab data and actions using useTab hook with granular access
-    const { ui: tabUIState, dataActions: tabDataActions, exists } = useTab(tabId);
-    const { ui: interfaceUIState } = useInterface(interfaceId);
+    const { ui: tabUIState, exists } = useTab(tabId, interfaceId);
+
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
 
     // Use the getItems function from the useTab hook to get TileProps array
     const [items, visibleItems] = useMemo(() => {
-        const allItems = tabDataActions?.getItems();
-        return !exists || !tabDataActions ? [[], []] : [
+        const allItems = syncedTabDataActions?.getItems();
+        return !exists || !syncedTabDataActions ? [[], []] : [
             allItems as TileProps[],
             allItems?.filter(item => item.visible) as TileProps[]
         ];
-    }, [exists, tabDataActions]);
+    }, [exists, syncedTabDataActions]);
 
     return (
         <ActionButton
@@ -41,11 +42,11 @@ const AddTile = ({
             tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
             text="Add Tile"
-            variant="outline"
-            disabled={!tabUIState?.edit || !project || !exists || interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading}
+            variant="ghost"
+            disabled={!tabUIState?.edit || !project || !exists || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
                 let initialIndex = items.length;
-                while (items.some(item => item.i == "Tile_" + initialIndex))
+                while (items.some(item => item.name == "Tile_" + initialIndex))
                     initialIndex++;
                 const newTileName = "Tile_" + initialIndex;
 
@@ -125,16 +126,14 @@ const AddTile = ({
                 };
 
                 // Initialize the new tile with the calculated position
-                tabDataActions?.initTile(newTileName, {
-                    name: newTileName,
+                syncedTabDataActions?.initTile(newTileName, {
                     position,
-                    minW: undefined,
-                    minH: undefined,
-                    type: undefined,
+                    minW: null,
+                    minH: null,
+                    type: null,
                     visible: true,
                 });
 
-                setNewCounter(items.length + 1);
             }}
         />
     );

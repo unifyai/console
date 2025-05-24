@@ -2,41 +2,64 @@ export default {
     gif: "table_nested_contexts_dark",
     link: "interfaces/basics#contexts",
     description: "Contexts enable you to compartmentalize your data for different tables or for different tabs within your interface.",
-    project: "context-demo",
-    name: "tab1",
-    items: [
+    // Granular interface structure
+    interface: {
+        project_id: "context-demo",
+        name: "interface1",
+    },
+    // Tab structure
+    tab: {
+        name: "tab1",
+        visible: true,
+        active: true,
+        order: 0
+    },
+    // Tiles structure - matches the OpenAPI schemas
+    tiles: [
         {
-            i: "Tile_0",
-            x: 0,
-            y: 0,
-            w: 4,
-            h: 8,
-            tab: "Table",
-            table_type: "Data Table",
+            name: "Tile_0",
+            type: "Table",
+            position: {
+                x: 0.0,
+                y: 0.0,
+                width: 4.0,
+                height: 8.0
+            },
             context: "Sciences/Maths",
-            column_context: ""
+            column_context: "",
+            table_tile: {
+                table_type: "Data Table",
+            }
         },
         {
-            i: "Tile_1",
-            x: 4,
-            y: 0,
-            w: 4,
-            h: 8,
-            tab: "Table",
-            table_type: "Data Table",
+            name: "Tile_1",
+            type: "Table",
+            position: {
+                x: 4.0,
+                y: 0.0,
+                width: 4.0,
+                height: 8.0
+            },
             context: "Sciences/Physics",
-            column_context: ""
+            column_context: "",
+            table_tile: {
+                table_type: "Data Table",
+            }
         },
         {
-            i: "Tile_2",
-            x: 8,
-            y: 0,
-            w: 4,
-            h: 8,
-            tab: "Table",
-            table_type: "Data Table",
+            name: "Tile_2",
+            type: "Table",
+            position: {
+                x: 8.0,
+                y: 0.0,
+                width: 4.0,
+                height: 8.0
+            },
             context: "Arts/Literature",
-            column_context: ""
+            column_context: "",
+            table_tile: {
+                table_type: "Data Table",
+            }
         }
     ],
     new_counter: 3,

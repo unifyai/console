@@ -1,15 +1,14 @@
 "use client";
 
-import { ResponseProps } from "@/types/common";
-import { LogsActions, FieldsActions, DerivedEntryActions, TileProps, ContextActions, TabProps, CodeActions } from "@/types/evals/grid";
-import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useRouter } from "next/navigation";
+import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
+import { useEffect, Suspense, lazy } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
 // Import the new hooks
-import { useTileMeta, useTileUI, useTileItem } from '@/contexts/hooks/tile';
+import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import Editor from "./Details/Editor/Editor";
+import { getTileButtonsRef, getTileCardRef } from '@/utils/refRegistry';
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -22,14 +21,17 @@ interface TileComponentProps {
     tabId: string;
     interfaceId: string;
     projectId: string;
-    updateTab: (savedTab?: TabProps | null, updatedTileProps?: TileProps[] | TileProps | null) => Promise<ResponseProps>;
+    projectsActions: ProjectsActions;
+    tileActions: GranularTileActions;
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
-    tileButtonsRef?: React.RefObject<HTMLDivElement>;
-    tileCardRef: React.RefObject<HTMLDivElement>;
+    tableContent?: React.ReactNode;  // Server-rendered Table content
+    plotContent?: React.ReactNode;   // Server-rendered Plot content
+    viewContent?: React.ReactNode;   // Server-rendered View content
+    editorContent?: React.ReactNode; // Server-rendered Editor content
 }
 
 const Tile = ({
@@ -37,84 +39,29 @@ const Tile = ({
     tabId,
     interfaceId,
     projectId,
-    updateTab,
+    projectsActions,
+    tileActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,
     contextActions,
     codeActions,
-    tileButtonsRef,
-    tileCardRef
+    tableContent,
+    plotContent,
+    viewContent,
+    editorContent
 }: TileComponentProps) => {
-    const router = useRouter();
-    const [initial, setInitial] = useState(true);
 
     // Use granular hooks for better code organization
-    const { meta: tileMetaState } = useTileMeta(tileId, tabId, interfaceId);
-    const { ui: tileUIState, uiActions: tileUIActions } = useTileUI(tileId, tabId, interfaceId);
-    const { itemActions } = useTileItem(tileId, tabId, interfaceId);
+    const { meta: tileMetaState } = useTileMeta(tileId, tabId);
+    const { ui: tileUIState } = useTileUI(tileId, tabId);
+
+    // Get refs from registry
+    const tileButtonsRef = getTileButtonsRef(tileId);
+    const tileCardRef = getTileCardRef(tileId);
 
     // Extract required data
     const { type: tileType } = tileMetaState || {};
-
-    // Get the item props for grid layout (position, etc)
-    const tileItem: TileProps = useMemo(() => itemActions?.asTileItem() || {
-        i: tileId,
-        x: tileMetaState?.position?.x || 0,
-        y: tileMetaState?.position?.y || 0,
-        w: tileMetaState?.position?.width || 4,
-        h: tileMetaState?.position?.height || 4,
-    }, [itemActions, tileMetaState]);
-
-    // Use a ref to compare the needed properties so we only update if something truly changed.
-    useEffect(() => {
-        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
-            updateTab(null, tileItem).then(() => {
-                tileUIActions?.setLoading(true);
-                router.refresh();
-            }).catch(error => {
-                console.error('Error updating interface:', error);
-            });
-        }
-    }, [
-        tileItem.tab,
-        tileItem.table_type,
-        tileItem.filters,
-        tileItem.context,
-        tileItem.column_context,
-        tileItem.common_filter,
-        tileItem.sorting,
-        tileItem.grouping,
-        tileItem.group_sorting,
-        tileItem.page_number,
-        tileItem.metric,
-        tileItem.plot_type,
-        tileItem.x_axis,
-        tileItem.y_axis,
-        tileItem.plot_group_by,
-        tileItem.plot_aggregate,
-        tileItem.freeze,
-        tileItem.color
-    ]);
-
-    useEffect(() => {
-        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial) {
-            updateTab(null, tileItem).then(() => {
-                router.refresh();
-            }).catch(error => {
-                console.error('Error updating interface:', error);
-            });
-        }
-    }, [tileItem.auto_update]);
-
-    useEffect(() => {
-        if (!["View", "Editor"].includes(tileItem.tab || "") && !initial)
-            tileUIActions?.setPending(true);
-    }, [tileItem.tab, tileItem.table_type, tileItem.context, tileItem.column_context]);
-
-    useEffect(() => {
-        setInitial(false);
-    }, []);
 
     // Update tile primary and secondary colors
     // Node: Need to update buttons and tile content separately 
@@ -147,7 +94,7 @@ const Tile = ({
     const renderContent = () => {
         switch (tileType) {
             case 'Table':
-                return (
+                return tableContent || (
                     <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center">
                             <SkeletonLoader />
@@ -158,16 +105,17 @@ const Tile = ({
                             tabId={tabId}
                             interfaceId={interfaceId}
                             projectId={projectId}
+                            tileActions={tileActions}
                             logsActions={logsActions}
                             fieldsActions={fieldsActions}
                             derivedEntryActions={derivedEntryActions}
                             contextActions={contextActions}
-                            updateTab={updateTab}
+                            projectsActions={projectsActions}
                         />
                     </Suspense>
                 );
             case 'Plot':
-                return (
+                return plotContent || (
                     <Suspense fallback={
                         <div className="w-full h-full flex items-center justify-center">
                             <SkeletonLoader />
@@ -178,13 +126,16 @@ const Tile = ({
                             tabId={tabId}
                             interfaceId={interfaceId}
                             projectId={projectId}
+                            tileActions={tileActions}
                             logsActions={logsActions}
                             fieldsActions={fieldsActions}
+                            projectsActions={projectsActions}
+                            contextActions={contextActions}
                         />
                     </Suspense>
                 );
             case 'View':
-                return (
+                return viewContent || (
                     <div className="w-full overflow-auto">
                         <ExpandProvider>
                             <Suspense fallback={
@@ -193,17 +144,17 @@ const Tile = ({
                                 </div>
                             }>
                                 <Selection
+                                    projectId={projectId}
+                                    logsActions={logsActions}   
                                     tileId={tileId}
                                     tabId={tabId}
-                                    interfaceId={interfaceId}
-                                    projectId={projectId}
                                 />
                             </Suspense>
                         </ExpandProvider>
                     </div>
                 );
             case 'Editor':
-                return (
+                return editorContent || (
                     <div className="w-full h-full overflow-y-auto">
                         <Editor
                             tileId={tileId}
@@ -211,6 +162,11 @@ const Tile = ({
                             interfaceId={interfaceId}
                             projectId={projectId}
                             codeActions={codeActions}
+                            tileActions={tileActions}
+                            projectsActions={projectsActions}
+                            contextActions={contextActions}
+                            fieldsActions={fieldsActions}
+                            logsActions={logsActions}
                         />
                     </div>
                 );

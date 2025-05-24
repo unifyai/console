@@ -1,42 +1,58 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { Ellipsis, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
-import { FileProps } from "@/types/common";
-import { TabActions, ProjectsActions } from "@/types/evals/grid";
+import { ResponseProps } from "@/types/common";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
-import { useState } from "react";
-import { useInterface } from "@/contexts/hooks/interface";
+import { useEffect, useState } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTabUI } from "@/contexts/hooks/tab";
-import { defaultItems, defaultNewCounter } from "@/constants/logs";
+import AutoComplete from "../Common/Misc/AutoComplete";
+import BaseDropdown from "../Common/Dropdowns/Base";
+import { useCommand } from "@/contexts/hooks/commands/useCommand";
+import { useListProjectsQuery } from "@/hooks/Query/useProjectsQuery";
 
 const ProjectButtons = ({
+    tabIdOrName,
     interfaceId,
-    tabQueryParam,
     projectQueryParam,
     defaultProject,
     setProjectQueryParam,
+    setInterfaceQueryParam,
     setTabQueryParam,
-    projectActions: serverProjectActions,
-    tabActions: serverTabActions,
+    projectActions,
+    interfaceActions,
+    tabActions,
+    tileActions,
 }: {
+    tabIdOrName: string | null;
     interfaceId: string;
-    tabQueryParam: string | null;
     projectQueryParam: string | null;
     defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
+    setInterfaceQueryParam: (interface_: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
-    tabActions: TabActions;
+    interfaceActions: GranularInterfaceActions;
+    tabActions: GranularTabActions;
+    tileActions: GranularTileActions;
 }) => {
     const router = useRouter();
-    const [loading, setLoading] = useState(false);
-
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    
+    // State for dialog controls
+    const selectProjectsOpen = useStoreContext((s) => s.selectProjectsOpen);
+    const setSelectProjectsOpen = useStoreContext((s) => s.setSelectProjectsOpen);
+    const createProjectOpen = useStoreContext((s) => s.createProjectOpen);
+    const setCreateProjectOpen = useStoreContext((s) => s.setCreateProjectOpen);
+    const deleteProjectOpen = useStoreContext((s) => s.deleteProjectOpen);
+    const setDeleteProjectOpen = useStoreContext((s) => s.setDeleteProjectOpen);
+    
     // Global states
     const project = projectQueryParam;
     const projects = useStoreContext((s) => s.projects);
@@ -45,94 +61,147 @@ const ProjectButtons = ({
     const setProject = setProjectQueryParam;
 
     // Interface states and actions with granular access
-    const { ui: interfaceUIState, uiActions: interfaceUIActions, dataActions: interfaceDataActions } = useInterface(interfaceId);
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "");
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabIdOrName || "");
 
-    const tabNames = interfaceDataActions?.getTabNames() || [];
+    // Use React Query to load projects
+    const listProjectsQuery = useListProjectsQuery(projectActions);
+    
+    // Initialize command hooks with minimal parameters
+    const commandHooks = useCommand({
+        projectId: project,
+        interfaceId,
+        tabId: tabIdOrName,
+        setProject,
+        setTabQueryParam,
+        setInterfaceQueryParam,
+        projectActions,
+        interfaceActions,
+        tabActions,
+        tileActions,
+    });
+    
+    const { 
+        selectProject: selectProjectCommand, 
+        createProject: createProjectCommand, 
+        closeProject: closeProjectCommand, 
+        deleteProject: deleteProjectCommand
+    } = commandHooks;
+
+    // Use React Query to load projects
+    useEffect(() => {
+        if (listProjectsQuery.data) {
+            setProjects(listProjectsQuery.data);
+        }
+    }, [listProjectsQuery.data, setProjects]);
+
+    const onOpen = () => {
+        // Refetch projects using React Query
+        listProjectsQuery.refetch();
+    }
+
+    useEffect(() => {
+        if (selectProjectsOpen || createProjectOpen || deleteProjectOpen)
+            setDropdownOpen(true);
+        else
+            setDropdownOpen(false);
+    }, [selectProjectsOpen, createProjectOpen, deleteProjectOpen]);
 
     return (
         <div className="w-fit gap-2 flex flex-row items-center px-4">
-            <FileDirectory
-                data={projectsData}
-                renamingFunction={serverProjectActions.rename}
-                setterFunction={(proj: FileProps | undefined) => {
-                    const newProj = proj ? proj.path : null;
-                    interfaceUIActions?.setPending(true);
-                    interfaceUIActions?.setDataPending(true);
-                    interfaceDataActions?.setTabNames([]);
-                    setTabQueryParam(null);
-                    setProject(newProj);
-                }}
-                type="Projects"
-                defaultValue={project || undefined}
-                isAutocompleteOpen={defaultProject ? true : undefined}
-                onOpen={() => {
-                    setLoading(true);
-                    serverProjectActions.get().then(projects => {
-                        setProjects(projects);
-                        setLoading(false);
-                    });
-                }}
-                loading={loading}
-            />
-            {project && (
-                <div className="flex flex-row gap-2">
-                    <CloseProject
-                        onClick={() => {
-                            interfaceUIActions?.setPending(true);
-                            interfaceUIActions?.setDataPending(true);
-                            setTabQueryParam(null);
-                            interfaceDataActions?.setTabNames([]);
-                            setProject(null);
-                        }}
-                    />
-                    <DeleteDialog
-                        type="project"
-                        args={[project]}
-                        deletingFunction={async (name: string) => {
-                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                tabName, project, true
-                            )))
-                            await Promise.all(tabNames.map(tabName => serverTabActions.delete(
-                                tabName, project, false
-                            )))
-                            return await serverProjectActions.delete(name);
-                        }}
-                        variant="outline"
-                        onDelete={() => {
-                            interfaceUIActions?.setPending(true);
-                            interfaceUIActions?.setDataPending(true);
-                            setTabQueryParam(null);
-                            interfaceDataActions?.setTabNames([]);
-                            setProject(null);
-                            serverProjectActions.get().then(projects => setProjects(projects));
-                        }}
-                    />
+            <BaseDropdown
+                context="project"
+                button={<ActionButton
+                    tooltip="Manage Projects"
+                    icon={<Ellipsis />}
+                    variant="outline"
+                />}
+                className="min-w-0 w-fit"
+                open={dropdownOpen}
+                setOpen={setDropdownOpen}
+            >
+                <div className="w-fit flex flex-col items-center p-2">
+                    <div className="w-full border-b pb-1">
+                        <FileDirectory
+                            data={projectsData}
+                            renamingFunction={projectActions.rename}
+                            setterFunction={(proj) => selectProjectCommand(proj)}
+                            type="Projects"
+                            text="Select Projects"
+                            variant="ghost"
+                            defaultValue={project || undefined}
+                            isAutocompleteOpen={defaultProject ? true : undefined}
+                            onOpen={onOpen}
+                            loading={listProjectsQuery.isLoading}
+                            customOpen={selectProjectsOpen}
+                            setCustomOpen={setSelectProjectsOpen}
+                        />
+                    </div>
+                    {project && <div className="w-full border-b py-1">
+                        <CloseProject
+                            onClick={() => closeProjectCommand()}
+                            variant="ghost"
+                            text="Close Project"
+                        />
+                    </div>}
+                    {project && <div className="w-full border-b py-1">
+                        <DeleteDialog
+                            type="project"
+                            args={[project]}
+                            deletingFunction={async () => {
+                                if (!project) {
+                                    return Promise.resolve({
+                                        detail: "No project selected"
+                                    } as unknown as ResponseProps);
+                                }
+                                return await deleteProjectCommand(project);
+                            }}
+                            variant="ghost"
+                            text="Delete Project"
+                            onDelete={() => {}}
+                            customOpen={deleteProjectOpen}
+                            setCustomOpen={setDeleteProjectOpen}
+                        />
+                    </div>}
+                    {projects && <div className="w-full pt-1">
+                        <CreateProject 
+                            creationFunction={async (name: string) => {
+                                if (createProjectCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Create project command not found"
+                                    } as ResponseProps);
+                                }
+                                return await createProjectCommand(name);
+                            }}
+                            createProjectOpen={createProjectOpen}
+                            setCreateProjectOpen={setCreateProjectOpen}
+                            paths={projects}
+                            text="Create Project"
+                            variant="ghost"
+                        />
+                    </div>}
                 </div>
-            )}
-            {projects && <CreateProject creationFunction={(name: string) => {
-                const createProject = serverProjectActions.create(name).then(async () => {
-                    await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, true, undefined
-                    );
-                    const tabCreate = await serverTabActions.create(
-                        "tab1", name, undefined, defaultItems, defaultNewCounter, false, undefined
-                    );
-                    setProject(name);
-                    setTabQueryParam("tab1");
-                    interfaceUIActions?.setPending(true);
-                    interfaceUIActions?.setDataPending(true);
-                    interfaceDataActions?.setTabNames(["tab1"]);
-                    setProjects([...projects, name]);
-                    return tabCreate;
-                });
-                return createProject;
-            }} paths={projects} />}
+            </BaseDropdown>
+            <AutoComplete
+                type={"Projects"}
+                items={projects.map((project) => ({ label: project, value: project }))}
+                defaultValue={project || undefined}
+                isOpen={defaultProject ? true : undefined}
+                onSelect={(currentValue: string) => {
+                    if (selectProjectCommand == undefined) {
+                        return Promise.resolve({
+                            detail: "Select projects command not found"
+                        } as ResponseProps);
+                    }
+                    return selectProjectCommand({ path: currentValue });
+                }}
+                onOpen={onOpen}
+                loading={listProjectsQuery.isLoading}
+            />
             <ActionButton
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
-                disabled={!project || interfaceUIState?.pending || interfaceUIState?.dataPending}
+                disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
                 onClick={() => {
                     tabUIActions?.setRefreshing(true);
                     router.refresh();

@@ -331,7 +331,7 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
           <ActionButton
             variant="ghost"
             size="icon"
-            tooltip={everythingOpen ? "Collapse All" : "Expand All"}
+            tooltip={everythingOpen ? "Collapse all" : "Expand all"}
             onClick={handleToggleAll}
             icon={
               everythingOpen

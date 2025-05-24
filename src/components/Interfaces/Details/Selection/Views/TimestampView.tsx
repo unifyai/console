@@ -5,6 +5,9 @@ import { LogComparisonProps } from "./types";
 import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
+import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
+import { toast } from "sonner";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
  * parseTimestamp: Convert a string to a Date. If invalid, returns null.
@@ -64,6 +67,105 @@ function buildTimedeltaString(baseStr: string, compStr: string): string {
   return signChar + " " + parts.join(", ");
 }
 
+// Grouping helper for no-diff and edit mode
+function groupAllTimestampsByValue(
+  baseVal: unknown,
+  comparables: unknown[] | undefined,
+  baseRow: number,
+  compRows: number[]
+) {
+  const allTimestamps = [baseVal, ...(comparables ?? [])].map(ts => String(ts ?? ""));
+  const allRows = [baseRow, ...compRows];
+
+  const map = new Map<string, number[]>();
+  allTimestamps.forEach((tsStr, i) => {
+    if (!map.has(tsStr)) {
+      map.set(tsStr, []);
+    }
+    map.get(tsStr)!.push(allRows[i]);
+  });
+  // Convert to array: { tsVal, rows }
+  return Array.from(map.entries()).map(([tsVal, rowArr]) => ({
+    tsVal,
+    rows: rowArr.sort((a, b) => a - b),
+  }));
+}
+
+// Grouping helper for versions (used in read-only modes)
+function groupVersionsForRows(
+  rows: number[],
+  baseLogIndex: number,
+  baseVer: string,
+  compLogIndexes: number[],
+  compVers: string[]
+) {
+  const map = new Map<string, number[]>();
+  rows.forEach((r) => {
+    const verStr =
+      r === baseLogIndex
+        ? baseVer
+        : compVers[compLogIndexes.indexOf(r)] ?? "";
+    if (!map.has(verStr)) {
+      map.set(verStr, []);
+    }
+    map.get(verStr)!.push(r);
+  });
+  return Array.from(map.entries()).map(([text, rowArr]) => ({
+    text,
+    rows: rowArr.sort((a, b) => a - b),
+  }));
+}
+
+// Helper Component for a single editable timestamp field, group-aware
+const EditableTimestampField = ({
+  initialValue,
+  logIndices, // Pass all log indices for this group
+  path,
+  onGroupSave, // Use a group-aware save handler
+  isImmutable
+}: {
+  initialValue: string;
+  logIndices: number[]; // Indices sharing this value
+  path: (string | number)[];
+  onGroupSave: (desc: { logIndices: number[]; path: (string | number)[]; newValue: any }) => void; // Handler accepts multiple indices
+  isImmutable?: boolean;
+}) => {
+  const { draft, inputProps } = useEditablePrimitive<string>(
+    initialValue,
+    (newValue) => {
+      // Attempt to parse the date to ensure it's valid before saving
+      const parsedDate = parseTimestamp(newValue);
+      if (parsedDate) {
+        onGroupSave({ logIndices, path, newValue: newValue }); // Save the valid string
+      } else {
+        toast.error("Invalid timestamp format. Changes not saved.");
+      }
+    },
+    (val) => parseTimestamp(val) ? true : "Invalid timestamp format" // Validation function
+  );
+
+  return (isImmutable
+  ? <Tooltip content="Immutable fields cannot be edited">
+      <input
+        type="text"
+        placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
+        className="w-full border rounded p-1 text-sm font-mono"
+        {...inputProps}
+        value={draft}
+        disabled
+      />
+    </Tooltip>
+  : <input
+      type="text"
+      placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
+      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+      {...inputProps}
+      value={draft}
+    />
+  );
+};
+
+
 export default function TimestampView({
   value,
   comparables,
@@ -74,9 +176,67 @@ export default function TimestampView({
   version = "",
   comparableVersions = [],
   displayMode = "markdown",
-}: LogComparisonProps) {
+  cellEditMode = false,
+  onSaveEdit,
+  onGroupSaveEdit, 
+  path = [],
+  nested = false,
+  isImmutable
+}: LogComparisonProps & { nested?: boolean, isImmutable?: boolean }) {
 
-  // Single vs multiple
+  // If editable, group and render editable fields
+  if (cellEditMode && (onSaveEdit || onGroupSaveEdit)) {
+    const timestampGroups = groupAllTimestampsByValue(
+        value,
+        comparables,
+        baseLogIndex,
+        comparisonLogsIndex
+    );
+
+    // Filter out groups with empty or clearly invalid initial values before rendering inputs
+    // We still allow editing potentially invalid formats entered by the user.
+    const validGroups = timestampGroups.filter(group => group.tsVal.trim() !== "");
+
+    // Define the handler that will be called by EditableTimestampField's onSave
+    const handleGroupSave = ({ logIndices, path, newValue }: { logIndices: number[]; path: (string | number)[]; newValue: any }) => {
+      if (onGroupSaveEdit) {
+        // Call the group save handler directly with all indices
+        onGroupSaveEdit({ logIndices, path, newValue });
+      } else if (onSaveEdit && logIndices.length > 0) {
+        // Fallback: Call single save for the first index if group save handler is not provided
+        console.warn("Using single onSaveEdit for grouped timestamp field. Consider implementing onGroupSaveEdit.");
+        onSaveEdit({ logIndex: logIndices[0], path, newValue });
+      }
+    };
+
+    return (
+        <div className="space-y-3">
+            {validGroups.map((group, index) => (
+                <div key={index}>
+                    {/* Display RowBadges for the logs sharing this value */}
+                    {!nested &&
+                    <div className="flex items-center gap-1 mb-1">
+                        <RowBadge rowNumbers={group.rows} mode="none" />
+                        <span className="text-xs text-muted-foreground">
+                            {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
+                        </span>
+                    </div>}
+                    {/* Render a single editable field for this group */}
+                    <EditableTimestampField
+                        initialValue={group.tsVal} // Pass the timestamp string
+                        logIndices={group.rows} // Pass the indices associated with this group
+                        path={path}
+                        onGroupSave={handleGroupSave} // Pass the group save handler
+                        isImmutable={isImmutable}
+                    />
+                </div>
+            ))}
+        </div>
+    );
+  }
+
+
+  // --- Read-only rendering logic ---
   const singleMode = !comparables || comparables.length === 0;
   const baseStr = typeof value === "string" ? value : String(value || "");
 
@@ -142,36 +302,21 @@ export default function TimestampView({
   // If diffMode === "none," group them (like StringView "none" mode)
   //----------------------------------------
   if (diffMode === "none") {
-    const allTimestamps = [baseStr, ...(comparables ?? []).map(String)];
-    // Create combined array of row indices (should be 0-based)
-    const rowIdxs = [baseLogIndex, ...comparisonLogsIndex];
+    const groupArr = groupAllTimestampsByValue(value, comparables, baseLogIndex, comparisonLogsIndex);
 
-    const map = new Map<string, number[]>();
-    allTimestamps.forEach((ts, i) => {
-      if (!map.has(ts)) map.set(ts, []);
-      map.get(ts)!.push(rowIdxs[i]);
-    });
-
-    const groupArr = Array.from(map.entries()).map(([ts, rows]) => ({
-      ts,
-      rows: rows.sort((a, b) => a - b),
-    }));
-    
     // Filter out groups with empty or invalid timestamps
     const filteredGroups = groupArr.filter(group => {
-      // Skip empty timestamps
-      if (!group.ts || group.ts.trim() === "") return false;
-      
-      // Skip invalid timestamps (parseTimestamp will return null for invalid dates)
-      const parsedTimestamp = parseTimestamp(group.ts);
+      if (!group.tsVal || group.tsVal.trim() === "") return false;
+      const parsedTimestamp = parseTimestamp(group.tsVal);
       return parsedTimestamp !== null;
     });
-    
+
     return (
       <div className="space-y-4">
         {filteredGroups.map((group, idx) => {
-          const tsVal = group.ts;
+          const tsVal = group.tsVal;
           const rowNumbers = group.rows;
+          const verGroups = groupVersionsForRows(rowNumbers, baseLogIndex, baseVer, comparisonLogsIndex, compVers);
 
           return (
             <div key={idx} className="p-3 space-y-4">
@@ -179,30 +324,24 @@ export default function TimestampView({
                 <div>
                   <p className="font-semibold text-sm mb-4">Version</p>
                   <div className="space-y-2">
-                    {rowNumbers.map((r) => {
-                      const isBase = r === baseLogIndex;
-                      const verText = isBase
-                        ? baseVer
-                        : compVers[comparisonLogsIndex.indexOf(r)] ?? "";
-                      return (
-                        <div key={r} className="border rounded p-2 relative group">
-                          <RowBadge rowNumbers={[r]} mode="none" />
-                          {verText ? (
-                            <div className="pt-2">
-                              {displayMode === "markdown" ? (
-                                <MarkdownRenderer>{verText}</MarkdownRenderer>
-                              ) : (
-                                verText
-                              )}
-                            </div>
-                          ) : (
-                            <p className="italic text-sm text-muted-foreground">
-                              No version
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {verGroups.map((vg, j) => (
+                      <div key={j} className="border rounded p-2 relative group">
+                        <RowBadge rowNumbers={vg.rows} mode="none" />
+                        {vg.text ? (
+                          <div className="pt-2">
+                            {displayMode === "markdown" ? (
+                              <MarkdownRenderer>{vg.text}</MarkdownRenderer>
+                            ) : (
+                              vg.text
+                            )}
+                          </div>
+                        ) : (
+                          <p className="italic text-sm text-muted-foreground pt-2">
+                            No version
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -235,7 +374,7 @@ export default function TimestampView({
     if (!ts || ts.trim() === "") return;
     const parsedTimestamp = parseTimestamp(ts);
     if (parsedTimestamp === null) return;
-    
+
     if (!map.has(ts)) map.set(ts, []);
     map.get(ts)!.push(row);
   });
@@ -243,7 +382,7 @@ export default function TimestampView({
     tsVal,
     rows: rows.sort((a, b) => a - b),
   }));
-  
+
   return (
     <div className="space-y-4">
       {compGroups.map((group, idx) => {
@@ -252,6 +391,7 @@ export default function TimestampView({
 
         const joinedRows = [baseLogIndex, ...rowNumbers];
         const diff = buildTimedeltaString(baseStr, compStr);
+        const verGroups = groupVersionsForRows(joinedRows, baseLogIndex, baseVer, comparisonLogsIndex, compVers);
 
         return (
           <div key={idx} className="p-3 space-y-4">
@@ -259,30 +399,24 @@ export default function TimestampView({
             {!versionEmpty && (
               <div className="space-y-2">
                 <p className="font-semibold text-sm">Version</p>
-                {joinedRows.map((r) => {
-                  const isBase = r === baseLogIndex;
-                  const verText = isBase
-                    ? baseVer
-                    : compVers[comparisonLogsIndex.indexOf(r)] ?? "";
-                  return (
-                    <div key={r} className="border rounded p-2 relative group">
-                      <RowBadge rowNumbers={[r]} mode="none" />
-                      {verText ? (
+                {verGroups.map((vg, j) => (
+                    <div key={j} className="border rounded p-2 relative group">
+                      <RowBadge rowNumbers={vg.rows} mode="none" />
+                      {vg.text ? (
                         <div className="pt-2">
                           {displayMode === "markdown" ? (
-                            <MarkdownRenderer>{verText}</MarkdownRenderer>
+                            <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                           ) : (
-                            verText
+                            vg.text
                           )}
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground">
+                        <p className="italic text-sm text-muted-foreground pt-2">
                           No version
                         </p>
                       )}
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             )}
 

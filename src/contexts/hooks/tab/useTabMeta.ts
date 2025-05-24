@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { TabMeta } from '../../slices/selectors/tab';
-import { constructHierarchicalId } from '../../utils/sliceUtils';
 
 /**
  * Interface for tab meta-related actions
@@ -11,55 +10,48 @@ export interface TabMetaActions {
   setVisible: (visible: boolean) => void;
   setActive: (active: boolean) => void;
   setOrder: (order: number) => void;
-  setTabCreated: (tabCreated: boolean) => void;
-  setTempTabCreated: (tempTabCreated: boolean) => void;
 }
 
 /**
  * Custom hook to access tab meta state and actions
- * @param tabName The name of the tab to access
- * @param interfaceName Optional interface name (if not provided, active interface will be used)
- * @param projectName Optional project name (if not provided, active project will be used)
+ * @param tabIdOrName The ID or name of the tab to access
+ * @param interfaceIdOrName Optional interface ID or name (if not provided, active interface will be used)
  * @returns Object containing tab meta state and actions
  */
 export function useTabMeta(
-  tabName: string | null, 
-  interfaceName?: string | null,
-  projectName?: string | null
+  tabIdOrName: string | null, 
+  interfaceIdOrName?: string | null,
 ) {
-  // Get active project ID and interface ID if not provided
-  const activeProjectId = useStoreContext(state => 
-    projectName ? projectName : state.activeProjectId
-  );
   
-  const interfaceId = useStoreContext(state => 
-    interfaceName ? interfaceName : state.activeInterfaceId
+  const activeInterfaceId = useStoreContext(state => 
+    interfaceIdOrName ? interfaceIdOrName : state.activeInterfaceId
   );
 
-  // Construct hierarchical interface ID if needed
-  const activeInterfaceId = useMemo(() => {
-    if (!interfaceId || !activeProjectId) return null;
-    return interfaceId.includes('>') ? interfaceId : constructHierarchicalId(interfaceId, [activeProjectId]);
-  }, [interfaceId, activeProjectId]);
+  // First attempt: Look for the tab directly by ID
+  const tabInStoreById = useStoreContext(state => {
+    if (!tabIdOrName) return null;
+    return state.tabsById[tabIdOrName] || null;
+  });
 
-  // Construct hierarchical tab ID if needed
+  // Second attempt: Find the tab by interface + name combination
+  const tabInStoreByName = useStoreContext(state => {
+    if (!tabIdOrName || !activeInterfaceId || tabInStoreById) return null;
+    
+    // Find tab with matching name and interface ID
+    return Object.values(state.tabsById).find(
+      tab => tab.name === tabIdOrName && tab.interfaceId === activeInterfaceId
+    ) || null;
+  });
+
+  // Determine the tab ID based on lookup results
   const tabId = useMemo(() => {
-    if (!tabName || !activeInterfaceId) return null;
-    
-    // Check if the tabId already has the hierarchical format
-    if (tabName.includes('>')) {
-      return tabName;
-    }
-    
-    // Otherwise, construct it
-    return constructHierarchicalId(tabName, [activeInterfaceId]);
-  }, [tabName, activeInterfaceId]);
+    if (!tabIdOrName) return null;
+    if (tabInStoreById) return tabIdOrName;
+    return tabInStoreByName?.id || null;
+  }, [tabIdOrName, tabInStoreById, tabInStoreByName]);
   
   // Check if tab exists
-  const tabExists = useStoreContext(state => {
-    if (!tabId) return false;
-    return !!state.tabsById[tabId];
-  });
+  const tabExists = !!tabId && !!(tabInStoreById || tabInStoreByName);
 
   // Access to meta properties
   const id = tabId;
@@ -83,16 +75,6 @@ export function useTabMeta(
     if (!tabExists || !tabId) return 0;
     return state.tabsById[tabId].order;
   });
-  
-  const tabCreated = useStoreContext(state => {
-    if (!tabExists || !tabId) return false;
-    return state.tabsById[tabId].tabCreated;
-  });
-  
-  const tempTabCreated = useStoreContext(state => {
-    if (!tabExists || !tabId) return false;
-    return state.tabsById[tabId].tempTabCreated;
-  });
 
   // Get the store actions needed for meta
   const storeUpdateTab = useStoreContext(state => state.updateTab);
@@ -107,8 +89,6 @@ export function useTabMeta(
       visible,
       active,
       order,
-      tabCreated,
-      tempTabCreated
     };
   }, [
     tabExists, 
@@ -117,8 +97,6 @@ export function useTabMeta(
     visible, 
     active, 
     order, 
-    tabCreated, 
-    tempTabCreated
   ]);
 
   // Memoize the meta actions
@@ -145,18 +123,6 @@ export function useTabMeta(
       if (tabId) {
         storeUpdateTab(tabId, { order });
       }
-    },
-    
-    setTabCreated: (tabCreated) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { tabCreated });
-      }
-    },
-    
-    setTempTabCreated: (tempTabCreated) => {
-      if (tabId) {
-        storeUpdateTab(tabId, { tempTabCreated });
-      }
     }
   }), [tabId, storeUpdateTab]);
 
@@ -165,7 +131,6 @@ export function useTabMeta(
     metaActions,
     // Also export these for use in other hooks
     tabId,
-    activeProjectId,
     activeInterfaceId,
     tabExists
   };

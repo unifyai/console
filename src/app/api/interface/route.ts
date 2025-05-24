@@ -4,8 +4,24 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
+    const searchParams = new URLSearchParams(url.search);
+    
+    // Check if we're getting interface by ID, by path components, or listing interfaces
+    const hasInterfaceId = searchParams.has('interface_id');
+    const hasProjectId = searchParams.has('project');
+    const hasName = searchParams.has('name');
+    
+    // Determine endpoint based on parameters
+    let endpoint = "/interfaces/";
+    
+    // If project is present but no name or id, we're listing
+    if (hasProjectId && !hasName && !hasInterfaceId) {
+        endpoint = "/interfaces/list";
+    }
+    
+    // Let the backend handle the routing based on the query parameters
     return await fetch(
-        `${baseUrl}/interface${url.search}`,
+        `${baseUrl}${endpoint}${url.search}`,
         {
             method: "GET",
             headers: {
@@ -19,8 +35,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     const body = await request.json();
+    const url = new URL(request.url);
+    
+    // Pass all query parameters to allow both ID and path-based updates
     return await fetch(
-        `${baseUrl}/interface`,
+        `${baseUrl}/interfaces/${url.search}`,
         {
             method: "PUT",
             headers: {
@@ -34,8 +53,9 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
+    // For POST, we always create a new resource, so the endpoint is fixed
     return await fetch(
-        `${baseUrl}/interface`,
+        `${baseUrl}/interfaces/`,
         {
             method: "POST",
             headers: {
@@ -49,8 +69,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
+    
+    // Pass all query parameters to allow both ID and path-based deletion
     return await fetch(
-        `${baseUrl}/interface${url.search}`,
+        `${baseUrl}/interfaces/${url.search}`,
         {
             method: "DELETE",
             headers: {

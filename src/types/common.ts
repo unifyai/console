@@ -1,5 +1,11 @@
+/** 
+ * Base FastAPI response format for endpoints that don't
+ * explicitly return data. Can be:
+ * { info : success_message } for successful responses, or
+ * { detail: error_message } for unsuccessful responses
+*/
 export interface ResponseProps {
-    [key: string]: string
+    [key: string]: string | any
 }
 
 export interface FileProps {

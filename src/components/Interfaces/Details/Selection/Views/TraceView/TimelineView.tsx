@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useId } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,9 +29,15 @@ import { Span } from "@/types/evals/traces";
  * - If only one is provided, it displays the single timeline.
  */
 export default function TimelineViewButton({
-  baseTrace,
-  targetTrace
+  baseSpanId,
+  targetSpanId,
+  findSpanById,
+  baseTrace: initialBaseTrace,
+  targetTrace: initialTargetTrace,
 }: {
+  baseSpanId?: string;
+  targetSpanId?: string;
+  findSpanById?: (id: string) => Span | undefined;
   baseTrace?: Span[];
   targetTrace?: Span[];
 }) {
@@ -40,11 +46,25 @@ export default function TimelineViewButton({
   const [chartHeight, setChartHeight] = useState(600);
   const [zoomFactor, setZoomFactor] = useState(1); // Default zoom factor
   const [customZoomInput, setCustomZoomInput] = useState("100"); // New state for custom zoom input
-  const [panOffset, setPanOffset] = useState(0); // Pan offset for navigating when zoomed in
   const [domainMin, setDomainMin] = useState(0); // Minimum value of the domain
   const [domainMax, setDomainMax] = useState<number | string>("dataMax+0.2");
+  const [tick, setTick] = useState(0);
+  const gidBase = useId(); // unique prefix for gradient ids
   const containerRef = React.useRef<HTMLDivElement>(null);
   
+  // Resolve the freshest Span objects when IDs + finder are provided.
+  const liveBaseSpan = baseSpanId && findSpanById ? findSpanById(baseSpanId) : undefined;
+  const liveTargetSpan = targetSpanId && findSpanById ? findSpanById(targetSpanId) : undefined;
+
+  // Memoize to keep array reference stable between renders unless content truly changes
+  const baseTrace = React.useMemo(() => (
+    liveBaseSpan ? [liveBaseSpan] : initialBaseTrace
+  ), [liveBaseSpan, initialBaseTrace]);
+
+  const targetTrace = React.useMemo(() => (
+    liveTargetSpan ? [liveTargetSpan] : initialTargetTrace
+  ), [liveTargetSpan, initialTargetTrace]);
+
   // Store trace names for better identification in tooltips
   const traceNames = useMemo(() => {
     const names: string[] = [];
@@ -100,12 +120,30 @@ export default function TimelineViewButton({
     if (!baseTrace && !targetTrace) {
       return [];
     }
-    const tracesToUnify = [];
+    const tracesToUnify: Span[][] = [];
     if (baseTrace) tracesToUnify.push(baseTrace);
     if (targetTrace) tracesToUnify.push(targetTrace);
-    const data = unifyTracesForChart(tracesToUnify);
-    return data;
-  }, [baseTrace, targetTrace]);
+    // Current timestamp in seconds relative to the trace start (avoids mixing epoch vs offset)
+    let nowRelSecs = 0;
+    const flatRoots = tracesToUnify.flat();
+    // Extract earliest absolute timestamp if available
+    const absTimes = flatRoots
+      .map((s) => (s.timestamp ? Date.parse(s.timestamp) / 1000 : undefined))
+      .filter((n): n is number => typeof n === "number" && !isNaN(n));
+
+    if (absTimes.length) {
+      // Use the LATEST trace start as the zero-point; this keeps durations
+      // reasonable when comparing a very old finished trace with a fresh
+      // live-streaming one.
+      const t0AbsLatest = Math.max(...absTimes);
+      nowRelSecs = Math.max(0, Date.now() / 1000 - t0AbsLatest);
+    } else {
+      // Fallback: just use the tick counter (seconds since first render)
+      nowRelSecs = tick;
+    }
+
+    return unifyTracesForChart(tracesToUnify, nowRelSecs);
+  }, [baseTrace, targetTrace, tick]);
 
   // Determine if we're showing a single trace or dual traces
   const isSingleTrace = useMemo(() => {
@@ -115,19 +153,19 @@ export default function TimelineViewButton({
   // Calculate the maximum value in the data to use for domain calculation
   const maxValue = useMemo(() => {
     let max = 0;
-    chartData.forEach(item => {
-      // Check all length and start keys
-      Object.keys(item).forEach(key => {
-        if ((key.startsWith('start-') || key.startsWith('length-')) && typeof item[key] === 'number') {
+    chartData.forEach((raw) => {
+      const itemAny = raw as any;
+      Object.keys(itemAny).forEach((key) => {
+        if ((key.startsWith('start-') || key.startsWith('length-')) && typeof itemAny[key] === 'number') {
           if (key.startsWith('start-')) {
             const lengthKey = key.replace('start-', 'length-');
-            const total = item[key] + (item[lengthKey] || 0);
+            const total = itemAny[key] + (itemAny[lengthKey] || 0);
             max = Math.max(max, total);
           }
         }
       });
     });
-    return max || 1; // Default to 1 if no data
+    return max || 1;
   }, [chartData]);
 
   // Update domain when zoom factor or pan offset changes
@@ -143,87 +181,54 @@ export default function TimelineViewButton({
   
   // Reset zoom when chart data changes or dialog reopens
   useEffect(() => {
+    if (!open) return; // run only when dialog opens
     setZoomFactor(1);
-    // Scroll container to the beginning when resetting
-    if (containerRef.current) {
-      containerRef.current.scrollLeft = 0;
-    }
-  }, [chartData, open]);
+    containerRef.current?.scrollTo({ left: 0 });
+  }, [open]);
 
   // For single trace mode, we'll modify the data to center the bars
   const processedChartData = useMemo(() => {
-    if (!isSingleTrace) return chartData;
-    
-    // For single trace, add a centering offset to position the bar in the middle
-    return chartData.map(item => {
-      const traceIndex = baseTrace ? 0 : 1;
-      const startKey = `start-${traceIndex}`;
-      const lengthKey = `length-${traceIndex}`;
-      
-      return {
-        ...item,
-        // If we have a valid length, center it
-        [startKey]: item[lengthKey] > 0 ? 0.3 : 0 // Add a small offset to center the bar
-      };
-    });
-  }, [chartData, isSingleTrace, baseTrace]);
+    return chartData;
+  }, [chartData]);
   
-  // Define findFirstActivityTime in a useMemo to avoid recreation
-  const findFirstActivityTime = useMemo(() => {
-    return () => {
-      if (!processedChartData || processedChartData.length === 0) {
-        return 0;
-      }
-      
-      // Find the minimum non-zero start time across all spans
-      let minStartTime = Number.MAX_VALUE;
-      
-      processedChartData.forEach(item => {
-        // Check all start keys
-        Object.keys(item).forEach(key => {
-          if (key.startsWith('start-') && typeof item[key] === 'number') {
-            const startTime = item[key];
-            const lengthKey = key.replace('start-', 'length-');
-            
-            // Only consider spans that have a non-zero length
-            if (item[lengthKey] > 0 && startTime >= 0 && startTime < minStartTime) {
-              minStartTime = startTime;
-            }
-          }
-        });
+  // Calculate earliest start time to trim leading empty space (used for shifting data)
+  const minStart = useMemo(() => {
+    let min = Number.MAX_VALUE;
+    chartData.forEach((row: any) => {
+      Object.keys(row).forEach((k) => {
+        if (k.startsWith('start-') && typeof row[k] === 'number' && row[k] > 0) {
+          min = Math.min(min, row[k]);
+        }
       });
-      
-      return minStartTime === Number.MAX_VALUE ? 0 : minStartTime;
-    };
-  }, [processedChartData]);
+    });
+    return min === Number.MAX_VALUE ? 0 : min;
+  }, [chartData]);
   
   // Center the view on initial load and after zoom changes
   useEffect(() => {
+    if (!open) return;
     if (containerRef.current && zoomFactor > 1) {
-      // Find the first activity start time to focus on
-      const firstActivityTime = findFirstActivityTime();
-      
-      // If we have chart data to work with
-      if (processedChartData && processedChartData.length > 0) {
-        // Calculate relative position in the chart
-        const relativePosition = firstActivityTime / maxValue;
-        
-        // Calculate scroll position (taking chart margins into account)
-        const scrollableWidth = containerRef.current.scrollWidth;
-        const containerWidth = containerRef.current.clientWidth;
-        const scrollPosition = Math.max(0, (scrollableWidth - containerWidth) * relativePosition);
-        
-        // Apply scroll position
-        containerRef.current.scrollLeft = scrollPosition;
-      } else {
-        // Fallback: Center the scrollable area when zooming in
-        const scrollableWidth = containerRef.current.scrollWidth;
-        const containerWidth = containerRef.current.clientWidth;
-        const scrollCenter = (scrollableWidth - containerWidth) / 2;
-        containerRef.current.scrollLeft = scrollCenter;
-      }
+      const relativePosition = minStart / maxValue;
+      const scrollableWidth = containerRef.current?.scrollWidth || 0;
+      const containerWidth = containerRef.current?.clientWidth || 1;
+      const scrollPosition = Math.max(0, (scrollableWidth - containerWidth) * relativePosition);
+      if (containerRef.current) containerRef.current.scrollLeft = scrollPosition;
     }
-  }, [zoomFactor, processedChartData, maxValue, findFirstActivityTime]);
+  }, [zoomFactor, open]);
+
+  // Remount BarChart only when row-count changes (avoids pulse).
+  const barChartKey = `${processedChartData.length}`;
+
+  // ------------------------------------------------------------------
+  // Debug: log dataset only when it actually changes, not every tick
+  // ------------------------------------------------------------------
+  const prevDataRef = React.useRef<string>(JSON.stringify(processedChartData));
+  useEffect(() => {
+    const nowStr = JSON.stringify(processedChartData);
+    if (nowStr !== prevDataRef.current) {
+      prevDataRef.current = nowStr;
+    }
+  }, [processedChartData]);
 
   // Calculate ideal height based on number of rows
   const idealHeight = useMemo(() => {
@@ -414,6 +419,24 @@ export default function TimelineViewButton({
     return dynamicTicks;
   }, [dynamicTicks, scaledChartWidth]);
 
+  // Live ticker to refresh the chart while there are running spans
+  const traces = useMemo(() => [ ...(baseTrace ?? []), ...(targetTrace ?? []) ], [baseTrace, targetTrace]);
+
+  useEffect(() => {
+    function spanIsRunning(span: Span): boolean {
+      if (span.completed === false || span.exec_time === undefined || span.exec_time === null) {
+        return true;
+      }
+      return span.child_spans?.some(spanIsRunning) ?? false;
+    }
+
+    const hasRunning = traces.some(spanIsRunning);
+    if (!hasRunning) return; // nothing to animate
+
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [traces]);
+
   return (
     <>
       <button
@@ -505,19 +528,30 @@ export default function TimelineViewButton({
                   height: containerHeight,
                   overflowY: "auto",
                   // Only show horizontal scrollbar when zoomed in
-                  overflowX: zoomFactor > 1 ? "auto" : "hidden"
+                  //overflowX: zoomFactor > 1 ? "auto" : "hidden"
                 }}
               >
                 <BarChart
+                  key={barChartKey}
                   width={scaledChartWidth}
                   height={idealHeight}
                   data={processedChartData}
                   layout="vertical"
                   barSize={24}
-                  margin={{ left: 140, right: 60, top: 20, bottom: 20 }}
+                  margin={{ left: 0, right: 0, top: 20, bottom: 20 }}
                   barCategoryGap={24}
                   barGap={8}
                 >
+                  {/* Gradient definitions for running spans */}
+                  <defs>
+                    {[0,1].map((idx) => (
+                      <linearGradient id={`${gidBase}-running-${idx}`} key={idx} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={1} />
+                        <stop offset="70%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={1} />
+                        <stop offset="100%" stopColor={colorPalette[idx % colorPalette.length]} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
+                  </defs>
                   <CartesianGrid
                     stroke="#E5E7EB"
                     strokeDasharray="3 3"
@@ -555,16 +589,25 @@ export default function TimelineViewButton({
                     // Single trace mode - render just one centered bar
                     <>
                       <Bar
+                        isAnimationActive={false}
                         dataKey={baseTrace ? "start-0" : "start-1"}
                         stackId="singleRange"
                         fill="transparent"
                       />
                       <Bar
+                        isAnimationActive={false}
                         dataKey={baseTrace ? "length-0" : "length-1"}
                         stackId="singleRange"
                         fill={colorPalette[baseTrace ? 0 : 1]}
                         radius={[4, 4, 4, 4]}
                       >
+                        {processedChartData.map((entry, idx) => {
+                          const traceIdx = baseTrace ? 0 : 1;
+                          const runningKey = `running-${traceIdx}` as keyof typeof entry;
+                          const isRunning = Boolean(entry[runningKey]);
+                          const fill = isRunning ? `url(#${gidBase}-running-${traceIdx})` : colorPalette[traceIdx];
+                          return <Cell key={`cell-${idx}`} fill={fill} />;
+                        })}
                         <LabelList
                           dataKey={baseTrace ? "length-0" : "length-1"}
                           position="right"
@@ -578,16 +621,22 @@ export default function TimelineViewButton({
                     // Dual trace mode - render both sets of bars
                     <>
                       <Bar
+                        isAnimationActive={false}
                         dataKey="start-0"
                         stackId="range-0"
                         fill="transparent"
                       />
                       <Bar
+                        isAnimationActive={false}
                         dataKey="length-0"
                         stackId="range-0"
                         fill={colorPalette[0]}
                         radius={[4, 4, 4, 4]}
                       >
+                        {processedChartData.map((entry, idx) => {
+                          const fill = entry["running-0"] ? `url(#${gidBase}-running-0)` : colorPalette[0];
+                          return <Cell key={`r0-${idx}`} fill={fill} />;
+                        })}
                         <LabelList
                           dataKey="length-0"
                           position="right"
@@ -597,16 +646,22 @@ export default function TimelineViewButton({
                         />
                       </Bar>
                       <Bar
+                        isAnimationActive={false}
                         dataKey="start-1"
                         stackId="range-1"
                         fill="transparent"
                       />
                       <Bar
+                        isAnimationActive={false}
                         dataKey="length-1"
                         stackId="range-1"
                         fill={colorPalette[1]}
                         radius={[4, 4, 4, 4]}
                       >
+                        {processedChartData.map((entry, idx) => {
+                          const fill = entry["running-1"] ? `url(#${gidBase}-running-1)` : colorPalette[1];
+                          return <Cell key={`r1-${idx}`} fill={fill} />;
+                        })}
                         <LabelList
                           dataKey="length-1"
                           position="right"

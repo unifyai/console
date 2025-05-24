@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
 export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, loading, onOpen, className}: {
-    items: {value:string, label: string}[],
+    items: {value:string, label: string, icon?: React.ReactNode, disabled?: boolean}[],
     type: string,
     defaultValue?: string,
     onSelect: (currentValue: string) => void,
@@ -22,6 +22,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
 }) {
   const [open, setOpen] = React.useState(false)
   const [value, setValue] = React.useState(defaultValue || "")
+  const [icon, setIcon] = React.useState<React.ReactNode | undefined>(undefined);
   useEffect(() => {setValue(defaultValue || "")}, [defaultValue])
   const onOpenChange = (o: boolean) => {
     if (onOpen && o) onOpen();
@@ -38,9 +39,10 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
           className={`h-8 px-3 w-[200px] justify-between truncate ... ${className}`}
           disabled={disabled}
         >
+          {icon && icon}
           {value && label
             ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
-            : `Select ${type}...`}
+            : type == "Actions" ? "Search Actions..." : `Select ${type}...`}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -56,13 +58,16 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
                 <CommandItem
                   key={item.value}
                   value={item.value}
+                  disabled={item.disabled}
                   onSelect={(currentValue) => {
                     setValue(currentValue === value ? "" : currentValue);
+                    setIcon(currentValue === value ? undefined : item?.icon);
                     onSelect(currentValue === value ? "" : currentValue);
                     setOpen(false)
                   }}
                   className="h-10"
                 >
+                  {item.icon && item.icon}
                   {item.label}
                   <Check
                     className={cn(

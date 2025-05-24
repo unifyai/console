@@ -1,65 +1,57 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, Suspense, lazy, createRef } from "react";
-import { WidthProvider, Responsive } from "react-grid-layout";
+import React, { useEffect, useMemo, useRef, Suspense, lazy, ReactElement } from "react";
+import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
-import { ResponseProps } from "@/types/common";
-// import Cookies from "js-cookie";
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition, ProjectsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { useTiles } from "@/contexts/hooks/useStore";
-import { useInterfaceUI } from "@/contexts/hooks/interface";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
+import { cleanupTileRefs } from '@/utils/refRegistry';
+import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 const TileCard = lazy(() => import('./TileCard'));
 const TileButtons = lazy(() => import('./TileButtons'));
 
 interface TabComponentProps {
-  interfaceId: string;
   tabId: string;
+  interfaceId: string;
   projectId: string;
-  setNewCounter: (newCounter: number) => void;
-  setFocusDialog: (focusDialog: boolean) => void;
-  setEditTile: (editTile: string | undefined) => void;
-  updateTab: (savedTab?: any, updatedItem?: any) => Promise<ResponseProps>;
-  getLatestTab: () => void;
+  projectsActions: ProjectsActions;
+  tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
   logsActions: LogsActions;
   fieldsActions: FieldsActions;
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  children?: React.ReactNode;
 }
 
 const Tab = ({
-  interfaceId,
   tabId,
+  interfaceId,
   projectId,
-  setNewCounter,
-  setFocusDialog,
-  setEditTile,
-  updateTab,
-  getLatestTab,
+  projectsActions,
+  tabActions,
+  tileActions,
   logsActions,
   fieldsActions,
   derivedEntryActions,
   contextActions,
   codeActions,
+  children,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
-  const { ui: interfaceUIState, uiActions: interfaceUIActions } = useInterfaceUI(interfaceId);
   const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
 
-  const { 
-    data: tabDataState,
-    dataActions: tabDataActions
-  } = useTabData(tabId, interfaceId);
-  
-  const {
-    ui: tabUIState,
-    uiActions: tabUIActions
-  } = useTabUI(tabId, interfaceId);
+  const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
+  const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
+
+  // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
+  const syncedTabDataActions = syncedTabActions?.data ?? null;
 
   // Get project id and contexts from store
   const projectData = useStoreContext(state => 
@@ -69,89 +61,14 @@ const Tab = ({
 
   // Get tileIds from tab data properly
   const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
-  
-  // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-  const tiles = useTiles(tileIds, ["name", "type", "tableTile.tableDataItem"]);
 
   // Get tile props using the getItems function from the tab data actions
   const tileProps = useMemo(() => {
     return (!tabDataActions) ? [] : tabDataActions.getItems();
   }, [tabDataActions]);
 
-  // Extract tableDataItems from tiles for efficient dependency tracking
-  const tileTableDataItems = useMemo(() => 
-    tiles.map(tile => tile?.tableTile?.tableDataItem),
-    [tiles]
-  );
-
-  // Add a ref to track initial mount
-  const isInitialMount = useRef(true);
-
-  // Set up effect to fetch the latest tab when project or tab changes
-  useEffect(() => {
-    if (projectId && tabId) {
-      // Store current selections in cookies
-      // const expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      // Cookies.set("project", projectId, { expires: expirationDate });
-      // Cookies.set("tab", tabId, { expires: expirationDate });
-      
-      // Only fetch data on initial mount or when project/tab actually changes
-      if (isInitialMount.current) {
-        getLatestTab();
-        isInitialMount.current = false;
-      }
-    }
-    // else if (!projectId) {
-    //   Cookies.remove("project");
-    // }
-    // else if (!tabId) {
-    //   Cookies.remove("tab");
-    // }
-  }, [projectId, tabId, getLatestTab]);
-
-  // Only call updateInterface when items have truly changed.
-  useEffect(() => {
-    (() => {
-      try {
-        if (!tabUIState?.resetting) {
-          updateTab(null, tileProps);
-        }
-      } catch (err) {
-        console.error("updateTab failed:", err);
-      }
-    })();
-  }, [tileProps, tabDataState?.globalContext]);
-
-  // Trigger update when table data changes (server reloaded)
-  useEffect(() => {
-    if (!tabDataState || !tabUIActions || !tabDataActions) return;
-
-    // Use setTimeout to delay execution
-    setTimeout(() => {
-      // Reset loading states
-      if (interfaceUIState?.dataPending === true) {
-        interfaceUIActions.setDataPending(false);
-      }
-      if (tabUIState?.refreshing === true) {
-        tabUIActions.setRefreshing(false);
-      }
-
-      // // Reset pending state for all tiles
-      // tiles.forEach(tile => {
-      //   if (typeof tile === 'object' && tile !== null && 'name' in tile) {
-      //     tabDataActions.updateTile(tile.name || "", { pending: false });
-      //   }
-      // });
-
-      // If tab is pending or resetting, get latest data
-      if ((interfaceUIState?.pending || tabUIState?.resetting) && projectId && tabId) {
-        getLatestTab();
-      }
-
-      // Reset resetting state
-      tabUIActions.setResetting(false);
-    }, 1500);
-  }, [tileTableDataItems]);
+  // Get the unregisterTileRefs function from Zustand
+  const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
 
   // End success green after 3 seconds
   useEffect(() => { 
@@ -159,35 +76,128 @@ const Tab = ({
     return () => clearTimeout(timer);
   }, [tabUIState?.saveSuccess, tabUIActions]);
 
-  // Item layout change handler
-  const onLayoutChange = (newLayout: any[]) => {
-    if (!interfaceUIState?.pending && tabDataActions) {
-      const layoutItems = newLayout.map((item) => {
-        const originalItem = tileProps.find((t) => t.i === item.i);
-        return { ...originalItem, ...item };
+  // Cleanup refs when Tab unmounts or when tiles change
+  useEffect(() => {
+    // Return cleanup function
+    return () => {
+      // Clean up refs for all current tiles
+      tileIds.forEach(tileId => {
+        unregisterTileRefs(tileId);
+        cleanupTileRefs(tileId);
       });
-      tabDataActions.setItems(layoutItems);
+    };
+  }, [tileIds, unregisterTileRefs]);
+
+  // Item layout change handler
+  const onLayoutChange = (newLayout: Layout[]) => {
+    if (!tabUIState?.pending && tabDataActions) {
+      newLayout.forEach((layoutItem) => {
+        const originalItem = tileProps.find((tileProp) => tileProp.id === layoutItem.i);
+
+        // Update the tile layout
+        const tileLayout: TileLayout = {
+          x: layoutItem.x,
+          y: layoutItem.y,
+          w: layoutItem.w,
+          h: layoutItem.h,
+          minW: layoutItem.minW,
+          minH: layoutItem.minH,
+          moved: layoutItem.moved,
+          static: layoutItem.static,
+        };
+        syncedTabDataActions?.updateTileLayout(originalItem?.id ?? "", tileLayout);
+      });
+
     } else {
-      interfaceUIActions?.setPending(false);
+      tabUIActions?.setPending(false);
     }
   };
 
-  // Set-up refs for tile buttons
-  const tileButtonsRefs = useRef<Record<string, React.RefObject<HTMLDivElement>>>({});
+  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
+  /* ------------------------------------------------------------------
+     Build the list of tiles we will *actually* render.
+     – If <children> were supplied, treat them as the server-rendered
+       <TileCard> nodes and keep their order.
+     – Otherwise fall back to the old behaviour and create <TileCard>s
+       here in the client.
+  ------------------------------------------------------------------ */
+  const tilesToRender = useMemo(() => {
+      /* helper to create a client-side <TileCard/> wrapped in <Suspense/> */
+      const makeClientTile = (tileId: string): ReactElement => (
+        <Suspense
+          key={tileId}
+          fallback={
+            <div className="w-full h-full flex items-center justify-center border p-4">
+              <SkeletonLoader />
+            </div>
+          }
+        >
+          <TileCard
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            tileActions={tileActions}
+            logsActions={logsActions}
+            fieldsActions={fieldsActions}
+            derivedEntryActions={derivedEntryActions}
+            contextActions={contextActions}
+            codeActions={codeActions}
+            projectsActions={projectsActions}
+          />
+        </Suspense>
+      );
+  
+      /* ------------------------------------------------------------
+         1.  Collect any server-rendered children into a map keyed
+             by the fragment key we supplied on the server.
+      ------------------------------------------------------------ */
+      const serverMap = new Map<string, ReactElement>();
+      if (children) {
+        React.Children.forEach(children, child => {
+          if (!React.isValidElement(child)) return;
+          const key = child.key;
+          if (typeof key === "string") {
+            serverMap.set(key, child as ReactElement);
+          }
+        });
+      }
+  
+      /* ------------------------------------------------------------
+         2.  Produce the final array in *tileProps* order, preferring
+             the server element when present.
+      ------------------------------------------------------------ */
+      return tileProps.map(({ id }) => ({
+        tileId: id,
+        element: serverMap.get(id) ?? makeClientTile(id),
+      }));
+      /* Dependencies */
+    }, [
+      children,
+      tileProps,
+      tabId,
+      interfaceId,
+      projectId,
+      tileActions,
+      logsActions,
+      fieldsActions,
+      derivedEntryActions,
+      contextActions,
+      codeActions,
+    ]);
+  
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
     return null;
   }
-
-  const dragResizeDisabled = interfaceUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
   return (
     <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
         className="layout interactive-grid flex-1 mx-1"
         cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
-        rowHeight={110}
+        rowHeight={105}
         margin={[0, 0]}
         containerPadding={[0, 0]}
         isDraggable={tabUIState?.edit && !dragResizeDisabled}
@@ -195,62 +205,38 @@ const Tab = ({
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
-        {/* Render tiles */}
-        {tileProps.map((item: TileProps, idx: number) => {
-            if (!tileButtonsRefs.current[item.i]) {
-              tileButtonsRefs.current[item.i] = createRef<HTMLDivElement>();
-            }
-            const tileButtonsRef = tileButtonsRefs.current[item.i];
-            return (
-                !item.visible ? <></> : <div
-                    key={item.i}
-                    data-grid={item}
-                    className="relative"
-                    onClick={(e) => e.stopPropagation()}
-                >
+      {tilesToRender.map(({ tileId, element }) => {
+        const item = tileProps.find(prop => prop.id === tileId);
+        if (!item || !item.visible) return null;
 
-                    <Suspense fallback={
-                        <div className="w-full h-full flex items-center justify-center border p-4">
-                          <SkeletonLoader />
-                        </div>
-                    }>
-                      <TileCard
-                            index={idx}
-                            tileId={item.i}
-                            tabId={tabId}
-                            interfaceId={interfaceId}
-                            projectId={projectId}
-                            updateTab={updateTab}
-                            logsActions={logsActions}
-                            fieldsActions={fieldsActions}
-                            derivedEntryActions={derivedEntryActions}
-                            contextActions={contextActions}
-                            codeActions={codeActions}
-                            tileButtonsRef={tileButtonsRef}
-                        />
-                    </Suspense>
+        return (
+          <div
+            key={item.id}
+            data-grid={item}
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Server-rendered or client-rendered TileCard */}
+            {element}
 
-                    <TileButtons
-                      item={item}
-                      tileId={item.i}
-                      tabId={tabId}
-                      interfaceId={interfaceId}
-                      projectId={projectId}
-                      contexts={contexts}
-                      setNewCounter={setNewCounter}
-                      setFocusDialog={setFocusDialog}
-                      setEditTile={setEditTile}
-                      updateTab={updateTab}
-                      logsActions={logsActions}
-                      contextActions={contextActions}
-                      codeActions={codeActions}
-                      tileCount={tileProps.length}
-                      buttonsRef={tileButtonsRef}
-                    />
-
-                </div>
-            );
-        })}
+            {/* Extra client-side controls */}
+            <TileButtons
+              tileId={item.id}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              contexts={contexts}
+              tabActions={tabActions}
+              tileActions={tileActions}
+              logsActions={logsActions}
+              contextActions={contextActions}
+              codeActions={codeActions}
+              projectsActions={projectsActions}
+              fieldsActions={fieldsActions}
+            />
+          </div>
+        );
+      })}
     </ResponsiveReactGridLayout>
   );
 };

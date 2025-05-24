@@ -12,15 +12,22 @@ import { Tile } from "./selectors/tile";
 export interface TileState {
   // State
   tilesById: Record<string, tileLogic.Tile>;
+  // Flag indicating whether a tile has registered refs
+  tileHasRegisteredRefs: Record<string, boolean>;
 }
 
 export interface TileActions {
   // Actions
   initTile: (tabId: string, tileId: string, initialState?: Partial<tileLogic.Tile>) => void;
-  addTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  pasteCopiedTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
   removeTile: (tabId: string, tileId: string) => void;
-  renameTile: (tabId: string, sourceTileId: string, newTileId: string, initialState?: Partial<tileLogic.Tile>) => void;
+  renameTile: (tabId: string, sourceTileId: string, newTileName: string) => void;
   updateTile: (tileId: string, updates: Partial<tileLogic.Tile>) => void;
+  setType: (tileId: string, type?: string) => void;
+  // Ref registration flag
+  registerTileRefs: (tileId: string) => void;
+  unregisterTileRefs: (tileId: string) => void;
+  hasTileRegisteredRefs: (tileId: string) => boolean;
 }
 
 export type TileSlice = TileState & TileActions;
@@ -30,10 +37,28 @@ export const createTileSlice: StateCreator<
   [["zustand/immer", never]],
   [],
   TileSlice
-> = (set) => ({
+> = (set, get) => ({
   // State
   tilesById: {},
+  tileHasRegisteredRefs: {},
   
+  // Ref registration methods
+  registerTileRefs: (tileId) => set(state => {
+    state.tileHasRegisteredRefs[tileId] = true;
+  }),
+  
+  unregisterTileRefs: (tileId) => set(state => {
+    state.tileHasRegisteredRefs[tileId] = false;
+  }),
+  
+  hasTileRegisteredRefs: (tileId) => {
+    return !!get().tileHasRegisteredRefs[tileId];
+  },
+
+  pasteCopiedTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
+    sliceUtils.pasteCopiedTile(state, tabId, sourceTileId, newTileId, initialState);
+  }),
+
   // Actions
   initTile: (tabId, tileId, initialState) => set(state => {
     const tab = state.tabsById[tabId];
@@ -43,6 +68,9 @@ export const createTileSlice: StateCreator<
     if (!state.tilesById[tileId]) {
       const newTile = tileLogic.initTile(tileId, initialState);
       state.tilesById[tileId] = newTile;
+      
+      // Initialize ref registration
+      state.tileHasRegisteredRefs[tileId] = false;
       
       // Initialize type-specific data if needed
       if (newTile.type === 'Table') {
@@ -56,20 +84,16 @@ export const createTileSlice: StateCreator<
       }
       
       // Add the tile to the tab
-      state.tabsById[tabId] = tabLogic.addTileId(tab, tileId);
+      state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
     }
-  }),
-
-  addTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.addTile(state, tabId, sourceTileId, newTileId, initialState);
   }),
   
   removeTile: (tabId, tileId) => set(state => {
     sliceUtils.removeTile(state, tabId, tileId);
   }),
 
-  renameTile: (tabId, sourceTileId, newTileId, initialState) => set(state => {
-    sliceUtils.renameTile(state, tabId, sourceTileId, newTileId, initialState);
+  renameTile: (tabId, sourceTileId, newTileName) => set(state => {
+    sliceUtils.renameTile(state, tabId, sourceTileId, newTileName);
   }),
   
   updateTile: (tileId, updates) => set(state => {
@@ -189,6 +213,36 @@ export const createTileSlice: StateCreator<
       if (tileUpdated) {
         state.tilesById[tileId] = updatedTile;
       }
+    }
+  }),
+
+  setType: (tileId, type) => set(state => {
+    // We need to make sure that if the tile already had type specific data,
+    // we remove it
+    if (!type || (type && type !== state.tilesById[tileId].type)) {
+      if (state.tilesById[tileId].type === 'Table') {
+        state.tilesById[tileId].tableTile = null;
+      } else if (state.tilesById[tileId].type === 'Plot') {
+        state.tilesById[tileId].plotTile = null;
+      } else if (state.tilesById[tileId].type === 'View') {
+        state.tilesById[tileId].viewTile = null;
+      } else if (state.tilesById[tileId].type === 'Editor') {
+        state.tilesById[tileId].editorTile = null;
+      }
+    }
+
+    // Then change the type in the tile
+    state.tilesById[tileId].type = type;
+
+    // Then make sure the new type specific data is initialized if needed
+    if (type === 'Table') {
+      state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
+    } else if (type === 'Plot') {
+      state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
+    } else if (type === 'View') {
+      state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+    } else if (type === 'Editor') {
+      state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
     }
   }),
 }); 
