@@ -7,7 +7,6 @@ import { useTile, TileActions } from "../useTile";
 import { usePlotTileSync, PlotTileSyncResult } from "./usePlotTileSync";
 import { useTableTileSync, TableTileSyncResult } from "./useTableTileSync";
 import { TileDataActions } from "../useTileData";
-import { useTileRouterRefresh } from "./useTileRouterRefresh";
 import { TileData } from "@/types/evals/grid";
 import { TileUIActions } from "../useTileUI";
 import { TileMetaActions } from "../useTileMeta";

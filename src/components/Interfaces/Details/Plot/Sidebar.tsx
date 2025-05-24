@@ -7,8 +7,8 @@ import { Button } from "@/components/UI/button";
 import { Accordion } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
-import { LogFieldsResponseProps, LogProps, PlotArguments } from '@/types/evals/logs';
-import { FieldsActions, LogsActions, PlotDataItem } from '@/types/evals/grid';
+import { LogFieldsResponseProps, LogProps } from '@/types/evals/logs';
+import { ContextActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions } from '@/types/evals/grid';
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
@@ -55,17 +55,18 @@ const PlotSettings = ({
   tabId,
   interfaceId,
   projectId,
-  args,
   isTooltipMinimized,
   setIsTooltipMinimized,
   isGroupingKeyMinimized,
   setIsGroupingKeyMinimized,
-  setPlotDataItem,
+  serverTileActions,
   logsActions,
+  projectsActions,
+  contextActions,
   fieldsActions,
+  plotTileState,
   plotTileActions,
-  tileDataActions,
-  plotTileState
+  tileDataActions
 }: {
   /* Statuses */
   interactive: boolean;
@@ -117,21 +118,24 @@ const PlotSettings = ({
   tabId: string;
   interfaceId: string;
   projectId: string;
-  args: PlotArguments;
-  setPlotDataItem: Dispatch<SetStateAction<PlotDataItem>>,
   
   /* Fixed tooltip */
   isTooltipMinimized: boolean;
   setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>;
 
   /* Server actions */
-  plotTileActions: PlotActions | null;
-  tileDataActions: TileDataActions | null;
+  serverTileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
+  contextActions: ContextActions;
   logsActions: LogsActions ;
   fieldsActions: FieldsActions;
 
   /* UI state */
   plotTileState: PlotTile | null
+
+  /* UI state actions */
+  plotTileActions: PlotActions | null;
+  tileDataActions: TileDataActions | null;
 }) => {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -356,11 +360,11 @@ const PlotSettings = ({
               interfaceId={interfaceId}
               projectId={projectId}
               pending={pending}
-              args={args}
-              setPlotDataItem={setPlotDataItem}
+              tileActions={serverTileActions}
               logsActions={logsActions}
+              projectsActions={projectsActions}
+              contextActions={contextActions} 
               fieldsActions={fieldsActions}
-              logs={logs}
             />
             <PlotReset
               settingsRef={settingsRef}

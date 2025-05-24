@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
 import * as d3 from "d3";
-import { LogsActions, FieldsActions, PlotDataItem, GranularTileActions, ContextActions, ProjectsActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, GranularTileActions, ContextActions, ProjectsActions } from "@/types/evals/grid";
 import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { useDimensionsTracker } from "@/hooks/useDimensionsTracker";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
@@ -78,16 +78,12 @@ const LogsPlot = ({
         isLoading: isPlotDataLoading,
         isError: isPlotDataError,
         error: plotDataError,
-        updatePlotDataItemWithUpdater
     } = usePlotDataQueryWithTracking(tileId);
 
     const { data: args } = usePlotArgumentsQuery(tabId);
 
     // Init logs and handle local updates
     const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
-    
-    // PlotSettings component needs setPlotDataItem to update the plot
-    const setPlotDataItem = updatePlotDataItemWithUpdater;
 
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);
@@ -269,19 +265,20 @@ return (
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
-            args={args as PlotArguments}
-            setPlotDataItem={setPlotDataItem}
+            serverTileActions={tileActions}
+            projectsActions={projectsActions}
+            contextActions={contextActions} 
             logsActions={logsActions}
             fieldsActions={fieldsActions}
-            plotTileActions={plotTileActions}
-            tileDataActions={tileDataActions}
             plotTileState={plotTileState}
             isTooltipMinimized={isTooltipMinimized}
             setIsTooltipMinimized={setIsTooltipMinimized}
             isGroupingKeyMinimized={isGroupingKeyMinimized}
             setIsGroupingKeyMinimized={setIsGroupingKeyMinimized}
+            plotTileActions={plotTileActions}
+            tileDataActions={tileDataActions}
         />
-  
+
     </div>
   );
 };
