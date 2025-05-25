@@ -47,10 +47,11 @@ export function useVoiceCreator(
     }, []);
 
 
-    const handleCreateAndSelect = async () => {
+const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
         let cartesiaOpResult: Voice | ResponseProps | null = null;
         const toastId = toast.loading("Creating voice...");
+        let createdCartesiaVoiceId: string | null = null;
 
         try {
             if (createMode === 'clone') {
@@ -76,37 +77,45 @@ export function useVoiceCreator(
             }
 
             if (cartesiaOpResult && 'voice_id' in cartesiaOpResult) {
-                const cartesiaInfo = cartesiaOpResult as Voice;
+                const cartesiaInfo = cartesiaOpResult as Voice; // This is the Cartesia voice object
+                createdCartesiaVoiceId = cartesiaInfo.voice_id; // Store for potential cleanup
+
                 // Now register this new/cloned/localized voice in Orchestra DB
+                toast.loading("Registering voice...", { id: toastId });
                 const dbResult = await assistantVoiceActions.createVoiceInOrchestra(
                     cartesiaInfo.voice_id, cartesiaInfo.name, cartesiaInfo.description || '',
                     cartesiaInfo.gender, cartesiaInfo.language
                 );
 
-                if ('detail' in dbResult) {
-                    console.error(`[useVoiceCreator.ts] Error creating voice in orchestra: ${dbResult.detail}.`, { id: toastId, duration: 7000 });
-                    toast.error(`Error creating voice.`, { id: toastId, duration: 7000 });
-                    // Consider trying to delete the Cartesia voice here if DB registration fails
+                if ('detail' in dbResult) { 
+                    throw new Error(`Voice registration failed`);
                 } else {
-                    const newVoiceData = (dbResult as (Voice & {info?:string})).info ? dbResult as Voice : dbResult as Voice; // Handle if Orchestra returns {info: Voice}
+                    const newVoiceData = (dbResult as (Voice & {info?:string})).info ? dbResult as Voice : dbResult as Voice;
                     const fullNewVoice: VoiceOption = {
                         ...newVoiceData,
                         isUserVoiceInOrchestra: true
                     };
                     toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
                     if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
-                    if (fetchUserVoices) fetchUserVoices(); // Refresh the main voice list
-                    resetCreateForm(); // Reset form and switch to 'select' tab implicitly via parent
+                    if (fetchUserVoices) fetchUserVoices();
+                    resetCreateForm();
+                    createdCartesiaVoiceId = null;
                 }
-            } else {
+            } else { 
                 const errorDetail = (cartesiaOpResult as ResponseProps)?.detail || "Unknown Cartesia operation error.";
                 console.error(`[useVoiceCreator.ts] Error creating voice in Cartesia: ${errorDetail}.`, { id: toastId, duration: 7000 });
                 toast.error(`Error creating voice`, { id: toastId });
             }
 
         } catch (error: any) {
-            console.error(`[useVoiceCreator.ts] Error creating voice in orchestra: ${error.message}.`, { id: toastId, duration: 7000 });
-            toast.error(`Error creating voice`, { id: toastId });
+            toast.error(`Voice creation process failed`, { id: toastId, duration: 7000 });
+            if (createdCartesiaVoiceId) {
+                try {
+                    await assistantVoiceActions.deleteVoiceFromCartesia(createdCartesiaVoiceId);
+                } catch (cartesiaCleanupError: any) {
+                    console.error(`[useVoiceCreator] Cartesia cleanup failed for ${createdCartesiaVoiceId}:`, cartesiaCleanupError);
+                }
+            }
         } finally {
             setIsProcessingCreate(false);
         }

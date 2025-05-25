@@ -9,6 +9,13 @@ import { uploadImageToGCS } from '@/utils/team/gcs-utils';
 
 const ASSISTANT_ONBOARDING_FEE = 10;
 
+interface CreatedResource {
+    type: 'email' | 'phone' | 'orchestra-voice' | 'gcs-photo';
+    identifier: string; // e.g., email address, phone number, voice_id, GCS URL/path
+    // Optionally, add more data if needed for deletion, e.g. for Cartesia voice that might need separate cleanup
+    cartesiaVoiceIdIfNewlyCreated?: string;
+}
+
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
     onSuccess?: (newAssistant: Assistant) => void
@@ -27,9 +34,9 @@ export function useAssistantHireForm(
         },
     });
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset } = hireFormMethods;
-    
+
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
-    const [isSubmitting, setIsSubmitting] = React.useState(false); // This is for the actual form data submission
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
 
     const handleImageRemove = React.useCallback(() => {
@@ -71,44 +78,38 @@ export function useAssistantHireForm(
 
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
-        clearErrors(); // Clear form errors, not balance errors.
+        clearErrors();
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
-        let assistantEmail: string | null = null;
-        let assistantPhoneNumber: string | null = null;
+        const createdResourcesForCleanup: CreatedResource[] = [];
 
         try {
             // --- Validate Form Data ---
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
                 setError("age", { type: "manual", message: "Valid age is required." });
-                toast.error("Invalid age provided.", { id: toastId });
-                setIsSubmitting(false); return;
+                throw new Error("Invalid age provided.");
             }
-
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
-                toast.error("No voice selected.", { id: toastId }); setIsSubmitting(false); return;
+                throw new Error("No voice selected.");
             }
 
             // --- Create Email ---
+            toast.loading("Provisioning email...", { id: toastId });
             const emailResult = await assistantActions.contact.createEmail(data.first_name, data.surname);
             if ('detail' in emailResult) {
-                console.error(`[useAssistantHireForm.ts] Email creation failed: ${emailResult.detail}`);
-                toast.error(`Email creation failed. Hiring aborted.`, { id: toastId, duration: 5000 });
-                setIsSubmitting(false); return;
+                throw new Error(`Email creation failed`);
             }
-            assistantEmail = emailResult.email;
+            createdResourcesForCleanup.push({ type: 'email', identifier: emailResult.email });
 
             // --- Create Phone Number ---
+            toast.loading("Provisioning phone number...", { id: toastId });
             const phoneResult = await assistantActions.contact.createPhoneNumber();
             if ('detail' in phoneResult) {
-                console.error(`[useAssistantHireForm.ts] Phone number provisioning failed: ${phoneResult.detail}`);
-                toast.error(`Phone number provisioning failed. Hiring aborted.`, { id: toastId, duration: 5000 });
-                // Consider cleanup for email if phone fails, or proceed without phone? For now, fail.
-                setIsSubmitting(false); return;
+                throw new Error(`Phone number provisioning failed`);
             }
-            assistantPhoneNumber = phoneResult.phoneNumber;
+            createdResourcesForCleanup.push({ type: 'phone', identifier: phoneResult.phoneNumber });
 
             // --- Register Voice in Orchestra if not existing ---
             if (!data.voice_exists) {
@@ -118,57 +119,88 @@ export function useAssistantHireForm(
                     data.voice_gender, data.voice_language
                 );
                 if ('detail' in voiceCreationResponse) {
-                    console.error(`[useAssistantHireForm.ts] Error registering voice: ${voiceCreationResponse.detail}. Hire aborted.`);
-                    toast.error(`Error registering voice. Hiring aborted.`, { id: toastId, duration: 7000 });
-                    setIsSubmitting(false); return;
+                    throw new Error(`Error registering voice`);
                 }
-                toast.success("Voice registered.", { id: toastId, duration: 2000 });
+                // If successfully registered in Orchestra, it means this voice_id (Cartesia ID)
+                // is now linked. If hire fails later, both Orchestra and Cartesia entries for this
+                // voice_id should be cleaned up.
+                createdResourcesForCleanup.push({
+                    type: 'orchestra-voice',
+                    identifier: data.voice_id,
+                    cartesiaVoiceIdIfNewlyCreated: data.voice_id
+                });
             }
 
             // --- Upload Profile Photo ---
             const imageFile = data.imageFile;
             if (imageFile instanceof File) {
+                toast.loading("Uploading profile photo...", { id: toastId });
                 const createImageResult = await assistantActions.photo.upload(imageFile.type, imageFile.size);
                 if ('detail' in createImageResult) {
-                    console.error(`[useAssistantHireForm.ts] Image creation error: ${createImageResult.detail}. Hire aborted.`);
-                    toast.error(`Error preparing photo. Hiring aborted.`, { id: toastId });
-                    setIsSubmitting(false); return;
+                    throw new Error(`Image creation error`);
                 }
                 const { signedUrl, filePath, bucketName } = createImageResult;
                 const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
                 if (!uploadSuccess) {
-                    // uploadImageToGCS already shows a toast
-                    setIsSubmitting(false); return; 
+                    throw new Error("Profile photo GCS upload failed.");
                 }
                 finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+                createdResourcesForCleanup.push({ type: 'gcs-photo', identifier: finalImageUrlToSend });
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
                 finalImageUrlToSend = data.imagePreview;
             }
 
             // --- Create Assistant in Orchestra ---
-            const result = await assistantActions.assistant.create(
+            toast.loading("Finalizing assistant hire...", { id: toastId });
+            const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, data.about, data.voice_id,
-                assistantEmail, assistantPhoneNumber
+                emailResult.email, phoneResult.phoneNumber
             );
 
-            if ("assistant" in result && result.assistant) {
+            if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
                 resetFormAndHints();
-                if (onSuccess) onSuccess(result.assistant);
+                if (onSuccess) onSuccess(assistantCreationResult.assistant);
+                // Success, no cleanup needed
+                createdResourcesForCleanup.length = 0; // Clear the list
             } else {
-                const errorResult = result as ResponseProps;
-                console.error("[useAssistantHireForm.ts] ", errorResult?.detail || "Failed to hire assistant.");
-                toast.error(`Failed to hire assistant'}`, { id: toastId });
+                const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
+                throw new Error(errorDetail);
             }
         } catch (error: any) {
-            console.error(`An error occurred during assistant hiring: ${error.message}`, error);
-            toast.error(`Failed to hire assistant'}`, { id: toastId });
+            console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
+            toast.error(`${error.message}. Hiring aborted.`, { id: toastId, duration: 7000 });
+
+            // --- Compensation Logic ---
+            for (const resource of [...createdResourcesForCleanup].reverse()) {
+                try {
+                    switch (resource.type) {
+                        case 'email':
+                            await assistantActions.contact.deleteEmail(resource.identifier);
+                            break;
+                        case 'phone':
+                            await assistantActions.contact.deletePhoneNumber(resource.identifier);
+                            break;
+                        case 'orchestra-voice':
+                            await assistantActions.voice.deleteVoiceFromOrchestra(resource.identifier);
+                            if(resource.cartesiaVoiceIdIfNewlyCreated) {
+                                await assistantActions.voice.deleteVoiceFromCartesia(resource.cartesiaVoiceIdIfNewlyCreated);
+                            }
+                            break;
+                        case 'gcs-photo':
+                            await assistantActions.photo.delete(resource.identifier);
+                            break;
+                    }
+                } catch (cleanupError: any) {
+                    console.error(`[useAssistantHireForm] Failed to cleanup ${resource.type} (${resource.identifier}): ${cleanupError.message}`);
+                }
+            }
         } finally {
             setIsSubmitting(false);
         }
     };
-    
+
     const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
 
     const initiateHireSequence = async () => {
@@ -207,13 +239,13 @@ export function useAssistantHireForm(
                 setShowInsufficientFundsHint(true);
             } else {
                 toast.dismiss(balanceToastId);
-                await RHFSubmitHandler(); 
+                await RHFSubmitHandler();
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: balanceToastId });
             console.error("Balance check/hire attempt error:", error);
         } finally {
-            setIsCheckingBalance(false); // Balance check phase is over
+            setIsCheckingBalance(false);
         }
     };
 
@@ -221,12 +253,12 @@ export function useAssistantHireForm(
         hireFormMethods,
         initiateHireSequence,
         isCheckingBalance,
-        isSubmitting,        
+        isSubmitting,
         showInsufficientFundsHint,
         setShowInsufficientFundsHint,
         handleImageRemove,
         selectPreset,
         resetForm: resetFormAndHints,
-        rhfInternalFormSubmit: RHFSubmitHandler 
+        rhfInternalFormSubmit: RHFSubmitHandler
     };
 }
