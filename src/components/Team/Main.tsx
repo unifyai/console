@@ -106,16 +106,20 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     }, [refreshAssistants, handleShowProfile]);
 
     const {
-        hireFormMethods, isSubmitting: isHireSubmitting,
-        onSubmit: handleHireFormSubmitInternal,
+        hireFormMethods,
+        initiateHireSequence,
+        isCheckingBalance,
+        isSubmitting: isHireFormSubmitting,
+        showInsufficientFundsHint,
+        setShowInsufficientFundsHint,
         selectPreset: selectPresetForHireForm,
         resetForm: resetHireFormInternal,
+        rhfInternalFormSubmit,
     } = useAssistantHireForm(assistantActions, handleHireSuccess);
-
-
+    
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
-        resetHireFormInternal({ });
+        resetHireFormInternal();
         setIsAssistantPresetsOpen(true);
         setPresetAgeFilter('all');
         setPresetRegionFilter('all');
@@ -151,7 +155,6 @@ export default function Main({ taskActions, assistantActions, activityLogActions
         if (success) {
             handleProfileClose(); 
             if (activityLogAssistantId === assistant.agent_id) { 
-                // Close activity log if it was for the deleted assistant
                 handleActivityLogClose();
             }
         } else {
@@ -179,7 +182,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
     const assistantListWidth = activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[350px] xl:w-[400px]" 
-                             : "w-1/3 lg:w-[400px] xl:w-[450px]"; // Default or when only task list is effectively visible
+                             : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
 
     const panelBaseWidth = activeSidePanelCount === 2 ? "20%" : "25%";
 
@@ -230,7 +233,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
                     {isActivityLogOpen && activityLogPanelAssistant && (
                         <motion.div
                             key="assistant-activity-log"
-                            initial={{ width: "0%", opacity: 0, x: isProfileOpen ? "0%" : "-1%" }} // Adjust x based on profile panel
+                            initial={{ width: "0%", opacity: 0, x: isProfileOpen ? "0%" : "-1%" }} 
                             animate={{ width: panelBaseWidth, opacity: 1, x: "0%" }}
                             exit={{ width: "0%", opacity: 0, x: isProfileOpen ? "0%" : "-1%" }}
                             transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
@@ -278,19 +281,22 @@ export default function Main({ taskActions, assistantActions, activityLogActions
             {/* Hire Dialog */}
             <AssistantHire
                 isHireDialogOpen={isHireDialogOpen}
-                isHireSubmitting={isHireSubmitting}
+                isHireSubmitting={isHireFormSubmitting}
                 setIsHireDialogOpen={setIsHireDialogOpen}
                 isAssistantPresetsOpen={isAssistantPresetsOpen}
                 setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
                 handleRandomizePreset={handleRandomizePreset}
                 currentFilteredPresets={currentFilteredPresets}
-                handleHireFormSubmitInternal={handleHireFormSubmitInternal}
+                onHireAttempt={initiateHireSequence}
                 isProcessingVoice={isDialogBusyProcessingVoice} 
+                isCheckingBalance={isCheckingBalance}
+                showInsufficientFundsHint={showInsufficientFundsHint}
+                setShowInsufficientFundsHint={setShowInsufficientFundsHint}
             >
                 <HireForm
                     formMethods={hireFormMethods}
-                    onSubmit={handleHireFormSubmitInternal}
-                    isSubmitting={isHireSubmitting}
+                    onSubmit={rhfInternalFormSubmit}
+                    isSubmitting={isHireFormSubmitting}
                     assistantActions={assistantActions}
                     onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                 />

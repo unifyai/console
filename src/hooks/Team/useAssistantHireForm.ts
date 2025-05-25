@@ -4,8 +4,10 @@ import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset 
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
-import voicePresetsConstant from '@/constants/assistants/voice_presets.js'; // Assuming direct import
+import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { uploadImageToGCS } from '@/utils/team/gcs-utils';
+
+const ASSISTANT_ONBOARDING_FEE = 10;
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -25,7 +27,10 @@ export function useAssistantHireForm(
         },
     });
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset } = hireFormMethods;
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    
+    const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState(false); // This is for the actual form data submission
+    const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
 
     const handleImageRemove = React.useCallback(() => {
         const currentPreview = getValues("imagePreview");
@@ -34,6 +39,7 @@ export function useAssistantHireForm(
         }
         setValue("imageFile", null);
         setValue("imagePreview", null);
+        setShowInsufficientFundsHint(false);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
@@ -43,7 +49,7 @@ export function useAssistantHireForm(
         setValue("age", preset.age, { shouldValidate: true });
         setValue("region", preset.region ?? '', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
-        setValue("imagePreview", preset.profile_photo); // URL from preset
+        setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
 
         const presetVoice = (voicePresetsConstant as Voice[]).find(vp => vp.voice_id === preset.voice_id) || defaultVoice;
@@ -52,15 +58,20 @@ export function useAssistantHireForm(
         setValue("voice_description", presetVoice.description);
         setValue("voice_language", presetVoice.language as SupportedLanguage);
         setValue("voice_gender", presetVoice.gender as Gender);
-        setValue("voice_exists", false); // Presets are not user's custom voices initially
+        setValue("voice_exists", false);
 
         clearErrors();
+        setShowInsufficientFundsHint(false);
     }, [setValue, handleImageRemove, clearErrors, defaultVoice]);
 
-    const submitAssistantData = async (data: AssistantFormData) => {
+    const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
+        reset(values);
+        setShowInsufficientFundsHint(false);
+    }, [reset]);
 
+    const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
-        clearErrors();
+        clearErrors(); // Clear form errors, not balance errors.
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
         let assistantEmail: string | null = null;
@@ -100,7 +111,7 @@ export function useAssistantHireForm(
             assistantPhoneNumber = phoneResult.phoneNumber;
 
             // --- Register Voice in Orchestra if not existing ---
-            if (!data.voice_exists) { 
+            if (!data.voice_exists) {
                 toast.loading("Registering voice...", { id: toastId });
                 const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
@@ -131,19 +142,19 @@ export function useAssistantHireForm(
                 }
                 finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${filePath}`;
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-                finalImageUrlToSend = data.imagePreview; 
+                finalImageUrlToSend = data.imagePreview;
             }
 
             // --- Create Assistant in Orchestra ---
             const result = await assistantActions.assistant.create(
-                data.first_name, data.surname, ageNumber, data.region, 
+                data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, data.about, data.voice_id,
                 assistantEmail, assistantPhoneNumber
             );
 
             if ("assistant" in result && result.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
-                reset(); 
+                resetFormAndHints();
                 if (onSuccess) onSuccess(result.assistant);
             } else {
                 const errorResult = result as ResponseProps;
@@ -157,13 +168,65 @@ export function useAssistantHireForm(
             setIsSubmitting(false);
         }
     };
+    
+    const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
+
+    const initiateHireSequence = async () => {
+        if (isSubmitting || isCheckingBalance) return;
+
+        setIsCheckingBalance(true);
+        setShowInsufficientFundsHint(false);
+        const balanceToastId = toast.loading("Checking your balance...");
+
+        try {
+            const fetchBalance = async () => {
+                try {
+                    const balanceData  = await fetch(`/api/billing/balance`). then((response) => response.json());
+    
+                    if (!balanceData) {
+                        return {detail: "Failed to fetch balance data"};
+                    }
+                    return balanceData as {balance: string, fullBalance: number}
+                } catch (error) {
+                    console.error("Error fetching balance:", error);
+                    return {detail: "Failed to fetch balance data"};
+                }
+            };
+
+            const balanceResult = await fetchBalance();
+
+            if ('detail' in balanceResult || !balanceResult) {
+                toast.error((balanceResult as ResponseProps)?.detail || "Failed to check balance.", { id: balanceToastId });
+                return;
+            }
+
+            const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
+
+            if (currentBalance < ASSISTANT_ONBOARDING_FEE) {
+                toast.dismiss(balanceToastId);
+                setShowInsufficientFundsHint(true);
+            } else {
+                toast.dismiss(balanceToastId);
+                await RHFSubmitHandler(); 
+            }
+        } catch (error) {
+            toast.error("Error during balance check process.", { id: balanceToastId });
+            console.error("Balance check/hire attempt error:", error);
+        } finally {
+            setIsCheckingBalance(false); // Balance check phase is over
+        }
+    };
 
     return {
         hireFormMethods,
-        isSubmitting,
-        onSubmit: reactHookFormHandleSubmit(submitAssistantData),
+        initiateHireSequence,
+        isCheckingBalance,
+        isSubmitting,        
+        showInsufficientFundsHint,
+        setShowInsufficientFundsHint,
         handleImageRemove,
-        selectPreset, 
-        resetForm: reset 
+        selectPreset,
+        resetForm: resetFormAndHints,
+        rhfInternalFormSubmit: RHFSubmitHandler 
     };
 }
