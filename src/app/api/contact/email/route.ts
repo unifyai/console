@@ -1,33 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const baseUrl = process.env.COMMUNICATION_URL;
+const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
+const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
+const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY
 
 export async function POST(request: NextRequest) {
-
     const apiKey = request.headers.get("apiKey");
 
     let requestBody;
     try {
         requestBody = await request.json();
     } catch (error) {
-        console.error("Failed to parse JSON body in POST /api/contact/email/create:", error);
+        console.error("Failed to parse JSON body in POST /api/contact/email:", error);
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
 
-    const { firstName, lastName } = requestBody;
-    if (!firstName || !lastName) {
-        return NextResponse.json({ detail: "Missing required fields: firstName, lastName" }, { status: 400 });
+    const { email } = requestBody;
+    if (!email) {
+        return NextResponse.json({ detail: "Missing required field: email" }, { status: 400 });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return NextResponse.json({ detail: "Invalid email format provided." }, { status: 400 });
     }
 
     try {
         const response = await fetch(
-            `${baseUrl}/email/create`,
+            `${COMMUNICATION_URL}/email/create`,
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ first_name: firstName, last_name: lastName })
+                body: JSON.stringify({ email_address: email })
             }
         );
 
@@ -43,7 +48,10 @@ export async function POST(request: NextRequest) {
         
         if (responseData.success && responseData.user && responseData.user.primaryEmail) {
             return NextResponse.json({ email: responseData.user.primaryEmail, user: responseData.user }, { status: 201 });
-        } else {
+        } else if (responseData.email) {
+             return NextResponse.json({ email: responseData.email }, { status: 201 });
+        }
+        else {
             console.error("Communication service (email/create) did not return expected email data:", responseData);
             return NextResponse.json({ detail: "Failed to create email, unexpected response from service." }, { status: 500 });
         }
@@ -72,7 +80,7 @@ export async function DELETE(request: NextRequest) {
 
     try {
         const response = await fetch(
-            `${baseUrl}/email/delete`, // Backend endpoint path
+            `${COMMUNICATION_URL}/email/delete`,
             {
                 method: "DELETE",
                 headers: {
@@ -104,5 +112,47 @@ export async function DELETE(request: NextRequest) {
     } catch (error: any) {
         console.error("Error proxying to communication service (email/delete):", error);
         return NextResponse.json({ detail: "Failed to connect to communication service", errorDetails: error.message }, { status: 503 });
+    }
+}
+
+
+export async function GET(request: NextRequest) {
+
+    const apiKey = request.headers.get("apiKey");
+
+    try {
+        const adminEmailsResponse = await fetch(
+            `${ORCHESTRA_BASE_URL}/admin/assistant/emails`,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${ORCHESTRA_ADMIN_KEY}`,
+                    "accept": "application/json",
+                }
+            }
+        );
+
+        const responseData = await adminEmailsResponse.json().catch(e => {
+            console.error("Failed to parse JSON response from admin backend (admin/assistant/emails):", e);
+            return { detail: "Invalid JSON response from admin email listing service", status: adminEmailsResponse.status };
+        });
+
+        if (!adminEmailsResponse.ok) {
+             console.error(`Admin Backend Error (admin/assistant/emails - ${adminEmailsResponse.status}):`, responseData);
+             return NextResponse.json({ detail: responseData.detail || "Failed to fetch assistant emails from admin service" }, { status: adminEmailsResponse.status });
+        }
+        
+        // The backend /admin/assistant/emails returns InfoResponse[List[str]]
+        // So responseData should be { info: ["email1", "email2"] }
+        if (responseData.info && Array.isArray(responseData.info)) {
+            return NextResponse.json({ emails: responseData.info }, { status: 200 });
+        } else {
+            console.error("Admin backend (admin/assistant/emails) did not return expected 'info' array:", responseData);
+            return NextResponse.json({ detail: "Unexpected response format from admin email listing service." }, { status: 500 });
+        }
+
+    } catch (error: any) {
+        console.error("Error proxying to admin backend (admin/assistant/emails):", error);
+        return NextResponse.json({ detail: "Failed to connect to admin email listing service", errorDetails: error.message }, { status: 503 });
     }
 }

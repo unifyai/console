@@ -4,7 +4,7 @@ import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, deletePhoto } from "@/lib/team/photo";
 import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestra, cloneVoiceOnCartesia, localizeVoiceOnCartesia, deleteVoiceFromCartesia  } from "@/lib/team/voice";
-import { createAssistantEmail, createAssistantPhoneNumber, deleteAssistantEmail, deleteAssistantPhoneNumber } from "@/lib/team/contact";
+import { createAssistantEmail, createAssistantPhoneNumber, deleteAssistantEmail, deleteAssistantPhoneNumber, listAllAssistantEmails } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
 import { ActivityLogActions } from "@/types/team/activity";
@@ -48,6 +48,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
             createPhoneNumber: await createAssistantPhoneNumber(apiKey),
             deleteEmail: await deleteAssistantEmail(apiKey),
             deletePhoneNumber: await deleteAssistantPhoneNumber(apiKey),
+            listAllAssistantEmails: await listAllAssistantEmails(apiKey),
         }
     }
     

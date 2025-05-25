@@ -9,9 +9,11 @@ import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { Volume2, User, LetterText, BriefcaseBusiness } from 'lucide-react';
+import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
+const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
@@ -19,6 +21,7 @@ export interface HireFormProps {
   isSubmitting: boolean;
   assistantActions: AssistantActions;
   onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
+  allAssistantEmails: string[];
 }
 
 export function HireForm({
@@ -27,10 +30,65 @@ export function HireForm({
     isSubmitting,
     assistantActions,
     onVoiceProcessingStateChange,
+    allAssistantEmails,
 }: HireFormProps) {
-  const { register, formState: { errors }, watch, setValue, getValues } = formMethods;
+  const { register, formState: { errors }, watch, setValue, getValues, trigger } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
+  const firstName = watch("first_name");
+  const surname = watch("surname");
+  const rhfEmail = watch("email");
+
+  const [emailLocalPart, setEmailLocalPart] = React.useState('');
+
+  // Sync local part state from RHF's full email (e.g., on preset selection or reset)
+  React.useEffect(() => {
+    if (rhfEmail && rhfEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+        const local = rhfEmail.substring(0, rhfEmail.length - EMAIL_DOMAIN_WITH_AT.length);
+        if (local !== emailLocalPart) { // Avoid unnecessary state updates
+            setEmailLocalPart(local);
+        }
+    } else if (rhfEmail) { // If email doesn't have domain (e.g. invalid state), show as is
+         if (rhfEmail !== emailLocalPart) {
+            setEmailLocalPart(rhfEmail);
+         }
+    } else { // If RHF email is empty
+        if (emailLocalPart !== '') {
+            setEmailLocalPart('');
+        }
+    }
+  }, [rhfEmail]); // Only rhfEmail dependency
+
+  // Auto-generate email based on names if not manually edited
+  React.useEffect(() => {
+    const generateEmailLocalPartFromName = (fname: string, sname: string) => {
+        const cleanFname = fname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        const cleanSname = sname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        if (cleanFname && cleanSname) {
+            return `${cleanFname}-${cleanSname}`;
+        } else if (cleanFname) {
+            return cleanFname;
+        } else if (cleanSname) {
+            return cleanSname;
+        }
+        return "new-assistant"; // Fallback
+    };
+
+    if (!getValues("emailManuallyEdited") && (firstName || surname)) {
+        const newLocal = generateEmailLocalPartFromName(firstName, surname);
+        setValue("email", `${newLocal}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
+    }
+  }, [firstName, surname, setValue, getValues]);
+
+
+  const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newLocalPart = event.target.value.replace(/[@\s]/g, ''); // Prevent @ or spaces
+    setEmailLocalPart(newLocalPart); // Update local state for the input
+    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true }); // Update RHF's full email
+    setValue("emailManuallyEdited", true);
+    trigger("email");
+  };
+
 
   const handleNewFileForUpload = (file: File | null) => {
     const currentPreview = getValues("imagePreview");
@@ -84,6 +142,66 @@ export function HireForm({
               </div>
             </div>
           </div>
+
+          <Separator />
+
+          {/* Contact Section */}
+          <div className="space-y-2">
+            <div className='flex gap-2 items-center text-muted-foreground'>
+              <Mail className="h-4 w-4"/>
+              <Label className="text-base font-semibold">Contact</Label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
+                <div>
+                    <Label htmlFor="email_local_part">Email</Label>
+                    <div className="flex items-center rounded-md">
+                        <Input
+                            id="email_local_part" // Different ID for the local part input
+                            type="text"
+                            value={emailLocalPart}
+                            onChange={handleLocalPartChange}
+                            placeholder="new-assistant"
+                            className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
+                            aria-describedby="email_domain_part"
+                        />
+                        <span
+                            id="email_domain_part"
+                            className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
+                        >
+                            {EMAIL_DOMAIN_WITH_AT}
+                        </span>
+                    </div>
+                     {/* RHF registration for the full email for validation and submission */}
+                    <input type="hidden" {...register("email", {
+                        required: "Email is required",
+                        pattern: {
+                            // Regex to ensure local part has valid characters and domain is fixed
+                            value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
+                            message: `Email must use valid characters and end with ${EMAIL_DOMAIN_WITH_AT}`
+                        },
+                        validate: (value) => {
+                            if (value.startsWith('@')) return `Email local part cannot be empty.`;
+                            if (allAssistantEmails.includes(value)) {
+                                return "This email is already in use by another assistant.";
+                            }
+                            return true;
+                        }
+                    })} />
+                    {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                        id="phone"
+                        type="text"
+                        placeholder="Will be provisioned during hiring"
+                        disabled={true}
+                        className="bg-muted/50 cursor-not-allowed"
+                    />
+                </div>
+            </div>
+          </div>
+
 
           <Separator />
             <div className="space-y-2">

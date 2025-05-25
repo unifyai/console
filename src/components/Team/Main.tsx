@@ -115,7 +115,8 @@ export default function Main({ taskActions, assistantActions, activityLogActions
         selectPreset: selectPresetForHireForm,
         resetForm: resetHireFormInternal,
         rhfInternalFormSubmit,
-    } = useAssistantHireForm(assistantActions, handleHireSuccess);
+        fetchedAssistantEmails,
+    } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen);
     
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
@@ -131,7 +132,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
             const randomIndex = Math.floor(Math.random() * presetsToUse.length);
             selectPresetForHireForm(presetsToUse[randomIndex]);
         }
-        setIsHireDialogOpen(true);
+        setIsHireDialogOpen(true); 
     }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter]);
 
     const handleRandomizePreset = () => {
@@ -299,6 +300,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
                     isSubmitting={isHireFormSubmitting}
                     assistantActions={assistantActions}
                     onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
+                    allAssistantEmails={fetchedAssistantEmails}
                 />
                 <PresetsPanel                                    
                     displayedPresets={displayedPresets}

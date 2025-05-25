@@ -31,8 +31,19 @@ export type AssistantPreset =
   & { gender?: 'male' | 'female'; voice_id: string };
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'email' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
-  & { imageFile?: File | null;  imagePreview?: string | null; voice_id?: string, voice_name?: string, voice_description?: string, voice_gender?: CartesiaGender, voice_language?: SupportedLanguage, voice_exists?: boolean };
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
+  & { 
+      email?: string; // Added email
+      emailManuallyEdited?: boolean; // To track if user edited the auto-generated email
+      imageFile?: File | null;
+      imagePreview?: string | null;
+      voice_id?: string;
+      voice_name?: string;
+      voice_description?: string;
+      voice_gender?: CartesiaGender;
+      voice_language?: SupportedLanguage;
+      voice_exists?: boolean;
+    };
 
 // Assistant voice types
 export interface Voice {
@@ -68,9 +79,10 @@ export interface AssistantActions {
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
   },
   "contact": {
-    createEmail: (firstName: string, lastName: string) => Promise<{ email: string; user?: any; } | ResponseProps>;
+    createEmail: (email: string) => Promise<{ email: string; user?: any; } | ResponseProps>; // Modified to take email
     createPhoneNumber: () => Promise<{ phoneNumber: string } | ResponseProps>;
     deleteEmail: (primaryEmail: string) => Promise<ResponseProps>;
     deletePhoneNumber: (phoneNumber: string) => Promise<ResponseProps>;
+    listAllAssistantEmails: () => Promise<string[] | ResponseProps>; // New action
   }
 }

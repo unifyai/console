@@ -8,22 +8,28 @@ import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { uploadImageToGCS } from '@/utils/team/gcs-utils';
 
 const ASSISTANT_ONBOARDING_FEE = 10;
+const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 interface CreatedResource {
     type: 'email' | 'phone' | 'orchestra-voice' | 'gcs-photo';
-    identifier: string; // e.g., email address, phone number, voice_id, GCS URL/path
-    // Optionally, add more data if needed for deletion, e.g. for Cartesia voice that might need separate cleanup
+    identifier: string;
     cartesiaVoiceIdIfNewlyCreated?: string;
 }
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
-    onSuccess?: (newAssistant: Assistant) => void
+    onSuccess?: (newAssistant: Assistant) => void,
+    isHireDialogInitiallyOpen?: boolean
 ) {
     const defaultVoice = (voicePresetsConstant as Voice[])[0];
+    const initialLocalPart = "new-assistant";
+    const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
+
     const hireFormMethods = useForm<AssistantFormData>({
         defaultValues: {
             first_name: '', surname: '', age: null, region: '', about: '',
+            email: initialEmail,
+            emailManuallyEdited: false,
             imageFile: null, imagePreview: null,
             voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
@@ -33,11 +39,36 @@ export function useAssistantHireForm(
             voice_exists: false,
         },
     });
-    const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset } = hireFormMethods;
+    const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger } = hireFormMethods;
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
+    const [fetchedAssistantEmails, setFetchedAssistantEmails] = React.useState<string[]>([]);
+    const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+
+    React.useEffect(() => {
+        if (isHireDialogInitiallyOpen) {
+            setIsLoadingEmails(true);
+            assistantActions.contact.listAllAssistantEmails()
+                .then(result => {
+                    if (Array.isArray(result)) {
+                        setFetchedAssistantEmails(result);
+                    } else {
+                        toast.error(result.detail || "Could not fetch existing assistant emails.");
+                        setFetchedAssistantEmails([]);
+                    }
+                })
+                .catch(err => {
+                    toast.error("Failed to fetch assistant emails.");
+                    setFetchedAssistantEmails([]);
+                })
+                .finally(() => {
+                    setIsLoadingEmails(false);
+                });
+        }
+    }, [assistantActions.contact, isHireDialogInitiallyOpen]);
+
 
     const handleImageRemove = React.useCallback(() => {
         const currentPreview = getValues("imagePreview");
@@ -46,7 +77,6 @@ export function useAssistantHireForm(
         }
         setValue("imageFile", null);
         setValue("imagePreview", null);
-        setShowInsufficientFundsHint(false);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
@@ -58,6 +88,16 @@ export function useAssistantHireForm(
         setValue("about", preset.about ?? '', { shouldValidate: true });
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
+
+        const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        let localPart = "new-assistant";
+        if (cleanFname && cleanSname) localPart = `${cleanFname}-${cleanSname}`;
+        else if (cleanFname) localPart = cleanFname;
+        else if (cleanSname) localPart = cleanSname;
+        setValue("email", `${localPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
+        setValue("emailManuallyEdited", false);
+
 
         const presetVoice = (voicePresetsConstant as Voice[]).find(vp => vp.voice_id === preset.voice_id) || defaultVoice;
         setValue("voice_id", presetVoice.voice_id);
@@ -72,9 +112,28 @@ export function useAssistantHireForm(
     }, [setValue, handleImageRemove, clearErrors, defaultVoice]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
-        reset(values);
+        const defaultFirstName = values?.first_name || '';
+        const defaultSurname = values?.surname || '';
+        const defaultLocalPart = (defaultFirstName && defaultSurname) ? `${defaultFirstName}-${defaultSurname}`.toLowerCase().replace(/[^a-z0-9-]/g, '') : 'new-assistant';
+
+        reset({
+            first_name: defaultFirstName,
+            surname: defaultSurname,
+            age: values?.age || null,
+            region: values?.region || '',
+            about: values?.about || '',
+            email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
+            emailManuallyEdited: values?.emailManuallyEdited || false,
+            imageFile: null, imagePreview: null,
+            voice_id: values?.voice_id || defaultVoice.voice_id,
+            voice_name: values?.voice_name || defaultVoice.name,
+            voice_language: values?.voice_language || defaultVoice.language as SupportedLanguage,
+            voice_description: values?.voice_description || defaultVoice.description,
+            voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
+            voice_exists: values?.voice_exists || false,
+        });
         setShowInsufficientFundsHint(false);
-    }, [reset]);
+    }, [reset, defaultVoice]);
 
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
@@ -84,26 +143,31 @@ export function useAssistantHireForm(
         const createdResourcesForCleanup: CreatedResource[] = [];
 
         try {
-            // --- Validate Form Data ---
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
                 setError("age", { type: "manual", message: "Valid age is required." });
                 throw new Error("Invalid age provided.");
+            }
+            if (!data.email || !data.email.endsWith(EMAIL_DOMAIN_WITH_AT) || data.email.startsWith('@')) {
+                 setError("email", { type: "manual", message: `Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.` });
+                 throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+            }
+            if (fetchedAssistantEmails.includes(data.email)) {
+                setError("email", { type: "manual", message: "This email is already in use." });
+                throw new Error("Email already in use.");
             }
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
 
-            // --- Create Email ---
             toast.loading("Provisioning email...", { id: toastId });
-            const emailResult = await assistantActions.contact.createEmail(data.first_name, data.surname);
+            const emailResult = await assistantActions.contact.createEmail(data.email);
             if ('detail' in emailResult) {
                 throw new Error(`Email creation failed`);
             }
             createdResourcesForCleanup.push({ type: 'email', identifier: emailResult.email });
 
-            // --- Create Phone Number ---
             toast.loading("Provisioning phone number...", { id: toastId });
             const phoneResult = await assistantActions.contact.createPhoneNumber();
             if ('detail' in phoneResult) {
@@ -111,8 +175,7 @@ export function useAssistantHireForm(
             }
             createdResourcesForCleanup.push({ type: 'phone', identifier: phoneResult.phoneNumber });
 
-            // --- Register Voice in Orchestra if not existing ---
-            if (!data.voice_exists) {
+            if (!data.voice_exists && data.voice_id) {
                 toast.loading("Registering voice...", { id: toastId });
                 const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
@@ -121,9 +184,6 @@ export function useAssistantHireForm(
                 if ('detail' in voiceCreationResponse) {
                     throw new Error(`Error registering voice`);
                 }
-                // If successfully registered in Orchestra, it means this voice_id (Cartesia ID)
-                // is now linked. If hire fails later, both Orchestra and Cartesia entries for this
-                // voice_id should be cleaned up.
                 createdResourcesForCleanup.push({
                     type: 'orchestra-voice',
                     identifier: data.voice_id,
@@ -131,7 +191,6 @@ export function useAssistantHireForm(
                 });
             }
 
-            // --- Upload Profile Photo ---
             const imageFile = data.imageFile;
             if (imageFile instanceof File) {
                 toast.loading("Uploading profile photo...", { id: toastId });
@@ -150,7 +209,6 @@ export function useAssistantHireForm(
                 finalImageUrlToSend = data.imagePreview;
             }
 
-            // --- Create Assistant in Orchestra ---
             toast.loading("Finalizing assistant hire...", { id: toastId });
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
@@ -162,17 +220,28 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
                 resetFormAndHints();
                 if (onSuccess) onSuccess(assistantCreationResult.assistant);
-                // Success, no cleanup needed
-                createdResourcesForCleanup.length = 0; // Clear the list
+                createdResourcesForCleanup.length = 0;
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);
             }
         } catch (error: any) {
-            console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
-            toast.error(`${error.message}. Hiring aborted.`, { id: toastId, duration: 7000 });
+            const isRHFError = !!(
+                hireFormMethods.formState.errors.age ||
+                hireFormMethods.formState.errors.email ||
+                hireFormMethods.formState.errors.voice_id ||
+                hireFormMethods.formState.errors.first_name ||
+                hireFormMethods.formState.errors.surname ||
+                hireFormMethods.formState.errors.about
+            );
 
-            // --- Compensation Logic ---
+            if (!isRHFError) {
+                 toast.error(`${error.message}. Hiring aborted.`, { id: toastId, duration: 7000 });
+            } else {
+                toast.dismiss(toastId);
+            }
+            console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
+
             for (const resource of [...createdResourcesForCleanup].reverse()) {
                 try {
                     switch (resource.type) {
@@ -203,8 +272,28 @@ export function useAssistantHireForm(
 
     const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
 
-    const initiateHireSequence = async () => {
-        if (isSubmitting || isCheckingBalance) return;
+    const initiateHireSequence = async (event?: React.BaseSyntheticEvent) => {
+        if (isSubmitting || isCheckingBalance || isLoadingEmails) {
+            if(isLoadingEmails)
+            return;
+        }
+
+        const isValid = await trigger();
+        if (!isValid) {
+            return;
+        }
+        
+        const currentEmail = getValues("email");
+        if (currentEmail.startsWith('@')) { // Extra check, though RHF pattern should catch this
+            setError("email", { type: "manual", message: "Email local part cannot be empty." });
+            toast.error("Email local part cannot be empty.");
+            return;
+        }
+        if (fetchedAssistantEmails.includes(currentEmail)) {
+            setError("email", { type: "manual", message: "This email is already in use." });
+            toast.error("This email is already in use. Please choose another.");
+            return;
+        }
 
         setIsCheckingBalance(true);
         setShowInsufficientFundsHint(false);
@@ -214,10 +303,7 @@ export function useAssistantHireForm(
             const fetchBalance = async () => {
                 try {
                     const balanceData  = await fetch(`/api/billing/balance`). then((response) => response.json());
-    
-                    if (!balanceData) {
-                        return {detail: "Failed to fetch balance data"};
-                    }
+                    if (!balanceData) return {detail: "Failed to fetch balance data"};
                     return balanceData as {balance: string, fullBalance: number}
                 } catch (error) {
                     console.error("Error fetching balance:", error);
@@ -239,7 +325,7 @@ export function useAssistantHireForm(
                 setShowInsufficientFundsHint(true);
             } else {
                 toast.dismiss(balanceToastId);
-                await RHFSubmitHandler();
+                await RHFSubmitHandler(event);
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: balanceToastId });
@@ -259,6 +345,8 @@ export function useAssistantHireForm(
         handleImageRemove,
         selectPreset,
         resetForm: resetFormAndHints,
-        rhfInternalFormSubmit: RHFSubmitHandler
+        rhfInternalFormSubmit: RHFSubmitHandler,
+        fetchedAssistantEmails,
+        isLoadingEmails,
     };
 }

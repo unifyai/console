@@ -1,13 +1,13 @@
 import { ResponseProps } from "@/types/common";
 
 export const createAssistantEmail = async (apiKey: string) => {
-    return async (firstName: string, lastName: string): Promise<{ email: string; user?: any; } | ResponseProps> => {
+    return async (email: string): Promise<{ email: string; user?: any; } | ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, { // Path updated to root of email contact
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, {
                 method: "POST",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ firstName, lastName })
+                body: JSON.stringify({ email: email })
             });
             const data = await response.json();
             if (!response.ok) {
@@ -27,12 +27,11 @@ export const deleteAssistantEmail = async (apiKey: string) => {
     return async (primaryEmail: string): Promise<ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, { // Path updated to root of email contact
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, {
                 method: "DELETE",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" },
                 body: JSON.stringify({ primaryEmail })
             });
-            // DELETE might return 204 No Content, or a JSON body.
             if (response.status === 204) {
                 return { info: `Email ${primaryEmail} deleted successfully.` };
             }
@@ -51,7 +50,7 @@ export const createAssistantPhoneNumber = async (apiKey: string) => {
     return async (): Promise<{ phoneNumber: string } | ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/phone`, { // Path updated to root of phone contact
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/phone`, {
                 method: "POST",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" }
             });
@@ -73,7 +72,7 @@ export const deleteAssistantPhoneNumber = async (apiKey: string) => {
     return async (phoneNumber: string): Promise<ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/phone`, { // Path updated to root of phone contact
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/phone`, {
                 method: "DELETE",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" },
                 body: JSON.stringify({ phoneNumber })
@@ -88,6 +87,29 @@ export const deleteAssistantPhoneNumber = async (apiKey: string) => {
             return { info: data.info || data.message || `Phone number ${phoneNumber} deleted successfully.` };
         } catch (error) {
             return { detail: error instanceof Error ? error.message : "Unknown error deleting phone number." };
+        }
+    };
+};
+
+export const listAllAssistantEmails = async (apiKey: string) => {
+    return async (): Promise<string[] | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, {
+                method: "GET",
+                headers: { apiKey: apiKey }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to list all assistant emails: ${response.statusText}` };
+            }
+            // The /api/contact/email GET proxy should return { emails: string[] }
+            if (data.emails && Array.isArray(data.emails)) {
+                return data.emails as string[];
+            }
+            return { detail: "Listing all assistant emails succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error listing all assistant emails." };
         }
     };
 };
