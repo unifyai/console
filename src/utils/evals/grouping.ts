@@ -243,7 +243,7 @@ export function getGroupingFilters(
       case "timestamp":
         return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
       case "bool":
-        return value === "true" ? 'True' : 'False';
+        return value === "true" ? "True" : value === "false" ? "False" : value
       default:
         return value.startsWith('"') && value.endsWith('"') ? value : `"${value}"`;
     }
@@ -446,11 +446,6 @@ export async function onGroupExpand(
         // Trim the outer quotes if they exist
         if (effectiveValue.startsWith('"') && effectiveValue.endsWith('"')) {
           effectiveValue = effectiveValue.slice(1, -1);
-        }
-
-        // Convert boolean values properly
-        if (dataTypes[cKey] === "bool") {
-          effectiveValue = effectiveValue == "True" ? "true" : "false";
         }
         // Convert null values to "null"
         if (fn === "exists") {
