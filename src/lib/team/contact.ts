@@ -113,3 +113,49 @@ export const listAllAssistantEmails = async (apiKey: string) => {
         }
     };
 };
+
+export const createAssistantWhatsApp = async (apiKey: string) => {
+    return async (phone_number: string, first_name: string, last_name: string): Promise<{ sid: string } | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/whatsapp`, {
+                method: "POST",
+                headers: { apiKey: apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify({ phone_number, first_name, last_name })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to create WhatsApp sender: ${response.statusText}` };
+            }
+            if (data.sid) {
+                return data as { sid: string };
+            }
+            return { detail: "WhatsApp sender creation succeeded but SID was not returned." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error creating WhatsApp sender." };
+        }
+    };
+};
+
+export const deleteAssistantWhatsApp = async (apiKey: string) => {
+    return async (sid: string): Promise<ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/whatsapp`, {
+                method: "DELETE",
+                headers: { apiKey: apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify({ sid })
+            });
+            if (response.status === 204) {
+                return { info: `WhatsApp sender ${sid} deleted successfully.` };
+            }
+            const data = await response.json().catch(() => null); // Catch if body is empty but still OK
+            if (!response.ok) {
+                return { detail: data?.detail || `Failed to delete WhatsApp sender: ${response.statusText}` };
+            }
+            return { info: data?.info || data?.message || `WhatsApp sender ${sid} deleted successfully.` };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error deleting WhatsApp sender." };
+        }
+    };
+};

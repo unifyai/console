@@ -136,7 +136,7 @@ export const updateAssistant = async (apiKey: string) => {
 };
 
 export const createAssistant = async (apiKey: string) => {
-    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email: string | null, phone: string | null ): Promise<ResponseProps & { assistant?: Assistant }> => {
+    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email: string | null, phone: string | null, whatsapp_sid: string | null ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
 
         try {
@@ -148,7 +148,7 @@ export const createAssistant = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, voice_id, email, phone, max_parallel: 10, weekly_limit: 40 })
+                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, voice_id, email, phone, whatsapp_sid, max_parallel: 10, weekly_limit: 40 })
                 }
             );
 

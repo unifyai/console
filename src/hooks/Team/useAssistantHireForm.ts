@@ -11,7 +11,7 @@ const ASSISTANT_ONBOARDING_FEE = 10;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 interface CreatedResource {
-    type: 'email' | 'phone' | 'orchestra-voice' | 'gcs-photo';
+    type: 'email' | 'phone' | 'orchestra-voice' | 'gcs-photo' | 'whatsapp';
     identifier: string;
     cartesiaVoiceIdIfNewlyCreated?: string;
 }
@@ -141,6 +141,7 @@ export function useAssistantHireForm(
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
         const createdResourcesForCleanup: CreatedResource[] = [];
+        let assistantPhoneNumber: string | null = null;
 
         try {
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
@@ -173,7 +174,20 @@ export function useAssistantHireForm(
             if ('detail' in phoneResult) {
                 throw new Error(`Phone number provisioning failed`);
             }
-            createdResourcesForCleanup.push({ type: 'phone', identifier: phoneResult.phoneNumber });
+            assistantPhoneNumber = phoneResult.phoneNumber as string;
+            createdResourcesForCleanup.push({ type: 'phone', identifier: assistantPhoneNumber });
+
+            toast.loading("Provisioning WhatsApp...", { id: toastId });
+            const whatsappResult = await assistantActions.contact.createWhatsApp(
+                assistantPhoneNumber,
+                data.first_name,
+                data.surname
+            );
+            if ('detail' in whatsappResult) {
+                throw new Error(`WhatsApp provisioning failed: ${whatsappResult.detail}`);
+            }
+            createdResourcesForCleanup.push({ type: 'whatsapp', identifier: whatsappResult.sid });
+
 
             if (!data.voice_exists && data.voice_id) {
                 toast.loading("Registering voice...", { id: toastId });
@@ -213,7 +227,7 @@ export function useAssistantHireForm(
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, data.about, data.voice_id,
-                emailResult.email, phoneResult.phoneNumber
+                emailResult.email, assistantPhoneNumber, whatsappResult.sid
             );
 
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
@@ -251,6 +265,9 @@ export function useAssistantHireForm(
                         case 'phone':
                             await assistantActions.contact.deletePhoneNumber(resource.identifier);
                             break;
+                        case 'whatsapp':
+                            await assistantActions.contact.deleteWhatsApp(resource.identifier);
+                            break;
                         case 'orchestra-voice':
                             await assistantActions.voice.deleteVoiceFromOrchestra(resource.identifier);
                             if(resource.cartesiaVoiceIdIfNewlyCreated) {
@@ -284,7 +301,7 @@ export function useAssistantHireForm(
         }
         
         const currentEmail = getValues("email");
-        if (currentEmail.startsWith('@')) { // Extra check, though RHF pattern should catch this
+        if (currentEmail.startsWith('@')) { 
             setError("email", { type: "manual", message: "Email local part cannot be empty." });
             toast.error("Email local part cannot be empty.");
             return;
