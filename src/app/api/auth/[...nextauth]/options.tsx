@@ -42,7 +42,8 @@ const authOptions: AuthOptions = {
                 response_type: "code",
                 scope: "openid email profile https://www.googleapis.com/auth/userinfo.profile"
               }
-            }
+            },
+            allowDangerousEmailAccountLinking: true,
           }),
         GithubProvider({
             clientId: process.env.GITHUB_ID!,
