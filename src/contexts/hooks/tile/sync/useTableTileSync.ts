@@ -1,15 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
 import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { useTableTile, TableActions } from "../useTableTile";
 import { useTileUI } from "../useTileUI";
-import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { selectTileByTabIdAndName } from "@/contexts/selectors/tile";
 
 /**
  * Properties of the TableTile that will be synced with the server
@@ -79,6 +77,34 @@ export function useTableTileSync(
 
   // Get the store API reference - can be used to get state outside of React's render cycle
   const storeApi = useStoreApiContext();
+
+  // Debounce timeout refs for mutations that don't need immediate server sync
+  const selectedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const columnOrderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hiddenColumnsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const columnsPinLeftTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const columnsPinRightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedTimeoutRef.current) {
+        clearTimeout(selectedTimeoutRef.current);
+      }
+      if (columnOrderTimeoutRef.current) {
+        clearTimeout(columnOrderTimeoutRef.current);
+      }
+      if (hiddenColumnsTimeoutRef.current) {
+        clearTimeout(hiddenColumnsTimeoutRef.current);
+      }
+      if (columnsPinLeftTimeoutRef.current) {
+        clearTimeout(columnsPinLeftTimeoutRef.current);
+      }
+      if (columnsPinRightTimeoutRef.current) {
+        clearTimeout(columnsPinRightTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Create individual mutation hooks for each property
   const tableTypeMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
@@ -228,96 +254,136 @@ export function useTableTileSync(
   const wrapColumnOrder = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
     
-    // 1) Update local state immediately
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnOrder(value);
     
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    columnOrderMutation.mutate({
-      tab_id: tabId,
-      name: tileName,
-      tileType: "Table",
-      updateData: { column_order: value ?? null },
-      actions: granularTileActions
-    });
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (columnOrderTimeoutRef.current) {
+      clearTimeout(columnOrderTimeoutRef.current);
+    }
+    
+    // Set a new timeout for the server mutation
+    columnOrderTimeoutRef.current = setTimeout(() => {
+      columnOrderMutation.mutate({
+        tab_id: tabId,
+        name: tileName,
+        tileType: "Table",
+        updateData: { column_order: value ?? null },
+        actions: granularTileActions
+      });
+    }, 300); // 300ms debounce delay
   };
 
   const wrapHiddenColumns = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
     
-    // 1) Update local state immediately
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setHiddenColumns(value);   
     
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    hiddenColumnsMutation.mutate({
-      tab_id: tabId,    
-      name: tileName,
-      tileType: "Table",
-      updateData: { hidden_columns: value ?? null },
-      actions: granularTileActions
-    });
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (hiddenColumnsTimeoutRef.current) {
+      clearTimeout(hiddenColumnsTimeoutRef.current);
+    }
+    
+    // Set a new timeout for the server mutation
+    hiddenColumnsTimeoutRef.current = setTimeout(() => {
+      hiddenColumnsMutation.mutate({
+        tab_id: tabId,    
+        name: tileName,
+        tileType: "Table",
+        updateData: { hidden_columns: value ?? null },
+        actions: granularTileActions
+      });
+    }, 300); // 300ms debounce delay
   };    
 
   const wrapColumnsPinLeft = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
     
-    // 1) Update local state immediately
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnsPinLeft(value);
     
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    columnsPinLeftMutation.mutate({
-      tab_id: tabId,
-      name: tileName,   
-      tileType: "Table",
-      updateData: { columns_pin_left: value ?? null },
-      actions: granularTileActions
-    });
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (columnsPinLeftTimeoutRef.current) {
+      clearTimeout(columnsPinLeftTimeoutRef.current);
+    }
+    
+    // Set a new timeout for the server mutation
+    columnsPinLeftTimeoutRef.current = setTimeout(() => {
+      columnsPinLeftMutation.mutate({
+        tab_id: tabId,
+        name: tileName,   
+        tileType: "Table",
+        updateData: { columns_pin_left: value ?? null },
+        actions: granularTileActions
+      });
+    }, 300); // 300ms debounce delay
   };
 
   const wrapColumnsPinRight = (value: string | undefined) => {  
     if (!tableTileActions || !granularTileActions) return;
     
-    // 1) Update local state immediately
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setColumnsPinRight(value);
     
     // Don't attempt server update if we don't have required info   
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    columnsPinRightMutation.mutate({
-      tab_id: tabId,
-      name: tileName,   
-      tileType: "Table",
-      updateData: { columns_pin_right: value ?? null },
-      actions: granularTileActions
-    });
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (columnsPinRightTimeoutRef.current) {
+      clearTimeout(columnsPinRightTimeoutRef.current);
+    }
+    
+    // Set a new timeout for the server mutation
+    columnsPinRightTimeoutRef.current = setTimeout(() => {
+      columnsPinRightMutation.mutate({
+        tab_id: tabId,
+        name: tileName,   
+        tileType: "Table",
+        updateData: { columns_pin_right: value ?? null },
+        actions: granularTileActions
+      });
+    }, 300); // 300ms debounce delay
   };
 
   const wrapSelected = (value: string | undefined) => { 
     if (!tableTileActions || !granularTileActions) return;
     
-    // 1) Update local state immediately
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
     tableTileActions.setSelected(value);
     
     // Don't attempt server update if we don't have required info   
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    selectedMutation.mutate({
-      tab_id: tabId,
-      name: tileName,   
-      tileType: "Table",
-      updateData: { selected: value ?? null },
-      actions: granularTileActions
-    });
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (selectedTimeoutRef.current) {
+      clearTimeout(selectedTimeoutRef.current);
+    }
+    
+    // Set a new timeout for the server mutation
+    selectedTimeoutRef.current = setTimeout(() => {
+      selectedMutation.mutate({
+        tab_id: tabId,
+        name: tileName,   
+        tileType: "Table",
+        updateData: { selected: value ?? null },
+        actions: granularTileActions
+      });
+    }, 300); // 300ms debounce delay
   };
 
   const wrapPageNumber = async (value: string | undefined) => {   
