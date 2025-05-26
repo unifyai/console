@@ -147,7 +147,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     // Profile Panel Actions
     const onUpdateProfileSubmit = async (id: string, about: string | null, phone: string | null, email: string | null) => {
         const assistant = assistants.find(a => a.agent_id === id);
-        const success = await updateAssistantProfile(id, about, phone, email, assistant?.voice_id || null);
+        const success = await updateAssistantProfile(id, about, phone, email, assistant?.whatsapp_sid || null, assistant?.voice_id || null);
         if (!success) throw new Error("Update failed in hook.");
     };
 

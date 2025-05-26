@@ -85,6 +85,7 @@ export function useAssistants(
         const isGcs = isGcsPhoto(photoPath);
         const assistantEmail = assistantToDelete.email;
         const assistantPhone = assistantToDelete.phone;
+        const assistantWhatsapp = assistantToDelete.whatsapp_sid;
 
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
@@ -111,7 +112,15 @@ export function useAssistants(
                 }
             }
 
-            // 4. Attempt to delete profile photo from GCS
+            // 4. Attempt to delete whatsapp account if it exists
+            if (assistantWhatsapp) {
+                const whatsappDeleteResult = await contactActions.deleteWhatsApp(assistantWhatsapp);
+                if (whatsappDeleteResult.detail) {
+                    console.error(`Could not delete whataspp ${assistantWhatsapp} for ${displayName}: ${whatsappDeleteResult.detail}`);
+                }
+            }
+
+            // 5. Attempt to delete profile photo from GCS
             if (isGcs && photoPath) {
                 try {
                     const photoDeleteResult = await photoActions.delete(photoPath);
@@ -124,7 +133,7 @@ export function useAssistants(
                 }
             }
 
-            // 5. Update local state
+            // 6. Update local state
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
             toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
@@ -141,11 +150,12 @@ export function useAssistants(
         about: string | null,
         phone: string | null,
         email: string | null,
+        whatsapp_sid: string | null,
         currentVoiceId: string | null
     ): Promise<boolean> => {
         const toastId = toast.loading("Updating profile...");
         try {
-            const result = await assistantActions.update(id, about, phone, email, currentVoiceId);
+            const result = await assistantActions.update(id, about, phone, email, whatsapp_sid, currentVoiceId);
             if (result && 'detail' in result && result.detail) {
                 throw new Error((result as ResponseProps).detail);
             }

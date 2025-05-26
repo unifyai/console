@@ -60,8 +60,8 @@ export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null,voice_id: string | null, email: string | null, phone: string | null, whatsapp_sid: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
-    update: (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null) => Promise<ResponseProps>;
+    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email: string | null, phone: string | null, whatsapp_sid: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
+    update: (assistantId: string, about: string | null, phone: string | null, email: string | null, whatsapp_sid: string | null, voice_id: string | null) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
   "photo": {    
