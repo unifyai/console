@@ -11,7 +11,7 @@ const ASSISTANT_ONBOARDING_FEE = 10;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 interface CreatedResource {
-    type: 'email' | 'phone' | 'orchestra-voice' | 'gcs-photo' | 'whatsapp';
+    type: 'orchestra-voice' | 'gcs-photo';
     identifier: string;
     cartesiaVoiceIdIfNewlyCreated?: string;
 }
@@ -55,7 +55,7 @@ export function useAssistantHireForm(
                     if (Array.isArray(result)) {
                         setFetchedAssistantEmails(result);
                     } else {
-                        toast.error(result.detail || "Could not fetch existing assistant emails.");
+                        toast.error((result as ResponseProps).detail || "Could not fetch existing assistant emails.");
                         setFetchedAssistantEmails([]);
                     }
                 })
@@ -141,19 +141,19 @@ export function useAssistantHireForm(
         const toastId = toast.loading("Hiring assistant...");
         let finalImageUrlToSend: string | null = null;
         const createdResourcesForCleanup: CreatedResource[] = [];
-        let assistantPhoneNumber: string | null = null;
-
+        
         try {
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
                 setError("age", { type: "manual", message: "Valid age is required." });
                 throw new Error("Invalid age provided.");
             }
-            if (!data.email || !data.email.endsWith(EMAIL_DOMAIN_WITH_AT) || data.email.startsWith('@')) {
+            const emailValue = data.email || "";
+            if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT) || emailValue.startsWith('@')) {
                  setError("email", { type: "manual", message: `Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.` });
                  throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
             }
-            if (fetchedAssistantEmails.includes(data.email)) {
+            if (fetchedAssistantEmails.includes(emailValue)) {
                 setError("email", { type: "manual", message: "This email is already in use." });
                 throw new Error("Email already in use.");
             }
@@ -161,34 +161,8 @@ export function useAssistantHireForm(
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
-
-            toast.loading("Provisioning email...", { id: toastId });
-            const emailResult = await assistantActions.contact.createEmail(data.email.replace(EMAIL_DOMAIN_WITH_AT, ""), data.first_name, data.surname);
-            if ('detail' in emailResult) {
-                throw new Error(`Email creation failed`);
-            }
-            createdResourcesForCleanup.push({ type: 'email', identifier: emailResult.email });
-
-            toast.loading("Provisioning phone number...", { id: toastId });
-            const phoneResult = await assistantActions.contact.createPhoneNumber();
-            if ('detail' in phoneResult) {
-                throw new Error(`Phone number provisioning failed`);
-            }
-            assistantPhoneNumber = phoneResult.phoneNumber as string;
-            createdResourcesForCleanup.push({ type: 'phone', identifier: assistantPhoneNumber });
-
-            toast.loading("Provisioning WhatsApp...", { id: toastId });
-            const whatsappResult = await assistantActions.contact.createWhatsApp(
-                assistantPhoneNumber,
-                data.first_name,
-                data.surname
-            );
-            if ('detail' in whatsappResult) {
-                throw new Error(`WhatsApp provisioning failed: ${whatsappResult.detail}`);
-            }
-            createdResourcesForCleanup.push({ type: 'whatsapp', identifier: whatsappResult.sid });
-
-
+            const emailLocal = emailValue.replace(EMAIL_DOMAIN_WITH_AT, "");
+            
             if (!data.voice_exists && data.voice_id) {
                 toast.loading("Registering voice...", { id: toastId });
                 const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
@@ -201,7 +175,7 @@ export function useAssistantHireForm(
                 createdResourcesForCleanup.push({
                     type: 'orchestra-voice',
                     identifier: data.voice_id,
-                    cartesiaVoiceIdIfNewlyCreated: data.voice_id
+                    cartesiaVoiceIdIfNewlyCreated: data.voice_id 
                 });
             }
 
@@ -226,8 +200,7 @@ export function useAssistantHireForm(
             toast.loading("Finalizing assistant hire...", { id: toastId });
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
-                finalImageUrlToSend, data.about, data.voice_id,
-                emailResult.email, assistantPhoneNumber, whatsappResult.sid
+                finalImageUrlToSend, data.about, data.voice_id, emailLocal
             );
 
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
@@ -256,18 +229,10 @@ export function useAssistantHireForm(
             }
             console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
+            // Cleanup created resources
             for (const resource of [...createdResourcesForCleanup].reverse()) {
                 try {
                     switch (resource.type) {
-                        case 'email':
-                            await assistantActions.contact.deleteEmail(resource.identifier);
-                            break;
-                        case 'phone':
-                            await assistantActions.contact.deletePhoneNumber(resource.identifier);
-                            break;
-                        case 'whatsapp':
-                            await assistantActions.contact.deleteWhatsApp(resource.identifier);
-                            break;
                         case 'orchestra-voice':
                             await assistantActions.voice.deleteVoiceFromOrchestra(resource.identifier);
                             if(resource.cartesiaVoiceIdIfNewlyCreated) {
@@ -332,6 +297,7 @@ export function useAssistantHireForm(
 
             if ('detail' in balanceResult || !balanceResult) {
                 toast.error((balanceResult as ResponseProps)?.detail || "Failed to check balance.", { id: balanceToastId });
+                setIsCheckingBalance(false);
                 return;
             }
 
@@ -342,7 +308,7 @@ export function useAssistantHireForm(
                 setShowInsufficientFundsHint(true);
             } else {
                 toast.dismiss(balanceToastId);
-                await RHFSubmitHandler(event);
+                await RHFSubmitHandler(event); 
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: balanceToastId });

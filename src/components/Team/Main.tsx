@@ -116,6 +116,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
         resetForm: resetHireFormInternal,
         rhfInternalFormSubmit,
         fetchedAssistantEmails,
+        isLoadingEmails,
     } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen);
     
     // --- Callbacks for UI interaction ---
@@ -145,9 +146,8 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     };
     
     // Profile Panel Actions
-    const onUpdateProfileSubmit = async (id: string, about: string | null, phone: string | null, email: string | null) => {
-        const assistant = assistants.find(a => a.agent_id === id);
-        const success = await updateAssistantProfile(id, about, phone, email, assistant?.whatsapp_sid || null, assistant?.voice_id || null);
+    const onUpdateProfileSubmit = async (id: string, about: string | null) => {
+        const success = await updateAssistantProfile(id, about);
         if (!success) throw new Error("Update failed in hook.");
     };
 
@@ -168,11 +168,11 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     React.useEffect(() => {
         if (!isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
             initialAssistantLoadProcessedRef.current = true;
-            if (!assistantError && assistants.length === 0) {
+            if (!assistantError && assistants.length === 0 && !isLoadingEmails) { 
                 handleOpenHireDialog();
             }
         }
-    }, [assistants, isLoadingAssistants, assistantError, handleOpenHireDialog]);
+    }, [assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails]);
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
@@ -198,7 +198,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
                     <AssistantList
                         assistants={assistants}
                         assistantError={assistantError}
-                        isLoading={isLoadingAssistants}
+                        isLoading={isLoadingAssistants || (isHireDialogOpen && isLoadingEmails)}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
                         activityLogAssistantId={activityLogAssistantId}
@@ -297,7 +297,7 @@ export default function Main({ taskActions, assistantActions, activityLogActions
                 <HireForm
                     formMethods={hireFormMethods}
                     onSubmit={rhfInternalFormSubmit}
-                    isSubmitting={isHireFormSubmitting}
+                    isSubmitting={isHireFormSubmitting || isLoadingEmails}
                     assistantActions={assistantActions}
                     onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                     allAssistantEmails={fetchedAssistantEmails}

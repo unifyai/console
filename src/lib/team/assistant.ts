@@ -58,19 +58,13 @@ export const deleteAssistant = async (apiKey: string) => {
             );
 
             if (!response.ok) {
-                // Handle actual errors (4xx, 5xx)
                 let errorData;
                 let errorMessage = `Failed to delete assistant: ${response.statusText} (Status: ${response.status})`;
                 try {
-                    // Try to parse error details if response is JSON
                     const contentType = response.headers.get("content-type");
                     if (contentType && contentType.includes("application/json")) {
                         errorData = await response.json();
                         errorMessage = errorData?.detail || errorMessage;
-                    } else {
-                        // Log non-JSON error body if needed for debugging
-                        // const errorText = await response.text();
-                        // console.error("Non-JSON error response body:", errorText);
                     }
                 } catch (parseError) {
                     console.error(`[actions.ts deleteAssistant] Failed to parse error JSON response: ${parseError}`);
@@ -89,7 +83,7 @@ export const deleteAssistant = async (apiKey: string) => {
 };
 
 export const updateAssistant = async (apiKey: string) => {
-    return async (assistantId: string, about: string | null, phone: string | null, email: string | null, voice_id: string | null): Promise<ResponseProps> => {
+    return async (assistantId: string, about: string | null): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -101,7 +95,7 @@ export const updateAssistant = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({about, email, phone, voice_id})
+                    body: JSON.stringify({ about })
                 }
             );
 
@@ -136,7 +130,7 @@ export const updateAssistant = async (apiKey: string) => {
 };
 
 export const createAssistant = async (apiKey: string) => {
-    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email: string | null, phone: string | null, whatsapp_sid: string | null ): Promise<ResponseProps & { assistant?: Assistant }> => {
+    return async ( first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email_local: string ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
 
         try {
@@ -148,7 +142,18 @@ export const createAssistant = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ first_name, surname, age, region, profile_photo, about, voice_id, email, phone, whatsapp_sid, max_parallel: 10, weekly_limit: 40 })
+                    body: JSON.stringify({ 
+                        first_name, 
+                        surname, 
+                        age, 
+                        region, 
+                        profile_photo, 
+                        about, 
+                        voice_id, 
+                        email_local, 
+                        max_parallel: 10,
+                        weekly_limit: 40
+                    })
                 }
             );
 

@@ -25,7 +25,7 @@ import { toast } from "sonner";
 interface AssistantProfilePanelProps {
     assistant: Assistant;
     onClose: () => void;
-    onUpdateProfile: (id: string, about: string | null, phone: string | null, email: string | null) => Promise<any>;
+    onUpdateProfile: (id: string, about: string | null) => Promise<any>; 
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
 }
 
@@ -64,7 +64,7 @@ export function AssistantProfilePanel({
         setIsSavingAbout(true);
         const toastId = toast.loading("Updating profile...");
         try {
-            await onUpdateProfile(assistant.agent_id, about, assistant.phone, assistant.email);
+            await onUpdateProfile(assistant.agent_id, about);
             originalAbout.current = about;
             setIsEditingAbout(false);
             toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
@@ -141,10 +141,8 @@ export function AssistantProfilePanel({
                         <Separator />
 
                         {/* About Section */}
-                        {/* Keep 'group' on the outer div for hover detection */}
                         <div className="px-4 sm:px-6 space-y-2 group">
                             <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About</Label>
-                            {/* Added a wrapper div and made IT relative */}
                             <div className="relative">
                                 <Textarea
                                     id={`about-${assistant.agent_id}`}
@@ -153,16 +151,12 @@ export function AssistantProfilePanel({
                                     placeholder="Enter details about the assistant..."
                                     disabled={isSavingAbout}
                                     className={cn(
-                                        "text-sm min-h-[100px] resize-none peer", // Added peer class for potential focus-within alternatives if needed
-                                        // Buttons will overlay the bottom-right corner, ensure textarea has enough internal padding if needed (usually default is fine)
+                                        "text-sm min-h-[100px] resize-none peer", 
                                         isEditingAbout ? "border-primary focus-visible:ring-primary/50" : "border-transparent bg-transparent focus-visible:bg-background focus-visible:border-input focus-visible:ring-input"
                                     )}
                                     rows={4}
                                 />
                                 {isEditingAbout && (
-                                    // Position absolutely relative to the new wrapper div.
-                                    // Adjusted bottom/right values for better placement inside padding area.
-                                    // group-hover/focus-within still work because the outer div is the 'group'
                                     <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
                                         <ActionButton
                                             tooltip="Save About"
@@ -171,7 +165,6 @@ export function AssistantProfilePanel({
                                             disabled={isSavingAbout || about === originalAbout.current}
                                             variant="ghost"
                                             size="sm"
-                                            // Added explicit padding for smaller button footprint
                                             className="hover:bg-green-100 p-1.5 h-auto w-auto rounded-md"
                                         />
                                         <ActionButton
@@ -181,26 +174,25 @@ export function AssistantProfilePanel({
                                             disabled={isSavingAbout}
                                             variant="ghost"
                                             size="sm"
-                                            // Added explicit padding for smaller button footprint
                                             className="hover:bg-amber-100 p-1.5 h-auto w-auto rounded-md"
                                         />
                                     </div>
                                 )}
-                            </div> {/* End relative wrapper */}
+                            </div> 
                         </div>
 
                         <Separator />
 
-                        {/* Contact Section */}
+                        {/* Contact Section - Display only, not editable here */}
                         <div className="px-4 sm:px-6 space-y-3">
                             <h3 className="text-base font-semibold">Contact</h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex items-center gap-3">
                                     <Mail className="h-4 w-4 text-muted-foreground" />
                                     {assistant.email ? (
-                                        <a href={`mailto:${assistant.email}`} className="hover:underline text-primary truncate">
+                                        <span className="truncate">
                                             {assistant.email}
-                                        </a>
+                                        </span>
                                     ) : (
                                         <span>N/A</span>
                                     )}

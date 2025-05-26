@@ -34,7 +34,7 @@ export type AssistantPreset =
 export type AssistantFormData =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
   & { 
-      email?: string; // Added email
+      email?: string; // Full email for display and validation, local part extracted for submission
       emailManuallyEdited?: boolean; // To track if user edited the auto-generated email
       imageFile?: File | null;
       imagePreview?: string | null;
@@ -60,8 +60,8 @@ export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null, email: string | null, phone: string | null, whatsapp_sid: string | null) => Promise<ResponseProps & { assistant?: Assistant }>;
-    update: (assistantId: string, about: string | null, phone: string | null, email: string | null, whatsapp_sid: string | null, voice_id: string | null) => Promise<ResponseProps>;
+    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null,email_local: string) => Promise<ResponseProps & { assistant?: Assistant }>;
+    update: (assistantId: string, about: string | null) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
   "photo": {    
@@ -80,12 +80,6 @@ export interface AssistantActions {
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
   },
   "contact": {
-    createEmail: (local: string, first_name: string, last_name: string) => Promise<{ email: string; user?: any; } | ResponseProps>;
-    createPhoneNumber: () => Promise<{ phoneNumber: string } | ResponseProps>;
-    deleteEmail: (primaryEmail: string) => Promise<ResponseProps>;
-    deletePhoneNumber: (phoneNumber: string) => Promise<ResponseProps>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
-    createWhatsApp: (phone_number: string, first_name: string, last_name: string) => Promise<{ sid: string } | ResponseProps>;
-    deleteWhatsApp: (sid: string) => Promise<ResponseProps>;
   }
 }

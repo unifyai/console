@@ -1,4 +1,3 @@
-// src/hooks/useAssistants.ts
 import * as React from 'react';
 import { Assistant, AssistantActions } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
@@ -8,7 +7,7 @@ import { isGcsPhoto } from '@/utils/team/gcs-utils';
 export function useAssistants(
     allActions: AssistantActions
 ) {
-    const { assistant: assistantActions, photo: photoActions, contact: contactActions } = allActions;
+    const { assistant: assistantActions, photo: photoActions } = allActions;
 
     const [assistants, setAssistants] = React.useState<Assistant[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -83,9 +82,6 @@ export function useAssistants(
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
         const photoPath = assistantToDelete.profile_photo;
         const isGcs = isGcsPhoto(photoPath);
-        const assistantEmail = assistantToDelete.email;
-        const assistantPhone = assistantToDelete.phone;
-        const assistantWhatsapp = assistantToDelete.whatsapp_sid;
 
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
@@ -96,31 +92,7 @@ export function useAssistants(
                 throw new Error(deleteResult.detail || "Failed to delete assistant record.");
             }
 
-            // 2. Attempt to delete email if it exists
-            if (assistantEmail) {
-                const emailDeleteResult = await contactActions.deleteEmail(assistantEmail);
-                if (emailDeleteResult.detail) {
-                    console.error(`Could not delete email ${assistantEmail} for ${displayName}: ${emailDeleteResult.detail}`);
-                }
-            }
-
-            // 3. Attempt to delete phone number if it exists
-            if (assistantPhone) {
-                const phoneDeleteResult = await contactActions.deletePhoneNumber(assistantPhone);
-                if (phoneDeleteResult.detail) {
-                    console.error(`Could not delete phone ${assistantPhone} for ${displayName}: ${phoneDeleteResult.detail}`);
-                }
-            }
-
-            // 4. Attempt to delete whatsapp account if it exists
-            if (assistantWhatsapp) {
-                const whatsappDeleteResult = await contactActions.deleteWhatsApp(assistantWhatsapp);
-                if (whatsappDeleteResult.detail) {
-                    console.error(`Could not delete whataspp ${assistantWhatsapp} for ${displayName}: ${whatsappDeleteResult.detail}`);
-                }
-            }
-
-            // 5. Attempt to delete profile photo from GCS
+            // 2. Attempt to delete profile photo from GCS
             if (isGcs && photoPath) {
                 try {
                     const photoDeleteResult = await photoActions.delete(photoPath);
@@ -133,7 +105,7 @@ export function useAssistants(
                 }
             }
 
-            // 6. Update local state
+            // 3. Update local state
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
             toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
@@ -148,21 +120,17 @@ export function useAssistants(
     const updateAssistantProfile = React.useCallback(async (
         id: string,
         about: string | null,
-        phone: string | null,
-        email: string | null,
-        whatsapp_sid: string | null,
-        currentVoiceId: string | null
     ): Promise<boolean> => {
         const toastId = toast.loading("Updating profile...");
         try {
-            const result = await assistantActions.update(id, about, phone, email, whatsapp_sid, currentVoiceId);
+            const result = await assistantActions.update(id, about);
             if (result && 'detail' in result && result.detail) {
                 throw new Error((result as ResponseProps).detail);
             }
 
             setAssistants(prev => prev.map(a => {
                 if (a.agent_id === id) {
-                    const updatedAssistant = { ...a, about, phone, email };
+                    const updatedAssistant = { ...a, about: about ?? a.about };
                     if (isGcsPhoto(updatedAssistant.profile_photo)) {
                         photoActions.download(updatedAssistant.profile_photo).then(res => {
                             if (res.signedUrl) {
