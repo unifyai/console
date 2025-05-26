@@ -9,9 +9,9 @@ import { defaultNewCounter } from "@/constants/logs";
 import { defaultTiles } from "@/constants/logs";
 import { IStoreState } from "@/contexts/store";
 import { Suspense } from "react";
-import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
-import { StoreInitializer } from "../../contexts/providers/StoreInitializer";
-import Interface from "./Interface";
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
+import Interface from "@/components/Interfaces/Interface";
 
 const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, tabActions, granularTabActions, tileActions, codeActions, devboxActions }: {
     tab: string | undefined,
