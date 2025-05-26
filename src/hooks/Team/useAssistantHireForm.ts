@@ -163,7 +163,7 @@ export function useAssistantHireForm(
             }
 
             toast.loading("Provisioning email...", { id: toastId });
-            const emailResult = await assistantActions.contact.createEmail(data.email);
+            const emailResult = await assistantActions.contact.createEmail(data.email.replace(EMAIL_DOMAIN_WITH_AT, ""), data.first_name, data.surname);
             if ('detail' in emailResult) {
                 throw new Error(`Email creation failed`);
             }

@@ -1,13 +1,13 @@
 import { ResponseProps } from "@/types/common";
 
 export const createAssistantEmail = async (apiKey: string) => {
-    return async (email: string): Promise<{ email: string; user?: any; } | ResponseProps> => {
+    return async (local: string, first_name: string, last_name: string): Promise<{ email: string; user?: any; } | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, {
                 method: "POST",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email })
+                body: JSON.stringify({ local, first_name, last_name })
             });
             const data = await response.json();
             if (!response.ok) {

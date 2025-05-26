@@ -80,7 +80,7 @@ export interface AssistantActions {
     deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
   },
   "contact": {
-    createEmail: (email: string) => Promise<{ email: string; user?: any; } | ResponseProps>;
+    createEmail: (local: string, first_name: string, last_name: string) => Promise<{ email: string; user?: any; } | ResponseProps>;
     createPhoneNumber: () => Promise<{ phoneNumber: string } | ResponseProps>;
     deleteEmail: (primaryEmail: string) => Promise<ResponseProps>;
     deletePhoneNumber: (phoneNumber: string) => Promise<ResponseProps>;
