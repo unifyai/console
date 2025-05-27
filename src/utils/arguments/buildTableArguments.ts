@@ -3,6 +3,26 @@ import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 
+/*
+ * Builds the available_fields for tableArgument for a tile
+ */
+export function buildAvailableFieldsForTile(
+  columnContext: string,
+  fields: LogFieldsResponseProps,
+  entriesProperties: string[],
+  paramsProperties: string[]
+): LogFieldsResponseProps {
+  const available_fields = Object.fromEntries(
+    Object.entries(fields)
+      .filter((([field, _]) => 
+        entriesProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property)
+        .concat(paramsProperties.map(property => columnContext ? processContext("merge", columnContext, property) : property))
+        .includes(field))
+      )
+  );
+  return available_fields;
+}
+
 /**
  * Builds table arguments for a tile
  * Can be used by both TableWrapper and PlotWrapper
@@ -55,7 +75,6 @@ export function buildTableArgumentsForTile(
   // Create or update this tile's arguments
   tableArguments[tileName] = tableArguments[tileName] || {
     getLogs_parameters: { filter_expr: "" },
-    available_fields: {}
   };
   
   // Set filter expression

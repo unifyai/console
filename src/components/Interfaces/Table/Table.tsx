@@ -52,7 +52,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useTableArgumentsQuery, useTableDataQueryWithTracking } from "@/hooks/Query/useTableDataQuery";
+import { useTableArgumentsQuery, useTableDataQueryWithTracking, useUpdateAvailableFieldsForTableArgumentsQuery } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
 
@@ -119,6 +119,10 @@ const LogsTable = ({
   } = tableDataItem;
 
   const tileName = tileMetaState?.name || "";
+  
+  // Update the available fields for the table arguments
+  useUpdateAvailableFieldsForTableArgumentsQuery(tileId, tabId, entriesProperties, paramsProperties, fields);
+  
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;

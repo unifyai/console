@@ -4,7 +4,6 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../Table/Table";
 import { buildTableDataItem, getGroupSortingObject, getSortingObject } from "@/utils/data/buildTableDataItem";
-import { processContext } from "@/utils/evals/columnOperations";
 
 import type {
   LogsActions,
@@ -108,21 +107,6 @@ export default async function TableWrapper({
 
   // Build table data item
   const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, actions.logsActions);
-
-  // Update available fields in the tableArguments (if we have tableArguments for this tile)
-  if (tableArguments[tileName]) {
-    tableArguments[tileName].available_fields = Object.fromEntries(
-      Object.entries(fields)
-        .filter((([field, attributes]) => 
-          tableDataItem.entriesProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property)
-          .concat(tableDataItem.paramsProperties.map(property => tile.column_context ? processContext("merge", tile.column_context, property) : property))
-          .includes(field))
-        )
-    );
-    
-    // Update the cache with available fields
-    qc.setQueryData(["tableArguments", tabId], tableArguments);
-  }
 
   // Prefetch the table data item
   await qc.prefetchQuery({

@@ -24,8 +24,8 @@ const ColumnCreate = ({ project, context, logs, currentTable, tableArguments, de
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
-            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
+            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields ?? {})}))  // Add all displayed tables
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields ?? {})                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)

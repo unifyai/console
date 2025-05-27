@@ -23,9 +23,9 @@ import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { selectTilesForTab } from '@/contexts/selectors/tile';
 import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
-import { processContext } from '@/utils/evals/columnOperations';
 import { selectProjectById } from '@/contexts/selectors/project';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
+import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 
 // Define TileType as a string union if not imported
 type TileType = "Table" | "Plot" | "View" | "Editor";
@@ -223,13 +223,11 @@ T extends TileType
           // Update available fields in the tableArguments (if we have tableArguments for this tile)
           const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
           if (tableArguments[optimisticTile.name]) {
-            tableArguments[optimisticTile.name].available_fields = Object.fromEntries(
-              Object.entries(fields)
-                .filter((([field, attributes]) => 
-                  tableDataItem.entriesProperties.map(property => optimisticTile.column_context ? processContext("merge", optimisticTile.column_context, property) : property)
-                  .concat(tableDataItem.paramsProperties.map(property => optimisticTile.column_context ? processContext("merge", optimisticTile.column_context, property) : property))
-                  .includes(field))
-                )
+            tableArguments[optimisticTile.name].available_fields = buildAvailableFieldsForTile(
+              optimisticTile.column_context ?? "",
+              fields,
+              tableDataItem.entriesProperties,
+              tableDataItem.paramsProperties
             );
     
             // Update the cache with available fields

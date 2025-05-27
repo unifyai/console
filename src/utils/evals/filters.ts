@@ -354,8 +354,8 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
 	Construct filter expression from table argument's filters, common filters and freeze.
 	Filter expression neededs to be dynamically evaluated to process relative timestamp filters
 */
-export function buildFilterExpressionArgument (args: {available_fields: LogFieldsResponseProps; getLogs_parameters: getLogsParameters }) {
-	const fields = args.available_fields
+export function buildFilterExpressionArgument (args: {getLogs_parameters: getLogsParameters, available_fields?: LogFieldsResponseProps }) {
+	const fields = args.available_fields ?? {}
 	const params = args.getLogs_parameters
 	if ("filters" in params) {
 		params["filter_expr"] = buildFilterExpression(
