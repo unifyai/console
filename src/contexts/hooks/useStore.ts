@@ -6,10 +6,6 @@ import { Project } from '../slices/selectors/project';
 import { Interface } from '../slices/selectors/interface';
 import { Tab } from '../slices/selectors/tab';
 import { Tile } from '../slices/selectors/tile';
-import { useTileMeta } from './tile/useTileMeta';
-import { useTabMeta } from './tab/useTabMeta';
-import { useTableDataQueries, useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
-import { useTabData } from './tab/useTabData';
 
 // Define stable fallback references
 const EMPTY_PROJECTS: string[] = [];
@@ -512,35 +508,6 @@ export function useTiles(tileIds: string[] = [], properties: string[] = []): Par
     resultRef.current = result;
     return result;
   }, [tileIds, properties, rawTilesById]);
-}
-
-/**
- * Hook to get log lengths for all table tiles
- */
-export function useLogLengths(
-  tileIds: string[],
-  tabId: string
-): Record<string, number> {
-  // Retrieve the logs from the tableDataItem
-  const { dataActions: tabDataActions } = useTabData(tabId);
-  const tableDataItemsMap = useTableDataQueries(tileIds);
-
-  /**
-   * Build a `{ tileName: logLength }` map.
-   */
-  return useMemo(() => {
-    const result: Record<string, number> = {};
-
-    tileIds.forEach((id) => {
-      const item = tableDataItemsMap?.[id];
-      const name = tabDataActions?.getTileName(id);
-      if (!name || !item) return;
-
-      result[name] = item?.logs?.length || 0;
-    });
-
-    return result;
-  }, [tileIds, tableDataItemsMap, tabDataActions]);
 }
 
 /**

@@ -25,7 +25,7 @@ export default {
                 width: 7.0,
                 height: 8.0
             },
-            filters: "length@>@ && 0.5",
+            filters: "length~>~ && 0.5",
             table_tile: {
                 table_type: "Data Table",
                 column_order: "RowNumbering,Entries/x,Entries/y,Entries/length,Entries/length",

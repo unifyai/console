@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueries, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
 import { TableDataItem } from "@/types/evals/grid";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTileMeta } from "@/contexts/hooks/tile";
-import { TableArguments } from "@/types/evals/logs";
+import { useTileData, useTileMeta } from "@/contexts/hooks/tile";
+import { LogFieldsResponseProps, TableArguments } from "@/types/evals/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { setDeep } from "@/utils/objectPath";
+import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
 
 export const EMPTY_TABLEDATAITEM: TableDataItem = {
   columnContexts: [],
@@ -232,40 +233,6 @@ export function useTableDataQueryWithTracking(
 }
 
 /**
- * Fetch *multiple* table-data items at once.
- *
- * @param tileIds Stable list of tile UUIDs. The order must stay the same
- *                between renders to keep React-Query happy.
- *
- * @returns Map "tileId → TableDataItem"
- */
-export function useTableDataQueries(
-  tileIds: string[],
-): Record<string, TableDataItem> {
-  /* build the query-options **without** creating extra hooks in a loop */
-  const results = useQueries({
-    queries: tileIds.map<UseQueryOptions<TableDataItem>>((id) => ({
-      queryKey: ["tableDataItem", id],
-      placeholderData: EMPTY_TABLEDATAITEM,
-      staleTime: 30_000,
-      enabled: !!id,
-    })),
-  }) as UseQueryResult<TableDataItem, unknown>[]; // type-narrowing
-
-  console.log("[useTableDataQueries] results", results);
-
-  /* fold the React-Query results into a flat dictionary */
-  return useMemo(() => {
-    const out: Record<string, TableDataItem> = {};
-    tileIds.forEach((id, idx) => {
-      out[id] = results[idx]?.data ?? EMPTY_TABLEDATAITEM;
-    });
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tileIds, results.map((r) => r.data)]); // shallow dependency for memo
-}
-
-/**
  * Hook for accessing table arguments (API call parameters) cached by the server component
  * @param tabIdOrName The name of the tab containing the tables
  * @param interfaceIdOrName Optional interface name
@@ -279,10 +246,62 @@ export function useTableArgumentsQuery(
 
   return useQuery<TableArguments>({
     queryKey: ["tableArguments", tabId],
-    // The data is prefetched by the server component
-    staleTime: 30000, // 30 seconds before considering data stale
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!tabId, // Only run the query if we have a valid tabId
   });
+}
+
+/**
+ * Hook for updating table argments to calculcate the available fields for a tile
+ * @param tileIdOrName The name of the tile to update data for
+ * @param tabIdOrName The name of the tab containing the tile
+ */
+export function useUpdateAvailableFieldsForTableArgumentsQuery(
+  tileIdOrName: string | null,
+  tabIdOrName: string | null,
+  entriesProperties: string[],
+  paramsProperties: string[],
+  fields: LogFieldsResponseProps,
+  interfaceIdOrName?: string | null,
+) {
+  const queryClient = useQueryClient();
+
+  // Get tab meta information using the useTabMeta hook
+  const { tabId }   = useTabMeta(tabIdOrName, interfaceIdOrName || null);
+  const { meta: tileMetaState } = useTileMeta(tileIdOrName, tabIdOrName || null);
+  const { data: tileDataState } = useTileData(tileIdOrName, tabIdOrName || null);
+
+  const availableFields = useMemo(() => buildAvailableFieldsForTile(
+    tileDataState?.column_context ?? "",
+    fields,
+    entriesProperties,
+    paramsProperties
+  ), [tileDataState?.column_context, fields, entriesProperties, paramsProperties]);
+
+  const tileName = tileMetaState?.name;
+  
+  useEffect(() => {
+    if (!tabId || !tileName) return;
+
+    console.log("[useUpdateAvailableFieldsForTableArgumentsQuery] availableFields", availableFields);
+
+    queryClient.setQueryData<TableArguments>(
+      ["tableArguments", tabId],
+      (prev = {} as TableArguments) => ({
+        ...prev,
+        [tileName]: {
+          ...prev[tileName],
+          available_fields: availableFields,
+        },
+      }),
+    );
+  }, [availableFields, tabId, tileName]);
 }
 
 /**

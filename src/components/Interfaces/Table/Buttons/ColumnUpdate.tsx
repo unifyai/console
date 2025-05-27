@@ -52,8 +52,8 @@ const ColumnUpdate = ({
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
-            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields)}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields)                   // Add all columns of current table
+            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields ?? {})}))  // Add all displayed tables
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields ?? {})                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -122,7 +122,7 @@ const ColumnUpdate = ({
     const warning = (error: string) => 
                     <p className="flex justify-start text-sm text-destructive">{error}</p>
     const submit =  <div className="flex justify-end">
-                        <SubmitButton text="Apply" onClick={() => onSubmit()}/>
+                        <SubmitButton text="Apply" onClick={() => onSubmit()} icon={updateLoading && <LoaderCircle className="animate-spin text-white"/>}/>
                     </div>
 
     const icon = updateLoading ? <LoaderCircle className="animate-spin text-primary"/> : <TbMathFunction/>

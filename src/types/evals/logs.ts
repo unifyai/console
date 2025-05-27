@@ -99,8 +99,8 @@ export interface getLogsParameters {
 
 export interface TableArguments {
     [table_name: string]: {
-        available_fields: LogFieldsResponseProps 
-        getLogs_parameters: getLogsParameters
+        getLogs_parameters: getLogsParameters,
+        available_fields?: LogFieldsResponseProps 
     }
 }
 
