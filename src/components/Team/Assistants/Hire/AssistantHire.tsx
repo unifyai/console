@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions } from '@/types/te
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { LayoutList, Loader2, Shuffle, AlertTriangle } from 'lucide-react';
+import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info } from 'lucide-react'; // Added Info
 import { PresetsPanelProps } from '@/components/Team/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Team/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -13,23 +13,27 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/UI/popover";
+import { ApprovalStatus } from '@/types/user';
 
 const ASSISTANT_ONBOARDING_FEE = 10;
 
 interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
     isHireDialogOpen: boolean;
-    isHireSubmitting: boolean; // Actual form data submission state
+    isHireSubmitting: boolean; 
     setIsHireDialogOpen: (value: React.SetStateAction<boolean>) => void;
     isAssistantPresetsOpen: boolean;
     setIsAssistantPresetsOpen: (value: React.SetStateAction<boolean>) => void;
     handleRandomizePreset: () => void;
     currentFilteredPresets: AssistantPreset[];
-    onHireAttempt: () => Promise<void>; // The function from useAssistantHireForm that starts the whole sequence
+    onHireAttempt: () => Promise<void>; 
     children: React.ReactNode;
     isProcessingVoice?: boolean;
-    isCheckingBalance: boolean; // From useAssistantHireForm
-    showInsufficientFundsHint: boolean; // From useAssistantHireForm
-    setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>; // From useAssistantHireForm
+    isCheckingBalance: boolean; 
+    showInsufficientFundsHint: boolean; 
+    setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>; 
+    userApprovalStatus: ApprovalStatus | 'loading'; 
+    isLoadingUserApproval: boolean; 
+    onRequestAccess: () => Promise<boolean | void>;
 }
 
 export function AssistantHire ({
@@ -46,15 +50,19 @@ export function AssistantHire ({
     isCheckingBalance,
     showInsufficientFundsHint,
     setShowInsufficientFundsHint,
+    userApprovalStatus,
+    isLoadingUserApproval, 
+    onRequestAccess,
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
 
-    const isButtonDisabledForPrimaryActions = isHireSubmitting || !!isProcessingVoice;
-    const isDialogOverallBusy = isButtonDisabledForPrimaryActions || isCheckingBalance;
+    const isUserApproved = userApprovalStatus === "approved";
+    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval;
+    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval;
 
 
     const handleDialogClose = (open: boolean) => {
-        if (!isDialogOverallBusy) {
+        if (!isOverallDialogBusy) {
             setIsHireDialogOpen(open);
             if (!open) {
                 setShowInsufficientFundsHint(false); 
@@ -63,10 +71,9 @@ export function AssistantHire ({
     };
 
     const handleDialogInteractOutside = (e: Event) => {
-        if (isDialogOverallBusy) {
+        if (isOverallDialogBusy) {
             e.preventDefault();
         }
-        // Allow interaction with Popover content without closing the Dialog
         const target = e.target as HTMLElement;
         if (target.closest('[data-radix-popover-content]')) {
              e.preventDefault();
@@ -74,11 +81,45 @@ export function AssistantHire ({
     };
     
     const hireButtonLabel = () => {
+        if (isLoadingUserApproval && userApprovalStatus === 'loading') return "Checking Access...";
+        if (isLoadingUserApproval) return "Processing..."; 
         if (isCheckingBalance) return "Checking Balance...";
         if (isHireSubmitting) return "Hiring..."; 
         if (isProcessingVoice) return "Processing Voice...";
         return "Hire Assistant";
     };
+
+    const renderAccessMessage = () => {
+        let message = "";
+        let showRequestButton = false;
+        let icon = <Info className="h-12 w-12 text-primary mb-4" />;
+
+        if (userApprovalStatus === "pending") {
+            message = "We're reviewing your request for assistant hiring and will get back to you soon!";
+            icon = <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />;
+        } else { // null, "rejected", "revoked"
+            message = "Hiring assistants is currently in Beta. Feel free to request access below!";
+            icon = <Lock className="h-12 w-12 text-primary mb-4" />;
+            showRequestButton = true;
+        }
+
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-0">
+                {icon}
+                <h3 className="text-xl font-semibold mb-3">
+                    {userApprovalStatus === "pending" ? "Request Pending" : "Access Required"}
+                </h3>
+                <p className="text-muted-foreground mb-6">{message}</p>
+                {showRequestButton && (
+                    <Button onClick={onRequestAccess} disabled={isLoadingUserApproval}>
+                        {isLoadingUserApproval ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Request Access
+                    </Button>
+                )}
+            </div>
+        );
+    };
+
 
     return (
         <Dialog 
@@ -86,10 +127,13 @@ export function AssistantHire ({
             onOpenChange={handleDialogClose}
         >
             <DialogContent 
-                className={cn("max-w-4xl h-[85vh] flex flex-col p-0 gap-0", isAssistantPresetsOpen && "max-w-6xl")} 
-                onInteractOutside={handleDialogInteractOutside} // Handles clicks outside Dialog, but potentially on Popover
-                onPointerDownOutside={(e) => { // Radix specific for pointer down outside
-                    if (isDialogOverallBusy) e.preventDefault();
+                className={cn(
+                    "max-w-4xl h-[85vh] flex flex-col p-0 gap-0", 
+                    isAssistantPresetsOpen && isUserApproved && "max-w-6xl"
+                )} 
+                onInteractOutside={handleDialogInteractOutside}
+                onPointerDownOutside={(e) => { 
+                    if (isOverallDialogBusy) e.preventDefault();
                     const target = e.target as HTMLElement;
                     if (target.closest('[data-radix-popover-content]')) {
                          e.preventDefault();
@@ -98,53 +142,67 @@ export function AssistantHire ({
             >
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
                     <DialogTitle>Hire Assistant</DialogTitle>
-                    <DialogDescription>Hire an existing assistant or create your own.</DialogDescription>
+                    <DialogDescription>
+                        {isUserApproved ? "Hire an existing assistant or create your own." : "Request access to hire new assistants."}
+                    </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-1 min-h-0 overflow-hidden">
-                    {/* Hire Form Section */}
-                    <div className={cn("flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out", "pl-6 pr-14 py-4 overflow-y-auto")}>
-                        <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
-                            <TooltipProvider delayDuration={100}>
-                                <Tooltip><TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isDialogOverallBusy}>
-                                        <LayoutList className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent></Tooltip>
-                            </TooltipProvider>
-                            <TooltipProvider delayDuration={100}>
-                                <Tooltip><TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" className="w-8 h-8" onClick={handleRandomizePreset} disabled={isDialogOverallBusy || currentFilteredPresets.length === 0}>
-                                        <Shuffle className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{"Randomize from Presets"}</p></TooltipContent></Tooltip>
-                            </TooltipProvider>
-                        </div>
-                        {hireForm}
+                {userApprovalStatus === 'loading' ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-0">
+                        <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
+                        <p className="text-muted-foreground">Checking your access status...</p>
                     </div>
+                ) : !isUserApproved ? (
+                    renderAccessMessage()
+                ) : (
+                    <div className="flex flex-1 min-h-0 overflow-hidden"> 
+                        {/* Hire Form Section */}
+                        <div className={cn(
+                            "flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out", 
+                            "pl-6 pr-14 py-4 overflow-y-auto"
+                        )}>
+                            <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip><TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon" className="w-8 h-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isOverallDialogBusy}>
+                                            <LayoutList className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent></Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip><TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon" className="w-8 h-8" onClick={handleRandomizePreset} disabled={isOverallDialogBusy || currentFilteredPresets.length === 0}>
+                                            <Shuffle className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{"Randomize from Presets"}</p></TooltipContent></Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            {hireForm}
+                        </div>
 
-                    {/* Presets Panel Section */}
-                    {isAssistantPresetsOpen && (
-                        <motion.div
-                            key="hire-presets-panel"
-                            initial={{ width: "0%", opacity: 0 }}
-                            animate={{ width: "40%", opacity: 1 }}
-                            exit={{ width: "0%", opacity: 0 }}
-                            transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
-                            className="h-full flex-shrink-0 overflow-hidden bg-background"
-                        >
-                            {presetsPanel}
-                        </motion.div>
-                    )}
-                </div>
+                        {/* Presets Panel Section */}
+                        {isAssistantPresetsOpen && (
+                            <motion.div
+                                key="hire-presets-panel"
+                                initial={{ width: "0%", opacity: 0 }}
+                                animate={{ width: "40%", opacity: 1 }}
+                                exit={{ width: "0%", opacity: 0 }}
+                                transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+                                className="h-full flex-shrink-0 overflow-hidden bg-background"
+                            >
+                                {presetsPanel}
+                            </motion.div>
+                        )}
+                    </div>
+                )}
 
                 <DialogFooter className="px-6 py-3 border-t flex-shrink-0">
                     <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isDialogOverallBusy}>Cancel</Button>
+                        <Button type="button" variant="outline" disabled={isOverallDialogBusy}>Cancel</Button>
                     </DialogClose>
                     <Popover
-                        modal={true} // Make the Popover modal
-                        open={showInsufficientFundsHint}
+                        modal={true} 
+                        open={showInsufficientFundsHint && isUserApproved} 
                         onOpenChange={(isOpenByRadix) => {
                             if (!isOpenByRadix) {
                                 setShowInsufficientFundsHint(false);
@@ -156,43 +214,43 @@ export function AssistantHire ({
                                 type="button" 
                                 onClick={onHireAttempt} 
                                 className="bg-green-600 hover:bg-green-700 text-white" 
-                                disabled={isButtonDisabledForPrimaryActions} 
+                                disabled={isPrimaryActionDisabled}
                             >
-                                {(isCheckingBalance || isHireSubmitting || isProcessingVoice) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {hireButtonLabel()}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent 
-                            side="top" 
-                            align="end" 
-                            className="w-80"
-                            // When Popover is modal, direct interaction prevention on itself might not be needed
-                            // as Radix should handle it. Let's test without them first.
-                        >
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <div className="flex items-center">
-                                        <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-                                        <h3 className="font-medium leading-none text-destructive">Insufficient Funds</h3>
+                        {isUserApproved && ( 
+                            <PopoverContent 
+                                side="top" 
+                                align="end" 
+                                className="w-80"
+                            >
+                                <div className="grid gap-4">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center">
+                                            <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
+                                            <h3 className="font-medium leading-none text-destructive">Insufficient Funds</h3>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            Assistants have a ${ASSISTANT_ONBOARDING_FEE} onboarding fee. Please recharge your account.
+                                        </p>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        Assistants have a ${ASSISTANT_ONBOARDING_FEE} onboarding fee. Please recharge your account.
-                                    </p>
+                                    <Button 
+                                        variant="default" 
+                                        size="sm" 
+                                        className="w-full"
+                                        onClick={(e) => {
+                                            e.stopPropagation(); 
+                                            window.open('/billing', '_blank');
+                                            setShowInsufficientFundsHint(false);
+                                        }}
+                                    >
+                                        Go to Billing
+                                    </Button>
                                 </div>
-                                <Button 
-                                    variant="default" 
-                                    size="sm" 
-                                    className="w-full"
-                                    onClick={(e) => {
-                                        e.stopPropagation(); // Still good practice
-                                        window.open('/billing', '_blank');
-                                        setShowInsufficientFundsHint(false);
-                                    }}
-                                >
-                                    Go to Billing
-                                </Button>
-                            </div>
-                        </PopoverContent>
+                            </PopoverContent>
+                        )}
                     </Popover>
                 </DialogFooter>
             </DialogContent>

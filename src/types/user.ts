@@ -1,3 +1,5 @@
+import { ResponseProps } from "./common";
+
 export interface Session {
 	user: {
 		id: string;
@@ -23,6 +25,8 @@ export interface User {
 		name: string;
 		level: string;
 	}
+	assistant_hiring_approval: ApprovalStatus,
+	has_claimed_approval_link: string
 }
 
 export interface UserUpdateRequest {
@@ -39,3 +43,16 @@ export type BalanceDetails = {
 	nextPayment: number | null;
 	minCutoff: number | null;
 };
+
+// Assistant hiring approval interfaces
+export type ApprovalStatus = "approved" | "pending" | "rejected" | "revoked" | null;
+
+export interface HiringProfileData {
+    assistant_hiring_approval: string | null;
+    has_claimed_approval_link: boolean;
+}
+
+export interface AssistantHiringApprovalResponse extends ResponseProps {
+	message: string;
+	assistant_hiring_approval?: string | null;
+}

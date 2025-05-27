@@ -11,8 +11,9 @@ import { ActivityLogActions } from "@/types/team/activity";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { getMessages } from "@/lib/team/activity";
+import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/team/approval";
 
-const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
+const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
     const user = await getCurrentUser();
     if (!user) {
         signOut();
@@ -39,12 +40,18 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
             createVoiceInOrchestra: await createVoiceInOrchestra(apiKey),
             deleteVoiceFromOrchestra: await deleteVoiceFromOrchestra(apiKey),
             // Cartesia Operations (via Frontend Proxies)
-            cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey), // apiKey for proxy auth
+            cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey),
             localizeVoiceOnCartesia: await localizeVoiceOnCartesia(apiKey),
             deleteVoiceFromCartesia: await deleteVoiceFromCartesia(apiKey),
         },
         "contact": {
             listAllAssistantEmails: await listAllAssistantEmails(apiKey),
+        },
+        "approval": {
+            getProfile: await fetchCurrentUserHiringProfile(),
+            claimToken: await claimAssistantHiringToken(apiKey),
+            requestAccess: await requestAssistantHiringAccess(apiKey)
+            
         }
     }
     
@@ -59,7 +66,12 @@ const TeamPage = async ({ searchParams }: { searchParams: { } }) => {
 
     return (
         <div className="w-full h-full">
-            <Main assistantActions={assistantActions} taskActions={taskActions} activityLogActions={activityLogActions} />
+            <Main 
+                assistantActions={assistantActions} 
+                taskActions={taskActions} 
+                activityLogActions={activityLogActions}
+                oneTimeToken={searchParams?.token}
+            />
         </div>
     );
 };

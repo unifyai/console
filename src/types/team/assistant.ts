@@ -1,5 +1,6 @@
 import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage, Gender } from "@cartesia/cartesia-js/api";
+import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 
 // Assistant profile types
 export interface Assistant {
@@ -81,5 +82,10 @@ export interface AssistantActions {
   },
   "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
+  },
+  "approval": {
+    getProfile: () => Promise<HiringProfileData | ResponseProps>
+    requestAccess: () => Promise<AssistantHiringApprovalResponse>;
+    claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
   }
 }

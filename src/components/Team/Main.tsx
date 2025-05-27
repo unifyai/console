@@ -23,6 +23,7 @@ import { useAssistantPresets } from '@/hooks/Team/useAssistantPresets';
 import { useAssistantHireForm } from '@/hooks/Team/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Team/usePanelManager';
 import { useActivityLogs } from '@/hooks/Team/useActivityLogs';
+import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringApproval';
 
 // Constants
 import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
@@ -31,9 +32,15 @@ interface MainProps {
     taskActions: TaskActions;
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
+    oneTimeToken?: string | null;
 }
 
-export default function Main({ taskActions, assistantActions, activityLogActions }: MainProps) {
+export default function Main({ 
+    taskActions, 
+    assistantActions, 
+    activityLogActions,
+    oneTimeToken,
+}: MainProps) {
     // --- UI Panel Management ---
     const {
         profileAssistantId, isProfileOpen,
@@ -84,6 +91,18 @@ export default function Main({ taskActions, assistantActions, activityLogActions
         return ['all', ...Object.values(TaskStatusEnum)];
     }, []);
 
+    // --- Assistant Hiring Approval ---
+    const {
+        approvalStatus: userHiringApprovalStatus,
+        isLoading: isLoadingHiringApproval,
+        isProcessingAction: isProcessingHiringAction,
+        requestAccess: requestHiringAccess,
+        refreshHiringProfile,
+    } = useAssistantHiringApproval({
+        approvalActions: assistantActions["approval"],
+        tokenToClaimOnLoad: oneTimeToken,
+    });
+
 
     // --- Hire Assistant Dialog & Form ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
@@ -103,7 +122,8 @@ export default function Main({ taskActions, assistantActions, activityLogActions
         refreshAssistants(false);
         setIsHireDialogOpen(false);
         handleShowProfile(newAssistant.agent_id);
-    }, [refreshAssistants, handleShowProfile]);
+        refreshHiringProfile();
+    }, [refreshAssistants, handleShowProfile, refreshHiringProfile]);
 
     const {
         hireFormMethods,
@@ -121,20 +141,22 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
-        resetHireFormInternal();
-        setIsAssistantPresetsOpen(true);
-        setPresetAgeFilter('all');
-        setPresetRegionFilter('all');
-        setPresetGenderFilter('all');
-        setIsDialogBusyProcessingVoice(false); 
-
-        const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (assistantPresetsConstant as AssistantPreset[]);
-        if (presetsToUse.length > 0) {
-            const randomIndex = Math.floor(Math.random() * presetsToUse.length);
-            selectPresetForHireForm(presetsToUse[randomIndex]);
-        }
-        setIsHireDialogOpen(true); 
-    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter]);
+        refreshHiringProfile().then(() => {
+            resetHireFormInternal();
+            setIsAssistantPresetsOpen(true);
+            setPresetAgeFilter('all');
+            setPresetRegionFilter('all');
+            setPresetGenderFilter('all');
+            setIsDialogBusyProcessingVoice(false); 
+    
+            const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (assistantPresetsConstant as AssistantPreset[]);
+            if (presetsToUse.length > 0) {
+                const randomIndex = Math.floor(Math.random() * presetsToUse.length);
+                selectPresetForHireForm(presetsToUse[randomIndex]);
+            }
+            setIsHireDialogOpen(true); 
+        });
+    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, refreshHiringProfile]);
 
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
@@ -166,13 +188,16 @@ export default function Main({ taskActions, assistantActions, activityLogActions
     // --- Effects ---
     const initialAssistantLoadProcessedRef = React.useRef(false);
     React.useEffect(() => {
-        if (!isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
+        if (userHiringApprovalStatus === "approved" && !isLoadingAssistants && !initialAssistantLoadProcessedRef.current) {
             initialAssistantLoadProcessedRef.current = true;
-            if (!assistantError && assistants.length === 0 && !isLoadingEmails) { 
+            if (!assistantError && assistants.length === 0 && !isLoadingEmails && !isHireDialogOpen) { 
                 handleOpenHireDialog();
             }
         }
-    }, [assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails]);
+    }, [
+        assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails,
+        userHiringApprovalStatus, isHireDialogOpen
+    ]);
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
@@ -293,6 +318,9 @@ export default function Main({ taskActions, assistantActions, activityLogActions
                 isCheckingBalance={isCheckingBalance}
                 showInsufficientFundsHint={showInsufficientFundsHint}
                 setShowInsufficientFundsHint={setShowInsufficientFundsHint}
+                userApprovalStatus={userHiringApprovalStatus}
+                isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
+                onRequestAccess={requestHiringAccess}
             >
                 <HireForm
                     formMethods={hireFormMethods}
