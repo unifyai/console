@@ -13,7 +13,6 @@ import { useUserApprovals } from "@/hooks/Admin/useUserApprovals";
 import { useOneTimeApprovalLink } from "@/hooks/Admin/useOneTimeApprovalLink";
 import { useOneTimeApprovalLinksManager } from "@/hooks/Admin/useOneTimeApprovalLinksManager";
 import { AdminApprovalActions } from '@/types/admin';
-import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface MainProps {
     adminApprovalActions: AdminApprovalActions
@@ -26,13 +25,14 @@ export default function Main({
     const {
         users,
         isLoading: isLoadingUsers,
+        isLoadingMore: isLoadingMoreUsers,
+        hasMore: hasMoreUsers,
         error: usersError,
         statusFilter,
         setStatusFilter,
-        searchTerm,
-        setSearchTerm,
         updateUserStatus,
         refreshUsers,
+        loadMoreUsers,
     } = useUserApprovals(adminApprovalActions);
 
     const {
@@ -43,9 +43,12 @@ export default function Main({
     const {
         links: oneTimeLinks,
         isLoading: isLoadingOneTimeLinks,
+        isLoadingMore: isLoadingMoreOneTimeLinks,
+        hasMore: hasMoreOneTimeLinks,
         error: oneTimeLinksError,
-        fetchLinks: refreshOneTimeLinks,
+        refreshLinks,
         deleteLink: deleteOneTimeLinkAction,
+        loadMoreLinks,
     } = useOneTimeApprovalLinksManager(adminApprovalActions);
 
 
@@ -60,47 +63,49 @@ export default function Main({
 
             <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
                 {/* Left Column: User Approvals */}
-                <section className="bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden">
+                <section className="bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden h-full">
                     <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                         <h2 className="text-xl font-semibold">User Hiring Approvals</h2>
-                        <Button variant="outline" onClick={refreshUsers} disabled={isLoadingUsers}>
-                            <RefreshCw className={`h-4 w-4 ml-2 ${isLoadingUsers ? 'animate-spin' : ''}`} />
-                            <span className="mr-2 sm:inline hidden">Refresh Users</span>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <UserApprovalFilters
+                                statusFilter={statusFilter}
+                                setStatusFilter={setStatusFilter}
+                                disabled={isLoadingUsers || isLoadingMoreUsers}
+                            />
+                            <Button variant="outline" onClick={refreshUsers} disabled={isLoadingUsers || isLoadingMoreUsers}>
+                                <RefreshCw className={`h-4 w-4 ${isLoadingUsers && !isLoadingMoreUsers ? 'animate-spin' : ''}`} />
+                                <span className="ml-2 sm:inline hidden">Refresh</span>
+                            </Button>
+                        </div>
                     </div>
-                    <UserApprovalFilters
-                        statusFilter={statusFilter}
-                        setStatusFilter={setStatusFilter}
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
-                        disabled={isLoadingUsers}
-                    />
-                    {usersError && (
+                    
+                    {usersError && !isLoadingUsers && (
                         <Alert variant="destructive" className="m-4">
                             <Terminal className="h-4 w-4" />
                             <AlertTitle>Error Loading Users</AlertTitle>
                             <AlertDescription>{usersError}</AlertDescription>
                         </Alert>
                     )}
-                    <ScrollArea className="flex-1 min-h-0">
-                         <div className="p-4">
-                            <UserApprovalTable
-                                users={users}
-                                onUpdateStatus={updateUserStatus}
-                                isLoading={isLoadingUsers}
-                            />
-                        </div>
-                    </ScrollArea>
+                    <div className="flex-1 min-h-0 p-4"> {/* Container for TableVirtuoso height */}
+                        <UserApprovalTable
+                            users={users}
+                            onUpdateStatus={updateUserStatus}
+                            isLoading={isLoadingUsers && users.length === 0} // For initial skeleton
+                            isLoadingMore={isLoadingMoreUsers}
+                            hasMore={hasMoreUsers}
+                            loadMoreUsers={loadMoreUsers}
+                        />
+                    </div>
                 </section>
 
                 {/* Right Column: One-Time Links */}
-                <section className="bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden">
+                <section className="bg-card rounded-lg border shadow-sm flex flex-col overflow-hidden h-full">
                     <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                         <h2 className="text-xl font-semibold">One-Time Approval Links</h2>
                         <div className="flex gap-2">
-                             <Button variant="outline" onClick={refreshOneTimeLinks} disabled={isLoadingOneTimeLinks}>
-                                <RefreshCw className={`h-4 w-4 ml-2 ${isLoadingOneTimeLinks ? 'animate-spin' : ''}`} />
-                                <span className="mr-2 sm:inline hidden">Refresh Links</span>
+                             <Button variant="outline" onClick={refreshLinks} disabled={isLoadingOneTimeLinks || isLoadingMoreOneTimeLinks}>
+                                <RefreshCw className={`h-4 w-4 ${isLoadingOneTimeLinks && !isLoadingMoreOneTimeLinks ? 'animate-spin' : ''}`} />
+                                <span className="ml-2 sm:inline hidden">Refresh</span>
                             </Button>
                             <GenerateOneTimeLinkButton
                                 onGenerateLink={generateLink}
@@ -108,23 +113,24 @@ export default function Main({
                             />
                         </div>
                     </div>
-                    {oneTimeLinksError && (
+                    {oneTimeLinksError && !isLoadingOneTimeLinks && (
                         <Alert variant="destructive" className="m-4">
                             <Terminal className="h-4 w-4" />
                             <AlertTitle>Error Loading Links</AlertTitle>
                             <AlertDescription>{oneTimeLinksError}</AlertDescription>
                         </Alert>
                     )}
-                     <ScrollArea className="flex-1 min-h-0">
-                         <div className="p-4">
-                            <OneTimeLinkTable
-                                links={oneTimeLinks}
-                                onDeleteLink={deleteOneTimeLinkAction}
-                                isLoading={isLoadingOneTimeLinks}
-                                onRefreshLinks={refreshOneTimeLinks}
-                            />
-                        </div>
-                    </ScrollArea>
+                    <div className="flex-1 min-h-0 p-4">  {/* Container for TableVirtuoso height */}
+                        <OneTimeLinkTable
+                            links={oneTimeLinks}
+                            onDeleteLink={deleteOneTimeLinkAction}
+                            isLoading={isLoadingOneTimeLinks && oneTimeLinks.length === 0} // For initial skeleton
+                            isLoadingMore={isLoadingMoreOneTimeLinks}
+                            hasMore={hasMoreOneTimeLinks}
+                            loadMoreLinks={loadMoreLinks}
+                            onRefreshLinks={refreshLinks}
+                        />
+                    </div>
                 </section>
             </div>
         </div>

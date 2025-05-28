@@ -1,5 +1,7 @@
 import { ResponseProps } from "./common";
 
+export const ADMIN_TABLE_PAGE_SIZE = 30;
+
 export interface UserApprovalEntry {
   id: string;
   email: string;
@@ -23,8 +25,7 @@ export interface OneTimeLinkEntry { // Used for listing links
   expires_at: string; // ISO date string
   claimed_at?: string | null;
   user_id?: string | null;
-  // Potentially add user_email if backend can provide it for claimed links
-  claimed_by_email?: string | null; 
+  claimed_by_email?: string | null; // Added for displaying email
 }
 
 
@@ -42,15 +43,15 @@ export const ASSISTANT_HIRING_APPROVAL_DISPLAY: Record<AssistantHiringApprovalAc
     [ASSISTANT_HIRING_APPROVAL_ACTIONS.REJECT]: "Rejected",
     [ASSISTANT_HIRING_APPROVAL_ACTIONS.PENDING]: "Pending",
     [ASSISTANT_HIRING_APPROVAL_ACTIONS.REVOKE]: "Revoked",
-    "none": "None",
+    "none": "None (Not Set)",
     "all": "All Statuses"
 };
 
 export interface AdminApprovalActions {
-  listUsers: (statusFilter?: string | null) => Promise<UserApprovalEntry[] | ResponseProps>;
+  listUsers: (statusFilter: string | null, limit: number, offset: number) => Promise<UserApprovalEntry[] | ResponseProps>;
   updateUserStatus: (userId: string, status: string) => Promise<ResponseProps>;
   
   generateOneTimeLink: (expiresInDays?: number) => Promise<OneTimeLinkResponse | ResponseProps>;
-  listOneTimeLinks: (limit?: number, offset?: number) => Promise<OneTimeLinkEntry[] | ResponseProps>;
+  listOneTimeLinks: (limit: number, offset: number) => Promise<OneTimeLinkEntry[] | ResponseProps>;
   deleteOneTimeLink: (linkId: string) => Promise<ResponseProps>;
 }

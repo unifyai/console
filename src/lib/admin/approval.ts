@@ -1,8 +1,8 @@
 import { ResponseProps } from "@/types/common";
-import { UserApprovalEntry, OneTimeLinkResponse, OneTimeLinkEntry } from "@/types/admin";
+import { UserApprovalEntry, OneTimeLinkResponse, OneTimeLinkEntry, ADMIN_TABLE_PAGE_SIZE } from "@/types/admin";
 
 export const listUsersForApproval = async () => {
-    return async (statusFilter?: string | null): Promise<UserApprovalEntry[] | ResponseProps> => {
+    return async (statusFilter: string | null, limit: number = ADMIN_TABLE_PAGE_SIZE, offset: number = 0): Promise<UserApprovalEntry[] | ResponseProps> => {
         "use server";
 
         try {
@@ -11,12 +11,14 @@ export const listUsersForApproval = async () => {
             if (statusFilter && statusFilter !== "all") {
                 queryParams.append("status_filter", statusFilter);
             }
+            queryParams.append("limit", String(limit));
+            queryParams.append("offset", String(offset));
 
             const queryString = queryParams.toString();
             if (queryString) {
                 url += `?${queryString}`;
             }
-
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}${url}`, {
                 method: "GET",
                 headers: { 
@@ -87,7 +89,7 @@ export const generateOneTimeApprovalLink = async () => {
 }
 
 export const listOneTimeApprovalLinks = async () => {
-    return async (limit: number = 100, offset: number = 0): Promise<OneTimeLinkEntry[] | ResponseProps> => {
+    return async (limit: number = ADMIN_TABLE_PAGE_SIZE, offset: number = 0): Promise<OneTimeLinkEntry[] | ResponseProps> => {
         "use server";
         try {
             const queryParams = new URLSearchParams({
@@ -126,7 +128,8 @@ export const deleteOneTimeApprovalLink = async () => {
                 const data = await response.json().catch(() => ({ detail: `Failed to delete link: ${response.statusText}` }));
                 return { detail: data.detail || `Failed to delete link: ${response.statusText}` };
             }
-            return { info: "Link deleted successfully." }; // Should be 204, but handle if backend sends 200
+            const data = await response.json().catch(() => null);
+            return { info: data?.message || "Link deleted successfully." }; 
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error deleting link.";
             return { detail: message };

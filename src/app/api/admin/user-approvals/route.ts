@@ -10,13 +10,18 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get("status_filter");
+    const limit = searchParams.get("limit") || "30"; // Default limit
+    const offset = searchParams.get("offset") || "0"; // Default offset
+
 
     let backendUrl = `${ORCHESTRA_BASE_URL}/v0/admin/auth-user/assistant-hiring-approval`;
     const backendParams = new URLSearchParams();
 
-    if (statusFilter) {
+    if (statusFilter && statusFilter !== "all") { // "all" means no filter, "none" is a valid filter
         backendParams.append("status_filter", statusFilter);
     }
+    backendParams.append("limit", limit);
+    backendParams.append("offset", offset);
     
     const backendQueryString = backendParams.toString();
     if (backendQueryString) {

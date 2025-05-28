@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions } from '@/types/te
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info } from 'lucide-react'; // Added Info
+import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info, Timer } from 'lucide-react'; // Added Info
 import { PresetsPanelProps } from '@/components/Team/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Team/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -96,7 +96,7 @@ export function AssistantHire ({
 
         if (userApprovalStatus === "pending") {
             message = "We're reviewing your request for assistant hiring and will get back to you soon!";
-            icon = <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />;
+            icon = <Timer className="h-12 w-12 text-primary mb-4" />;
         } else { // null, "rejected", "revoked"
             message = "Hiring assistants is currently in Beta. Feel free to request access below!";
             icon = <Lock className="h-12 w-12 text-primary mb-4" />;
