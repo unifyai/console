@@ -71,7 +71,7 @@ export default function Main({
                             />
                             <Button variant="outline" onClick={refreshUsers} disabled={isLoadingUsers || isLoadingMoreUsers}>
                                 <RefreshCw className={`h-4 w-4 ${isLoadingUsers && !isLoadingMoreUsers ? 'animate-spin' : ''}`} />
-                                <span className="ml-2 sm:inline hidden">Refresh</span>
+                                <span className="ml-2 sm:inline hidden">Refresh Users</span>
                             </Button>
                         </div>
                     </div>
@@ -100,14 +100,14 @@ export default function Main({
                     <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                         <h2 className="text-xl font-semibold">One-Time Approval Links</h2>
                         <div className="flex gap-2">
-                             <Button variant="outline" onClick={refreshLinksList} disabled={isLoadingLinks || isLoadingMoreLinks}>
-                                <RefreshCw className={`h-4 w-4 ${isLoadingLinks && !isLoadingMoreLinks ? 'animate-spin' : ''}`} />
-                                <span className="ml-2 sm:inline hidden">Refresh</span>
-                            </Button>
                             <GenerateOneTimeLinkButton
                                 onGenerateLink={generateNewLink}
                                 isLoading={isGeneratingLink}
                             />
+                             <Button variant="outline" onClick={refreshLinksList} disabled={isLoadingLinks || isLoadingMoreLinks}>
+                                <RefreshCw className={`h-4 w-4 ${isLoadingLinks && !isLoadingMoreLinks ? 'animate-spin' : ''}`} />
+                                <span className="ml-2 sm:inline hidden">Refresh Links</span>
+                            </Button>
                         </div>
                     </div>
                     {linksError && !isLoadingLinks && (

@@ -70,7 +70,7 @@ export function GenerateOneTimeLinkButton({ onGenerateLink, isLoading }: Generat
             </DialogTrigger>
             <DialogContent className="sm:max-w-[480px]">
                 <DialogHeader>
-                    <DialogTitle>Generate One-Time Approval Link</DialogTitle>
+                    <DialogTitle>Generate Link</DialogTitle>
                     <DialogDescription>
                         Create a unique link that users can click to get automatically approved for assistant hiring.
                         The link will grant credits for one assistant.
