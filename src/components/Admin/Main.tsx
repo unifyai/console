@@ -10,8 +10,7 @@ import { Button } from "@/components/UI/button";
 import { Terminal, RefreshCw } from "lucide-react";
 import { Toaster } from "sonner";
 import { useUserApprovals } from "@/hooks/Admin/useUserApprovals";
-import { useOneTimeApprovalLink } from "@/hooks/Admin/useOneTimeApprovalLink";
-import { useOneTimeApprovalLinksManager } from "@/hooks/Admin/useOneTimeApprovalLinksManager";
+import { useApprovalLinks } from '@/hooks/Admin/useApprovalLinks';
 import { AdminApprovalActions } from '@/types/admin';
 
 interface MainProps {
@@ -35,21 +34,19 @@ export default function Main({
         loadMoreUsers,
     } = useUserApprovals(adminApprovalActions);
 
-    const {
-        isLoading: isLoadingLinkGeneration,
-        generateLink,
-    } = useOneTimeApprovalLink(adminApprovalActions);
 
     const {
-        links: oneTimeLinks,
-        isLoading: isLoadingOneTimeLinks,
-        isLoadingMore: isLoadingMoreOneTimeLinks,
-        hasMore: hasMoreOneTimeLinks,
-        error: oneTimeLinksError,
-        refreshLinks,
-        deleteLink: deleteOneTimeLinkAction,
-        loadMoreLinks,
-    } = useOneTimeApprovalLinksManager(adminApprovalActions);
+        isGeneratingLink,
+        generateNewLink,
+        links,
+        isLoadingLinks,
+        isLoadingMoreLinks,
+        hasMoreLinks,
+        linksError,
+        refreshLinksList,
+        deleteLink,
+        loadMoreLinksToList,
+    } = useApprovalLinks(adminApprovalActions);
 
 
     return (
@@ -103,32 +100,32 @@ export default function Main({
                     <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                         <h2 className="text-xl font-semibold">One-Time Approval Links</h2>
                         <div className="flex gap-2">
-                             <Button variant="outline" onClick={refreshLinks} disabled={isLoadingOneTimeLinks || isLoadingMoreOneTimeLinks}>
-                                <RefreshCw className={`h-4 w-4 ${isLoadingOneTimeLinks && !isLoadingMoreOneTimeLinks ? 'animate-spin' : ''}`} />
+                             <Button variant="outline" onClick={refreshLinksList} disabled={isLoadingLinks || isLoadingMoreLinks}>
+                                <RefreshCw className={`h-4 w-4 ${isLoadingLinks && !isLoadingMoreLinks ? 'animate-spin' : ''}`} />
                                 <span className="ml-2 sm:inline hidden">Refresh</span>
                             </Button>
                             <GenerateOneTimeLinkButton
-                                onGenerateLink={generateLink}
-                                isLoading={isLoadingLinkGeneration}
+                                onGenerateLink={generateNewLink}
+                                isLoading={isGeneratingLink}
                             />
                         </div>
                     </div>
-                    {oneTimeLinksError && !isLoadingOneTimeLinks && (
+                    {linksError && !isLoadingLinks && (
                         <Alert variant="destructive" className="m-4">
                             <Terminal className="h-4 w-4" />
                             <AlertTitle>Error Loading Links</AlertTitle>
-                            <AlertDescription>{oneTimeLinksError}</AlertDescription>
+                            <AlertDescription>{linksError}</AlertDescription>
                         </Alert>
                     )}
                     <div className="flex-1 min-h-0 p-4">  {/* Container for TableVirtuoso height */}
                         <OneTimeLinkTable
-                            links={oneTimeLinks}
-                            onDeleteLink={deleteOneTimeLinkAction}
-                            isLoading={isLoadingOneTimeLinks && oneTimeLinks.length === 0} // For initial skeleton
-                            isLoadingMore={isLoadingMoreOneTimeLinks}
-                            hasMore={hasMoreOneTimeLinks}
-                            loadMoreLinks={loadMoreLinks}
-                            onRefreshLinks={refreshLinks}
+                            links={links}
+                            onDeleteLink={deleteLink}
+                            isLoading={isLoadingLinks && links.length === 0}
+                            isLoadingMore={isLoadingMoreLinks}
+                            hasMore={hasMoreLinks}
+                            loadMoreLinks={loadMoreLinksToList}
+                            onRefreshLinks={refreshLinksList}
                         />
                     </div>
                 </section>
