@@ -89,7 +89,7 @@ export function usePlotAutoUpdateQuery(
     });
     
     // Build plot data item using the same logic as optimistic updates
-    return await buildPlotDataItem(
+    const plotDataItem = await buildPlotDataItem(
       plotTileData,
       tableTilesData,
       plotArguments,
@@ -97,6 +97,11 @@ export function usePlotAutoUpdateQuery(
       projectId,
       logsActions
     );
+
+    // Update the PlotDataItem in the cache
+    queryClient.setQueryData(['plotDataItem', tileId], plotDataItem);
+
+    return plotDataItem;
   };
   
   const query = useQuery<PlotDataItem>({
@@ -107,10 +112,10 @@ export function usePlotAutoUpdateQuery(
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,
     refetchOnReconnect: autoUpdate,
-    refetchOnMount: true,
+    refetchOnMount: false,
     staleTime: 0, // Always fetch fresh data
   });
-  
+    
   // Manual refresh function for refresh buttons
   const manualRefresh = () => query.refetch({ throwOnError: false });
   

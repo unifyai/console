@@ -181,6 +181,22 @@ const LogsTable = ({
     maybeFlattenGroupedLogs(logs)
   );
 
+    // Various table states from the item
+    const metric = item?.metric || "mean";
+    const logsFilters = item?.filters;
+    const commonFilter = item?.common_filter;
+  
+    const pageNumber = item?.page_number;
+    const sortingStr = item?.sorting;
+    const columnOrderStr = item?.column_order;
+    const hiddenColumns = item?.hidden_columns;
+    const groupingStr = item?.grouping;
+    const groupSortingStr = item?.group_sorting;
+    const columnsPinLeft = item?.columns_pin_left;
+    const columnsPinRight = item?.columns_pin_right;
+    const context = item?.context;
+    const columnContext = item?.column_context;
+
   // Column definitions
   const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
   const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
@@ -217,7 +233,8 @@ const LogsTable = ({
                 logsData,
                 true,
                 dataTypes,
-                fieldTypes
+                fieldTypes,
+                columnContext
               ),
               meta: {
                 columnType: "paramsHeader",
@@ -239,7 +256,8 @@ const LogsTable = ({
                 logsData,
                 false,
                 dataTypes,
-                fieldTypes
+                fieldTypes,
+                columnContext
               ),
               meta: {
                 columnType: "entriesHeader",
@@ -255,7 +273,8 @@ const LogsTable = ({
             logsData,
             false,
             dataTypes,
-            fieldTypes
+            fieldTypes,
+            columnContext
           )),
     ];
   }, [entriesTree, paramsTree, dataTypes, fieldTypes, logsData.params]);
@@ -264,21 +283,6 @@ const LogsTable = ({
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
   // Always assign depth = 0 for the meta column types as passed here
   encodeRenderedDepth(columns, ["util", "paramsHeader", "entriesHeader"]);
-
-  // Various table states from the item
-  const metric = item?.metric || "mean";
-  const logsFilters = item?.filters;
-  const commonFilter = item?.common_filter;
-
-  const pageNumber = item?.page_number;
-  const sortingStr = item?.sorting;
-  const columnOrderStr = item?.column_order;
-  const hiddenColumns = item?.hidden_columns;
-  const groupingStr = item?.grouping;
-  const groupSortingStr = item?.group_sorting;
-  const columnsPinLeft = item?.columns_pin_left;
-  const columnsPinRight = item?.columns_pin_right;
-  const context = item?.context;
 
   // Convert those strings → arrays/objects
   const columnIDs = useMemo(() => flattenColumnIDs(columns), [columns]);

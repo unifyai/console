@@ -1,11 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
 import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { usePlotTile, PlotActions } from "../usePlotTile";
 import { useTileUI } from "../useTileUI";
-import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "../useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";

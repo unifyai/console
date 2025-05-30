@@ -5,7 +5,6 @@ import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
 import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
 import { useEditorTile, EditorActions } from "../useEditorTile";
 import { useTileUI } from "../useTileUI";
-import { useTileRouterRefresh } from "@/contexts/hooks/tile/sync/useTileRouterRefresh";
 import { useTileMeta } from "../useTileMeta";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";

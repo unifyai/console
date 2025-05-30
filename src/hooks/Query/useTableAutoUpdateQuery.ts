@@ -93,13 +93,18 @@ export function useTableAutoUpdateQuery(
     );
 
     // Build table data item using the same logic as optimistic updates
-    return await fetchAndBuildTableDataItem(
+    const tableDataItem = await fetchAndBuildTableDataItem(
       tileData,
       fields,
       projectId,
       logsActions,
       prevLogs
     );
+
+    // Update the TableDataItem in the cache
+    queryClient.setQueryData(['tableDataItem', tileId], tableDataItem);
+
+    return tableDataItem;
   };
   
   const query = useQuery<TableDataItem>({
@@ -110,7 +115,7 @@ export function useTableAutoUpdateQuery(
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,
     refetchOnReconnect: autoUpdate,
-    refetchOnMount: true,
+    refetchOnMount: false,
     staleTime: 0, // Always fetch fresh data
   });
   

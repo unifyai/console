@@ -229,6 +229,8 @@ export interface TileData {
 
 export interface TableTileData {
     table_type?: string;
+    limit?: number;
+    offset?: number;
     page_number?: string;
     column_order?: string;
     hidden_columns?: string;

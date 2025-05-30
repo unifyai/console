@@ -107,6 +107,8 @@ function buildTableTileData(tableTileData: TableTileData): TableTile {
   return {
     table_type: tableTileData.table_type,
     page_number: tableTileData.page_number,
+    limit: 20, // Hardcoded for now
+    offset: tableTileData.page_number ? parseInt(tableTileData.page_number) * 20 : 0,  // Hardcoded for now
     column_order: tableTileData.column_order,
     hidden_columns: tableTileData.hidden_columns,
     sorting: tableTileData.sorting,

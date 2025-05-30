@@ -19,7 +19,7 @@ import { Table } from "@tanstack/react-table";
 import { ImageDisplay, isImage } from "./selection";
 import { formatNumber } from "../formatNumber";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "./format";
-import { sanitizeId } from "./columnOperations";
+import { processContext, sanitizeId } from "./columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 
 /* 
@@ -536,12 +536,13 @@ export const nestedColumns = (
 	data: LogsResponseProps,
 	enableRowSpan: boolean = false,
 	dataTypes: { [key: string]: string },
-	fieldTypes:{ [key: string]: string }
+	fieldTypes:{ [key: string]: string },
+	columnContext?: string,
 ): ColumnDef<LogProps | GroupedLogProps>[] => {
 	return nodes.map(node => {
 		// If this node has children (nested columns), recursively build columns
 		if (node.nodes) {
-			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes);
+			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes, columnContext);
 			return {
 				id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
 				header: node.name,
@@ -567,7 +568,11 @@ export const nestedColumns = (
 				}
 				// Safely extract the value from either entries or params
 				if (type === "entries") {
-					return (log as LogProps).entries?.[node.path];
+					const value = (log as LogProps).entries?.[node.path];
+					if (!value && columnContext) {
+						return (log as LogProps).entries?.[processContext("merge",columnContext, node.path)]
+					}
+					return value;
 				} else {
 					return (log as LogProps).params?.[node.path];
 					}

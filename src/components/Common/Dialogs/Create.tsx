@@ -69,7 +69,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
         ? null 
         : error 
             ?   <RetryButton onClick={() => setError(false)}/>
-            :   <SubmitButton disabled={loading} onClick={form.handleSubmit(onSubmit)}/>
+            :   <SubmitButton text="Create" disabled={loading} onClick={form.handleSubmit(onSubmit)}/>
     
     // Hotkey to trigger form submission when pressing enter
     // useKey("Enter", () => {

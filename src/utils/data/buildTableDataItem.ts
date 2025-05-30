@@ -123,8 +123,8 @@ export async function fetchAndBuildTableDataItem(
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Fetch logs data
-  const limit = 20;
-  const offset = tile.table_tile?.page_number ? parseInt(tile.table_tile.page_number) * limit : 0;
+  const limit = tile.table_tile?.limit ?? 20;
+  const offset = tile.table_tile?.offset ?? 0;
   
   const tGetLogs = performance.now();
   const logsData = await logsActions.get(
