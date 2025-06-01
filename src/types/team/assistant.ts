@@ -17,6 +17,7 @@ export interface Assistant {
   // Contact fields
   email: string | null;
   phone: string | null;
+  user_phone: string | null;
   whatsapp_sid?: string | null;
   // Contract fields
   weekly_limit: number | null;
@@ -29,16 +30,17 @@ export interface Assistant {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel'>
   & { gender?: 'male' | 'female'; voice_id: string };
 
 export type AssistantFormData =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
   & { 
-      email?: string; // Full email for display and validation, local part extracted for submission
-      emailManuallyEdited?: boolean; // To track if user edited the auto-generated email
+      email?: string; 
+      emailManuallyEdited?: boolean; 
       imageFile?: File | null;
       imagePreview?: string | null;
+      user_phone?: string | null;
       voice_id?: string;
       voice_name?: string;
       voice_description?: string;
@@ -61,7 +63,11 @@ export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
-    create: (first_name: string, surname: string, age: number | null, region: string | null, profile_photo: string | null, about: string | null, voice_id: string | null,email_local: string) => Promise<ResponseProps & { assistant?: Assistant }>;
+    create: (
+        first_name: string, surname: string, age: number | null, region: string | null, 
+        profile_photo: string | null, about: string | null, voice_id: string | null, 
+        email: string, user_phone: string | null
+    ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, about: string | null) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },

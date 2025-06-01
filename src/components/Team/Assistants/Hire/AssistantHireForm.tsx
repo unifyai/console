@@ -9,7 +9,7 @@ import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone } from 'lucide-react';
+import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
@@ -148,15 +148,15 @@ export function HireForm({
           {/* Contact Section */}
           <div className="space-y-2">
             <div className='flex gap-2 items-center text-muted-foreground'>
-              <Mail className="h-4 w-4"/>
-              <Label className="text-base font-semibold">Contact</Label>
+              <Smartphone className="h-4 w-4"/>
+              <Label className="text-base font-semibold">Contact Details</Label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                 <div>
-                    <Label htmlFor="email_local_part">Email</Label>
+                    <Label htmlFor="email_local_part">Assistant Email</Label>
                     <div className="flex items-center rounded-md">
                         <Input
-                            id="email_local_part" // Different ID for the local part input
+                            id="email_local_part" 
                             type="text"
                             value={emailLocalPart}
                             onChange={handleLocalPartChange}
@@ -171,11 +171,9 @@ export function HireForm({
                             {EMAIL_DOMAIN_WITH_AT}
                         </span>
                     </div>
-                     {/* RHF registration for the full email for validation and submission */}
                     <input type="hidden" {...register("email", {
                         required: "Email is required",
                         pattern: {
-                            // Regex to ensure local part has valid characters and domain is fixed
                             value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
                             message: `Email must use valid characters and end with ${EMAIL_DOMAIN_WITH_AT}`
                         },
@@ -190,9 +188,25 @@ export function HireForm({
                     {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
                 </div>
                 <div>
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="user_phone">Your Phone Number (for Assistant to contact)</Label>
                     <Input
-                        id="phone"
+                        id="user_phone"
+                        type="tel"
+                        placeholder="e.g., +15551234567"
+                        {...register("user_phone", {
+                            // Add pattern validation for phone numbers if desired
+                            pattern: {
+                              value: /^\+[1-9]\d{1,14}$/,
+                              message: "Enter a valid international phone number (e.g., +15551234567)"
+                            }
+                        })}
+                    />
+                    {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="assistant_phone">Assistant Phone Number</Label>
+                    <Input
+                        id="assistant_phone"
                         type="text"
                         placeholder="Will be provisioned during hiring"
                         disabled={true}

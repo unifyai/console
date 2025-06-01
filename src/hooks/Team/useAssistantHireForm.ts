@@ -30,6 +30,7 @@ export function useAssistantHireForm(
             first_name: '', surname: '', age: null, region: '', about: '',
             email: initialEmail,
             emailManuallyEdited: false,
+            user_phone: '',
             imageFile: null, imagePreview: null,
             voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
@@ -88,6 +89,7 @@ export function useAssistantHireForm(
         setValue("about", preset.about ?? '', { shouldValidate: true });
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
+        setValue("user_phone", '');
 
         const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
         const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
@@ -124,6 +126,7 @@ export function useAssistantHireForm(
             about: values?.about || '',
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
+            user_phone: values?.user_phone || '',
             imageFile: null, imagePreview: null,
             voice_id: values?.voice_id || defaultVoice.voice_id,
             voice_name: values?.voice_name || defaultVoice.name,
@@ -150,8 +153,12 @@ export function useAssistantHireForm(
             }
             const emailValue = data.email || "";
             if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT) || emailValue.startsWith('@')) {
-                 setError("email", { type: "manual", message: `Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.` });
-                 throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+                setError("email", { type: "manual", message: `Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.` });
+                throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+            }
+            if (!data.user_phone) {
+                setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
+                throw new Error("Valid international phone number is required");
             }
             if (fetchedAssistantEmails.includes(emailValue)) {
                 setError("email", { type: "manual", message: "This email is already in use." });
@@ -161,7 +168,6 @@ export function useAssistantHireForm(
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
-            const emailLocal = emailValue.replace(EMAIL_DOMAIN_WITH_AT, "");
             
             if (!data.voice_exists && data.voice_id) {
                 toast.loading("Registering voice...", { id: toastId });
@@ -200,7 +206,8 @@ export function useAssistantHireForm(
             toast.loading("Finalizing assistant hire...", { id: toastId });
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
-                finalImageUrlToSend, data.about, data.voice_id, emailLocal
+                finalImageUrlToSend, data.about, data.voice_id, 
+                data.email, data.user_phone
             );
 
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
@@ -219,7 +226,8 @@ export function useAssistantHireForm(
                 hireFormMethods.formState.errors.voice_id ||
                 hireFormMethods.formState.errors.first_name ||
                 hireFormMethods.formState.errors.surname ||
-                hireFormMethods.formState.errors.about
+                hireFormMethods.formState.errors.about ||
+                hireFormMethods.formState.errors.user_phone
             );
 
             if (!isRHFError) {
