@@ -145,8 +145,8 @@ export function VoiceCustomization({
                             <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); handleLocalizeRequestFromList(voice); }} disabled={itemIsDisabled}><Globe className="h-4 w-4" /></Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Localize "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
-
-                    {voice.isUserVoiceInOrchestra && (
+                    
+                    {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip><TooltipTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); deleteUserVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
@@ -171,7 +171,7 @@ export function VoiceCustomization({
                 <TabsContent value="select" className="mt-1">
                     <ScrollArea className="h-[200px] p-2 border rounded-md">
                         <div className="space-y-1">
-                            {allDisplayableVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : 'u-') + v.voice_id} voice={v} />)}
+                            {allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)}
                         </div>
                         {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>}
                         {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}

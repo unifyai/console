@@ -15,7 +15,8 @@ export function useVoiceOptions(
             voice_id: vp.voice_id,
             language: vp.language as SupportedLanguage,
             gender: vp.gender as CartesiaGender,
-            isPreset: true
+            is_preset: true, // Presets from constant are marked as such
+            isUserVoiceInOrchestra: false, // Initially, assume not in DB until confirmed by fetch
         }))
     );
     const [userVoicesFromOrchestra, setUserVoicesFromOrchestra] = React.useState<VoiceOption[]>([]);
@@ -24,21 +25,21 @@ export function useVoiceOptions(
     const fetchUserVoicesFromOrchestra = React.useCallback(async () => {
         setIsLoadingUserVoices(true);
         try {
-            const result = await assistantVoiceActions.listVoicesFromOrchestra();
+            const result = await assistantVoiceActions.list();
             if (Array.isArray(result)) {
-                setUserVoicesFromOrchestra(result.map((v: Voice) => ({
+                setUserVoicesFromOrchestra(result.map(v => ({
                     ...v,
-                    language: v.language as SupportedLanguage,
-                    gender: v.gender as CartesiaGender,
-                    isUserVoiceInOrchestra: true
+                    isUserVoiceInOrchestra: true, 
+                    is_preset: v.is_preset ?? false,
                 })));
             } else {
                 const errorResult = result as ResponseProps;
-                console.error(errorResult.detail || "Failed to load custom voices.");
+                console.error(errorResult.detail || "Failed to load user voices from Orchestra.");
                 setUserVoicesFromOrchestra([]);
             }
         } catch (error: any) {
-            console.error(error.message);
+            console.error("Error fetching voices from Orchestra:", error.message);
+            setUserVoicesFromOrchestra([]);
         } finally {
             setIsLoadingUserVoices(false);
         }
@@ -49,44 +50,53 @@ export function useVoiceOptions(
     }, [fetchUserVoicesFromOrchestra]);
 
     const allDisplayableVoices = React.useMemo(() => {
-        const combined = [...presetVoices, ...userVoicesFromOrchestra];
-        // Sort presets first, then user voices by name
-        combined.sort((a, b) => {
-            if (a.isPreset && !b.isUserVoiceInOrchestra) return -1;
-            if (!a.isPreset && b.isUserVoiceInOrchestra) return 1; // Corrected: user voices should come after presets if no other distinction
-            if (a.isPreset && b.isPreset) return (a.name || '').localeCompare(b.name || '');
-            if (a.isUserVoiceInOrchestra && b.isUserVoiceInOrchestra) return (a.name || '').localeCompare(b.name || '');
+        const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map(uv => uv.voice_id));
+        const combined = [
+            ...userVoicesFromOrchestra, // These are definitively in the DB
+            ...presetVoices.filter(upv => !orchestraVoiceIds.has(upv.voice_id)) // Add constant presets not in DB
+        ];
+        const finalMap = new Map<string, VoiceOption>();
+        combined.forEach(voice => {
+            if (!finalMap.has(voice.voice_id)) {
+                finalMap.set(voice.voice_id, voice);
+            } else {
+                // Prioritize DB entries if somehow a duplicate ID exists
+                const existing = finalMap.get(voice.voice_id)!;
+                if (voice.isUserVoiceInOrchestra && !existing.isUserVoiceInOrchestra) {
+                    finalMap.set(voice.voice_id, voice);
+                }
+            }
+        });
+        const finalCombined = Array.from(finalMap.values());
+        finalCombined.sort((a, b) => {
+            if (a.is_preset && !b.is_preset) return -1;
+            if (!a.is_preset && b.is_preset) return 1;
             return (a.name || '').localeCompare(b.name || '');
         });
-        return combined;
+        return finalCombined;
     }, [presetVoices, userVoicesFromOrchestra]);
 
     const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<boolean> => {
-        if (!voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) return false;
+        if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {
+            toast.error("This voice cannot be deleted.");
+            return false;
+        }
+
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
-            // Attempt to delete from Cartesia first (allow 404 as "already deleted")
-            const cartesiaDeleteResult = await assistantVoiceActions.deleteVoiceFromCartesia(voiceToDelete.voice_id);
-            if (cartesiaDeleteResult.detail && !(cartesiaDeleteResult.info?.includes("not found") || cartesiaDeleteResult.info?.includes("assumed already deleted"))) {
-                console.error(`[useVoiceOptions.ts] Cartesia delete error: ${cartesiaDeleteResult.detail}.`, { id: toastId });
-                toast.error(`Error deleting voice.`, { id: toastId });
-                return false; // Decide if you want to stop or proceed to DB deletion
-            }
-
-            // Then delete from Orchestra DB
-            const dbDeleteResult = await assistantVoiceActions.deleteVoiceFromOrchestra(voiceToDelete.voice_id);
-            if (dbDeleteResult.detail) {
-                console.error(`[useVoiceOptions.ts] DB delete error: ${dbDeleteResult.detail}.`, { id: toastId });
-                toast.error(`Error deleting voice`, { id: toastId });
+            const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id);
+            if (deleteResult.detail) { 
+                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
+                toast.error(`Error deleting voice}`, { id: toastId });
                 return false;
             }
 
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
-            fetchUserVoicesFromOrchestra(); // Refresh list
+            fetchUserVoicesFromOrchestra(); 
             if (onVoiceDeleted) onVoiceDeleted(voiceToDelete.voice_id);
             return true;
         } catch (error: any) {
-            console.error(`[useVoiceOptions.ts] Error deleting voice: ${error.message}`)
+            console.error(`[useVoiceOptions.ts] Error during voice deletion: ${error.message}`)
             toast.error(`Error deleting voice`, { id: toastId });
             return false;
         }

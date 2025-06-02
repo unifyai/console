@@ -56,9 +56,12 @@ export interface Voice {
   description: string;
   gender: Gender; // 'female', 'male' - consistent with Cartesia
   language: SupportedLanguage; // language code e.g. 'en'
+  is_preset?: boolean; // Indicates if this is a Cartesia preset
 }
 
-export type VoiceOption = Voice & {  isPreset?: boolean; isUserVoiceInOrchestra?: boolean };
+export type VoiceOption = Voice & {  
+    isUserVoiceInOrchestra?: boolean;
+};
 
 export interface AssistantActions {
   "assistant": {
@@ -77,14 +80,11 @@ export interface AssistantActions {
     delete: (filePathOrUrl: string) => Promise<ResponseProps>;
   },
   "voice": {
-    // Orchestra DB Voice Management
-    listVoicesFromOrchestra: () => Promise<Voice[] | ResponseProps>; 
-    createVoiceInOrchestra: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage) => Promise<(Voice & {info?: string}) | ResponseProps>;
-    deleteVoiceFromOrchestra: (cartesia_voice_id: string) => Promise<ResponseProps>;
-    // Cartesia Operations (via frontend proxies)
-    cloneVoiceOnCartesia: (formData: FormData) => Promise<Voice | ResponseProps>; 
-    localizeVoiceOnCartesia: (baseCartesiaVoiceId: string, name: string, description: string | null, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender) => Promise<Voice | ResponseProps>;
-    deleteVoiceFromCartesia: (cartesiaVoiceId: string) => Promise<ResponseProps>; 
+    list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
+    register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
+    clone: (file: File, name: string, language: SupportedLanguage, description?: string) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>; 
+    localize: (baseCartesiaVoiceId: string, name: string, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender, description?: string, dialect?:string) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
   },
   "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;

@@ -3,7 +3,7 @@ import Main from "@/components/Team/Main";
 import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, deletePhoto } from "@/lib/team/photo";
-import { listVoicesFromOrchestra,createVoiceInOrchestra, deleteVoiceFromOrchestra, cloneVoiceOnCartesia, localizeVoiceOnCartesia, deleteVoiceFromCartesia  } from "@/lib/team/voice";
+import { listVoices, registerVoice, deleteVoice, cloneVoice, localizeVoice } from "@/lib/team/voice"; 
 import { listAllAssistantEmails } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
@@ -35,14 +35,11 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             delete: await deletePhoto()
         },
         "voice": {
-            // Orchestra DB Voice Management
-            listVoicesFromOrchestra: await listVoicesFromOrchestra(apiKey),
-            createVoiceInOrchestra: await createVoiceInOrchestra(apiKey),
-            deleteVoiceFromOrchestra: await deleteVoiceFromOrchestra(apiKey),
-            // Cartesia Operations (via Frontend Proxies)
-            cloneVoiceOnCartesia: await cloneVoiceOnCartesia(apiKey),
-            localizeVoiceOnCartesia: await localizeVoiceOnCartesia(apiKey),
-            deleteVoiceFromCartesia: await deleteVoiceFromCartesia(apiKey),
+            list: await listVoices(apiKey),
+            register: await registerVoice(apiKey),
+            delete: await deleteVoice(apiKey),
+            clone: await cloneVoice(apiKey),
+            localize: await localizeVoice(apiKey),
         },
         "contact": {
             listAllAssistantEmails: await listAllAssistantEmails(apiKey),
