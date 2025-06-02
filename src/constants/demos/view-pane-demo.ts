@@ -79,9 +79,9 @@ for age, catchphrase, last_login, otp in zip(
                 width: 7.0,
                 height: 8.0
             },
-            selected: "320925_Entries/age,320924_Entries/how_10x,320925_Entries/catchphrase,320924_Entries/catchphrase,320923_Entries/catchphrase,320921_Entries/catchphrase,320918_Entries/age,320920_Entries/catchphrase,320921_Entries/age",
             table_tile: {
-                table_type: "Data Table"
+                table_type: "Data Table",
+                selected: "320925_Entries/age,320924_Entries/how_10x,320925_Entries/catchphrase,320924_Entries/catchphrase,320923_Entries/catchphrase,320921_Entries/catchphrase,320918_Entries/age,320920_Entries/catchphrase,320921_Entries/age",
             }
         },
         {

@@ -61,7 +61,33 @@ export const defaultTab: TabData = {
   order: 0,
 };
 
-export const defaultTiles: TileData[] = [];
+export const defaultTiles: TileData[] = [
+    {
+        name: "Table",
+        type: "Table",
+        position: {
+            x: 0.0,
+            y: 0.0,
+            width: 7.0,
+            height: 8.0
+        },
+        table_tile: {
+            table_type: "Data Table",
+        }
+    },
+    {
+        name: "View",
+        type: "View",
+        position: {
+            x: 7.0,
+            y: 0.0,
+            width: 5.0,
+            height: 8.0
+        },
+        table: "Table",
+        view_tile: {}
+    }
+];
 
 export const icons = {
     "Table": <Table />,
