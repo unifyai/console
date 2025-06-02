@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const response = await fetch(
-            `${baseUrl}/v0/assistant`,
+            `${baseUrl}/assistant`, 
             {
                 method: "POST",
                 headers: {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
              console.error(`Unify API Error (${response.status}):`, responseData);
              return NextResponse.json(responseData, { status: response.status });
         }
-
+        
         return response;
 
     } catch (error: any) {
