@@ -170,7 +170,6 @@ export function useAssistantHireForm(
             }
             
             if (!data.voice_exists && data.voice_id) {
-                toast.loading("Registering voice...", { id: toastId });
                 const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language

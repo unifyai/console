@@ -10,7 +10,7 @@ import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone, Smartphone } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { DialogDescription } from "@/components/UI/dialog";
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
@@ -147,9 +147,12 @@ export function HireForm({
 
           {/* Contact Section */}
           <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <Smartphone className="h-4 w-4"/>
-              <Label className="text-base font-semibold">Contact Details</Label>
+            <div className="flex flex-col">
+              <div className='flex gap-2 items-center text-muted-foreground'>
+                <Smartphone className="h-4 w-4"/>
+                <Label className="text-base font-semibold">Contact Details</Label>
+              </div>
+              <DialogDescription>Assistant's phone number will be provisioned upon hiring.</DialogDescription>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                 <div>
@@ -188,7 +191,7 @@ export function HireForm({
                     {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
                 </div>
                 <div>
-                    <Label htmlFor="user_phone">Your Phone Number (for Assistant to contact)</Label>
+                    <Label htmlFor="user_phone">Your Phone Number</Label>
                     <Input
                         id="user_phone"
                         type="tel"
@@ -202,16 +205,6 @@ export function HireForm({
                         })}
                     />
                     {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
-                </div>
-                <div>
-                    <Label htmlFor="assistant_phone">Assistant Phone Number</Label>
-                    <Input
-                        id="assistant_phone"
-                        type="text"
-                        placeholder="Will be provisioned during hiring"
-                        disabled={true}
-                        className="bg-muted/50 cursor-not-allowed"
-                    />
                 </div>
             </div>
           </div>
