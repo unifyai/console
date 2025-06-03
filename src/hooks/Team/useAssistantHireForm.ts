@@ -5,16 +5,10 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { uploadImageToGCS } from '@/utils/team/gcs-utils';
 
 const ASSISTANT_ONBOARDING_FEE = 10;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
-interface CreatedResource {
-    type: 'orchestra-voice' | 'gcs-photo';
-    identifier: string;
-    cartesiaVoiceIdIfNewlyCreated?: string;
-}
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -31,7 +25,9 @@ export function useAssistantHireForm(
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
-            imageFile: null, imagePreview: null,
+            imageFile: null,
+            profile_photo_gcs_url: null,
+            imagePreview: null,
             voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
             voice_language: defaultVoice.language as SupportedLanguage,
@@ -78,6 +74,7 @@ export function useAssistantHireForm(
         }
         setValue("imageFile", null);
         setValue("imagePreview", null);
+        setValue("profile_photo_gcs_url", null);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
@@ -87,6 +84,7 @@ export function useAssistantHireForm(
         setValue("age", preset.age, { shouldValidate: true });
         setValue("region", preset.region ?? '', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
+        setValue("profile_photo_gcs_url", preset.profile_photo);
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
@@ -127,7 +125,9 @@ export function useAssistantHireForm(
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
-            imageFile: null, imagePreview: null,
+            imageFile: null, 
+            profile_photo_gcs_url: null,
+            imagePreview: null,
             voice_id: values?.voice_id || defaultVoice.voice_id,
             voice_name: values?.voice_name || defaultVoice.name,
             voice_language: values?.voice_language || defaultVoice.language as SupportedLanguage,
@@ -142,8 +142,11 @@ export function useAssistantHireForm(
         setIsSubmitting(true);
         clearErrors();
         const toastId = toast.loading("Hiring assistant...");
-        let finalImageUrlToSend: string | null = null;
-        const createdResourcesForCleanup: CreatedResource[] = [];
+        
+        let finalImageUrlToSend = data.profile_photo_gcs_url;
+        if (!finalImageUrlToSend && data.imagePreview && !data.imagePreview.startsWith('blob:')) {
+            finalImageUrlToSend = data.imagePreview;
+        }
         
         try {
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
@@ -168,44 +171,22 @@ export function useAssistantHireForm(
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
-            
+
             if (!data.voice_exists && data.voice_id) {
-                const voiceCreationResponse = await assistantActions.voice.createVoiceInOrchestra(
+                const voiceCreationResponse = await assistantActions.voice.register(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
-                    data.voice_gender, data.voice_language
+                    data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
                 );
                 if ('detail' in voiceCreationResponse) {
-                    throw new Error(`Error registering voice`);
+                    throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
                 }
-                createdResourcesForCleanup.push({
-                    type: 'orchestra-voice',
-                    identifier: data.voice_id,
-                    cartesiaVoiceIdIfNewlyCreated: data.voice_id 
-                });
             }
-
-            const imageFile = data.imageFile;
-            if (imageFile instanceof File) {
-                toast.loading("Uploading profile photo...", { id: toastId });
-                const createImageResult = await assistantActions.photo.upload(imageFile.type, imageFile.size);
-                if ('detail' in createImageResult) {
-                    throw new Error(`Image creation error`);
-                }
-                const { signedUrl, filePath, bucketName } = createImageResult;
-                const uploadSuccess = await uploadImageToGCS(imageFile, signedUrl);
-                if (!uploadSuccess) {
-                    throw new Error("Profile photo GCS upload failed.");
-                }
-                finalImageUrlToSend = `https://storage.googleapis.com/${bucketName}/${filePath}`;
-                createdResourcesForCleanup.push({ type: 'gcs-photo', identifier: finalImageUrlToSend });
-            } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-                finalImageUrlToSend = data.imagePreview;
-            }
-
+            
             toast.loading("Finalizing assistant hire...", { id: toastId });
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
-                finalImageUrlToSend, data.about, data.voice_id, 
+                finalImageUrlToSend as string | null,
+                data.about, data.voice_id, 
                 data.email, data.user_phone
             );
 
@@ -213,7 +194,6 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
                 resetFormAndHints();
                 if (onSuccess) onSuccess(assistantCreationResult.assistant);
-                createdResourcesForCleanup.length = 0;
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);
@@ -236,24 +216,6 @@ export function useAssistantHireForm(
             }
             console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
-            // Cleanup created resources
-            for (const resource of [...createdResourcesForCleanup].reverse()) {
-                try {
-                    switch (resource.type) {
-                        case 'orchestra-voice':
-                            await assistantActions.voice.deleteVoiceFromOrchestra(resource.identifier);
-                            if(resource.cartesiaVoiceIdIfNewlyCreated) {
-                                await assistantActions.voice.deleteVoiceFromCartesia(resource.cartesiaVoiceIdIfNewlyCreated);
-                            }
-                            break;
-                        case 'gcs-photo':
-                            await assistantActions.photo.delete(resource.identifier);
-                            break;
-                    }
-                } catch (cleanupError: any) {
-                    console.error(`[useAssistantHireForm] Failed to cleanup ${resource.type} (${resource.identifier}): ${cleanupError.message}`);
-                }
-            }
         } finally {
             setIsSubmitting(false);
         }

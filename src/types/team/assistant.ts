@@ -7,7 +7,7 @@ export interface Assistant {
   agent_id: string;
   first_name: string;
   surname: string;
-  profile_photo: string; 
+  profile_photo: string | null;
   age: number | null;
   region: string | null;
   about: string | null;
@@ -38,8 +38,9 @@ export type AssistantFormData =
   & { 
       email?: string; 
       emailManuallyEdited?: boolean; 
-      imageFile?: File | null;
-      imagePreview?: string | null;
+      imageFile?: File | null; // For new upload
+      profile_photo_gcs_url?: string | null; // To store GCS URL from backend after upload
+      imagePreview?: string | null; // For local blob preview or existing URL (preset/GCS)
       user_phone?: string | null;
       voice_id?: string;
       voice_name?: string;
@@ -48,6 +49,22 @@ export type AssistantFormData =
       voice_language?: SupportedLanguage;
       voice_exists?: boolean;
     };
+
+export interface PhotoUploadBackendResponse {
+    gcs_url: string;
+}
+
+export interface AssistantUpdatePayload {
+    about?: string | null;
+    weekly_limit?: number | null;
+    max_parallel?: number | null;
+    user_phone?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    whatsapp_sid?: string | null;
+    voice_id?: string | null;
+}
+
 
 // Assistant voice types
 export interface Voice {
@@ -71,13 +88,12 @@ export interface AssistantActions {
         profile_photo: string | null, about: string | null, voice_id: string | null, 
         email: string, user_phone: string | null
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
-    update: (assistantId: string, about: string | null) => Promise<ResponseProps>;
+    update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
   "photo": {    
-    upload: (contentType: string, fileSize: number) => Promise<{ signedUrl: string, filePath: string, bucketName: string } | ResponseProps>;
+    upload: (file: File) => Promise<PhotoUploadBackendResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
-    delete: (filePathOrUrl: string) => Promise<ResponseProps>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 

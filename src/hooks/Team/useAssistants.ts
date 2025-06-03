@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Assistant, AssistantActions } from '@/types/team/assistant';
+import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/team/gcs-utils';
@@ -42,7 +42,7 @@ export function useAssistants(
 
             const assistantsWithSignedUrls = await Promise.all(
                 validAssistants.map(async (assistant) => {
-                    if (isGcsPhoto(assistant.profile_photo)) {
+                    if (assistant.profile_photo && isGcsPhoto(assistant.profile_photo)) {
                         try {
                             const photoResult = await photoActions.download(assistant.profile_photo);
                             if (photoResult.signedUrl) {
@@ -80,32 +80,15 @@ export function useAssistants(
     const deleteAssistant = React.useCallback(async (assistantToDelete: Assistant): Promise<boolean> => {
         const assistantId = assistantToDelete.agent_id;
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
-        const photoPath = assistantToDelete.profile_photo;
-        const isGcs = isGcsPhoto(photoPath);
-
+        
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
         try {
-            // 1. Delete the main assistant record from Orchestra
             const deleteResult = await assistantActions.delete(assistantId);
             if (deleteResult.detail) {
                 throw new Error(deleteResult.detail || "Failed to delete assistant record.");
             }
 
-            // 2. Attempt to delete profile photo from GCS
-            if (isGcs && photoPath) {
-                try {
-                    const photoDeleteResult = await photoActions.delete(photoPath);
-                    if (photoDeleteResult.detail && !photoDeleteResult.info?.includes("not found")) {
-                        console.error(`Could not delete profile photo for ${displayName} (ID: ${assistantId}). Path: ${photoPath}`, { description: photoDeleteResult.detail });
-                        // Not throwing error here, as main assistant deletion was successful
-                    }
-                } catch (photoError: any) {
-                    console.error(`Error during GCS photo deletion for ${displayName} (ID: ${assistantId}):`, photoError);
-                }
-            }
-
-            // 3. Update local state
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
             toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
@@ -115,7 +98,7 @@ export function useAssistants(
             toast.error(`Failed to remove ${displayName}`, { id: toastId });
             return false;
         }
-    }, [assistantActions, photoActions]);
+    }, [assistantActions]);
 
     const updateAssistantProfile = React.useCallback(async (
         id: string,
@@ -123,20 +106,24 @@ export function useAssistants(
     ): Promise<boolean> => {
         const toastId = toast.loading("Updating profile...");
         try {
-            const result = await assistantActions.update(id, about);
+            const payload: AssistantUpdatePayload = { about };
+            const result = await assistantActions.update(id, payload);
             if (result && 'detail' in result && result.detail) {
                 throw new Error((result as ResponseProps).detail);
             }
 
             setAssistants(prev => prev.map(a => {
                 if (a.agent_id === id) {
-                    const updatedAssistant = { ...a, about: about ?? a.about };
+                    const updatedAssistant = { 
+                        ...a, 
+                        about: about ?? a.about,
+                    };
                     if (isGcsPhoto(updatedAssistant.profile_photo)) {
-                        photoActions.download(updatedAssistant.profile_photo).then(res => {
+                        photoActions.download(updatedAssistant.profile_photo!).then(res => { // Non-null assertion as isGcsPhoto checks for null
                             if (res.signedUrl) {
                                 setAssistants(currentAssistants => currentAssistants.map(sa => sa.agent_id === id ? {...sa, signedProfilePhotoUrl: res.signedUrl} : sa));
                             }
-                        }).catch(e => console.warn("Failed to refresh photo URL post-update", e));
+                        }).catch(e => console.warn("Failed to refresh photo URL post-update (no photo change)", e));
                     }
                     return updatedAssistant;
                 }

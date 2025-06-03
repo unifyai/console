@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant } from "@/types/team/assistant";
+import { Assistant, AssistantUpdatePayload } from "@/types/team/assistant";
 
 export const listAssistants = async (apiKey: string) => {
     return async (): Promise<Assistant[] | ResponseProps> => {
@@ -71,8 +71,8 @@ export const deleteAssistant = async (apiKey: string) => {
                 }
                 return { detail: errorMessage };
             }
-
-            return { info: `Assistant ${assistantId} deleted successfully.` };
+            const data = await response.json();
+            return { info: data.info || `Assistant ${assistantId} deleted successfully.` };
     
         } catch (error) {
             console.error(`[actions.ts deleteAssistant] Error deleting assistant ${assistantId}:`, error);
@@ -83,7 +83,7 @@ export const deleteAssistant = async (apiKey: string) => {
 };
 
 export const updateAssistant = async (apiKey: string) => {
-    return async (assistantId: string, about: string | null): Promise<ResponseProps> => {
+    return async (assistantId: string, payload: AssistantUpdatePayload): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -95,7 +95,7 @@ export const updateAssistant = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ about })
+                    body: JSON.stringify(payload) 
                 }
             );
 
@@ -151,7 +151,7 @@ export const createAssistant = async (apiKey: string) => {
                         surname, 
                         age, 
                         region, 
-                        profile_photo, 
+                        profile_photo,
                         about, 
                         voice_id, 
                         email,

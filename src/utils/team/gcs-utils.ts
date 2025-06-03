@@ -1,10 +1,6 @@
-import { toast } from "sonner";
-
-const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
-
 export const isGcsPhoto = (photoPath: string | null | undefined): boolean => {
     if (!photoPath) return false;
-    return photoPath.includes('storage.googleapis.com/');
+    return photoPath.startsWith('gs://') || (photoPath.startsWith('https://storage.googleapis.com/'));
 };
 
 export async function uploadImageToGCS (file: File, signedUrl: string): Promise<boolean> { /* ... as before ... */
@@ -27,28 +23,35 @@ export async function uploadImageToGCS (file: File, signedUrl: string): Promise<
 };
 
 export const getObjectPathFromUrl = (gcsUrl: string): string | null => {
-    const gcsUrlPrefix = 'https://storage.googleapis.com/';
-    if (!gcsUrl.startsWith(gcsUrlPrefix)) {
-        console.warn(`[actions.ts helper] URL "${gcsUrl}" is not a standard GCS URL.`);
-        return !gcsUrl.startsWith('http') ? gcsUrl : null;
-    }
+    const gcsGsPrefix = 'gs://';
+    const gcsHttpPrefix = 'https://storage.googleapis.com/';
     try {
-        const url = new URL(gcsUrl);
-        const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
-        if (!bucketName) {
-            console.error("[gcs-utils.ts] Bucket name env var missing for path extraction.");
+        if (gcsUrl.startsWith(gcsGsPrefix)) {
+            const pathWithoutGs = gcsUrl.substring(gcsGsPrefix.length);
+            const parts = pathWithoutGs.split('/');
+            if (parts.length > 1) {
+                return parts.slice(1).join('/'); // Return everything after the bucket name
+            }
+            return null; // Only bucket name, no object path
+        } else if (gcsUrl.startsWith(gcsHttpPrefix)) {
+            const url = new URL(gcsUrl);
+            // The pathname will be /<bucket-name>/<object-path>
+            const pathParts = url.pathname.split('/');
+            if (pathParts.length > 2) { // Needs at least /bucket/object
+                return pathParts.slice(2).join('/'); // Return object path
+            }
+            return null;
+        } else {
+            // If it's not a GCS URL, it might be an external URL or already just a path
+            // For this function's purpose (extracting GCS object path), return null or the path itself if it's not an HTTP URL
+            if (!gcsUrl.startsWith('http://') && !gcsUrl.startsWith('https://')) {
+                return gcsUrl; // Assume it's already a relative path
+            }
+            console.warn(`[gcs-utils.ts getObjectPathFromUrl] URL "${gcsUrl}" is not a recognized GCS URL format for path extraction.`);
             return null;
         }
-        const expectedPathPrefix = `/${bucketName}/`;
-        if (url.pathname.startsWith(expectedPathPrefix)) {
-            return url.pathname.substring(expectedPathPrefix.length);
-        } else {
-            console.warn(`[gcs-utils.ts] URL Pathname "${url.pathname}" did not start with expected prefix "${expectedPathPrefix}". Assuming path without bucket.`);
-             // Fallback: Remove just the leading slash, assuming the rest is the path.
-             return url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname;
-        }
     } catch (e) {
-        console.error(`[gcs-utils.ts] Failed to parse URL to extract object path: ${gcsUrl}`, e);
+        console.error(`[gcs-utils.ts getObjectPathFromUrl] Failed to parse URL to extract object path: ${gcsUrl}`, e);
         return null;
     }
 };
