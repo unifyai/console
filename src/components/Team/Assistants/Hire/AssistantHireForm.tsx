@@ -152,7 +152,7 @@ export function HireForm({
                 <Smartphone className="h-4 w-4"/>
                 <Label className="text-base font-semibold">Contact Details</Label>
               </div>
-              <DialogDescription>Assistant's phone number will be provisioned upon hiring.</DialogDescription>
+              <DialogDescription>Assistant&apos;s phone number will be provisioned upon hiring.</DialogDescription>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                 <div>
