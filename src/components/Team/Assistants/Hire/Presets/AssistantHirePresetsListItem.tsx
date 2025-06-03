@@ -33,7 +33,7 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
           <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
         )}
         <AvatarImage
-          src={preset.profile_photo}
+          src={preset.profile_photo ?? undefined}
           alt={displayName}
           onLoadingStatusChange={handleLoadingStatusChange}
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded

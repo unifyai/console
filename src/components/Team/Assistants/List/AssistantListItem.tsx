@@ -45,14 +45,14 @@ export function AssistantListItem({
                 <HoverCard openDelay={200} closeDelay={100}>
                     <HoverCardTrigger asChild>
                         <Avatar className="h-8 w-8 cursor-default flex-shrink-0">
-                            <AvatarImage src={photoSrc} alt={displayName} />
+                            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
                             <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </HoverCardTrigger>
                     <HoverCardContent className="w-80" side="right" align="start">
                          <div className="flex justify-between space-x-4">
                              <Avatar>
-                                 <AvatarImage src={photoSrc} />
+                                 <AvatarImage src={photoSrc ?? undefined} />
                                  <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                              </Avatar>
                              <div className="space-y-1 flex-1">

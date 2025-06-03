@@ -121,7 +121,7 @@ export function AssistantProfilePanel({
                         {/* Basic Info */}
                         <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
                             <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border">
-                                <AvatarImage src={photoSrc} alt={displayName} />
+                                <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
                                 <AvatarFallback className="text-xl">
                                     {`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
                                 </AvatarFallback>
