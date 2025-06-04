@@ -95,7 +95,7 @@ export function VoiceCustomization({
                 setActiveTab('select');
              }
         }
-    }, [initialVoiceId, allDisplayableVoices, activeTab]);
+    }, [initialVoiceId, allDisplayableVoices]);
 
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
@@ -235,7 +235,7 @@ export function VoiceCustomization({
                         </div>
                         <div>
                             <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender (of base voice)</Label>
-                            <Select value={localizeOriginalGender} onValueChange={(v) => setLocalizeOriginalGender(v as CartesiaGender)} disabled={disabled || isProcessingCreate }>
+                            <Select value={localizeOriginalGender} disabled>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                                 <SelectContent>{cartesiaLocalizeGenderOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent>
                             </Select>

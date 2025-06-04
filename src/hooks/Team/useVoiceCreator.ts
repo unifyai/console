@@ -58,9 +58,12 @@ export function useVoiceCreator(
                     toast.error("Audio file, Voice Name, and Language are required for cloning.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
-                backendResponse = await assistantVoiceActions.clone(
-                    cloneFile, cloneName, cloneLanguage, cloneDescription || undefined
-                );
+                const formData = new FormData();
+                formData.append('file', cloneFile);
+                formData.append('name', cloneName);
+                formData.append('language', cloneLanguage);
+                if (cloneDescription) formData.append('description', cloneDescription);
+                backendResponse = await assistantVoiceActions.clone(formData);
             } else {
                 if (!localizeBaseVoiceInfo || !localizeNewName || !localizeTargetLanguage || !localizeOriginalGender) {
                     toast.error("Base voice, New Name, Target Language, and Original Gender are required for localization.", { id: toastId });
@@ -72,8 +75,14 @@ export function useVoiceCreator(
                 );
             }
 
-            const voiceDataFromBackend = (backendResponse as any)?.info as (Voice & { is_preset?: boolean }) | undefined;
-            if (voiceDataFromBackend && voiceDataFromBackend.voice_id && voiceDataFromBackend.name) {
+            if (backendResponse && (backendResponse as ResponseProps).detail) {
+                const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
+                console.error(`Error creating voice: ${errorDetail}`);
+                toast.error(`Error creating voice`, { id: toastId, duration: 7000 });
+            } 
+            else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
+                const voiceDataFromBackend = backendResponse as VoiceOption;
+
                 const fullNewVoice: VoiceOption = {
                     ...voiceDataFromBackend,
                     isUserVoiceInOrchestra: true, 
@@ -81,12 +90,12 @@ export function useVoiceCreator(
                 };
                 toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
                 if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
-                if (fetchUserVoices) fetchUserVoices(); // Refresh the voice list
+                if (fetchUserVoices) fetchUserVoices(); 
                 resetCreateForm();
-            } else { 
-                const errorDetail = (backendResponse as ResponseProps)?.detail || `Unknown ${createMode} error.`;
-                console.error(`Error creating voice: ${errorDetail}`);
-                toast.error(`Error creating voice`, { id: toastId, duration: 7000 });
+            } 
+            else { 
+                console.error(`Error creating voice: Unexpected response structure from backend.`, backendResponse);
+                toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
             }
 
         } catch (error: any) {

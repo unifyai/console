@@ -46,14 +46,9 @@ export const deleteVoice = async (apiKey: string) => {
 };
 
 export const cloneVoice = async (apiKey: string) => { 
-    return async (file: File, name: string, language: SupportedLanguage, description?: string): Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps> => {
+    return async (formData: FormData): Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps> => {
         "use server";
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('name', name);
-            formData.append('language', language);
-            if (description) formData.append('description', description);
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/clone`, { 
                 method: "POST", 
                 headers: { apiKey: apiKey },

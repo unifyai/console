@@ -69,8 +69,11 @@ export function useVoiceOptions(
         });
         const finalCombined = Array.from(finalMap.values());
         finalCombined.sort((a, b) => {
-            if (a.is_preset && !b.is_preset) return -1;
-            if (!a.is_preset && b.is_preset) return 1;
+            // Primary sort: Non-presets first
+            if (!a.is_preset && b.is_preset) return -1; // a (non-preset) comes before b (preset)
+            if (a.is_preset && !b.is_preset) return 1;  // b (non-preset) comes before a (preset)
+
+            // Secondary sort: Alphabetical by name
             return (a.name || '').localeCompare(b.name || '');
         });
         return finalCombined;
