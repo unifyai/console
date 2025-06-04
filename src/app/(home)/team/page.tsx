@@ -30,7 +30,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             delete: await deleteAssistant(apiKey),
         },
         "photo": {
-            upload: await uploadPhoto(apiKey, userId),
+            upload: await uploadPhoto(apiKey),
             download: await downloadPhoto(),
         },
         "voice": {

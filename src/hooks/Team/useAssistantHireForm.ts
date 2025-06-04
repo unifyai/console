@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -26,7 +26,7 @@ export function useAssistantHireForm(
             emailManuallyEdited: false,
             user_phone: '',
             imageFile: null,
-            profile_photo_gcs_url: null,
+            profile_photo_url: null,
             imagePreview: null,
             voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
@@ -74,7 +74,7 @@ export function useAssistantHireForm(
         }
         setValue("imageFile", null);
         setValue("imagePreview", null);
-        setValue("profile_photo_gcs_url", null);
+        setValue("profile_photo_url", null);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
@@ -84,7 +84,7 @@ export function useAssistantHireForm(
         setValue("age", preset.age, { shouldValidate: true });
         setValue("region", preset.region ?? '', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
-        setValue("profile_photo_gcs_url", preset.profile_photo);
+        setValue("profile_photo_url", preset.profile_photo);
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
@@ -126,7 +126,7 @@ export function useAssistantHireForm(
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
             imageFile: null, 
-            profile_photo_gcs_url: null,
+            profile_photo_url: null,
             imagePreview: null,
             voice_id: values?.voice_id || defaultVoice.voice_id,
             voice_name: values?.voice_name || defaultVoice.name,
@@ -142,36 +142,64 @@ export function useAssistantHireForm(
         setIsSubmitting(true);
         clearErrors();
         const toastId = toast.loading("Hiring assistant...");
-        
-        let finalImageUrlToSend = data.profile_photo_gcs_url;
-        if (!finalImageUrlToSend && data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-            finalImageUrlToSend = data.imagePreview;
-        }
-        
+                
         try {
+            // Input validity checks
+            if (!data.first_name) {
+                setError("first_name", { type: "manual", message: "Missing assistant first name." });
+                throw new Error("Missing assistant first name.");
+            }
+            if (!data.surname) {
+                setError("surname", { type: "manual", message: "Missing assistant surname." });
+                throw new Error("Missing assistant surname.");
+            }
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
             if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
                 setError("age", { type: "manual", message: "Valid age is required." });
                 throw new Error("Invalid age provided.");
             }
-            const emailValue = data.email || "";
-            if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT) || emailValue.startsWith('@')) {
-                setError("email", { type: "manual", message: `Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.` });
-                throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+            if (!data.region) {
+                setError("region", { type: "manual", message: "Missing assistant region." });
+                throw new Error("Missing assistant region.");
             }
-            if (!data.user_phone) {
-                setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
-                throw new Error("Valid international phone number is required");
+            const emailValue = data.email;
+            if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+                setError("email", { type: "manual", message: `Valid email is required.` });
+                throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
             }
             if (fetchedAssistantEmails.includes(emailValue)) {
                 setError("email", { type: "manual", message: "This email is already in use." });
                 throw new Error("Email already in use.");
+            }
+            if (!data.user_phone) {
+                setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
+                throw new Error("Valid international phone number is required");
             }
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
 
+            // Registering voices / uploading custom photos
+            let finalImageUrlToSend = data.profile_photo_url;
+            if (data.imageFile) {
+                const formData = new FormData();
+                formData.append('file', data.imageFile);
+                const photoUploadResult = await assistantActions.photo.upload(formData);
+                if ((photoUploadResult as ResponseProps).detail) {
+                    throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
+                }
+                finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcs_url;
+                if (!finalImageUrlToSend) {
+                    throw new Error("Photo uploaded, but GCS URL was not returned.");
+                }
+            } else if (data.profile_photo_url) { 
+                // From preset, already a GCS URL
+                finalImageUrlToSend = data.profile_photo_url;
+            } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
+                // From preset, an external URL
+                finalImageUrlToSend = data.imagePreview;
+            }
             if (!data.voice_exists && data.voice_id) {
                 const voiceCreationResponse = await assistantActions.voice.register(
                     data.voice_id, data.voice_name, data.voice_description || data.voice_name,
@@ -181,7 +209,7 @@ export function useAssistantHireForm(
                     throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
                 }
             }
-            
+
             toast.loading("Finalizing assistant hire...", { id: toastId });
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
@@ -189,7 +217,6 @@ export function useAssistantHireForm(
                 data.about, data.voice_id, 
                 data.email, data.user_phone
             );
-
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
                 resetFormAndHints();
@@ -198,6 +225,7 @@ export function useAssistantHireForm(
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);
             }
+
         } catch (error: any) {
             const isRHFError = !!(
                 hireFormMethods.formState.errors.age ||

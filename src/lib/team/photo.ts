@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { PhotoUploadBackendResponse } from "@/types/team/assistant";
+import { PhotoUploadResponse } from "@/types/team/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/team/gcs-utils";
 import { Storage } from "@google-cloud/storage";
 
@@ -10,14 +10,11 @@ try {
    console.error("FATAL: Failed to initialize Storage client in photo.ts:", error);
 }
 
-export const uploadPhoto = async (apiKey: string, userId: string) => { // userId might not be needed if backend gets it from apiKey
-    return async (file: File): Promise<PhotoUploadBackendResponse | ResponseProps> => {
+export const uploadPhoto = async (apiKey: string) => {
+    return async (formData: FormData): Promise<PhotoUploadResponse | ResponseProps> => {
         "use server"
 
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            
+        try {            
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/assistant/photo/upload`, // New Next.js API route proxy
                 {
@@ -39,7 +36,7 @@ export const uploadPhoto = async (apiKey: string, userId: string) => { // userId
             
             // Expect backend to return { info: { gcs_url: "..." } }
             if (data.info && data.info.gcs_url) {
-                return data.info as PhotoUploadBackendResponse;
+                return data.info as PhotoUploadResponse;
             }
             return { detail: "Photo uploaded but GCS URL not received in expected format."};
 

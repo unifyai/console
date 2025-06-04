@@ -38,9 +38,9 @@ export type AssistantFormData =
   & { 
       email?: string; 
       emailManuallyEdited?: boolean; 
-      imageFile?: File | null; // For new upload
-      profile_photo_gcs_url?: string | null; // To store GCS URL from backend after upload
-      imagePreview?: string | null; // For local blob preview or existing URL (preset/GCS)
+      profile_photo_url?: string | null;
+      imageFile?: File | null; // For newly uploaded image to GCS
+      imagePreview?: string | null; // For local blob preview or existing URL (either preset or GCS image)
       user_phone?: string | null;
       voice_id?: string;
       voice_name?: string;
@@ -50,7 +50,7 @@ export type AssistantFormData =
       voice_exists?: boolean;
     };
 
-export interface PhotoUploadBackendResponse {
+export interface PhotoUploadResponse {
     gcs_url: string;
 }
 
@@ -92,14 +92,14 @@ export interface AssistantActions {
     delete: (assistantId: string) => Promise<ResponseProps>;
   },
   "photo": {    
-    upload: (file: File) => Promise<PhotoUploadBackendResponse | ResponseProps>; 
+    upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
     register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
-    clone: (file: File, name: string, language: SupportedLanguage, description?: string) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>; 
+    clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>; 
     localize: (baseCartesiaVoiceId: string, name: string, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender, description?: string, dialect?:string) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
   },
   "contact": {

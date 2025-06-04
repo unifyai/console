@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
     const requestBody = await request.json();
 
     try {
-        const response = await fetch(
-            `${baseUrl}/assistant`, 
+        const orchestraResponse = await fetch(
+            `${baseUrl}/assistant`,
             {
                 method: "POST",
                 headers: {
@@ -33,20 +33,42 @@ export async function POST(request: NextRequest) {
             }
         );
 
-        const responseData = await response.json().catch(e => {
-            console.error("Failed to parse JSON response from Unify API", e);
-            return { error: "Invalid JSON response from backend API", status: response.status };
-        });
-
-        if (!response.ok) {
-             console.error(`Unify API Error (${response.status}):`, responseData);
-             return NextResponse.json(responseData, { status: response.status });
+        
+        const responseText = await orchestraResponse.text();
+        let responseData;
+        if (orchestraResponse.ok && responseText) {
+             // Only try to parse if OK and has content
+            try {
+                responseData = JSON.parse(responseText);
+            } catch (e: any) {
+                console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Failed to parse JSON from Orchestra. Status: ${orchestraResponse.status}. Error: ${e.message}. Raw text: ${responseText}`);
+                // Return an error response immediately if parsing fails on an OK response
+                return NextResponse.json({ error: "Invalid JSON response from backend API", status: orchestraResponse.status, raw: responseText }, { status: 502 }); // Bad Gateway
+            }
+        } else if (!orchestraResponse.ok) {
+             try {
+                // Attempt to parse error detail
+                responseData = JSON.parse(responseText);
+             } catch (e) {
+                // Use raw text if error response isn't JSON
+                responseData = { detail: responseText || "Unknown error from backend API" };
+             }
+             console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Orchestra API Error (${orchestraResponse.status}):`, responseData);
+             return NextResponse.json(responseData, { status: orchestraResponse.status });
+        } else { 
+            // OK response but empty text
+            responseData = { info: "Operation successful, no content from backend." };
         }
         
-        return response;
+        console.log(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Successfully proxied. Returning to client action.`);
+        // The original code returned `orchestraResponse` directly, which is a stream.
+        // It should return NextResponse.json(responseData)
+        return NextResponse.json(responseData, { status: orchestraResponse.status });
 
-    } catch (error: any) {
-        console.error("Error fetching Unify API in /api/assistant POST:", error);
+
+    } catch (error: any) { 
+        // This catch is for fetch failing to connect to Orchestra
+        console.error(`[API /api/assistant POST] Timestamp: ${new Date().toISOString()} - Error fetching Orchestra API:`, error.message, error.stack);
         return NextResponse.json({ error: "Failed to connect to backend API", details: error.message }, { status: 500 });
     }
 }
