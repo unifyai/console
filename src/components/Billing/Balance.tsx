@@ -6,9 +6,17 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../UI
 
 interface BalanceProps {
   hasPaymentMethod: boolean;
+  billingEligibility: {
+    user_id: string;
+    total_spending: number;
+    can_enable_monthly_billing: boolean;
+    minimum_spend_required: number;
+    remaining_spend_needed: number;
+  } | null;
+  autoRechargeEnabled: boolean;
 }
 
-const Balance = ({ hasPaymentMethod }: BalanceProps) => {
+const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: BalanceProps) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [fullBalance, setFullBalance] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -108,13 +116,15 @@ const Balance = ({ hasPaymentMethod }: BalanceProps) => {
             </Button>
           </div>
           <div className="flex flex-col space-y-4 items-center">
-            <Button 
-            variant="primary" 
-            onClick={handleOpenPortal}
-            className="w-fit"
-            >
-              Manage Billing Account
-            </Button>
+            {(billingEligibility?.can_enable_monthly_billing || autoRechargeEnabled) && (
+              <Button 
+                variant="primary" 
+                onClick={handleOpenPortal}
+                className="w-fit"
+              >
+                Manage Billing Account
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

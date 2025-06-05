@@ -19,6 +19,14 @@ export interface RechargeModelRequest {
   transaction_id: string
 }
 
+export interface BillingEligibility {
+  user_id: string;
+  total_spending: number;
+  can_enable_monthly_billing: boolean;
+  minimum_spend_required: number;
+  remaining_spend_needed: number;
+}
+
 /**
  * Retrieves billing details for a given user.
  * @param userID The ID of the user to retrieve billing details for.
@@ -169,5 +177,17 @@ export async function getRecharges(
   if (type !== undefined) params.append('type', type);
 
   const response = await OrchestraAdminClient.get("/get_recharge", { params });
+  return response.data;
+}
+
+/**
+ * Checks if a user is eligible for monthly billing based on spending.
+ * @param userID - The ID of the user to check eligibility for.
+ * @returns Billing eligibility information including spending details.
+ */
+export async function getUserBillingEligibility(userID: string): Promise<BillingEligibility> {
+  const response = await OrchestraAdminClient.get("/user_billing_eligibility", {
+    params: { user_id: userID },
+  });
   return response.data;
 }

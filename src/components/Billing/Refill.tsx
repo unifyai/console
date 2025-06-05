@@ -12,6 +12,14 @@ interface AutomaticRefillProps {
   hasPaymentMethod: boolean;
 }
 
+interface BillingEligibility {
+  user_id: string;
+  total_spending: number;
+  can_enable_monthly_billing: boolean;
+  minimum_spend_required: number;
+  remaining_spend_needed: number;
+}
+
 const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
   const [isAutoRechargeEnabled, setIsAutoRechargeEnabled] = useState(false);
   const [minBalance, setMinBalance] = useState("");
@@ -20,8 +28,21 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
   const [initialRechargeAmount, setInitialRechargeAmount] = useState("");
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
+  const [billingEligibility, setBillingEligibility] = useState<BillingEligibility | null>(null);
 
   useEffect(() => {
+    const fetchBillingEligibility = async () => {
+      try {
+        const response = await fetch("/api/billing/eligibility");
+        if (response.ok) {
+          const eligibility = await response.json();
+          setBillingEligibility(eligibility);
+        }
+      } catch (error) {
+        console.error("Error fetching billing eligibility:", error);
+      }
+    };
+
     const fetchAutoRechargeSettings = async () => {
       try {
         const response = await fetch("/api/billing/auto-recharge/settings",);
@@ -39,6 +60,8 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
     };
 
     if (hasPaymentMethod) {
+      // Fetch both eligibility and auto-recharge settings
+      fetchBillingEligibility();
       fetchAutoRechargeSettings();
     } else {
       setIsAutoRechargeEnabled(false);
@@ -46,6 +69,15 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
   }, [hasPaymentMethod]);
 
   const handleToggleAutoRecharge = async () => {
+    // Only check eligibility when trying to ENABLE auto-recharge (not disable)
+    if (!isAutoRechargeEnabled && !billingEligibility?.can_enable_monthly_billing) {
+      setAlertMessage(
+        `You need to spend $${billingEligibility?.minimum_spend_required} to access automated top-ups. You've spent $${billingEligibility?.total_spending?.toFixed(2)}, spend $${billingEligibility?.remaining_spend_needed?.toFixed(2)} more to unlock this feature.`
+      );
+      setAlertType("error");
+      return;
+    }
+
     const newStatus = !isAutoRechargeEnabled;
     setIsAutoRechargeEnabled(newStatus);
 
@@ -75,8 +107,15 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
       return;
     }
 
+    // Check minimum recharge amount for new settings (grandfathering existing users)
+    if (Number(rechargeAmount) < 25 && rechargeAmount !== initialRechargeAmount) {
+      setAlertMessage("Recharge amount must be at least $25. Existing users can keep their current amount.");
+      setAlertType("error");
+      return;
+    }
+
     try {
-      await fetch("/api/billing/auto-recharge/settings", {
+      const response = await fetch("/api/billing/auto-recharge/settings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,6 +127,15 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
         }),
       });
       
+      if (!response.ok) {
+        // Handle error response
+        const errorData = await response.json();
+        setAlertMessage(errorData.error || "Failed to save auto-recharge settings.");
+        setAlertType("error");
+        return;
+      }
+      
+      // Success case
       setInitialMinBalance(minBalance);
       setInitialRechargeAmount(rechargeAmount);
       setAlertMessage("Auto-recharge settings updated successfully.");
@@ -122,6 +170,18 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {billingEligibility && !billingEligibility.can_enable_monthly_billing && !isAutoRechargeEnabled && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="whitespace-normal break-words">
+                <div>
+                  <strong>Spend $100 to Access Automated Top-ups</strong>
+                  <br />
+                  You've spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills.
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex flex-col">
             <label htmlFor="minBalance" className="text-sm font-medium">
               Minimum Balance
@@ -149,6 +209,16 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
               onChange={(e) => setRechargeAmount(e.target.value)}
               disabled={!isAutoRechargeEnabled}
             />
+            {isAutoRechargeEnabled && Number(initialRechargeAmount) < 25 && initialRechargeAmount !== "" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Note: Your current amount is grandfathered. New amounts must be at least $25.
+              </p>
+            )}
+            {isAutoRechargeEnabled && (Number(initialRechargeAmount) >= 25 || initialRechargeAmount === "") && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Minimum recharge amount: $25
+              </p>
+            )}
           </div>
           <Button
             onClick={handleSaveSettings}
@@ -159,7 +229,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
           {!hasPaymentMethod && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
+              <AlertDescription className="whitespace-normal break-words">
                 Add a payment method to enable automatic refills.
               </AlertDescription>
             </Alert>
@@ -167,7 +237,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
           {alertMessage && (
             <Alert variant={alertType === "success" ? "default" : "destructive"}>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{alertMessage}</AlertDescription>
+              <AlertDescription className="whitespace-normal break-words">{alertMessage}</AlertDescription>
             </Alert>
           )}
         </div>

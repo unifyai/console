@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-
   try {
     const body = await request.json();
     const { autoRechargeEnabled, autoRechargeThreshold, autoRechargeQty } = body;
@@ -57,14 +56,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid quantity value' }, { status: 400 });
     }
 
-    await enableAutoRecharge(user.id, autoRechargeEnabled);
-    await setAutoRechargeThreshold(user.id, autoRechargeThreshold);
-    await setAutoRechargeQty(user.id, autoRechargeQty);
+    // Handle each API call individually to catch specific errors
+    try {
+      await enableAutoRecharge(user.id, autoRechargeEnabled);
+    } catch (enableError: any) {
+      console.error('Error enabling auto-recharge:', enableError);
+      console.error('Error response status:', enableError.response?.status);
+      console.error('Error response data:', enableError.response?.data);
+      
+      if (enableError.response?.status === 400) {
+        return NextResponse.json({ 
+          error: enableError.response.data?.detail || 'Failed to enable auto-recharge due to eligibility requirements'
+        }, { status: 400 });
+      }
+      // If not a 400 error, re-throw to be caught by outer catch
+      throw enableError;
+    }
+
+    try {
+      await setAutoRechargeThreshold(user.id, autoRechargeThreshold);
+    } catch (thresholdError: any) {
+      console.error('Error setting auto-recharge threshold:', thresholdError);
+      console.error('Threshold error response status:', thresholdError.response?.status);
+      console.error('Threshold error response data:', thresholdError.response?.data);
+      
+      if (thresholdError.response?.status === 400) {
+        return NextResponse.json({ 
+          error: thresholdError.response.data?.detail || 'Failed to set auto-recharge threshold'
+        }, { status: 400 });
+      }
+      throw thresholdError;
+    }
+
+    try {
+      await setAutoRechargeQty(user.id, autoRechargeQty);
+    } catch (qtyError: any) {
+      console.error('Error setting auto-recharge quantity:', qtyError);
+      console.error('Qty error response status:', qtyError.response?.status);
+      console.error('Qty error response data:', qtyError.response?.data);
+      
+      if (qtyError.response?.status === 400) {
+        return NextResponse.json({ 
+          error: qtyError.response.data?.detail || 'Failed to set auto-recharge quantity'
+        }, { status: 400 });
+      }
+      throw qtyError;
+    }
 
     return NextResponse.json({ message: 'Auto-recharge settings updated successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating auto-recharge settings:', error);
-    return NextResponse.json({ error: 'Error updating auto-recharge settings' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.response?.data?.detail || 'Error updating auto-recharge settings'
+    }, { status: 500 });
   }
 }
 
