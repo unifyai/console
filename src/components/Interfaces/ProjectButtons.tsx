@@ -136,6 +136,34 @@ const ProjectButtons = ({
                             setCustomOpen={setSelectProjectsOpen}
                         />
                     </div>
+                    {projects && <div className="w-full pt-1">
+                        <CreateProject 
+                            creationFunction={async (name: string) => {
+                                if (createProjectCommand == undefined) {
+                                    return Promise.resolve({
+                                        detail: "Create project command not found"
+                                    } as ResponseProps);
+                                }
+                                return await createProjectCommand(name).then(
+                                    (response: ResponseProps) => {
+                                        if ("info" in response) {
+                                            return selectProjectCommand({ path: name }).then(
+                                                () => {
+                                                    return response;
+                                                }
+                                            );
+                                        }
+                                        throw new Error(response.detail);
+                                    }
+                                );
+                            }}
+                            createProjectOpen={createProjectOpen}
+                            setCreateProjectOpen={setCreateProjectOpen}
+                            paths={projects}
+                            text="Create Project"
+                            variant="ghost"
+                        />
+                    </div>}
                     {project && <div className="w-full border-b py-1">
                         <CloseProject
                             onClick={() => closeProjectCommand()}
@@ -160,23 +188,6 @@ const ProjectButtons = ({
                             onDelete={() => {}}
                             customOpen={deleteProjectOpen}
                             setCustomOpen={setDeleteProjectOpen}
-                        />
-                    </div>}
-                    {projects && <div className="w-full pt-1">
-                        <CreateProject 
-                            creationFunction={async (name: string) => {
-                                if (createProjectCommand == undefined) {
-                                    return Promise.resolve({
-                                        detail: "Create project command not found"
-                                    } as ResponseProps);
-                                }
-                                return await createProjectCommand(name);
-                            }}
-                            createProjectOpen={createProjectOpen}
-                            setCreateProjectOpen={setCreateProjectOpen}
-                            paths={projects}
-                            text="Create Project"
-                            variant="ghost"
                         />
                     </div>}
                 </div>

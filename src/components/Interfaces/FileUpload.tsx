@@ -109,16 +109,55 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
         }
       };
       
-      // Extract all quoted keys from a single object literal string
-      const extractKeysFromLiteral = (text: string): string[] => {
-        const keys: string[] = [];
-        const regex = /"([^"]+)"\s*:/g;
-        let match: RegExpExecArray | null;
-        while ((match = regex.exec(text)) !== null) {
-          keys.push(match[1]);
+    /**
+     * Extract **top-level** quoted keys from a JSON-looking snippet.
+     *
+     * 1. **Fast-path – valid JSON** → `JSON.parse`, `Object.keys`.
+     * 2. **Graceful fallback** → regex approach that removes nested structures
+     *    first, then extracts top-level keys only.
+     *
+     * This handles both single-line and multi-line JSON strings efficiently.
+     */
+    const extractTopLevelKeys = (text: string): string[] => {
+      // ---------- Fast path ------------------------------------------------
+      try {
+        const obj = JSON.parse(text);
+        if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+          return Object.keys(obj);
         }
-        return keys;
-      };
+      } catch {
+        /* fall through to RegExp path */
+      }
+      
+      // ---------- RegExp fallback ------------------------------------------
+      // Strategy: Remove nested objects/arrays, then extract remaining keys
+      let cleanedText = text;
+      
+      // Remove nested objects by replacing {...} with placeholder
+      // This regex matches balanced braces
+      let prevLength;
+      do {
+        prevLength = cleanedText.length;
+        cleanedText = cleanedText.replace(/\{[^{}]*\}/g, '{}');
+      } while (cleanedText.length !== prevLength);
+      
+      // Remove nested arrays by replacing [...] with placeholder
+      do {
+        prevLength = cleanedText.length;
+        cleanedText = cleanedText.replace(/\[[^\[\]]*\]/g, '[]');
+      } while (cleanedText.length !== prevLength);
+      
+      // Now extract keys from the cleaned text
+      const keyPattern = /(?:^[^"]*\{|,)\s*"([^"\\]*(?:\\.[^"\\]*)*)"\s*:/g;
+      const keys: string[] = [];
+      let match: RegExpExecArray | null;
+      
+      while ((match = keyPattern.exec(cleanedText)) !== null) {
+        keys.push(match[1]);
+      }
+      
+      return keys;
+    };
       
       const parseFile = async (selectedFile: File): Promise<ParsedData> => {
         return new Promise((resolve, reject) => {
@@ -199,7 +238,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                 }
       
                 // extract keys from the very first line before parsing
-                const rawKeys = extractKeysFromLiteral(lines[0]);
+                const rawKeys = extractTopLevelKeys(lines[0]);
                 checkHeadersForDuplicates(rawKeys, "keys in the first JSONL object literal");
       
                 rows = lines.map((line, i) => {
@@ -220,7 +259,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                   throw new Error("Could not locate the first object literal in JSON.");
                 }
       
-                const rawKeys = extractKeysFromLiteral(firstObjMatch[1]);
+                const rawKeys = extractTopLevelKeys(firstObjMatch[1]);
                 checkHeadersForDuplicates(rawKeys, "keys in the first JSON object literal");
       
                 let parsedJson: any;

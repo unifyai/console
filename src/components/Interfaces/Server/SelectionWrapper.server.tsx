@@ -30,10 +30,6 @@ export default async function SelectionWrapper({
   console.log("[SelectionWrapper] Rendering...");
   const qc = getQueryClient();
 
-  // For Selection views, we need to prefetch the source table's data
-  // This is typically done when a selection is made in the UI
-  // Here we're only setting up the initial structure
-
   return (
     <HydrationBoundary state={dehydrate(qc)}>
       <div className="w-full overflow-auto">

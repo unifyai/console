@@ -122,9 +122,8 @@ export function convertTileToTileData(tile: Tile): TileData {
     const editorTile: EditorTileData = {};
     
     // Only add properties that aren't null
-    // ToDo: Migrate orchestra model to rename file_path to file_name
-    // if (tile.editorTile.file_path !== null && tile.editorTile.file_path !== undefined) 
-    //   editorTile.file_path = tile.editorTile.file_path;
+    if (tile.editorTile.file_name !== null && tile.editorTile.file_name !== undefined) 
+      editorTile.file_name = tile.editorTile.file_name;
     if (tile.editorTile.file_type !== null && tile.editorTile.file_type !== undefined) 
       editorTile.file_type = tile.editorTile.file_type;
     if (tile.editorTile.content !== null && tile.editorTile.content !== undefined) 

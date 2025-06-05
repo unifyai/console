@@ -259,7 +259,7 @@ export interface ViewTileData {
 }
 
 export interface EditorTileData {
-    file_path?: string;
+    file_name?: string;
     file_type?: string;
     content?: string;
 }

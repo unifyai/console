@@ -39,16 +39,6 @@ export default async function EditorWrapper({
   console.log("[EditorWrapper] Rendering...");
   const qc = getQueryClient();
 
-  // Prefetch editor content if available
-  await qc.prefetchQuery({
-    queryKey: ["editor", tile.id],
-    queryFn: () => ({
-      filePath: tile.editor_tile?.file_path || "main.txt",
-      fileType: tile.editor_tile?.file_type || "txt",
-      content: tile.editor_tile?.content || "",
-    }),
-  });
-
   return (
     <HydrationBoundary state={dehydrate(qc)}>
       <div className="w-full h-full overflow-y-auto">

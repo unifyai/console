@@ -151,7 +151,7 @@ function buildViewTileData(viewTileData: ViewTileData): ViewTile {
  */
 function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
   return {
-    file_name: editorTileData.file_path,
+    file_name: editorTileData.file_name,
     file_type: editorTileData.file_type,
     content: editorTileData.content,
   };
