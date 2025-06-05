@@ -115,7 +115,7 @@ const Main = () => {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Spend $100 to Access Automated Top-ups</AlertTitle>
               <AlertDescription className="whitespace-normal break-words">
-                You've spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills. You can still purchase credits manually.
+                You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills. You can still purchase credits manually.
               </AlertDescription>
             </Alert>
           ) : !hasPaymentMethod ? (

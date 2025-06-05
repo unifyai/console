@@ -177,7 +177,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
                 <div>
                   <strong>Spend $100 to Access Automated Top-ups</strong>
                   <br />
-                  You've spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills.
+                  You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills.
                 </div>
               </AlertDescription>
             </Alert>
