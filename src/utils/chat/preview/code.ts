@@ -47,9 +47,10 @@ export const generateSnippet = (selectedLanguage: string, selectedVariant: strin
     }
 
     // Auto generate code snippet for other languages
+    const baseUrl = process.env.NEXT_PUBLIC_ORCHESTRA_URL || "https://api.unify.ai";
     const postmanRequest = new Postman.Request({
         method: request.method,
-        url: "https://api.unify.ai/v0/chat/completions",
+        url: `${baseUrl}/v0/chat/completions`,
         header: Object.entries(request.headers).map(([key, value]) => ({
             key,
             value,

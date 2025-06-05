@@ -3,6 +3,8 @@
 import { getProjects } from "@/app/(home)/interfaces/actions";
 import { getCurrentUser } from "@/lib/user/user";
 
+const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+
 interface Favourite {
   id: number;
   project: string;
@@ -14,7 +16,7 @@ interface Favourite {
  * Get all favourites for the current user
  */
 export const getFavourites = async (apiKey: string): Promise<Favourite[]> => {
-  const res = await fetch("https://api.unify.ai/v0/project/favorites", {
+  const res = await fetch(`${baseUrl}/project/favorites`, {
     method: "GET",
     headers: { Authorization: `Bearer ${apiKey}` },
   });
@@ -46,7 +48,7 @@ export const createFavourite = async (apiKey: string, project: string, icon: str
     };
     
     // Make the API request
-    const res = await fetch("https://api.unify.ai/v0/project/favorites", {
+    const res = await fetch(`${baseUrl}/project/favorites`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -78,7 +80,7 @@ export const createFavourite = async (apiKey: string, project: string, icon: str
  */
 export const updateFavourite = async (apiKey: string, id: number, updates: { icon?: string; position?: number }) => {
   try {    
-    const res = await fetch("https://api.unify.ai/v0/project/favorites/" + id, {
+    const res = await fetch(`${baseUrl}/project/favorites/${id}`, {
       method: "PATCH",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -98,7 +100,7 @@ export const updateFavourite = async (apiKey: string, id: number, updates: { ico
  */
 export const deleteFavourite = async (apiKey: string, id: number) => {
   try {
-    const res = await fetch(`https://api.unify.ai/v0/project/favorites/${id}`, {
+    const res = await fetch(`${baseUrl}/project/favorites/${id}`, {
       method: "DELETE",
       headers: {
         "Authorization": `Bearer ${apiKey}`
@@ -117,7 +119,7 @@ export const deleteFavourite = async (apiKey: string, id: number) => {
  * Get a specific favourite by ID
  */
 export const getFavourite = async (apiKey: string, id: number) => {
-    const res = await fetch("https://api.unify.ai/v0/project/favorites/" + id, {
+    const res = await fetch(`${baseUrl}/project/favorites/${id}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`

@@ -12,7 +12,7 @@ export interface UnifyProvider {
 
 // optional settings for the provider
 export interface UnifyProviderSettings {
-    /* Use a different URL prefix for API calls, e.g. to use proxy servers. The default prefix is https://api.unify.ai/v0 */
+    /* Use a different URL prefix for API calls, e.g. to use proxy servers. The default prefix is taken from ORCHESTRA_URL environment variable */
     baseURL?: string;
 
     /* API key.*/
@@ -31,7 +31,7 @@ export function createUnifyProvider(
     options: UnifyProviderSettings = {}
 ): UnifyProvider {
     
-    const baseURL = withoutTrailingSlash(options.baseURL) ?? 'https://api.unify.ai/v0';
+    const baseURL = withoutTrailingSlash(options.baseURL) ?? `${process.env.ORCHESTRA_URL}/v0`;
 
     const getHeaders = () => ({
         Authorization: `Bearer ${loadApiKey({
