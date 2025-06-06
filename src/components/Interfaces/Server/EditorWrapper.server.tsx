@@ -11,7 +11,8 @@ import type {
   ContextActions,
   LogsActions,
   FieldsActions,
-  GranularTileActions
+  GranularTileActions,
+  FileActions
 } from "@/types/evals/grid";
 
 type EditorWrapperProps = {
@@ -26,6 +27,7 @@ type EditorWrapperProps = {
     contextActions: ContextActions;
     logsActions: LogsActions;
     fieldsActions: FieldsActions;
+    fileActions: FileActions;
   };
 };
 
@@ -54,6 +56,7 @@ export default async function EditorWrapper({
             projectId={projectId}
             codeActions={actions.codeActions}
             tileActions={actions.tileActions}
+            fileActions={actions.fileActions}
             projectsActions={actions.projectsActions}
             contextActions={actions.contextActions}
             logsActions={actions.logsActions}

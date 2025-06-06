@@ -19,7 +19,8 @@ import type {
   DevboxActions,
   InterfaceData,
   Context,
-  TabData
+  TabData,
+  FileActions
 } from "@/types/evals/grid";
 import { redirect } from "next/navigation";
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
@@ -36,6 +37,7 @@ type InterfaceWrapperActions = {
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
+  fileActions: FileActions;
 };
 
 export default async function InterfaceWrapper({
@@ -233,6 +235,7 @@ export default async function InterfaceWrapper({
           derivedEntryActions={actions.derivedEntryActions}
           contextActions={actions.contextActions}
           codeActions={actions.codeActions}
+          fileActions={actions.fileActions}
         >
           {currentInterface && (
             // <Suspense fallback={
@@ -255,6 +258,7 @@ export default async function InterfaceWrapper({
                   derivedEntryActions: actions.derivedEntryActions,
                   contextActions: actions.contextActions,
                   codeActions: actions.codeActions,
+                  fileActions: actions.fileActions,
                 }}
               />
             // </Suspense>

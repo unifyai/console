@@ -18,7 +18,8 @@ import type {
   CodeActions,
   TileData,
   GranularTileActions,
-  ProjectsActions
+  ProjectsActions,
+  FileActions
 } from "@/types/evals/grid";
 
 type TileWrapperActions = {
@@ -29,6 +30,7 @@ type TileWrapperActions = {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
 };
 
 export default async function TileWrapper({
@@ -103,6 +105,7 @@ export default async function TileWrapper({
             projectId={projectId}
             actions={{
               codeActions: actions.codeActions,
+              fileActions: actions.fileActions,
               tileActions: actions.tileActions,
               projectsActions: actions.projectsActions,
               contextActions: actions.contextActions,
@@ -135,6 +138,7 @@ export default async function TileWrapper({
           derivedEntryActions={actions.derivedEntryActions}
           contextActions={actions.contextActions}
           codeActions={actions.codeActions}
+          fileActions={actions.fileActions}
           tableContent={tile.type === "Table" ? renderTileContent() : undefined}
           plotContent={tile.type === "Plot" ? renderTileContent() : undefined}
           viewContent={tile.type === "View" ? renderTileContent() : undefined}

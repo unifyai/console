@@ -2080,3 +2080,89 @@ export const getTileCheckpointUnified = async (apiKey: string) => {
         return { error: "Missing parameters to identify the tile checkpoint" };
     };
 };
+
+// ----- FILE ACTIONS -----
+
+// write file
+export const writeFiles = async (adminKey: string, userId: string) => {
+    return async (project: string, files: { [filePath: string]: string }) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/file`,
+            {
+                method: "POST",
+                headers: { apiKey: adminKey },
+                body: JSON.stringify({ user_id: userId, project, files })
+            }
+        );
+        const responseJson = await response.json();
+        console.log(responseJson);
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson;
+    }
+}
+
+// list files
+export const listFiles = async (adminKey: string, userId: string) => {
+    return async (project: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/file?user_id=${userId}&project=${project}`,
+            {
+                method: "GET",
+                headers: { apiKey: adminKey },
+            }
+        );
+        const responseJson = await response.json();
+        console.log(responseJson);
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson;
+    }
+}
+
+// read file
+export const readFile = async (adminKey: string, userId: string) => {
+    return async (project: string, path: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/file/contents?user_id=${userId}&project=${project}&path=${path}`,
+            {
+                method: "GET",
+                headers: { apiKey: adminKey },
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson;
+    }
+}
+
+// delete file
+export const deleteFile = async (adminKey: string, userId: string) => {
+    return async (project: string, path: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/file?user_id=${userId}&project=${project}&path=${path}`,
+            {
+                method: "DELETE",
+                headers: { apiKey: adminKey },
+            }
+        );
+        const responseJson = await response.json();
+        console.log(responseJson);
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson;
+    }
+}

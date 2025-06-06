@@ -1,6 +1,6 @@
 "use client";
 
-import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
+import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/evals/grid";
 import { useEffect, Suspense, lazy } from "react";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
@@ -28,6 +28,7 @@ interface TileComponentProps {
     derivedEntryActions: DerivedEntryActions;
     contextActions: ContextActions;
     codeActions: CodeActions;
+    fileActions: FileActions;
     tableContent?: React.ReactNode;  // Server-rendered Table content
     plotContent?: React.ReactNode;   // Server-rendered Plot content
     viewContent?: React.ReactNode;   // Server-rendered View content
@@ -46,6 +47,7 @@ const Tile = ({
     derivedEntryActions,
     contextActions,
     codeActions,
+    fileActions,
     tableContent,
     plotContent,
     viewContent,
@@ -162,6 +164,7 @@ const Tile = ({
                             interfaceId={interfaceId}
                             projectId={projectId}
                             codeActions={codeActions}
+                            fileActions={fileActions}
                             tileActions={tileActions}
                             projectsActions={projectsActions}
                             contextActions={contextActions}

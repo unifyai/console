@@ -11,7 +11,7 @@ import InterfaceButtons from "./InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from '@/types/evals/grid';
+import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions } from '@/types/evals/grid';
 
 import { useInterfaceData } from '@/contexts/hooks/interface';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
@@ -40,6 +40,7 @@ interface InterfaceComponentProps {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
   children: React.ReactNode;
 }
 
@@ -54,6 +55,7 @@ const Interface = ({
   derivedEntryActions,
   contextActions,
   codeActions,
+  fileActions,
   children
 }: InterfaceComponentProps) => {
   const router = useRouter();

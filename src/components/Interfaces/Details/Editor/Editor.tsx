@@ -1,15 +1,19 @@
 "use client";
 
 import CodeBlock from "../../CodeBlock";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
-import { CodeActions } from "@/types/evals/grid";
+import { CodeActions, FileActions } from "@/types/evals/grid";
 import { useTabData } from "@/contexts/hooks/tab";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/evals/grid";
+import ActionButton from "@/components/Common/Buttons/Action";
+import BaseDropdown from "@/components/Common/Dropdowns/Base";
+import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
+import { Plus, FolderPlus, FolderOpen, Trash2 } from "lucide-react";
 
 const Editor = ({
     tileId,
@@ -17,6 +21,7 @@ const Editor = ({
     interfaceId,
     projectId,
     codeActions,
+    fileActions,
     tileActions,
     projectsActions,
     contextActions,
@@ -28,6 +33,7 @@ const Editor = ({
     interfaceId: string,
     projectId: string,
     codeActions: CodeActions,
+    fileActions: FileActions,
     tileActions: GranularTileActions,
     projectsActions: ProjectsActions,
     contextActions: ContextActions,
@@ -48,12 +54,50 @@ const Editor = ({
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
-    const allFiles = editorTiles.map((tile) => {
-        return { [`${tile.editorTile?.file_name}.${tile.editorTile?.file_type}`]: tile.editorTile?.content || "" };
-    }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
+    const [allFiles, setAllFiles] = useState<Record<string,string>>({});
+
+    // initial load
+    useEffect(() => {
+        (async () => {
+            try {
+                await fileActions.list(projectId).then(
+                    (files) => {
+                        setAllFiles(files);
+                    }
+                );
+            } catch (e) {
+                console.error('Failed to list files', e);
+            }
+        })();
+    }, [projectId]);
+
+    const handleUpload = async (payload: Record<string,string>) => {
+        try {
+            await fileActions.write(projectId, payload);
+            setAllFiles(prev => ({ ...prev, ...payload }));
+        } catch (e) { console.error('upload error', e); }
+    };
+
+    const handleDelete = async (path: string) => {
+        try {
+            await fileActions.delete(projectId, path);
+            setAllFiles(prev => {
+                const copy = { ...prev }; delete copy[path]; return copy;
+            });
+        } catch (e) { console.error('delete error', e); }
+    };
+
     const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
     const [tempFileType, setTempFileType] = useState(editorTileState?.file_type || "txt");
     const [tempCode, setTempCode] = useState(editorTileState?.content || "");
+    const [selectedPath, setSelectedPath] = useState<string | undefined>(() => {
+        if (editorTileState?.file_name && editorTileState?.file_type) {
+            return `${editorTileState.file_name}.${editorTileState.file_type}`;
+        }
+        return undefined;
+    });
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
     const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
     const [complete, setComplete] = useState(false);
@@ -75,6 +119,16 @@ const Editor = ({
         if (complete)
             setTimeout(() => setComplete(false), 5000);
     }, [complete]);
+
+    // Set directory attributes for folder upload once ref is available
+    useEffect(() => {
+        if (folderInputRef.current) {
+            // @ts-ignore
+            folderInputRef.current.setAttribute('webkitdirectory', '');
+            // @ts-ignore
+            folderInputRef.current.setAttribute('directory', '');
+        }
+    }, [folderInputRef]);
 
     return (
         <div className="w-full h-full flex flex-col">
@@ -103,6 +157,97 @@ const Editor = ({
                     />
                 </Tooltip>
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
+                <div className="flex flex-row gap-1 mr-2">
+                    <ActionButton
+                        icon={<Plus size={16} />}
+                        variant="ghost"
+                        tooltip="Upload File"
+                        onClick={() => fileInputRef.current?.click()}
+                    />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        style={{ display: "none" }}
+                        onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+                            Array.from(files).forEach((file) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const content = reader.result as string;
+                                    const path = file.name;
+                                    handleUpload({ [path]: content });
+                                };
+                                reader.readAsText(file);
+                            });
+                        }}
+                    />
+                    <ActionButton
+                        icon={<FolderPlus size={16} />}
+                        variant="ghost"
+                        tooltip="Upload Folder"
+                        onClick={() => folderInputRef.current?.click()}
+                    />
+                    <input
+                        ref={folderInputRef}
+                        type="file"
+                        style={{ display: "none" }}
+                        multiple
+                        onChange={(e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+                            Array.from(files).forEach((file) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const content = reader.result as string;
+                                    const relativePath = (file as any).webkitRelativePath || file.name;
+                                    handleUpload({ [relativePath]: content });
+                                };
+                                reader.readAsText(file);
+                            });
+                        }}
+                    />
+                    <BaseDropdown
+                        button={<ActionButton variant="ghost" icon={<FolderOpen size={16} />} tooltip="Select File" />}
+                    >
+                        {Object.keys(allFiles).length === 0 ? (
+                            <DropdownMenuItem disabled>No files</DropdownMenuItem>
+                        ) : (
+                            Object.keys(allFiles).map((path, idx) => (
+                                <DropdownMenuItem
+                                    key={idx}
+                                    onSelect={() => {
+                                        const dotIdx = path.lastIndexOf(".");
+                                        const ext = dotIdx !== -1 ? path.substring(dotIdx + 1) : "txt";
+                                        const name = dotIdx !== -1 ? path.substring(0, dotIdx) : path;
+                                        setTempFileName(name);
+                                        setTempFileType(ext);
+                                        setTempCode(allFiles[path]);
+                                        setSelectedPath(path);
+                                        // editorTileActions?.updateFile(name, ext, allFiles[path]);
+                                    }}
+                                >
+                                    {path}
+                                </DropdownMenuItem>
+                            ))
+                        )}
+                    </BaseDropdown>
+                    <ActionButton
+                        icon={<Trash2 size={16} />}
+                        variant="ghost"
+                        tooltip="Delete File"
+                        disabled={!selectedPath}
+                        onClick={() => {
+                            if (selectedPath) {
+                                handleDelete(selectedPath);
+                                setSelectedPath(undefined);
+                                setTempFileName("main");
+                                setTempFileType("txt");
+                                setTempCode("");
+                            }
+                        }}
+                    />
+                </div>
             </div>
             <CodeBlock
                 code={tempCode}
@@ -119,8 +264,8 @@ const Editor = ({
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
-                    allFiles[tempFilePath] = code;
-                    codeActions.run(allFiles, tempFilePath, projectId).then(
+                    const filesForRun = { ...allFiles, [tempFilePath]: code };
+                    codeActions.run(filesForRun, tempFilePath, projectId).then(
                         (result: any) => {
                             result = result.output.replaceAll("/project/sandbox/", "")
                             setOutput(result == "" ? "Script execution completed." : result)
@@ -129,9 +274,10 @@ const Editor = ({
                 }}
                 readOnly={false}
                 onSave={(value: string | undefined) => {
-                    if (value != undefined) {
-                        editorTileActions?.setFileName(tempFileName);
-                        editorTileActions?.setContent(value);
+                    if (value !== undefined) {
+                        const path = `${tempFileName}.${tempFileType}`;
+                        // editorTileActions?.updateFile(tempFileName, tempFileType, value);
+                        handleUpload({ [path]: value });
                         setSaved(true);
                     }
                 }}

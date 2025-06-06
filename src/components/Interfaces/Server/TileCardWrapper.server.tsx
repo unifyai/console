@@ -11,6 +11,7 @@ import type {
   DerivedEntryActions,
   ContextActions,
   CodeActions,
+  FileActions,
   GranularTileActions,
   TileData,
   ProjectsActions
@@ -22,6 +23,7 @@ type TileCardWrapperActions = {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
   tileActions: GranularTileActions;
   projectsActions: ProjectsActions;
 };
@@ -61,6 +63,7 @@ export default async function TileCardWrapper({
             derivedEntryActions={actions.derivedEntryActions}
             contextActions={actions.contextActions}
             codeActions={actions.codeActions}
+            fileActions={actions.fileActions}
             projectsActions={actions.projectsActions}
           >
             <Suspense fallback={<SkeletonLoader />}>

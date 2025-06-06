@@ -48,6 +48,10 @@ export interface TileProps {
     file_name?: string;
     file_type?: string;
     content?: string;
+    files?: {
+        path: string;
+        content: string;
+    }[];
 }
 
 export interface TableDataItem {
@@ -262,6 +266,10 @@ export interface EditorTileData {
     file_name?: string;
     file_type?: string;
     content?: string;
+    files?: {
+        path: string;
+        content: string;
+    }[];
 }
 
 export interface ProjectsActions {
@@ -673,4 +681,11 @@ export interface GranularTileActions {
     getCheckpointByName: (tab_id: string, name: string) => Promise<TileData>;
     getCheckpointById: (id: string) => Promise<TileData>;
     getCheckpoint: (params: { id?: string; tab_id?: string; name?: string }) => Promise<TileData | null>;
+}
+
+export interface FileActions {
+    list: (project: string) => Promise<Record<string, string>>;
+    write: (project: string, files: Record<string, string>) => Promise<any>;
+    read: (project: string, path: string) => Promise<string>;
+    delete: (project: string, path: string) => Promise<any>;
 }

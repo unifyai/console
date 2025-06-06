@@ -79,7 +79,12 @@ import {
     getTabCheckpointByName,
     getTileCheckpointByName,
     getInterfaceCheckpointById,
-    getTileCheckpointById
+    getTileCheckpointById,
+    // file helpers
+    listFiles,
+    readFile,
+    writeFiles,
+    deleteFile,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -137,6 +142,14 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     const devboxActions = {
         get: await getDevbox(apiKey, userId),
         create: await createDevbox(apiKey, userId),
+    };
+
+    // File actions
+    const fileActions = {
+        list: await listFiles(adminKey, userId),
+        write: await writeFiles(adminKey, userId),
+        read: await readFile(adminKey, userId),
+        delete: await deleteFile(adminKey, userId),
     };
 
     // Create the granular actions using the factory functions
@@ -222,6 +235,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
                     contextActions,
                     fieldsActions,
                     codeActions,
+                    fileActions,
                     devboxActions,
                     interfaceActions,
                     tabActions,

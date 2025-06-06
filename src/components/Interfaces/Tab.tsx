@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, Suspense, lazy, ReactElement } from 
 import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition, ProjectsActions } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition, ProjectsActions, FileActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/refRegistry';
@@ -26,6 +26,7 @@ interface TabComponentProps {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
   children?: React.ReactNode;
 }
 
@@ -41,6 +42,7 @@ const Tab = ({
   derivedEntryActions,
   contextActions,
   codeActions,
+  fileActions,
   children,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
@@ -144,6 +146,7 @@ const Tab = ({
             derivedEntryActions={derivedEntryActions}
             contextActions={contextActions}
             codeActions={codeActions}
+            fileActions={fileActions}
             projectsActions={projectsActions}
           />
         </Suspense>

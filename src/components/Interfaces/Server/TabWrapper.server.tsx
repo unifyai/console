@@ -20,7 +20,8 @@ import type {
   TabData,
   TileData,
   GranularInterfaceActions,
-  ProjectsActions
+  ProjectsActions,
+  FileActions
 } from "@/types/evals/grid";
 import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
 
@@ -34,6 +35,7 @@ type TabWrapperActions = {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
 };
 
 export default async function TabWrapper({
@@ -198,6 +200,7 @@ export default async function TabWrapper({
             derivedEntryActions={actions.derivedEntryActions}
             contextActions={actions.contextActions}
             codeActions={actions.codeActions}
+            fileActions={actions.fileActions}
           >
             {tiles.map(tile => (
               <React.Fragment key={tile.id}>

@@ -6,7 +6,7 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { icons, tabTypes } from "@/constants/logs";
-import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { TileColorContext } from '@/contexts/TileColorContext';
@@ -30,6 +30,7 @@ interface TileCardProps {
   derivedEntryActions: DerivedEntryActions;
   contextActions: ContextActions;
   codeActions: CodeActions;
+  fileActions: FileActions;
   children?: React.ReactNode;
 }
 
@@ -45,6 +46,7 @@ const TileCard = ({
   derivedEntryActions,
   contextActions,
   codeActions,
+  fileActions,
   children
 }: TileCardProps) => {
 
@@ -172,6 +174,7 @@ const TileCard = ({
                 derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
                 codeActions={codeActions}
+                fileActions={fileActions}
                 projectsActions={projectsActions}
             />
           )}
