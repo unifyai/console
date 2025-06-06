@@ -220,6 +220,7 @@ export function useTableDataQueryWithTracking(
     }
   }, [mergeUpdatesIntoTableDataItem, updateTableDataItem]);
 
+  tableDataItemRef.current = tableDataItem;
   return {
     tableData: tableDataItemRef.current,
     isLoading,
