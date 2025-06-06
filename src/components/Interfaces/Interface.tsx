@@ -395,6 +395,7 @@ const Interface = ({
                   derivedEntryActions={derivedEntryActions}
                   contextActions={contextActions}
                   codeActions={codeActions}
+                  fileActions={fileActions}
                   projectsActions={projectsActions}
                 />
               </Suspense>

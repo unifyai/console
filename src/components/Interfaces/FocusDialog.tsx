@@ -6,7 +6,7 @@ import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
-import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, TileProps, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/evals/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "./TileCard";
@@ -24,6 +24,7 @@ const FocusDialog = ({
     contextActions,
     codeActions,
     projectsActions,
+    fileActions,
 }: {
     tabIdOrName: string;
     interfaceId: string;
@@ -35,6 +36,7 @@ const FocusDialog = ({
     contextActions: ContextActions,
     codeActions: CodeActions,
     projectsActions: ProjectsActions,
+    fileActions: FileActions,
 }) => {
     const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabIdOrName, interfaceId);
 
@@ -73,6 +75,7 @@ const FocusDialog = ({
                         derivedEntryActions={derivedEntryActions}
                         contextActions={contextActions}
                         codeActions={codeActions}
+                        fileActions={fileActions}
                         projectsActions={projectsActions}
                     />
                     <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
