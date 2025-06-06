@@ -243,7 +243,9 @@ const Editor = ({
                                         setTempFileType(ext);
                                         setTempCode(allFiles[path]);
                                         setSelectedPath(path);
-                                        // editorTileActions?.updateFile(name, ext, allFiles[path]);
+                                        editorTileActions?.setFileName(name);
+                                        editorTileActions?.setFileType(ext);
+                                        editorTileActions?.setContent(allFiles[path]);
                                     }}
                                 >
                                     {path}
@@ -263,6 +265,9 @@ const Editor = ({
                                 setTempFileName("main");
                                 setTempFileType("txt");
                                 setTempCode("");
+                                editorTileActions?.setFileName("main");
+                                editorTileActions?.setFileType("txt");
+                                editorTileActions?.setContent("");
                             }
                         }}
                     />
@@ -281,6 +286,7 @@ const Editor = ({
                     setPending(true);
                     setOutput("");
                     editorTileActions?.setFileName(tempFileName);
+                    editorTileActions?.setFileType(tempFileType);
                     editorTileActions?.setContent(code);
                     const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
                     const filesForRun = { ...allFiles, [tempFilePath]: code };
@@ -295,7 +301,6 @@ const Editor = ({
                 onSave={(value: string | undefined) => {
                     if (value !== undefined) {
                         const path = `${tempFileName}.${tempFileType}`;
-                        // editorTileActions?.updateFile(tempFileName, tempFileType, value);
                         handleUpload({ [path]: value });
                         setSaved(true);
                     }
