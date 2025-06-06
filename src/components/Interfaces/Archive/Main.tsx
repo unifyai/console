@@ -1,6 +1,6 @@
 import { PlotArguments, TableArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
 import { getLogsDetails, replaceParamsIndicesWithValues, convertMetricsToLogs } from "@/utils/evals/common";
-import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions, TileProps, GranularInterfaceActions, GranularTileActions, GranularTabActions } from "@/types/evals/grid";
+import { Context, ContextActions, DerivedEntryActions, FieldsActions, TabProps, TabActions, LogsActions, PlotDataProps, ProjectsActions, TableDataProps, TabsDataProps, CodeActions, DevboxActions, TileProps, GranularInterfaceActions, GranularTileActions, GranularTabActions, FileActions } from "@/types/evals/grid";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { processContext } from "@/utils/evals/columnOperations";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
 import Interface from "@/components/Interfaces/Interface";
 
-const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, tabActions, granularTabActions, tileActions, codeActions, devboxActions }: {
+const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryActions, fieldsActions, contextActions, interfaceActions, tabActions, granularTabActions, tileActions, codeActions, devboxActions, fileActions }: {
     tab: string | undefined,
     project: string | undefined,
     projectsActions: ProjectsActions,
@@ -26,7 +26,8 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
     granularTabActions: GranularTabActions,
     tileActions: GranularTileActions,
     codeActions: CodeActions,
-    devboxActions: DevboxActions
+    devboxActions: DevboxActions,
+    fileActions: FileActions
 }) => {
 
     // const cookies_ = cookies();
@@ -468,6 +469,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 derivedEntryActions={derivedEntryActions}
                 contextActions={contextActions}
                 codeActions={codeActions}
+                fileActions={fileActions}
             >
                 <div>Hello</div>
             </Interface>
