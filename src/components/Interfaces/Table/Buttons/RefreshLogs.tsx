@@ -154,7 +154,7 @@ const RefreshLogs = ({
       const latestTs = new Date(latest).getTime();
       const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
 
-      if (latestTs > lastCheckTs) {
+      if (latestTs >= lastCheckTs) {
         // Data has changed, perform the actual refresh
         return manualRefresh().then(() => {
           if (isMounted.current) setLastUpdated(latest);
