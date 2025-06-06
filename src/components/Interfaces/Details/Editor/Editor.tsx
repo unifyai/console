@@ -1,7 +1,7 @@
 "use client";
 
 import CodeBlock from "../../CodeBlock";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, Dispatch, SetStateAction } from "react";
 import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
 import { CodeActions, FileActions } from "@/types/evals/grid";
@@ -13,7 +13,7 @@ import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, Fiel
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { Plus, FolderPlus, FolderOpen, Trash2 } from "lucide-react";
+import { FilePlus, FolderPlus, FolderOpen, Trash2, Loader2, Plus } from "lucide-react";
 
 const Editor = ({
     tileId,
@@ -55,35 +55,36 @@ const Editor = ({
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
     const [allFiles, setAllFiles] = useState<Record<string,string>>({});
+    const [loadingFiles, setLoadingFiles] = useState(false);
+
+    /* ------------------------------------------------------------------
+       Helpers
+    ------------------------------------------------------------------*/
+    const fetchFiles = useCallback(async () => {
+        try {
+            const files = await fileActions.list(projectId);
+            setAllFiles(files);
+        } catch (e) {
+            console.error("Failed to list files", e);
+        }
+    }, [fileActions, projectId]);
 
     // initial load
     useEffect(() => {
-        (async () => {
-            try {
-                await fileActions.list(projectId).then(
-                    (files) => {
-                        setAllFiles(files);
-                    }
-                );
-            } catch (e) {
-                console.error('Failed to list files', e);
-            }
-        })();
-    }, [projectId]);
+        fetchFiles();
+    }, [fetchFiles]);
 
     const handleUpload = async (payload: Record<string,string>) => {
         try {
             await fileActions.write(projectId, payload);
-            setAllFiles(prev => ({ ...prev, ...payload }));
+            await fetchFiles();
         } catch (e) { console.error('upload error', e); }
     };
 
     const handleDelete = async (path: string) => {
         try {
             await fileActions.delete(projectId, path);
-            setAllFiles(prev => {
-                const copy = { ...prev }; delete copy[path]; return copy;
-            });
+            await fetchFiles();
         } catch (e) { console.error('delete error', e); }
     };
 
@@ -102,6 +103,22 @@ const Editor = ({
     const [pending, setPending] = useState(false);
     const [complete, setComplete] = useState(false);
     const [output, setOutput] = useState("");
+
+    /* Dropdown open state – fetch latest list before opening */
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+
+    const handleDropdownToggle: Dispatch<SetStateAction<boolean>> = (value) => {
+        const open = typeof value === "function" ? value(dropdownOpen) : value;
+        if (open) {
+            setLoadingFiles(true);
+            fetchFiles().finally(() => {
+                setDropdownOpen(true);
+                setLoadingFiles(false);
+            });
+        } else {
+            setDropdownOpen(false);
+        }
+    };
 
     const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
 
@@ -159,7 +176,7 @@ const Editor = ({
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
                 <div className="flex flex-row gap-1 mr-2">
                     <ActionButton
-                        icon={<Plus size={16} />}
+                        icon={<FilePlus size={16} />}
                         variant="ghost"
                         tooltip="Upload File"
                         onClick={() => fileInputRef.current?.click()}
@@ -208,7 +225,9 @@ const Editor = ({
                         }}
                     />
                     <BaseDropdown
-                        button={<ActionButton variant="ghost" icon={<FolderOpen size={16} />} tooltip="Select File" />}
+                        open={dropdownOpen}
+                        setOpen={handleDropdownToggle}
+                        button={<ActionButton variant="ghost" icon={loadingFiles ? <Loader2 className="animate-spin" size={16} /> : <FolderOpen size={16} />} tooltip="Select File" />}
                     >
                         {Object.keys(allFiles).length === 0 ? (
                             <DropdownMenuItem disabled>No files</DropdownMenuItem>
