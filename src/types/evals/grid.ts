@@ -48,10 +48,6 @@ export interface TileProps {
     file_name?: string;
     file_type?: string;
     content?: string;
-    files?: {
-        path: string;
-        content: string;
-    }[];
 }
 
 export interface TableDataItem {
@@ -266,10 +262,6 @@ export interface EditorTileData {
     file_name?: string;
     file_type?: string;
     content?: string;
-    files?: {
-        path: string;
-        content: string;
-    }[];
 }
 
 export interface ProjectsActions {

@@ -717,19 +717,19 @@ const DataTableHeader = ({
                 </div>
             )}
 
-            {/* Column show - half */}
+            {/* Column show – always vertically centred */}
             {!header.isPlaceholder && (
-              <div className={`absolute ${hasActiveActions ? "top-1/2" : "top-1/3"} right-0 transform -translate-y-1/2`} style={{ height: '33.33%' }}>
-                    <ColumnShow
-                        table={table}
-                        header={header}
-                        columnVisibility={columnVisibility}
-                        setColumnVisibility={setColumnVisibility}
-                        columnOrder={columnOrder}
-                        setColumnOrder={setColumnOrder}
-                        ColumnCreate={ColumnCreate}
-                    />
-                </div>
+              <div className="absolute inset-y-0 right-0 flex items-center justify-center" style={{ width: '15px' }}>
+                <ColumnShow
+                  table={table}
+                  header={header}
+                  columnVisibility={columnVisibility}
+                  setColumnVisibility={setColumnVisibility}
+                  columnOrder={columnOrder}
+                  setColumnOrder={setColumnOrder}
+                  ColumnCreate={ColumnCreate}
+                />
+              </div>
             )}
 
         </div>
