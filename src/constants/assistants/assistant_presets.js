@@ -11,7 +11,7 @@ export default [
   },
   {
     "first_name": "Anna",
-    "surname": "Smith",
+    "surname": "Peskova",
     "age": 35,
     "gender": "female",
     "about": "Driven and resourceful, I focus on achieving concrete outcomes through collaboration and dedication. I adapt quickly to new situations and am always looking for opportunities to refine my skills and contribute effectively to team goals.",
@@ -20,8 +20,8 @@ export default [
     "voice_id": "dcf62f33-7cff-4f20-85b2-2efaa68cbc32" // Zofia (pl, female, "warm and expressive... clear communication")
   },
   {
-    "first_name": "Aisha",
-    "surname": "Mohammed",
+    "first_name": "Amina",
+    "surname": "Chebet",
     "age": 22,
     "gender": "female",
     "about": "Bright, enthusiastic, and ready to make a contribution. I'm a fast learner with a strong desire to apply my skills in a challenging environment. Passionate about teamwork and contributing positively from day one.",
@@ -30,7 +30,7 @@ export default [
     "voice_id": "1d3ba41a-96e6-44ad-aabb-9817c56caa68" // Mia (en, female, "bright and youthful... energy and curiosity")
   },
   {
-    "first_name": "Akiko",
+    "first_name": "Yuki",
     "surname": "Yamamoto",
     "age": 52,
     "gender": "female",
@@ -40,7 +40,7 @@ export default [
     "voice_id": "59d4fd2f-f5eb-4410-8105-58db7661144f" // Yuki (ja, female, "calm and clear")
   },
   {
-    "first_name": "Rohan",
+    "first_name": "Ayush",
     "surname": "Sharma",
     "age": 23,
     "gender": "male",
@@ -60,7 +60,7 @@ export default [
     "voice_id": "3dcaa773-fb1a-47f7-82a4-1bf756c4e1fb" // Harry (en, male, "confident and approachable... friendly tone")
   },
   {
-    "first_name": "Adaora",
+    "first_name": "Brooke",
     "surname": "Nwokedi",
     "age": 28,
     "gender": "female",
@@ -80,8 +80,8 @@ export default [
     "voice_id": "c8605446-247c-4d39-acd4-8f4c28aa363c" // Wise Lady (en, female, "wise and authoritative")
   },
   {
-    "first_name": "Aisha",
-    "surname": "Mohammed",
+    "first_name": "Deborah",
+    "surname": "Alabi",
     "age": 25,
     "gender": "female",
     "about": "Motivated and adaptable, I'm focused on delivering quality work and developing my expertise. I approach tasks with enthusiasm and a collaborative mindset, always ready to learn and contribute effectively.",
@@ -110,17 +110,17 @@ export default [
     "voice_id": "da69d796-4603-4419-8a95-293bfc5679eb" // David (en, male, "Neutral version of the David voice")
   },
   {
-    "first_name": "David",
-    "surname": "Miller",
+    "first_name": "John",
+    "surname": "Davis",
     "age": 45,
     "gender": "male",
     "about": "Dependable and goal-oriented professional with a strong track record. I value teamwork and clear communication, always aiming to contribute effectively and embrace opportunities for growth.",
-    "region": "USA",
+    "region": "United States",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/14.jpg",
     "voice_id": "f785af04-229c-4a7c-b71b-f3194c7f08bb" // John (en, male, "natural and empathetic")
   },
   {
-    "first_name": "Aisha",
+    "first_name": "Parvati",
     "surname": "Khan",
     "age": 23,
     "gender": "female",
@@ -130,8 +130,8 @@ export default [
     "voice_id": "bec003e2-3cb3-429c-8468-206a393c67ad" // Parvati (hi, female, "young and friendly female voice for Hindi")
   },
   {
-    "first_name": "Leilani",
-    "surname": "Moana",
+    "first_name": "Tuala",
+    "surname": "Patu",
     "age": 55,
     "gender": "female",
     "about": "A deeply experienced and community-minded professional. I bring wisdom, resilience, and a commitment to fostering positive collaboration. Passionate about making a lasting, positive impact through dedication and teamwork.",
@@ -140,8 +140,8 @@ export default [
     "voice_id": "00a77add-48d5-4ef6-8157-71e5437b282d" // Calm Lady (en, female, "calm and nurturing")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Osei",
+    "first_name": "Kofi",
+    "surname": "Asante",
     "age": 35,
     "gender": "male",
     "about": "A skilled and proactive professional focused on efficiency and results. I enjoy tackling challenges and contributing to dynamic teams. Committed to continuous learning and making a solid contribution.",
@@ -150,8 +150,8 @@ export default [
     "voice_id": "8d110413-2f14-44a2-8203-2104db4340e9" // Clarion (en, male, "expressive, clear voice with a professional yet engaging tone")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Adjei",
+    "first_name": "Jordan",
+    "surname": "Owusu",
     "age": 27,
     "gender": "male",
     "about": "Ambitious and hard-working, I'm focused on building a strong foundation for my career. I learn quickly, adapt well, and am committed to contributing reliability and enthusiasm to my team.",
@@ -160,7 +160,7 @@ export default [
     "voice_id": "87bc56aa-ab01-4baa-9071-77d497064686" // Jordan (en, male, "smooth and friendly... natural, easygoing tone")
   },
   {
-    "first_name": "Marco",
+    "first_name": "Lucio",
     "surname": "Rossi",
     "age": 45,
     "gender": "male",
@@ -170,7 +170,7 @@ export default [
     "voice_id": "e5923af7-a329-4e9b-b95a-5ace4a083535" // Lucio (it, male, "charismatic and engaging Italian voice")
   },
   {
-    "first_name": "David",
+    "first_name": "Ethan",
     "surname": "Wilson",
     "age": 45,
     "gender": "male",
@@ -181,7 +181,7 @@ export default [
   },
   {
     "first_name": "Mateo",
-    "surname": "Rodriguez",
+    "surname": "Rivera",
     "age": 38,
     "gender": "male",
     "about": "A dynamic and engaging professional with a knack for collaboration and achieving results. I bring energy and a solutions-focused mindset to every task. Committed to contributing positively and driving progress.",
@@ -190,8 +190,8 @@ export default [
     "voice_id": "79743797-2087-422f-8dc7-86f9efca85f1" // Mateo (es, male, "confident and engaging Spanish voice")
   },
   {
-    "first_name": "David",
-    "surname": "Williams",
+    "first_name": "Carson",
+    "surname": "Sanders",
     "age": 27,
     "gender": "male",
     "about": "Eager and motivated individual focused on developing skills and contributing positively. I am adaptable, work well with others, and am committed to performing tasks diligently and effectively.",
@@ -200,8 +200,8 @@ export default [
     "voice_id": "4df027cb-2920-4a1f-8c34-f21529d5c3fe" // Carson (en, male, "young American accented male with a confident, firm, friendly tone")
   },
   {
-    "first_name": "David",
-    "surname": "Miller",
+    "first_name": "Peter",
+    "surname": "Taylor",
     "age": 55,
     "gender": "male",
     "about": "A seasoned professional offering extensive experience and a steady hand. Known for reliability and a pragmatic approach to challenges. I am dedicated to achieving solid results and supporting team efforts.",
@@ -230,8 +230,8 @@ export default [
     "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5" // Sophie (en, female, "calm, conversational... perfect for narration stories or on phone calls")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Adu",
+    "first_name": "Kwabena",
+    "surname": "Mensah",
     "age": 40,
     "gender": "male",
     "about": "An experienced and dependable contributor focused on delivering high-quality work. I possess strong analytical skills and enjoy collaborating to achieve strategic objectives. Committed to professional growth.",
@@ -240,8 +240,8 @@ export default [
     "voice_id": "97f4b8fb-f2fe-444b-bb9a-c109783a857a" // Nathan (en, male, "warm and natural... confident yet relaxed tone")
   },
   {
-    "first_name": "Aisha",
-    "surname": "Adebayo",
+    "first_name": "Yetunde",
+    "surname": "Akinwale",
     "age": 45,
     "gender": "female",
     "about": "A competent and organized professional with years of experience. I manage responsibilities effectively and maintain a positive attitude, contributing reliably to team efforts and adapting as needed.",
@@ -250,7 +250,7 @@ export default [
     "voice_id": "694f9389-aac1-45b6-b726-9d9369183238" // Sarah (en, female, "natural and expressive... wide range of conversational use cases")
   },
   {
-    "first_name": "Kwame",
+    "first_name": "Corey",
     "surname": "Boateng",
     "age": 35,
     "gender": "male",
@@ -270,8 +270,8 @@ export default [
     "voice_id": "a37639f0-2f0a-4de4-9942-875a187af878" // Casual Brazilian Man (pt, male, "relaxed, conversational tone")
   },
   {
-    "first_name": "David",
-    "surname": "Lee",
+    "first_name": "Mark",
+    "surname": "Johansson",
     "age": 45,
     "gender": "male",
     "about": "A highly capable professional with a strong history of achieving objectives. I am analytical, strategic, and committed to continuous improvement. Eager to apply my skills to new challenges.",
@@ -280,8 +280,8 @@ export default [
     "voice_id": "7fe6faca-172f-4fd9-a193-25642b8fdb07" // American Voiceover Man (en, male, "versatile and engaging voice with a rich, professional tone")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Ntiamoah",
+    "first_name": "Kojo",
+    "surname": "Williams",
     "age": 38,
     "gender": "male",
     "about": "A dedicated professional with a strong sense of responsibility and commitment to excellence. I work well independently and as part of a team, always aiming to contribute positively and effectively.",
@@ -300,8 +300,8 @@ export default [
     "voice_id": "304fdbd8-65e6-40d6-ab78-f9d18b9efdf9" // Korean Support Woman (ko, female, "smooth Korean female voice with a gentle, expressive tone")
   },
   {
-    "first_name": "Javier",
-    "surname": "Rodriguez",
+    "first_name": "Juan",
+    "surname": "Sanchez",
     "age": 45,
     "gender": "male",
     "about": "An energetic and experienced professional known for strong interpersonal skills and a results-oriented mindset. I enjoy leading initiatives and collaborating to overcome obstacles effectively.",
@@ -310,7 +310,7 @@ export default [
     "voice_id": "b042270c-d46f-4d4f-8fb0-7dd7c5fe5615" // Juan (es, male, "conversational Spanish male voice")
   },
   {
-    "first_name": "Isabella",
+    "first_name": "Clara",
     "surname": "Martinez",
     "age": 28,
     "gender": "female",
@@ -320,8 +320,8 @@ export default [
     "voice_id": "d4b44b9a-82bc-4b65-b456-763fce4c52f9" // Clara (pt, female, "friendly and natural Portuguese female voice")
   },
   {
-    "first_name": "Aisha",
-    "surname": "Mohamed",
+    "first_name": "Grace",
+    "surname": "Wambui",
     "age": 28,
     "gender": "female",
     "about": "A thoughtful and committed professional focused on continuous learning and contribution. I am adept at working within teams and am eager to apply my skills in a dynamic and challenging role.",
@@ -330,8 +330,8 @@ export default [
     "voice_id": "32b3f3c5-7171-46aa-abe7-b598964aa793" // Zia (en, female, "bright, expressive young female American voice full of energy and charm")
   },
   {
-    "first_name": "Rohan",
-    "surname": "Sharma",
+    "first_name": "Vishnu",
+    "surname": "Iyer",
     "age": 30,
     "gender": "male",
     "about": "An analytical and driven professional committed to achieving high standards. I am focused on skill development and contributing meaningfully through diligent work and effective collaboration.",
@@ -340,8 +340,8 @@ export default [
     "voice_id": "a0cc0d65-5317-4652-b166-d9d34a244c6f" // Neil (en, male, Indian accent, "clear and crisp")
   },
   {
-    "first_name": "Olivia",
-    "surname": "Martinez",
+    "first_name": "Elena",
+    "surname": "Alvares",
     "age": 32,
     "gender": "female",
     "about": "A dynamic and articulate professional with a passion for effective communication and teamwork. I embrace challenges with enthusiasm and strive for excellence in all collaborative efforts.",
@@ -350,7 +350,7 @@ export default [
     "voice_id": "cefcb124-080b-4655-b31f-932f3ee743de" // Elena (es, female, "warm and inviting Spanish voice... clear, articulate, and expressive")
   },
   {
-    "first_name": "Aisha",
+    "first_name": "Amanda",
     "surname": "Silva",
     "age": 28,
     "gender": "female",
@@ -361,7 +361,7 @@ export default [
   },
   {
     "first_name": "Alice",
-    "surname": "Smith",
+    "surname": "Evans",
     "age": 32,
     "gender": "female",
     "about": "A capable and organized professional, focused on delivering results through effective teamwork and personal initiative. I am keen to apply my experience and contribute to challenging projects.",
@@ -380,7 +380,7 @@ export default [
     "voice_id": "e00d0e4c-a5c8-443f-a8a3-473eb9a62355" // Friendly Sidekick (en, male, "friendly and supportive")
   },
   {
-    "first_name": "Mateo",
+    "first_name": "Guillermo",
     "surname": "Rodriguez",
     "age": 28,
     "gender": "male",
@@ -390,8 +390,8 @@ export default [
     "voice_id": "b5aa8098-49ef-475d-89b0-c9262ecf33fd" // Castilian Spanish Presenter Man (es, male, "clear, confident, and engaging tone")
   },
   {
-    "first_name": "Mateo",
-    "surname": "Garcia",
+    "first_name": "Alejandro",
+    "surname": "Gonzales",
     "age": 45,
     "gender": "male",
     "about": "A seasoned and dependable professional with a talent for clear communication and effective problem-solving. My extensive experience allows me to consistently deliver quality results and mentor others.",
@@ -401,7 +401,7 @@ export default [
   },
   {
     "first_name": "Maria",
-    "surname": "Garcia",
+    "surname": "Lopez",
     "age": 50,
     "gender": "female",
     "about": "An experienced and resilient professional known for dedication and a strong work ethic. I confidently handle responsibilities and strive to contribute positively in collaborative environments.",
@@ -410,8 +410,8 @@ export default [
     "voice_id": "a8136a0c-9642-497a-882d-8d591bdcb2fa" // American Narrator Lady (en, female, "clear, expressive, and captivating voice")
   },
   {
-    "first_name": "David",
-    "surname": "Miller",
+    "first_name": "Orion",
+    "surname": "Silver",
     "age": 45,
     "gender": "male",
     "about": "A practical and efficient professional focused on achieving tangible outcomes. I work diligently, adapt readily to challenges, and aim to consistently add value through my efforts.",
@@ -420,8 +420,8 @@ export default [
     "voice_id": "701a96e1-7fdd-4a6c-a81e-a4a450403599" // Orion (en, male, "clear, well-enunciated male American voice with a confident and professional tone")
   },
   {
-    "first_name": "Olivia",
-    "surname": "Miller",
+    "first_name": "Rachel",
+    "surname": "Lewis",
     "age": 27,
     "gender": "female",
     "about": "A bright and detail-oriented individual passionate about continuous learning. I excel in team settings, bringing enthusiasm and a commitment to contributing effectively to shared goals.",
@@ -441,7 +441,7 @@ export default [
   },
   {
     "first_name": "Jennifer",
-    "surname": "Miller",
+    "surname": "Robinson",
     "age": 40,
     "gender": "female",
     "about": "An experienced and adaptable professional with a positive, can-do attitude. I value continuous development and enjoy contributing my skills within a supportive team environment.",
@@ -450,7 +450,7 @@ export default [
     "voice_id": "156fb8d2-335b-4950-9cb3-a2d33befec77" // Helpful Woman (en, female, "friendly and conversational")
   },
   {
-    "first_name": "Adanna",
+    "first_name": "Brenda",
     "surname": "Eze",
     "age": 32,
     "gender": "female",
@@ -461,7 +461,7 @@ export default [
   },
   {
     "first_name": "Angela",
-    "surname": "Williams",
+    "surname": "Brown",
     "age": 50,
     "gender": "female",
     "about": "A highly experienced and dependable professional committed to excellence. I am a strong collaborator, always willing to share knowledge and contribute positively to team objectives.",
@@ -470,8 +470,8 @@ export default [
     "voice_id": "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc" // Jacqueline (en, female, "clear and welcoming, perfect for an ordinary conversation")
   },
   {
-    "first_name": "Jian",
-    "surname": "Li",
+    "first_name": "Liu",
+    "surname": "Peng",
     "age": 30,
     "gender": "male",
     "about": "A motivated and analytical professional focused on delivering results. I work well within team structures and am eager to apply my skills and experience in a challenging and rewarding role.",
@@ -480,7 +480,7 @@ export default [
     "voice_id": "653b9445-ae0c-4312-a3ce-375504cff31e" // Mr. Liu (zh, male, "conversational Chinese man, great for phone calls and voice messages")
   },
   {
-    "first_name": "Arun",
+    "first_name": "Devansh",
     "surname": "Kumar",
     "age": 35,
     "gender": "male",
@@ -491,7 +491,7 @@ export default [
   },
   {
     "first_name": "Adebayo",
-    "surname": "Oladipupo",
+    "surname": "Zeke",
     "age": 28,
     "gender": "male",
     "about": "Resourceful and driven individual focused on skill development and contribution. I thrive in collaborative environments and am eager to apply my abilities to challenging tasks.",
@@ -500,8 +500,8 @@ export default [
     "voice_id": "bd9120b6-7761-47a6-a446-77ca49132781" // Tutorial Man (en, male, "inviting and calming, perfect for tutorials")
   },
   {
-    "first_name": "Aisha",
-    "surname": "Mohammed",
+    "first_name": "Precious",
+    "surname": "Ibekwe",
     "age": 30,
     "gender": "female",
     "about": "A committed and capable professional focused on continuous improvement and teamwork. I approach my work with dedication and am confident in my ability to contribute effectively.",
@@ -510,7 +510,7 @@ export default [
     "voice_id": "f4e8781b-a420-4080-81cf-576331238efa" // Samantha (en, female, "natural, conversational voice great for phone calling and support")
   },
   {
-    "first_name": "Isabella",
+    "first_name": "Rosa",
     "surname": "Garcia",
     "age": 22,
     "gender": "female",
@@ -521,7 +521,7 @@ export default [
   },
   {
     "first_name": "Jian",
-    "surname": "Li",
+    "surname": "Luo",
     "age": 23,
     "gender": "male",
     "about": "Highly motivated recent graduate ready to apply my knowledge and develop practical skills. I am a quick learner, work well with others, and am eager to contribute to challenging projects.",
@@ -531,7 +531,7 @@ export default [
   },
   {
     "first_name": "Olivia",
-    "surname": "Miller",
+    "surname": "Watson",
     "age": 35,
     "gender": "female",
     "about": "A proactive and adaptable professional with a positive mindset. I enjoy learning new things and contributing effectively within a team to achieve shared objectives.",
@@ -541,7 +541,7 @@ export default [
   },
   {
     "first_name": "Devon",
-    "surname": "Miller",
+    "surname": "Truner",
     "age": 32,
     "gender": "male",
     "about": "A resilient and resourceful individual with a strong work ethic. I approach challenges with a positive attitude and am committed to continuous learning and succeeding in dynamic environments.",
@@ -560,8 +560,8 @@ export default [
     "voice_id": "c99d36f3-5ffd-4253-803a-535c1bc9c306" // Griffin (en, male, British, "deep, smoooth British man's voice")
   },
   {
-    "first_name": "Rohan",
-    "surname": "Sharma",
+    "first_name": "Rahul",
+    "surname": "Patel",
     "age": 42,
     "gender": "male",
     "about": "An experienced and strategic thinker with a proven ability to achieve results. I thrive in collaborative settings and am passionate about continuous professional growth and contributing effectively.",
@@ -571,7 +571,7 @@ export default [
   },
   {
     "first_name": "Karen",
-    "surname": "Miller",
+    "surname": "Myers",
     "age": 58,
     "gender": "female",
     "about": "A highly experienced professional bringing years of expertise and strong problem-solving skills. I thrive in collaborative environments and remain eager to learn and tackle new challenges effectively.",
@@ -580,8 +580,8 @@ export default [
     "voice_id": "573e3144-a684-4e72-ac2b-9b2063a50b53" // Teacher Lady (en, female, "neutral and clear, perfect for narrating educational content")
   },
   {
-    "first_name": "Mateo",
-    "surname": "Rodriguez",
+    "first_name": "Julio",
+    "surname": "Fernandez",
     "age": 28,
     "gender": "male",
     "about": "A proactive and enthusiastic team player focused on learning and contributing positively. I adapt quickly and am committed to supporting team goals with dedication and reliability.",
@@ -590,7 +590,7 @@ export default [
     "voice_id": "5ef98b2a-68d2-4a35-ac52-632a2d288ea6" // Mario (es, male, "smooth, slower Spanish man's voice, great for narrations and conversations")
   },
   {
-    "first_name": "Kwame",
+    "first_name": "Grant",
     "surname": "Adu",
     "age": 35,
     "gender": "male",
@@ -600,7 +600,7 @@ export default [
     "voice_id": "63406bbd-ce1b-4fff-8beb-86d3da9891b9" // Grant (en, male, "clear, well-paced male voice with a steady and professional tone")
   },
   {
-    "first_name": "Kwame",
+    "first_name": "Casper",
     "surname": "Boateng",
     "age": 42,
     "gender": "male",
@@ -610,7 +610,7 @@ export default [
     "voice_id": "4f7f1324-1853-48a6-b294-4e78e8036a83" // Casper (en, male, British, "calm, British man")
   },
   {
-    "first_name": "Adebayo",
+    "first_name": "Kimbo",
     "surname": "Oladipo",
     "age": 30,
     "gender": "male",
@@ -620,8 +620,8 @@ export default [
     "voice_id": "d46abd1d-2d02-43e8-819f-51fb652c1c61" // Newsman (en, male, "neutral and educational, perfect for a news anchor")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Osei",
+    "first_name": "Trevor",
+    "surname": "M'bape",
     "age": 35,
     "gender": "male",
     "about": "A motivated professional passionate about continuous learning and effective teamwork. I readily embrace new challenges and focus on collaborating effectively to achieve shared goals.",
@@ -640,7 +640,7 @@ export default [
     "voice_id": "700d1ee3-a641-4018-ba6e-899dcadc9e2b" // Pleasant Brazilian Lady (pt, female, "pleasant and clear, perfect for casual conversations")
   },
   {
-    "first_name": "Anna",
+    "first_name": "Alina",
     "surname": "Schmidt",
     "age": 35,
     "gender": "female",
@@ -660,8 +660,8 @@ export default [
     "voice_id": "0cd0cde2-3b93-42b5-bcb9-f214a591aa29" // Young Shy Japanese Woman (ja, female, "bright and cheerful Japanese female voice with a youthful, playful tone")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Osei",
+    "first_name": "Samuel",
+    "surname": "Issah",
     "age": 32,
     "gender": "male",
     "about": "A resourceful and collaborative professional focused on continuous improvement. I am always eager to learn and apply new skills to contribute effectively to any team.",
@@ -690,8 +690,8 @@ export default [
     "voice_id": "663afeec-d082-4ab5-827e-2e41bf73a25b" // Korean Narrator Woman (ko, female, "graceful and melodic Korean female voice")
   },
   {
-    "first_name": "Kwame",
-    "surname": "Osei",
+    "first_name": "Joseph",
+    "surname": "Moro",
     "age": 25,
     "gender": "male",
     "about": "An energetic and adaptable individual with a strong desire to learn and contribute. I work well collaboratively and am confident in my ability to add value to any team.",
@@ -701,7 +701,7 @@ export default [
   },
   {
     "first_name": "Priya",
-    "surname": "Sharma",
+    "surname": "Shrivastava",
     "age": 22,
     "gender": "female",
     "about": "Ambitious and quick-learning graduate eager to contribute skills and enthusiasm. I possess a strong work ethic and positive attitude, ready for challenging and rewarding opportunities.",
@@ -730,8 +730,8 @@ export default [
     "voice_id": "6d287143-8db3-434a-959c-df147192da27" // Stacy (en, female, "nice conversational female American voice")
   },
   {
-    "first_name": "Layla",
-    "surname": "Al-Otaibi",
+    "first_name": "Amira",
+    "surname": "Suleiman",
     "age": 27,
     "gender": "female",
     "about": "A motivated and results-focused individual with a passion for learning. I am eager to contribute my skills and experience to a dynamic team and make a positive impact.",
@@ -741,7 +741,7 @@ export default [
   },
   {
     "first_name": "Rajesh",
-    "surname": "Sharma",
+    "surname": "Gupta",
     "age": 55,
     "gender": "male",
     "about": "A dedicated senior professional with extensive experience and a commitment to quality. I am always keen to embrace new challenges and continuously strive for improvement and excellence.",
