@@ -88,23 +88,13 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
       <CardContent>
         <div className="flex flex-col space-y-4">
           <div className="flex flex-col space-y-4 items-start" >
-            {hasPaymentMethod && (
-              <Button
+            <Button
               className="w-fit"
               variant="link"
               onClick={handleBuyCredits}
-              >
-                Buy Credits
-              </Button>
-            )}
-            {!hasPaymentMethod && (
-              <Button
-              className="w-fit"
-              variant="link" 
-              disabled>
-                Buy Credits (Add payment method first)
-              </Button>
-            )}
+            >
+              Buy Credits
+            </Button>
             <Button
               className="w-fit"
               variant="link"
