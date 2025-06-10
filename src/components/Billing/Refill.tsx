@@ -60,7 +60,6 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
     };
 
     if (hasPaymentMethod) {
-      // Fetch both eligibility and auto-recharge settings
       fetchBillingEligibility();
       fetchAutoRechargeSettings();
     } else {
@@ -107,9 +106,9 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
       return;
     }
 
-    // Check minimum recharge amount for new settings (grandfathering existing users)
-    if (Number(rechargeAmount) < 25 && rechargeAmount !== initialRechargeAmount) {
-      setAlertMessage("Recharge amount must be at least $25. Existing users can keep their current amount.");
+    // Strict $25 minimum enforcement for all modifications
+    if (Number(rechargeAmount) < 25) {
+      setAlertMessage("Recharge amount must be at least $25 to save changes.");
       setAlertType("error");
       return;
     }
@@ -182,6 +181,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
               </AlertDescription>
             </Alert>
           )}
+          
           <div className="flex flex-col">
             <label htmlFor="minBalance" className="text-sm font-medium">
               Minimum Balance
@@ -209,12 +209,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
               onChange={(e) => setRechargeAmount(e.target.value)}
               disabled={!isAutoRechargeEnabled}
             />
-            {isAutoRechargeEnabled && Number(initialRechargeAmount) < 25 && initialRechargeAmount !== "" && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Note: Your current amount is grandfathered. New amounts must be at least $25.
-              </p>
-            )}
-            {isAutoRechargeEnabled && (Number(initialRechargeAmount) >= 25 || initialRechargeAmount === "") && (
+            {isAutoRechargeEnabled && (
               <p className="text-xs text-muted-foreground mt-1">
                 Minimum recharge amount: $25
               </p>

@@ -53,7 +53,7 @@ const Main = () => {
       }
     };
 
-    // Check auto-recharge status for grandfathering
+    // Check auto-recharge status
     const checkAutoRechargeStatus = async () => {
       try {
         const response = await fetch("/api/billing/auto-recharge/settings");
@@ -130,7 +130,7 @@ const Main = () => {
 
           <Balance hasPaymentMethod={hasPaymentMethod} billingEligibility={billingEligibility} autoRechargeEnabled={autoRechargeEnabled} />
           
-          {(billingEligibility?.can_enable_monthly_billing || autoRechargeEnabled) && (
+          {billingEligibility?.can_enable_monthly_billing && (
             <>
               <Separator />
               <AutomaticRefill hasPaymentMethod={hasPaymentMethod} />

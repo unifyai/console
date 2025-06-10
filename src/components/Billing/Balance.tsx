@@ -116,7 +116,7 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
             </Button>
           </div>
           <div className="flex flex-col space-y-4 items-center">
-            {(billingEligibility?.can_enable_monthly_billing || autoRechargeEnabled) && (
+            {billingEligibility?.can_enable_monthly_billing && (
               <Button 
                 variant="primary" 
                 onClick={handleOpenPortal}
