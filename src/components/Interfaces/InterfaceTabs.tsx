@@ -6,28 +6,43 @@ import { TabsList, TabsTrigger } from "../UI/tabs";
 import { Input } from "../UI/input";
 import { useEffect, useState } from "react";
 import ActionButton from "../Common/Buttons/Action";
-import { GranularTabActions, GranularInterfaceActions } from "@/types/evals/grid";
+import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab } from "@/contexts/hooks/tab";
-import { useQueryState } from "nuqs";
 import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSync";
 import { toast } from "sonner";
+import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
 
 const InterfaceTabs = ({ 
   tabIdOrName,
   interfaceId,  
+  projectsActions,
+  contextActions,
   interfaceActions,
   tabActions, 
-  setTabQueryParam 
+  tileActions,
+  fieldsActions,
+  logsActions,
+  setTabQueryParam,
+  pendingTabChange,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
     interfaceActions: GranularInterfaceActions,
     tabActions: GranularTabActions,
+    tileActions: GranularTileActions,
+    fieldsActions: FieldsActions,
+    logsActions: LogsActions,
     setTabQueryParam: (tabQueryParam: string | null) => void,
+    pendingTabChange?: string,
 }) => {
-    const [_, setTabQueryParamNoReload] = useQueryState("tab");
-    const [tabQueryParamState, setTabQueryParamState] = useState(tabIdOrName || "");
+    // Tab states and actions with granular access
+    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName || "");
+    const tabName = tabMetaState?.name || "";
+
+    const [tabQueryParamState, setTabQueryParamState] = useState(tabName || "");
     const [hoveredTab, setHoveredTab] = useState<string | undefined>();
     const [errorMsg, setErrorMsg] = useState<string>();
 
@@ -37,15 +52,34 @@ const InterfaceTabs = ({
     // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, project, interfaceActions, tabActions);
     const syncedInterfaceDataActions = syncedInterfaceActions?.data;
+    const syncedInterfaceUIActions = syncedInterfaceActions?.ui;
 
-    const tabNames = syncedInterfaceDataActions?.getTabNames() || [];
+    const tabNamesToShow = syncedInterfaceDataActions?.getTabNames() || [];
 
-    // Tab states and actions with granular access
-    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName || "");
+    // Streaming integration for instant tab switching (when enabled)
+    const { prefetchedTabs } = useTabStreamingQuery(
+        interfaceId,
+        tabName, 
+        project,
+        {
+            tabActions,
+            tileActions,
+            fieldsActions,
+            logsActions,
+            projectsActions,
+            contextActions,
+        }
+    );
 
     useEffect(() => {
-        setTabQueryParamState(tabIdOrName || "");
-    }, [tabIdOrName]);
+        setTabQueryParamState(tabName || "");
+    }, [tabName]);
+
+    // Enhanced tab click handler with instant switching
+    const handleTabClick = (tabName: string) => {
+        // Only update the URL param, Interface.tsx's handleTabChange will handle the actual switching
+        setTabQueryParam(tabName);
+    };
 
     // Handle tab rename
     const handleRenameTab = async (oldName: string, newName: string) => {
@@ -63,7 +97,7 @@ const InterfaceTabs = ({
         }
         
         // Check for duplicates (case insensitive)
-        const duplicate = tabNames.some(name => 
+        const duplicate = tabNamesToShow.some(name => 
             name.toLowerCase() === newName.trim().toLowerCase() && 
             name !== oldName
         );
@@ -77,7 +111,7 @@ const InterfaceTabs = ({
             // Use synchronized action to rename the tab
             syncedInterfaceDataActions?.renameTab(oldName, newName);
 
-            setTabQueryParamNoReload(tabQueryParamState);
+            setTabQueryParamState(newName);
             
             toast.success(`Tab renamed to "${newName}"`);
         } catch (error) {
@@ -87,26 +121,28 @@ const InterfaceTabs = ({
     };
 
     // Handle tab deletion
-    const handleDeleteTab = async (tabName: string) => {
+    const handleDeleteTab = async (tabNameToDelete: string) => {
         try {
             // If deleting active tab, switch to another tab first
-            if (tabIdOrName === tabName) {
+            if (tabName === tabNameToDelete) {
                 tabUIActions?.setPending(true);
-                const tabIdx = tabNames.indexOf(tabName);
-                const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNames.length > 1 ? 1 : -1;
-                const nextTabName = nextTabIdx !== -1 ? tabNames[nextTabIdx] : null;
+                const tabIdx = tabNamesToShow.indexOf(tabNameToDelete);
+                const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNamesToShow.length > 1 ? 1 : -1;
+                const nextTabName = nextTabIdx !== -1 ? tabNamesToShow[nextTabIdx] : null;
                 
                 // Use synchronized action to remove the tab
-                syncedInterfaceDataActions?.removeTab(tabName);
+                syncedInterfaceDataActions?.removeTab(tabNameToDelete);
                 
-                // Update URL param to new tab
-                setTabQueryParam(nextTabName);
+                // Update active tab using synced action
+                if (nextTabName && syncedInterfaceUIActions) {
+                    syncedInterfaceUIActions.setActiveTab(nextTabName);
+                }
             } else {
                 // Use synchronized action to remove the tab
-                syncedInterfaceDataActions?.removeTab(tabName);
+                syncedInterfaceDataActions?.removeTab(tabNameToDelete);
             }
             
-            toast.success(`Tab "${tabName}" removed`);
+            toast.success(`Tab "${tabNameToDelete}" removed`);
         } catch (error) {
             console.error("Error deleting tab:", error);
             toast.error("Failed to delete tab. Please try again.");
@@ -117,8 +153,8 @@ const InterfaceTabs = ({
     const handleCreateTab = async () => {
         try {
             // Generate a new tab name that doesn't exist
-            let initialIndex = tabNames.length + 1;
-            while (tabNames.includes(`tab${initialIndex}`)) {
+            let initialIndex = tabNamesToShow.length + 1;
+            while (tabNamesToShow.includes(`tab${initialIndex}`)) {
                 initialIndex++;
             }
             const newTabName = `tab${initialIndex}`;
@@ -130,10 +166,10 @@ const InterfaceTabs = ({
             const result = await syncedInterfaceDataActions?.addTab(newTabName);
             console.log("Tab creation result:", result);
             
-            // Only update URL params AFTER the tab has been created successfully
-            if (result) {
-                // Update URL param to new tab
-                setTabQueryParam(newTabName);
+            // Only update active tab AFTER the tab has been created successfully
+            if (result && syncedInterfaceUIActions) {
+                // Update active tab using synced action
+                syncedInterfaceUIActions.setActiveTab(newTabName);
                 setTabQueryParamState(newTabName);
                 
                 toast.success(`New tab "${newTabName}" created`);
@@ -151,18 +187,18 @@ const InterfaceTabs = ({
 
     return (
         <div className="flex gap-4 px-4">
-            {tabNames.length > 0 && <TabsList className="rounded-md justify-between">
+            {tabNamesToShow.length > 0 && <TabsList className="rounded-md justify-between">
                 <div className="flex flex-row gap-3">
-                    {tabNames.map((tabName, idx) => {
+                    {tabNamesToShow.map((tabNameToShow, idx) => {
                         return (
                             <TabsTrigger
                                 key={idx}
-                                value={tabName}
+                                value={tabNameToShow}
                                 className="relative flex flex-row gap-2 data-[state=active]:text-accent"
-                                onMouseEnter={() => setHoveredTab(tabName)}
+                                onMouseEnter={() => setHoveredTab(tabNameToShow)}
                                 onMouseLeave={() => setHoveredTab(undefined)}
                             >
-                                {tabIdOrName == tabName ? (
+                                {tabName == tabNameToShow ? (
                                     <Input
                                         value={tabQueryParamState}
                                         disabled={tabUIState?.pending || tabUIState?.dataPending}
@@ -172,34 +208,43 @@ const InterfaceTabs = ({
                                             if (errorMsg) setErrorMsg(undefined);
                                         }}
                                         onKeyDown={(e) => {
-                                            if (e.key === "Enter" && tabName != tabQueryParamState && !tabNames.includes(tabQueryParamState)) {
-                                                handleRenameTab(tabName, tabQueryParamState);
+                                            if (e.key === "Enter" && tabNameToShow != tabQueryParamState && !tabNamesToShow.includes(tabQueryParamState)) {
+                                                handleRenameTab(tabNameToShow, tabQueryParamState);
                                             }
-                                            else if (e.key == "Enter" && tabName == tabQueryParamState) {
-                                                setTabQueryParamState(tabName);
+                                            else if (e.key == "Enter" && tabNameToShow == tabQueryParamState) {
+                                                setTabQueryParamState(tabNameToShow);
                                                 setErrorMsg(undefined);
                                             }
                                         }}
                                         className="px-0 h-5 w-16 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
                                     />
                                 ) : (
-                                    <div className="h-5 w-16 text-center" onClick={() => setTabQueryParam(tabName)}>
-                                        {tabName}
+                                    <div className="h-5 w-16 text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
+                                        {tabNameToShow}
+                                        {/* Cached data indicator for streaming - show if streaming enabled or if tab is prefetched */}
+                                        <div className={`absolute -top-1 -left-1 w-1.5 h-1.5 bg-green-500 ${prefetchedTabs?.has(tabNameToShow) ? "" : "animate-pulse"} rounded-full`} title="Tab Prefetched" />
+                                        {/* Pending tab change indicator */}
+                                        {pendingTabChange === tabNameToShow && (
+                                            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-primary animate-pulse rounded-full" 
+                                                 title="Tab switch pending" />
+                                        )}
                                     </div>
                                 )}
                                 <div
-                                    className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tabName ? "opacity-100" : "opacity-0"}`}
-                                    onMouseEnter={() => tabIdOrName != tabName && tabUIActions?.setDeleting(true)}
-                                    onMouseLeave={() => tabIdOrName != tabName && tabUIActions?.setDeleting(false)}
+                                    className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tabNameToShow ? "opacity-100" : "opacity-0"}`}
+                                    onMouseEnter={() => tabName != tabNameToShow && tabUIActions?.setDeleting(true)}
+                                    onMouseLeave={() => tabName != tabNameToShow && tabUIActions?.setDeleting(false)}
                                     onClick={() => {
-                                        if (tabIdOrName == tabName) {
-                                            tabUIActions?.setPending(true);
-                                            const tabIdx = tabNames.indexOf(tabName);
-                                            const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNames.length > 1 ? 1 : -1;
-                                            const nextTabName = nextTabIdx != -1 ? tabNames[nextTabIdx] : null;
-                                            setTabQueryParam(nextTabName);
+                                        if (tabName == tabNameToShow) {
+                                            // tabUIActions?.setPending(true);
+                                            const tabIdx = tabNamesToShow.indexOf(tabNameToShow);
+                                            const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNamesToShow.length > 1 ? 1 : -1;
+                                            const nextTabName = nextTabIdx != -1 ? tabNamesToShow[nextTabIdx] : null;
+                                            if (nextTabName && syncedInterfaceUIActions) {
+                                                syncedInterfaceUIActions.setActiveTab(nextTabName);
+                                            }
                                         }
-                                        handleDeleteTab(tabName);
+                                        handleDeleteTab(tabNameToShow);
                                     }}
                                 >
                                     <X size={14} />

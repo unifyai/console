@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useRef, Suspense, useMemo, useEffect, lazy } from 'react';
-import { useRouter } from "next/navigation";
-import { Loader2, Plus, X, Trash } from "lucide-react";
+import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent } from "../UI/tabs";
 import { Dialog, DialogContent } from "../UI/dialog";
 import ActionButton from "../Common/Buttons/Action";
@@ -12,8 +11,8 @@ import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./ProjectButtons";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions } from '@/types/evals/grid';
+import { debounce } from 'lodash';
 
-import { useInterfaceData } from '@/contexts/hooks/interface';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../Common/Misc/AutoComplete';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
@@ -23,11 +22,16 @@ import { Toaster } from 'sonner';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
+import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
+import { useInterfaceSync } from '@/contexts/hooks/interface/sync/useInterfaceSync';
+import { selectActiveTab } from '@/contexts/selectors/tab';
+import { useInterfaceData } from '@/contexts/hooks/interface/useInterfaceData';
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./DefaultProject'));
 const FocusDialog = lazy(() => import('./FocusDialog'));
 const EditTileName = lazy(() => import('./EditTileName'));
+const Tab = lazy(() => import('./Tab'));
 
 interface InterfaceComponentProps {
   interfaceId: string;
@@ -41,7 +45,6 @@ interface InterfaceComponentProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
-  children: React.ReactNode;
 }
 
 const Interface = ({ 
@@ -56,14 +59,21 @@ const Interface = ({
   contextActions,
   codeActions,
   fileActions,
-  children
 }: InterfaceComponentProps) => {
-  const router = useRouter();
 
-  // Query params
-  const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: false });
-  const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
+  // Query params - no more tab param needed
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
+  const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
+
+  // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, projectQueryParam, interfaceActions, tabActions);
+  const syncedInterfaceUIActions = syncedInterfaceActions?.ui;
+  
+  // Get current active tab name using selector - this is our source of truth
+  const activeTab = useStoreContext((state) => selectActiveTab(state, interfaceId));
+  const activeTabId = activeTab?.id || null;
+  const activeTabName = activeTab?.name || null;
+  const setTabQueryParamFromSync = syncedInterfaceUIActions?.setActiveTab || (() => {});
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -90,20 +100,33 @@ const Interface = ({
   const updateTabMutation = useUpdateTabQuery();
   const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, "Manual save");
 
-  // Get interface and project data from hooks with granular access
+  // Use granular interface and tab hooks for better performance
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
+  const { data: tabDataState, dataActions: tabDataActions } = useTabData(activeTabId, interfaceId);
+  const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(activeTabId, interfaceId);
 
-  // Use granular tab hooks for better performance
-  const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabQueryParam || "", interfaceId);
-  const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabQueryParam || "", interfaceId);
+  // NEW: Use tab streaming for all tab data management
+  const tabStreamingQuery = useTabStreamingQuery(
+    interfaceId,
+    activeTabName,
+    projectQueryParam,
+    {
+      tabActions,
+      tileActions,
+      fieldsActions,
+      logsActions,
+      projectsActions,
+      contextActions,
+    }
+  );
 
   // Initialize command hooks
   const commandHooks = useCommand({
     projectId: projectQueryParam,
     interfaceId,
-    tabId: tabQueryParam,
+    tabId: activeTabId,
     setProject: setProjectQueryParam,
-    setTabQueryParam,
+    setTabQueryParam: setTabQueryParamFromSync,
     setInterfaceQueryParam,
     projectActions: projectsActions,
     interfaceActions,
@@ -114,20 +137,65 @@ const Interface = ({
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
 
-  // Get tab names for the current interface
+  // Get tab names from streaming query
   const tabNames = useMemo(() => interfaceDataActions?.getTabNames() || [], [interfaceDataActions]);
 
-  // Set active tab handler
-  const handleTabChange = (value: string | undefined) => {
-    if (tabUIState && !tabUIState?.deleting) {
+  // Auto-select first tab if no active tab is set and tabs are available
+  useEffect(() => {
+    if (tabNames.length > 0 && syncedInterfaceUIActions && (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))) {
+      console.log(`[Interface] No active tab set or active tab doesn't exist in available tabs: ${tabNames}, selecting last tab: ${tabNames[tabNames.length - 1]}`);
+      syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
+    }
+  }, [activeTabName, tabNames, syncedInterfaceUIActions]);
+
+  // Track pending tab change
+  const [pendingTabChange, setPendingTabChange] = useState<string | undefined>(undefined);
+
+  // Actual tab switch handler - will be debounced
+  const performTabSwitch = useCallback((value: string | undefined) => {
+    if (!value || !syncedInterfaceUIActions) return;
+    
+    // Clear the pending state
+    setPendingTabChange(undefined);
+    
+    // Check if tab data is already cached
+    const isCached = tabStreamingQuery?.switchTab(value) || false;
+    
+    if (isCached) {
+      // Instant switch - data is already available
+      syncedInterfaceUIActions.setActiveTab(value);
+    } else {
+      // Show loading state while fetching
       if (tabUIActions) {
         tabUIActions.setPending(true);
-        tabUIActions.setDataPending(true);
       }
-      // Update URL query param
-      setTabQueryParam(value || null);
+      syncedInterfaceUIActions.setActiveTab(value);
     }
-  };
+  }, [syncedInterfaceUIActions, tabStreamingQuery, tabUIActions]);
+
+  // Create debounced version of tab switch handler
+  const debouncedTabSwitch = useMemo(
+    () => debounce(performTabSwitch, 100),
+    [performTabSwitch]
+  );
+
+  // Enhanced tab change handler with debounced switching
+  const handleTabChange = useCallback((value: string | undefined) => {
+    if (!value) return;
+    
+    // Set pending tab change immediately for UI feedback
+    setPendingTabChange(value);
+    
+    // Debounce the actual tab switch
+    debouncedTabSwitch(value);
+  }, [debouncedTabSwitch]);
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedTabSwitch.cancel();
+    };
+  }, [debouncedTabSwitch]);
 
   // Scroll to the bottom whenever new tiles are added
   useEffect(() => {
@@ -150,6 +218,13 @@ const Interface = ({
     }
   }, [tabUIState?.color]);
 
+  // Reset pending state when tab data loads successfully
+  useEffect(() => {
+    if (tabStreamingQuery?.activeTab.data && tabUIState?.pending) {
+      tabUIActions?.setPending(false);
+    }
+  }, [tabStreamingQuery?.activeTab.data, tabUIState?.pending, tabUIActions]);
+
   // Add a useEffect to reset the error state and refresh data
   useEffect(() => {
     // Reset any error states when tab changes
@@ -159,11 +234,44 @@ const Interface = ({
     if (updateTabMutation.isError) {
       updateTabMutation.reset();
     }
-  }, [tabQueryParam, createTabMutation, updateTabMutation]);
+  }, [activeTabName, createTabMutation, updateTabMutation]);
+
+  // Render the active tab based on streaming query
+  const renderActiveTab = () => {
+    if (!activeTabId || !projectQueryParam) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          Please select a tab
+        </div>
+      );
+    }
+
+    return (
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <SkeletonLoader />
+        </div>
+      }>
+        <Tab
+          tabId={activeTabId}
+          interfaceId={interfaceId}
+          projectId={projectQueryParam}
+          projectsActions={projectsActions}
+          tabActions={tabActions}
+          tileActions={tileActions}
+          logsActions={logsActions}
+          fieldsActions={fieldsActions}
+          derivedEntryActions={derivedEntryActions}
+          contextActions={contextActions}
+          codeActions={codeActions}
+        />
+      </Suspense>
+    );
+  };
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
-    if (!tabQueryParam || !projectQueryParam || !interfaceQueryParam) {
+    if (!activeTabName || !projectQueryParam || !interfaceQueryParam) {
       console.error("Missing tab or project or interface");
       return;
     }
@@ -183,7 +291,7 @@ const Interface = ({
       // Create a checkpoint of the tab and all its tiles
       await saveTabWithTilesMutation.mutateAsync({
         interface_id: interfaceId,
-        tab_name: tabQueryParam,
+        tab_name: activeTabName,
         tile_ids: tileIds
       });
       
@@ -247,8 +355,7 @@ const Interface = ({
         <Toaster richColors position="bottom-right" closeButton />
         {/* ---------------------------------------------------------
             Top-level Suspense: covers the whole Tabs area so that
-            the user sees a Skeleton while the server-rendered Tabs
-            (and their children) are still being streamed / hydrated.
+            the user sees a Skeleton while the tabs are being loaded
           --------------------------------------------------------- */}
         <Suspense
           fallback={
@@ -258,18 +365,18 @@ const Interface = ({
           }
         >
           <Tabs
-            value={tabQueryParam || undefined}
+            value={activeTabName || undefined}
             onValueChange={handleTabChange}
             className="w-full h-full flex flex-col tutorial-details-panel"
           >
             <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
               {/* Project buttons and add/delete buttons */}
               <ProjectButtons
-                tabIdOrName={tabQueryParam || ""}
+                tabIdOrName={activeTabId}
                 interfaceId={interfaceId}
                 projectQueryParam={projectQueryParam}
                 defaultProject={false}
-                setTabQueryParam={setTabQueryParam}
+                setTabQueryParam={setTabQueryParamFromSync}
                 setInterfaceQueryParam={setInterfaceQueryParam}
                 setProjectQueryParam={setProjectQueryParam}
                 projectActions={projectsActions}
@@ -298,7 +405,7 @@ const Interface = ({
 
               {/* Interface buttons */}
               <InterfaceButtons
-                tabIdOrName={tabQueryParam || ""}
+                tabIdOrName={activeTabId}
                 interfaceId={interfaceId}
                 logsActions={logsActions}
                 contextActions={contextActions}
@@ -326,7 +433,7 @@ const Interface = ({
                     logsActions={logsActions}
                     codeActions={codeActions}
                     derivedEntryActions={derivedEntryActions}
-                    setTabQueryParam={setTabQueryParam}
+                    setTabQueryParam={setTabQueryParamFromSync}
                     setInterfaceQueryParam={setInterfaceQueryParam}
                     setProjectQueryParam={setProjectQueryParam}
                   />
@@ -339,29 +446,61 @@ const Interface = ({
                   value={tabName}
                   className="mb-auto tutorial-selection-pane relative"
                 >
-                  {tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending ? (
+                  {/* Check if we're in loading states */}
+                  {(tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending) ? (
                     <div className="flex justify-center">
                       <Loader2 className="animate-spin my-36" />
                     </div>
-                  ) : tabQueryParam != tabName ? (
-                    <div key={idx} className="flex text-center justify-center">
-                      <Loader2 className="animate-spin my-36" />
+                  ) : activeTabName !== tabName ? (
+                    <div className="flex justify-center">
+                      {/* Show different indicator for pending tab switch */}
+                      {pendingTabChange === tabName ? (
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="animate-spin my-36" />
+                          <div className="text-sm text-muted-foreground">Switching tab...</div>
+                        </div>
+                      ) : (
+                        <Loader2 className="animate-spin my-36" />
+                      )}
                     </div>
+                  ) : tabStreamingQuery ? (
+                    /* CLIENT-FIRST APPROACH - rendering Tab directly from React Query */
+                    tabStreamingQuery.activeTab.isLoading ? (
+                      <div className="flex justify-center">
+                        <Loader2 className="animate-spin my-36" />
+                      </div>
+                    ) : tabStreamingQuery.activeTab.isError ? (
+                      <div className="flex justify-center items-center flex-col gap-4 my-36">
+                        <div className="text-destructive">Error loading tab data</div>
+                        <div className="text-sm text-muted-foreground">
+                          {tabStreamingQuery.activeTab.error?.message}
+                        </div>
+                      </div>
+                    ) : (
+                      <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
+                        <div className="w-full h-full relative">
+                          {/* Use renderActiveTab instead of direct Tab component render */}
+                          {renderActiveTab()}
+                          
+                          {/* Show streaming indicators */}
+                          {tabStreamingQuery.prefetchProgress.total > 0 && (
+                            <div className="fixed bottom-16 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded border">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span>
+                                  Prefetched: {Math.min(tabStreamingQuery.prefetchProgress.completed, tabStreamingQuery.prefetchProgress.total)}/{tabStreamingQuery.prefetchProgress.total} tabs
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Suspense>
+                    )
                   ) : (
-                    // Replace Tab component with the server-rendered children
-                    <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
-                      {/* <Tab
-                        tabId={tabQueryParam || ""}
-                        interfaceId={interfaceId}
-                        projectId={projectQueryParam || ""}
-                        logsActions={logsActions}
-                        fieldsActions={fieldsActions}
-                        derivedEntryActions={derivedEntryActions}
-                        contextActions={contextActions}
-                        codeActions={codeActions}
-                      /> */}
-                      {children}
-                    </Suspense>
+                    /* No tab streaming available */
+                    <div className="flex justify-center items-center flex-col gap-4 my-36">
+                      <div className="text-muted-foreground">Tab streaming not available</div>
+                    </div>
                   )}
                 </TabsContent>
               ))
@@ -370,11 +509,17 @@ const Interface = ({
             {/* Interface tabs */}
             {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
               <InterfaceTabs
-                tabIdOrName={tabQueryParam || ""}
+                tabIdOrName={activeTabId}
                 interfaceId={interfaceId}
+                projectsActions={projectsActions}
+                contextActions={contextActions}
                 interfaceActions={interfaceActions}
                 tabActions={tabActions}
-                setTabQueryParam={setTabQueryParam}
+                tileActions={tileActions}
+                fieldsActions={fieldsActions}
+                logsActions={logsActions}
+                setTabQueryParam={setTabQueryParamFromSync}
+                pendingTabChange={pendingTabChange}
               />
             </div>}
           </Tabs>
@@ -386,7 +531,7 @@ const Interface = ({
             <DialogContent className="min-w-full h-full overflow-y-auto">
               <Suspense fallback={<SkeletonLoader />}>
                 <FocusDialog
-                  tabIdOrName={tabQueryParam || ""}
+                  tabIdOrName={activeTabId || ""}
                   interfaceId={interfaceId}
                   projectId={projectQueryParam || ""}
                   tileActions={tileActions}
@@ -407,7 +552,7 @@ const Interface = ({
         {tabUIState?.edit && tabUIState?.editTile && (
           <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
             <EditTileName
-              tabIdOrName={tabQueryParam || ""}
+              tabIdOrName={activeTabId || ""}
               interfaceId={interfaceId}
               tabActions={tabActions}
               tileActions={tileActions}
@@ -422,7 +567,7 @@ const Interface = ({
               <div className="mt-4 flex flex-col gap-4">
                 <div>
                   Are you sure you want to save the changes to{" "}
-                  <span className="font-semibold">{tabQueryParam}</span>?
+                  <span className="font-semibold">{activeTabName}</span>?
                 </div>
                 <div className="flex flex-col gap-2">
                   {saveTabWithTilesMutation.isPending && (

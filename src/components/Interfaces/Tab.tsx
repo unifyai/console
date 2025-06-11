@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, Suspense, lazy, ReactElement } from "react";
+import React, { useEffect, useMemo, Suspense, lazy } from "react";
 import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, TilePosition, ProjectsActions, FileActions } from "@/types/evals/grid";
+import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions, FileActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/refRegistry';
@@ -27,7 +27,6 @@ interface TabComponentProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
-  children?: React.ReactNode;
 }
 
 const Tab = ({
@@ -43,7 +42,6 @@ const Tab = ({
   contextActions,
   codeActions,
   fileActions,
-  children,
 }: TabComponentProps) => {
   // Use granular hooks instead of a general hook
   const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
@@ -61,10 +59,12 @@ const Tab = ({
   );
   const contexts = projectData?.contexts || [];
 
-  // Get tileIds from tab data properly
-  const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
+  // Get tileIds from store data only
+  const tileIds = useMemo(() => {
+    return tabDataState?.tileIds || [];
+  }, [tabDataState?.tileIds]);
 
-  // Get tile props using the getItems function from the tab data actions
+  // Get tile props from store data only  
   const tileProps = useMemo(() => {
     return (!tabDataActions) ? [] : tabDataActions.getItems();
   }, [tabDataActions]);
@@ -83,7 +83,7 @@ const Tab = ({
     // Return cleanup function
     return () => {
       // Clean up refs for all current tiles
-      tileIds.forEach(tileId => {
+      tileIds.forEach((tileId: string) => {
         unregisterTileRefs(tileId);
         cleanupTileRefs(tileId);
       });
@@ -92,9 +92,9 @@ const Tab = ({
 
   // Item layout change handler
   const onLayoutChange = (newLayout: Layout[]) => {
-    if (!tabUIState?.pending && tabDataActions) {
+    if (!tabUIState?.pending && syncedTabDataActions) {
       newLayout.forEach((layoutItem) => {
-        const originalItem = tileProps.find((tileProp) => tileProp.id === layoutItem.i);
+        const originalItem = tileProps.find((tileProp: TileProps) => tileProp.id === layoutItem.i);
 
         // Update the tile layout
         const tileLayout: TileLayout = {
@@ -107,9 +107,9 @@ const Tab = ({
           moved: layoutItem.moved,
           static: layoutItem.static,
         };
-        syncedTabDataActions?.updateTileLayout(originalItem?.id ?? "", tileLayout);
+        
+        syncedTabDataActions.updateTileLayout(originalItem?.id ?? "", tileLayout);
       });
-
     } else {
       tabUIActions?.setPending(false);
     }
@@ -117,18 +117,13 @@ const Tab = ({
 
   const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
-  /* ------------------------------------------------------------------
-     Build the list of tiles we will *actually* render.
-     – If <children> were supplied, treat them as the server-rendered
-       <TileCard> nodes and keep their order.
-     – Otherwise fall back to the old behaviour and create <TileCard>s
-       here in the client.
-  ------------------------------------------------------------------ */
+  // Build the list of tiles to render - client-side only
   const tilesToRender = useMemo(() => {
-      /* helper to create a client-side <TileCard/> wrapped in <Suspense/> */
-      const makeClientTile = (tileId: string): ReactElement => (
+    return tileProps.map(({ id }) => ({
+      tileId: id,
+      element: (
         <Suspense
-          key={tileId}
+          key={id}
           fallback={
             <div className="w-full h-full flex items-center justify-center border p-4">
               <SkeletonLoader />
@@ -136,7 +131,7 @@ const Tab = ({
           }
         >
           <TileCard
-            tileId={tileId}
+            tileId={id}
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
@@ -150,49 +145,29 @@ const Tab = ({
             projectsActions={projectsActions}
           />
         </Suspense>
-      );
-  
-      /* ------------------------------------------------------------
-         1.  Collect any server-rendered children into a map keyed
-             by the fragment key we supplied on the server.
-      ------------------------------------------------------------ */
-      const serverMap = new Map<string, ReactElement>();
-      if (children) {
-        React.Children.forEach(children, child => {
-          if (!React.isValidElement(child)) return;
-          const key = child.key;
-          if (typeof key === "string") {
-            serverMap.set(key, child as ReactElement);
-          }
-        });
-      }
-  
-      /* ------------------------------------------------------------
-         2.  Produce the final array in *tileProps* order, preferring
-             the server element when present.
-      ------------------------------------------------------------ */
-      return tileProps.map(({ id }) => ({
-        tileId: id,
-        element: serverMap.get(id) ?? makeClientTile(id),
-      }));
-      /* Dependencies */
-    }, [
-      children,
-      tileProps,
-      tabId,
-      interfaceId,
-      projectId,
-      tileActions,
-      logsActions,
-      fieldsActions,
-      derivedEntryActions,
-      contextActions,
-      codeActions,
-    ]);
+      ),
+    }));
+  }, [
+    tileProps,
+    tabId,
+    interfaceId,
+    projectId,
+    tileActions,
+    logsActions,
+    fieldsActions,
+    derivedEntryActions,
+    contextActions,
+    codeActions,
+    projectsActions,
+  ]);
   
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
-    return null;
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <SkeletonLoader />
+      </div>
+    );
   }
 
   return (
@@ -209,7 +184,7 @@ const Tab = ({
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
       {tilesToRender.map(({ tileId, element }) => {
-        const item = tileProps.find(prop => prop.id === tileId);
+        const item = tileProps.find((prop: TileProps) => prop.id === tileId);
         if (!item || !item.visible) return null;
 
         return (
@@ -219,10 +194,10 @@ const Tab = ({
             className="relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Server-rendered or client-rendered TileCard */}
+            {/* Client-rendered TileCard */}
             {element}
 
-            {/* Extra client-side controls */}
+            {/* Client-side controls */}
             <TileButtons
               tileId={item.id}
               tabId={tabId}
