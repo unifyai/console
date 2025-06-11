@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import Editor from "../Details/Editor/Editor";
+import Editor from "../../Details/Editor/Editor";
 
 import type {
   CodeActions,

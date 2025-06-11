@@ -94,9 +94,9 @@ import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
-import InterfaceWrapper from "@/components/Interfaces/Server/InterfaceWrapper.server";
+import Main from "@/components/Interfaces/Server/Main.server";
 
-const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string, tab?: string } }) => {
+const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string } }) => {
     // get user and api key
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const user = await getCurrentUser();
@@ -231,10 +231,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
     );
 
     return (
-        <InterfaceWrapper
+        <Main
             project={searchParams?.project ?? null}
             interface_={searchParams?.interface ?? null}
-            tab={searchParams?.tab}
             actions={
                 {
                     projectsActions,

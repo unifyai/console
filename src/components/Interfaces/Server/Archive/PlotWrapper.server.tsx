@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
-import LogsPlot from "../Details/Plot/Plot";
+import LogsPlot from "../../Details/Plot/Plot";
 import { buildPlotDataItem } from "@/utils/data/buildPlotDataItem";
 
 import type {

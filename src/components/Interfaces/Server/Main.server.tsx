@@ -1,9 +1,8 @@
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import Interface from "../Interface";
-import TabWrapper from "./TabWrapper.server";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
-import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore } from "@/contexts/utils/stateBuilderUtils";
+import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore, buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { getRedirectUrl } from "@/utils/redirects/getRedirectUrl";
 
 import type {
@@ -13,6 +12,7 @@ import type {
   FieldsActions,
   DerivedEntryActions,
   CodeActions,
+  FileActions,
   GranularInterfaceActions,
   GranularTabActions,
   GranularTileActions,
@@ -20,11 +20,9 @@ import type {
   InterfaceData,
   Context,
   TabData,
-  FileActions
+  TileData
 } from "@/types/evals/grid";
 import { redirect } from "next/navigation";
-import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
-import { Suspense } from 'react';
 
 type InterfaceWrapperActions = {
   projectsActions: ProjectsActions;
@@ -40,22 +38,20 @@ type InterfaceWrapperActions = {
   fileActions: FileActions;
 };
 
-export default async function InterfaceWrapper({
+export default async function Main({
   project,
   interface_,
-  tab,
   actions,
 }: {
   project: string | null;
   interface_: string | null;  // This is the interface name from query param
-  tab?: string;  // This is the tab name from query param
   actions: InterfaceWrapperActions;
 }) {
 
-  console.log("[InterfaceWrapper] Rendering...");
+  console.log("[InterfaceWrapper] Rendering with client-first approach...");
   const qc = getQueryClient();
 
-  /* Lightweight prefetch for projects and contexts */
+  /* Enhanced prefetch for projects and contexts */
   let projects: string[] = [];
   await qc.prefetchQuery({ 
     queryKey: ["projects"], 
@@ -144,12 +140,11 @@ export default async function InterfaceWrapper({
     }
   }
 
-  // Check if we need to redirect - the utility will create interface/tab if needed
-  // and return a URL that includes both interface and tab parameters when appropriate
+  // Check if we need to redirect for project/interface level only
+  // Tab-level redirects will be handled client-side
   const redirectUrl = await getRedirectUrl({
     project,
     interface_,
-    tab,
     interfaces,
     currentInterface,
     tabs,
@@ -185,16 +180,8 @@ export default async function InterfaceWrapper({
   // Build interface state
   let interfaceState = {};
   if (currentInterface) {
-    // Extract the active tab id if available otherwise use the tab which matches with the tab prop
-    const activeTabId = tabs.find(tab_ => tab_.name === tab)?.id || currentInterface.active_tab_id || undefined;
-
-    if (activeTabId && currentInterface.active_tab_id !== activeTabId) {
-      // Update the active tab id
-      await actions.interfaceActions.update({
-        interface_id: interfaceId,
-        data: { active_tab_id: activeTabId }
-      });
-    }
+    // Use the active tab id from the interface if available
+    const activeTabId = currentInterface.active_tab_id || undefined;
 
     interfaceState = buildInterfaceStateForStore(
       currentInterface, 
@@ -207,6 +194,72 @@ export default async function InterfaceWrapper({
     interfaceState = { activeInterfaceId: interface_ };
   }
 
+  // Build tab and tile state for all tabs - client will determine which is active
+  let tabState = {};
+  let tileState = {};
+
+  if (tabs.length > 0 && currentProject) {
+    // Collect all tab data, tiles, and metadata for batch processing
+    const allTabData: TabData[] = [];
+    const allTileData: TileData[] = [];
+    const isActiveFlags: boolean[] = [];
+    const tileIdsPerTab: string[][] = [];
+    const tileNamesPerTab: string[][] = [];
+    const tabIdsForTiles: string[] = [];
+
+    // Process each tab to collect data
+    for (const tab of tabs) {
+      const tabId = tab.id || "";
+      if (!tabId) continue;
+
+      try {
+        // Fetch tiles for each tab - let client determine which data to use
+        await qc.prefetchQuery({
+          queryKey: ["tiles", tabId],
+          queryFn: () => actions.tileActions.list(tabId, undefined, false)
+        });
+        const tabTiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
+        
+        // Collect tab data
+        allTabData.push(tab);
+        // Client will determine which tab is active, so we mark none as active on server
+        isActiveFlags.push(false);
+        tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
+        tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
+        
+        // Collect tile data
+        tabTiles.forEach(tile => {
+          allTileData.push(tile);
+          tabIdsForTiles.push(tabId);
+        });
+        
+      } catch (error) {
+        console.warn(`[InterfaceWrapper] Could not build state for tab ${tab.name}:`, error);
+      }
+    }
+
+    // Build tab state using utility function - handles arrays
+    if (allTabData.length > 0) {
+      const builtTabState = buildTabStateForStore(
+        allTabData,
+        isActiveFlags,
+        Array(allTabData.length).fill(interfaceId), // interfaceId for each tab
+        tileIdsPerTab,
+        tileNamesPerTab
+      );
+      Object.assign(tabState, builtTabState);
+    }
+
+    // Build tile state using utility function - handles arrays
+    if (allTileData.length > 0) {
+      const builtTileState = buildTileStateForStore(
+        allTileData,
+        tabIdsForTiles
+      );
+      Object.assign(tileState, builtTileState);
+    }
+  }
+
   const globalStoreState = buildGlobalStateForStore(
     projects,
     currentProject,
@@ -217,10 +270,13 @@ export default async function InterfaceWrapper({
   const initialState = {
     ...globalStoreState,
     ...projectState,
-    ...interfaceState
+    ...interfaceState,
+    ...tabState,
+    ...tileState,
   };
 
-  // Use a single StoreInitializer at the top level
+  console.log("[InterfaceWrapper] Built initial state for all tabs - client will handle active tab logic");
+
   return (
     <StoreInitializer initialState={initialState}>
       <HydrationBoundary state={dehydrate(qc)}>
@@ -236,34 +292,7 @@ export default async function InterfaceWrapper({
           contextActions={actions.contextActions}
           codeActions={actions.codeActions}
           fileActions={actions.fileActions}
-        >
-          {currentInterface && (
-            // <Suspense fallback={
-            //   <div className="w-full h-full flex items-center justify-center">
-            //       <SkeletonLoader />
-            //   </div>
-            // }>
-              <TabWrapper
-                project={currentProject}
-                interfaceId={interfaceId}
-                interfaceName={interfaceName}
-                tab={tab}
-                actions={{
-                  projectsActions: actions.projectsActions,
-                  interfaceActions: actions.interfaceActions,
-                  tabActions: actions.tabActions,
-                  tileActions: actions.tileActions,
-                  logsActions: actions.logsActions,
-                  fieldsActions: actions.fieldsActions,
-                  derivedEntryActions: actions.derivedEntryActions,
-                  contextActions: actions.contextActions,
-                  codeActions: actions.codeActions,
-                  fileActions: actions.fileActions,
-                }}
-              />
-            // </Suspense>
-          )}
-        </Interface>
+        />
       </HydrationBoundary>
     </StoreInitializer>
   );

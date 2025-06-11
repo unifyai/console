@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import TileCard from "../TileCard";
+import TileCard from "../../TileCard";
 import TileWrapper from "./TileWrapper.server";
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";

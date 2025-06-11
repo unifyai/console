@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import Tab from "../Tab";
+import Tab from "../../Tab";
 import TileCardWrapper from "./TileCardWrapper.server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import getQueryClient from '@/app/getQueryClient';;
@@ -146,78 +146,41 @@ export default async function TabWrapper({
     qc.setQueryData(["plotArguments", tabId], {});
   }
 
-  // Build tab state explicitly - we only need to build the tab state here
-  const tabState: Partial<IStoreState> = {};
-  if (activeTab) {
-    const builtTabState = buildTabStateForStore(
-      activeTab,
-      true, // isActive
-      interfaceId, // Use interfaceId for the store
-      tiles.map(tile => tile.id || ''),
-      tiles.map(tile => tile.name || '')
-    );
-    Object.assign(tabState, builtTabState);
-  }
-
-  // Build tile state explicitly - we only need to build the tile state here
-  const tileState: Partial<IStoreState> = {};
-  if (tiles.length > 0) {
-    const builtTileState = buildTileStateForStore(
-      tiles,
-      tabId
-    );
-    Object.assign(tileState, builtTileState);
-  }
-
-  // Create tab slice - only include tab-specific state
-  const slice: Partial<IStoreState> = {
-    // Only include tab state, activeTabId is fine since it's part of tab's domain
-    activeTabId: activeTab.id || null,
-    ...tabState,
-    ...tileState,
-  };
-
   return (
-    <>
-      {/* Update the store with only tab state */}
-      <StoreSliceUpdater slice={slice} />
-      
-      <HydrationBoundary state={dehydrate(qc)}>
-        <Suspense fallback={
-          <div className="w-full h-full flex items-center justify-center">
-              <SkeletonLoader />
-          </div>
-        }>
-          <Tab
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={project}
-            projectsActions={actions.projectsActions}
-            tabActions={actions.tabActions}
-            tileActions={actions.tileActions}
-            logsActions={actions.logsActions}
-            fieldsActions={actions.fieldsActions}
-            derivedEntryActions={actions.derivedEntryActions}
-            contextActions={actions.contextActions}
-            codeActions={actions.codeActions}
-            fileActions={actions.fileActions}
-          >
-            {tiles.map(tile => (
-              <React.Fragment key={tile.id}>
-                <Suspense fallback={<SkeletonLoader />}>
-                  <TileCardWrapper
-                    tile={tile}
-                    tabId={tabId}
-                    interfaceId={interfaceId}
-                    projectId={project}
-                    actions={actions}
-                  />
-                </Suspense>
-              </React.Fragment>
-            ))}
-          </Tab>
-        </Suspense>
-      </HydrationBoundary>
-    </>
+    <HydrationBoundary state={dehydrate(qc)}>
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+        </div>
+      }>
+        <Tab
+          tabId={tabId}
+          interfaceId={interfaceId}
+          projectId={project}
+          projectsActions={actions.projectsActions}
+          tabActions={actions.tabActions}
+          tileActions={actions.tileActions}
+          logsActions={actions.logsActions}
+          fieldsActions={actions.fieldsActions}
+          derivedEntryActions={actions.derivedEntryActions}
+          contextActions={actions.contextActions}
+          codeActions={actions.codeActions}
+        >
+          {/* {tiles.map(tile => (
+            <React.Fragment key={tile.id}>
+              <Suspense fallback={<SkeletonLoader />}>
+                <TileCardWrapper
+                  tile={tile}
+                  tabId={tabId}
+                  interfaceId={interfaceId}
+                  projectId={project}
+                  actions={actions}
+                />
+              </Suspense>
+            </React.Fragment>
+          ))} */}
+        </Tab>
+      </Suspense>
+    </HydrationBoundary>
   );
 }

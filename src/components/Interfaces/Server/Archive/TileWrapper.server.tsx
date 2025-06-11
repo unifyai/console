@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Tile from "../Tile";
+import Tile from "../../Tile";
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
