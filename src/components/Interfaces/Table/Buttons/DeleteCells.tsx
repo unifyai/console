@@ -60,7 +60,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		columnContext ? processContext("merge", columnContext, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))
 	])
 
-	const args = fieldsToDelete.length > 0 ? [project, context, { fields: fieldsToDelete }, null] : [];
+	const args = fieldsToDelete.length > 0 ? [project, context, fieldsToDelete, 'all'] : [];
 
 	return (showDialog &&
 		<DeleteDialog
