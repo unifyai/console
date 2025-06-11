@@ -1,7 +1,7 @@
 export default [
   {
-    "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5",
-    "name": "English Female Calm 1", // Original: Sophie
+    "voice_id": "11af83e2-23eb-452f-956e-7fee218ccb5c",
+    "name": "English Female Calm 1", // Original: Midwestern Woman
     "description": "A calm, conversational, feminine voice perfect for narration stories or on phone calls. Speaking in an American accent. ",
     "gender": "female",
     "language": "en"
@@ -21,23 +21,23 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "32b3f3c5-7171-46aa-abe7-b598964aa793",
-    "name": "English Female Bright 1", // Original: Zia
+    "voice_id": "57c63422-d911-4666-815b-0c332e4d7d6a",
+    "name": "English Female Bright 1", // Original: Lori
     "description": "A bright, expressive young female American voice full of energy and charm, perfect for animated characters, lively narrations, and engaging storytelling.",
     "gender": "female",
     "language": "en"
   },
   {
-    "voice_id": "79743797-2087-422f-8dc7-86f9efca85f1",
-    "name": "Spanish Male Confident 1", // Original: Mateo
-    "description": "Mateo is a confident and engaging Spanish voice, perfect for conversational AI and phone interactions. His tone is warm, clear, and naturally expressive, ensuring smooth and natural conversations. ",
+    "voice_id": "846fa30b-6e1a-49b9-b7df-6be47092a09a",
+    "name": "Spanish Male Confident 1", // Original: Spanish Storyteller Man
+    "description": "A confident and engaging Spanish voice, perfect for conversational AI and phone interactions. His tone is warm, clear, and naturally expressive, ensuring smooth and natural conversations. ",
     "gender": "male",
     "language": "es"
   },
   {
     "voice_id": "4df027cb-2920-4a1f-8c34-f21529d5c3fe",
     "name": "English Male Confident 1", // Original: Carson
-    "description": "Carson is a young American accented male with a confident, firm, friendly tone",
+    "description": "A young American accented male with a confident, firm, friendly tone",
     "gender": "male",
     "language": "en"
   },
@@ -56,8 +56,8 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "0c8ed86e-6c64-40f0-b252-b773911de6bb",
-    "name": "English Female Smooth 1", // Original: Corinne
+    "voice_id": "4af7c703-f2a9-45dd-a7fd-724cf7efc371",
+    "name": "English Female Smooth 1", // Original: Carrie
     "description": "A smooth, conversational female voice great for phone calls and support. Speaking in an American accent.",
     "gender": "female",
     "language": "en"
@@ -75,13 +75,6 @@ export default [
     "description": "A confident, young Indian male voice, ideal for delivering demos, instructions, and customer support",
     "gender": "male",
     "language": "hi"
-  },
-  {
-    "voice_id": "607167f6-9bf2-473c-accc-ac7b3b66b30b",
-    "name": "English Female Calm 2", // Original: Brenda
-    "description": "A calm, conversational female African American voice great for natural conversations.",
-    "gender": "female",
-    "language": "en"
   },
   {
     "voice_id": "87bc56aa-ab01-4baa-9071-77d497064686",
@@ -105,13 +98,6 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "156fb8d2-335b-4950-9cb3-a2d33befec77",
-    "name": "English Female Friendly 2", // Original: Helpful Woman
-    "description": "This American voice is friendly and conversational, designed for customer support agents and casual conversations.",
-    "gender": "female",
-    "language": "en"
-  },
-  {
     "voice_id": "e00d0e4c-a5c8-443f-a8a3-473eb9a62355",
     "name": "English Male Friendly 1", // Original: Friendly Sidekick
     "description": "This voice is friendly and supportive, designed for voicing characters in games and videos. Speaking in an American accent.",
@@ -120,7 +106,7 @@ export default [
   },
   {
     "voice_id": "7fe6faca-172f-4fd9-a193-25642b8fdb07",
-    "name": "English Male Versatile 1", // Original: American Voiceover Man
+    "name": "English Male Rich 1", // Original: American Voiceover Man
     "description": "A versatile and engaging voice with a rich, professional tone, perfect for commercials, narrations, promos, and dynamic voiceovers that captivate and connect with any audience.",
     "gender": "male",
     "language": "en"
@@ -140,13 +126,6 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "39b376fc-488e-4d0c-8b37-e00b72059fdd",
-    "name": "English Male Warm 4", // Original: Help Desk Man
-    "description": "This masculine American voice has a warm, friendly, and reassuring tone, designed to convey patience and professionalism in every interaction.",
-    "gender": "male",
-    "language": "en"
-  },
-  {
     "voice_id": "af346552-54bf-4c2b-a4d4-9d2820f51b6c",
     "name": "English Female Warm 1", // Original: Help Desk Woman
     "description": "This feminine African American voice has a warm, friendly, and reassuring tone, designed to convey patience and professionalism in every interaction.",
@@ -154,16 +133,9 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "d7862948-75c3-4c7c-ae28-2959fe166f49",
-    "name": "English Male Wise 1", // Original: The Oracle
-    "description": "A British male voice that carries the wisdom and gravitas of an oracle, ideal for character-driven storytelling. ",
-    "gender": "male",
-    "language": "en"
-  },
-  {
-    "voice_id": "8d110413-2f14-44a2-8203-2104db4340e9",
-    "name": "English Male Expressive 1", // Original: Clarion
-    "description": "An expressive, clear voice with a professional yet engaging tone, perfect for product voiceovers, commercials, and informative content. Speaking in an American accent.",
+    "voice_id": "23e9e50a-4ea2-447b-b589-df90dbb848a2",
+    "name": "English Male Wise 1", // Original: Dallas
+    "description": "A male voice that carries wisdom and composure. ",
     "gender": "male",
     "language": "en"
   },
@@ -178,13 +150,6 @@ export default [
     "voice_id": "63406bbd-ce1b-4fff-8beb-86d3da9891b9",
     "name": "English Male Clear 2", // Original: Grant
     "description": "A clear, well-paced male voice with a steady and professional tone, perfect for voiceovers, presentations, and informative narrations.",
-    "gender": "male",
-    "language": "en"
-  },
-  {
-    "voice_id": "d46abd1d-2d02-43e8-819f-51fb652c1c61",
-    "name": "English Male Neutral 2", // Original: Newsman
-    "description": "This voice is neutral and educational, perfect for a news anchor",
     "gender": "male",
     "language": "en"
   },
@@ -231,18 +196,11 @@ export default [
     "language": "zh"
   },
   {
-    "voice_id": "b5aa8098-49ef-475d-89b0-c9262ecf33fd",
-    "name": "Spanish Male Clear 1", // Original: Castilian Spanish Presenter Man
-    "description": "This masculine voice features a clear, confident, and engaging tone, perfect for delivering news, announcements, or professional presentations in European Spanish.",
-    "gender": "male",
-    "language": "es",
-  },
-  {
-    "voice_id": "a37639f0-2f0a-4de4-9942-875a187af878",
-    "name": "Portuguese Male Relaxed 1", // Original: Casual Brazilian Man
+    "voice_id": "2695b6b5-5543-4be1-96d9-3967fb5e7fec",
+    "name": "Spanish Male Relaxed 1", // Original: Spanish-speaking Reporter Man
     "description": "This masculine voice has a relaxed, conversational tone with a touch of background noise, creating an authentic, laid-back atmosphere.",
     "gender": "male",
-    "language": "pt"
+    "language": "es"
   },
   {
     "voice_id": "1cf751f6-8749-43ab-98bd-230dd633abdb",
@@ -357,8 +315,8 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "91b4cf29-5166-44eb-8054-30d40ecc8081",
-    "name": "English Female Expressive 1", // Original: Anna
+    "voice_id": "5abd2130-146a-41b1-bcdb-974ea8e19f56",
+    "name": "English Female Expressive 1", // Original: Joan
     "description": "This voice is natural and expressive with an American accent, perfect for use cases like interviews and customer support calls.",
     "gender": "female",
     "language": "en"
@@ -371,8 +329,8 @@ export default [
     "language": "hi"
   },
   {
-    "voice_id": "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
-    "name": "English Female Clear 2", // Original: Jacqueline
+    "voice_id": "d7e54830-4754-4b17-952c-bcdb7e80a2fb",
+    "name": "English Female Clear 2", // Original: Tori
     "description": "This female American voice is clear and welcoming, perfect for an ordinary conversation.",
     "gender": "female",
     "language": "en"
@@ -392,25 +350,11 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "58db94c7-8a77-46a7-9107-b8b957f164a0",
-    "name": "English Male Deep 2", // Original: Corey
-    "description": "A deep American male voice for expressive voiceovers and narration. ",
-    "gender": "male",
-    "language": "en"
-  },
-  {
     "voice_id": "b042270c-d46f-4d4f-8fb0-7dd7c5fe5615",
     "name": "Spanish Male Conversational 1", // Original: Juan
     "description": "A conversational Spanish male voice, great for phone calls and narrations. ",
     "gender": "male",
     "language": "es"
-  },
-  {
-    "voice_id": "d4b44b9a-82bc-4b65-b456-763fce4c52f9",
-    "name": "Portuguese Female Friendly 1", // Original: Clara
-    "description": "A friendly and natural Portuguese female voice that makes every conversation feel engaging and effortless.",
-    "gender": "female",
-    "language": "pt"
   },
   {
     "voice_id": "031851ba-cc34-422d-bfdb-cdbb7f4651ee",
@@ -441,13 +385,6 @@ export default [
     "language": "en"
   },
   {
-    "voice_id": "bd9120b6-7761-47a6-a446-77ca49132781",
-    "name": "English Male Inviting 1", // Original: Tutorial Man
-    "description": "This voice is inviting and calming, perfect for tutorials. Speaking in an American accent.",
-    "gender": "male",
-    "language": "en"
-  },
-  {
     "voice_id": "f4e8781b-a420-4080-81cf-576331238efa",
     "name": "English Female Natural 2", // Original: Samantha
     "description": "A natural, conversational voice great for phone calling and support use-cases. ",
@@ -459,13 +396,6 @@ export default [
     "name": "English Female Youthful 1", // Original: Brighton
     "description": "A youthful, expressive voice full of energy and emotion, perfect for animated characters, engaging narrations, and lively storytelling. Speaking in an American accent.",
     "gender": "female",
-    "language": "en"
-  },
-  {
-    "voice_id": "4f7f1324-1853-48a6-b294-4e78e8036a83",
-    "name": "English Male Calm 3", // Original: Casper
-    "description": "A calm, British man. ",
-    "gender": "male",
     "language": "en"
   },
   {
@@ -483,13 +413,6 @@ export default [
     "language": "ja"
   },
   {
-    "voice_id": "f6141af3-5f94-418c-80ed-a45d450e7e2e",
-    "name": "English Female Young 1", // Original: Priya
-    "description": "A young female conversational voice with an Indian accent, perfect for a wide range of use cases like customer support and sales.",
-    "gender": "female",
-    "language": "en"
-  },
-  {
     "voice_id": "6d287143-8db3-434a-959c-df147192da27",
     "name": "English Female Conversational 1", // Original: Stacy
     "description": "A nice conversational female American voice great for natural support conversations. ",
@@ -504,8 +427,8 @@ export default [
     "language": "es"
   },
   {
-    "voice_id": "a38e4e85-e815-43ab-acf1-907c4688dd6c",
-    "name": "English Female Bright 2", // Original: Grace
+    "voice_id": "bc46586b-b463-4367-a96e-44127177a521",
+    "name": "English Female Bright 2", // Original: Maggie
     "description": "A bright, friendly young American voice with a relaxed and effortless vibe.",
     "gender": "female",
     "language": "en"
@@ -518,10 +441,52 @@ export default [
     "language": "pt"
   },
   {
-    "voice_id": "1d3ba41a-96e6-44ad-aabb-9817c56caa68",
-    "name": "English Female Bright 3", // Original: Mia
-    "description": "A bright and youthful American female voice full of energy and curiosity, perfect for engaging storytelling, interactive dialogues, and playful conversations.",
+    "voice_id": "d718e944-b313-4998-b011-d1cc078d4ef3",
+    "name": "Italian Female Professional 1", // Original: Liv
+    "description": "A clear and professional Italian female voice well suited for conversational speech.",
+    "gender": "female",
+    "language": "it"
+  },
+  {
+    "voice_id": "8d8ce8c9-44a4-46c4-b10f-9a927b99a853",
+    "name": "English Female Smooth 3", // Original: Connie
+    "description": "A smooth conversational American female voice.",
     "gender": "female",
     "language": "en"
+  },
+  {
+    "voice_id": "5c3c89e5-535f-43ef-b14d-f8ffe148c1f0",
+    "name": "French Male Smooth 1", // Original: French Narrator Man
+    "description": "A smooth conversational French female voice.",
+    "gender": "male",
+    "language": "fr"
+  },
+  {
+    "voice_id": "0418348a-0ca2-4e90-9986-800fb8b3bbc0",
+    "name": "French Male Stern 1", // Original: Stern French Man
+    "description": "A grave and assertive voice, well-suited for stern characters.",
+    "gender": "male",
+    "language": "fr"
+  },
+  {
+    "voice_id": "7b2c0a2e-3dd3-4a44-b16b-26ecd8134279",
+    "name": "English Male Bright 1", // Original: Luke
+    "description": "A bright American male voice speaking in a New York accent.",
+    "gender": "male",
+    "language": "en"
+  },
+  {
+    "voice_id": "5a31e4fb-f823-4359-aa91-82c0ae9a991c",
+    "name": "Turkish Male Deep 1", // Original: Turkish Narrator Man
+    "description": "A deep and resonant Turkish male voice.",
+    "gender": "male",
+    "language": "tr"
+  },
+  {
+    "voice_id": "e8a863c6-22c7-4671-86ca-91cacffc038d",
+    "name": "Japanese Male Confident 1", // Original: Japanese Male Conversational
+    "description": "A clear and confident Japanese voice.",
+    "gender": "male",
+    "language": "ja"
   }
 ]

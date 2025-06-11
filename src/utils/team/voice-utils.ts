@@ -35,24 +35,68 @@ export const sampleTTSLinesByLanguage: Record<SupportedLanguage | string, string
         "Ich bin hier, um bei allen Fragen zu helfen, die Sie möglicherweise haben.",
         "Das Wetter heute ist ziemlich angenehm, nicht wahr?",
     ],
-    // Add more languages and 3 lines for each
+    pt: [
+        "Olá, como posso ajudá-lo hoje?",
+        "Estou aqui para responder a todas as suas perguntas.",
+        "O tempo está agradável hoje, não está?",
+    ],
+    it: [
+        "Ciao, come posso aiutarti oggi?",
+        "Sono qui per rispondere a qualsiasi tua domanda.",
+        "Il tempo oggi è davvero piacevole, vero?",
+    ],
+    pl: [
+        "Cześć, jak mogę ci dzisiaj pomóc?",
+        "Jestem tutaj, aby odpowiedzieć na wszystkie twoje pytania.",
+        "Dzisiejsza pogoda jest całkiem przyjemna, prawda?",
+    ],
     ja: [
         "こんにちは、今日はどのようにお手伝いできますか？",
         "ご不明な点がございましたら、お気軽にお問い合わせください。",
         "今日の天気はとても気持ちがいいですね。",
+    ],
+    hi: [
+        "नमस्ते, आज मैं आपकी कैसे मदद कर सकता हूँ?",
+        "अगर आपके कोई सवाल हैं तो मैं यहाँ हूँ।",
+        "आज का मौसम बहुत सुहावना है, है ना?",
     ],
     zh: [
         "你好，今天我能为你做些什么？",
         "如果您有任何问题，我随时在这里提供帮助。",
         "今天的天气真不错，不是吗？",
     ],
-    // Fallback for languages not explicitly defined
+    ko: [
+        "안녕하세요, 무엇을 도와드릴까요?",
+        "궁금한 점이 있으시면 언제든지 말씀해주세요.",
+        "오늘 날씨 정말 좋네요, 그렇죠?",
+    ],
+    nl: [
+        "Hallo, hoe kan ik je vandaag helpen?",
+        "Ik ben hier om al je vragen te beantwoorden.",
+        "Het weer is vandaag best aangenaam, vind je niet?",
+    ],
+    ru: [
+        "Здравствуйте, чем я могу вам помочь сегодня?",
+        "Я здесь, чтобы ответить на все ваши вопросы.",
+        "Сегодня довольно приятная погода, не так ли?",
+    ],
+    sv: [
+        "Hej, hur kan jag hjälpa dig idag?",
+        "Jag är här för att svara på dina frågor.",
+        "Vädret är ganska trevligt idag, eller hur?",
+    ],
+    tr: [
+        "Merhaba, bugün size nasıl yardımcı olabilirim?",
+        "Her türlü sorunuz için buradayım.",
+        "Bugün hava oldukça güzel, değil mi?",
+    ],
     default: [
         "This is a test sentence.",
         "Can you hear my voice clearly?",
         "I hope you have a wonderful day!",
     ]
 };
+
 export const getRandomSampleLine = (language: SupportedLanguage): string => {
     const lines = sampleTTSLinesByLanguage[language] || sampleTTSLinesByLanguage.default;
     return lines[Math.floor(Math.random() * lines.length)];

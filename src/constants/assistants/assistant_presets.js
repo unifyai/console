@@ -20,17 +20,7 @@ export default [
     "voice_id": "dcf62f33-7cff-4f20-85b2-2efaa68cbc32" // Zofia (pl, female, "warm and expressive... clear communication")
   },
   {
-    "first_name": "Amina",
-    "surname": "Chebet",
-    "age": 22,
-    "gender": "female",
-    "about": "Bright, enthusiastic, and ready to make a contribution. I'm a fast learner with a strong desire to apply my skills in a challenging environment. Passionate about teamwork and contributing positively from day one.",
-    "region": "Kenya",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/3.jpg",
-    "voice_id": "1d3ba41a-96e6-44ad-aabb-9817c56caa68" // Mia (en, female, "bright and youthful... energy and curiosity")
-  },
-  {
-    "first_name": "Yuki",
+    "first_name": "Akiko",
     "surname": "Yamamoto",
     "age": 52,
     "gender": "female",
@@ -97,7 +87,7 @@ export default [
     "about": "A results-driven leader with extensive experience in managing complex projects and teams. My focus is on strategic execution and fostering an environment of continuous improvement and high performance.",
     "region": "United Arab Emirates",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/11.jpg",
-    "voice_id": "d7862948-75c3-4c7c-ae28-2959fe166f49" // The Oracle (en, male, British, "wisdom and gravitas")
+    "voice_id": "23e9e50a-4ea2-447b-b589-df90dbb848a2" // Dallas (en, male, "An expressive Southern man, great for expressive narrations.")
   },
   {
     "first_name": "David",
@@ -140,16 +130,6 @@ export default [
     "voice_id": "00a77add-48d5-4ef6-8157-71e5437b282d" // Calm Lady (en, female, "calm and nurturing")
   },
   {
-    "first_name": "Kofi",
-    "surname": "Asante",
-    "age": 35,
-    "gender": "male",
-    "about": "A skilled and proactive professional focused on efficiency and results. I enjoy tackling challenges and contributing to dynamic teams. Committed to continuous learning and making a solid contribution.",
-    "region": "Ghana",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/19.jpg",
-    "voice_id": "8d110413-2f14-44a2-8203-2104db4340e9" // Clarion (en, male, "expressive, clear voice with a professional yet engaging tone")
-  },
-  {
     "first_name": "Jordan",
     "surname": "Owusu",
     "age": 27,
@@ -182,12 +162,12 @@ export default [
   {
     "first_name": "Mateo",
     "surname": "Rivera",
-    "age": 38,
+    "age": 23,
     "gender": "male",
     "about": "A dynamic and engaging professional with a knack for collaboration and achieving results. I bring energy and a solutions-focused mindset to every task. Committed to contributing positively and driving progress.",
     "region": "Dominican Republic",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/26.jpg",
-    "voice_id": "79743797-2087-422f-8dc7-86f9efca85f1" // Mateo (es, male, "confident and engaging Spanish voice")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/37.jpg",
+    "voice_id": "846fa30b-6e1a-49b9-b7df-6be47092a09a" // Spanish Storyteller Man (es, male, "A deep and expressive Spanish male voice, perfect for epic tales.")
   },
   {
     "first_name": "Carson",
@@ -226,8 +206,8 @@ export default [
     "gender": "female",
     "about": "A resourceful and resilient professional who thrives in collaborative environments. I am committed to finding effective solutions and contributing positively to team dynamics and project success.",
     "region": "Egypt",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/30.jpg",
-    "voice_id": "bf0a246a-8642-498a-9950-80c35e9276b5" // Sophie (en, female, "calm, conversational... perfect for narration stories or on phone calls")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/21.jpg",
+    "voice_id": "11af83e2-23eb-452f-956e-7fee218ccb5c" // Midwestern Woman (en, female, "This voice is neutral and deliberate, with a midwestern accent")
   },
   {
     "first_name": "Kwabena",
@@ -250,24 +230,14 @@ export default [
     "voice_id": "694f9389-aac1-45b6-b726-9d9369183238" // Sarah (en, female, "natural and expressive... wide range of conversational use cases")
   },
   {
-    "first_name": "Corey",
-    "surname": "Boateng",
-    "age": 35,
-    "gender": "male",
-    "about": "A driven and focused professional, adept at managing tasks efficiently. I value teamwork and am committed to contributing my skills to achieve impactful results in a challenging role.",
-    "region": "Ghana",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/33.jpg",
-    "voice_id": "58db94c7-8a77-46a7-9107-b8b957f164a0" // Corey (en, male, "deep American male voice for expressive voiceovers and narration")
-  },
-  {
     "first_name": "Rafael",
     "surname": "Souza",
     "age": 25,
     "gender": "male",
     "about": "Energetic and quick-learning individual, eager to apply my abilities and grow professionally. I approach work with enthusiasm and a collaborative spirit, ready to tackle challenges and support my team.",
-    "region": "Brazil",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/34.jpg",
-    "voice_id": "a37639f0-2f0a-4de4-9942-875a187af878" // Casual Brazilian Man (pt, male, "relaxed, conversational tone")
+    "region": "Spain",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/32.jpg",
+    "voice_id": "2695b6b5-5543-4be1-96d9-3967fb5e7fec" // Spanish-speaking Reporter Man (es, male, "This voice is neutral and even, perfect for narrating news reports in Spanish")
   },
   {
     "first_name": "Mark",
@@ -285,7 +255,7 @@ export default [
     "age": 38,
     "gender": "male",
     "about": "A dedicated professional with a strong sense of responsibility and commitment to excellence. I work well independently and as part of a team, always aiming to contribute positively and effectively.",
-    "region": "Ghana",
+    "region": "Kenya",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/36.jpg",
     "voice_id": "2a4d065a-ac91-4203-a015-eb3fc3ee3365" // Customer Service Man (en, male, "warm, professional, and reassuring")
   },
@@ -310,24 +280,14 @@ export default [
     "voice_id": "b042270c-d46f-4d4f-8fb0-7dd7c5fe5615" // Juan (es, male, "conversational Spanish male voice")
   },
   {
-    "first_name": "Clara",
-    "surname": "Martinez",
-    "age": 28,
-    "gender": "female",
-    "about": "Creative and adaptable professional with a positive attitude. I enjoy finding innovative solutions and working collaboratively towards shared goals. Eager to contribute energy and fresh ideas.",
-    "region": "Brazil",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/40.jpg",
-    "voice_id": "d4b44b9a-82bc-4b65-b456-763fce4c52f9" // Clara (pt, female, "friendly and natural Portuguese female voice")
-  },
-  {
     "first_name": "Grace",
     "surname": "Wambui",
     "age": 28,
     "gender": "female",
     "about": "A thoughtful and committed professional focused on continuous learning and contribution. I am adept at working within teams and am eager to apply my skills in a dynamic and challenging role.",
     "region": "Kenya",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/42.jpg",
-    "voice_id": "32b3f3c5-7171-46aa-abe7-b598964aa793" // Zia (en, female, "bright, expressive young female American voice full of energy and charm")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/72.jpg",
+    "voice_id": "57c63422-d911-4666-815b-0c332e4d7d6a" // Lori (en, female, "Neutral Version of Lori. Speaking in an Australian accent.")
   },
   {
     "first_name": "Vishnu",
@@ -375,19 +335,9 @@ export default [
     "age": 28,
     "gender": "male",
     "about": "Adaptable and motivated team player eager to contribute skills and grow within a challenging role. I learn quickly and am committed to supporting team goals with dedication and a positive approach.",
-    "region": "Ghana",
+    "region": "Kenya",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/49.jpg",
     "voice_id": "e00d0e4c-a5c8-443f-a8a3-473eb9a62355" // Friendly Sidekick (en, male, "friendly and supportive")
-  },
-  {
-    "first_name": "Guillermo",
-    "surname": "Rodriguez",
-    "age": 28,
-    "gender": "male",
-    "about": "Enthusiastic and results-focused individual with a strong desire to learn and contribute. I thrive in collaborative settings and am eager to apply my energy and skills to achieve team success.",
-    "region": "Spain",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/51.jpg",
-    "voice_id": "b5aa8098-49ef-475d-89b0-c9262ecf33fd" // Castilian Spanish Presenter Man (es, male, "clear, confident, and engaging tone")
   },
   {
     "first_name": "Alejandro",
@@ -426,8 +376,8 @@ export default [
     "gender": "female",
     "about": "A bright and detail-oriented individual passionate about continuous learning. I excel in team settings, bringing enthusiasm and a commitment to contributing effectively to shared goals.",
     "region": "United States",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/56.jpg",
-    "voice_id": "a38e4e85-e815-43ab-acf1-907c4688dd6c" // Grace (en, female, "bright, friendly young American voice")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/74.jpg",
+    "voice_id": "bc46586b-b463-4367-a96e-44127177a521" // Maggie (en, female, "natural, human sounding female voice perfect for authentic conversations")
   },
   {
     "first_name": "Lin",
@@ -440,34 +390,14 @@ export default [
     "voice_id": "bf32f849-7bc9-4b91-8c62-954588efcc30" // Chinese Lisa (zh, female, "casual female Chinese conversational voice")
   },
   {
-    "first_name": "Jennifer",
-    "surname": "Robinson",
-    "age": 40,
-    "gender": "female",
-    "about": "An experienced and adaptable professional with a positive, can-do attitude. I value continuous development and enjoy contributing my skills within a supportive team environment.",
-    "region": "United States",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/59.jpg",
-    "voice_id": "156fb8d2-335b-4950-9cb3-a2d33befec77" // Helpful Woman (en, female, "friendly and conversational")
-  },
-  {
-    "first_name": "Brenda",
-    "surname": "Eze",
-    "age": 32,
-    "gender": "female",
-    "about": "A diligent and insightful professional committed to collaboration and achieving results. I enjoy learning and applying new skills to contribute effectively to team success.",
-    "region": "Nigeria",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/60.jpg",
-    "voice_id": "607167f6-9bf2-473c-accc-ac7b3b66b30b" // Brenda (en, female, "calm, conversational female African American voice")
-  },
-  {
     "first_name": "Angela",
     "surname": "Brown",
     "age": 50,
     "gender": "female",
     "about": "A highly experienced and dependable professional committed to excellence. I am a strong collaborator, always willing to share knowledge and contribute positively to team objectives.",
     "region": "United States",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/62.jpg",
-    "voice_id": "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc" // Jacqueline (en, female, "clear and welcoming, perfect for an ordinary conversation")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/51.jpg",
+    "voice_id": "d7e54830-4754-4b17-952c-bcdb7e80a2fb" // Tori (en, female, "A slow, female American narrator.")
   },
   {
     "first_name": "Liu",
@@ -476,7 +406,7 @@ export default [
     "gender": "male",
     "about": "A motivated and analytical professional focused on delivering results. I work well within team structures and am eager to apply my skills and experience in a challenging and rewarding role.",
     "region": "China",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/63.jpg",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/83.jpg",
     "voice_id": "653b9445-ae0c-4312-a3ce-375504cff31e" // Mr. Liu (zh, male, "conversational Chinese man, great for phone calls and voice messages")
   },
   {
@@ -488,16 +418,6 @@ export default [
     "region": "India",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/64.jpg",
     "voice_id": "1259b7e3-cb8a-43df-9446-30971a46b8b0" // Devansh (en, male, Indian accent, "friendly and neutral")
-  },
-  {
-    "first_name": "Adebayo",
-    "surname": "Zeke",
-    "age": 28,
-    "gender": "male",
-    "about": "Resourceful and driven individual focused on skill development and contribution. I thrive in collaborative environments and am eager to apply my abilities to challenging tasks.",
-    "region": "Nigeria",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/66.jpg",
-    "voice_id": "bd9120b6-7761-47a6-a446-77ca49132781" // Tutorial Man (en, male, "inviting and calming, perfect for tutorials")
   },
   {
     "first_name": "Precious",
@@ -541,7 +461,7 @@ export default [
   },
   {
     "first_name": "Devon",
-    "surname": "Truner",
+    "surname": "Turner",
     "age": 32,
     "gender": "male",
     "about": "A resilient and resourceful individual with a strong work ethic. I approach challenges with a positive attitude and am committed to continuous learning and succeeding in dynamic environments.",
@@ -600,26 +520,6 @@ export default [
     "voice_id": "63406bbd-ce1b-4fff-8beb-86d3da9891b9" // Grant (en, male, "clear, well-paced male voice with a steady and professional tone")
   },
   {
-    "first_name": "Casper",
-    "surname": "Boateng",
-    "age": 42,
-    "gender": "male",
-    "about": "An experienced and results-focused professional dedicated to achieving high standards. I value continuous learning and strive to contribute positively and effectively in all team endeavors.",
-    "region": "Ghana",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/81.jpg",
-    "voice_id": "4f7f1324-1853-48a6-b294-4e78e8036a83" // Casper (en, male, British, "calm, British man")
-  },
-  {
-    "first_name": "Kimbo",
-    "surname": "Oladipo",
-    "age": 30,
-    "gender": "male",
-    "about": "A determined and focused individual committed to professional excellence. I am always eager to enhance my skills and contribute meaningfully through hard work and collaboration.",
-    "region": "Nigeria",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/82.jpg",
-    "voice_id": "d46abd1d-2d02-43e8-819f-51fb652c1c61" // Newsman (en, male, "neutral and educational, perfect for a news anchor")
-  },
-  {
     "first_name": "Trevor",
     "surname": "M'bape",
     "age": 35,
@@ -656,7 +556,7 @@ export default [
     "gender": "female",
     "about": "A bright and dedicated individual with a passion for learning. I thrive in collaborative settings and am eager to apply my skills and contribute fresh perspectives to achieve team objectives.",
     "region": "Japan",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/87.jpg",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/31.jpg",
     "voice_id": "0cd0cde2-3b93-42b5-bcb9-f214a591aa29" // Young Shy Japanese Woman (ja, female, "bright and cheerful Japanese female voice with a youthful, playful tone")
   },
   {
@@ -676,8 +576,8 @@ export default [
     "gender": "female",
     "about": "A motivated and detail-oriented professional passionate about continuous learning. I enjoy collaborative environments and am always eager to take on new challenges effectively.",
     "region": "United States",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/89.jpg",
-    "voice_id": "91b4cf29-5166-44eb-8054-30d40ecc8081" // Anna (en, female, "natural and expressive... perfect for interviews and customer support")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/36.jpg",
+    "voice_id": "5abd2130-146a-41b1-bcdb-974ea8e19f56" // Joan (en, female, "A calm, conversational female American voice")
   },
   {
     "first_name": "Ji-Yeon",
@@ -686,7 +586,7 @@ export default [
     "gender": "female",
     "about": "A dedicated and cooperative individual focused on contributing skills and gaining experience. I seek opportunities for professional growth and enjoy working within dynamic teams.",
     "region": "South Korea",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/90.jpg",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/91.jpg",
     "voice_id": "663afeec-d082-4ab5-827e-2e41bf73a25b" // Korean Narrator Woman (ko, female, "graceful and melodic Korean female voice")
   },
   {
@@ -698,26 +598,6 @@ export default [
     "region": "Ghana",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/91.jpg",
     "voice_id": "ee7ea9f8-c0c1-498c-9279-764d6b56d189" // Polite Man (en, male, "polite and conversational") - Better fit for Ghana.
-  },
-  {
-    "first_name": "Priya",
-    "surname": "Shrivastava",
-    "age": 22,
-    "gender": "female",
-    "about": "Ambitious and quick-learning graduate eager to contribute skills and enthusiasm. I possess a strong work ethic and positive attitude, ready for challenging and rewarding opportunities.",
-    "region": "India",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/92.jpg",
-    "voice_id": "f6141af3-5f94-418c-80ed-a45d450e7e2e" // Priya (en, female, Indian accent, "young female conversational voice")
-  },
-  {
-    "first_name": "Omar",
-    "surname": "Ahmed",
-    "age": 45,
-    "gender": "male",
-    "about": "A dependable and experienced professional committed to achieving excellence. I value continuous learning and am confident in my ability to make a positive contribution to any team.",
-    "region": "Egypt",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/94.jpg",
-    "voice_id": "39b376fc-488e-4d0c-8b37-e00b72059fdd" // Help Desk Man (en, male, "warm, friendly, and reassuring tone")
   },
   {
     "first_name": "Adanna",
@@ -736,8 +616,8 @@ export default [
     "gender": "female",
     "about": "A motivated and results-focused individual with a passion for learning. I am eager to contribute my skills and experience to a dynamic team and make a positive impact.",
     "region": "Saudi Arabia",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/98.jpg",
-    "voice_id": "0c8ed86e-6c64-40f0-b252-b773911de6bb" // Corinne (en, female, "smooth, conversational female voice great for phone calls and support")
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/43.jpg",
+    "voice_id": "4af7c703-f2a9-45dd-a7fd-724cf7efc371" // Carrie (en, female, "A smooth, slow female American voice.")
   },
   {
     "first_name": "Rajesh",
@@ -748,5 +628,75 @@ export default [
     "region": "India",
     "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/99.jpg",
     "voice_id": "bdab08ad-4137-4548-b9db-6142854c7525" // Hindi Reporter Man (hi, male, "clear and authoritative Hindi male voice")
+  },
+  {
+    "first_name": "Viola",
+    "surname": "Aroldi",
+    "age": 32,
+    "gender": "female",
+    "about": "A professional and organized individual with an eye for detail. I look forward to tackling complex tasks to refine my skills.",
+    "region": "Italy",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/49.jpg",
+    "voice_id": "d718e944-b313-4998-b011-d1cc078d4ef3" // Liv (it, female, "A casual conversational Italian woman")
+  },
+  {
+    "first_name": "Catherine",
+    "surname": "Whisker",
+    "age": 28,
+    "gender": "female",
+    "about": "A young and passionate individual with a strong collaborative mindset. I thrive in dynamic environments where teamwork is paramount.",
+    "region": "Norway",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/1.jpg",
+    "voice_id": "8d8ce8c9-44a4-46c4-b10f-9a927b99a853" // Connie (en, female, "A smooth conversational female American voice.")
+  },
+  {
+    "first_name": "Jaques",
+    "surname": "Colbert",
+    "age": 60,
+    "gender": "male",
+    "about": "A gentle and experienced senior with strong composure and professionalism.",
+    "region": "France",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/65.jpg",
+    "voice_id": "5c3c89e5-535f-43ef-b14d-f8ffe148c1f0" // French Narrator Man (fr, male, "This voice is even and rich, perfect for narrating content in French.")
+  },
+  {
+    "first_name": "Lucas",
+    "surname": "Marchand",
+    "age": 35,
+    "gender": "male",
+    "about": "A reliable and hard-working professional. Always ready to tackle the next task.",
+    "region": "France",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/62.jpg",
+    "voice_id": "0418348a-0ca2-4e90-9986-800fb8b3bbc0" // Stern French Man (fr, male, "This voice is gravelly and assertive, designed for voicing stern characters.")
+  },
+  {
+    "first_name": "Patrick",
+    "surname": "Spencer",
+    "age": 40,
+    "gender": "male",
+    "about": "A dedicated and highly organized personal assistant. I bring a calm, solutions-focused approach to managing complex workloads.",
+    "region": "United States",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/41.jpg",
+    "voice_id": "7b2c0a2e-3dd3-4a44-b16b-26ecd8134279" // Luke (en, male, "Neutral Version of Luke. Speaking in New York accent.")
+  },
+  {
+    "first_name": "Mustafa",
+    "surname": "Demir",
+    "age": 55,
+    "gender": "male",
+    "about": "A seasoned senior personal assistant with decades of experience. I combine professionalism, discretion, and a calm demeanor to manage complex logistics and daily operations with ease.",
+    "region": "Turkey",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/44.jpg",
+    "voice_id": "5a31e4fb-f823-4359-aa91-82c0ae9a991c" // Turkish Narrator Man (tr, male, "deep and resonant Turkish male voice, perfect for historical narratives.")
+  },
+  {
+    "first_name": "Ito",
+    "surname": "Takahashi",
+    "age": 30,
+    "gender": "male",
+    "about": "A dynamic personal assistant with strong problem-solving skills, and upbeat attitude, I bring a modern touch to personal support, often leveraging digital tools to keep things running efficiently.",
+    "region": "Japan",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/12.jpg",
+    "voice_id": "e8a863c6-22c7-4671-86ca-91cacffc038d" // Japanese Male Conversational (jp, male, "This voice is clear and confident, perfect for a Japanese call center agent.")
   }
 ]
