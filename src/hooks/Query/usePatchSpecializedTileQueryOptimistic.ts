@@ -28,7 +28,7 @@ import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/dat
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 
 // Define TileType as a string union if not imported
-type TileType = "Table" | "Plot" | "View" | "Editor";
+type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
 
 /**
  * Hook to patch a specialized tile with optimistic updates that cascade to related data
@@ -136,6 +136,7 @@ T extends TileType
           case 'Plot': return optimisticTile.plot_tile;
           case 'View': return optimisticTile.view_tile;
           case 'Editor': return optimisticTile.editor_tile;
+          case 'Terminal': return optimisticTile.terminal_tile;
           default: return null;
         }
       })();

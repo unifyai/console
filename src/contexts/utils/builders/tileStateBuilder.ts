@@ -3,7 +3,8 @@ import { TableTile, TableTileData as TableTileSliceData } from '@/contexts/slice
 import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/selectors/plotTile';
 import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
 import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData } from '@/types/evals/grid';
+import { TerminalTile, TerminalTileData as TerminalTileSliceData } from '@/contexts/slices/selectors/terminalTile';
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from '@/types/evals/grid';
 
 /**
  * Build tile state from API-returned tile data
@@ -59,6 +60,7 @@ export function buildTileState(tileData: TileData): Tile {
     plotTile: null,
     viewTile: null,
     editorTile: null,
+    terminalTile: null,
   };
 
   // Add specialized tile data based on type
@@ -93,6 +95,11 @@ function addSpecializedTileData(
     case 'Editor':
       if (tileData.editor_tile) {
         tile.editorTile = buildEditorTileData(tileData.editor_tile);
+      }
+      break;
+    case 'Terminal':
+      if (tileData.terminal_tile) {
+        tile.terminalTile = buildTerminalTileData(tileData.terminal_tile);
       }
       break;
   }
@@ -154,6 +161,15 @@ function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
     file_name: editorTileData.file_name,
     file_type: editorTileData.file_type,
     content: editorTileData.content,
+  };
+}
+
+/**
+ * Build TerminalTile data from API-returned TerminalTileData
+ */
+function buildTerminalTileData(terminalTileData: TerminalTileData): TerminalTile {
+  return {
+    shell_type: terminalTileData.shell_type,
   };
 }
 

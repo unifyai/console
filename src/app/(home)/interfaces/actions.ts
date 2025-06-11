@@ -4,7 +4,7 @@ import { TileProps } from "@/types/evals/grid";
 import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
 import { ResponseProps } from "@/types/common";
-import { TilePosition, TableTileData, PlotTileData, ViewTileData, EditorTileData } from "@/types/evals/grid";
+import { TilePosition, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from "@/types/evals/grid";
 
 // create project
 export const createProject = async (apiKey: string) => {
@@ -499,6 +499,92 @@ export const runCode = async (apiKey: string, userId: string) => {
         return responseJson;
     }
 }
+
+// run terminal
+export const createTerminalSession = async (apiKey: string, userId: string) => {
+    return async (
+        shell: string = "bash",
+        cwd: string = "/project/sandbox"
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/code/terminal`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({
+                    user_id: userId,
+                    shell,
+                    cwd
+                })
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson; // { session_id, shell, cwd }
+    };
+};
+
+export const runTerminalCommand = async (apiKey: string) => {
+    return async (
+        sessionId: string,
+        command: string
+    ) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/code/terminal`,
+            {
+                method: "PUT",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    command
+                })
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson; // { exitCode, output }
+    };
+};
+
+export const getTerminalOutput = async (apiKey: string) => {
+    return async (sessionId: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/code/terminal?session_id=${sessionId}`,
+            { method: "GET", headers: { apiKey: apiKey } }
+        );
+        return await response.json();
+    }
+}
+
+export const stopTerminalSession = async (apiKey: string) => {
+    return async (sessionId: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/code/terminal`,
+            {
+                method: "DELETE",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ session_id: sessionId })
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson; // { detail: "Session terminated" }
+    };
+};
 
 // ----- NEW GRANULAR API ACTIONS -----
 // List interfaces
@@ -1339,6 +1425,7 @@ export const createTile = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         tile_id?: string,
         type?: string
@@ -1396,6 +1483,7 @@ export const updateTileByName = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         checkpoint: boolean = false
     ) => {
@@ -1444,6 +1532,7 @@ export const updateTileById = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         checkpoint: boolean = false
     ) => {
@@ -1494,6 +1583,7 @@ export const updateTileUnified = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         }; 
         checkpoint?: boolean;
     }) => {
@@ -1546,6 +1636,7 @@ export const patchTileByName = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         checkpoint: boolean = false
     ) => {
@@ -1596,6 +1687,7 @@ export const patchTileById = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         checkpoint: boolean = false
     ) => {
@@ -1648,6 +1740,7 @@ export const patchTileUnified = async (apiKey: string) => {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         };
         checkpoint?: boolean;
     }) => {
@@ -1676,7 +1769,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
     return async (
         tab_id: string,
         name: string,
-        tileType: "Table" | "Plot" | "View" | "Editor",
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
         updateData: Record<string, any>,
         checkpoint: boolean = false
     ) => {
@@ -1712,7 +1805,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
 export const patchSpecializedTileById = async (apiKey: string) => {
     return async (
         id: string,
-        tileType: "Table" | "Plot" | "View" | "Editor",
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
         updateData: Record<string, any>,
         checkpoint: boolean = false
     ) => {
@@ -1749,7 +1842,7 @@ export const patchSpecializedTileUnified = async (apiKey: string) => {
         id?: string; 
         tab_id?: string; 
         name?: string;
-        tileType: "Table" | "Plot" | "View" | "Editor";
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal";
         updateData: Record<string, any>;
         checkpoint?: boolean;
     }) => {
@@ -2118,7 +2211,6 @@ export const listFiles = async (adminKey: string, userId: string) => {
             }
         );
         const responseJson = await response.json();
-        console.log(responseJson);
         if (!response.ok) {
             throw new Error(responseJson.detail || "Network error");
         }

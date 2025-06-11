@@ -203,7 +203,8 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 table_tile: checkpointedTile.table_tile,
                 plot_tile: checkpointedTile.plot_tile,
                 view_tile: checkpointedTile.view_tile,
-                editor_tile: checkpointedTile.editor_tile
+                editor_tile: checkpointedTile.editor_tile,
+                terminal_tile: checkpointedTile.terminal_tile
               });
               restoredTiles++;
             } else {
@@ -226,7 +227,8 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 table_tile: checkpointedTile.table_tile,
                 plot_tile: checkpointedTile.plot_tile,
                 view_tile: checkpointedTile.view_tile,
-                editor_tile: checkpointedTile.editor_tile
+                editor_tile: checkpointedTile.editor_tile,
+                terminal_tile: checkpointedTile.terminal_tile
               }, undefined, checkpointedTile.type);
               restoredTiles++;
             }

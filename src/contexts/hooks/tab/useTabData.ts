@@ -11,6 +11,7 @@ import { ViewTile } from '@/contexts/slices/selectors/viewTile';
 import { TableTile } from '@/contexts/slices/selectors/tableTile';
 import { PlotTile } from '@/contexts/slices/selectors/plotTile';
 import { EditorTile } from '@/contexts/slices/selectors/editorTile';
+import { TerminalTile } from '@/contexts/slices/selectors/terminalTile';
 
 // Define stable fallback references
 const EMPTY_TILE_IDS: string[] = [];
@@ -44,6 +45,8 @@ export interface TabDataActions {
   updateViewTile: (tileId: string, updates: Partial<ViewTile>) => void;
   initEditorTile: (tileId: string, initialState?: Partial<EditorTile>) => void;
   updateEditorTile: (tileId: string, updates: Partial<EditorTile>) => void;
+  initTerminalTile: (tileId: string, initialState?: Partial<TerminalTile>) => void;
+  updateTerminalTile: (tileId: string, updates: Partial<TerminalTile>) => void;
   
   // Helper methods for tiles
   getTileId: (tileName: string) => string | null;
@@ -161,6 +164,9 @@ export function useTabData(
               file_type: tileItem.file_type,
               content: tileItem.content,
             },
+            terminal_tile: {
+              shell_type: tileItem.shell_type,
+            },
             view_tile: {
               base_index: tileItem.base_index,
             },
@@ -223,6 +229,8 @@ export function useTabData(
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
   const storeInitEditorTile = useStoreContext(state => state.initEditorTile);
   const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
+  const storeInitTerminalTile = useStoreContext(state => state.initTerminalTile);
+  const storeUpdateTerminalTile = useStoreContext(state => state.updateTerminalTile);
 
   // Memoize the data object
   const data = useMemo<Partial<TabData> | null>(() => {
@@ -402,6 +410,19 @@ export function useTabData(
       }
     },
 
+    // Terminal tile specific actions
+    initTerminalTile: (tileId, initialState = {}) => {
+      if (tabId && tileId) {
+        storeInitTerminalTile(tileId, initialState);
+      }
+    },
+    
+    updateTerminalTile: (tileId, updates) => {
+      if (tabId && tileId) {
+        storeUpdateTerminalTile(tileId, updates);
+      }
+    },
+
     // Helper methods for tiles
     getTileIds: () => tileIds,
 
@@ -493,7 +514,9 @@ export function useTabData(
     storeInitViewTile,
     storeUpdateViewTile,
     storeInitEditorTile,
-    storeUpdateEditorTile
+    storeUpdateEditorTile,
+    storeInitTerminalTile,
+    storeUpdateTerminalTile
   ]);
 
   // Reset the itemsNeedRecompute flag after computing items

@@ -9,6 +9,7 @@ import TableWrapper from "./TableWrapper.server";
 import PlotWrapper from "./PlotWrapper.server";
 import SelectionWrapper from "./SelectionWrapper.server";
 import EditorWrapper from "./EditorWrapper.server";
+import TerminalWrapper from "./TerminalWrapper.server";
 
 import type {
   LogsActions,
@@ -111,6 +112,24 @@ export default async function TileWrapper({
               contextActions: actions.contextActions,
               logsActions: actions.logsActions,
               fieldsActions: actions.fieldsActions
+            }}
+          />
+        );
+      case "Terminal":
+        return (
+          <TerminalWrapper
+            tile={tile}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            actions={{
+              codeActions: actions.codeActions,
+              tileActions: actions.tileActions,
+              projectsActions: actions.projectsActions,
+              contextActions: actions.contextActions,
+              logsActions: actions.logsActions,
+              fieldsActions: actions.fieldsActions,
+              fileActions: actions.fileActions
             }}
           />
         );

@@ -5,10 +5,11 @@ import { PLOT_TILE_KEYS, PlotTile } from "../slices/selectors/plotTile";
 import { VIEW_TILE_KEYS, ViewTile } from "../slices/selectors/viewTile";
 import { TABLE_TILE_KEYS, TableTile } from "../slices/selectors/tableTile";
 import { EDITOR_TILE_KEYS, EditorTile } from "../slices/selectors/editorTile";
+import { TERMINAL_TILE_KEYS, TerminalTile } from "../slices/selectors/terminalTile";
 import { useRef } from "react";
 import { useEffect } from "react";
 import { StoreSlice, Tab } from "../slices/slice";
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData } from "@/types/evals/grid";
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from "@/types/evals/grid";
 
 // Import the domain logic from selector files
 import * as interfaceLogic from "../slices/selectors/interface";
@@ -18,6 +19,7 @@ import * as tableTileLogic from "../slices/selectors/tableTile";
 import * as plotTileLogic from "../slices/selectors/plotTile";
 import * as viewTileLogic from "../slices/selectors/viewTile";
 import * as editorTileLogic from "../slices/selectors/editorTile";
+import * as terminalTileLogic from "../slices/selectors/terminalTile";
 
 /**
  * Utility to convert Tile state from zustand to TileData format for API operations
@@ -132,6 +134,17 @@ export function convertTileToTileData(tile: Tile): TileData {
     tileData.editor_tile = editorTile;
   }
 
+  // Add terminal tile data if present
+  if (tile.terminalTile) {
+    const terminalTile: TerminalTileData = {};
+    
+    // Only add properties that aren't null
+    if (tile.terminalTile.shell_type !== null && tile.terminalTile.shell_type !== undefined) 
+      terminalTile.shell_type = tile.terminalTile.shell_type;
+
+    tileData.terminal_tile = terminalTile;
+  }
+
   return tileData;
 }
 
@@ -199,7 +212,7 @@ function unwrapIfDraft(value: any) {
 }
 
 /**
- * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, ViewTile, and EditorTile.
+ * A generic helper to filter updates for tile objects incl. TableTile, PlotTile, ViewTile, EditorTile, and TerminalTile.
  * Either pass in a single update or a record of updates. Either pass in a tile object and tile updates for comparison
  * or pass in a table tile object and table tile updates for comparison, or a plot tile object and plot tile updates for comparison, 
  * and so on etc.
@@ -253,18 +266,20 @@ export function splitTileUpdates(
   plotTileUpdates: Partial<PlotTile>;
   viewTileUpdates: Partial<ViewTile>;
   editorTileUpdates: Partial<EditorTile>;
+  terminalTileUpdates: Partial<TerminalTile>;
 } {
   const tileUpdates: Partial<Tile> = {};
   let tableTileUpdates: Partial<TableTile> = {};
   let plotTileUpdates: Partial<PlotTile> = {};
   let viewTileUpdates: Partial<ViewTile> = {};
   let editorTileUpdates: Partial<EditorTile> = {};
-  // Check if any of the keys in `updates` are one of ["tableTile", "plotTile", "viewTile", "editorTile"]
+  let terminalTileUpdates: Partial<TerminalTile> = {};
+  // Check if any of the keys in `updates` are one of ["tableTile", "plotTile", "viewTile", "editorTile", "terminalTile"]
   // If so, then we just spread the nested updates for updates[key] directly
   // into either tableTileUpdates, plotTileUpdates, or viewTileUpdates so e.g. if the
   // updates object has a "tableTile" key, then we spread the nested updates for tableTile
   // into tableTileUpdates.
-  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile", "editorTile"].includes(key));
+  const nestedKeys = Object.keys(updates).filter(key => ["tableTile", "plotTile", "viewTile", "editorTile", "terminalTile"].includes(key));
   nestedKeys.forEach(key => {
     if (key === "tableTile") {
       tableTileUpdates = { ...tableTileUpdates, ...updates[key] };
@@ -277,6 +292,9 @@ export function splitTileUpdates(
       delete updates[key];
     } else if (key === "editorTile") {
       editorTileUpdates = { ...editorTileUpdates, ...updates[key] };
+      delete updates[key];
+    } else if (key === "terminalTile") {
+      terminalTileUpdates = { ...terminalTileUpdates, ...updates[key] };
       delete updates[key];
     }
   });
@@ -301,13 +319,17 @@ export function splitTileUpdates(
     if (EDITOR_TILE_KEYS.includes(key as keyof EditorTile)) {
       editorTileUpdates[key as keyof EditorTile] = updates[key] as never;
     }
+
+    if (TERMINAL_TILE_KEYS.includes(key as keyof TerminalTile)) {
+      terminalTileUpdates[key as keyof TerminalTile] = updates[key] as never;
+    }
     
-    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates && !editorTileUpdates) {
-      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile or EditorTile.`);
+    if (!tileUpdates && !tableTileUpdates && !plotTileUpdates && !viewTileUpdates && !editorTileUpdates && !terminalTileUpdates) {
+      console.warn(`Unknown property '${key}' not in Tile or TableTile or PlotTile or ViewTile or EditorTile or TerminalTile.`);
     }
   }
 
-  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates };
+  return { tileUpdates, tableTileUpdates, plotTileUpdates, viewTileUpdates, editorTileUpdates, terminalTileUpdates };
 }
 
 /**
@@ -405,6 +427,8 @@ export function pasteCopiedTile(
       state.tilesById[newTileId].viewTile = viewTileLogic.initViewTile();
     } else if (newTile.type === 'Editor' && !newTile.editorTile) {
       state.tilesById[newTileId].editorTile = editorTileLogic.initEditorTile();
+    } else if (newTile.type === 'Terminal' && !newTile.terminalTile) {
+      state.tilesById[newTileId].terminalTile = terminalTileLogic.initTerminalTile();
     }
 
     // Add the tile to the tab

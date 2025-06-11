@@ -133,16 +133,18 @@ export function useCreateDemoQuery() {
               plot_tile?: typeof tile.plot_tile;
               view_tile?: typeof tile.view_tile;
               editor_tile?: typeof tile.editor_tile;
+              terminal_tile?: typeof tile.terminal_tile;
             } = {};
             
             if (tile.table_tile) specializedData.table_tile = tile.table_tile;
             if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
             if (tile.view_tile) specializedData.view_tile = tile.view_tile;
             if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
+            if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
             
             // Remove specialized data from tileProps to avoid duplication
             const { 
-              table_tile, plot_tile, view_tile, editor_tile, 
+              table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
               id, tab_id, created_at, updated_at, ...restTileProps 
             } = tileProps;
             

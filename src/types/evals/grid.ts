@@ -48,6 +48,7 @@ export interface TileProps {
     file_name?: string;
     file_type?: string;
     content?: string;
+    shell_type?: string;
 }
 
 export interface TableDataItem {
@@ -91,6 +92,12 @@ export interface EditorDataProps {
     }
 }
 
+export interface TerminalDataProps {
+    [key: string]: {
+        shell_type: string,
+    }
+}
+
 export type ItemType =
     | "tab"
     | "bin_count"
@@ -127,7 +134,8 @@ export type ItemType =
     | "table_type"
     | "file_name"
     | "file_type"
-    | "content";
+    | "content"
+    | "shell_type";
 
 export interface Context {
     name: string,
@@ -152,6 +160,7 @@ export interface TabsDataProps {
         plotTiles: TileProps[],
         viewTiles: TileProps[],
         editorTiles: TileProps[],
+        terminalTiles: TileProps[],
         tabCreated: boolean,
         tempTabCreated: boolean,
         savedTab: TabProps | null,
@@ -223,6 +232,7 @@ export interface TileData {
     plot_tile?: PlotTileData;
     view_tile?: ViewTileData;
     editor_tile?: EditorTileData;
+    terminal_tile?: TerminalTileData;
     created_at?: string;
     updated_at?: string;
 }
@@ -262,6 +272,10 @@ export interface EditorTileData {
     file_name?: string;
     file_type?: string;
     content?: string;
+}
+
+export interface TerminalTileData {
+    shell_type?: string;
 }
 
 export interface ProjectsActions {
@@ -304,6 +318,10 @@ export interface TabActions {
 
 export interface CodeActions {
     run: (files: { [fileName: string]: string }, filePath: string, project: string) => Promise<ResponseProps>
+    createTerminal: (shell?: string, cwd?: string) => Promise<{ session_id: string }>;
+    runTerminal: (sessionId: string, cmd: string) => Promise<{ output: string }>;
+    getTerminalOutput: (sessionId: string) => Promise<{ output: string }>;
+    stopTerminal: (sessionId: string) => Promise<void>;
 }
 
 export interface DevboxActions {
@@ -458,6 +476,7 @@ export interface GranularTileActions {
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
+        terminal_tile?: TerminalTileData;
     },
     tile_id?: string,
     type?: string) => Promise<TileData>;
@@ -484,6 +503,7 @@ export interface GranularTileActions {
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
+        terminal_tile?: TerminalTileData;
     }, checkpoint?: boolean) => Promise<TileData>
     
     // Update by direct ID
@@ -508,6 +528,7 @@ export interface GranularTileActions {
         plot_tile?: PlotTileData;
         view_tile?: ViewTileData;
         editor_tile?: EditorTileData;
+        terminal_tile?: TerminalTileData;
     }, checkpoint?: boolean) => Promise<TileData>;
     
     // Unified update method that accepts either ID or tab_id+name
@@ -536,6 +557,7 @@ export interface GranularTileActions {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         }, 
         checkpoint?: boolean 
     }) => Promise<TileData>;
@@ -567,6 +589,7 @@ export interface GranularTileActions {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         }, 
         checkpoint?: boolean
     ) => Promise<TileData>;
@@ -596,6 +619,7 @@ export interface GranularTileActions {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         }, 
         checkpoint?: boolean
     ) => Promise<TileData>;
@@ -627,6 +651,7 @@ export interface GranularTileActions {
             plot_tile?: PlotTileData;
             view_tile?: ViewTileData;
             editor_tile?: EditorTileData;
+            terminal_tile?: TerminalTileData;
         },
         checkpoint?: boolean
     }) => Promise<TileData>;
@@ -635,14 +660,14 @@ export interface GranularTileActions {
     patchSpecializedByName: (
         tab_id: string, 
         name: string, 
-        tileType: "Table" | "Plot" | "View" | "Editor", 
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal", 
         updateData: Record<string, any>, 
         checkpoint?: boolean
     ) => Promise<TileData>;
     
     patchSpecializedById: (
         id: string, 
-        tileType: "Table" | "Plot" | "View" | "Editor", 
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal", 
         updateData: Record<string, any>, 
         checkpoint?: boolean
     ) => Promise<TileData>;
@@ -651,7 +676,7 @@ export interface GranularTileActions {
         id?: string; 
         tab_id?: string; 
         name?: string;
-        tileType: "Table" | "Plot" | "View" | "Editor";
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal";
         updateData: Record<string, any>;
         checkpoint?: boolean
     }) => Promise<TileData>;

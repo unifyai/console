@@ -10,5 +10,6 @@ export * from './useTableTile';
 export * from './usePlotTile';
 export * from './useViewTile';
 export * from './useEditorTile';
+export * from './useTerminalTile';
 export * from './useTile';
 export * from './tileItemUtils';

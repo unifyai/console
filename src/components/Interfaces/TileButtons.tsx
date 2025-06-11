@@ -72,6 +72,7 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                             tileType === "Plot" ? "https://docs.unify.ai/interfaces/plots" :
                             tileType === "View" ? "https://docs.unify.ai/interfaces/views" :
                             tileType === "Editor" ? "https://docs.unify.ai/interfaces/editors" :
+                            tileType === "Terminal" ? "https://docs.unify.ai/interfaces/views" : // TODO: add terminal docs
                             "https://docs.unify.ai/interfaces/tables"
                         }
                     />

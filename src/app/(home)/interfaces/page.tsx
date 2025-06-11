@@ -85,6 +85,10 @@ import {
     readFile,
     writeFiles,
     deleteFile,
+    stopTerminalSession,
+    createTerminalSession,
+    runTerminalCommand,
+    getTerminalOutput,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -137,6 +141,10 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     const codeActions = {
         run: await runCode(apiKey, userId),
+        createTerminal: await createTerminalSession(apiKey, userId),
+        runTerminal: await runTerminalCommand(apiKey),
+        getTerminalOutput: await getTerminalOutput(apiKey),
+        stopTerminal: await stopTerminalSession(apiKey),
     };
 
     const devboxActions = {

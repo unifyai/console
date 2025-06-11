@@ -6,6 +6,7 @@ import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
 import { EditorTile } from '../../slices/selectors/editorTile';
+import { TerminalTile } from '../../slices/selectors/terminalTile';
 
 /**
  * Interface for tile data-related actions
@@ -28,6 +29,7 @@ export interface TileDataActions {
   updatePlotTile: (updates: Partial<PlotTile>) => void;
   updateViewTile: (updates: Partial<ViewTile>) => void;
   updateEditorTile: (updates: Partial<EditorTile>) => void;
+  updateTerminalTile: (updates: Partial<TerminalTile>) => void;
 }
 
 /**
@@ -95,6 +97,7 @@ export function useTileData(
   const storeUpdatePlotTile = useStoreContext(state => state.updatePlotTile);
   const storeUpdateViewTile = useStoreContext(state => state.updateViewTile);
   const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
+  const storeUpdateTerminalTile = useStoreContext(state => state.updateTerminalTile);
 
   // Memoize the data object to prevent unnecessary rerenders
   const data = useMemo<Partial<TileData> | null>(() => {
@@ -205,6 +208,12 @@ export function useTileData(
       }
     },
 
+    updateTerminalTile: (updates) => {
+      if (tileId) {
+        storeUpdateTerminalTile(tileId, updates);
+      }
+    },
+
     setContextAndColumnContext: (context, columnContext) => {
       if (tileId) {
         storeUpdateTile(tileId, { context, column_context: columnContext });
@@ -216,7 +225,8 @@ export function useTileData(
     storeUpdateTableTile, 
     storeUpdatePlotTile, 
     storeUpdateViewTile,
-    storeUpdateEditorTile
+    storeUpdateEditorTile,
+    storeUpdateTerminalTile
   ]);
 
   return {

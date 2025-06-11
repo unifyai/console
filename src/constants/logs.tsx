@@ -1,4 +1,4 @@
-import { ChartLine, Code, Eye, Focus, Folder, FolderTree, ListRestart, Plus, Save, Table, Trash, Upload, X } from "lucide-react";
+import { ChartLine, Code, Eye, Focus, Folder, FolderTree, ListRestart, Plus, Save, Table, Trash, Upload, X, Terminal as TerminalIcon } from "lucide-react";
 import { InterfaceData, TabData, TileData } from "@/types/evals/grid";
 import { getLogsParameters } from "@/types/evals/logs";
 import mathsAssistant from "./demos/maths_assistant";
@@ -93,10 +93,11 @@ export const icons = {
     "Table": <Table />,
     "View": <Eye />,
     "Plot": <ChartLine />,
-    "Editor": <Code />
+    "Editor": <Code />,
+    "Terminal": <TerminalIcon />
 };
 
-export const tabTypes = ["Table", "Plot", "View", "Editor"];
+export const tabTypes = ["Table", "Plot", "View", "Editor", "Terminal"];
 
 export const fileTypes: { [key: string]: string } = {
     "py": "python",

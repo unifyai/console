@@ -5,7 +5,7 @@ import { GranularTileActions, TileData, TilePosition } from '@/types/evals/grid'
 import { useQueryClient } from "@tanstack/react-query";
 
 // Define TileType as a string union if not imported
-type TileType = "Table" | "Plot" | "View" | "Editor";
+type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
 
 /**
  * Hook to fetch all tiles for a tab
@@ -336,6 +336,7 @@ export function useTileDataQuery(
     getPlotData?: (tab_id: string, name: string) => Promise<any>;
     getViewData?: (tab_id: string, name: string) => Promise<any>;
     getEditorData?: (tab_id: string, name: string) => Promise<any>;
+    getTerminalData?: (tab_id: string, name: string) => Promise<any>;
   }
 ) {
   return useQuery({
@@ -352,6 +353,8 @@ export function useTileDataQuery(
           return actions.getViewData?.(tab_id, name);
         case 'editor':
           return actions.getEditorData?.(tab_id, name);
+        case 'terminal':
+          return actions.getTerminalData?.(tab_id, name);
         default:
           return null;
       }

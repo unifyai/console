@@ -3,6 +3,7 @@ import { TableTile } from '../../slices/selectors/tableTile';
 import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
 import { EditorTile } from '../../slices/selectors/editorTile';
+import { TerminalTile } from '../../slices/selectors/terminalTile';
 import { TileProps } from '@/types/evals/grid';
 import { constructHierarchicalId, getParentId } from '@/contexts/utils/sliceUtils';
 
@@ -81,6 +82,11 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
       file_type: tile.editorTile.file_type,
       content: tile.editorTile.content
     });
+  } else if (tile.type === 'Terminal' && tile.terminalTile) {
+    // Add terminal-specific properties
+    Object.assign(tileProps, {
+      shell_type: tile.terminalTile.shell_type
+    });
   }
   
   return tileProps;
@@ -111,7 +117,7 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     minW: tileItem.minW,
     minH: tileItem.minH,
     visible: tileItem.visible,
-    type: tileItem.tab as any,  // 'Table' | 'Plot' | 'View' | 'Editor'
+    type: tileItem.tab as any,  // 'Table' | 'Plot' | 'View' | 'Editor' | 'Terminal'
     
     // Common fields shared across tile types
     moved: tileItem.moved,
@@ -133,7 +139,8 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
   let plotTileUpdates: Partial<PlotTile> | null = null;
   let viewTileUpdates: Partial<ViewTile> | null = null;
   let editorTileUpdates: Partial<EditorTile> | null = null;
-  
+  let terminalTileUpdates: Partial<TerminalTile> | null = null;
+
   if (tileItem.tab === 'Table') {
     tableTileUpdates = {
       table_type: tileItem.table_type,
@@ -175,6 +182,11 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
       content: tileItem.content
     } as Partial<EditorTile>;
     tileUpdates.editorTile = editorTileUpdates as EditorTile;
+  } else if (tileItem.tab === 'Terminal') {
+    terminalTileUpdates = {
+      shell_type: tileItem.shell_type
+    } as Partial<TerminalTile>;
+    tileUpdates.terminalTile = terminalTileUpdates as TerminalTile;
   }
   
   return tileUpdates as Tile;

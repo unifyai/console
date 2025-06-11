@@ -8,6 +8,7 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import Editor from "./Details/Editor/Editor";
+import Terminal from "./Details/Terminal/Terminal";
 import { getTileButtonsRef, getTileCardRef } from '@/utils/refRegistry';
 
 // Dynamically import components
@@ -33,6 +34,7 @@ interface TileComponentProps {
     plotContent?: React.ReactNode;   // Server-rendered Plot content
     viewContent?: React.ReactNode;   // Server-rendered View content
     editorContent?: React.ReactNode; // Server-rendered Editor content
+    terminalContent?: React.ReactNode; // Server-rendered Terminal content
 }
 
 const Tile = ({
@@ -51,7 +53,8 @@ const Tile = ({
     tableContent,
     plotContent,
     viewContent,
-    editorContent
+    editorContent,
+    terminalContent
 }: TileComponentProps) => {
 
     // Use granular hooks for better code organization
@@ -170,6 +173,24 @@ const Tile = ({
                             contextActions={contextActions}
                             fieldsActions={fieldsActions}
                             logsActions={logsActions}
+                        />
+                    </div>
+                );
+            case 'Terminal':
+                return terminalContent || (
+                    <div className="w-full h-full overflow-y-auto">
+                        <Terminal
+                            tileId={tileId}
+                            tabId={tabId}
+                            interfaceId={interfaceId}
+                            projectId={projectId}
+                            tileActions={tileActions}
+                            logsActions={logsActions}
+                            fieldsActions={fieldsActions}
+                            contextActions={contextActions}
+                            codeActions={codeActions}
+                            fileActions={fileActions}
+                            projectsActions={projectsActions}
                         />
                     </div>
                 );
