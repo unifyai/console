@@ -43,8 +43,9 @@ export const createTabSlice: StateCreator<
       state.tabsById[tabId] = newTab;
     }
     
-    // Update the interface's tabIds array using the proper function
-    state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, tabId);
+    // Update the interface's tabIds and tabNames arrays
+    const newTabName = state.tabsById[tabId].name || initialState?.name || tabId;
+    state.interfacesById[interfaceId] = interfaceLogic.addTab(interfaceObj, tabId, newTabName);
   }),
 
   addTab: (interfaceId, newTabName, initialState) => set(state => {
@@ -77,10 +78,12 @@ export const createTabSlice: StateCreator<
     if (state.interfacesById[interfaceId]) {
       const iface = state.interfacesById[interfaceId];
       
-      // Deactivate the currently active tab if any
-      if (iface.activeTabId && iface.tabIds.includes(iface.activeTabId)) {
-        state.tabsById[iface.activeTabId].active = false;
-      }
+      // Loop over all other tabs in the interface and set the active tab to false
+      iface.tabIds.forEach(inactiveTabId => {
+        if (inactiveTabId !== tabId && state.tabsById[inactiveTabId]) {
+          state.tabsById[inactiveTabId].active = false;
+        }
+      });
       
       // Set the new active tab
       state.interfacesById[interfaceId].activeTabId = tabId;

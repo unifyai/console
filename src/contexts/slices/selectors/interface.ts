@@ -73,56 +73,18 @@ export function setInterfaceProperty<K extends keyof Interface>(
 }
 
 /**
- * Add a tab to an interface
+ * Add a tab to an interface with both ID and name
  */
-export function addTabId(iface: Interface, tabId: string): Interface {
-  // If the tab already exists in the interface, don't add it again
-  if (iface.tabIds.includes(tabId)) {
+export function addTab(iface: Interface, tabId: string, tabName: string): Interface {
+  // Check if either the tab ID or name already exists
+  if (iface.tabIds.includes(tabId) || iface.tabNames.includes(tabName)) {
     return iface;
   }
-  
-  // Return the updated interface
+
+  // Return the updated interface with both ID and name added
   return {
     ...iface,
     tabIds: [...iface.tabIds, tabId],
-    // updatedAt: new Date().toISOString()
-  };
-}
-
-/**
- * Remove a tab from an interface
- */
-export function removeTabId(iface: Interface, tabId: string): Interface {
-  // Filter out the tab ID to remove
-  const tabIds = iface.tabIds.filter(id => id !== tabId);
-  
-  // Update the active tab if needed
-  let activeTabId = iface.activeTabId;
-  if (iface.activeTabId === tabId) {
-    activeTabId = tabIds.length > 0 ? tabIds[0] : null;
-  }
-  
-  // Return the updated interface
-  return {
-    ...iface,
-    tabIds,
-    activeTabId,
-    // updatedAt: new Date().toISOString()
-  };
-}
-
-/**
- * Add a tab to an interface
- */
-export function addTabName(iface: Interface, tabName: string): Interface {
-  // If the tab already exists in the interface, don't add it again
-  if (iface.tabNames.includes(tabName)) {
-    return iface;
-  }
-
-  // Return the updated interface
-  return {
-    ...iface,
     tabNames: [...iface.tabNames, tabName],
     // updatedAt: new Date().toISOString()
   };
@@ -131,19 +93,22 @@ export function addTabName(iface: Interface, tabName: string): Interface {
 /**
  * Remove a tab from an interface
  */
-export function removeTabName(iface: Interface, tabName: string): Interface {
-  // Filter out the tab ID to remove
+export function removeTab(iface: Interface, tabId: string, tabName: string): Interface {
+  // Filter out the tab ID and name to remove
+  const tabIds = iface.tabIds.filter(id => id !== tabId);
   const tabNames = iface.tabNames.filter(name => name !== tabName);
   
   // Update the active tab if needed
   let activeTabId = iface.activeTabId;
-  if (iface.activeTabId === tabName) {
-    activeTabId = tabNames.length > 0 ? tabNames[0] : null;
+  if (iface.activeTabId === tabId) {
+    // Set to last available tab ID if any remain, otherwise null
+    activeTabId = tabIds.length > 0 ? tabIds[tabIds.length - 1] : null;
   }
   
   // Return the updated interface
   return {
     ...iface,
+    tabIds,
     tabNames,
     activeTabId,
     // updatedAt: new Date().toISOString()

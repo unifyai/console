@@ -584,7 +584,6 @@ export function addTab(
     });
     state.tabsById[newTabId] = newTab;
 
-
     // Mark other tabs as inactive
     Object.keys(state.tabsById).forEach(id => {
       if (id !== newTabId) {
@@ -592,11 +591,8 @@ export function addTab(
       }
     });
     
-    // Update the interface's tabIds array using the proper function
-    state.interfacesById[interfaceId] = interfaceLogic.addTabId(interfaceObj, newTabId);
-    
-    // Update the interface's tabNames array using the proper function
-    state.interfacesById[interfaceId] = interfaceLogic.addTabName(interfaceObj, newTab.name || "");
+    // Update the interface's tabIds and tabNames arrays
+    state.interfacesById[interfaceId] = interfaceLogic.addTab(interfaceObj, newTabId, newTabName);
     
     // Set this tab as the active tab in the interface
     state.interfacesById[interfaceId].activeTabId = newTabId;
