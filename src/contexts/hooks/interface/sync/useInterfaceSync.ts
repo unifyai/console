@@ -9,6 +9,15 @@ import { InterfaceUIActions } from "../useInterfaceUI";
 import { v4 as uuidv4 } from 'uuid';
 import { Tab } from "@/contexts/slices/selectors/tab";
 import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
+import { getTabId } from "@/contexts/selectors/tab";
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+
+/**
+ * Extended interface for InterfaceUIActions with synchronized server updates
+ */
+export interface SyncedInterfaceUIActions extends InterfaceUIActions {
+  setActiveTab: (tabIdOrName: string | null) => void;
+}
 
 /**
  * Extended interface for InterfaceDataActions with additional parameters
@@ -22,7 +31,7 @@ export interface SyncedInterfaceDataActions extends InterfaceDataActions {
  */
 export interface SyncedInterfaceActions {
   data: SyncedInterfaceDataActions | null;
-  ui: InterfaceUIActions | null;
+  ui: SyncedInterfaceUIActions | null;
 }
 
 /**
@@ -44,6 +53,9 @@ export function useInterfaceSync(
   // Get interface UI actions for router refresh coordination
   const {actions: interfaceOriginalActions } = useInterface(interfaceId, projectId);
   const { data: interfaceDataActions, ui: interfaceUIActions } = interfaceOriginalActions ?? { data: null, ui: null };
+  
+  // Get store API for state access
+  const storeApi = useStoreApiContext();
   
   // Mutation hooks for server state updates
   const updateInterfaceMutation = useUpdateInterfaceUnifiedQuery();
@@ -158,6 +170,51 @@ export function useInterfaceSync(
     });
   };
 
+  /**
+   * Set active tab with server synchronization
+   * Handles both tabId and tabName inputs
+   */
+  const wrapSetActiveTab = async (tabIdOrName: string | null) => {
+    if (!interfaceId || !interfaceUIActions || !interfaceActions) return;
+
+    try {
+      let tabId: string | null = null;
+      
+      if (tabIdOrName) {
+        // Use the store API to get current state and convert tabIdOrName to tabId
+        const currentState = storeApi.getState();
+        tabId = getTabId(currentState, interfaceId, tabIdOrName);
+      }
+
+      if (!tabId && tabIdOrName) {
+        console.warn(`Tab "${tabIdOrName}" not found in interface ${interfaceId}`);
+        return;
+      }
+
+      // 1) Update local state immediately (optimistic update)
+      interfaceUIActions.setActiveTab(tabIdOrName);
+
+      // 2) Update server state
+      if (tabId) {
+        await updateInterfaceMutation.mutateAsync({
+          interfaceId: interfaceId,
+          data: {
+            active_tab_id: tabId
+          },
+          actions: interfaceActions as GranularInterfaceActions
+        });
+      }
+
+      console.log(`Active tab set to: ${tabIdOrName} (ID: ${tabId})`);
+      
+    } catch (error) {
+      console.error(`Failed to set active tab to ${tabIdOrName}:`, error);
+      
+      // On error, we could rollback the optimistic update
+      // but since we're using React Query, it should handle this automatically
+    }
+  };
+
   // Create the enhanced actions object with the wrapped setters
   const syncedDataActions = useMemo<SyncedInterfaceDataActions | null>(() => {
     if (!interfaceDataActions) return null;
@@ -177,18 +234,19 @@ export function useInterfaceSync(
   ]);
 
   // Create the enhanced actions object with the wrapped setters
-  const syncedUIActions = useMemo<InterfaceUIActions | null>(() => {
+  const syncedUIActions = useMemo<SyncedInterfaceUIActions | null>(() => {
     if (!interfaceUIActions) return null;
 
     return {
       ...interfaceUIActions,
-      // Use the specialized wrapper functions for each property
-    } as InterfaceUIActions;
+      // Override setActiveTab with synced version
+      setActiveTab: wrapSetActiveTab
+    } as SyncedInterfaceUIActions;
   }, [
     interfaceUIActions,
     interfaceId,
     interfaceActions,
-    tabActions
+    wrapSetActiveTab
   ]);
 
   // Create the full actions object that incorporates the synced data actions

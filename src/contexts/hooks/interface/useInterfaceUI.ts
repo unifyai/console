@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
-import { useStoreContext } from '../../providers/StoreProvider';
+import { useStoreApiContext, useStoreContext } from '../../providers/StoreProvider';
 import { InterfaceUI } from '../../slices/selectors/interface';
 import { useInterfaceMeta } from './useInterfaceMeta';
+import { getTabId } from '../../selectors/tab';
 
 /**
  * Interface for interface-related UI actions
  */
 export interface InterfaceUIActions {
-  setActiveTabId: (tabId: string | null) => void;
+  setActiveTab: (tabIdOrName: string | null) => void;
   setPending: (pending: boolean) => void;
 }
 
@@ -40,6 +41,9 @@ export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName
   const storeUpdateInterface = useStoreContext(state => state.updateInterface);
   const storeSetActiveTab = useStoreContext(state => state.setActiveTab);
 
+  // Get the store API reference - can be used to get state outside of React's render cycle
+  const storeApi = useStoreApiContext();
+  
   // Memoize the UI state object to prevent unnecessary rerenders
   const ui = useMemo<Partial<InterfaceUI> | null>(() => {
     if (!interfaceExists) return null;
@@ -56,8 +60,12 @@ export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName
 
   // Memoize the UI actions to prevent unnecessary re-renders
   const uiActions = useMemo<InterfaceUIActions>(() => ({
-    setActiveTabId: (tabId) => {
+    setActiveTab: (tabIdOrName) => {
       if (activeProjectId && interfaceId) {
+        // Convert tabIdOrName to tabId using selector
+        const state = storeApi.getState();
+        const tabId = tabIdOrName ? getTabId(state, interfaceId, tabIdOrName) : null;
+        
         // Set the active tab at the global level
         if (tabId) {
           storeSetActiveTab(interfaceId, tabId);
