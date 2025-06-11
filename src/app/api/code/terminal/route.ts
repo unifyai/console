@@ -5,7 +5,6 @@ import { randomUUID } from "crypto";
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
 // ---------------------------------------------------------------------------
-const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
 
 // ---------------------------------------------------------------------------
@@ -32,6 +31,7 @@ declare global {
 // ---------------------------------------------------------------------------
 async function ensureSandbox(userId: string) {
   // Look for an existing sandbox with title === userId, otherwise clone template
+  const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
   const list = await sdk.sandbox.list();
   let sandboxId = list.sandboxes.find((s: any) => s.title === userId)?.id;
   if (!sandboxId) {
@@ -46,6 +46,7 @@ async function createTerminal(
   shell: string = "bash",
   cwd: string = "/project/sandbox"
 ) {
+  const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
   const sandboxId = await ensureSandbox(userId);
   // The current SDK typings don't yet expose .connect(), so cast to any
   const sandbox = await sdk.sandbox.open(sandboxId);
