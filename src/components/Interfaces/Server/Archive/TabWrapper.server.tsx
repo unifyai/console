@@ -165,6 +165,7 @@ export default async function TabWrapper({
           derivedEntryActions={actions.derivedEntryActions}
           contextActions={actions.contextActions}
           codeActions={actions.codeActions}
+          fileActions={actions.fileActions}
         >
           {/* {tiles.map(tile => (
             <React.Fragment key={tile.id}>
