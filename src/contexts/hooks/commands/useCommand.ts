@@ -23,6 +23,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useInterface } from "@/contexts/hooks/interface";
 import { useRestoreLastSavedTabWithTilesQuery } from "@/hooks/Query/useRestoreLastSavedTabWithTilesQuery";
 import { useRouter } from "next/navigation";
+import { useQueryState } from "nuqs";
 
 /**
  * Simplified arguments for useCommand
@@ -62,6 +63,9 @@ export function useCommand(args: UseCommandArgs) {
   } = args;
 
   const router = useRouter();
+
+  // Query params
+  const [_, setDemo] = useQueryState("demo");
 
   /* -------------------------------------------------------------------------- */
   /* Zustand store access                                                       */
@@ -117,21 +121,25 @@ export function useCommand(args: UseCommandArgs) {
         
         // If interfaces exist, select the first one
         if (interfacesList && interfacesList.length > 0) {
+          setDemo(null);
           setTabQueryParam(null);
           setInterfaceQueryParam(interfacesList[0].name);
           setProject(newProj);
         } else {
+          setDemo(null);
           setTabQueryParam("tab1");
           setInterfaceQueryParam("interface1");
           setProject(newProj);
         }
       } catch (error) {
         console.error("Error fetching interfaces for project", error);
+        setDemo(null);
         setTabQueryParam("tab1");
         setInterfaceQueryParam("interface1");
         setProject(newProj);
       }
     } else {
+      setDemo(null);
       setTabQueryParam("tab1");
       setInterfaceQueryParam("interface1");
       setProject(newProj);
@@ -139,6 +147,7 @@ export function useCommand(args: UseCommandArgs) {
   }, [
     tabUIActions, 
     interfaceDataActions, 
+    setDemo,
     setTabQueryParam, 
     setProject, 
     setInterfaceQueryParam, 
@@ -172,6 +181,7 @@ export function useCommand(args: UseCommandArgs) {
     });
 
     // Update UI & local store
+    setDemo(null);
     setProject(name);
     setInterfaceQueryParam("interface1");
     setTabQueryParam("tab1");
@@ -190,6 +200,7 @@ export function useCommand(args: UseCommandArgs) {
     interfaceActions,
     tabActions,
     tileActions,
+    setDemo,
     setProject,
     setInterfaceQueryParam,
     setTabQueryParam,

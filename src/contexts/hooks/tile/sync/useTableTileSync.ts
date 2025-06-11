@@ -275,7 +275,7 @@ export function useTableTileSync(
         updateData: { column_order: value ?? null },
         actions: granularTileActions
       });
-    }, 1000); // 1000ms debounce delay
+    }, 500); // 500ms debounce delay
   };
 
   const wrapHiddenColumns = (value: string | undefined) => {
@@ -302,7 +302,7 @@ export function useTableTileSync(
         updateData: { hidden_columns: value ?? null },
         actions: granularTileActions
       });
-    }, 1000); // 1000ms debounce delay
+    }, 500); // 500ms debounce delay
   };    
 
   const wrapColumnsPinLeft = (value: string | undefined) => {
@@ -329,7 +329,7 @@ export function useTableTileSync(
         updateData: { columns_pin_left: value ?? null },
         actions: granularTileActions
       });
-    }, 1000); // 1000ms debounce delay
+    }, 500); // 500ms debounce delay
   };
 
   const wrapColumnsPinRight = (value: string | undefined) => {  
@@ -356,7 +356,7 @@ export function useTableTileSync(
         updateData: { columns_pin_right: value ?? null },
         actions: granularTileActions
       });
-    }, 1000); // 1000ms debounce delay
+    }, 500); // 500ms debounce delay
   };
 
   const wrapSelected = (value: string | undefined) => { 
@@ -383,7 +383,7 @@ export function useTableTileSync(
         updateData: { selected: value ?? null },
         actions: granularTileActions
       });
-    }, 1000); // 1000ms debounce delay
+    }, 500); // 500ms debounce delay
   };
 
   const wrapPageNumber = async (value: string | undefined) => {   

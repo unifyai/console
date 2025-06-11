@@ -8,7 +8,7 @@ import getQueryClient from "@/app/getQueryClient";
 
 /**
  * Determines if a redirect is needed based on current URL parameters and data state.
- * Creates default interfaces and tabs when needed in one operation.
+ * Creates default interfaces when needed. Tab logic is handled client-side.
  *
  * @param params Current URL and data parameters
  * @returns The redirect URL if a redirect is needed, null otherwise
@@ -16,7 +16,6 @@ import getQueryClient from "@/app/getQueryClient";
 export async function getRedirectUrl({
   project,
   interface_,
-  tab,
   interfaces,
   currentInterface,
   tabs,
@@ -26,7 +25,6 @@ export async function getRedirectUrl({
   // URL parameters
   project: string | null;
   interface_: string | null;
-  tab?: string;
 
   // Data state
   interfaces: InterfaceData[];
@@ -45,15 +43,13 @@ export async function getRedirectUrl({
   const buildUrl = ({
     project: proj,
     iface,
-    tabName,
   }: {
     project: string;
     iface?: string;
-    tabName?: string;
   }) =>
     `/interfaces?project=${encodeURIComponent(proj)}${
       iface ? `&interface=${encodeURIComponent(iface)}` : ""
-    }${tabName ? `&tab=${encodeURIComponent(tabName)}` : ""}`;
+    }`;
 
   const upsert = <T>(
     arr: T[] | undefined,
@@ -79,7 +75,7 @@ export async function getRedirectUrl({
 
   /* -------------------------------------------------------------------- *
    * Case 2 – No interfaces yet for this project                           *
-   *           (creates default interface + tab in one go)                *
+   *           (creates default interface with default tab if needed)      *
    * -------------------------------------------------------------------- */
   if (!interfaces.length || !currentInterface) {
     const interfaceName = interface_ || "interface1";
@@ -99,20 +95,16 @@ export async function getRedirectUrl({
         (old) => upsert(old, newInterface) as InterfaceData[],
       );
 
-      const tabName = tab || "tab1";
-      if (!tab) {
-        console.log("[getRedirectUrl] Using default tab name:", tabName);
-      }
-
       console.log("[getRedirectUrl] Created new interface:", newInterface);
 
-      const newTab = await tabActions.create(newInterface.id, tabName, {
+      // Create a default tab only if no tabs exist
+      const newTab = await tabActions.create(newInterface.id, "tab1", {
         visible: true,
         active: true,
       });
 
       if (newTab && newTab.id) {
-        console.log("[getRedirectUrl] Created new tab:", newTab);
+        console.log("[getRedirectUrl] Created default tab:", newTab);
 
         // Keep cache in sync
         qc.setQueryData<TabData[]>(
@@ -134,25 +126,15 @@ export async function getRedirectUrl({
               active_tab_id: newTab.id,
             } as InterfaceData) as InterfaceData[],
         );
-
-        // Redirect with both interface & tab
-        const url = buildUrl({
-          project,
-          iface: newInterface.name,
-          tabName: newTab.name,
-        });
-        console.log("[getRedirectUrl] Returning redirect URL:", url);
-        return url;
       }
 
-      // Fallback: tab creation failed – redirect to interface only
-      console.warn(
-        "[getRedirectUrl] Tab creation failed; redirecting to interface only.",
-      );
-      return buildUrl({
+      // Redirect to interface only - client will handle tab selection
+      const url = buildUrl({
         project,
         iface: newInterface.name,
       });
+      console.log("[getRedirectUrl] Returning redirect URL:", url);
+      return url;
     }
 
     // Extreme fallback: interface creation failed
@@ -162,110 +144,38 @@ export async function getRedirectUrl({
 
   /* -------------------------------------------------------------------- *
    * Case 3 – Interface missing in URL (but we already have one)           *
-   *           May need to add a tab too                                   *
+   *           Create default tab only if no tabs exist                    *
    * -------------------------------------------------------------------- */
   if (!interface_ && currentInterface && currentInterface.name) {
-    // Need tab redirect only if tab param is missing
-    const needsTabRedirect = !tab && currentInterface.id;
-
-    if (needsTabRedirect) {
-      let activeTabs = tabs ?? [];
-
-      if (!activeTabs.length && currentInterface.id) {
-        activeTabs = (await tabActions.list(currentInterface.id, false)) ?? [];
-        qc.setQueryData<TabData[]>(
-          ["tabs", currentInterface.id],
-          activeTabs,
-        );
-      }
-
-      let activeTab =
-        activeTabs.find((t) => t.active) || (activeTabs.length ? activeTabs[0] : null);
-
-      if (!activeTab && currentInterface.id) {
-        // Create a default tab because none exist
-        console.log(
-          "[getRedirectUrl] No tabs found; creating default tab for interface.",
-        );
-        activeTab = await tabActions.create(currentInterface.id, "tab1", {
-          visible: true,
-          active: true,
-        });
-
-        if (activeTab) {
-          qc.setQueryData<TabData[]>(
-            ["tabs", currentInterface.id],
-            (old) => upsert(old, activeTab!) as TabData[],
-          );
-
-          await interfaceActions.update({
-            interface_id: currentInterface.id,
-            data: { active_tab_id: activeTab.id },
-          });
-        }
-      }
-
-      if (activeTab && activeTab.name) {
-        return buildUrl({
-          project,
-          iface: currentInterface.name,
-          tabName: activeTab.name,
-        });
-      }
-    }
-
-    // Just redirect to the interface itself
-    return buildUrl({
-      project,
-      iface: currentInterface.name,
-    });
-  }
-
-  /* -------------------------------------------------------------------- *
-   * Case 4 – Interface present in URL but tab missing                     *
-   * -------------------------------------------------------------------- */
-  if (!tab && currentInterface && currentInterface.id) {
-    const interfaceId = currentInterface.id;
-    const interfaceName = currentInterface.name;
-
-    let activeTabs = tabs ?? [];
-    if (!activeTabs.length) {
-      activeTabs = (await tabActions.list(interfaceId, false)) ?? [];
-      qc.setQueryData<TabData[]>(["tabs", interfaceId], activeTabs);
-    }
-
-    let activeTab =
-      activeTabs.find((t) => t.active) || (activeTabs.length ? activeTabs[0] : null);
-
-    if (!activeTab) {
-      console.log(
-        "[getRedirectUrl] No existing tabs; creating default tab for interface.",
-      );
-      activeTab = await tabActions.create(interfaceId, "tab1", {
+    // Check if we need to create a default tab (only if no tabs exist)
+    if (currentInterface.id && (!tabs || tabs.length === 0)) {
+      console.log("[getRedirectUrl] No tabs found; creating default tab for interface.");
+      
+      const newTab = await tabActions.create(currentInterface.id, "tab1", {
         visible: true,
         active: true,
       });
 
-      if (activeTab) {
+      if (newTab && newTab.id) {
+        // Keep cache in sync
         qc.setQueryData<TabData[]>(
-          ["tabs", interfaceId],
-          (old) => upsert(old, activeTab!) as TabData[],
+          ["tabs", currentInterface.id],
+          (old) => upsert(old, newTab) as TabData[],
         );
 
+        // Update interface with active tab id
         await interfaceActions.update({
-          interface_id: interfaceId,
-          data: { active_tab_id: activeTab.id },
+          interface_id: currentInterface.id,
+          data: { active_tab_id: newTab.id },
         });
       }
     }
 
-    if (activeTab && activeTab.name) {
-      return buildUrl({
-        project,
-        iface: interfaceName,
-        tabName: activeTab.name,
-      });
-    }
+    // Just redirect to the interface - client will handle tab selection
+    return buildUrl({
+      project,
+      iface: currentInterface.name,
+    });
   }
 
   /* -------------------------------------------------------------------- *

@@ -473,9 +473,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 contextActions={contextActions}
                 codeActions={codeActions}
                 fileActions={fileActions}
-            >
-                <div>Hello</div>
-            </Interface>
+            />
         </Suspense>
     );
 };
