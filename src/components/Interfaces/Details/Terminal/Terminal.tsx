@@ -214,7 +214,7 @@ export default function Terminal({
                 setShell(opt);
                 terminalTileActions?.setShellType(opt);
               }}
-              className="w-24 capitalize"
+              className="w-24"
             >
               {opt}
             </DropdownMenuItem>
