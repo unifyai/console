@@ -57,7 +57,7 @@ const InterfaceTabs = ({
     const tabNamesToShow = syncedInterfaceDataActions?.getTabNames() || [];
 
     // Streaming integration for instant tab switching (when enabled)
-    const { prefetchedTabs } = useTabStreamingQuery(
+    const { prefetchedTabs, prefetchProgress } = useTabStreamingQuery(
         interfaceId,
         tabName, 
         project,
@@ -222,7 +222,12 @@ const InterfaceTabs = ({
                                     <div className="h-5 w-16 text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
                                         {tabNameToShow}
                                         {/* Cached data indicator for streaming - show if streaming enabled or if tab is prefetched */}
-                                        <div className={`absolute -top-1 -left-1 w-1.5 h-1.5 bg-green-500 ${prefetchedTabs?.has(tabNameToShow) ? "" : "animate-pulse"} rounded-full`} title="Tab Prefetched" />
+                                        {(() => {
+                                          const isPrefetched = prefetchedTabs?.has(tabNameToShow) || false;
+                                          return (
+                                            <div className={`absolute -top-1 -left-1 w-1.5 h-1.5 bg-green-500 ${isPrefetched ? "" : "animate-pulse"} rounded-full`} title="Tab Prefetched" />
+                                          );
+                                        })()}
                                         {/* Pending tab change indicator */}
                                         {pendingTabChange === tabNameToShow && (
                                             <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-primary animate-pulse rounded-full" 

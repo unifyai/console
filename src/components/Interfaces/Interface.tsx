@@ -487,10 +487,20 @@ const Interface = ({
                           {tabStreamingQuery.prefetchProgress.total > 0 && (
                             <div className="fixed bottom-16 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded border">
                               <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                <span>
-                                  Prefetched: {Math.min(tabStreamingQuery.prefetchProgress.completed, tabStreamingQuery.prefetchProgress.total)}/{tabStreamingQuery.prefetchProgress.total} tabs
-                                </span>
+                                {(() => {
+                                  const { completed, total } = tabStreamingQuery.prefetchProgress;
+                                  const prefetchedCount = Math.min(completed, total);
+                                  const isComplete = prefetchedCount === total;
+                                  
+                                  return (
+                                    <>
+                                      <div className={`w-2 h-2 bg-green-500 rounded-full ${isComplete ? '' : 'animate-pulse'}`}></div>
+                                      <span>
+                                        Prefetched: {prefetchedCount}/{total} tabs
+                                      </span>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           )}
