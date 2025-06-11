@@ -104,3 +104,46 @@ export const downloadPhoto = async () => {
         }
     };
 };
+
+export const downloadPresetVideo = async () => {
+    return async (firstName: string, lastName: string): Promise<{ signedUrl?: string; detail?: string }> => {
+        "use server";
+
+        const objectPath = `preset_assistants/${firstName}_${lastName}.mp4`;
+
+        const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+        if (!bucketName) {
+            console.error("[photo.ts downloadPresetVideo] GCS Bucket name environment variable is not set.");
+            return { detail: "Server configuration error: Bucket name missing." };
+        }
+        if (!storage) {
+            console.error("[photo.ts downloadPresetVideo] Storage client is not available.");
+            return { detail: "Server configuration error: Storage unavailable" };
+        }
+
+        try {
+            const options = {
+                version: 'v4' as const,
+                action: 'read' as const,
+                expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+            };
+
+            const [url] = await storage
+                .bucket(bucketName)
+                .file(objectPath)
+                .getSignedUrl(options);
+
+            return { signedUrl: url };
+
+        } catch (error) {
+            console.error(`[photo.ts downloadPresetVideo] FAILED to generate signed URL for object path "${objectPath}" in bucket "${bucketName}":`, error);
+            const errorMsg = error instanceof Error ? error.message : "Unknown error generating download URL.";
+            if (errorMsg.includes("No such object")) {
+                 return { detail: `Preset video not found at path: ${objectPath}` };
+            } else if (errorMsg.includes("does not have serviceusage.services.use access") || errorMsg.includes("caller does not have storage.objects.get access") || errorMsg.includes("permission denied") || errorMsg.includes("signBlob")) {
+                 return { detail: "Permission denied accessing preset video." };
+            }
+            return { detail: "Could not retrieve preset video URL." };
+        }
+    };
+};

@@ -48,6 +48,10 @@ export type AssistantFormData =
       voice_gender?: CartesiaGender;
       voice_language?: SupportedLanguage;
       voice_exists?: boolean;
+      // For preset video
+      videoUrl?: string | null;
+      isPresetPristine?: boolean;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id'> | null;
     };
 
 export interface PhotoUploadResponse {
@@ -94,6 +98,7 @@ export interface AssistantActions {
   "photo": {    
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
+    downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 

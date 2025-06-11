@@ -34,9 +34,12 @@ export function useAssistantHireForm(
             voice_description: defaultVoice.description,
             voice_gender: defaultVoice.gender as Gender,
             voice_exists: false,
+            videoUrl: null,
+            isPresetPristine: false,
+            presetOriginalValues: null,
         },
     });
-    const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger } = hireFormMethods;
+    const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger, watch } = hireFormMethods;
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -66,6 +69,33 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
+    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "presetOriginalValues"]);
+    React.useEffect(() => {
+        const [firstName, surname, age, region, voiceId, imageFile, originalValues] = watchedFields;
+    
+        if (imageFile) {
+            if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
+            if (getValues("videoUrl")) setValue("videoUrl", null);
+            return;
+        }
+    
+        if (!originalValues) {
+            if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
+            return;
+        }
+        
+        const isPristine = 
+            firstName === originalValues.first_name &&
+            surname === originalValues.surname &&
+            age === originalValues.age &&
+            region === originalValues.region &&
+            voiceId === originalValues.voice_id;
+    
+        if (getValues("isPresetPristine") !== isPristine) {
+            setValue("isPresetPristine", isPristine);
+        }
+    }, [watchedFields, getValues, setValue]);
+
 
     const handleImageRemove = React.useCallback(() => {
         const currentPreview = getValues("imagePreview");
@@ -75,6 +105,8 @@ export function useAssistantHireForm(
         setValue("imageFile", null);
         setValue("imagePreview", null);
         setValue("profile_photo_url", null);
+        setValue("videoUrl", null);
+        setValue("isPresetPristine", false);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
@@ -106,10 +138,36 @@ export function useAssistantHireForm(
         setValue("voice_language", presetVoice.language as SupportedLanguage);
         setValue("voice_gender", presetVoice.gender as Gender);
         setValue("voice_exists", false);
+        setValue("isPresetPristine", true);
+
+        const originalValues = {
+            first_name: preset.first_name,
+            surname: preset.surname,
+            age: preset.age,
+            region: preset.region ?? '',
+            voice_id: presetVoice.voice_id,
+        };
+        setValue("presetOriginalValues", originalValues);
+        
+        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname)
+            .then(res => {
+                if (res.signedUrl) {
+                    setValue("videoUrl", res.signedUrl);
+                } else {
+                    setValue("isPresetPristine", false);
+                    setValue("videoUrl", null);
+                    console.warn(res.detail || `Preset video could not be loaded for ${preset.first_name} ${preset.surname}.`);
+                }
+            })
+            .catch(err => {
+                setValue("isPresetPristine", false);
+                setValue("videoUrl", null);
+                console.error('Error fetching preset video:', err);
+            });
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleImageRemove, clearErrors, defaultVoice]);
+    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         const defaultFirstName = values?.first_name || '';
@@ -134,6 +192,9 @@ export function useAssistantHireForm(
             voice_description: values?.voice_description || defaultVoice.description,
             voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
             voice_exists: values?.voice_exists || false,
+            videoUrl: null,
+            isPresetPristine: false,
+            presetOriginalValues: null,
         });
         setShowInsufficientFundsHint(false);
     }, [reset, defaultVoice]);

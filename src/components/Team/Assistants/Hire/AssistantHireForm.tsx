@@ -35,6 +35,8 @@ export function HireForm({
   const { register, formState: { errors }, watch, setValue, getValues, trigger } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
+  const videoUrl = watch("videoUrl");
+  const isPresetPristine = watch("isPresetPristine");
   const firstName = watch("first_name");
   const surname = watch("surname");
   const rhfEmail = watch("email");
@@ -114,6 +116,8 @@ export function HireForm({
             <div className="flex flex-col sm:flex-row items-start gap-6 pt-1">
               <ImageUpload
                 previewUrl={imagePreviewUrl}
+                videoUrl={videoUrl}
+                isPlayable={isPresetPristine}
                 onFileChange={handleNewFileForUpload}
                 className="flex-shrink-0 pt-2"
                 disabled={isSubmitting}
