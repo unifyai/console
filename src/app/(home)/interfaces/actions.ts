@@ -2176,25 +2176,28 @@ export const getTileCheckpointUnified = async (apiKey: string) => {
 
 // ----- FILE ACTIONS -----
 
-// write file
+// write files (one or many)
 export const writeFiles = async (adminKey: string, userId: string) => {
     return async (project: string, files: { [filePath: string]: string }) => {
         "use server";
 
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/file`,
-            {
-                method: "POST",
-                headers: { apiKey: adminKey },
-                body: JSON.stringify({ user_id: userId, project, files })
+        const results: any[] = [];
+        for (const [filename, content] of Object.entries(files)) {
+            const res = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/code/file`,
+                {
+                    method: "POST",
+                    headers: { apiKey: adminKey },
+                    body: JSON.stringify({ user_id: userId, project, filename, content })
+                }
+            );
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json.detail || "Network error");
             }
-        );
-        const responseJson = await response.json();
-        console.log(responseJson);
-        if (!response.ok) {
-            throw new Error(responseJson.detail || "Network error");
+            results.push(json);
         }
-        return responseJson;
+        return results;
     }
 }
 
@@ -2204,7 +2207,7 @@ export const listFiles = async (adminKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/file?user_id=${userId}&project=${project}`,
+            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project=${project}&isDirectory=true`,
             {
                 method: "GET",
                 headers: { apiKey: adminKey },
@@ -2224,7 +2227,7 @@ export const readFile = async (adminKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/file/contents?user_id=${userId}&project=${project}&path=${path}`,
+            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project=${project}&filename=${encodeURIComponent(path)}&isDirectory=false`,
             {
                 method: "GET",
                 headers: { apiKey: adminKey },
@@ -2244,14 +2247,14 @@ export const deleteFile = async (adminKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/file?user_id=${userId}&project=${project}&path=${path}`,
+            `${process.env.NEXTAUTH_URL}/api/code/file`,
             {
                 method: "DELETE",
                 headers: { apiKey: adminKey },
+                body: JSON.stringify({ user_id: userId, project, filename: path })
             }
         );
         const responseJson = await response.json();
-        console.log(responseJson);
         if (!response.ok) {
             throw new Error(responseJson.detail || "Network error");
         }

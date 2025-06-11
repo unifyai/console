@@ -1,7 +1,7 @@
 "use client";
 
 import CodeBlock from "../../CodeBlock";
-import { useEffect, useState, useRef, useMemo, useCallback, Dispatch, SetStateAction } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
 import { CodeActions, FileActions } from "@/types/evals/grid";
@@ -11,9 +11,9 @@ import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 import ActionButton from "@/components/Common/Buttons/Action";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { FilePlus, FolderPlus, FolderOpen, Trash2, Loader2, Plus } from "lucide-react";
+import FileDirectory from "@/components/Tree/Directory/FileDirectory";
+import { FilePlus, FolderPlus, Trash2 } from "lucide-react";
+import { FileEntry } from "@/types/evals/grid";
 
 const Editor = ({
     tileId,
@@ -54,7 +54,8 @@ const Editor = ({
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
-    const [allFiles, setAllFiles] = useState<Record<string,string>>({});
+    // Maintain list of file entries (name + type). Content is fetched lazily on demand
+    const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
     const [loadingFiles, setLoadingFiles] = useState(false);
 
     /* ------------------------------------------------------------------
@@ -62,8 +63,33 @@ const Editor = ({
     ------------------------------------------------------------------*/
     const fetchFiles = useCallback(async () => {
         try {
-            const files = await fileActions.list(projectId);
-            setAllFiles(files);
+            const res = await fileActions.list(projectId) as any;
+
+            let fileEntries: FileEntry[] = [];
+
+            const normalize = (obj: any): FileEntry => ({
+                name: obj.name ?? obj,
+                type: obj.type ?? "file",
+                isSymlink: obj.isSymlink,
+            });
+
+            if (Array.isArray(res)) {
+                // Either FileEntry[] or string[]
+                if (res.length > 0 && typeof res[0] === "object") {
+                    fileEntries = (res as any[]).map(normalize);
+                } else {
+                    fileEntries = (res as string[]).map((name) => ({ name, type: "file" }));
+                }
+            } else if (res && Array.isArray(res.files)) {
+                const inner = res.files;
+                if (inner.length > 0 && typeof inner[0] === "object") {
+                    fileEntries = inner.map(normalize);
+                } else {
+                    fileEntries = inner.map((name: string) => ({ name, type: "file" }));
+                }
+            }
+
+            setAllFiles(fileEntries);
         } catch (e) {
             console.error("Failed to list files", e);
         }
@@ -104,21 +130,8 @@ const Editor = ({
     const [complete, setComplete] = useState(false);
     const [output, setOutput] = useState("");
 
-    /* Dropdown open state – fetch latest list before opening */
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-
-    const handleDropdownToggle: Dispatch<SetStateAction<boolean>> = (value) => {
-        const open = typeof value === "function" ? value(dropdownOpen) : value;
-        if (open) {
-            setLoadingFiles(true);
-            fetchFiles().finally(() => {
-                setDropdownOpen(true);
-                setLoadingFiles(false);
-            });
-        } else {
-            setDropdownOpen(false);
-        }
-    };
+    /* FileDirectory dialog open state */
+    const [selectFilesOpen, setSelectFilesOpen] = useState(false);
 
     const language = fileTypes[editorTileState?.file_type || "txt"] || "text";
 
@@ -224,35 +237,45 @@ const Editor = ({
                             });
                         }}
                     />
-                    <BaseDropdown
-                        open={dropdownOpen}
-                        setOpen={handleDropdownToggle}
-                        button={<ActionButton variant="ghost" icon={loadingFiles ? <Loader2 className="animate-spin" size={16} /> : <FolderOpen size={16} />} tooltip="Select File" />}
-                    >
-                        {Object.keys(allFiles).length === 0 ? (
-                            <DropdownMenuItem disabled>No files</DropdownMenuItem>
-                        ) : (
-                            Object.keys(allFiles).map((path, idx) => (
-                                <DropdownMenuItem
-                                    key={idx}
-                                    onSelect={() => {
-                                        const dotIdx = path.lastIndexOf(".");
-                                        const ext = dotIdx !== -1 ? path.substring(dotIdx + 1) : "txt";
-                                        const name = dotIdx !== -1 ? path.substring(0, dotIdx) : path;
-                                        setTempFileName(name);
-                                        setTempFileType(ext);
-                                        setTempCode(allFiles[path]);
-                                        setSelectedPath(path);
-                                        editorTileActions?.setFileName(name);
-                                        editorTileActions?.setFileType(ext);
-                                        editorTileActions?.setContent(allFiles[path]);
-                                    }}
-                                >
-                                    {path}
-                                </DropdownMenuItem>
-                            ))
-                        )}
-                    </BaseDropdown>
+                    {/* File selector using FileDirectory */}
+                    <FileDirectory
+                        type={projectId}
+                        text=""
+                        variant="ghost"
+                        data={allFiles.map((f) => ({ path: f.name, type: f.type }))}
+                        defaultValue={selectedPath}
+                        setterFunction={async (file) => {
+                            if (!file) return;
+                            const path = file.path;
+                            const dotIdx = path.lastIndexOf(".");
+                            const ext = dotIdx !== -1 ? path.substring(dotIdx + 1) : "txt";
+                            const name = dotIdx !== -1 ? path.substring(0, dotIdx) : path;
+                            try {
+                                const res: any = await fileActions.read(projectId, path);
+                                const content: string = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
+                                setTempFileName(name);
+                                setTempFileType(ext);
+                                setTempCode(content);
+                                setSelectedPath(path);
+                                editorTileActions?.setFileName(name);
+                                editorTileActions?.setFileType(ext);
+                                editorTileActions?.setContent(content);
+                            } catch (e) {
+                                console.error("Failed to read file", e);
+                            }
+                            // Close dialog if using controlled open state
+                            setSelectFilesOpen(false);
+                        }}
+                        renamingFunction={async () => ({ info: "Rename not implemented" })}
+                        onOpen={() => {
+                            setLoadingFiles(true);
+                            fetchFiles().finally(() => setLoadingFiles(false));
+                        }}
+                        loading={loadingFiles}
+                        hideAutocomplete
+                        customOpen={selectFilesOpen}
+                        setCustomOpen={setSelectFilesOpen}
+                    />
                     <ActionButton
                         icon={<Trash2 size={16} />}
                         variant="ghost"
@@ -288,8 +311,8 @@ const Editor = ({
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setFileType(tempFileType);
                     editorTileActions?.setContent(code);
-                    const tempFilePath = `${tempFileName}.${editorTileState?.file_type}`;
-                    const filesForRun = { ...allFiles, [tempFilePath]: code };
+                    const tempFilePath = `${tempFileName}.${tempFileType}`;
+                    const filesForRun: { [key: string]: string } = { [tempFilePath]: code };
                     codeActions.run(filesForRun, tempFilePath, projectId).then(
                         (result: any) => {
                             result = result.output.replaceAll("/project/sandbox/", "")

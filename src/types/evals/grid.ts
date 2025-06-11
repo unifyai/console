@@ -700,9 +700,20 @@ export interface GranularTileActions {
     getCheckpoint: (params: { id?: string; tab_id?: string; name?: string }) => Promise<TileData | null>;
 }
 
+export interface FileEntry {
+    name: string;
+    type: string;
+    isSymlink?: boolean;
+}
+
 export interface FileActions {
-    list: (project: string) => Promise<Record<string, string>>;
+    // Retrieve list of file entries in the given project directory.
+    // Depending on the backend, this may return the array directly or under a `files` key.
+    list: (project: string) => Promise<{ files: FileEntry[] } | FileEntry[]>;
+    // Write/overwrite multiple files in the project directory (path -> content)
     write: (project: string, files: Record<string, string>) => Promise<any>;
-    read: (project: string, path: string) => Promise<string>;
+    // Read the contents of a single file
+    read: (project: string, path: string) => Promise<{ content: string }>;
+    // Delete a single file from the project directory
     delete: (project: string, path: string) => Promise<any>;
 }

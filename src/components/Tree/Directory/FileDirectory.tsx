@@ -17,7 +17,7 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen } : {
+export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen, hideAutocomplete } : {
   type: string, 
   text?: string,
   variant?: "outline" | "ghost",
@@ -31,6 +31,7 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
   setterFunction: (x: FileProps | undefined) => void,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
+  hideAutocomplete?: boolean,
 }) {
   
   // Initialize tree and keep a backup of the original for reference
@@ -112,7 +113,7 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
         onOpen={onOpen}
         disabled={disabled}
       />  
-      {type != "Projects" && <AutoComplete
+      {type != "Projects" && !hideAutocomplete && <AutoComplete
         type={type}
         items={files.map((file) => ({label: file.name, value: file.path}))}
         defaultValue={defaultValue}
