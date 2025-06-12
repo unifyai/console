@@ -2261,3 +2261,25 @@ export const deleteFile = async (adminKey: string, userId: string) => {
         return responseJson;
     }
 }
+
+// rename file or directory
+export const renameFile = async (adminKey: string, userId: string) => {
+    return async (project: string, oldPath: string, newPath: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/code/file`,
+            {
+                method: "PUT",
+                headers: { apiKey: adminKey },
+                body: JSON.stringify({ user_id: userId, project, old_filename: oldPath, new_filename: newPath })
+            }
+        );
+        const responseJson = await response.json();
+        if (!response.ok) {
+            throw new Error(responseJson.detail || "Network error");
+        }
+        return responseJson;
+    }
+}
+

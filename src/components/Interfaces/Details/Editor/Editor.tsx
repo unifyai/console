@@ -102,13 +102,14 @@ const Editor = ({
 
     const [saved, setSaved] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [uploaded, setUploaded] = useState(false);
 
     const handleUpload = async (payload: Record<string,string>) => {
         try {
+            setUploading(true);
             await fileActions.write(projectId, payload);
             await fetchFiles();
         } catch (e) { console.error('upload error', e); }
+        finally { setUploading(false); }
     };
 
     const handleDelete = async (path: string, isDirectory: boolean = false) => {
@@ -116,6 +117,24 @@ const Editor = ({
             await fileActions.delete(projectId, path, isDirectory);
             await fetchFiles();
         } catch (e) { console.error('delete error', e); }
+    };
+
+    const handleRename = async (oldPath: string, newPath: string, code?: string, isDirectory: boolean = false) => {
+        try {
+            if (!isDirectory) {
+                if (!code) {
+                    const res: any = await fileActions.read(projectId, oldPath);
+                    const content = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
+                    await handleUpload({ [newPath]: content });
+                } else {
+                    await handleUpload({ [newPath]: code });
+                }
+                await handleDelete(oldPath, isDirectory);
+            } else {
+                await fileActions.rename(projectId, oldPath, newPath);
+            }
+            await fetchFiles();
+        } catch (e) { console.error('rename error', e); }
     };
 
     const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
@@ -152,11 +171,6 @@ const Editor = ({
         if (complete)
             setTimeout(() => setComplete(false), 5000);
     }, [complete]);
-
-    useEffect(() => {
-        if (uploaded)
-            setTimeout(() => setUploaded(false), 2000);
-    }, [uploaded]);
 
     // Set directory attributes for folder upload once ref is available
     useEffect(() => {
@@ -208,7 +222,6 @@ const Editor = ({
                         onChange={async (e) => {
                             const files = e.target.files;
                             if (!files || files.length === 0) return;
-                            setUploading(true);
                             Array.from(files).forEach((file) => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
@@ -218,8 +231,6 @@ const Editor = ({
                                 };
                                 reader.readAsText(file);
                             });
-                            setUploading(false);
-                            setUploaded(true);
                         }}
                     />
                     <ActionButton
@@ -233,10 +244,9 @@ const Editor = ({
                         type="file"
                         style={{ display: "none" }}
                         multiple
-                        onChange={(e) => {
+                        onChange={async (e) => {
                             const files = e.target.files;
                             if (!files || files.length === 0) return;
-                            setUploading(true);
                             Array.from(files).forEach((file) => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
@@ -246,8 +256,6 @@ const Editor = ({
                                 };
                                 reader.readAsText(file);
                             });
-                            setUploading(false);
-                            setUploaded(true);
                         }}
                     />
                     {/* File selector using FileDirectory */}
@@ -279,7 +287,7 @@ const Editor = ({
                             // Close dialog if using controlled open state
                             setSelectFilesOpen(false);
                         }}
-                        renamingFunction={async () => ({ info: "Rename not implemented" })}
+                        renamingFunction={async (oldPath, newPath) => { return { info: "Rename not implemented" }; }}
                         onOpen={() => {
                             setLoadingFiles(true);
                             fetchFiles().finally(() => setLoadingFiles(false));
@@ -312,7 +320,6 @@ const Editor = ({
                     />
                 </div>
                 {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
-                {uploaded && !uploading && <div className="text-primary text-sm font-semibold">Uploaded!</div>}
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
@@ -333,9 +340,12 @@ const Editor = ({
 
                     try {
                         const tempFilePath = `${tempFileName}.${tempFileType}`;
+                        if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== tempFilePath) {
+                            await handleRename(selectedPath, tempFilePath, code);
+                        }
                         // Save / overwrite file first
                         await handleUpload({ [tempFilePath]: code });
-
+                        setSelectedPath(tempFilePath);
                         const result: any = await codeActions.run(projectId, tempFilePath);
                         const cleaned = (result.output ?? "").replaceAll("/project/sandbox/", "");
                         setOutput(cleaned === "" ? "Script execution completed." : cleaned);
@@ -347,10 +357,14 @@ const Editor = ({
                     }
                 }}
                 readOnly={false}
-                onSave={(value: string | undefined) => {
+                onSave={async (value: string | undefined) => {
                     if (value !== undefined) {
                         const path = `${tempFileName}.${tempFileType}`;
-                        handleUpload({ [path]: value });
+                        if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
+                            await handleRename(selectedPath, path, value);
+                        }
+                        await handleUpload({ [path]: value });
+                        setSelectedPath(path);
                         setSaved(true);
                     }
                 }}
