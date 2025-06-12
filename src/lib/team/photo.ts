@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { PhotoCreationResponse, PhotoEditRequest, PhotoGenerateRequest, PhotoUploadResponse } from "@/types/team/assistant";
+import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse } from "@/types/team/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/team/gcs-utils";
 import { Storage } from "@google-cloud/storage";
 
@@ -173,13 +173,16 @@ export const generatePhoto = async (apiKey: string) => {
 };
 
 export const editPhoto = async (apiKey: string) => {
-    return async (payload: PhotoEditRequest): Promise<PhotoCreationResponse | ResponseProps> => {
+    return async (formData: FormData): Promise<PhotoCreationResponse | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/edit`, {
                 method: "POST",
-                headers: { apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                headers: { 
+                    apiKey: apiKey,
+                    // Content-Type is set by browser for FormData
+                },
+                body: formData,
             });
             const data = await response.json();
             if (!response.ok) {

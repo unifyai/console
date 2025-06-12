@@ -67,6 +67,8 @@ export interface PhotoGenerateRequest {
     prompt_upsampling?: boolean;
 }
 
+// This type is no longer used for API calls, as the endpoint now takes FormData.
+// It can be kept for conceptual reference or removed.
 export interface PhotoEditRequest {
     prompt: string;
     input_image: string; // Must be a public URL
@@ -99,7 +101,7 @@ export interface Voice {
   description: string;
   gender: Gender; // 'female', 'male' - consistent with Cartesia
   language: SupportedLanguage; // language code e.g. 'en'
-  is_preset?: boolean; // Indicates if this is a Cartesia preset
+  is_preset?: boolean; // Indicates if this is a Cartesia preset voice
 }
 
 export type VoiceOption = Voice & {  
@@ -122,7 +124,7 @@ export interface AssistantActions {
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
     downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
-    edit: (payload: PhotoEditRequest) => Promise<PhotoCreationResponse | ResponseProps>;
+    edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 

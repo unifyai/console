@@ -36,6 +36,7 @@ export function HireForm({
   const { register, formState: { errors }, watch, setValue, getValues, trigger } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
+  const imageFile = watch("imageFile");
   const videoUrl = watch("videoUrl");
   const isPresetPristine = watch("isPresetPristine");
   const firstName = watch("first_name");
@@ -140,7 +141,8 @@ export function HireForm({
                     assistantActions={assistantActions}
                     onPhotoUrlCreated={handlePhotoUrlCreated}
                     onFileChange={handleNewFileForUpload}
-                    currentImageUrl={imagePreviewUrl ?? null}
+                    currentImageUrl={imagePreviewUrl}
+                    currentImageFile={imageFile}
                     disabled={isSubmitting}
                 />
               </div>

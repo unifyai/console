@@ -15,6 +15,7 @@ interface PhotoCustomizationProps {
     onPhotoUrlCreated: (newUrl: string) => void;
     onFileChange: (file: File | null) => void;
     currentImageUrl: string | null;
+    currentImageFile: File | null;
     disabled?: boolean;
 }
 
@@ -23,6 +24,7 @@ export function PhotoCustomization({
     onPhotoUrlCreated,
     onFileChange,
     currentImageUrl,
+    currentImageFile,
     disabled = false,
 }: PhotoCustomizationProps) {
     const [activeTab, setActiveTab] = React.useState<'upload' | 'create'>('upload');
@@ -41,7 +43,8 @@ export function PhotoCustomization({
         onFileChange(file);
     };
 
-    const isEditDisabled = !currentImageUrl || currentImageUrl.startsWith('blob:') || isProcessing || disabled;
+    const isEditDisabled = !currentImageUrl || isProcessing || disabled;
+    const imageSourceForEdit = currentImageFile || currentImageUrl;
 
     return (
         <div className={cn("flex-1", disabled && "opacity-70 cursor-not-allowed")}>
@@ -88,9 +91,9 @@ export function PhotoCustomization({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEdit(currentImageUrl!)}
+                            onClick={() => handleEdit(imageSourceForEdit!)}
                             disabled={isEditDisabled}
-                            title={!currentImageUrl || currentImageUrl.startsWith('blob:') ? "An existing (non-local) photo is needed to edit" : "Edit photo based on prompt"}
+                            title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit photo based on prompt"}
                         >
                             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                             Edit
