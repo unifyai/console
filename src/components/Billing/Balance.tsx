@@ -134,16 +134,14 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
       <CardContent>
         <div className="flex flex-col space-y-4">
           <div className="flex flex-col space-y-4 items-start" >
-            {/* Temporarily disabled while Stripe integration is down.
-            <Button
+            <Button 
               className="w-fit"
               variant="link"
-              onClick={handleBuyCredits}
+              onClick={handleBuyCredits} 
               disabled={!hasPaymentMethod}
             >
               Buy Credits
             </Button>
-            */}
             <Button
               className="w-fit"
               variant="link"
