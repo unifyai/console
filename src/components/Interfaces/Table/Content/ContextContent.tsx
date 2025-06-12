@@ -13,13 +13,13 @@ import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
+import { useListContextsQuery } from "@/hooks/Query/useContextsQuery";
 
 const ContextContent = ({
     projectId,
     tabId,
     interfaceId,
     tileId,
-    contexts,
     context,
     setContext,
     setPending,
@@ -29,12 +29,12 @@ const ContextContent = ({
     tileActions: serverTileActions,
     projectsActions,
     fieldsActions,
+    loading,
 }: {
     projectId?: string,
     tabId?: string,
     interfaceId?: string,
     tileId?: string,
-    contexts: Context[],
     context?: string,
     setContext?: (context: string) => void,
     setPending: (pending: boolean) => void,
@@ -43,7 +43,8 @@ const ContextContent = ({
     tabActions?: GranularTabActions,
     tileActions?: GranularTileActions,
     projectsActions?: ProjectsActions,
-    fieldsActions?: FieldsActions
+    fieldsActions?: FieldsActions,
+    loading?: boolean
 }) => {
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(
@@ -83,6 +84,9 @@ const ContextContent = ({
         isError: isTableDataError,
         error: tableDataError
     } = useTableDataQuery(tileId || null, tabId || null);
+
+    const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
+    const contexts = listContextsQuery.data || [];
 
     const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
 
@@ -151,6 +155,7 @@ const ContextContent = ({
                         attr={item != undefined ? item.context : context}
                         setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                         isColumnContext={false}
+                        loading={loading}
                         deleteDialog={
                             projectId ? <div onClick={(e) => e.stopPropagation()}>
                                 <DeleteDialog
@@ -193,6 +198,7 @@ const ContextContent = ({
                         attr={item.column_context}
                         isColumnContext={true}
                         setter={(value) => syncedTileDataActions.setColumnContext(value)}
+                        loading={loading}
                         deleteDialog={
                             projectId ? <div onClick={(e) => e.stopPropagation()}>
                                 <DeleteDialog

@@ -414,7 +414,7 @@ export function useTableTileSync(
       refetchContexts: true,
       refetchFields: true,
       actions: granularTileActions,
-    projectsActions: projectsActions as ProjectsActions,
+      projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
       logsActions: logsActions as LogsActions,
       fieldsActions: fieldsActions as FieldsActions,

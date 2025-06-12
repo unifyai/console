@@ -1,8 +1,8 @@
 import { DropdownMenuGroup, DropdownMenuItem, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/UI/dropdown-menu";
 import { TreeNode } from "@/types/common";
-import { Check, Folder } from "lucide-react";
+import { Check, Folder, Loader2 } from "lucide-react";
 
-const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, deleteDialog }: {
+const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, deleteDialog, loading }: {
     node: TreeNode,
     nodeName: string,
     isTopLevel: boolean,
@@ -11,7 +11,8 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
     prefix?: string,
     isColumnContext?: boolean,
     setter: (context: string) => void,
-    deleteDialog?: React.ReactNode
+    deleteDialog?: React.ReactNode,
+    loading?: boolean
 }) => {
     const hasChildren = Object.keys(node.children).length > 0;
     const nodePath = prefix ? `${prefix}/${node.path}` : node.path;
@@ -26,9 +27,16 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                     (nonRootNodePath != attr) ? setter(nonRootNodePath) : setter("")
                 )}
                 className="w-48 justify-between items-center cursor-pointer"
+                disabled={loading}
             >
                 <div className="flex flex-row gap-2 items-center">
-                    {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
+                    {loading ? (
+                        <Loader2 size={15} className="animate-spin" />
+                    ) : attr == nonRootNodePath ? (
+                        <Check size={15}/>
+                    ) : (
+                        <div className="w-4"/>
+                    )}
                     {nodeName == "<root>"
                         ? <span className="flex items-center gap-1">
                             <Folder size={16} />
@@ -37,8 +45,8 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                     }
                 </div>
 
-                {/* Delete context / column context */}
-                {deleteDialog && deleteDialog}
+                {/* Delete context / column context - hide during loading */}
+                {!loading && deleteDialog && deleteDialog}
 
             </DropdownMenuItem>
         );
@@ -48,8 +56,12 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
     return (
         <DropdownMenuGroup className="w-48">
             <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white">
-                    <div className="w-4"/>
+                <DropdownMenuSubTrigger className="hover:text-white data-[state=open]:text-white" disabled={loading}>
+                    {loading ? (
+                        <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                        <div className="w-4"/>
+                    )}
                     {nodeName}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
@@ -62,9 +74,16 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                                     nonRootNodePath != attr ? setter(nonRootNodePath) : setter("")
                                 )}
                                 className="w-48 justify-between cursor-pointer"
+                                disabled={loading}
                             >
                                 <div className="flex flex-row gap-2 items-center">
-                                    {attr == nonRootNodePath ? <Check size={15}/> : <div className="w-4"/>}
+                                    {loading ? (
+                                        <Loader2 size={15} className="animate-spin" />
+                                    ) : attr == nonRootNodePath ? (
+                                        <Check size={15}/>
+                                    ) : (
+                                        <div className="w-4"/>
+                                    )}
                                     {isTopLevel
                                         ? <span className="flex items-center gap-1">
                                             <Folder size={16} />
@@ -86,6 +105,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                                 prefix={prefix}
                                 setter={setter}
                                 isColumnContext={isColumnContext}
+                                loading={loading}
                             />
                         ))}
                     </DropdownMenuSubContent>

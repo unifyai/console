@@ -53,12 +53,6 @@ const Tab = ({
   const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
   const syncedTabDataActions = syncedTabActions?.data ?? null;
 
-  // Get project id and contexts from store
-  const projectData = useStoreContext(state => 
-    projectId ? state.projectsById[projectId] : null
-  );
-  const contexts = projectData?.contexts || [];
-
   // Get tileIds from store data only
   const tileIds = useMemo(() => {
     return tabDataState?.tileIds || [];
@@ -203,7 +197,6 @@ const Tab = ({
               tabId={tabId}
               interfaceId={interfaceId}
               projectId={projectId}
-              contexts={contexts}
               tabActions={tabActions}
               tileActions={tileActions}
               logsActions={logsActions}

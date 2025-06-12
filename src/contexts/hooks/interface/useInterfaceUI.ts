@@ -70,9 +70,6 @@ export function useInterfaceUI(interfaceIdOrName: string | null, projectIdOrName
         if (tabId) {
           storeSetActiveTab(interfaceId, tabId);
         }
-        
-        // Update the interface's active tab
-        storeUpdateInterface(interfaceId, { activeTabId: tabId });
       }
     },
 

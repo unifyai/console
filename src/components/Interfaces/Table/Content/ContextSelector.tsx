@@ -3,21 +3,21 @@
 import ActionButton from "../../../Common/Buttons/Action";
 import BaseDropdown from "../../../Common/Dropdowns/Base";
 import BaseDialog from "../../../Common/Dialogs/Base";
-import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
+import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
 import { FolderTree } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import { useTileItem } from "@/contexts/hooks/tile";
 import { useProjectData } from "@/contexts/hooks/project";
 import ContextContent from "./ContextContent";
 import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { useListContextsQuery } from "@/hooks/Query/useContextsQuery";
 
 const ContextSelector = ({
     tileId,
     tabId,
     interfaceId,
     projectId,
-    contexts,
     context,
     setContext,
     customOpen,
@@ -35,7 +35,6 @@ const ContextSelector = ({
     tabId?: string,
     interfaceId?: string,
     projectId?: string,
-    contexts: Context[],
     context?: string,
     setContext?: (context: string) => void,
     customOpen?: boolean,
@@ -58,6 +57,9 @@ const ContextSelector = ({
     const { dataActions: projectDataActions } = useProjectData(projectId || null);
     const { itemActions: tileItemActions } = useTileItem(tileId || null, tabId || null);
 
+    // Use React Query to fetch contexts
+    const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
+
     // Use React Query to access tableDataItem
     const { 
         data: tableDataItem,
@@ -72,18 +74,33 @@ const ContextSelector = ({
 
     const item = useMemo(() => tileItemActions?.asTileItem(), [tileItemActions]);
 
+    // Update contexts when React Query data changes
+    useEffect(() => {
+        if (listContextsQuery.data) {
+            projectDataActions?.setContexts(listContextsQuery.data);
+        }
+    }, [listContextsQuery.data, projectDataActions]);
+
+    const onOpen = () => {
+        // Refetch contexts using React Query
+        listContextsQuery.refetch();
+    }
+
     const commonSetOpenHandler = (value: boolean | ((prevState: boolean) => boolean)) => {
         // Handle both direct boolean values and state updater functions
         const isOpen = typeof value === 'function' ? value(open) : value;
         
         if (isOpen && projectId && contextActions) {
-            contextActions.get(projectId).then(ctxs => projectDataActions?.setContexts(ctxs));
+            // Refetch contexts when opening
+            onOpen();
         }
         if (start && isOpen && !open) {
             setOpen(true);
             setStart(false);
         }
-        else setOpen(false);
+        else {
+            setOpen(false);
+        }
     };
 
     return (
@@ -107,7 +124,6 @@ const ContextSelector = ({
                             tabId={tabId}
                             interfaceId={interfaceId}
                             tileId={tileId}
-                            contexts={contexts}
                             context={context}
                             setContext={setContext}
                             setPending={setPending}
@@ -117,6 +133,7 @@ const ContextSelector = ({
                             tileActions={tileActions}
                             projectsActions={projectsActions}
                             fieldsActions={fieldsActions}
+                            loading={listContextsQuery.isLoading}
                         />
                     }
                 />
@@ -139,7 +156,6 @@ const ContextSelector = ({
                         tabId={tabId}
                         interfaceId={interfaceId}
                         tileId={tileId}
-                        contexts={contexts}
                         context={context}
                         setContext={setContext}
                         setPending={setPending}
@@ -149,6 +165,7 @@ const ContextSelector = ({
                         tileActions={tileActions}
                         projectsActions={projectsActions}
                         fieldsActions={fieldsActions}
+                        loading={listContextsQuery.isLoading}
                     />
                 </BaseDropdown>
             )}

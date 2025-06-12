@@ -10,19 +10,17 @@ import Tooltip from "../Common/Misc/Tooltip";
 import ContextSelector from "./Table/Content/ContextSelector";
 import TutorialButton from "./TutorialButton";
 import { LogsActions, ContextActions, CodeActions, GranularTileActions, GranularTabActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
-import { Context } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { getTileButtonsRef } from '@/utils/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
-const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
+const TileButtons = ({tileId, tabId, interfaceId, projectId, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
     tabId: string;
     interfaceId: string;
     projectId:string;
-    contexts: Context[],
     tabActions: GranularTabActions;
     tileActions: GranularTileActions;
     logsActions: LogsActions;
@@ -91,7 +89,6 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
-                    contexts={contexts}
                     context={tabDataState?.globalContext}
                     logsActions={logsActions}
                     contextActions={contextActions}
@@ -113,7 +110,6 @@ const TileButtons = ({tileId, tabId, interfaceId, projectId, contexts, tabAction
                     tabId={tabId}
                     interfaceId={interfaceId}
                     projectId={projectId}
-                    contexts={contexts}
                     context={tabDataState?.globalContext}
                     logsActions={logsActions}
                     contextActions={contextActions}

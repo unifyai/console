@@ -196,7 +196,7 @@ export function useCommand(args: UseCommandArgs) {
     };
 
     // Create interface, tab, tiles
-    const result = await createProjectMutation.mutateAsync({
+    await createProjectMutation.mutateAsync({
       interface: newInterface,
       tab: defaultTab,
       tiles: defaultTiles,

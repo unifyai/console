@@ -15,14 +15,14 @@ import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { SetStateAction, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useTab } from "@/contexts/hooks/tab";
-import { useProject } from "@/contexts/hooks/project";
 import { useTiles } from "@/contexts/hooks/useStore";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
+import { useListContextsQuery } from "@/hooks/Query/useContextsQuery";
 
 const InterfaceButtons = ({
     tabIdOrName,
@@ -57,8 +57,10 @@ const InterfaceButtons = ({
     const storeCommands = useStoreContext((s) => s.commands);
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-    const { data: projectDataState } = useProject(project);
-    const contexts = projectDataState?.contexts || [];
+
+    // Use React Query to fetch contexts
+    const listContextsQuery = useListContextsQuery(project || null, contextActions);
+    const contexts = listContextsQuery.data || [];
 
     // Tab states and actions with granular access
     const {
@@ -204,7 +206,6 @@ const InterfaceButtons = ({
                             interfaceId={interfaceId}
                             projectId={project || undefined}
                             context={tabDataState?.globalContext}
-                            contexts={contexts}
                             setContext={handleContextChange}
                             customOpen={globalContextOpen}
                             setCustomOpen={setGlobalContextOpen}
