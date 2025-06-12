@@ -306,7 +306,7 @@ export function usePlotTileSync(
       name: tileName,
       projectId: state.activeProjectId || "",
       tileType: "Plot",
-      updateData: { plot_aggregate: value ?? null },
+      updateData: { plot_aggregate: value ?? "" },
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
