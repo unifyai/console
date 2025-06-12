@@ -5,8 +5,9 @@ import Balance from "./Balance";
 import AutomaticRefill from "./Refill";
 import { Separator } from "../UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "../UI/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 interface BillingEligibility {
   user_id: string;
@@ -16,12 +17,58 @@ interface BillingEligibility {
   remaining_spend_needed: number;
 }
 
+interface CheckoutStatus {
+  message: string;
+  type: "success" | "error";
+}
+
 const Main = () => {
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [billingSetupChecked, setBillingSetupChecked] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [billingEligibility, setBillingEligibility] = useState<BillingEligibility | null>(null);
   const [autoRechargeEnabled, setAutoRechargeEnabled] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const checkCheckoutStatus = async () => {
+      const sessionId = searchParams.get('session_id');
+      if (sessionId) {
+        let status: CheckoutStatus | null = null;
+        // Use a try-catch block to handle network errors
+        try {
+          const res = await fetch(`/api/stripe/session-status?session_id=${sessionId}`);
+          const data = await res.json();
+
+          if (res.ok) {
+            if (data.payment_status === 'paid') {
+              status = { message: 'Payment successful! Your new balance will be reflected shortly.', type: 'success' };
+            } else {
+              status = { message: 'Your payment was not successful. Please try again.', type: 'error' };
+            }
+          } else {
+            status = { message: data.error || 'An error occurred while checking your payment status.', type: 'error' };
+          }
+        } catch (error) {
+          status = { message: 'Unable to verify payment status. Please refresh to see your new balance.', type: 'error' };
+        }
+        
+        setCheckoutStatus(status);
+
+        // Clean the URL to avoid showing the message on page refresh
+        window.history.replaceState(null, '', '/billing');
+
+        // Set a timer to make the notification disappear after 7 seconds
+        setTimeout(() => {
+          setCheckoutStatus(null);
+        }, 7000);
+      }
+    };
+    
+    checkCheckoutStatus();
+  }, [searchParams]);
 
   useEffect(() => {
     //Handle New Users New Customer ID for Stripe
@@ -102,6 +149,20 @@ const Main = () => {
           Manage your credits balance and payment preferences.
         </p>
       </div>
+
+      {checkoutStatus && (
+        <Alert variant={checkoutStatus.type === 'success' ? 'default' : 'destructive'}>
+          {checkoutStatus.type === 'success' ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <AlertCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>{checkoutStatus.type === 'success' ? 'Payment Successful' : 'Payment Issue'}</AlertTitle>
+          <AlertDescription>
+            {checkoutStatus.message}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {!billingSetupChecked ? (
         <div className="flex flex-col justify-center items-center h-[50vh]">

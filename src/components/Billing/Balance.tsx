@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "../UI/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../UI/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+import { RefreshCw } from "lucide-react";
 
 interface BalanceProps {
   hasPaymentMethod: boolean;
@@ -20,27 +22,43 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
   const [balance, setBalance] = useState<number | null>(null);
   const [fullBalance, setFullBalance] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchBalance = useCallback(async () => {
+    try {
+      const balanceData = await fetch("/api/billing/balance").then((response) =>
+        response.json()
+      );
+
+      if (!balanceData) {
+        throw new Error("Failed to fetch balance data");
+      }
+
+      setBalance(balanceData.balance);
+      setFullBalance(balanceData.fullBalance);
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchBalance = async () => {
+    const loadBalance = async () => {
+      setLoading(true);
       try {
-        const balanceData  = await fetch("/api/billing/balance") . then((response) => response.json());
-
-        if (!balanceData) {
-          throw new Error("Failed to fetch balance data");
-        }
-
-        setBalance(balanceData.balance);
-        setFullBalance(balanceData.fullBalance);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
+        await fetchBalance();
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBalance();
-  }, [hasPaymentMethod]);
+    loadBalance();
+  }, [hasPaymentMethod, fetchBalance]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchBalance();
+    setIsRefreshing(false);
+  };
 
   const handleBuyCredits = async () => {
     try {
@@ -80,9 +98,37 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-2xl">Account Balance</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-2xl">Account Balance</CardTitle>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Refresh balance</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <CardDescription className="text-xl">
-          {loading ? "Loading balance..." : "Your current balance is" + " $" + balance}
+          {loading || isRefreshing ? (
+            "Loading balance..."
+          ) : (
+            <>
+              Your current balance is{" "}
+              <span className="text-primary">${balance}</span>
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
