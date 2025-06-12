@@ -10,8 +10,9 @@ import { ImageUpload } from './AssistantHireImageUpload';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone, Smartphone, Image as ImageIcon } from 'lucide-react';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon } from 'lucide-react';
 import { DialogDescription } from "@/components/UI/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
@@ -123,33 +124,6 @@ export function HireForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
      <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
-          {/* Photo Section */}
-          <div className="space-y-3">
-              <div className='flex gap-2 items-center text-muted-foreground'>
-                <ImageIcon className="h-4 w-4"/>
-                <Label className="text-base font-semibold">Photo</Label>
-              </div>
-              <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
-                <ImageUpload
-                  previewUrl={imagePreviewUrl}
-                  videoUrl={videoUrl}
-                  isPlayable={isPresetPristine}
-                  className="flex-shrink-0"
-                  disabled={isSubmitting}
-                />
-                <PhotoCustomization
-                    assistantActions={assistantActions}
-                    onPhotoUrlCreated={handlePhotoUrlCreated}
-                    onFileChange={handleNewFileForUpload}
-                    currentImageUrl={imagePreviewUrl ?? null}
-                    currentImageFile={imageFile ?? null}
-                    disabled={isSubmitting}
-                />
-              </div>
-          </div>
-     
-          <Separator />
-          
           <div className="space-y-2">
             <div className='flex gap-2 items-center text-muted-foreground'>
               <User className="h-4 w-4"/>
@@ -175,6 +149,27 @@ export function HireForm({
                 <Label htmlFor="region">Region</Label>
                 <Input id="region" placeholder="e.g., United States" {...register("region")} />
                 {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
+              </div>
+               <div className="col-span-2">
+                  <div className="relative">
+                      <Textarea
+                          id="about"
+                          placeholder="Describe the persona's background, personality, etc..."
+                          className="min-h-[100px] pr-8"
+                          {...register("about", { required: "About description is required" })}
+                      />
+                      <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Info className="absolute top-2.5 right-2.5 h-4 w-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                  <p>{staticSkillsText}</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      </TooltipProvider>
+                  </div>
+                  {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
               </div>
             </div>
           </div>
@@ -245,7 +240,6 @@ export function HireForm({
             </div>
           </div>
 
-
           <Separator />
             <div className="space-y-2">
                 <div className='flex gap-2 items-center text-muted-foreground'>
@@ -271,25 +265,32 @@ export function HireForm({
             </div>
 
           <Separator />
-
-          <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <LetterText className="h-4 w-4"/>
-              <Label className="text-base font-semibold">About</Label>
-            </div>
-            <Textarea id="about" placeholder="Describe the persona's background, personality, etc." className="min-h-[100px]" {...register("about", { required: "About description is required" })}/>
-            {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
+          
+          {/* Photo Section */}
+          <div className="space-y-3">
+              <div className='flex gap-2 items-center text-muted-foreground'>
+                <ImageIcon className="h-4 w-4"/>
+                <Label className="text-base font-semibold">Appearance</Label>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
+                <ImageUpload
+                  previewUrl={imagePreviewUrl}
+                  videoUrl={videoUrl}
+                  isPlayable={isPresetPristine}
+                  className="flex-shrink-0"
+                  disabled={isSubmitting}
+                />
+                <PhotoCustomization
+                    assistantActions={assistantActions}
+                    onPhotoUrlCreated={handlePhotoUrlCreated}
+                    onFileChange={handleNewFileForUpload}
+                    currentImageUrl={imagePreviewUrl ?? null}
+                    currentImageFile={imageFile ?? null}
+                    disabled={isSubmitting}
+                />
+              </div>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <BriefcaseBusiness className="h-4 w-4"/>
-              <Label className="text-base font-semibold">Skills</Label>
-            </div>
-            <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50"> {staticSkillsText} </p>
-          </div>
      </fieldset>
     </form>
   );

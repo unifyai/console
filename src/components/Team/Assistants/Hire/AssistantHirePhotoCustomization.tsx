@@ -4,11 +4,12 @@ import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs";
 import { Button } from "@/components/UI/button";
 import { Textarea } from "@/components/UI/textarea";
-import { Label } from "@/components/UI/label";
 import { ImagePlus, Loader2, Wand2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoCreator } from '@/hooks/Team/usePhotoCreator';
 import { AssistantActions } from '@/types/team/assistant';
+
+const PHOTO_OPERATION_COST = 0.05;
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
@@ -36,7 +37,7 @@ export function PhotoCustomization({
         isProcessing,
         handleGenerate,
         handleEdit,
-    } = usePhotoCreator(assistantActions.photo, onPhotoUrlCreated);
+    } = usePhotoCreator(assistantActions.photo, onPhotoUrlCreated, PHOTO_OPERATION_COST);
     
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
@@ -85,29 +86,34 @@ export function PhotoCustomization({
                             disabled={disabled || isProcessing}
                             maxLength={150}
                         />
-                        <div className="absolute bottom-2 right-2 flex gap-1">
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8"
-                                title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"} 
-                                onClick={() => handleEdit(imageSourceForEdit!)}
-                                disabled={isEditDisabled}
-                            >
-                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            </Button>
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8"
-                                title="Generate a new photo from prompt"
-                                onClick={handleGenerate}
-                                disabled={disabled || isProcessing}
-                            >
-                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                            </Button>
+                        <div className="flex justify-between items-center pt-1">
+                             <p className="text-xs text-muted-foreground px-1">
+                                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits
+                            </p>
+                            <div className="flex gap-1">
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"} 
+                                    onClick={() => handleEdit(imageSourceForEdit!)}
+                                    disabled={isEditDisabled}
+                                >
+                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                </Button>
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    title="Generate a new photo from prompt"
+                                    onClick={handleGenerate}
+                                    disabled={disabled || isProcessing}
+                                >
+                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </TabsContent>
