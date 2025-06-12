@@ -72,8 +72,8 @@ export function useCreateDemoQuery() {
       // Run code if provided
       if (code && actions.codeActions && actions.fileActions) {
         console.log("[useCreateDemoQuery] Running code...");
-        await actions.fileActions.write("", { "main.py": code });
-        await actions.codeActions.run("", "main.py");
+        await actions.fileActions.write("demo", { "main.py": code });
+        await actions.codeActions.run("demo", "main.py");
         console.log("[useCreateDemoQuery] Code ran successfully");
       }
       

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Build full path inside project directory
     const fullPath = `${project}/${filePath}`;
     // create command to run code
-    const command = sandbox.shells.run(`python ${fullPath}`, {
+    const command = sandbox.shells.run(`python "${fullPath}"`, {
         env: envVars
     });
 

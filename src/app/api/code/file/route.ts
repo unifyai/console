@@ -78,7 +78,7 @@ export async function DELETE(request: NextRequest) {
 
     if (isDirectory) {
       // Use shell command to remove directory recursively
-      const cmd = sandbox.shells.run(`rm -rf ${filePath}`);
+      const cmd = sandbox.shells.run(`rm -rf "${filePath}"`);
       await cmd;
     } else {
       await sandbox.fs.remove(filePath);
@@ -112,7 +112,7 @@ export async function PUT(request: NextRequest) {
 
     console.log("renaming", oldPath, newPath);
 
-    const cmd = sandbox.shells.run(`mv ${oldPath} ${newPath}`);
+    const cmd = sandbox.shells.run(`mv "${oldPath}" "${newPath}"`);
     await cmd;
 
     return Response.json({ detail: "File renamed", old_path: oldPath, new_path: newPath });

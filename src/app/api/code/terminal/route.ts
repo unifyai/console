@@ -59,7 +59,7 @@ async function createTerminal(
   }
 
   if (cwd !== "/project/sandbox") {
-    terminal.write(`cd ${cwd}\n`);
+    terminal.write(`cd "${cwd}"\n`);
   }
 
   const sessionId = randomUUID();
