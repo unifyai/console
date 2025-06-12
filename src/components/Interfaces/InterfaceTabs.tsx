@@ -57,7 +57,7 @@ const InterfaceTabs = ({
     const tabNamesToShow = syncedInterfaceDataActions?.getTabNames() || [];
 
     // Streaming integration for instant tab switching (when enabled)
-    const { prefetchedTabs, prefetchProgress } = useTabStreamingQuery(
+    const { prefetchedTabs } = useTabStreamingQuery(
         interfaceId,
         tabName, 
         project,

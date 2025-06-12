@@ -31,6 +31,8 @@ import {
   OptimisticUpdateDependencies,
   OptimisticUpdateOptions
 } from '@/utils/data/buildServerDataOptimistic';
+import { selectTabById, selectTabByName } from "@/contexts/selectors/tab";
+import { convertTabToTabData } from "@/contexts/utils/sliceUtils";
 
 type TabDataActions = {
   tabActions: GranularTabActions;
@@ -70,10 +72,10 @@ export function useTabDataOptimistic() {
 
   /**
    * Build complete tab data for a specific tab
-   * Replicates TabWrapper.server.tsx + all tile wrapper logic
    */
   const buildCompleteTabData = useCallback(async (
     interfaceId: string,
+    tabId: string,
     tabName: string,
     projectId: string,
     actions: TabDataActions,
@@ -91,50 +93,37 @@ export function useTabDataOptimistic() {
       updateCache = true
     } = options;
 
-    console.log(`[buildCompleteTabData] Building complete tab data for: ${tabName}`);
+    console.log(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
     
-    try {
-      // ===== STEP 1: TabWrapper.server.tsx logic =====
-      
-      // Get or fetch tabs
-      let allTabs = queryClient.getQueryData(["tabs", interfaceId]) as TabData[] | undefined;
-      if (!allTabs) {
-        allTabs = await actions.tabActions.list(interfaceId, false);
-        if (updateCache) {
-          queryClient.setQueryData(["tabs", interfaceId], allTabs);
+    try {      
+      // Find the specific tab by tabId and tabName (not the active tab)
+      const state = storeApi.getState();
+      let targetTab = convertTabToTabData(selectTabById(state, tabId));
+      if (!targetTab) {
+        targetTab = convertTabToTabData(selectTabByName(state, interfaceId, tabName));
+        if (!targetTab) {
+          throw new Error(`Tab not found: ${tabName} (ID: ${tabId}) in interface ${interfaceId}`);
         }
       }
 
-      // Find the current tab (matching TabWrapper.server.tsx logic)
-      let activeTab: TabData | null = null;
-      if (tabName) {
-        activeTab = allTabs.find(t => t.name === tabName) || null;
-      }
-      if (!activeTab) {
-        activeTab = allTabs.find(t => t.active) || null;
-      }
-      if (!activeTab && allTabs.length > 0) {
-        activeTab = allTabs[0];
-      }
-      if (!activeTab) {
-        throw new Error(`No tabs found for interface ${interfaceId}`);
-      }
+      // Use the target tab's ID
+      const finalTabId = targetTab.id!;
 
-      const tabId = activeTab.id || "";
-      if (!tabId) {
-        throw new Error(`Tab ${tabName} has no ID`);
-      }
-
-      // Get or fetch tiles for the active tab
-      let tiles = queryClient.getQueryData(["tiles", tabId]) as TileData[] | undefined;
-      if (!tiles) {
-        tiles = await actions.tileActions.list(tabId, undefined, false);
+      // Get or fetch tiles for the target tab
+      let tiles = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
+      if (!tiles || typeof tiles === "object") {
+        tiles = await actions.tileActions.list(finalTabId, undefined, false);
         if (updateCache) {
-          queryClient.setQueryData(["tiles", tabId], tiles);
+          queryClient.setQueryData(["tiles", finalTabId], tiles);
         }
       }
 
       // Filter tiles by type (matching TabWrapper.server.tsx)
+      // TODO: Desperate fallback for when tiles is an object.
+      // Need to investigate why this happens sometimes.
+      if (typeof tiles === "object") {
+        tiles = [];
+      }
       const tableTiles = tiles.filter(t => t.type === "Table");
       const plotTiles = tiles.filter(t => t.type === "Plot");
 
@@ -142,7 +131,7 @@ export function useTabDataOptimistic() {
       const dependencies: OptimisticUpdateDependencies = {
         queryClient,
         projectId,
-        tabId,
+        tabId: finalTabId,
         projectsActions: actions.projectsActions,
         contextActions: actions.contextActions,
         fieldsActions: actions.fieldsActions,
@@ -220,7 +209,7 @@ export function useTabDataOptimistic() {
 
       return {
         // Tab level data
-        tabData: activeTab,
+        tabData: targetTab,
         tiles,
         tableTiles,
         plotTiles,
@@ -230,20 +219,20 @@ export function useTabDataOptimistic() {
         
         // Store state
         tabState: buildTabStateForStore(
-          activeTab,
-          true, // isActive
+          targetTab,
+          targetTab.active || false, // Use the tab's actual active state
           interfaceId,
           tiles.map(tile => tile.id || ''),
           tiles.map(tile => tile.name || '')
         ),
-        tileState: buildTileStateForStore(tiles, tabId),
+        tileState: buildTileStateForStore(tiles, finalTabId),
         
         // Tile-specific data
         tileDataItems,
       };
       
     } catch (error) {
-      console.error(`[buildCompleteTabData] Error building complete tab data for ${tabName}:`, error);
+      console.error(`[buildCompleteTabData] Error building complete tab data for ${tabName} (ID: ${tabId}):`, error);
       throw error;
     }
   }, [queryClient, storeApi]);
