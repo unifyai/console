@@ -716,4 +716,6 @@ export interface FileActions {
     read: (project: string, path: string) => Promise<{ content: string }>;
     // Delete a single file from the project directory
     delete: (project: string, path: string, isDirectory?: boolean) => Promise<any>;
+    // Rename file or directory
+    rename: (project: string, oldPath: string, newPath: string) => Promise<any>;
 }

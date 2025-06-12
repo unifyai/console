@@ -91,6 +91,37 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  /**
+   * Rename a file inside the CodeSandbox FS.
+   * Expected JSON body: { user_id, project, old_filename, new_filename }
+   */
+  try {
+    const { user_id: userId, project, old_filename, new_filename } = await request.json();
+
+    if (!userId || !project || !old_filename || !new_filename) {
+      return Response.json({ detail: "Missing user_id, project, old_filename or new_filename" }, { status: 400 });
+    }
+
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
+    const sandboxId = await ensureSandbox(userId);
+    const sandbox = await sdk.sandbox.open(sandboxId);
+
+    const oldPath = buildFilePath(project, old_filename);
+    const newPath = buildFilePath(project, new_filename);
+
+    console.log("renaming", oldPath, newPath);
+
+    const cmd = sandbox.shells.run(`mv ${oldPath} ${newPath}`);
+    await cmd;
+
+    return Response.json({ detail: "File renamed", old_path: oldPath, new_path: newPath });
+  } catch (err: any) {
+    console.error("[file] PUT error", err);
+    return Response.json({ detail: "Failed to rename file" }, { status: 500 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   /**
    * Retrieve file content or list project directory.
@@ -156,3 +187,4 @@ export async function GET(request: NextRequest) {
     return Response.json({ detail: "Failed to read from filesystem" }, { status: 500 });
   }
 }
+
