@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import ChevronRightIcon from "@mui/icons-material/ChevronRightOutlined";
 import { FaFile, FaFolder } from "react-icons/fa";
 import NewFolder from "./NewFolder";
+import { Trash2 } from "lucide-react";
 import { updateNodePath, handleDrop } from "@/utils/misc/directory";
 
 export default function SubDirectory ({ 
@@ -17,6 +18,9 @@ export default function SubDirectory ({
   setSelectedFile,
   setIsOpen,
   renamingFunction,
+  hideNewFolderButton = false,
+  showDeleteFolder = false,
+  deleteFolderFunction,
 } : { 
   node: NodeProps,
   updateNode: (currentNode: NodeProps, newNode: NodeProps) => void,
@@ -25,6 +29,9 @@ export default function SubDirectory ({
   setSelectedFile: React.Dispatch<React.SetStateAction<NodeProps | undefined>>,
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>,
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
+  hideNewFolderButton?: boolean,
+  showDeleteFolder?: boolean,
+  deleteFolderFunction?: (path:string)=>void,
 }) {
 
   let [unfold, setUnfold] = useState<boolean>(node.name === type);
@@ -93,10 +100,14 @@ export default function SubDirectory ({
           }}
         >
           <p className="cursor-default select-none">{node.name}</p>
-          {node.type != "file"
-            ? <NewFolder node={node} updateNode={updateNode} setUnfold={setUnfold}/>
-            : null
-          }
+          {node.type != "file" && !hideNewFolderButton && !showDeleteFolder && (
+            <NewFolder node={node} updateNode={updateNode} setUnfold={setUnfold}/>
+          )}
+          {node.type != "file" && showDeleteFolder && (
+            <button className="p-1" onClick={() => deleteFolderFunction && deleteFolderFunction(node.path)}>
+              <Trash2 className="size-4 text-destructive" />
+            </button>
+          )}
         </div>
       </span>
       <AnimatePresence>
@@ -122,6 +133,9 @@ export default function SubDirectory ({
                   setSelectedFile={setSelectedFile}
                   setIsOpen={setIsOpen}
                   renamingFunction={renamingFunction}
+                  hideNewFolderButton={hideNewFolderButton}
+                  showDeleteFolder={showDeleteFolder}
+                  deleteFolderFunction={deleteFolderFunction}
               />
             ))}
           </motion.ul>

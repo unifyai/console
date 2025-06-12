@@ -100,6 +100,10 @@ const Editor = ({
         fetchFiles();
     }, [fetchFiles]);
 
+    const [saved, setSaved] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploaded, setUploaded] = useState(false);
+
     const handleUpload = async (payload: Record<string,string>) => {
         try {
             await fileActions.write(projectId, payload);
@@ -107,9 +111,9 @@ const Editor = ({
         } catch (e) { console.error('upload error', e); }
     };
 
-    const handleDelete = async (path: string) => {
+    const handleDelete = async (path: string, isDirectory: boolean = false) => {
         try {
-            await fileActions.delete(projectId, path);
+            await fileActions.delete(projectId, path, isDirectory);
             await fetchFiles();
         } catch (e) { console.error('delete error', e); }
     };
@@ -125,7 +129,6 @@ const Editor = ({
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
-    const [saved, setSaved] = useState(false);
     const [pending, setPending] = useState(false);
     const [complete, setComplete] = useState(false);
     const [output, setOutput] = useState("");
@@ -149,6 +152,11 @@ const Editor = ({
         if (complete)
             setTimeout(() => setComplete(false), 5000);
     }, [complete]);
+
+    useEffect(() => {
+        if (uploaded)
+            setTimeout(() => setUploaded(false), 2000);
+    }, [uploaded]);
 
     // Set directory attributes for folder upload once ref is available
     useEffect(() => {
@@ -186,7 +194,6 @@ const Editor = ({
                     className="text-sm w-24"
                     />
                 </Tooltip>
-                {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
                 <div className="flex flex-row gap-1 mr-2">
                     <ActionButton
                         icon={<FilePlus size={16} />}
@@ -201,6 +208,7 @@ const Editor = ({
                         onChange={async (e) => {
                             const files = e.target.files;
                             if (!files || files.length === 0) return;
+                            setUploading(true);
                             Array.from(files).forEach((file) => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
@@ -210,6 +218,8 @@ const Editor = ({
                                 };
                                 reader.readAsText(file);
                             });
+                            setUploading(false);
+                            setUploaded(true);
                         }}
                     />
                     <ActionButton
@@ -226,6 +236,7 @@ const Editor = ({
                         onChange={(e) => {
                             const files = e.target.files;
                             if (!files || files.length === 0) return;
+                            setUploading(true);
                             Array.from(files).forEach((file) => {
                                 const reader = new FileReader();
                                 reader.onload = () => {
@@ -235,6 +246,8 @@ const Editor = ({
                                 };
                                 reader.readAsText(file);
                             });
+                            setUploading(false);
+                            setUploaded(true);
                         }}
                     />
                     {/* File selector using FileDirectory */}
@@ -273,6 +286,9 @@ const Editor = ({
                         }}
                         loading={loadingFiles}
                         hideAutocomplete
+                        hideNewFolderButton
+                        showDeleteFolder
+                        deleteFolderFunction={(path) => handleDelete(path, true)}
                         customOpen={selectFilesOpen}
                         setCustomOpen={setSelectFilesOpen}
                     />
@@ -295,6 +311,9 @@ const Editor = ({
                         }}
                     />
                 </div>
+                {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
+                {uploaded && !uploading && <div className="text-primary text-sm font-semibold">Uploaded!</div>}
+                {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
             <CodeBlock
                 code={tempCode}

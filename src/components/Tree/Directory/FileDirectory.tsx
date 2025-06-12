@@ -17,7 +17,7 @@ import { updateNode } from "@/utils/misc/directory";
 import CancelButton from "../../Common/Buttons/Cancel";
 import SettingButton from "../../Common/Buttons/Setting";
 
-export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen, hideAutocomplete } : {
+export default function FileDirectory ({ type, text, variant, data, defaultValue, isAutocompleteOpen, disabled, loading, customOpen, setCustomOpen, setterFunction, renamingFunction, onOpen, hideAutocomplete, hideNewFolderButton, showDeleteFolder, deleteFolderFunction } : {
   type: string, 
   text?: string,
   variant?: "outline" | "ghost",
@@ -32,6 +32,9 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
   renamingFunction: (name: string, newName: string) => Promise<ResponseProps>,
   onOpen?: () => void,
   hideAutocomplete?: boolean,
+  hideNewFolderButton?: boolean,
+  showDeleteFolder?: boolean,
+  deleteFolderFunction?: (path:string)=>void,
 }) {
   
   // Initialize tree and keep a backup of the original for reference
@@ -96,6 +99,9 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
               setSelectedFile={setSelectedFile}
               setIsOpen={setIsOpen}
               renamingFunction={renamingFunction}
+              hideNewFolderButton={hideNewFolderButton}
+              showDeleteFolder={showDeleteFolder}
+              deleteFolderFunction={deleteFolderFunction}
             />
           ))
         }
