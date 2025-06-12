@@ -171,7 +171,7 @@ const InterfaceTabs = ({
                 // Update active tab using synced action
                 syncedInterfaceUIActions.setActiveTab(newTabName);
                 setTabQueryParamState(newTabName);
-                
+                tabUIActions?.setPending(false);
                 toast.success(`New tab "${newTabName}" created`);
             } else {
                 tabUIActions?.setPending(false);
