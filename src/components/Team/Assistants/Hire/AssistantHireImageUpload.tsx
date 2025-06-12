@@ -49,9 +49,9 @@ export function ImageUpload({
       >
         <div 
           className={cn(
-              "h-24 w-24 sm:h-28 sm:w-28 rounded-full overflow-hidden border-2 border-dashed flex items-center justify-center",
+              "h-44 w-44 rounded-lg overflow-hidden border-2 border-dashed flex items-center justify-center",
               "transition-all",
-              (previewUrl || shouldRenderVideo) && "!border-muted",
+              (previewUrl || shouldRenderVideo) ? "!border-muted" : "border-muted-foreground/30",
               avatarClassName
           )}
         >
@@ -67,10 +67,10 @@ export function ImageUpload({
                   onError={() => setVideoError(true)}
               />
           ) : (
-            <Avatar className={cn("h-full w-full border-0", avatarClassName)}>
+            <Avatar className={cn("h-full w-full border-0 rounded-lg", avatarClassName)}>
               {previewUrl && <AvatarImage src={previewUrl} alt="Avatar Preview" className="object-cover" />}
               <AvatarFallback className={cn(
-                "text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs",
+                "text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs rounded-lg",
                 !previewUrl && "bg-muted"
               )}>
                   {!previewUrl && (

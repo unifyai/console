@@ -47,66 +47,68 @@ export function PhotoCustomization({
     const imageSourceForEdit = currentImageFile || currentImageUrl;
 
     return (
-        <div className={cn("flex-1", disabled && "opacity-70 cursor-not-allowed")}>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <div className={cn("flex-1 self-stretch", disabled && "opacity-70 cursor-not-allowed")}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex flex-col h-full">
                 <TabsList className="grid w-full grid-cols-2 h-9">
                     <TabsTrigger value="upload" disabled={disabled}>Upload</TabsTrigger>
                     <TabsTrigger value="create" disabled={disabled}>Create with AI</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="upload" className="mt-1">
-                    <div className="p-2 border rounded-md h-[180px] flex items-center justify-center">
-                        <label 
-                            className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors"
-                            aria-disabled={disabled}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
-                            <span className="font-medium text-muted-foreground text-sm">Drop file or <span className="text-primary underline">browse</span></span>
-                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP up to 5MB</span>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/png, image/jpeg, image/webp"
-                                className="hidden"
-                                onChange={handleFileSelect}
-                                disabled={disabled}
-                            />
-                        </label>
-                    </div>
+                <TabsContent value="upload" className="mt-2 flex-1">
+                    <label 
+                        className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
+                        aria-disabled={disabled}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
+                        <span className="font-medium text-muted-foreground text-sm">Drop file or <span className="text-primary underline">browse</span></span>
+                        <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP up to 5MB</span>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png, image/jpeg, image/webp"
+                            className="hidden"
+                            onChange={handleFileSelect}
+                            disabled={disabled}
+                        />
+                    </label>
                 </TabsContent>
 
-                <TabsContent value="create" className="p-2 border rounded-md space-y-2 h-[180px] flex flex-col">
-                    <Label htmlFor="photo-prompt" className="text-xs font-semibold">Prompt</Label>
-                    <Textarea
-                        id="photo-prompt"
-                        placeholder="e.g., A photorealistic portrait of a friendly-looking person, studio lighting..."
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        className="text-sm flex-1 resize-none"
-                        disabled={disabled || isProcessing}
-                    />
-                    <div className="flex justify-end gap-2 pt-1">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(imageSourceForEdit!)}
-                            disabled={isEditDisabled}
-                            title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit photo based on prompt"}
-                        >
-                            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Edit
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            onClick={handleGenerate}
+                <TabsContent value="create" className="mt-2 flex-1">
+                    <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
+                        <Textarea
+                            id="photo-prompt"
+                            placeholder="A photorealistic portrait of a friendly-looking person, studio lighting..."
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
                             disabled={disabled || isProcessing}
-                        >
-                            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                            Generate
-                        </Button>
+                            maxLength={150}
+                        />
+                        <div className="absolute bottom-2 right-2 flex gap-1">
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8"
+                                title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"} 
+                                onClick={() => handleEdit(imageSourceForEdit!)}
+                                disabled={isEditDisabled}
+                            >
+                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            </Button>
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                title="Generate a new photo from prompt"
+                                onClick={handleGenerate}
+                                disabled={disabled || isProcessing}
+                            >
+                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                            </Button>
+                        </div>
                     </div>
                 </TabsContent>
             </Tabs>

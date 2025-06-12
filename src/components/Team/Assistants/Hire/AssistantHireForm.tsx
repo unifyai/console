@@ -124,25 +124,25 @@ export function HireForm({
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
      <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
           {/* Photo Section */}
-          <div className="space-y-2">
-             <div className='flex gap-2 items-center text-muted-foreground'>
+          <div className="space-y-3">
+              <div className='flex gap-2 items-center text-muted-foreground'>
                 <ImageIcon className="h-4 w-4"/>
                 <Label className="text-base font-semibold">Photo</Label>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
+              <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
                 <ImageUpload
                   previewUrl={imagePreviewUrl}
                   videoUrl={videoUrl}
                   isPlayable={isPresetPristine}
-                  className="flex-shrink-0 pt-2"
+                  className="flex-shrink-0"
                   disabled={isSubmitting}
                 />
                 <PhotoCustomization
                     assistantActions={assistantActions}
                     onPhotoUrlCreated={handlePhotoUrlCreated}
                     onFileChange={handleNewFileForUpload}
-                    currentImageUrl={imagePreviewUrl}
-                    currentImageFile={imageFile}
+                    currentImageUrl={imagePreviewUrl ?? null}
+                    currentImageFile={imageFile ?? null}
                     disabled={isSubmitting}
                 />
               </div>
@@ -188,7 +188,7 @@ export function HireForm({
                 <Smartphone className="h-4 w-4"/>
                 <Label className="text-base font-semibold">Contact Details</Label>
               </div>
-              <DialogDescription>Assistant&apos;s phone number will be provisioned upon hiring.</DialogDescription>
+              <DialogDescription>Assistant's phone number will be provisioned upon hiring.</DialogDescription>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                 <div>
