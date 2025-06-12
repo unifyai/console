@@ -1,34 +1,71 @@
 "use client";
 
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 import { LogsActions } from "@/types/evals/grid";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Trash } from "lucide-react";
-import { ResponseProps } from "@/types/common";
-import { useRouter } from "next/navigation";
+import { useTableAutoUpdateQuery } from "@/hooks/Query/useTableAutoUpdateQuery";
+import { FieldsActions } from "@/types/evals/grid";
+import { ContextActions } from "@/types/evals/grid";
+import { ProjectsActions } from "@/types/evals/grid";
 
 type ColumnDeleteProps = {
-    interactive: boolean,
+    tileId: string,
+    tabId: string,
     project: string,
     context: string | undefined,
     columnContext: string | undefined,
     column: string,
+    interactive: boolean,
     setPending: (pending: boolean) => void,
     getLogFieldsIds: LogsActions["get"],
-    deleteLogFields: LogsActions["delete"]
+    deleteLogFields: LogsActions["delete"],
+    logsActions: LogsActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
+    fieldsActions: FieldsActions
 }
     
-const ColumnDelete = ({ interactive, project, column, setPending, deleteLogFields, context, columnContext }: ColumnDeleteProps) => {
+const ColumnDelete = ({ 
+    tileId, 
+    tabId, 
+    project, 
+    context, 
+    columnContext, 
+    column, 
+    interactive, 
+    setPending, 
+    getLogFieldsIds, 
+    deleteLogFields,
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions
+}: ColumnDeleteProps) => {
 	
-    const router = useRouter();
-    const onDelete = () => {
-        router.refresh();
-        setPending(true);
-    }
-
     const [showDialog, setShowDialog] = useState(false);
+    const pendingRef = useRef(false);
+    
+    // Use the table auto-update hook to get manual refresh functionality
+    const { manualRefresh } = useTableAutoUpdateQuery(
+        tileId,
+        tabId,
+        project,
+        pendingRef.current,
+        logsActions,
+        projectsActions,
+        contextActions,
+        fieldsActions,
+    );
+
+    const onDelete = async () => {
+        // Set table pending state and use manual refresh
+        setPending(true);
+        await manualRefresh();
+        setPending(false); // Only clear pending after manual refresh completes
+    }
 
     const sanitizedField = columnContext ? processContext("merge", columnContext, sanitizeId(column)) : sanitizeId(column)
 	const args = [project, context, [[null, sanitizedField]], "all"]

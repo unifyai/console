@@ -81,10 +81,6 @@ const LogsTable = ({
 }) => {
   const router = useRouter(); // Initialize useRouter
 
-  // Get access to the project data and actions
-  const { data: projectDataState } = useProject(projectId ?? null);
-  const contexts = projectDataState?.contexts || [];
-
   // Get access to the tab data and actions with granular access
   const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
   const context_ = tabDataState?.globalContext;
@@ -584,7 +580,6 @@ const LogsTable = ({
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
-            contexts={contexts}
             context={item?.context || context_}
             logsActions={logsActions}
             contextActions={contextActions}
@@ -758,48 +753,66 @@ const LogsTable = ({
                   )}
                   ColumnDelete={(column) => (
                     <ColumnDelete
-                      interactive={interactive}
+                      tileId={tileId}
+                      tabId={tabId}
                       project={projectId}
-                      column={column.id}
                       context={context}
                       columnContext={item?.column_context}
+                      column={column.id}
+                      interactive={interactive}
+                      setPending={setPending}
                       getLogFieldsIds={logsActions.get}
                       deleteLogFields={logsActions.delete}
-                      setPending={setPending}
+                      logsActions={logsActions}
+                      projectsActions={projectsActions}
+                      contextActions={contextActions}
+                      fieldsActions={fieldsActions}
                     />
                   )}
                   ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
                     <ColumnCreate
+                      tileId={tileId}
+                      tabId={tabId}
                       project={projectId}
                       context={item?.context}
                       columnContext={item?.column_context}
                       currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
+                      columnOrder={columnOrder}
+                      previousColumn={previousColumn}
                       create={derivedEntryActions.create}
                       setPending={setPending}
-                      columnOrder={columnOrder}
                       setColumnOrder={setColumnOrder}
-                      previousColumn={previousColumn}
                       setOpen={setOpen}
+                      logsActions={logsActions}
+                      projectsActions={projectsActions}
+                      contextActions={contextActions}
+                      fieldsActions={fieldsActions}
                     />
                   )}
                   ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
                     <ColumnUpdate
+                      tileId={tileId}
+                      tabId={tabId}
                       project={projectId}
                       context={item?.context}
                       colId={colId}
-                      open={open}
-                      setOpen={setOpen}
                       previousEquation={fields[sanitizeId(colId)].artifacts}
                       currentTable={item?.name || ""}
                       tableArguments={tableArguments}
                       logs={logs}
+                      open={open}
+                      updateLoading={updateLoading}
+                      renderMode={renderMode as "button" | "menuItem"}
                       update={derivedEntryActions.update}
                       setPending={setPending}
-                      updateLoading={updateLoading}
+                      setOpen={setOpen}
                       setUpdateLoading={setUpdateLoading}
-                      renderMode={renderMode as "button" | "menuItem"}
+                      logsActions={logsActions}
+                      projectsActions={projectsActions}
+                      contextActions={contextActions}
+                      fieldsActions={fieldsActions}
                     />
                   )}
                   RowExpanding={(props: RowExpandingProps) => (

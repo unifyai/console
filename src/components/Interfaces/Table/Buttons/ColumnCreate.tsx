@@ -1,7 +1,6 @@
 "use client";
 
-import { KeyboardEventHandler, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { KeyboardEventHandler, useState, useEffect, useRef } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import Tooltip from "@/components/Common/Misc/Tooltip";
@@ -14,6 +13,11 @@ import { expressionToDerivedFunction } from "@/utils/evals/derivedColumns";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 import { processContext, sanitizeId } from "@/utils/evals/columnOperations";
 import BaseDialog from "@/components/Common/Dialogs/Base";
+import { useTableAutoUpdateQuery } from "@/hooks/Query/useTableAutoUpdateQuery";
+import { FieldsActions } from "@/types/evals/grid";
+import { ContextActions } from "@/types/evals/grid";
+import { ProjectsActions } from "@/types/evals/grid";
+import { LogsActions } from "@/types/evals/grid";
 
 const extractSharedPath = (firstColumnName: string, secondColumnName: string) => {
     const firstPathParts = firstColumnName.split('/').filter(p => p !== '');
@@ -30,22 +34,45 @@ const extractSharedPath = (firstColumnName: string, secondColumnName: string) =>
 
 const extractColumnPath = (columnName: string) => columnName.split("/").slice(1, -1).join("/")
 
-const ColumnCreate = ({ project, context, columnContext, currentTable, tableArguments, logs, create, setPending, columnOrder, setColumnOrder, previousColumn, setOpen }: {
+const ColumnCreate = ({ 
+    tileId, 
+    tabId, 
+    project,
+    context, 
+    columnContext, 
+    currentTable, 
+    tableArguments, 
+    logs, 
+    columnOrder, 
+    previousColumn,
+    create, 
+    setPending, 
+    setColumnOrder, 
+    setOpen,
+    logsActions, 
+    projectsActions, 
+    contextActions, 
+    fieldsActions 
+}: {
+    tileId: string,
+    tabId: string,
     project: string,
     context: string | undefined,
     columnContext: string | undefined,
     currentTable: string,
     tableArguments: TableArguments,
     logs: LogProps[] | GroupedLogProps[],
+    columnOrder: string[],
+    previousColumn: string,
     create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
-    columnOrder: string[],
     setColumnOrder: (order: string[]) => void,
-    previousColumn: string,
-    setOpen: (open: boolean) => void
+    setOpen: (open: boolean) => void,
+    logsActions: LogsActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
+    fieldsActions: FieldsActions
 }) => {
-    const router = useRouter();
-
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
@@ -90,8 +117,22 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
-    /* Display loader when data updates */
+    /* Display loader when data updates - this is for the dialog loading state */
     const [loading, setLoading] = useState(false);
+    const pendingRef = useRef(false);
+    
+    // Use the table auto-update hook to get manual refresh functionality
+    const { manualRefresh } = useTableAutoUpdateQuery(
+        tileId,
+        tabId,
+        project,
+        pendingRef.current,
+        logsActions,
+        projectsActions,
+        contextActions,
+        fieldsActions,
+    );
+
     useEffect(() => {
         setLoading(false);
     },[logs])
@@ -116,8 +157,7 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
     }
 
     // Handle submission    
-    const onSubmit = () => {
-
+    const onSubmit = async () => {
         /* Build referenced arguments object */
         let referencedTables : (keyof TableArguments)[] = tables.filter(table => equation.includes(table))
         if (!referencedTables.length) referencedTables = [currentTable]
@@ -132,12 +172,14 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
         key = columnContext ? processContext("merge", columnContext, key) : key
 
         setLoading(true);
-        create(project, context, key, equation, referencedArguments).then(async (response: ResponseProps) => {
+        
+        try {
+            const response = await create(project, context, key, equation, referencedArguments);
+            
             if ("info" in response) {
-                
                 // Update states
                 setErrorMessage("");
-                setLoading(false);
+                setLoading(false); // Dialog loading stops immediately after successful create
                 setOpen(false);
 
                 // Add new column next to the previous
@@ -150,22 +192,28 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
                     : order;
                 setColumnOrder(newOrder);
                 
-                // Refresh page
-                router.refresh();
+                // Set table pending state and use manual refresh
                 setPending(true);
+                await manualRefresh();
+                setPending(false); // Only clear pending after manual refresh completes
                 
                 return;
             } 
+            
             let error = "Failed to create derived entries, please try again.";
             if ("detail" in response) {
                 if (typeof response.detail === "string") error = response.detail;
                 else error = JSON.stringify(response.detail);
             }
-            setLoading(false);
             setErrorMessage(error);
             setTimeout(() => setErrorMessage(""), 10000);
-        })
-
+        } catch (error) {
+            console.error("Failed to create column:", error);
+            setErrorMessage("Failed to create derived entries, please try again.");
+            setTimeout(() => setErrorMessage(""), 10000);
+        } finally {
+            setLoading(false);
+        }
     }
     const onEnter : KeyboardEventHandler = (e) => {
         e.stopPropagation()
@@ -254,7 +302,7 @@ const ColumnCreate = ({ project, context, columnContext, currentTable, tableArgu
             }
             body={body}
             footer={footer}
-            // Stop clicks from closing the parent if it’s still around
+            // Stop clicks from closing the parent if it's still around
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}

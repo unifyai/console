@@ -1,7 +1,6 @@
 "use client";
 
-import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction } from "react";
-import { useRouter } from "next/navigation";
+import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction, useRef } from "react";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/evals/logs"
 import ActionButton from "@/components/Common/Buttons/Action";
@@ -15,8 +14,15 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
 import { buildFilterExpressionArgument } from "@/utils/evals/filters";
 import { DerivedEntryActions } from "@/types/evals/grid";
 import BaseDialog from "@/components/Common/Dialogs/Base";
+import { useTableAutoUpdateQuery } from "@/hooks/Query/useTableAutoUpdateQuery";
+import { FieldsActions } from "@/types/evals/grid";
+import { ContextActions } from "@/types/evals/grid";
+import { ProjectsActions } from "@/types/evals/grid";
+import { LogsActions } from "@/types/evals/grid";
 
 const ColumnUpdate = ({
+    tileId,
+    tabId,
     project,
     context,
     colId,
@@ -24,31 +30,39 @@ const ColumnUpdate = ({
     currentTable,
     tableArguments,
     logs,
+    open,
+    updateLoading,
+    renderMode,
     update,
     setPending,
-    open,
     setOpen,
-    updateLoading,
     setUpdateLoading,
-    renderMode
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions
 }: {
+    tileId: string,
+    tabId: string,
     project: string,
     context: string | undefined,
     colId: string,
     previousEquation: string,
     currentTable: string,
     tableArguments: TableArguments,
-    logs: LogProps[] | GroupedLogProps[]
+    logs: LogProps[] | GroupedLogProps[],
+    open: boolean,
+    updateLoading: boolean,
+    renderMode: "button" | "menuItem",
     update: DerivedEntryActions["update"],
     setPending: (pending: boolean) => void,
-    open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
-    updateLoading: boolean,
     setUpdateLoading: (updateLoading: boolean) => void,
-    renderMode: "button" | "menuItem"
+    logsActions: LogsActions,
+    projectsActions: ProjectsActions,
+    contextActions: ContextActions,
+    fieldsActions: FieldsActions
 }) => {
-    const router = useRouter();
-
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
@@ -65,7 +79,21 @@ const ColumnUpdate = ({
     const [equation, setEquation] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
 
-    /* Display loader when data updates */
+    const pendingRef = useRef(false);
+    
+    // Use the table auto-update hook to get manual refresh functionality
+    const { manualRefresh } = useTableAutoUpdateQuery(
+        tileId,
+        tabId,
+        project,
+        pendingRef.current,
+        logsActions,
+        projectsActions,
+        contextActions,
+        fieldsActions,
+    );
+
+    /* Display loader when data updates - this stops the updateLoading state */
     useEffect(() => {
         setUpdateLoading(false);
     },[logs])
@@ -78,8 +106,7 @@ const ColumnUpdate = ({
     }
 
     // Handle submission    
-    const onSubmit = () => {
-
+    const onSubmit = async () => {
         let previousReferencedTables : (keyof TableArguments)[] = tables.filter(table => previousEquation.includes(table))
         if (!previousReferencedTables.length) previousReferencedTables = [currentTable]
         const target_derived_logs = Object.fromEntries(
@@ -89,30 +116,40 @@ const ColumnUpdate = ({
         );
 
         setUpdateLoading(true);
-        update(project, context, sanitizeId(colId), equation, target_derived_logs).then(async (response: ResponseProps) => {
+        
+        try {
+            const response = await update(project, context, sanitizeId(colId), equation, target_derived_logs);
+            
             if ("info" in response) {
-                
                 // Update states
                 setErrorMessage("");
-                setUpdateLoading(false);
+                setUpdateLoading(false); // Dialog loading stops immediately after successful update
                 setOpen(false);
                 
-                // Refresh page
-                router.refresh();
+                // Set table pending state and use manual refresh
                 setPending(true);
+                await manualRefresh();
+                setPending(false); // Only clear pending after manual refresh completes
                 
                 return;
             } 
+            
             let error = "Failed to update derived entries, please try again.";
             if ("detail" in response) {
                 if (typeof response.detail === "string") error = response.detail;
                 else error = JSON.stringify(response.detail);
             }
-            setUpdateLoading(false);
             setErrorMessage(error);
             setTimeout(() => setErrorMessage(""), 5000);
-        })
+        } catch (error) {
+            console.error("Failed to update column:", error);
+            setErrorMessage("Failed to update derived entries, please try again.");
+            setTimeout(() => setErrorMessage(""), 5000);
+        } finally {
+            setUpdateLoading(false);
+        }
     }
+    
     const onEnter : KeyboardEventHandler = (e) => {
         e.stopPropagation()
         if (e.key === "Enter" && expression) onSubmit()
@@ -180,7 +217,7 @@ const ColumnUpdate = ({
             setOpen={renderMode === "menuItem" ? undefined : setOpen}
             body={body}
             footer={footer}
-            // Stop clicks from closing the parent if it’s still around
+            // Stop clicks from closing the parent if it's still around
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onPointerOver={(e) => e.stopPropagation()}
