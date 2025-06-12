@@ -101,12 +101,9 @@ export default function Terminal({
 
     try {
       // @ts-ignore global actions
-      term.write("Starting shell...\n");
-      const { session_id } = await codeActions.createTerminal(shell);
+      term.write("Starting terminal...\n");
+      const { session_id } = await codeActions.createTerminal(shell, projectId);
       sessionId.current = session_id;
-      term.reset();
-      term.write("Shell started!\n");
-      const res = await codeActions.runTerminal(sessionId.current, "\n");
     } catch {
       term.reset();
       term.write("Failed to start terminal session\r\n");
@@ -152,6 +149,8 @@ export default function Terminal({
   };
 
   const stopTerminal = async () => {
+    termRef.current?.reset();
+    termRef.current?.write("Stopping terminal...\n");
     if (sessionId.current) {
       // @ts-ignore
       await codeActions.stopTerminal(sessionId.current);

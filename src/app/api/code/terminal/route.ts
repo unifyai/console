@@ -58,6 +58,10 @@ async function createTerminal(
     terminal.write("zsh\n");
   }
 
+  if (cwd !== "/project/sandbox") {
+    terminal.write(`cd ${cwd}\n`);
+  }
+
   const sessionId = randomUUID();
   terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal });
   return { sessionId };

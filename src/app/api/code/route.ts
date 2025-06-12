@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const userId = body.user_id;
     const project = body.project;
     const filePath = body.file_path;
-    const files = body.files as { [fileName: string]: any };
+
     const sandboxList = await sdk.sandbox.list();
     let sandboxId = sandboxList.sandboxes.find(sandbox => sandbox.title === userId)?.id;
     if (sandboxId == null) {
@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
         sandboxId = sandbox.id;
     }
     const sandbox = await sdk.sandbox.open(sandboxId);
-    await Promise.all(Object.entries(files).map(([fileName, code]) => sandbox.fs.writeFile(fileName, code)));
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: request.headers.get("apiKey") as string,
         UNIFY_PROJECT: project
@@ -38,8 +37,10 @@ export async function POST(request: NextRequest) {
         };
     }
 
+    // Build full path inside project directory
+    const fullPath = `${project}/${filePath}`;
     // create command to run code
-    const command = sandbox.shells.run(`python ${filePath}`, {
+    const command = sandbox.shells.run(`python ${fullPath}`, {
         env: envVars
     });
 

@@ -481,7 +481,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
 
 // run code
 export const runCode = async (apiKey: string, userId: string) => {
-    return async (files: { [fileName: string]: string }, filePath: string, project: string) => {
+    return async (project: string, filePath: string) => {
         "use server";
 
         const response = await fetch(
@@ -489,7 +489,7 @@ export const runCode = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId, files, file_path: filePath, project })
+                body: JSON.stringify({ user_id: userId, file_path: filePath, project })
             }
         );
         const responseJson = await response.json();
@@ -2243,7 +2243,7 @@ export const readFile = async (adminKey: string, userId: string) => {
 
 // delete file
 export const deleteFile = async (adminKey: string, userId: string) => {
-    return async (project: string, path: string) => {
+    return async (project: string, path: string, isDirectory: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -2251,7 +2251,7 @@ export const deleteFile = async (adminKey: string, userId: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: adminKey },
-                body: JSON.stringify({ user_id: userId, project, filename: path })
+                body: JSON.stringify({ user_id: userId, project, filename: path, isDirectory })
             }
         );
         const responseJson = await response.json();

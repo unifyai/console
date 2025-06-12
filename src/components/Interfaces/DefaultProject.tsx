@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import { ExternalLink, Loader2, Play } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import ActionButton from "../Common/Buttons/Action";
-import { DerivedEntryActions, LogsActions, ProjectsActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, ProjectsActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData, FileActions } from "@/types/evals/grid";
 import { useEffect, useState } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
@@ -32,6 +32,7 @@ const DefaultProject = ({
     logsActions,
     codeActions,
     derivedEntryActions,
+    fileActions,
     setTabQueryParam,
     setInterfaceQueryParam,
     setProjectQueryParam
@@ -43,6 +44,7 @@ const DefaultProject = ({
     logsActions: LogsActions,
     codeActions: CodeActions,
     derivedEntryActions: DerivedEntryActions,
+    fileActions: FileActions,
     setTabQueryParam: (value: string | null) => void,
     setInterfaceQueryParam: (value: string | null) => void,
     setProjectQueryParam: (value: string | null) => void,
@@ -122,6 +124,7 @@ const DefaultProject = ({
                     tabActions,
                     tileActions,
                     codeActions,
+                    fileActions,
                     derivedEntryActions
                 }
             });

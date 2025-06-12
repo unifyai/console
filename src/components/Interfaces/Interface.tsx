@@ -132,6 +132,8 @@ const Interface = ({
     interfaceActions,
     tabActions,
     tileActions,
+    fileActions,
+    codeActions,
   });
 
   // Reference for the grid container
@@ -384,6 +386,8 @@ const Interface = ({
                 interfaceActions={interfaceActions}
                 tabActions={tabActions}
                 tileActions={tileActions}
+                fileActions={fileActions}
+                codeActions={codeActions}
               />
 
               <div className="flex flex-row gap-2 items-center">
@@ -433,6 +437,7 @@ const Interface = ({
                     tileActions={tileActions}
                     logsActions={logsActions}
                     codeActions={codeActions}
+                    fileActions={fileActions}
                     derivedEntryActions={derivedEntryActions}
                     setTabQueryParam={setTabQueryParamFromSync}
                     setInterfaceQueryParam={setInterfaceQueryParam}

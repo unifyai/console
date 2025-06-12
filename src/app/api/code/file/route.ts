@@ -4,7 +4,6 @@ import { CodeSandbox } from "@codesandbox/sdk";
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
 // ---------------------------------------------------------------------------
-const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
 
 // ---------------------------------------------------------------------------
@@ -12,6 +11,7 @@ const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
 // ---------------------------------------------------------------------------
 async function ensureSandbox(userId: string) {
   // Look for an existing sandbox with title === userId, otherwise clone template
+  const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
   const list = await sdk.sandbox.list();
   let sandboxId = list.sandboxes.find((s: any) => s.title === userId)?.id;
   if (!sandboxId) {
@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure sandbox exists and open the FS
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 
@@ -60,22 +61,30 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   /**
    * Delete a file from the CodeSandbox FS.
-   * Expected JSON body: { user_id, project, filename }
+   * Expected JSON body: { user_id, project, filename, isDirectory }
    */
   try {
-    const { user_id: userId, project, filename } = await request.json();
+    const { user_id: userId, project, filename, isDirectory = false } = await request.json();
 
-    if (!userId || !project || !filename) {
+    if (!userId || !project || (!isDirectory && !filename)) {
       return Response.json({ detail: "Missing user_id, project or filename" }, { status: 400 });
     }
 
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 
     const filePath = buildFilePath(project, filename);
-    await sandbox.fs.remove(filePath);
 
-    return Response.json({ detail: "File deleted", file_path: filePath });
+    if (isDirectory) {
+      // Use shell command to remove directory recursively
+      const cmd = sandbox.shells.run(`rm -rf ${filePath}`);
+      await cmd;
+    } else {
+      await sandbox.fs.remove(filePath);
+    }
+
+    return Response.json({ detail: "File or directory deleted", file_path: filePath });
   } catch (err: any) {
     console.error("[file] DELETE error", err);
     return Response.json({ detail: "Failed to delete file" }, { status: 500 });
@@ -98,6 +107,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const sandboxId = await ensureSandbox(userId);
     const sandbox = await sdk.sandbox.open(sandboxId);
 

@@ -7,7 +7,7 @@ import CloseProject from "./Table/Buttons/CloseProject";
 import FileDirectory from "../Tree/Directory/FileDirectory";
 import DeleteDialog from "../Common/Dialogs/Delete";
 import { ResponseProps } from "@/types/common";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, CodeActions } from "@/types/evals/grid";
 import ActionButton from "../Common/Buttons/Action";
 import { useEffect, useState } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
@@ -29,6 +29,8 @@ const ProjectButtons = ({
     interfaceActions,
     tabActions,
     tileActions,
+    fileActions,
+    codeActions,
 }: {
     tabIdOrName: string | null;
     interfaceId: string;
@@ -41,6 +43,8 @@ const ProjectButtons = ({
     interfaceActions: GranularInterfaceActions;
     tabActions: GranularTabActions;
     tileActions: GranularTileActions;
+    fileActions: FileActions;
+    codeActions: CodeActions;
 }) => {
     const router = useRouter();
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -78,6 +82,8 @@ const ProjectButtons = ({
         interfaceActions,
         tabActions,
         tileActions,
+        fileActions,
+        codeActions,
     });
     
     const { 

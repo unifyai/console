@@ -9,7 +9,8 @@ import {
   GranularTabActions, 
   GranularTileActions,
   CodeActions,
-  DerivedEntryActions
+  DerivedEntryActions,
+  FileActions
 } from '@/types/evals/grid';
 import { getLogsParameters } from '@/types/evals/logs';
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,7 @@ export interface DemoCreationInput {
     tileActions: GranularTileActions;
     codeActions?: CodeActions;
     derivedEntryActions?: DerivedEntryActions;
+    fileActions?: FileActions;
   };
 }
 
@@ -68,9 +70,10 @@ export function useCreateDemoQuery() {
       console.log("[useCreateDemoQuery] Creating demo with input:", input);
       
       // Run code if provided
-      if (code && actions.codeActions) {
+      if (code && actions.codeActions && actions.fileActions) {
         console.log("[useCreateDemoQuery] Running code...");
-        await actions.codeActions.run({ "main.py": code }, "main.py", "");
+        await actions.fileActions.write("", { "main.py": code });
+        await actions.codeActions.run("", "main.py");
         console.log("[useCreateDemoQuery] Code ran successfully");
       }
       

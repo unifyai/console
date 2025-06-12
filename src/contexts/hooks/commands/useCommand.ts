@@ -16,7 +16,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { Command } from "@/contexts/slices/selectors/commands";
 import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
 import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Query/useProjectsQuery";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps } from "@/types/evals/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions } from "@/types/evals/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { ResponseProps, FileProps } from "@/types/common";
 import { useTab } from "@/contexts/hooks/tab";
@@ -42,6 +42,8 @@ export interface UseCommandArgs {
    interfaceActions: GranularInterfaceActions;
    tabActions: GranularTabActions;
    tileActions: GranularTileActions;
+   fileActions: FileActions;
+   codeActions: CodeActions;
 }
 
 /**
@@ -60,6 +62,8 @@ export function useCommand(args: UseCommandArgs) {
     interfaceActions,
     tabActions,
     tileActions,
+    fileActions,
+    codeActions,
   } = args;
 
   const router = useRouter();
@@ -138,11 +142,28 @@ export function useCommand(args: UseCommandArgs) {
         setInterfaceQueryParam("interface1");
         setProject(newProj);
       }
+
+      // Ensure project directory exists & has .env
+      try {
+        const res: any = await fileActions.list(newProj);
+        const hasEnv = Array.isArray(res)
+          ? res.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"))
+          : Array.isArray(res.files) && res.files.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"));
+        if (!hasEnv) {
+          await fileActions.write(newProj, { ".env": "" });
+        }
+      } catch(e) {
+        // Directory might not exist; create .env to implicitly create dir
+        try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
+      }
     } else {
       setDemo(null);
       setTabQueryParam("tab1");
       setInterfaceQueryParam("interface1");
       setProject(newProj);
+      if (newProj) {
+        try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
+      }
     }
   }, [
     tabUIActions, 
@@ -151,7 +172,8 @@ export function useCommand(args: UseCommandArgs) {
     setTabQueryParam, 
     setProject, 
     setInterfaceQueryParam, 
-    interfaceActions
+    interfaceActions,
+    fileActions
   ]);
 
   const createProject = useCallback(async (name: string): Promise<ResponseProps> => {
@@ -161,6 +183,11 @@ export function useCommand(args: UseCommandArgs) {
 
     // First create the base project on the backend (simple project)
     await createOnlyProjectMutation.mutateAsync({ name, actions: projectActions });
+
+    // Immediately create an .env file in the new project
+    try {
+      await fileActions.write(name, { ".env": "" });
+    } catch(e) { console.error("Failed to write .env", e); }
 
     // Prepare a default interface for the new project
     const newInterface = {
@@ -208,6 +235,7 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions,
     setProjects,
     projects,
+    fileActions
   ]);
 
   const closeProject = useCallback(() => {
@@ -228,6 +256,13 @@ export function useCommand(args: UseCommandArgs) {
   ]);
 
   const deleteProject = useCallback(async (name: string): Promise<ResponseProps> => {
+    // Remove project directory via fileActions helper
+    try {
+      await fileActions.delete(name, "", true);
+    } catch (e) {
+      console.error("Failed to delete project directory", e);
+    }
+    
     await deleteProjectMutation.mutateAsync({ name, actions: projectActions });
 
     // UI updates
@@ -255,7 +290,8 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions,
     setTabQueryParam,
     setInterfaceQueryParam,
-    setProject
+    setProject,
+    fileActions
   ]);
 
   const resetTabCommand = useCallback(async () => {

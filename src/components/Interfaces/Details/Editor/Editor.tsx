@@ -305,20 +305,27 @@ const Editor = ({
                 create={null}
                 disabled={false}
                 setTempCode={setTempCode}
-                onRun={(code: string) => {
+                onRun={async (code: string) => {
                     setPending(true);
                     setOutput("");
                     editorTileActions?.setFileName(tempFileName);
                     editorTileActions?.setFileType(tempFileType);
                     editorTileActions?.setContent(code);
-                    const tempFilePath = `${tempFileName}.${tempFileType}`;
-                    const filesForRun: { [key: string]: string } = { [tempFilePath]: code };
-                    codeActions.run(filesForRun, tempFilePath, projectId).then(
-                        (result: any) => {
-                            result = result.output.replaceAll("/project/sandbox/", "")
-                            setOutput(result == "" ? "Script execution completed." : result)
-                        }
-                    ).finally(() => setPending(false));
+
+                    try {
+                        const tempFilePath = `${tempFileName}.${tempFileType}`;
+                        // Save / overwrite file first
+                        await handleUpload({ [tempFilePath]: code });
+
+                        const result: any = await codeActions.run(projectId, tempFilePath);
+                        const cleaned = (result.output ?? "").replaceAll("/project/sandbox/", "");
+                        setOutput(cleaned === "" ? "Script execution completed." : cleaned);
+                    } catch (err) {
+                        console.error(err);
+                        setOutput("Failed to run code");
+                    } finally {
+                        setPending(false);
+                    }
                 }}
                 readOnly={false}
                 onSave={(value: string | undefined) => {
