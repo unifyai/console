@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Team/Main";
 import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
-import { uploadPhoto, downloadPhoto, downloadPresetVideo } from "@/lib/team/photo";
+import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto } from "@/lib/team/photo";
 import { listVoices, registerVoice, deleteVoice, cloneVoice, localizeVoice } from "@/lib/team/voice"; 
 import { listAllAssistantEmails } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
@@ -33,6 +33,8 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             upload: await uploadPhoto(apiKey),
             download: await downloadPhoto(),
             downloadPresetVideo: await downloadPresetVideo(),
+            generate: await generatePhoto(apiKey),
+            edit: await editPhoto(apiKey),
         },
         "voice": {
             list: await listVoices(apiKey),

@@ -51,12 +51,34 @@ export type AssistantFormData =
       // For preset video
       videoUrl?: string | null;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url'> | null;
     };
 
 export interface PhotoUploadResponse {
     gcs_url: string;
 }
+
+export interface PhotoGenerateRequest {
+    prompt: string;
+    aspect_ratio?: string;
+    output_format?: string;
+    output_quality?: number;
+    safety_tolerance?: number;
+    prompt_upsampling?: boolean;
+}
+
+export interface PhotoEditRequest {
+    prompt: string;
+    input_image: string; // Must be a public URL
+    aspect_ratio?: string;
+    output_format?: string;
+    safety_tolerance?: number;
+}
+
+export interface PhotoCreationResponse {
+    url: string;
+}
+
 
 export interface AssistantUpdatePayload {
     about?: string | null;
@@ -99,6 +121,8 @@ export interface AssistantActions {
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
     downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
+    generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
+    edit: (payload: PhotoEditRequest) => Promise<PhotoCreationResponse | ResponseProps>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 

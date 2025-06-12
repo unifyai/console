@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, PhotoCreationResponse } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -69,14 +69,18 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
-    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "presetOriginalValues"]);
+    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues"]);
     React.useEffect(() => {
-        const [firstName, surname, age, region, voiceId, imageFile, originalValues] = watchedFields;
+        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues] = watchedFields;
     
         if (imageFile) {
             if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
             if (getValues("videoUrl")) setValue("videoUrl", null);
             return;
+        }
+
+        if (profilePhotoUrl !== originalValues?.profile_photo_url) {
+            if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
         }
     
         if (!originalValues) {
@@ -89,7 +93,8 @@ export function useAssistantHireForm(
             surname === originalValues.surname &&
             age === originalValues.age &&
             region === originalValues.region &&
-            voiceId === originalValues.voice_id;
+            voiceId === originalValues.voice_id &&
+            profilePhotoUrl === originalValues.profile_photo_url;
     
         if (getValues("isPresetPristine") !== isPristine) {
             setValue("isPresetPristine", isPristine);
@@ -146,8 +151,9 @@ export function useAssistantHireForm(
             age: preset.age,
             region: preset.region ?? '',
             voice_id: presetVoice.voice_id,
+            profile_photo: preset.profile_photo
         };
-        setValue("presetOriginalValues", originalValues);
+        setValue("presetOriginalValues", originalValues as any); // RHF doesn't like complex objects here, but it works
         
         assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname)
             .then(res => {
@@ -255,7 +261,7 @@ export function useAssistantHireForm(
                     throw new Error("Photo uploaded, but GCS URL was not returned.");
                 }
             } else if (data.profile_photo_url) { 
-                // From preset, already a GCS URL
+                // From preset or AI generation, already a public or GCS URL
                 finalImageUrlToSend = data.profile_photo_url;
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
                 // From preset, an external URL
@@ -263,8 +269,8 @@ export function useAssistantHireForm(
             }
             if (!data.voice_exists && data.voice_id) {
                 const voiceCreationResponse = await assistantActions.voice.register(
-                    data.voice_id, data.voice_name, data.voice_description || data.voice_name,
-                    data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
+                    data.voice_id, data.voice_name as string, data.voice_description || data.voice_name as string,
+                    data.voice_gender as Gender, data.voice_language as SupportedLanguage, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
                 );
                 if ('detail' in voiceCreationResponse) {
                     throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
@@ -275,8 +281,8 @@ export function useAssistantHireForm(
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend as string | null,
-                data.about, data.voice_id, 
-                data.email, data.user_phone
+                data.about as string, data.voice_id, 
+                data.email, data.user_phone as string
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
@@ -324,7 +330,7 @@ export function useAssistantHireForm(
         }
         
         const currentEmail = getValues("email");
-        if (currentEmail.startsWith('@')) { 
+        if (!currentEmail || currentEmail.startsWith('@')) { 
             setError("email", { type: "manual", message: "Email local part cannot be empty." });
             toast.error("Email local part cannot be empty.");
             return;

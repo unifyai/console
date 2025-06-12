@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { PhotoUploadResponse } from "@/types/team/assistant";
+import { PhotoCreationResponse, PhotoEditRequest, PhotoGenerateRequest, PhotoUploadResponse } from "@/types/team/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/team/gcs-utils";
 import { Storage } from "@google-cloud/storage";
 
@@ -144,6 +144,53 @@ export const downloadPresetVideo = async () => {
                  return { detail: "Permission denied accessing preset video." };
             }
             return { detail: "Could not retrieve preset video URL." };
+        }
+    };
+};
+
+export const generatePhoto = async (apiKey: string) => {
+    return async (payload: PhotoGenerateRequest): Promise<PhotoCreationResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/generate`, {
+                method: "POST",
+                headers: { apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to generate photo: ${response.statusText}` };
+            }
+            // Response from Replicate/Orchestra is { info: { url: "..." } }
+            if (data.info && data.info.url) {
+                return data.info as PhotoCreationResponse;
+            }
+            return { detail: "Photo generation succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error generating photo." };
+        }
+    };
+};
+
+export const editPhoto = async (apiKey: string) => {
+    return async (payload: PhotoEditRequest): Promise<PhotoCreationResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/edit`, {
+                method: "POST",
+                headers: { apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to edit photo: ${response.statusText}` };
+            }
+            if (data.info && data.info.url) {
+                return data.info as PhotoCreationResponse;
+            }
+            return { detail: "Photo edit succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error editing photo." };
         }
     };
 };
