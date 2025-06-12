@@ -1,10 +1,12 @@
 import {
   GranularInterfaceActions,
   GranularTabActions,
+  GranularTileActions,
   InterfaceData,
   TabData,
 } from "@/types/evals/grid";
 import getQueryClient from "@/app/getQueryClient";
+import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 
 /**
  * Determines if a redirect is needed based on current URL parameters and data state.
@@ -21,6 +23,7 @@ export async function getRedirectUrl({
   tabs,
   interfaceActions,
   tabActions,
+  tileActions,
 }: {
   // URL parameters
   project: string | null;
@@ -34,6 +37,7 @@ export async function getRedirectUrl({
   // Actions
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
 }): Promise<string | null> {
   /* -------------------------------------------------------------------- *
    * Shared helpers                                                        *
@@ -65,6 +69,54 @@ export async function getRedirectUrl({
     return clone;
   };
 
+  const createDefaultTiles = async (tabId: string) => {
+    console.log("[getRedirectUrl] Creating default tiles for tab:", tabId);
+    try {
+      for (const tile of defaultTiles) {
+        const { name, type, position, ...tileProps } = tile;
+
+        // Handle specialized tile data
+        const specializedData: {
+          table_tile?: typeof tile.table_tile;
+          plot_tile?: typeof tile.plot_tile;
+          view_tile?: typeof tile.view_tile;
+          editor_tile?: typeof tile.editor_tile;
+          terminal_tile?: typeof tile.terminal_tile;
+        } = {};
+        
+        if (tile.table_tile) specializedData.table_tile = tile.table_tile;
+        if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
+        if (tile.view_tile) specializedData.view_tile = tile.view_tile;
+        if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
+        if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
+        
+        // Remove specialized data and server-generated props from tileProps to avoid duplication
+        const { 
+          table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
+          id, tab_id, created_at, updated_at, ...restTileProps 
+        } = tileProps;
+        
+        // Prepare tile data with all available properties
+        const tileData = {
+          ...restTileProps,
+          ...specializedData
+        };
+        
+        await tileActions.create(
+          tabId, 
+          name, 
+          position, 
+          tileData,
+          undefined, // tile_id
+          type
+        );
+        console.log("[getRedirectUrl] Created tile:", name);
+      }
+    } catch (error) {
+      console.error("[getRedirectUrl] Failed to create default tiles:", error);
+    }
+  };
+
   /* -------------------------------------------------------------------- *
    * Case 1 – No project selected                                          *
    * -------------------------------------------------------------------- */
@@ -78,7 +130,7 @@ export async function getRedirectUrl({
    *           (creates default interface with default tab if needed)      *
    * -------------------------------------------------------------------- */
   if (!interfaces.length || !currentInterface) {
-    const interfaceName = interface_ || "interface1";
+    const interfaceName = interface_ || defaultInterface.name;
     if (!interface_) {
       console.log(
         "[getRedirectUrl] Using default interface name:",
@@ -98,10 +150,8 @@ export async function getRedirectUrl({
       console.log("[getRedirectUrl] Created new interface:", newInterface);
 
       // Create a default tab only if no tabs exist
-      const newTab = await tabActions.create(newInterface.id, "tab1", {
-        visible: true,
-        active: true,
-      });
+      const { name: tabName, ...tabProps } = defaultTab;
+      const newTab = await tabActions.create(newInterface.id, tabName, tabProps);
 
       if (newTab && newTab.id) {
         console.log("[getRedirectUrl] Created default tab:", newTab);
@@ -111,6 +161,9 @@ export async function getRedirectUrl({
           ["tabs", newInterface.id],
           (old) => upsert(old, newTab) as TabData[],
         );
+
+        // Create default tiles for the new tab
+        await createDefaultTiles(newTab.id);
 
         // Update interface with active tab id
         await interfaceActions.update({
@@ -151,10 +204,8 @@ export async function getRedirectUrl({
     if (currentInterface.id && (!tabs || tabs.length === 0)) {
       console.log("[getRedirectUrl] No tabs found; creating default tab for interface.");
       
-      const newTab = await tabActions.create(currentInterface.id, "tab1", {
-        visible: true,
-        active: true,
-      });
+      const { name: tabName, ...tabProps } = defaultTab;
+      const newTab = await tabActions.create(currentInterface.id, tabName, tabProps);
 
       if (newTab && newTab.id) {
         // Keep cache in sync
@@ -162,6 +213,9 @@ export async function getRedirectUrl({
           ["tabs", currentInterface.id],
           (old) => upsert(old, newTab) as TabData[],
         );
+
+        // Create default tiles for the new tab
+        await createDefaultTiles(newTab.id);
 
         // Update interface with active tab id
         await interfaceActions.update({

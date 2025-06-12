@@ -149,7 +149,8 @@ export default async function Main({
     currentInterface,
     tabs,
     interfaceActions: actions.interfaceActions,
-    tabActions: actions.tabActions
+    tabActions: actions.tabActions,
+    tileActions: actions.tileActions
   });
 
   if (redirectUrl) {
