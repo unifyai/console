@@ -161,9 +161,8 @@ export const generatePhoto = async (apiKey: string) => {
             if (!response.ok) {
                 return { detail: data.detail || `Failed to generate photo: ${response.statusText}` };
             }
-            // Response from Replicate/Orchestra is { info: { url: "..." } }
-            if (data.info && data.info.url) {
-                return data.info as PhotoCreationResponse;
+            if (data.info && typeof data.info === 'string') {
+                return { url: data.info };
             }
             return { detail: "Photo generation succeeded but response format was unexpected." };
         } catch (error) {
@@ -188,8 +187,8 @@ export const editPhoto = async (apiKey: string) => {
             if (!response.ok) {
                 return { detail: data.detail || `Failed to edit photo: ${response.statusText}` };
             }
-            if (data.info && data.info.url) {
-                return data.info as PhotoCreationResponse;
+            if (data.info && typeof data.info === 'string') {
+                return { url: data.info };
             }
             return { detail: "Photo edit succeeded but response format was unexpected." };
         } catch (error) {
