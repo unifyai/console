@@ -45,7 +45,6 @@ export function ImageUpload({
     <div className={cn("flex flex-col items-center gap-2", className)}>
       <div
         className="relative group"
-        title={disabled ? undefined : (previewUrl ? "Assistant photo preview" : "No photo")}
       >
         <div 
           className={cn(

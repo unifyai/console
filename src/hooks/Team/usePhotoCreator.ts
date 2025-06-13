@@ -75,7 +75,7 @@ export function usePhotoCreator(
             toast.success("Photo generated successfully!", { id: toastId });
 
         } catch (error: any) {
-            toast.error(`Photo generation failed: ${error.message}`, { id: toastId });
+            toast.error(`Photo generation failed.`, { id: toastId });
             console.error("[usePhotoCreator] generate error:", error);
         } finally {
             setIsProcessing(false);
@@ -142,7 +142,7 @@ export function usePhotoCreator(
             toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
-            toast.error(`Photo editing failed: ${error.message}`, { id: toastId });
+            toast.error(`Photo editing failed.`, { id: toastId });
             console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);

@@ -4,10 +4,11 @@ import * as React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs";
 import { Button } from "@/components/UI/button";
 import { Textarea } from "@/components/UI/textarea";
-import { ImagePlus, Loader2, Wand2, RefreshCw } from 'lucide-react';
+import { ImagePlus, Loader2, Sparkles, Pen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePhotoCreator } from '@/hooks/Team/usePhotoCreator';
 import { AssistantActions } from '@/types/team/assistant';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const PHOTO_OPERATION_COST = 0.05;
 
@@ -49,8 +50,8 @@ export function PhotoCustomization({
         <div className={cn("flex-1 self-stretch", disabled && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex flex-col h-full">
                 <TabsList className="grid w-full grid-cols-2 h-9">
-                    <TabsTrigger value="upload" disabled={disabled}>Upload</TabsTrigger>
-                    <TabsTrigger value="create" disabled={disabled}>Create with AI</TabsTrigger>
+                    <TabsTrigger value="upload" disabled={disabled}>Upload Photo</TabsTrigger>
+                    <TabsTrigger value="create" disabled={disabled}>Create Photo</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="upload" className="mt-2 flex-1">
@@ -89,28 +90,45 @@ export function PhotoCustomization({
                                 Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits
                             </p>
                             <div className="flex gap-1">
-                                <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    title={!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"} 
-                                    onClick={() => handleEdit(imageSourceForEdit!)}
-                                    disabled={isEditDisabled}
-                                >
-                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                                </Button>
-                                <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8"
-                                    title="Generate a new photo from prompt"
-                                    onClick={handleGenerate}
-                                    disabled={disabled || isProcessing}
-                                >
-                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                                </Button>
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button 
+                                                type="button" 
+                                                variant="ghost" 
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => handleEdit(imageSourceForEdit!)}
+                                                disabled={isEditDisabled}
+                                            >
+                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pen className="h-4 w-4" />}
+                                            </Button>
+
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                            <p>{!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button 
+                                                type="button" 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8"
+                                                onClick={handleGenerate}
+                                                disabled={disabled || isProcessing}
+                                            >
+                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                            <p>{"Generate a new photo from prompt"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                     </div>
