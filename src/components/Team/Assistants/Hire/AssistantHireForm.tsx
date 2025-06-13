@@ -6,13 +6,16 @@ import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { ImageUpload } from './AssistantHireImageUpload';
+import { ImageUpload } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { Volume2, User, LetterText, BriefcaseBusiness, Mail, Phone, Smartphone } from 'lucide-react';
+import { PhotoCustomization } from './AssistantHirePhotoCustomization';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon } from 'lucide-react';
 import { DialogDescription } from "@/components/UI/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+import { ScrollArea } from '@/components/UI/scroll-area';
 
-const staticSkillsText = `I come with the same foundational skills as all other assistants on the platform. I can then specialize in whichever area you want me to, as you show me how to do the tasks and I can learn from examples and then take on these tasks myself if you want.`;
+const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 export interface HireFormProps {
@@ -35,6 +38,7 @@ export function HireForm({
   const { register, formState: { errors }, watch, setValue, getValues, trigger } = formMethods;
 
   const imagePreviewUrl = watch("imagePreview");
+  const imageFile = watch("imageFile");
   const videoUrl = watch("videoUrl");
   const isPresetPristine = watch("isPresetPristine");
   const firstName = watch("first_name");
@@ -91,38 +95,36 @@ export function HireForm({
     trigger("email");
   };
 
-
-  const handleNewFileForUpload = (file: File | null) => {
+  const setNewImageFile = React.useCallback((file: File | null) => {
     const currentPreview = getValues("imagePreview");
     if (currentPreview && currentPreview.startsWith('blob:')) {
       URL.revokeObjectURL(currentPreview);
     }
-    setValue("imageFile", file, { shouldValidate: false });
+    
+    setValue("imageFile", file, { shouldValidate: true });
+    
     if (file) {
       setValue("imagePreview", URL.createObjectURL(file));
     } else {
       setValue("imagePreview", null);
     }
-  };
+    
+    // Clear other image/video sources when a new file is set
+    setValue("profile_photo_url", null);
+    setValue("videoUrl", null);
+  }, [getValues, setValue]);
+
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
-     <fieldset disabled={isSubmitting} className="group flex-1 space-y-6 min-h-0 overflow-y-auto pr-1">
-          <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <User className="h-4 w-4"/>
-              <Label className="text-base font-semibold">Profile</Label>
-            </div>
-            <div className="flex flex-col sm:flex-row items-start gap-6 pt-1">
-              <ImageUpload
-                previewUrl={imagePreviewUrl}
-                videoUrl={videoUrl}
-                isPlayable={isPresetPristine}
-                onFileChange={handleNewFileForUpload}
-                className="flex-shrink-0 pt-2"
-                disabled={isSubmitting}
-              />
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 flex-1">
+      <ScrollArea className="flex-1 min-h-0">
+        <fieldset disabled={isSubmitting} className="group space-y-6 pr-4">
+            <div className="space-y-2">
+              <div className='flex gap-2 items-center text-muted-foreground'>
+                <User className="h-4 w-4"/>
+                <Label className="text-base font-semibold">Profile</Label>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1 pt-1">
                 <div className="col-span-2 sm:col-span-1">
                   <Label htmlFor="first_name">First Name</Label>
                   <Input id="first_name" {...register("first_name", { required: "First name is required" })} />
@@ -144,75 +146,121 @@ export function HireForm({
                   {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Contact Section */}
-          <div className="space-y-2">
-            <div className="flex flex-col">
-              <div className='flex gap-2 items-center text-muted-foreground'>
-                <Smartphone className="h-4 w-4"/>
-                <Label className="text-base font-semibold">Contact Details</Label>
+              <div className="flex flex-col w-full space-y-2 pt-1">
+                <div className="flex flex-row gap-2 items-center">
+                  <Label htmlFor="about">About</Label>
+                  <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                          <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                              <p>{staticSkillsText}</p>
+                          </TooltipContent>
+                      </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Textarea
+                    id="about"
+                    placeholder="Describe the persona's background, personality, etc..."
+                    className="min-h-[100px] pr-8"
+                    {...register("about", { required: "About description is required" })}
+                />
+                {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
               </div>
-              <DialogDescription>Assistant&apos;s phone number will be provisioned upon hiring.</DialogDescription>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
-                <div>
-                    <Label htmlFor="email_local_part">Assistant Email</Label>
-                    <div className="flex items-center rounded-md">
-                        <Input
-                            id="email_local_part" 
-                            type="text"
-                            value={emailLocalPart}
-                            onChange={handleLocalPartChange}
-                            placeholder="new-assistant"
-                            className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
-                            aria-describedby="email_domain_part"
-                        />
-                        <span
-                            id="email_domain_part"
-                            className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
-                        >
-                            {EMAIL_DOMAIN_WITH_AT}
-                        </span>
-                    </div>
-                    <input type="hidden" {...register("email", {
-                        required: "Email is required",
-                        pattern: {
-                            value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
-                            message: `Email must use valid characters and end with ${EMAIL_DOMAIN_WITH_AT}`
-                        },
-                        validate: (value) => {
-                            if (value.startsWith('@')) return `Email local part cannot be empty.`;
-                            if (allAssistantEmails.includes(value)) {
-                                return "This email is already in use by another assistant.";
-                            }
-                            return true;
-                        }
-                    })} />
-                    {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
-                </div>
-                <div>
-                    <Label htmlFor="user_phone">Your Phone Number</Label>
-                    <Input
-                        id="user_phone"
-                        type="tel"
-                        placeholder="e.g., +15551234567"
-                        {...register("user_phone", {
-                            // Add pattern validation for phone numbers if desired
-                            pattern: {
-                              value: /^\+[1-9]\d{1,14}$/,
-                              message: "Enter a valid international phone number (e.g., +15551234567)"
-                            }
-                        })}
-                    />
-                    {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
-                </div>
-            </div>
-          </div>
 
+            <Separator />
+
+            {/* Contact Section */}
+            <div className="space-y-2">
+              <div className="flex flex-col">
+                <div className='flex gap-2 items-center text-muted-foreground'>
+                  <Smartphone className="h-4 w-4"/>
+                  <Label className="text-base font-semibold">Contact Details</Label>
+                </div>
+                <DialogDescription>Assistant phone number will be provisioned upon hiring.</DialogDescription>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
+                  <div>
+                      <Label htmlFor="email_local_part">Assistant Email</Label>
+                      <div className="flex items-center rounded-md">
+                          <Input
+                              id="email_local_part" 
+                              type="text"
+                              value={emailLocalPart}
+                              onChange={handleLocalPartChange}
+                              placeholder="new-assistant"
+                              className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
+                              aria-describedby="email_domain_part"
+                          />
+                          <span
+                              id="email_domain_part"
+                              className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
+                          >
+                              {EMAIL_DOMAIN_WITH_AT}
+                          </span>
+                      </div>
+                      <input type="hidden" {...register("email", {
+                          required: "Email is required",
+                          pattern: {
+                              value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
+                              message: `Email must use valid characters and end with ${EMAIL_DOMAIN_WITH_AT}`
+                          },
+                          validate: (value) => {
+                              if (value.startsWith('@')) return `Email local part cannot be empty.`;
+                              if (allAssistantEmails.includes(value)) {
+                                  return "This email is already in use by another assistant.";
+                              }
+                              return true;
+                          }
+                      })} />
+                      {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
+                  </div>
+                  <div>
+                      <Label htmlFor="user_phone">Your Phone Number</Label>
+                      <Input
+                          id="user_phone"
+                          type="tel"
+                          placeholder="e.g., +15551234567"
+                          {...register("user_phone", {
+                              // Add pattern validation for phone numbers if desired
+                              pattern: {
+                                value: /^\+[1-9]\d{1,14}$/,
+                                message: "Enter a valid international phone number (e.g., +15551234567)"
+                              }
+                          })}
+                      />
+                      {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+                  </div>
+              </div>
+              </div>
+
+            <Separator />
+            
+            {/* Photo Section */}
+            <div className="space-y-3">
+                <div className='flex gap-2 items-center text-muted-foreground'>
+                  <ImageIcon className="h-4 w-4"/>
+                  <Label className="text-base font-semibold">Photo</Label>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
+                  <ImageUpload
+                    previewUrl={imagePreviewUrl}
+                    videoUrl={videoUrl}
+                    isPlayable={isPresetPristine}
+                    className="flex-shrink-0"
+                    disabled={isSubmitting}
+                  />
+                  <PhotoCustomization
+                      assistantActions={assistantActions}
+                      onNewFileReady={setNewImageFile}
+                      currentImageUrl={imagePreviewUrl ?? null}
+                      currentImageFile={imageFile ?? null}
+                      disabled={isSubmitting}
+                  />
+                </div>
+            </div>
 
           <Separator />
             <div className="space-y-2">
@@ -236,29 +284,10 @@ export function HireForm({
                 />
                  {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
                  {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}
-            </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <LetterText className="h-4 w-4"/>
-              <Label className="text-base font-semibold">About</Label>
-            </div>
-            <Textarea id="about" placeholder="Describe the persona's background, personality, etc." className="min-h-[100px]" {...register("about", { required: "About description is required" })}/>
-            {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <div className='flex gap-2 items-center text-muted-foreground'>
-              <BriefcaseBusiness className="h-4 w-4"/>
-              <Label className="text-base font-semibold">Skills</Label>
-            </div>
-            <p className="text-sm text-muted-foreground p-3 border rounded-md bg-muted/50"> {staticSkillsText} </p>
-          </div>
-     </fieldset>
+       </fieldset>
+      </ScrollArea>
     </form>
   );
 }

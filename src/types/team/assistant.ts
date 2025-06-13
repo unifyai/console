@@ -51,12 +51,36 @@ export type AssistantFormData =
       // For preset video
       videoUrl?: string | null;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url'> | null;
     };
 
 export interface PhotoUploadResponse {
     gcs_url: string;
 }
+
+export interface PhotoGenerateRequest {
+    prompt: string;
+    aspect_ratio?: string;
+    output_format?: string;
+    output_quality?: number;
+    safety_tolerance?: number;
+    prompt_upsampling?: boolean;
+}
+
+// This type is no longer used for API calls, as the endpoint now takes FormData.
+// It can be kept for conceptual reference or removed.
+export interface PhotoEditRequest {
+    prompt: string;
+    input_image: string; // Must be a public URL
+    aspect_ratio?: string;
+    output_format?: string;
+    safety_tolerance?: number;
+}
+
+export interface PhotoCreationResponse {
+    url: string;
+}
+
 
 export interface AssistantUpdatePayload {
     about?: string | null;
@@ -77,7 +101,7 @@ export interface Voice {
   description: string;
   gender: Gender; // 'female', 'male' - consistent with Cartesia
   language: SupportedLanguage; // language code e.g. 'en'
-  is_preset?: boolean; // Indicates if this is a Cartesia preset
+  is_preset?: boolean; // Indicates if this is a Cartesia preset voice
 }
 
 export type VoiceOption = Voice & {  
@@ -99,6 +123,8 @@ export interface AssistantActions {
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
     downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
+    generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
+    edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
