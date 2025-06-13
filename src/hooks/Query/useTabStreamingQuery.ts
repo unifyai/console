@@ -12,6 +12,8 @@ import {
   ContextActions
 } from "@/types/evals/grid";
 import { useTabDataOptimistic, CompleteTabData } from './useTabDataOptimistic';
+import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+import { selectTabByName } from "@/contexts/selectors/tab";
 
 type StreamingActions = {
   tabActions: GranularTabActions;
@@ -44,6 +46,7 @@ export function useTabStreamingQuery(
   actions: StreamingActions
 ) {
   const queryClient = useQueryClient();
+  const storeApi = useStoreApiContext();
   const [prefetchedTabs, setPrefetchedTabs] = useState<Set<string>>(new Set());
   const [currentlyPrefetching, setCurrentlyPrefetching] = useState<Set<string>>(new Set());
   const { buildCompleteTabData } = useTabDataOptimistic();
@@ -53,8 +56,12 @@ export function useTabStreamingQuery(
     queryKey: ["tabs", interfaceId],
     queryFn: () => actions.tabActions.list(interfaceId, false),
     enabled: !!interfaceId,
-    staleTime: 0,        // Always refetch when component mounts
-    refetchOnMount: true,      // Always refetch when component mounts
+    staleTime: Infinity,        // Always refetch when component mounts
+    gcTime: Infinity,
+    refetchOnMount: false,      // Always refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
   });
 
   // Stream data for the active tab using optimistic builder
@@ -65,8 +72,17 @@ export function useTabStreamingQuery(
         throw new Error("Missing required parameters for tab streaming");
       }
 
+      const state = storeApi.getState();
+      const activeTab = selectTabByName(state, interfaceId, activeTabName);
+      if (!activeTab) {
+        throw new Error(`Active tab ${activeTabName} not found`);
+      }
+
+      console.log("[useTabStreamingQuery] Active tab:", activeTab);
+
       return buildCompleteTabData(
         interfaceId,
+        activeTab.id!,
         activeTabName,
         projectId,
         {
@@ -132,7 +148,7 @@ export function useTabStreamingQuery(
     queries: prefetchQueue.map(tab => ({
       queryKey: ["tabCompleteData", interfaceId, tab.name, projectId],
       queryFn: async () => {
-        if (!tab.name || !projectId) {
+        if (!tab.name || !projectId || !tab.id) {
           throw new Error("Missing required parameters for tab prefetching");
         }
 
@@ -140,6 +156,7 @@ export function useTabStreamingQuery(
         
         const completeData = await buildCompleteTabData(
           interfaceId,
+          tab.id,
           tab.name,
           projectId,
           {
@@ -231,6 +248,14 @@ export function useTabStreamingQuery(
     if (!prefetchedTabs.has(tabName) && !currentlyPrefetching.has(tabName) && projectId) {
       console.log(`[prefetchTab] Manually prefetching tab: ${tabName} (non-active)`);
       
+      // Find the tab to get its ID
+      const state = storeApi.getState();
+      const tab = selectTabByName(state, interfaceId, tabName);
+      if (!tab || !tab.id) {
+        console.error(`[prefetchTab] Tab ${tabName} not found or missing ID`);
+        return;
+      }
+      
       // Add to currently prefetching set temporarily
       setCurrentlyPrefetching(prev => new Set([...Array.from(prev), tabName]));
       
@@ -240,6 +265,7 @@ export function useTabStreamingQuery(
           queryFn: async () => {
             const completeData = await buildCompleteTabData(
               interfaceId,
+              tab.id!,
               tabName,
               projectId,
               {
@@ -290,6 +316,14 @@ export function useTabStreamingQuery(
 
     console.log(`[refreshTabData] Refreshing tab data for: ${tabName}`);
     
+    // Find the tab to get its ID
+    const state = storeApi.getState();
+    const tab = selectTabByName(state, interfaceId, tabName);
+    if (!tab || !tab.id) {
+      console.error(`[refreshTabData] Tab ${tabName} not found or missing ID`);
+      return null;
+    }
+    
     // Invalidate existing cache
     queryClient.invalidateQueries({
       queryKey: ["tabCompleteData", interfaceId, tabName, projectId]
@@ -298,6 +332,7 @@ export function useTabStreamingQuery(
     // Build fresh data
     const completeData = await buildCompleteTabData(
       interfaceId,
+      tab.id,
       tabName,
       projectId,
       {

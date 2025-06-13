@@ -15,7 +15,7 @@ import { debounce } from 'lodash';
 
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../Common/Misc/AutoComplete';
-import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
 import { Command } from '@/contexts/slices/selectors/commands';
 import { iconMap } from '@/constants/logs';
 import { Toaster } from 'sonner';
@@ -24,7 +24,7 @@ import { useSaveTabWithTilesQuery } from '@/hooks/Query/useSaveTabWithTilesQuery
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
 import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
 import { useInterfaceSync } from '@/contexts/hooks/interface/sync/useInterfaceSync';
-import { selectActiveTab } from '@/contexts/selectors/tab';
+import { selectActiveTab, selectTotalInactiveTabsForInterface } from '@/contexts/selectors/tab';
 import { useInterfaceData } from '@/contexts/hooks/interface/useInterfaceData';
 
 // Lazy load components
@@ -70,7 +70,8 @@ const Interface = ({
   const syncedInterfaceUIActions = syncedInterfaceActions?.ui;
   
   // Get current active tab name using selector - this is our source of truth
-  const activeTab = useStoreContext((state) => selectActiveTab(state, interfaceId));
+  const state = useStoreApiContext().getState();
+  const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
   const activeTabName = activeTab?.name || null;
   const setTabQueryParamFromSync = syncedInterfaceUIActions?.setActiveTab || (() => {});
@@ -493,15 +494,27 @@ const Interface = ({
                             <div className="fixed bottom-16 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded border">
                               <div className="flex items-center gap-2">
                                 {(() => {
-                                  const { completed, total } = tabStreamingQuery.prefetchProgress;
-                                  const prefetchedCount = Math.min(completed, total);
-                                  const isComplete = prefetchedCount === total;
+                                  // Get actual tabs from the store using selector
+                                  const inactiveTabsCount = selectTotalInactiveTabsForInterface(state, interfaceId);
+                                  
+                                  // Calculate total prefetchable tabs (excluding active tab)
+                                  const prefetchableTabsCount = inactiveTabsCount;
+                                  
+                                  // Get current prefetch progress with safe fallbacks
+                                  const { completed } = tabStreamingQuery.prefetchProgress;
+                                  const totalPrefetched = Math.min(completed, prefetchableTabsCount);
+                                  
+                                  // Only show if there are tabs to prefetch
+                                  const shouldShow = prefetchableTabsCount > 0;
+                                  const isComplete = totalPrefetched === prefetchableTabsCount;
+                                  
+                                  if (!shouldShow) return null;
                                   
                                   return (
                                     <>
                                       <div className={`w-2 h-2 bg-green-500 rounded-full ${isComplete ? '' : 'animate-pulse'}`}></div>
                                       <span>
-                                        Prefetched: {prefetchedCount}/{total} tabs
+                                        Prefetched: {totalPrefetched}/{prefetchableTabsCount} tabs
                                       </span>
                                     </>
                                   );

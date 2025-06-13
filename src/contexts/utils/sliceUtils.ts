@@ -9,7 +9,7 @@ import { TERMINAL_TILE_KEYS, TerminalTile } from "../slices/selectors/terminalTi
 import { useRef } from "react";
 import { useEffect } from "react";
 import { StoreSlice, Tab } from "../slices/slice";
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from "@/types/evals/grid";
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData, TabData } from "@/types/evals/grid";
 
 // Import the domain logic from selector files
 import * as interfaceLogic from "../slices/selectors/interface";
@@ -146,6 +146,44 @@ export function convertTileToTileData(tile: Tile): TileData {
   }
 
   return tileData;
+}
+
+/**
+ * Utility to convert Tab state from zustand to TabData format for API operations
+ * @param tab - The Tab object from the zustand store
+ * @returns A TabData object suitable for API operations, or null if tab is falsy
+ */
+export function convertTabToTabData(tab: Tab | null): TabData | null {
+  if (!tab) return null;
+
+  const tabData: TabData = {
+    // Handle id conversion from string | null to string | undefined
+    id: tab.id || undefined,
+    
+    // Handle interface_id conversion from interfaceId
+    interface_id: tab.interfaceId || undefined,
+    
+    // Handle name conversion - TabData.name is required string, Tab.name is string | null
+    name: tab.name || "",
+    
+    // Handle boolean conversions
+    visible: tab.visible,
+    active: tab.active,
+    order: tab.order,
+    
+    // Handle globalContext -> global_context conversion
+    global_context: tab.globalContext || undefined,
+    
+    // Handle color conversion
+    color: tab.color || undefined,
+    
+    // created_at and updated_at are not available in Tab interface
+    // These would typically be set by the server
+    created_at: undefined,
+    updated_at: undefined,
+  };
+
+  return tabData;
 }
 
 /**

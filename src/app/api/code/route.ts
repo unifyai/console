@@ -28,19 +28,27 @@ export async function POST(request: NextRequest) {
     const sandbox = await sdk.sandbox.open(sandboxId);
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: request.headers.get("apiKey") as string,
-        UNIFY_PROJECT: project
+        UNIFY_PROJECT: project,
     };
     if (baseUrl.includes("staging")) {
         envVars = {
             ...envVars,
-            UNIFY_BASE_URL: baseUrl
+            UNIFY_BASE_URL: baseUrl,
+        };
+    }
+
+    // Merge additional env variables provided by client (if any), without overriding defaults unless explicitly duplicated
+    if (body.env && typeof body.env === "object") {
+        envVars = {
+            ...envVars,
+            ...body.env,
         };
     }
 
     // Build full path inside project directory
     const fullPath = `${project}/${filePath}`;
     // create command to run code
-    const command = sandbox.shells.run(`python ${fullPath}`, {
+    const command = sandbox.shells.run(`python "${fullPath}"`, {
         env: envVars
     });
 

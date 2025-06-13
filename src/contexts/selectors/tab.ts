@@ -50,6 +50,27 @@ export const selectTabsForInterface = (state: IStoreState, interfaceId: string) 
 };
 
 /**
+ * Select total number of tabs for an interface
+ */
+export const selectTotalTabsForInterface = (state: IStoreState, interfaceId: string) => {
+  if (!interfaceId) return 0;
+  
+  return selectTabsForInterface(state, interfaceId).length;
+};
+
+/**
+ * Select total number of inactive tabs for an interface
+ */
+export const selectTotalInactiveTabsForInterface = (state: IStoreState, interfaceId: string) => {
+  if (!interfaceId) return 0;
+  
+  const activeTab = selectActiveTab(state, interfaceId);
+  if (!activeTab) return 0;
+
+  return selectTabsForInterface(state, interfaceId).filter(tab => tab.name !== activeTab.name).length;
+};
+
+/**
  * Get tab ID from either ID or name
  */
 export const getTabId = (state: IStoreState, interfaceId: string, tabIdOrName: string): string | null => {

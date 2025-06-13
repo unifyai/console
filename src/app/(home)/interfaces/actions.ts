@@ -481,7 +481,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
 
 // run code
 export const runCode = async (apiKey: string, userId: string) => {
-    return async (project: string, filePath: string) => {
+    return async (project: string, filePath: string, env?: { [key: string]: string } | { key: string; value: string }[]) => {
         "use server";
 
         const response = await fetch(
@@ -489,7 +489,14 @@ export const runCode = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId, file_path: filePath, project })
+                body: JSON.stringify({
+                    user_id: userId,
+                    file_path: filePath,
+                    project,
+                    env: Array.isArray(env)
+                        ? Object.fromEntries((env as { key: string; value: string }[]).map(({ key, value }) => [key, value]))
+                        : env
+                })
             }
         );
         const responseJson = await response.json();
@@ -1781,7 +1788,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
         // Required parameters
         queryParams.append("tile_type", tileType);
         queryParams.append("tab_id", tab_id);
-        queryParams.append("name", encodeURIComponent(name));
+        queryParams.append("name", name);
         queryParams.append("checkpoint", checkpoint.toString());
 
         const response = await fetch(

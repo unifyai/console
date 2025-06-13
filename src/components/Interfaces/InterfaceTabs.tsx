@@ -57,7 +57,7 @@ const InterfaceTabs = ({
     const tabNamesToShow = syncedInterfaceDataActions?.getTabNames() || [];
 
     // Streaming integration for instant tab switching (when enabled)
-    const { prefetchedTabs, prefetchProgress } = useTabStreamingQuery(
+    const { prefetchedTabs } = useTabStreamingQuery(
         interfaceId,
         tabName, 
         project,
@@ -171,7 +171,7 @@ const InterfaceTabs = ({
                 // Update active tab using synced action
                 syncedInterfaceUIActions.setActiveTab(newTabName);
                 setTabQueryParamState(newTabName);
-                
+                tabUIActions?.setPending(false);
                 toast.success(`New tab "${newTabName}" created`);
             } else {
                 tabUIActions?.setPending(false);

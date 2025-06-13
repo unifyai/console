@@ -1,7 +1,7 @@
 "use client";
 
 import CodeBlock from "../../CodeBlock";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
 import { CodeActions, FileActions } from "@/types/evals/grid";
@@ -12,8 +12,9 @@ import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/evals/grid";
 import ActionButton from "@/components/Common/Buttons/Action";
 import FileDirectory from "@/components/Tree/Directory/FileDirectory";
-import { FilePlus, FolderPlus, Trash2 } from "lucide-react";
+import { FilePlus, FolderPlus, Trash2, Plus } from "lucide-react";
 import { FileEntry } from "@/types/evals/grid";
+import EditableSecret from "@/components/Common/Code/EditableSecret";
 
 const Editor = ({
     tileId,
@@ -137,7 +138,10 @@ const Editor = ({
         } catch (e) { console.error('rename error', e); }
     };
 
-    const [tempFileName, setTempFileName] = useState(editorTileState?.file_name || "main");
+    const initialFileName = (editorTileState?.file_type === "env" && editorTileState?.file_name === "")
+        ? ""
+        : (editorTileState?.file_name ?? "main");
+    const [tempFileName, setTempFileName] = useState(initialFileName);
     const [tempFileType, setTempFileType] = useState(editorTileState?.file_type || "txt");
     const [tempCode, setTempCode] = useState(editorTileState?.content || "");
     const [selectedPath, setSelectedPath] = useState<string | undefined>(() => {
@@ -182,18 +186,74 @@ const Editor = ({
         }
     }, [folderInputRef]);
 
+    // Memoized env variables parsing
+    const envVars = useMemo(() => {
+        if (tempFileType !== "env") return [] as { key: string; value: string }[];
+        return tempCode.split("\n").filter(Boolean).map(line => {
+            const [k,...rest] = line.split("=");
+            return { key: k, value: rest.join("=") };
+        });
+    }, [tempCode, tempFileType]);
+
+    const updateEnvValue = async (key:string, newVal:string) => {
+        const newLines = envVars.map(ev => ev.key===key?`${key}=${newVal}`:`${ev.key}=${ev.value}`);
+        const newContent = newLines.join("\n");
+        setTempCode(newContent);
+        editorTileActions?.setContent(newContent);
+        await handleUpload({ [`.env`]: newContent });
+    };
+
+    const updateEnvKey = async (oldKey:string, newKey:string) => {
+        if (!newKey || oldKey === newKey) return;
+        const newLines = envVars.map(ev => ev.key===oldKey?`${newKey}=${ev.value}`:`${ev.key}=${ev.value}`);
+        const newContent = newLines.join("\n");
+        setTempCode(newContent);
+        editorTileActions?.setContent(newContent);
+        await handleUpload({ [`.env`]: newContent });
+    };
+
+    const deleteEnvVar = async (delKey:string) => {
+        const newLines = envVars.filter(ev => ev.key !== delKey).map(ev => `${ev.key}=${ev.value}`);
+        const newContent = newLines.join("\n");
+        setTempCode(newContent);
+        editorTileActions?.setContent(newContent);
+        await handleUpload({ [`.env`]: newContent });
+        if (newContent === "") {
+            const res: any = await fileActions.read(projectId, ".env");
+            const content = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
+            setTempCode(content);
+            editorTileActions?.setContent(content);
+        }
+    };
+
+    const addEnvVar = async () => {
+        const existingKeys = envVars.map(ev => ev.key);
+        let base = "NEW_KEY";
+        let idx = 1;
+        let candidate = base;
+        while (existingKeys.includes(candidate)) {
+            candidate = `${base}_${idx++}`;
+        }
+        const newLines = [...envVars.map(ev => `${ev.key}=${ev.value}`), `${candidate}=`];
+        const newContent = newLines.join("\n");
+        setTempCode(newContent);
+        editorTileActions?.setContent(newContent);
+        await handleUpload({ [`.env`]: newContent });
+    };
+
     return (
         <div className="w-full h-full flex flex-col">
             <div className="flex flex-row items-center ml-4 text-sm gap-1">
                 <Tooltip content="File Name" side="top">
                     <Input
                         value={tempFileName}
-                    onChange={(e) => {
-                        setTempFileName(e.target.value);
-                        editorTileActions?.setFileName(e.target.value)
-                    }}
-                    placeholder="File Name"
-                    className="text-sm w-24"
+                        disabled={tempFileType === "env"}
+                        onChange={(e) => {
+                            setTempFileName(e.target.value);
+                            editorTileActions?.setFileName(e.target.value)
+                        }}
+                        placeholder="File Name"
+                        className="text-sm w-24"
                     />
                 </Tooltip>
                 .
@@ -322,6 +382,7 @@ const Editor = ({
                 {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
             </div>
+            {tempFileType !== "env" ? (
             <CodeBlock
                 code={tempCode}
                 output={output}
@@ -343,10 +404,24 @@ const Editor = ({
                         if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== tempFilePath) {
                             await handleRename(selectedPath, tempFilePath, code);
                         }
+                        // Read freshest .env file from project (if exists) to build env vars
+                        let envObject: { [key: string]: string } = {};
+                        try {
+                            const res: any = await fileActions.read(projectId, ".env");
+                            const envContent: string = (res && typeof res === "object" && "content" in res) ? res.content : "";
+                            if (envContent) {
+                                envContent.split("\n").filter(Boolean).forEach(line => {
+                                    const [k, ...rest] = line.split("=");
+                                    envObject[k] = rest.join("=");
+                                });
+                            }
+                        } catch (e) {
+                            // .env might not exist, ignore
+                        }
                         // Save / overwrite file first
                         await handleUpload({ [tempFilePath]: code });
                         setSelectedPath(tempFilePath);
-                        const result: any = await codeActions.run(projectId, tempFilePath);
+                        const result: any = await codeActions.run(projectId, tempFilePath, envObject);
                         const cleaned = (result.output ?? "").replaceAll("/project/sandbox/", "");
                         setOutput(cleaned === "" ? "Script execution completed." : cleaned);
                     } catch (err) {
@@ -369,6 +444,30 @@ const Editor = ({
                     }
                 }}
             />
+            ) : (
+              <div className="flex flex-col p-4 gap-2 overflow-auto">
+                {envVars.map(({key,value}, idx) => (
+                  <div key={`${key}-${idx}`} className="flex items-center gap-2">
+                    <EditableSecret className="w-24" conceal={false} value={key} onSave={(newKey: string)=>updateEnvKey(key,newKey)} />
+                    <span className="font-mono text-foreground">=</span>
+                    <EditableSecret className="w-24" value={value} onSave={(v: string)=>updateEnvValue(key,v)} />
+                    <ActionButton
+                      icon={<Trash2 size={14} />}
+                      variant="ghost"
+                      tooltip="Delete secret"
+                      onClick={()=>deleteEnvVar(key)}
+                    />
+                  </div>
+                ))}
+                <ActionButton
+                  icon={<Plus size={16} />}
+                  variant="ghost"
+                  tooltip="Add secret"
+                  onClick={addEnvVar}
+                  className="mt-2 self-start"
+                />
+              </div>
+            )}
         </div>
     )
 }

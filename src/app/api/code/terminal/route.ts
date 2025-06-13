@@ -52,14 +52,12 @@ async function createTerminal(
   const sandbox = await sdk.sandbox.open(sandboxId);
   const terminal = await sandbox.shells.create();
 
-  console.log("shell", shell);
-
   if (shell === "zsh") {
     terminal.write("zsh\n");
   }
 
   if (cwd !== "/project/sandbox") {
-    terminal.write(`cd ${cwd}\n`);
+    terminal.write(`cd "${cwd}"\n`);
   }
 
   const sessionId = randomUUID();

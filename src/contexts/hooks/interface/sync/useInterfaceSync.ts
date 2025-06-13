@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { GranularInterfaceActions, GranularTabActions } from "@/types/evals/grid";
+import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/evals/grid";
 import { useCreateTabQuery, useUpdateTabQuery,  useDeleteTabQuery } from "@/hooks/Query/useTabsQuery";
 import { useInterface } from "../useInterface";
 import { InterfaceDataActions } from "../useInterfaceData";
@@ -11,6 +11,9 @@ import { Tab } from "@/contexts/slices/selectors/tab";
 import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
 import { getTabId } from "@/contexts/selectors/tab";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+import { selectTabsForInterface } from "@/contexts/selectors/tab";
+import { useQueryClient } from "@tanstack/react-query";
+import { CompleteTabData } from "@/hooks/Query/useTabDataOptimistic";
 
 /**
  * Extended interface for InterfaceUIActions with synchronized server updates
@@ -56,6 +59,9 @@ export function useInterfaceSync(
   
   // Get store API for state access
   const storeApi = useStoreApiContext();
+  
+  // Get query client for cache updates
+  const queryClient = useQueryClient();
   
   // Mutation hooks for server state updates
   const updateInterfaceMutation = useUpdateInterfaceUnifiedQuery();
@@ -175,7 +181,7 @@ export function useInterfaceSync(
    * Handles both tabId and tabName inputs
    */
   const wrapSetActiveTab = async (tabIdOrName: string | null) => {
-    if (!interfaceId || !interfaceUIActions || !interfaceActions) return;
+    if (!interfaceId || !interfaceUIActions || !interfaceActions || !projectId) return;
 
     try {
       let tabId: string | null = null;
@@ -203,6 +209,44 @@ export function useInterfaceSync(
           },
           actions: interfaceActions as GranularInterfaceActions
         });
+      }
+
+      // 3) Update React Query cache to sync tab active states
+      const currentState = storeApi.getState();
+      
+      if (queryClient) {
+        // Update the tabs list cache to mark correct tab as active
+        const tabsQueryKey = ["tabs", interfaceId];
+        const cachedTabs = queryClient.getQueryData(tabsQueryKey) as TabData[];
+        
+        if (cachedTabs) {
+          const updatedTabs = cachedTabs.map(tab => ({
+            ...tab,
+            active: tab.id === tabId
+          }));
+          queryClient.setQueryData(tabsQueryKey, updatedTabs);
+        }
+
+        // Update individual tab complete data caches
+        const allTabsInInterface = selectTabsForInterface(currentState, interfaceId);
+        
+        for (const tab of allTabsInInterface) {
+          if (tab.name) {
+            const tabCompleteDataKey = ["tabCompleteData", interfaceId, tab.name, projectId];
+            const cachedCompleteData = queryClient.getQueryData(tabCompleteDataKey) as CompleteTabData;
+            
+            if (cachedCompleteData && cachedCompleteData.tabData) {
+              const updatedCompleteData = {
+                ...cachedCompleteData,
+                tabData: {
+                  ...cachedCompleteData.tabData,
+                  active: tab.id === tabId
+                }
+              };
+              queryClient.setQueryData(tabCompleteDataKey, updatedCompleteData);
+            }
+          }
+        }
       }
 
       console.log(`Active tab set to: ${tabIdOrName} (ID: ${tabId})`);

@@ -48,7 +48,7 @@ export default async function Main({
   actions: InterfaceWrapperActions;
 }) {
 
-  console.log("[InterfaceWrapper] Rendering with client-first approach...");
+  console.log("[InterfaceWrapper] Rendering...");
   const qc = getQueryClient();
 
   /* Enhanced prefetch for projects and contexts */
@@ -199,7 +199,7 @@ export default async function Main({
   let tabState = {};
   let tileState = {};
 
-  if (tabs.length > 0 && currentProject) {
+  if (tabs.length > 0 && currentProject && currentInterface) {
     // Collect all tab data, tiles, and metadata for batch processing
     const allTabData: TabData[] = [];
     const allTileData: TileData[] = [];
@@ -223,8 +223,13 @@ export default async function Main({
         
         // Collect tab data
         allTabData.push(tab);
-        // Client will determine which tab is active, so we mark none as active on server
-        isActiveFlags.push(false);
+
+        if (tabId === currentInterface.active_tab_id) {
+          isActiveFlags.push(true);
+        } else {
+          isActiveFlags.push(false);
+        }
+
         tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
         tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
         
@@ -276,7 +281,7 @@ export default async function Main({
     ...tileState,
   };
 
-  console.log("[InterfaceWrapper] Built initial state for all tabs - client will handle active tab logic");
+  console.log("[InterfaceWrapper] Built initial state");
 
   return (
     <StoreInitializer initialState={initialState}>
