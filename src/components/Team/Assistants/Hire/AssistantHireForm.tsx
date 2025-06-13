@@ -94,32 +94,25 @@ export function HireForm({
     trigger("email");
   };
 
-
-  const handleNewFileForUpload = (file: File | null) => {
+  const setNewImageFile = React.useCallback((file: File | null) => {
     const currentPreview = getValues("imagePreview");
     if (currentPreview && currentPreview.startsWith('blob:')) {
       URL.revokeObjectURL(currentPreview);
     }
+    
     setValue("imageFile", file, { shouldValidate: true });
+    
     if (file) {
       setValue("imagePreview", URL.createObjectURL(file));
-      setValue("profile_photo_url", null); // Clear remote URL if a local file is chosen
-      setValue("videoUrl", null);
     } else {
       setValue("imagePreview", null);
     }
-  };
-
-  const handlePhotoUrlCreated = (newUrl: string) => {
-    const currentPreview = getValues("imagePreview");
-    if (currentPreview && currentPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(currentPreview);
-    }
-    setValue("imageFile", null);
-    setValue("imagePreview", newUrl);
-    setValue("profile_photo_url", newUrl);
+    
+    // Clear other image/video sources when a new file is set
+    setValue("profile_photo_url", null);
     setValue("videoUrl", null);
-  };
+  }, [getValues, setValue]);
+
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
@@ -282,8 +275,7 @@ export function HireForm({
                 />
                 <PhotoCustomization
                     assistantActions={assistantActions}
-                    onPhotoUrlCreated={handlePhotoUrlCreated}
-                    onFileChange={handleNewFileForUpload}
+                    onNewFileReady={setNewImageFile}
                     currentImageUrl={imagePreviewUrl ?? null}
                     currentImageFile={imageFile ?? null}
                     disabled={isSubmitting}

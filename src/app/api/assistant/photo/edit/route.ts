@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const requestBody = await request.json();
+        const formData = await request.formData();
 
         const response = await fetch(
             `${ORCHESTRA_BASE_URL}/assistant/photo/edit`,
@@ -17,10 +17,9 @@ export async function POST(request: NextRequest) {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                    "accept": "application/json",
+                    // Content-Type is set automatically by fetch for FormData
                 },
-                body: JSON.stringify(requestBody),
+                body: formData,
             }
         );
         

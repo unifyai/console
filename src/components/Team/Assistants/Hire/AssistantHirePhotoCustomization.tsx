@@ -13,8 +13,7 @@ const PHOTO_OPERATION_COST = 0.05;
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
-    onPhotoUrlCreated: (newUrl: string) => void;
-    onFileChange: (file: File | null) => void;
+    onNewFileReady: (file: File | null) => void;
     currentImageUrl: string | null;
     currentImageFile: File | null;
     disabled?: boolean;
@@ -22,8 +21,7 @@ interface PhotoCustomizationProps {
 
 export function PhotoCustomization({
     assistantActions,
-    onPhotoUrlCreated,
-    onFileChange,
+    onNewFileReady,
     currentImageUrl,
     currentImageFile,
     disabled = false,
@@ -37,11 +35,11 @@ export function PhotoCustomization({
         isProcessing,
         handleGenerate,
         handleEdit,
-    } = usePhotoCreator(assistantActions.photo, onPhotoUrlCreated, PHOTO_OPERATION_COST);
+    } = usePhotoCreator(assistantActions.photo, onNewFileReady, PHOTO_OPERATION_COST);
     
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
-        onFileChange(file);
+        onNewFileReady(file);
     };
 
     const isEditDisabled = !currentImageUrl || isProcessing || disabled;

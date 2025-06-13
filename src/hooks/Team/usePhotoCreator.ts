@@ -20,7 +20,7 @@ const fetchBalance = async (): Promise<number> => {
 
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
-    onPhotoCreated: (newUrl: string) => void,
+    onNewFileReady: (file: File) => void,
     operationCost: number,
 ) {
     const [prompt, setPrompt] = React.useState('');
@@ -36,12 +36,9 @@ export function usePhotoCreator(
         });
     }
 
-    const performPhotoOperation = async (
-        operation: 'generate' | 'edit',
-        imageSource?: File | string
-    ) => {
+    const handleGenerate = async () => {
         if (!prompt.trim()) {
-            toast.error(`Please enter a prompt to ${operation} a photo.`);
+            toast.error("Please enter a prompt to generate a photo.");
             return;
         }
 
@@ -56,53 +53,101 @@ export function usePhotoCreator(
             return;
         }
 
-        const operationVerb = operation === 'generate' ? 'Generating' : 'Editing';
-        toast.loading(`${operationVerb} photo...`, { id: toastId });
+        toast.loading("Generating photo...", { id: toastId });
 
         try {
-            let result: PhotoCreationResponse | ResponseProps;
-            if (operation === 'generate') {
-                result = await photoActions.generate({ prompt });
-            } else {
-                 if (!imageSource) {
-                    throw new Error("An existing photo is required for editing.");
-                }
-                const formData = new FormData();
-                formData.append('prompt', prompt);
-                formData.append('aspect_ratio', 'match_input_image');
-                formData.append('output_format', 'jpg');
-                formData.append('safety_tolerance', '2.0');
-
-                if (imageSource instanceof File) {
-                    formData.append('input_image_file', imageSource);
-                } else if (typeof imageSource === 'string') {
-                    if (imageSource.startsWith('blob:')) {
-                         throw new Error("Cannot edit a local photo preview. Please use a saved or generated photo.");
-                    }
-                    formData.append('input_image_url', imageSource);
-                }
-                result = await photoActions.edit(formData);
+            const result = await photoActions.generate({ prompt });
+            if ((result as ResponseProps).detail) {
+                throw new Error((result as ResponseProps).detail);
             }
+            const newUrl = (result as PhotoCreationResponse).url;
+            
+            toast.loading("Processing generated image...", { id: toastId });
+            const imageResponse = await fetch(newUrl);
+            if (!imageResponse.ok) throw new Error("Failed to download the generated image.");
+            
+            const blob = await imageResponse.blob();
+            const filename = newUrl.substring(newUrl.lastIndexOf('/') + 1) || "ai-generated-photo.jpg";
+            const imageFile = new File([blob], filename, { type: blob.type });
+
+            onNewFileReady(imageFile);
+            setPrompt('');
+            toast.success("Photo generated successfully!", { id: toastId });
+
+        } catch (error: any) {
+            toast.error(`Photo generation failed: ${error.message}`, { id: toastId });
+            console.error("[usePhotoCreator] generate error:", error);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleEdit = async (imageSource: File | string) => {
+        if (!prompt.trim()) {
+            toast.error("Please enter a prompt to edit the photo.");
+            return;
+        }
+        if (!imageSource) {
+            toast.error("An existing photo is required for editing.");
+            return;
+        }
+
+        setIsProcessing(true);
+        const toastId = toast.loading("Checking your balance...");
+
+        const currentBalance = await fetchBalance();
+        if (currentBalance < operationCost) {
+            insufficientFundsToast();
+            toast.dismiss(toastId);
+            setIsProcessing(false);
+            return;
+        }
+        
+        toast.loading("Editing photo...", { id: toastId });
+
+        try {
+            const formData = new FormData();
+            formData.append('prompt', prompt);
+            formData.append('aspect_ratio', 'match_input_image');
+            formData.append('output_format', 'jpg');
+            formData.append('safety_tolerance', '2.0');
+
+            if (imageSource instanceof File) {
+                formData.append('input_image_file', imageSource);
+            } else if (typeof imageSource === 'string') {
+                if (imageSource.startsWith('blob:')) {
+                     throw new Error("Cannot edit a local photo preview. Please use a saved or generated photo.");
+                }
+                formData.append('input_image_url', imageSource);
+            }
+
+            const result = await photoActions.edit(formData);
 
             if ((result as ResponseProps).detail) {
                 throw new Error((result as ResponseProps).detail);
             }
 
             const newUrl = (result as PhotoCreationResponse).url;
-            onPhotoCreated(newUrl);
-            setPrompt(''); // Clear prompt on success
-            toast.success(`Photo ${operationVerb.toLowerCase().slice(0, -3)}ed successfully!`, { id: toastId });
+            
+            toast.loading("Processing edited image...", { id: toastId });
+            const imageResponse = await fetch(newUrl);
+            if (!imageResponse.ok) throw new Error("Failed to download the edited image.");
+
+            const blob = await imageResponse.blob();
+            const filename = newUrl.substring(newUrl.lastIndexOf('/') + 1) || "ai-edited-photo.jpg";
+            const imageFile = new File([blob], filename, { type: blob.type });
+
+            onNewFileReady(imageFile);
+            setPrompt('');
+            toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
-            toast.error(`Photo ${operation} failed: ${error.message}`, { id: toastId });
-            console.error(`[usePhotoCreator] ${operation} error:`, error);
+            toast.error(`Photo editing failed: ${error.message}`, { id: toastId });
+            console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
         }
     };
-    
-    const handleGenerate = () => performPhotoOperation('generate');
-    const handleEdit = (imageSource: File | string) => performPhotoOperation('edit', imageSource);
 
     return {
         prompt,
