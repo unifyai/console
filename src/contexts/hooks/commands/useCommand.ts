@@ -156,6 +156,13 @@ export function useCommand(args: UseCommandArgs) {
         // Directory might not exist; create .env to implicitly create dir
         try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
       }
+
+      // Ensure .env file is not empty
+      const res: any = await fileActions.read(newProj, ".env");
+      const content = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
+      if (content === "") {
+        await fileActions.write(newProj, { ".env": "" });
+      }
     } else {
       setDemo(null);
       setTabQueryParam("tab1");

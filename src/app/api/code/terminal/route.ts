@@ -52,8 +52,6 @@ async function createTerminal(
   const sandbox = await sdk.sandbox.open(sandboxId);
   const terminal = await sandbox.shells.create();
 
-  console.log("shell", shell);
-
   if (shell === "zsh") {
     terminal.write("zsh\n");
   }

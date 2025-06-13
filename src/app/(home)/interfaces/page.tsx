@@ -155,11 +155,11 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     // File actions
     const fileActions = {
-        list: await listFiles(adminKey, userId),
-        write: await writeFiles(adminKey, userId),
-        read: await readFile(adminKey, userId),
-        delete: await deleteFile(adminKey, userId),
-        rename: await renameFile(adminKey, userId),
+        list: await listFiles(apiKey, userId),
+        write: await writeFiles(apiKey, userId),
+        read: await readFile(apiKey, userId),
+        delete: await deleteFile(apiKey, userId),
+        rename: await renameFile(apiKey, userId),
     };
 
     // Create the granular actions using the factory functions

@@ -317,7 +317,7 @@ export interface TabActions {
 }
 
 export interface CodeActions {
-    run: (project: string, filePath: string) => Promise<ResponseProps>
+    run: (project: string, filePath: string, env?: { [key: string]: string } | { key: string; value: string }[]) => Promise<ResponseProps>
     createTerminal: (shell?: string, cwd?: string) => Promise<{ session_id: string }>;
     runTerminal: (sessionId: string, cmd: string) => Promise<{ output: string }>;
     getTerminalOutput: (sessionId: string) => Promise<{ output: string }>;
