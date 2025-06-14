@@ -69,9 +69,9 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
-    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "presetOriginalValues"]);
+    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues"]);
     React.useEffect(() => {
-        const [firstName, surname, age, region, voiceId, imageFile, originalValues] = watchedFields;
+        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues] = watchedFields;
     
         if (imageFile) {
             if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
@@ -324,7 +324,7 @@ export function useAssistantHireForm(
         }
         
         const currentEmail = getValues("email");
-        if (currentEmail.startsWith('@')) { 
+        if (!currentEmail || currentEmail.startsWith('@')) { 
             setError("email", { type: "manual", message: "Email local part cannot be empty." });
             toast.error("Email local part cannot be empty.");
             return;

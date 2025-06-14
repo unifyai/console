@@ -111,7 +111,7 @@ export function useTabDataOptimistic() {
 
       // Get or fetch tiles for the target tab
       let tiles = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
-      if (!tiles || typeof tiles === "object") {
+      if (!tiles || (typeof tiles === "object" && Object.keys(tiles).includes("error"))) {
         tiles = await actions.tileActions.list(finalTabId, undefined, false);
         if (updateCache) {
           queryClient.setQueryData(["tiles", finalTabId], tiles);
@@ -119,11 +119,6 @@ export function useTabDataOptimistic() {
       }
 
       // Filter tiles by type (matching TabWrapper.server.tsx)
-      // TODO: Desperate fallback for when tiles is an object.
-      // Need to investigate why this happens sometimes.
-      if (typeof tiles === "object") {
-        tiles = [];
-      }
       const tableTiles = tiles.filter(t => t.type === "Table");
       const plotTiles = tiles.filter(t => t.type === "Plot");
 

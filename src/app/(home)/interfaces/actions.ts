@@ -1788,7 +1788,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
         // Required parameters
         queryParams.append("tile_type", tileType);
         queryParams.append("tab_id", tab_id);
-        queryParams.append("name", encodeURIComponent(name));
+        queryParams.append("name", name);
         queryParams.append("checkpoint", checkpoint.toString());
 
         const response = await fetch(

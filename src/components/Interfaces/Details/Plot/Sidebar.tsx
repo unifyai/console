@@ -137,7 +137,7 @@ const PlotSettings = ({
   plotTileActions: PlotActions | null;
   tileDataActions: TileDataActions | null;
 }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
