@@ -69,7 +69,7 @@ export function ImageUpload({
       setIsVideoLoading(false);
       setVideoError(false);
     }
-  }, [videoUrl, isVideoLoading]);
+  }, [videoUrl]);
 
   // Effect for autoplaying or pausing based on isPlayable
   React.useEffect(() => {
