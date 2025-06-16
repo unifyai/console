@@ -19,6 +19,7 @@ import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
 import ColumnPinner from "../Buttons/ColumnPinner";
+import ColumnRename from "@/components/Interfaces/Table/Buttons/ColumnRename";
 
 // Shadcn UI dropdown
 import {
@@ -441,7 +442,7 @@ const DataTableHeader = ({
       }
 
       {/* Header content */}
-      <div className={`px-2 py-1 ${!isNotUtilColumn ? "h-10" : ""}`}>
+      <div className={`px-2 py-1 ${!isNotUtilColumn ? "h-10" : ""}`} onDoubleClick={handleHeaderDoubleClick}>
 
         {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
@@ -535,7 +536,6 @@ const DataTableHeader = ({
                           <div 
                             className="flex items-center justify-between cursor-pointer overflow-hidden"
                             style={{maxWidth: maxLabelWidth}}
-                            onDoubleClick={handleHeaderDoubleClick}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
@@ -671,6 +671,13 @@ const DataTableHeader = ({
                                     setUpdateOpen,
                                     "menuItem",
                                   )
+                              )}
+                              {ColumnRename && (
+                                <ColumnRename
+                                  column={header.column}
+                                  onRename={onRenameColumn!}
+                                  renderMode="menuItem"
+                                />
                               )}
                               {ColumnDelete && !isGrouped && ColumnDelete(header.column)}
                             </DropdownMenuGroup>
