@@ -33,7 +33,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		const id = cell.split("_").at(0) as string
 		const column = sanitizeId(getPartAfterFirstUnderscore(cell))
 		const idMatch = (log: LogProps) => String(log.id) === String(id)
-		return flattenedLogs.findIndex(log => idMatch(log))
+		return flattenedLogs.findIndex(log => idMatch(log)) !== -1
 	})
 
 	// Skip dialog trigger when pressing backspace / delete within an editable element
