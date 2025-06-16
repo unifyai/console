@@ -7,13 +7,15 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHirePhotoPreview';
-import { AssistantFormData, AssistantActions } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
 import { Volume2, User, Info, Smartphone, Image as ImageIcon } from 'lucide-react';
 import { DialogDescription } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+
 
 const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
@@ -63,7 +65,7 @@ export function HireForm({
             setEmailLocalPart('');
         }
     }
-  }, [rhfEmail]); // Only rhfEmail dependency
+  }, [rhfEmail, emailLocalPart]);
 
   // Auto-generate email based on names if not manually edited
   React.useEffect(() => {
@@ -113,6 +115,36 @@ export function HireForm({
     setValue("profile_photo_url", null);
     setValue("videoUrl", null);
   }, [getValues, setValue]);
+
+  const rhfVoiceId = watch("voice_id");
+  const rhfVoiceLanguage = watch("voice_language");
+  const rhfVoiceGender = watch("voice_gender");
+  const rhfVoiceName = watch("voice_name");
+  const rhfVoiceDescription = watch("voice_description");
+  const rhfIsPresetPristine = watch("isPresetPristine");
+
+
+  const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
+      if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
+          return {
+              voice_id: rhfVoiceId,
+              language: rhfVoiceLanguage as SupportedLanguage,
+              gender: rhfVoiceGender as Gender,
+              name: rhfVoiceName,
+              description: rhfVoiceDescription || '',
+              // These are not strictly needed by PhotoCustomization for TTS but are part of VoiceOption
+              is_preset: rhfIsPresetPristine, 
+              isUserVoiceInOrchestra: getValues("voice_exists") // Assuming voice_exists reflects this
+          };
+      }
+      return null;
+  }, [rhfVoiceId, rhfVoiceLanguage, rhfVoiceGender, rhfVoiceName, rhfVoiceDescription, rhfIsPresetPristine, getValues]);
+
+  const handleNewVideoReady = React.useCallback((url: string) => {
+      setValue("videoUrl", url);
+      // If a video is generated, it's no longer a pristine preset (if it was one)
+      setValue("isPresetPristine", false); 
+  }, [setValue]);
 
 
   return (
@@ -259,6 +291,8 @@ export function HireForm({
                       currentImageUrl={imagePreviewUrl ?? null}
                       currentImageFile={imageFile ?? null}
                       disabled={isSubmitting}
+                      selectedVoice={selectedVoiceForPhotoCustomization}
+                      onNewVideoReady={handleNewVideoReady}
                   />
                 </div>
             </div>
