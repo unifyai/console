@@ -90,6 +90,8 @@ import {
     runTerminalCommand,
     getTerminalOutput,
     renameFile,
+    // renameLogFields,
+    getCodeOutput,
 } from "./actions";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -132,6 +134,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
+        // rename: await renameLogFields(apiKey)
     };
 
     const contextActions = {
@@ -142,6 +145,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     const codeActions = {
         run: await runCode(apiKey, userId),
+        get: await getCodeOutput(apiKey),
         createTerminal: await createTerminalSession(apiKey, userId),
         runTerminal: await runTerminalCommand(apiKey),
         getTerminalOutput: await getTerminalOutput(apiKey),
