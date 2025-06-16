@@ -78,9 +78,6 @@ export default function Terminal({
   const fitRef = useRef<FitAddon>();
   const sessionId = useRef<string>();
 
-  /* -------------------------------------------------- helpers */
-  const prompt = () => termRef.current?.write("\r\n$ ");
-
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
     if (started) return;
@@ -101,8 +98,9 @@ export default function Terminal({
 
     try {
       // @ts-ignore global actions
-      term.write("Starting terminal...\n");
+      term.write("Starting terminal...\r\n");
       const { session_id } = await codeActions.createTerminal(shell, projectId);
+      term.reset();
       sessionId.current = session_id;
     } catch {
       term.reset();
@@ -150,11 +148,12 @@ export default function Terminal({
 
   const stopTerminal = async () => {
     termRef.current?.reset();
-    termRef.current?.write("Stopping terminal...\n");
+    termRef.current?.write("Stopping terminal...\r\n");
     if (sessionId.current) {
       // @ts-ignore
-      await codeActions.stopTerminal(sessionId.current);
+      const sid = sessionId.current;
       sessionId.current = undefined;
+      await codeActions.stopTerminal(sid);
     }
     termRef.current?.dispose();
     termRef.current = undefined;
@@ -180,12 +179,11 @@ export default function Terminal({
         // @ts-ignore helper exists
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
-          termRef.current.reset();
-          termRef.current.write(res.output);
+          termRef.current.write(res.output.replaceAll("/project/sandbox", ""));
           termRef.current.write(bufferRef.current);
         }
       } catch {}
-    }, 1000);
+    }, 2000);
 
     return () => clearInterval(id);
   }, [started]);

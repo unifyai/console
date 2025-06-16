@@ -301,6 +301,7 @@ export interface DerivedEntryActions {
 
 export interface FieldsActions {
     get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
+    // rename: (project: string, context: string | null, oldFieldName: string, newFieldName: string) => Promise<ResponseProps>
 }
 
 export interface ContextActions {
@@ -318,6 +319,7 @@ export interface TabActions {
 
 export interface CodeActions {
     run: (project: string, filePath: string, env?: { [key: string]: string } | { key: string; value: string }[]) => Promise<ResponseProps>
+    get: (filePath: string) => Promise<{ output: string, done: boolean }>;
     createTerminal: (shell?: string, cwd?: string) => Promise<{ session_id: string }>;
     runTerminal: (sessionId: string, cmd: string) => Promise<{ output: string }>;
     getTerminalOutput: (sessionId: string) => Promise<{ output: string }>;

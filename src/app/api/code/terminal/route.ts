@@ -14,6 +14,7 @@ type TerminalEntry = {
   sandboxId: string;
   sandbox: any; // CodeSandbox Session type (not exported)
   terminal: any; // CodeSandbox Terminal type (not exported)
+  outputBuffer: string;
 };
 
 const terminalStore: Map<string, TerminalEntry> = globalThis.__terminalStore__ ?? new Map();
@@ -61,7 +62,14 @@ async function createTerminal(
   }
 
   const sessionId = randomUUID();
-  terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal });
+  terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: "" });
+
+  terminal.onOutput((output) => {
+    const entry = terminalStore.get(sessionId);
+    if (!entry) throw new Error("Invalid session_id");
+    entry.outputBuffer += output;
+  });
+
   return { sessionId };
 }
 
@@ -92,9 +100,9 @@ async function getOutput(sessionId: string) {
   const entry = terminalStore.get(sessionId);
   if (!entry) throw new Error("Invalid session_id");
   const { terminal } = entry;
-  const output = await terminal.getOutput();
-  console.log("\noutput", output);
-  return output;
+  const outputReturn = entry.outputBuffer;
+  entry.outputBuffer = "";
+  return outputReturn;
 }
 
 async function killSession(sessionId: string) {

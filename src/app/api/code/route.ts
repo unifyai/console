@@ -5,8 +5,32 @@ import { CodeSandbox } from "@codesandbox/sdk";
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
 
-export async function GET() {
-    return Response.json(demos);
+type EditorEntry = {
+    output: string;
+    done?: boolean;
+}
+
+const editorStore: Map<string, EditorEntry> = globalThis.__editorStore__ ?? new Map();
+// @ts-ignore – persist across hot-reloads in dev
+globalThis.__editorStore__ = editorStore;
+
+declare global {
+    // eslint-disable-next-line no-var
+    var __editorStore__: Map<string, EditorEntry> | undefined;
+}
+
+export async function GET(request: NextRequest) {
+    const filePath = new URL(request.url).searchParams.get("file_path");
+    if (filePath) {
+        const entry = editorStore.get(filePath);
+        if (!entry) return Response.json({ output: "", done: false });
+        const entryRet = entry;
+        if (entry.done) {
+            editorStore.delete(filePath);
+        }
+        return Response.json(entryRet);
+    }
+    return Response.json({ detail: "No file path provided" }, { status: 400 });
 }
 
 export async function POST(request: NextRequest) {
@@ -47,51 +71,52 @@ export async function POST(request: NextRequest) {
 
     // Build full path inside project directory
     const fullPath = `${project}/${filePath}`;
+
     // create command to run code
+    editorStore.set(fullPath, { output: "", done: false });
+
     const command = sandbox.shells.run(`python "${fullPath}"`, {
-        env: envVars
+        env: envVars,
     });
 
-    try {
+    command.onOutput((output) => {
+        const entry = editorStore.get(fullPath);
+        if (!entry) return;
+        entry.output += output;
+    });
+
+    // Run in background without blocking the HTTP response
+    (async () => {
         let timeoutId: NodeJS.Timeout | undefined;
-        // Create a promise that rejects after 40 seconds
         const timeout = new Promise((_, reject) => {
             timeoutId = setTimeout(() => {
                 try {
                     command.kill();
-                } catch (e) {
-                    // Ignore errors when trying to kill a non-existent shell
-                    console.log("Shell already terminated");
+                } catch {
+                    /* ignore */
                 }
-                reject(new Error('Execution timed out'));
+                reject(new Error("Execution timed out"));
             }, 300000);
         });
 
-        // Race between the command execution and timeout
-        const res: any = await Promise.race([
-            command.catch(error => {
-                // Clear the timeout since the command has completed
-                if (timeoutId) clearTimeout(timeoutId);
-                // If the shell doesn't exist, treat it as a successful completion
-                if (error.message?.includes("Shell with id") && error.message?.includes("does not exist")) {
-                    return { exitCode: 0, output: "Command completed successfully" };
-                }
-                throw error;
-            }),
-            timeout
-        ]);
+        try {
+            await Promise.race([
+                command.catch(() => { /* handled below */ }),
+                timeout,
+            ]);
+        } catch (e) {
+            const entry = editorStore.get(fullPath);
+            if (entry) {
+                entry.output += `\n[Error] ${(e as Error).message}`;
+                entry.done = true;
+            }
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+            const entry = editorStore.get(fullPath);
+            if (entry) entry.done = true;
+        }
+    })();
 
-        // Clear the timeout since we have a result
-        if (timeoutId) clearTimeout(timeoutId);
-
-        // If the command succeeded, return the output
-        return Response.json(res);
-    } catch (error: any) {
-        // If the command timed out, return a timeout error
-        if (error.message === "Execution timed out")
-            return Response.json({ detail: "Code execution timed out" }, { status: 408 });
-
-        // If the command failed, return an error
-        return Response.json({ detail: "Failed to run code" }, { status: 500 });
-    }
+    // Immediately respond that execution has started
+    return Response.json({ status: "running" }, { status: 202 });
 }

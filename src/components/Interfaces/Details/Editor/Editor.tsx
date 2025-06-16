@@ -186,6 +186,22 @@ const Editor = ({
         }
     }, [folderInputRef]);
 
+    useEffect(() => {
+        const id = setInterval(async () => {
+          if (!pending) return;
+          try {
+            // @ts-ignore helper exists
+            const res = await codeActions.get(`${projectId}/${tempFileName}.${tempFileType}`);
+            if (res?.output) {
+              setOutput(res.output.replaceAll("/project/sandbox/", ""));
+              if (res.done) setPending(false);
+            }
+          } catch {}
+        }, 1000);
+    
+        return () => clearInterval(id);
+      }, [pending]);
+
     // Memoized env variables parsing
     const envVars = useMemo(() => {
         if (tempFileType !== "env") return [] as { key: string; value: string }[];
@@ -422,13 +438,9 @@ const Editor = ({
                         await handleUpload({ [tempFilePath]: code });
                         setSelectedPath(tempFilePath);
                         const result: any = await codeActions.run(projectId, tempFilePath, envObject);
-                        const cleaned = (result.output ?? "").replaceAll("/project/sandbox/", "");
-                        setOutput(cleaned === "" ? "Script execution completed." : cleaned);
                     } catch (err) {
                         console.error(err);
                         setOutput("Failed to run code");
-                    } finally {
-                        setPending(false);
                     }
                 }}
                 readOnly={false}
@@ -438,6 +450,7 @@ const Editor = ({
                         if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
                             await handleRename(selectedPath, path, value);
                         }
+                        editorTileActions?.setContent(value);
                         await handleUpload({ [path]: value });
                         setSelectedPath(path);
                         setSaved(true);
