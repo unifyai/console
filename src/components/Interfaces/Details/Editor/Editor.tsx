@@ -195,6 +195,9 @@ const Editor = ({
             if (res?.output) {
               setOutput(res.output.replaceAll("/project/sandbox/", ""));
               if (res.done) setPending(false);
+            } else if (res?.done) {
+              setOutput("Script execution completed.");
+              setPending(false);
             }
           } catch {}
         }, 1000);
