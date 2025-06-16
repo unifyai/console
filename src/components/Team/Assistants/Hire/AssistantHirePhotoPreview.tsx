@@ -2,13 +2,41 @@
 
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { User } from "lucide-react"; 
+import { User, Download } from "lucide-react";
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/UI/skeleton';
+import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+
+// Use the File's name if available, otherwise fallback
+const getFilenameForDownload = (file: File | null, fallbackUrl?: string | null): string => {
+  if (file && file.name) {
+    return file.name;
+  }
+  if (fallbackUrl && fallbackUrl.startsWith('blob:')) {
+    return 'preview-image.png'; // Generic for blobs if no file object
+  }
+  if (fallbackUrl) {
+    try {
+      const pathname = new URL(fallbackUrl).pathname;
+      const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
+      if (filename && filename.includes('.')) {
+        return filename;
+      }
+      const extensionMatch = fallbackUrl.match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/i);
+      const extension = extensionMatch ? extensionMatch[0].split('?')[0] : '.jpg';
+      return `downloaded-image${extension}`;
+    } catch (e) {
+      // console.warn("Could not parse URL to get filename:", fallbackUrl, e);
+    }
+  }
+  return 'downloaded-image.jpg'; // Ultimate fallback
+};
 
 interface ImageUploadProps {
   previewUrl?: string | null;
   videoUrl?: string | null;
+  imageFile?: File | null;
   isPlayable?: boolean;
   fallbackText?: React.ReactNode;
   className?: string;
@@ -19,6 +47,7 @@ interface ImageUploadProps {
 export function ImageUpload({
   previewUrl,
   videoUrl,
+  imageFile,
   isPlayable = false,
   fallbackText = <User className="h-1/2 w-1/2" />,
   className,
@@ -27,27 +56,20 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
-  // Initialize isVideoLoading to true if videoUrl is present on mount,
-  // primarily to handle the initial state correctly before effects run.
   const [isVideoLoading, setIsVideoLoading] = React.useState(!!videoUrl);
   const [hasPlayedOnce, setHasPlayedOnce] = React.useState(false);
 
   // Effect to manage loading state when videoUrl changes
   React.useEffect(() => {
     if (videoUrl) {
-      // If videoUrl is present (or changes to a new one), ensure loading state is active.
-      // This also handles cases where the component might re-render without videoUrl initially,
-      // and then videoUrl is provided later.
-      if (!isVideoLoading) setIsVideoLoading(true); // Set loading if not already true
-      setVideoError(false); // Reset error for new video
-      setHasPlayedOnce(false); // Reset play state for new video
-      // videoRef.current?.load(); // Usually not needed due to key on video
+      if (!isVideoLoading) setIsVideoLoading(true);
+      setVideoError(false);
+      setHasPlayedOnce(false);
     } else {
-      // If videoUrl is removed, reset loading and error states.
       setIsVideoLoading(false);
       setVideoError(false);
     }
-  }, [videoUrl]); // Rerun when videoUrl changes
+  }, [videoUrl, isVideoLoading]);
 
   // Effect for autoplaying or pausing based on isPlayable
   React.useEffect(() => {
@@ -63,12 +85,12 @@ export function ImageUpload({
         videoElement.pause();
       }
     } else if (videoElement && !videoElement.paused) {
-        videoElement.pause(); // Ensure video is paused if src removed or error
+        videoElement.pause();
     }
   }, [videoUrl, videoError, isPlayable, isVideoLoading, hasPlayedOnce]);
 
-
   const shouldRenderVideo = videoUrl && !videoError;
+  const showDownloadButton = imageFile && !isVideoLoading;
 
   const handleMouseEnter = () => {
     if (videoRef.current && shouldRenderVideo && videoRef.current.ended) {
@@ -76,6 +98,30 @@ export function ImageUpload({
         console.warn("Could not replay video on hover:", error);
       });
     }
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!imageFile) { // If there's no File object, we can't reliably download a blob
+        console.warn("Download attempted without an imageFile for blob URL.");
+        return;
+    }
+
+    // Create a new object URL from the actual File object for downloading
+    // This ensures the browser has the correct file type and data.
+    const downloadUrl = URL.createObjectURL(imageFile);
+    
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = getFilenameForDownload(imageFile, previewUrl);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Revoke the *newly created* object URL used for download, not the previewUrl
+    URL.revokeObjectURL(downloadUrl); 
   };
 
   return (
@@ -94,7 +140,28 @@ export function ImageUpload({
               "relative" 
           )}
         >
-          {/* Skeleton Loader: Rendered when isVideoLoading is true AND a videoUrl is present. */}
+          {showDownloadButton && (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full"
+                    onClick={handleDownload}
+                    aria-label="Download Image"
+                    type="button"
+                  >
+                    <Download className="h-4 w-4 text-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Download Image</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {isVideoLoading && videoUrl && (
             <Skeleton className="absolute inset-0 h-full w-full rounded-lg animate-pulse bg-muted z-10" />
           )}
@@ -107,12 +174,8 @@ export function ImageUpload({
                   playsInline
                   className={cn(
                     "w-full h-full object-cover",
-                    // Hide the video element itself (not just its content) if skeleton is active
-                    // to prevent its own poster/first-frame from flashing.
                     (isVideoLoading || !videoUrl) && "opacity-0" 
                   )}
-                  // Poster is only shown if not loading AND a previewUrl exists.
-                  // This prevents the poster from flashing if isVideoLoading is true.
                   poster={(!isVideoLoading && previewUrl) ? previewUrl : undefined}
                   onCanPlay={() => {
                     setIsVideoLoading(false); 
@@ -123,9 +186,9 @@ export function ImageUpload({
                     }
                   }}
                   onPlaying={() => { 
-                    setIsVideoLoading(false); // Ensure loading is false when actually playing
+                    setIsVideoLoading(false);
                   }}
-                  onErrorCapture={(e) => { // Using onErrorCapture for better reliability with React
+                  onErrorCapture={(e) => {
                     console.error("Video error event (capture):", e);
                     setVideoError(true);
                     setIsVideoLoading(false);

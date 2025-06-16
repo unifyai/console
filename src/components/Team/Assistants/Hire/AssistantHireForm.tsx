@@ -249,6 +249,7 @@ export function HireForm({
                     previewUrl={imagePreviewUrl}
                     videoUrl={videoUrl}
                     isPlayable={isPresetPristine}
+                    imageFile={imageFile}
                     className="flex-shrink-0"
                     disabled={isSubmitting}
                   />
