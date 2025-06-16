@@ -199,39 +199,39 @@ export const getLogFields = async (apiKey: string) => {
 };
 
 // rename log field
-// export const renameLogFields = async (apiKey: string) => {
-//     return async (
-//         project: string,
-//         context: string | null,
-//         oldFieldName: string,
-//         newFieldName: string
-//     ): Promise<ResponseProps> => {
-//         "use server";
+export const renameLogFields = async (apiKey: string) => {
+    return async (
+        project: string,
+        context: string | null,
+        oldFieldName: string,
+        newFieldName: string
+    ): Promise<ResponseProps> => {
+        "use server";
 
-//         try {
-//             const response = await fetch(
-//                 `${process.env.NEXTAUTH_URL}/api/logs/fields`,
-//                 {
-//                     method: "PATCH",
-//                     headers: {
-//                         apiKey: apiKey,
-//                         "Content-Type": "application/json",
-//                     },
-//                     body: JSON.stringify({
-//                         project,
-//                         context,
-//                         old_field_name: oldFieldName,
-//                         new_field_name: newFieldName,
-//                     }),
-//                 }
-//             );
-//             return await response.json();
-//         } catch (error) {
-//             console.error(`[actions.ts renameLogField] Error renaming field ${oldFieldName} -> ${newFieldName}:`, error);
-//             return { detail: "Failed to rename log field. Please try again." };
-//         }
-//     };
-// };
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/fields`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        apiKey: apiKey,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        project,
+                        context,
+                        old_field_name: oldFieldName,
+                        new_field_name: newFieldName,
+                    }),
+                }
+            );
+            return await response.json();
+        } catch (error) {
+            console.error(`[actions.ts renameLogField] Error renaming field ${oldFieldName} -> ${newFieldName}:`, error);
+            return { detail: "Failed to rename log field. Please try again." };
+        }
+    };
+};
 
 export const getLogMetrics = async (apiKey: string) => {
     return async (

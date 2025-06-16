@@ -301,7 +301,7 @@ export interface DerivedEntryActions {
 
 export interface FieldsActions {
     get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
-    // rename: (project: string, context: string | null, oldFieldName: string, newFieldName: string) => Promise<ResponseProps>
+    rename: (project: string, context: string | null, oldFieldName: string, newFieldName: string) => Promise<ResponseProps>
 }
 
 export interface ContextActions {

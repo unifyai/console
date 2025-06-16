@@ -30,3 +30,20 @@ export async function DELETE(request: NextRequest) {
         },
     );
 }
+
+export async function PATCH(request: NextRequest) {
+    const body = await request.json();
+
+    return await fetch(
+        `${baseUrl}/logs/rename_field`,
+        {
+            method: "PATCH",
+            headers: {
+                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Content-Type": "application/json",
+                "accept": "application/json",
+            },
+            body: JSON.stringify(body),
+        },
+    );
+}

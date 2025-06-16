@@ -90,7 +90,7 @@ import {
     runTerminalCommand,
     getTerminalOutput,
     renameFile,
-    // renameLogFields,
+    renameLogFields,
     getCodeOutput,
 } from "./actions";
 import { signOut } from "next-auth/react";
@@ -134,7 +134,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     const fieldsActions = {
         get: await getLogFields(apiKey),
-        // rename: await renameLogFields(apiKey)
+        rename: await renameLogFields(apiKey)
     };
 
     const contextActions = {

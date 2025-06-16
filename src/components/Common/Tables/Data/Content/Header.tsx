@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, CSSProperties, ReactNode, useRef, SetStateAction, Dispatch, useEffect } from "react";
+import { sanitizeId } from "@/utils/evals/columnOperations";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -32,6 +33,9 @@ import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 import { shouldRenderHeader, calculateRowSpan } from "@/utils/evals/table";
+import BaseDialog from "@/components/Common/Dialogs/Base";
+import { Input } from "@/components/UI/input";
+import SubmitButton from "@/components/Common/Buttons/Submit";
 
 const DataTableHeader = ({
   interactive,
@@ -61,6 +65,7 @@ const DataTableHeader = ({
   columnPinning,
   draggingColumnPinner,
   setDraggingColumnPinner,
+  onRenameColumn,
   children,
   columnActionsApplied,
   setColumnActionsApplied
@@ -97,6 +102,7 @@ const DataTableHeader = ({
   columnPinning: { left?: string[]; right?: string[] },
   draggingColumnPinner: DraggingColumnPinnerState,
   setDraggingColumnPinner: (state: DraggingColumnPinnerState) => void,
+  onRenameColumn?: (oldName: string, newName: string) => void,
   children?: ReactNode,
   columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
   setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
@@ -187,6 +193,8 @@ const DataTableHeader = ({
   const [filterOpen, setFilterOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState<string>("");
 
   // Event listeners to update open / loading states
   useEffect(() => {
@@ -362,6 +370,51 @@ const DataTableHeader = ({
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
 
+  // Double click rename handler for leaf (child) columns
+  const handleHeaderDoubleClick = () => {
+    if (!interactive || !onRenameColumn || isParentColumn || header.isPlaceholder) return;
+    const rawId = header.id.split("/").pop() || header.id;
+    setRenameValue(rawId);
+    setRenameOpen(true);
+  };
+
+  const renameDialog = (
+    <BaseDialog
+      context="tile"
+      open={renameOpen}
+      setOpen={setRenameOpen}
+      button={<></>} // invisible trigger, open via state
+      title="Rename Column"
+      body={
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitRename();
+          }}
+          autoFocus
+        />
+      }
+      footer={
+        <div className="flex justify-end">
+          <SubmitButton
+            text="Rename"
+            onClick={() => submitRename()} />
+        </div>
+      }
+    />
+  );
+
+  const submitRename = () => {
+    const rawId = header.id.split("/").pop() || header.id;
+    const oldName = sanitizeId(rawId);
+    const newName = renameValue.trim();
+    if (newName && newName !== oldName) {
+      onRenameColumn?.(oldName, newName);
+    }
+    setRenameOpen(false);
+  };
+
   return (
     <TableHead 
       rowSpan={calculatedRowSpan}
@@ -482,6 +535,7 @@ const DataTableHeader = ({
                           <div 
                             className="flex items-center justify-between cursor-pointer overflow-hidden"
                             style={{maxWidth: maxLabelWidth}}
+                            onDoubleClick={handleHeaderDoubleClick}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
@@ -735,6 +789,9 @@ const DataTableHeader = ({
         </div>
       </div>
       {children}
+
+      {/* Rename dialog */}
+      {renameDialog}
     </TableHead>
   );
 };
