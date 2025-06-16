@@ -81,6 +81,10 @@ export interface PhotoCreationResponse {
     url: string;
 }
 
+export interface VideoAnimationResponse {
+    video_url: string;
+}
+
 
 export interface AssistantUpdatePayload {
     about?: string | null;
@@ -125,6 +129,7 @@ export interface AssistantActions {
     downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
+    animate: (formData: FormData) => Promise<VideoAnimationResponse | ResponseProps>;
   },
   "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 

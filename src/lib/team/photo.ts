@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse } from "@/types/team/assistant";
+import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse, VideoAnimationResponse } from "@/types/team/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/team/gcs-utils";
 import { Storage } from "@google-cloud/storage";
 
@@ -193,6 +193,33 @@ export const editPhoto = async (apiKey: string) => {
             return { detail: "Photo edit succeeded but response format was unexpected." };
         } catch (error) {
             return { detail: error instanceof Error ? error.message : "Unknown error editing photo." };
+        }
+    };
+};
+
+export const animatePhoto = async (apiKey: string) => {
+    return async (formData: FormData): Promise<VideoAnimationResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate`, {
+                method: "POST",
+                headers: { 
+                    apiKey: apiKey,
+                    // Content-Type is set by browser for FormData
+                },
+                body: formData,
+            });
+            const data = await response.json(); // This is { info: "video_url" }
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to animate video: ${response.statusText}` };
+            }
+            // Backend returns { info: "video_url_string" }
+            if (data.info && typeof data.info === 'string') {
+                return { video_url: data.info }; 
+            }
+            return { detail: "Video animation succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error animating video." };
         }
     };
 };
