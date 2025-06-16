@@ -570,6 +570,19 @@ const LogsTable = ({
     item?.name,
   ]);
 
+  // Rename column handler
+  const renameColumn = async (oldName: string, newName: string) => {
+    if (!projectId) return;
+    setPending(true);
+    const res = await fieldsActions.rename(projectId, item?.context || null, oldName, newName);
+    setPending(false);
+    if ((res as any).detail) {
+      console.error("Rename failed", res);
+    } else {
+      router.refresh();
+    }
+  };
+
   // Top area: filters, page, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3">
@@ -940,6 +953,7 @@ const LogsTable = ({
                     <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                   }
                   error={"detail" in logsData ? logsData["detail"] : undefined}
+                  onRenameColumn={renameColumn}
                 />
               </div>
             ) : (

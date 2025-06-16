@@ -33,6 +33,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     setState: SetStateProps;
     error?: string;
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
+    onRenameColumn?: (oldName: string, newName: string) => void;
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
@@ -56,6 +57,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     setState,
     error,
     scrollContainerRef,
+    onRenameColumn,
     FooterCell,
     ColumnGroupBy,
     ColumnGroupSort,
@@ -270,6 +272,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 setDraggingColumnPinner={setState.setDraggingColumnPinner}
                                                 columnActionsApplied={columnActionsApplied}
                                                 setColumnActionsApplied={setColumnActionsApplied}
+                                                onRenameColumn={onRenameColumn}
                                             />
                                         ))}
                                     </SortableContext>
