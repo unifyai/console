@@ -45,7 +45,6 @@ export function PhotoCustomization({
     } = usePhotoCreator(
         assistantActions.photo, 
         onNewFileReady,
-        onNewVideoReady, 
         PHOTO_OPERATION_COST,
         VIDEO_ANIMATION_COST,
         selectedVoice
@@ -158,7 +157,7 @@ export function PhotoCustomization({
                             onChange={(e) => setTtsPrompt(e.target.value)}
                             className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
                             disabled={disabled || isProcessing}
-                            maxLength={200} // Example length
+                            maxLength={100}
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-xs text-muted-foreground px-1">
@@ -179,7 +178,7 @@ export function PhotoCustomization({
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                        <p>{!currentImageUrl ? "An existing photo is needed to animate" : !selectedVoice ? "A voice must be selected to generate audio" : "Animate photo using TTS prompt"}</p>
+                                        <p>{!currentImageUrl ? "An existing photo is needed to animate" : !selectedVoice ? "A voice must be selected to generate audio" : "Animate photo using"}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>

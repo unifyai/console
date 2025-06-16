@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { toast } from 'sonner';
-import { AssistantActions, PhotoCreationResponse, VoiceOption } from '@/types/team/assistant';
+import { AssistantActions, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 
 const fetchBalance = async (): Promise<number> => {
@@ -21,7 +21,6 @@ const fetchBalance = async (): Promise<number> => {
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
     onNewFileReady: (file: File) => void,
-    onNewVideoReady: (url: string) => void,
     photoOperationCost: number,
     videoAnimationCost: number,
     selectedVoice: VoiceOption | null,
@@ -224,9 +223,19 @@ export function usePhotoCreator(
             if ((result as ResponseProps).detail) {
                 throw new Error((result as ResponseProps).detail);
             }
-            const videoUrl = (result as { info: string }).info; // Backend returns { info: "video_url" }
+            const remoteVideoUrl = (result as VideoAnimationResponse).video_url; 
 
-            onNewVideoReady(videoUrl); // Update RHF form state with the new video URL
+            // 4. Download the animated video and pass it as a File object
+            toast.loading("Processing animated video...", { id: toastId });
+            const videoFetchResponse = await fetch(remoteVideoUrl);
+            if (!videoFetchResponse.ok) throw new Error(`Failed to download the animated video from ${remoteVideoUrl}. Status: ${videoFetchResponse.status}`);
+            
+            const videoBlob = await videoFetchResponse.blob();
+            const videoFilename = remoteVideoUrl.substring(remoteVideoUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
+            const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
+
+            onNewFileReady(newVideoFile); // This updates imageFile and imagePreview (to a blob URL for the video)
+
             setTtsPrompt(''); // Clear TTS prompt
             toast.success("Photo animated successfully!", { id: toastId });
 
