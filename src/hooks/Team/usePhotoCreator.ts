@@ -148,7 +148,7 @@ export function usePhotoCreator(
             toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
-            toast.error(`Photo editing failed. ${error.message}`, { id: toastId });
+            toast.error(`Photo editing failed.`, { id: toastId });
             console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
@@ -221,7 +221,7 @@ export function usePhotoCreator(
             // 3. Call animate action
             const result = await photoActions.animate(formData);
             if ((result as ResponseProps).detail) {
-                throw new Error((result as ResponseProps).detail);
+                throw result;
             }
             const remoteVideoUrl = (result as VideoAnimationResponse).video_url; 
 
@@ -240,7 +240,11 @@ export function usePhotoCreator(
             toast.success("Photo animated successfully!", { id: toastId });
 
         } catch (error: any) {
-            toast.error(`Photo animation failed`, { id: toastId });
+            if (error && typeof error === 'object' && 'detail' in error && 'status' in error && error.status === 503) {
+                toast.error("Photo animation failed. The service is currently overloaded, please try again in a few minutes.", { id: toastId });
+            } else {
+                toast.error("Photo animation failed.", { id: toastId });
+            }
             console.error("[usePhotoCreator] animate error:", error);
         } finally {
             setIsProcessing(false);

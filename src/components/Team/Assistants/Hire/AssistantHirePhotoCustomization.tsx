@@ -120,7 +120,7 @@ export function PhotoCustomization({
 
                                         </TooltipTrigger>
                                         <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                            <p>{!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo using prompt"}</p>
+                                            <p>{!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo"}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -139,7 +139,7 @@ export function PhotoCustomization({
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                            <p>{"Generate a new photo from prompt"}</p>
+                                            <p>{"Generate new photo"}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -152,12 +152,12 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="tts-prompt"
-                            placeholder="Enter text for the animation's audio..."
+                            placeholder="Hi there! How can i help you today?"
                             value={ttsPrompt}
                             onChange={(e) => setTtsPrompt(e.target.value)}
                             className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
                             disabled={disabled || isProcessing}
-                            maxLength={100}
+                            maxLength={50}
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-xs text-muted-foreground px-1">
@@ -178,7 +178,7 @@ export function PhotoCustomization({
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                        <p>{!currentImageUrl ? "An existing photo is needed to animate" : !selectedVoice ? "A voice must be selected to generate audio" : "Animate photo using"}</p>
+                                        <p>{!currentImageUrl ? "An existing photo is needed to animate" : !selectedVoice ? "A voice must be selected to generate audio" : "Animate photo"}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>

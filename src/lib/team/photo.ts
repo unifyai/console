@@ -211,7 +211,7 @@ export const animatePhoto = async (apiKey: string) => {
             });
             const data = await response.json(); // This is { info: "video_url" }
             if (!response.ok) {
-                return { detail: data.detail || `Failed to animate video: ${response.statusText}` };
+                return { detail: data.detail || `Failed to animate video: ${response.statusText}`, status: response.status };
             }
             // Backend returns { info: "video_url_string" }
             if (data.info && typeof data.info === 'string') {
