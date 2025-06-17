@@ -37,14 +37,16 @@ export default function ColumnRename({
 
   const trigger = renderMode === "menuItem" ? (
     <DropdownMenuItem
-      className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-      onSelect={(e) => {
-        e.preventDefault();
-        setDialogOpen(true);
-      }}
+      className="flex items-center gap-2 cursor-pointer"
+      onSelect={(e) => e.preventDefault()}
     >
-      <Pencil className="h-4 w-4" />
-      <span>Rename Column</span>
+      <div
+        onClick={() => setDialogOpen(true)}
+        className="flex flex-row gap-2 items-center"
+      >
+        <Pencil className="h-4 w-4" />
+        <span>Rename column</span>
+      </div>
     </DropdownMenuItem>
   ) : (
     <ActionButton
