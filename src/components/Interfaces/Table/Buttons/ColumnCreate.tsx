@@ -183,13 +183,14 @@ const ColumnCreate = ({
                 setOpen(false);
 
                 // Add new column next to the previous
+                const newColumnId = previous.includes("Parameters/") ? `Parameters/${key}` : `Entries/${key}`;
                 const newOrder = previousIndex !== -1 
-                    ?   [
-                            ...order.slice(0, previousIndex + 1),
-                            previous.includes("Parameters/") ? `Parameters/${key}` : `Entries/${key}`,
-                            ...order.slice(previousIndex + 1)
-                        ] 
-                    : order;
+                    ? [
+                        ...order.slice(0, previousIndex + 1),
+                        newColumnId,
+                        ...order.slice(previousIndex + 1)
+                      ]
+                    : [...order, newColumnId];
                 setColumnOrder(newOrder);
                 
                 // Set table pending state and use manual refresh

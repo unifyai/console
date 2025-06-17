@@ -673,11 +673,13 @@ const DataTableHeader = ({
                                   )
                               )}
                               {ColumnRename && (
-                                <ColumnRename
-                                  column={header.column}
-                                  onRename={onRenameColumn!}
-                                  renderMode="menuItem"
-                                />
+                                <DropdownMenuItem onSelect={(e)=>e.preventDefault()}>
+                                  <ColumnRename
+                                    column={header.column}
+                                    onRename={onRenameColumn!}
+                                    renderMode="menuItem"
+                                  />
+                                </DropdownMenuItem>
                               )}
                               {ColumnDelete && !isGrouped && ColumnDelete(header.column)}
                             </DropdownMenuGroup>

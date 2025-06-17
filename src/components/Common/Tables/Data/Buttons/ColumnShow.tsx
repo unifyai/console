@@ -74,6 +74,14 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
         return true; // Include unique column
     });
 
+    // Fallback: if util/index column and still no hidden columns, list all currently hidden leaf columns
+    if (isUtilColumn && hiddenColumns.length === 0) {
+        const allHidden = table.getAllLeafColumns()
+            .filter(col => !columnVisibility[col.id] && col.id !== "RowNumbering")
+            .map(col => col.id as string);
+        hiddenColumns.push(...allHidden);
+    }
+
     const displayColumn = (column: string) => {
         const allColumns = table.getAllFlatColumns();
         const columnToShow = allColumns.find((col) => col.columnDef.id === column);
@@ -112,8 +120,13 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
     // Conditions for showing the Plus button
     const shouldShowButton = (() => {
         // Case 1: Leaf headers with columnType "params" or "utils"
-        if (!isParentColumn && (columnType === "params" || columnType === "util")) {
-            return hiddenColumns.length > 0; // Show only if there are hidden columns
+        if (!isParentColumn && columnType === "util") {
+            // Always allow add column from the index column when table is empty
+            return true;
+        }
+
+        if (!isParentColumn && columnType === "params") {
+            return hiddenColumns.length > 0;
         }
 
         // Case 2: Leaf headers with columnType "entries"
@@ -152,15 +165,15 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
                         )}
                     </DropdownMenuGroup>
 
-    const derived = ColumnCreate 
-        ? ColumnCreate(header.column.id, setOpen) 
+    const derived = ColumnCreate && (columnType === "entries" || columnType === "util")
+        ? ColumnCreate(header.column.id, setOpen)
         : null;
     
     return (
         <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton} open={open} setOpen={setOpen} context="tile">
                 {hiddenColumns.length > 0 && hidden}
-                {header.column.columnDef.meta?.columnType === "entries" && derived}
+                {derived}
             </BaseDropdown>
         </div>
     );
