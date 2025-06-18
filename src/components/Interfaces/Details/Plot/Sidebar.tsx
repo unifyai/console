@@ -6,6 +6,7 @@ import { LuPanelLeftOpen, LuPanelRightOpen } from 'react-icons/lu';
 import { Button } from "@/components/UI/button";
 import { Accordion } from "@/components/UI/accordion";
 import Tooltip from "@/components/Common/Misc/Tooltip";
+import { ScrollArea } from '@/components/UI/scroll-area';
 
 import { LogFieldsResponseProps, LogProps } from '@/types/evals/logs';
 import { ContextActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions } from '@/types/evals/grid';
@@ -209,7 +210,7 @@ const PlotSettings = ({
       {/* Settings Content Area */}
       <div className={`flex-1 flex flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 delay-100`}>
         {isOpen && (
-          <>
+          <ScrollArea>
             {/* Scrollable Accordion Section */}
             <div className="flex-1 overflow-y-auto px-1">
               <Accordion type="multiple" defaultValue={defaultAccordionValue} className="w-full px-2">
@@ -347,7 +348,7 @@ const PlotSettings = ({
                 </div>
               )}
             </div>
-          </>
+          </ScrollArea>
         )}
       </div>
 
