@@ -116,7 +116,8 @@ export const drawLineChart = (
   fields: LogFieldsResponseProps,
   zoomRef: any,
   groupByColors: string = "schemeCategory10",
-  interactive: boolean = true
+  interactive: boolean = true,
+  zoomEnabled: boolean = false
 ) => {
 
     // Remove drawings from previous plots
@@ -277,7 +278,7 @@ export const drawLineChart = (
         .attr("width", dimensions.width)
         .attr("height", dimensions.height)
         .style("fill", "none")
-        .style("pointer-events", interactive ? "all" : "none")
+        .style("pointer-events", interactive && zoomEnabled ? "all" : "none")
         .lower();
     zoomContainer.on("wheel", (event) => {
         event.preventDefault();
