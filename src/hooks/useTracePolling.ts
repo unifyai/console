@@ -49,6 +49,7 @@ export function useTracePolling(
             0,                     // offset
             null,                  // group_depth
             null,                  // return_ids_only
+            null,                  // randomize
             Date.now().toString()  // _timestamp for cache busting
           );
 

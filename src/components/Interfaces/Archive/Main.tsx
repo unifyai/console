@@ -220,6 +220,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                 offsets[idx],
                 groupingExpressions[idx] ? 0 : null,
                 null,
+                null,
                 Date.now().toString(),
             );
 
@@ -295,7 +296,7 @@ const Main = async ({ tab, project, projectsActions, logsActions, derivedEntryAc
                         data.logs = convertMetricsToLogs(groupFields, metric ? metric : "mean", fields[tableIdx], metrics as GroupedMetrics)
                     }
                     else {
-                        const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, null, subset, null, null, null, null, null, Date.now().toString());
+                        const rawData = await logsActions.get(currentProject, context ?? null, columnContext ?? null, filterExpression, null, null, null, null, subset, null, null, null, null, null, null, Date.now().toString());
                         data = replaceParamsIndicesWithValues(rawData)    
                     }
 
