@@ -11,7 +11,7 @@ const ColumnResizer = ({column, resizeHandler}: {
       top: 0,
       height: "100%",
       right: 0,
-      width: column.getIsResizing() ? 4 : 15,
+      width: column.getIsResizing() ? 4 : 5,
       zIndex: 10,
       background: column.getIsResizing() ? "var(--primary)" : "rgba(0, 0, 0, 0.5)",
       cursor: "col-resize",
