@@ -34,10 +34,25 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    const url = new URL(request.url);
+    const searchParams = new URLSearchParams(url.search);
+    
+    // Check if this is a template operation
+    const isExportTemplate = searchParams.has('export_template');
+    const isImportTemplate = searchParams.has('import_template');
+    
+    let endpoint = "/tab/";
+    
+    if (isExportTemplate) {
+        endpoint = "/tab/export_template";
+    } else if (isImportTemplate) {
+        endpoint = "/tab/import_template";
+    }
+    
     const body = await request.json();
     // For POST, we always create a new resource, so the endpoint is fixed
     return await fetch(
-        `${baseUrl}/tab/`,
+        `${baseUrl}${endpoint}`,
         {
             method: "POST",
             headers: {

@@ -167,40 +167,17 @@ export interface TabsDataProps {
     }
 }
 
-export interface InterfaceData {
-    id?: string;
-    project_id?: string;
-    name: string;
-    color?: string;
-    active_tab_id?: string;
+// ===== TEMPLATE SCHEMAS =====
+
+// Base Schema interface
+export interface BaseSchema {
+    id: string;
     created_at?: string;
     updated_at?: string;
+    is_checkpoint?: boolean;
 }
 
-export interface TabData {
-    id?: string;
-    interface_id?: string;
-    name: string;
-    visible?: boolean;
-    active?: boolean;
-    order?: number;
-    global_context?: string;
-    color?: string;
-    created_at?: string;
-    updated_at?: string;
-}
-
-export interface TileLayout {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    minW?: number;
-    minH?: number;
-    moved?: boolean;
-    static?: boolean;
-}
-
+// Template Position for tiles in templates
 export interface TilePosition {
     x: number;
     y: number;
@@ -208,36 +185,10 @@ export interface TilePosition {
     height: number;
 }
 
-export interface TileData {
-    id?: string;
-    tab_id?: string;
-    name: string;
-    type: string;
-    position: TilePosition;
-    minW?: number;
-    minH?: number;
-    visible?: boolean;
-    locked?: boolean;
-    color?: string;
-    context?: string;
-    table?: string;
-    auto_update?: string;
-    freeze?: string;
-    filters?: string;
-    common_filter?: string;
-    metric?: string;
-    column_context?: string;
-    grouping?: string;
-    table_tile?: TableTileData;
-    plot_tile?: PlotTileData;
-    view_tile?: ViewTileData;
-    editor_tile?: EditorTileData;
-    terminal_tile?: TerminalTileData;
-    created_at?: string;
-    updated_at?: string;
-}
-
+// Specialized tile schemas (shared between template and non-template)
 export interface TableTileData {
+    id?: string;
+    tile_id?: string;
     table_type?: string;
     limit?: number;
     offset?: number;
@@ -252,6 +203,8 @@ export interface TableTileData {
 }
 
 export interface PlotTileData {
+    id?: string;
+    tile_id?: string;
     plot_type?: string;
     plot_scale_x?: string;
     plot_scale_y?: string;
@@ -265,17 +218,332 @@ export interface PlotTileData {
 }
 
 export interface ViewTileData {
+    id?: string;
+    tile_id?: string;
     base_index?: string;
 }
 
 export interface EditorTileData {
+    id?: string;
+    tile_id?: string;
     file_name?: string;
     file_type?: string;
     content?: string;
 }
 
 export interface TerminalTileData {
+    id?: string;
+    tile_id?: string;
     shell_type?: string;
+}
+
+// Base template schema for tiles with common fields
+export interface BaseTileTemplateSchema {
+    name: string;
+    position: TilePosition;
+    type?: string;
+    minW?: number;
+    minH?: number;
+    visible?: boolean;
+    locked?: boolean;
+    moved?: boolean;
+    static?: boolean;
+    color?: string;
+    context?: string;
+    table?: string;
+    auto_update?: string;
+    freeze?: string;
+    filters?: string;
+    common_filter?: string;
+    metric?: string;
+    column_context?: string;
+    grouping?: string;
+    // Type-specific template data
+    table_tile?: TableTileData;
+    plot_tile?: PlotTileData;
+    view_tile?: ViewTileData;
+    editor_tile?: EditorTileData;
+    terminal_tile?: TerminalTileData;
+}
+
+// Template schema for a detached tile - inherits all fields from base
+export interface TileTemplateSchema extends BaseTileTemplateSchema {
+    // Template-specific metadata
+    template_version?: string;
+    description?: string;
+    created_by?: string;
+    tags?: string[];
+}
+
+// Base tile schema with common fields - extends template base with IDs and timestamps
+export interface BaseTileSchema extends BaseTileTemplateSchema {
+    id?: string;
+    tab_id?: string;
+    created_at?: string;
+    updated_at?: string;
+    is_checkpoint?: boolean;
+}
+
+// Complete Tile schema with type-specific properties - now inherits from base
+export interface TileData extends BaseTileSchema {
+}
+
+// Base template schema for tabs with common fields
+export interface BaseTabTemplateSchema {
+    name: string;
+    visible?: boolean;
+    active?: boolean;
+    order?: number;
+    global_context?: string;
+    color?: string;
+}
+
+// Template schema for a detached tab
+export interface TabTemplateSchema extends BaseTabTemplateSchema {
+    tiles?: TileTemplateSchema[];
+    // Template-specific metadata
+    template_version?: string;
+    description?: string;
+    created_by?: string;
+    tags?: string[];
+}
+
+// Base tab schema with common fields - extends template base with IDs and timestamps
+export interface BaseTabSchema extends BaseTabTemplateSchema {
+    id?: string;
+    interface_id?: string;
+    created_at?: string;
+    updated_at?: string;
+    is_checkpoint?: boolean;
+}
+
+// Complete Tab schema - now inherits from base
+export interface TabData extends BaseTabSchema {
+    tiles?: TileData[];
+}
+
+// Base template schema for interfaces with common fields
+export interface BaseInterfaceTemplateSchema {
+    name: string;
+    color?: string;
+}
+
+// Template schema for a detached interface
+export interface InterfaceTemplateSchema extends BaseInterfaceTemplateSchema {
+    tabs?: TabTemplateSchema[];
+    active_tab_name?: string; // Use name instead of ID for templates
+    // Template-specific metadata
+    template_version?: string;
+    description?: string;
+    created_by?: string;
+    tags?: string[];
+}
+
+// Base interface schema with common fields - extends template base with IDs and timestamps
+export interface BaseInterfaceSchema extends BaseInterfaceTemplateSchema {
+    id?: string;
+    project_id?: string;
+    created_at?: string;
+    updated_at?: string;
+    is_checkpoint?: boolean;
+}
+
+// Complete Interface schema - now inherits from base
+export interface InterfaceData extends BaseInterfaceSchema {
+    tabs?: TabData[];
+    active_tab_id?: string;
+}
+
+// Template schema for multiple interfaces from a project
+export interface ProjectTemplateSchema {
+    interfaces?: InterfaceTemplateSchema[];
+    // Template-specific metadata
+    template_version?: string;
+    description?: string;
+    created_by?: string;
+    tags?: string[];
+}
+
+// Request/response schemas for creating/updating
+export interface CreateTileRequest extends BaseTileTemplateSchema {
+    tile_id?: string;
+    tab_id: string;
+}
+
+export interface UpdateTileRequest {
+    name?: string;
+    position?: TilePosition;
+    type?: string;
+    minW?: number;
+    minH?: number;
+    visible?: boolean;
+    locked?: boolean;
+    moved?: boolean;
+    static?: boolean;
+    color?: string;
+    context?: string;
+    table?: string;
+    auto_update?: string;
+    freeze?: string;
+    filters?: string;
+    common_filter?: string;
+    metric?: string;
+    column_context?: string;
+    grouping?: string;
+    // Type-specific fields
+    table_tile?: TableTileData;
+    plot_tile?: PlotTileData;
+    view_tile?: ViewTileData;
+    editor_tile?: EditorTileData;
+    terminal_tile?: TerminalTileData;
+}
+
+export interface CreateTabRequest extends BaseTabTemplateSchema {
+    tab_id?: string;
+    interface_id: string;
+}
+
+export interface UpdateTabRequest {
+    name?: string;
+    visible?: boolean;
+    active?: boolean;
+    order?: number;
+    global_context?: string;
+    color?: string;
+}
+
+export interface CreateInterfaceRequest extends BaseInterfaceTemplateSchema {
+    interface_id?: string;
+    project: string;
+}
+
+export interface UpdateInterfaceRequest {
+    name?: string;
+    active_tab_id?: string;
+    color?: string;
+}
+
+// Validation schemas
+export interface ValidationIssue {
+    level: string; // "error", "warning", "info"
+    component: string; // "interface", "tab", "tile", "table_tile", etc.
+    component_name: string;
+    issue_type: string; // "missing_context", "missing_table", "missing_column", etc.
+    message: string;
+    suggested_fix?: string;
+}
+
+export interface ValidationResultSchema {
+    is_valid: boolean;
+    issues?: ValidationIssue[];
+    can_sanitize?: boolean;
+    sanitized_template?: ProjectTemplateSchema | InterfaceTemplateSchema | TabTemplateSchema | TileTemplateSchema;
+}
+
+
+// Template export/import request schemas
+export interface ExportTemplateRequest {
+    include_metadata?: boolean;
+    description?: string;
+    tags?: string[];
+    template_name?: string;
+}
+
+export interface ImportTemplateRequest {
+    project: string;
+    validate_first?: boolean;
+    auto_sanitize?: boolean;
+    overwrite_existing?: boolean;
+}
+
+// Specialized export request types
+export interface ExportProjectTemplateRequest extends ExportTemplateRequest {
+    project: string;
+    interface_names?: string[];
+    checkpoint?: boolean;
+}
+
+export interface ExportInterfaceTemplateRequest extends ExportTemplateRequest {
+    interface_id?: string;
+    project?: string;
+    interface_name?: string;
+    checkpoint?: boolean;
+}
+
+export interface ExportTabTemplateRequest extends ExportTemplateRequest {
+    tab_id?: string;
+    interface_id?: string;
+    tab_name?: string;
+    checkpoint?: boolean;
+}
+
+export interface ExportTileTemplateRequest extends ExportTemplateRequest {
+    tile_id?: string;
+    tab_id?: string;
+    tile_name?: string;
+    checkpoint?: boolean;
+}
+
+// Specialized import request types
+export interface ImportProjectTemplateRequest extends ImportTemplateRequest {
+    template: ProjectTemplateSchema;
+    interface_name_prefix?: string;
+}
+
+export interface ImportInterfaceTemplateRequest extends ImportTemplateRequest {
+    template: InterfaceTemplateSchema;
+    new_interface_name?: string;
+}
+
+export interface ImportTabTemplateRequest extends ImportTemplateRequest {
+    template: TabTemplateSchema;
+    interface_id?: string;
+    interface_name?: string;
+    new_tab_name?: string;
+}
+
+export interface ImportTileTemplateRequest extends ImportTemplateRequest {
+    template: TileTemplateSchema;
+    tab_id?: string;
+    interface_id?: string;
+    tab_name?: string;
+    new_tile_name?: string;
+}
+
+// Template response schemas
+export interface TemplateExportResponse<T> {
+    template: T;
+    metadata?: {
+        exported_at?: string;
+        exported_by?: string;
+        source_project?: string;
+        version?: string;
+    };
+    export_stats?: {
+        interfaces?: number;
+        tabs?: number;
+        tiles?: number;
+    }
+}
+
+export interface TemplateImportResponse {
+    success: boolean;
+    validation_result?: ValidationResultSchema;
+    import_stats?: Record<string, any>;
+    created_ids?: Record<string, any>;
+    warnings?: string[];
+    error?: string;
+}
+
+export interface TileLayout {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    minW?: number;
+    minH?: number;
+    moved?: boolean;
+    static?: boolean;
 }
 
 export interface ProjectsActions {
@@ -283,6 +551,8 @@ export interface ProjectsActions {
     create: (name: string) => Promise<ResponseProps>,
     rename: (name: string, newName: string) => Promise<ResponseProps>,
     delete: (name: string) => Promise<ResponseProps>,
+    exportTemplate: (params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }>,
+    importTemplate: (template: ProjectTemplateSchema, options: Omit<ImportProjectTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>
 }
 
 export interface LogsActions {
@@ -339,17 +609,17 @@ export interface GranularInterfaceActions {
     // Unified get method
     get: (params: { interface_id?: string; projectId?: string; name?: string; checkpoint?: boolean }) => Promise<InterfaceData | null>;
     
-    // Create interface (no change, always needs projectId)
+    // Create interface (no change, always needs projectId) - reuses CreateInterfaceRequest
     create: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
     
-    // Update methods
-    updateByName: (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
-    updateById: (interface_id: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint?: boolean) => Promise<InterfaceData>;
+    // Update methods - reuse UpdateInterfaceRequest
+    updateByName: (projectId: string, name: string, data: UpdateInterfaceRequest, checkpoint?: boolean) => Promise<InterfaceData>;
+    updateById: (interface_id: string, data: UpdateInterfaceRequest, checkpoint?: boolean) => Promise<InterfaceData>;
     update: (params: {
         interface_id?: string;
         projectId?: string;
         name?: string;
-        data: { name?: string, active_tab_id?: string, color?: string };
+        data: UpdateInterfaceRequest;
         checkpoint?: boolean;
     }) => Promise<InterfaceData>;
     
@@ -370,6 +640,10 @@ export interface GranularInterfaceActions {
     getCheckpointByName: (projectId: string, name: string) => Promise<InterfaceData>;
     getCheckpointById: (interface_id: string) => Promise<InterfaceData>;
     getCheckpoint: (params: { interface_id?: string; projectId?: string; name?: string }) => Promise<InterfaceData | null>;
+
+    // Template methods - reuse template request/response schemas
+    exportTemplate: (params: Omit<ExportInterfaceTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportInterfaceTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<InterfaceTemplateSchema> | { error: string }>;
+    importTemplate: (template: InterfaceTemplateSchema, options?: Omit<ImportInterfaceTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>;
 }
 
 export interface GranularTabActions {
@@ -385,47 +659,17 @@ export interface GranularTabActions {
     getTabWithTilesById: (id: string, checkpoint?: boolean) => Promise<TabData | null>;
     getTabWithTiles: (params: { id?: string; interface_id?: string; name?: string; checkpoint?: boolean }) => Promise<TabData | null>;
     
-    // Create tab (parent id + name pattern)
-    create: (interface_id: string, name: string, data: {
-        visible?: boolean;
-        active?: boolean;
-        order?: number;
-        global_context?: string;
-        color?: string;
-    },
-    tab_id?: string) => Promise<TabData>;
+    // Create tab (parent id + name pattern) - reuses CreateTabRequest fields
+    create: (interface_id: string, name: string, data: Omit<CreateTabRequest, 'tab_id' | 'interface_id' | 'name'>, tab_id?: string) => Promise<TabData>;
     
-    // Update methods
-    updateByName: (interface_id: string, name: string, data: {
-        name?: string;
-        visible?: boolean;
-        active?: boolean;
-        order?: number;
-        global_context?: string;
-        color?: string;
-    }, checkpoint?: boolean) => Promise<TabData>;
-    
-    updateById: (id: string, data: {
-        name?: string;
-        visible?: boolean;
-        active?: boolean;
-        order?: number;
-        global_context?: string;
-        color?: string;
-    }, checkpoint?: boolean) => Promise<TabData>;
-    
+    // Update methods - reuse UpdateTabRequest
+    updateByName: (interface_id: string, name: string, data: UpdateTabRequest, checkpoint?: boolean) => Promise<TabData>;
+    updateById: (id: string, data: UpdateTabRequest, checkpoint?: boolean) => Promise<TabData>;
     update: (params: {
         id?: string;
         interface_id?: string;
         name?: string;
-        data: {
-            name?: string;
-            visible?: boolean;
-            active?: boolean;
-            order?: number;
-            global_context?: string;
-            color?: string;
-        };
+        data: UpdateTabRequest;
         checkpoint?: boolean;
     }) => Promise<TabData>;
     
@@ -446,6 +690,10 @@ export interface GranularTabActions {
     getCheckpointByName: (interface_id: string, name: string) => Promise<TabData>;
     getCheckpointById: (id: string) => Promise<TabData>;
     getCheckpoint: (params: { id?: string; interface_id?: string; name?: string }) => Promise<TabData | null>;
+
+    // Template methods - reuse template request/response schemas
+    exportTemplate: (params: Omit<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<TabTemplateSchema> | { error: string }>;
+    importTemplate: (template: TabTemplateSchema, params: Pick<ImportTabTemplateRequest, 'interface_id' | 'interface_name'>, options?: Omit<ImportTabTemplateRequest, 'template' | 'interface_id' | 'interface_name'>) => Promise<TemplateImportResponse | { error: string }>;
 }
 
 export interface GranularTileActions {
@@ -456,206 +704,29 @@ export interface GranularTileActions {
     // Unified get method that accepts either ID or tab_id+name
     get: (params: { id?: string; tab_id?: string; name?: string; checkpoint?: boolean }) => Promise<TileData | null>;
     
-    // Create tile (single parent id + name pattern)
-    create: (tab_id: string, name: string, position: TilePosition, data: { 
-        minW?: number;
-        minH?: number;
-        visible?: boolean;
-        locked?: boolean;
-        moved?: boolean;
-        static?: boolean;
-        color?: string;
-        context?: string;
-        table?: string;
-        auto_update?: string;
-        freeze?: string;
-        filters?: string;
-        common_filter?: string;
-        metric?: string;
-        column_context?: string;
-        grouping?: string;
-        table_tile?: TableTileData;
-        plot_tile?: PlotTileData;
-        view_tile?: ViewTileData;
-        editor_tile?: EditorTileData;
-        terminal_tile?: TerminalTileData;
-    },
-    tile_id?: string,
-    type?: string) => Promise<TileData>;
+    // Create tile (single parent id + name pattern) - reuses CreateTileRequest fields
+    create: (tab_id: string, name: string, position: TilePosition, data: Omit<CreateTileRequest, 'tile_id' | 'tab_id' | 'name' | 'position'>, tile_id?: string, type?: string) => Promise<TileData>;
     
-    // Update by name (tab_id + name)
-    updateByName: (tab_id: string, name: string, data: {
-        name?: string;
-        position?: TilePosition;
-        minW?: number;
-        minH?: number;
-        visible?: boolean;
-        locked?: boolean;
-        context?: string;
-        color?: string;
-        table?: string;
-        auto_update?: string;
-        freeze?: string;
-        filters?: string;
-        common_filter?: string;
-        metric?: string;
-        column_context?: string;
-        grouping?: string;
-        table_tile?: TableTileData;
-        plot_tile?: PlotTileData;
-        view_tile?: ViewTileData;
-        editor_tile?: EditorTileData;
-        terminal_tile?: TerminalTileData;
-    }, checkpoint?: boolean) => Promise<TileData>
-    
-    // Update by direct ID
-    updateById: (id: string, data: {
-        name?: string;
-        position?: TilePosition;
-        minW?: number;
-        minH?: number;
-        visible?: boolean;
-        locked?: boolean;
-        color?: string;
-        context?: string;
-        table?: string;
-        auto_update?: string;
-        freeze?: string;
-        filters?: string;
-        common_filter?: string;
-        metric?: string;
-        column_context?: string;
-        grouping?: string;
-        table_tile?: TableTileData;
-        plot_tile?: PlotTileData;
-        view_tile?: ViewTileData;
-        editor_tile?: EditorTileData;
-        terminal_tile?: TerminalTileData;
-    }, checkpoint?: boolean) => Promise<TileData>;
-    
-    // Unified update method that accepts either ID or tab_id+name
+    // Update methods - reuse UpdateTileRequest
+    updateByName: (tab_id: string, name: string, data: UpdateTileRequest, checkpoint?: boolean) => Promise<TileData>;
+    updateById: (id: string, data: UpdateTileRequest, checkpoint?: boolean) => Promise<TileData>;
     update: (params: { 
         id?: string; 
         tab_id?: string; 
         name?: string; 
-        data: {
-            name?: string;
-            position?: TilePosition;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        }, 
+        data: UpdateTileRequest; 
         checkpoint?: boolean 
     }) => Promise<TileData>;
     
-    // Patch methods follow the same pattern as update
-    patchByName: (
-        tab_id: string, 
-        name: string, 
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            color?: string;
-            moved?: boolean;
-            static?: boolean;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        }, 
-        checkpoint?: boolean
-    ) => Promise<TileData>;
-    
-    patchById: (
-        id: string,
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        }, 
-        checkpoint?: boolean
-    ) => Promise<TileData>;
-    
+    // Patch methods - reuse UpdateTileRequest
+    patchByName: (tab_id: string, name: string, updateData: Partial<UpdateTileRequest>, checkpoint?: boolean) => Promise<TileData>;
+    patchById: (id: string, updateData: Partial<UpdateTileRequest>, checkpoint?: boolean) => Promise<TileData>;
     patch: (params: {
         id?: string; 
         tab_id?: string; 
         name?: string;
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
-        checkpoint?: boolean
+        updateData: Partial<UpdateTileRequest>;
+        checkpoint?: boolean;
     }) => Promise<TileData>;
     
     // Specialized patch methods follow the same pattern
@@ -700,6 +771,10 @@ export interface GranularTileActions {
     getCheckpointByName: (tab_id: string, name: string) => Promise<TileData>;
     getCheckpointById: (id: string) => Promise<TileData>;
     getCheckpoint: (params: { id?: string; tab_id?: string; name?: string }) => Promise<TileData | null>;
+
+    // Template methods - reuse template request/response schemas
+    exportTemplate: (params: Omit<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<TileTemplateSchema> | { error: string }>;
+    importTemplate: (template: TileTemplateSchema, params: Pick<ImportTileTemplateRequest, 'tab_id' | 'interface_id' | 'tab_name'>, options?: Omit<ImportTileTemplateRequest, 'template' | 'tab_id' | 'interface_id' | 'tab_name'>) => Promise<TemplateImportResponse | { error: string }>;
 }
 
 export interface FileEntry {
