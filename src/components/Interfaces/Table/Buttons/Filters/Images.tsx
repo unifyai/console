@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { FiltersByColumn } from "@/types/evals/columns";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { Filter, LoaderCircle, Circle, CircleSlash2 } from "lucide-react";
+import { Filter, LoaderCircle, Circle, CircleSlash2, X } from "lucide-react";
 import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
@@ -75,6 +75,8 @@ const ImageColumnFilter = ({
         setIsFiltered(isFiltered);
     }, [isFiltered])
 
+    const baseBtn = <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>;
+
     return (
         renderMode === "menuItem" ? (
             <DropdownMenuItem
@@ -106,7 +108,14 @@ const ImageColumnFilter = ({
                 <span>Filter column</span>
             </DropdownMenuItem>
         ) : (
-            <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>
+            <div className="relative inline-flex group">
+                {baseBtn}
+                {isFiltered && (
+                    <button type="button" onPointerDown={(e)=>e.stopPropagation()} onPointerUp={(e)=>e.stopPropagation()} onClick={(e)=>{e.stopPropagation(); onClick();}} className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-gray-400 text-white opacity-0 group-hover:opacity-100 hover:bg-gray-500 transition-opacity">
+                        <X className="h-2 w-2" />
+                    </button>
+                )}
+            </div>
         )
     );
 }

@@ -6,7 +6,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import BaseButton from "@/components/Common/Buttons/Base";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { KeyboardEventHandler } from "react";
 import { initFilters, combineFilters, defaultRelativeDate, defaultAbsoluteDate, initDefaultDate } from "@/utils/evals/filters";
@@ -128,8 +128,16 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
 
     /* Dialog interactions */
     const close = <BaseButton size="sm" icon={<CircleX/>} onClick={() => setOpen(false)} className="top-0 right-0 scale-60 absolute" variant="warning"/>
+    const baseBtn = <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={isFiltered ? "primary" : undefined} disabled={!interactive || filterLoading} />
     const button = renderMode === "button" ? (
-        <ActionButton icon={filterLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Filter/>} tooltip="Filter" variant={isFiltered ? "primary" : undefined} disabled={!interactive || filterLoading}/>
+        <div className="relative inline-flex group">
+            {baseBtn}
+            {isFiltered && (
+                <button type="button" onPointerDown={(e)=>e.stopPropagation()} onPointerUp={(e)=>e.stopPropagation()} onClick={(e)=>{e.stopPropagation(); onReset();}} className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-gray-400 text-white opacity-0 group-hover:opacity-100 hover:bg-gray-500 transition-opacity">
+                    <X className="h-2 w-2" />
+                </button>
+            )}
+        </div>
     ) : (
         <Filter className="h-4 w-4"/>
     )
