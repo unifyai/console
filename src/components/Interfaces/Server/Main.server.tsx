@@ -147,6 +147,7 @@ export default async function Main({
             interfaceActions={actions.interfaceActions}
             tabActions={actions.tabActions}
             tileActions={actions.tileActions}
+            projectActions={actions.projectsActions}
           />
         </HydrationBoundary>
       </StoreInitializer>

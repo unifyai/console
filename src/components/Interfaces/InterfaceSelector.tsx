@@ -12,9 +12,9 @@ import { Label } from "@/components/UI/label";
 import { Checkbox } from "@/components/UI/checkbox";
 import { Alert, AlertDescription } from "@/components/UI/alert";
 import ListTable from "@/components/Common/Tables/List/Base";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceTemplateSchema, TemplateExportResponse, TemplateImportResponse } from "@/types/evals/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, InterfaceTemplateSchema, TemplateExportResponse, TemplateImportResponse, ProjectsActions } from "@/types/evals/grid";
 import { StateProps, SetStateProps } from "@/types/listTable";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   ExtendedInterfaceData,
   transformInterfacesData, 
@@ -26,12 +26,16 @@ import {
   SkeletonTable, 
   createInterfaceSelectorColumns,
 } from "./InterfaceSelectorTable";
+import { useListInterfacesQuery } from '@/hooks/Query/useInterfacesQuery';
+
+const EMPTY_INTERFACE_DATA: InterfaceData[] = [];
 
 interface InterfaceSelectorProps {
   projectId: string;
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
+  projectActions: ProjectsActions;
 }
 
 export default function InterfaceSelector({
@@ -39,9 +43,12 @@ export default function InterfaceSelector({
   interfaceActions,
   tabActions,
   tileActions,
+  projectActions,
 }: InterfaceSelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const queryClient = useQueryClient();
   
   // Local state for table functionality
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,6 +72,12 @@ export default function InterfaceSelector({
   const [deleteResult, setDeleteResult] = useState<string | null>(null);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   
+  // Custom delete project dialog state
+  const [showDeleteProjectDialog, setShowDeleteProjectDialog] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [deleteProjectResult, setDeleteProjectResult] = useState<string | null>(null);
+  const [showDeleteProjectSuccess, setShowDeleteProjectSuccess] = useState(false);
+  
   // Import dialog state (existing)
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -81,13 +94,7 @@ export default function InterfaceSelector({
   });
 
   // Fetch interfaces for the project
-  const { data: interfaces = [], isLoading, error, isFetching, refetch } = useQuery({
-    queryKey: ["interfaces", projectId, false],
-    queryFn: () => interfaceActions.list(projectId, false),
-    enabled: !!projectId,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchOnWindowFocus: false,
-  });
+  const { data: interfaces = EMPTY_INTERFACE_DATA, isLoading, error, isFetching, refetch } = useListInterfacesQuery(projectId, interfaceActions);
 
   // Transform interfaces data with additional fields using utility function
   const extendedInterfaces: ExtendedInterfaceData[] = useMemo(() => {
@@ -162,8 +169,8 @@ export default function InterfaceSelector({
     setIsCreating(true);
     try {
       const newInterface = await createCompleteDefaultInterface({
+        queryClient,
         project: projectId,
-        existingInterfaces: interfaces,
         interfaceActions,
         tabActions,
         tileActions,
@@ -187,12 +194,13 @@ export default function InterfaceSelector({
     } finally {
       setIsCreating(false);
     }
-  }, [createInterfaceName, validateCreateInterfaceName, projectId, interfaces, interfaceActions, tabActions, tileActions, searchParams, router]);
+  }, [createInterfaceName, validateCreateInterfaceName, projectId, interfaceActions, tabActions, tileActions, searchParams, router]);
 
   // Execute delete interface
   const executeDeleteInterface = useCallback(async () => {
     setIsDeleting(true);
     try {
+      console.log("[InterfaceSelector] Deleting interface:", deleteInterfaceId);
       await interfaceActions.delete({ interface_id: deleteInterfaceId });
       setDeleteResult("Interface deleted successfully!");
       setShowDeleteSuccess(true);
@@ -230,6 +238,43 @@ export default function InterfaceSelector({
       executeDeleteInterface();
     }
   }, [isDeleting, executeDeleteInterface]);
+
+  // Execute delete project
+  const executeDeleteProject = useCallback(async () => {
+    setIsDeletingProject(true);
+    try {
+      console.log("[InterfaceSelector] Deleting project:", projectId);
+      await projectActions.delete(projectId);
+      setDeleteProjectResult("Project deleted successfully!");
+      setShowDeleteProjectSuccess(true);
+      
+      // Navigate back to default project selection after deletion
+      setTimeout(() => {
+        setShowDeleteProjectDialog(false);
+        // Navigate to home or project selection page
+        router.push('/interfaces');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      setDeleteProjectResult("Failed to delete project. Please try again.");
+    } finally {
+      setIsDeletingProject(false);
+    }
+  }, [projectId, projectActions, router]);
+
+  // Handle delete project keyboard events
+  const handleDeleteProjectKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isDeletingProject) {
+      executeDeleteProject();
+    }
+  }, [isDeletingProject, executeDeleteProject]);
+
+  // Handle delete project action
+  const handleDeleteProject = useCallback(() => {
+    setShowDeleteProjectDialog(true);
+    setDeleteProjectResult(null);
+    setShowDeleteProjectSuccess(false);
+  }, []);
 
   // Handle export as template
   const handleExportTemplate = useCallback(async (interfaceId: string, interfaceName: string) => {
@@ -538,6 +583,7 @@ export default function InterfaceSelector({
               <div className="flex gap-2">
                 <Button 
                   onClick={handleCreateInterface}
+                  variant="outline"
                   className="gap-2"
                   disabled={isFetching || isRefetchingAfterImport}
                 >
@@ -552,6 +598,15 @@ export default function InterfaceSelector({
                 >
                   <Upload className="h-4 w-4" />
                   Import from template
+                </Button>
+                <Button 
+                  onClick={handleDeleteProject} 
+                  variant="destructive" 
+                  className="gap-2"
+                  disabled={isFetching || isRefetchingAfterImport}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete project
                 </Button>
               </div>
             </CardTitle>
@@ -893,6 +948,83 @@ export default function InterfaceSelector({
                     <>
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete Interface
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Project Dialog */}
+      <Dialog open={showDeleteProjectDialog} onOpenChange={setShowDeleteProjectDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Project</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the project &quot;{projectId}&quot;? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Delete Success Message */}
+            {showDeleteProjectSuccess && deleteProjectResult && (
+              <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <div className="ml-2">
+                  <div className="font-medium text-green-800 dark:text-green-200">
+                    {deleteProjectResult}
+                  </div>
+                  <div className="text-sm text-green-700 dark:text-green-300 mt-1">
+                    Refreshing project list...
+                  </div>
+                </div>
+              </Alert>
+            )}
+
+            {/* Warning Message - Hidden during success */}
+            {!showDeleteProjectSuccess && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  This will permanently delete the project{interfaces.length > 0 && ` and all ${interfaces.length} interface${interfaces.length !== 1 ? 's' : ''} with their tabs and tiles`}. This action cannot be undone.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error Message */}
+            {deleteProjectResult && !showDeleteProjectSuccess && deleteProjectResult.includes('Failed') && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{deleteProjectResult}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Action Buttons */}
+            {!showDeleteProjectSuccess && (
+              <div className="flex justify-end gap-2 pt-4" onKeyDown={handleDeleteProjectKeyDown}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteProjectDialog(false)}
+                  disabled={isDeletingProject}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={executeDeleteProject}
+                  disabled={isDeletingProject}
+                >
+                  {isDeletingProject ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Project
                     </>
                   )}
                 </Button>
