@@ -213,10 +213,13 @@ async function fetchPlotDataByTable(
           filterExpression, 
           null, null, null, null,
           subset, 
-          null, null, null, null, null, 
+          null, 
+          1000,               // Limit to 1000 detapoints
+          null, null, null,
+          "True",             // Randomize
           Date.now().toString()
         );
-    
+
         data = replaceParamsIndicesWithValues(rawData);
       }
     }

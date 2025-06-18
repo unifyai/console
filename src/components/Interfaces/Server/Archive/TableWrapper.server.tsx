@@ -98,6 +98,7 @@ export default async function TableWrapper({
       offset,
       groupingExpression ? 0 : null,
       null,
+      null,
       Date.now().toString()
     )
   });

@@ -142,7 +142,8 @@ export async function fetchAndBuildTableDataItem(
     offset,
     groupingExpression ? 0 : null,
     null,
-    null 
+    null,
+    null
   );
   const tGetLogsEnd = performance.now();
   console.log(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
