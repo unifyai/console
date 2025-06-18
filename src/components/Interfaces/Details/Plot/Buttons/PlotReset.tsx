@@ -34,6 +34,7 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
             icon={<GrClearOption/>}
             tooltip="Clear plot"
             onClick={onClick}
+            side="left"
         />
     )
 }

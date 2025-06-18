@@ -74,7 +74,7 @@ export function ColorSchemePicker({
         <BasePopover 
             open={isOpen} 
             setOpen={setIsOpen}
-            button={<ActionButton icon={<Palette/>} tooltip={placeholder}/>}
+            button={<ActionButton icon={<Palette/>} tooltip={placeholder} side="left"/>}
         >
             <div className="grid gap-2">
                 {colorSchemes.map((scheme) => (
