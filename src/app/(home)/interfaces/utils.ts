@@ -35,6 +35,8 @@ export async function createInterfaceActions(
     getInterfaceCheckpointByName: Function,
     getInterfaceCheckpointById: Function,
     getInterfaceCheckpointUnified: Function,
+    exportInterfaceAsTemplate: Function,
+    importInterfaceFromTemplate: Function,
     apiKey: string
 ): Promise<GranularInterfaceActions> {
     return {
@@ -54,7 +56,9 @@ export async function createInterfaceActions(
         checkpoint: await createInterfaceCheckpointUnified(apiKey),
         getCheckpointByName: await getInterfaceCheckpointByName(apiKey),
         getCheckpointById: await getInterfaceCheckpointById(apiKey),
-        getCheckpoint: await getInterfaceCheckpointUnified(apiKey)
+        getCheckpoint: await getInterfaceCheckpointUnified(apiKey),
+        exportTemplate: await exportInterfaceAsTemplate(apiKey),
+        importTemplate: await importInterfaceFromTemplate(apiKey)
     };
 }
 
@@ -79,6 +83,8 @@ export async function createTabActions(
     getTabCheckpointByName: Function,
     getTabCheckpointById: Function,
     getTabCheckpointUnified: Function,
+    exportTabAsTemplate: Function,
+    importTabFromTemplate: Function,
     apiKey: string
 ): Promise<GranularTabActions> {
     return {
@@ -101,7 +107,9 @@ export async function createTabActions(
         checkpoint: await createTabCheckpointUnified(apiKey),
         getCheckpointByName: await getTabCheckpointByName(apiKey),
         getCheckpointById: await getTabCheckpointById(apiKey),
-        getCheckpoint: await getTabCheckpointUnified(apiKey)
+        getCheckpoint: await getTabCheckpointUnified(apiKey),
+        exportTemplate: await exportTabAsTemplate(apiKey),
+        importTemplate: await importTabFromTemplate(apiKey)
     };
 }
 
@@ -132,6 +140,8 @@ export async function createTileActions(
     getTileCheckpointByName: Function,
     getTileCheckpointById: Function,
     getTileCheckpointUnified: Function,
+    exportTileAsTemplate: Function,
+    importTileFromTemplate: Function,
     apiKey: string
 ): Promise<GranularTileActions> {
     return {
@@ -157,6 +167,8 @@ export async function createTileActions(
         checkpoint: await createTileCheckpointUnified(apiKey),
         getCheckpointByName: await getTileCheckpointByName(apiKey),
         getCheckpointById: await getTileCheckpointById(apiKey),
-        getCheckpoint: await getTileCheckpointUnified(apiKey)
+        getCheckpoint: await getTileCheckpointUnified(apiKey),
+        exportTemplate: await exportTileAsTemplate(apiKey),
+        importTemplate: await importTileFromTemplate(apiKey)
     };
 }

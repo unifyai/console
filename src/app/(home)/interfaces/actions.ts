@@ -1,10 +1,27 @@
 "use server";
 
-import { TileProps } from "@/types/evals/grid";
+import { InterfaceTemplateSchema, ProjectTemplateSchema, TabTemplateSchema, TileProps, TileTemplateSchema } from "@/types/evals/grid";
 import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/evals/logs";
 import { sanitizeKey } from "./utils";
 import { ResponseProps } from "@/types/common";
-import { TilePosition, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from "@/types/evals/grid";
+import { 
+    TilePosition,
+    UpdateInterfaceRequest, 
+    UpdateTabRequest, 
+    UpdateTileRequest, 
+    CreateTabRequest, 
+    CreateTileRequest,
+    ExportProjectTemplateRequest,
+    ImportProjectTemplateRequest,
+    ExportInterfaceTemplateRequest,
+    ImportInterfaceTemplateRequest,
+    ExportTabTemplateRequest,
+    ImportTabTemplateRequest,
+    ExportTileTemplateRequest,
+    ImportTileTemplateRequest,
+    TemplateImportResponse,
+    TemplateExportResponse
+} from "@/types/evals/grid";
 
 // create project
 export const createProject = async (apiKey: string) => {
@@ -765,7 +782,7 @@ export const createNewInterface = async (apiKey: string) => {
 
 // Update interface by name
 export const updateInterfaceByName = async (apiKey: string) => {
-    return async (projectId: string, name: string, data: { name?: string, active_tab_id?: string, color?: string }, checkpoint: boolean = false) => {
+    return async (projectId: string, name: string, data: UpdateInterfaceRequest, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -789,11 +806,7 @@ export const updateInterfaceByName = async (apiKey: string) => {
 export const updateInterfaceById = async (apiKey: string) => {
     return async (
         interface_id: string,
-        data: {
-            name?: string,
-            active_tab_id?: string,
-            color?: string
-        },
+        data: UpdateInterfaceRequest,
         checkpoint: boolean = false
     ) => {
         "use server";
@@ -821,11 +834,7 @@ export const updateInterfaceUnified = async (apiKey: string) => {
         interface_id?: string; 
         project?: string; 
         name?: string; 
-        data: {
-            name?: string;
-            active_tab_id?: string;
-            color?: string;
-        };
+        data: UpdateInterfaceRequest;
         checkpoint?: boolean;
     }) => {
         "use server";
@@ -1088,14 +1097,7 @@ export const getTabUnified = async (apiKey: string) => {
 
 // Create tab
 export const createTab = async (apiKey: string) => {
-    return async (interface_id: string, name: string, data: {
-        visible?: boolean,
-        active?: boolean,
-        order?: number,
-        global_context?: string,
-        color?: string
-    },
-    tab_id?: string) => {
+    return async (interface_id: string, name: string, data: Omit<CreateTabRequest, 'tab_id' | 'interface_id' | 'name'>, tab_id?: string) => {
         "use server";
 
         const response = await fetch(
@@ -1122,14 +1124,7 @@ export const createTab = async (apiKey: string) => {
 
 // Update tab by name
 export const updateTabByName = async (apiKey: string) => {
-    return async (interface_id: string, name: string, data: {
-        name?: string,
-        visible?: boolean,
-        active?: boolean,
-        order?: number,
-        global_context?: string,
-        color?: string
-    }, checkpoint: boolean = false) => {
+    return async (interface_id: string, name: string, data: UpdateTabRequest, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -1151,14 +1146,7 @@ export const updateTabByName = async (apiKey: string) => {
 
 // Update tab by ID
 export const updateTabById = async (apiKey: string) => {
-    return async (id: string, data: {
-        name?: string,
-        visible?: boolean,
-        active?: boolean,
-        order?: number,
-        global_context?: string,
-        color?: string
-    }, checkpoint: boolean = false) => {
+    return async (id: string, data: UpdateTabRequest, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -1184,14 +1172,7 @@ export const updateTabUnified = async (apiKey: string) => {
         id?: string; 
         interface_id?: string; 
         name?: string; 
-        data: {
-            name?: string;
-            visible?: boolean;
-            active?: boolean;
-            order?: number;
-            global_context?: string;
-            color?: string;
-        };
+        data: UpdateTabRequest;
         checkpoint?: boolean;
     }) => {
         "use server";
@@ -1459,29 +1440,7 @@ export const createTile = async (apiKey: string) => {
         tab_id: string, 
         name: string, 
         position: TilePosition,
-        data: {
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
+        data: Omit<CreateTileRequest, 'tile_id' | 'tab_id' | 'name' | 'position'>,
         tile_id?: string,
         type?: string
     ) => {
@@ -1516,30 +1475,7 @@ export const updateTileByName = async (apiKey: string) => {
     return async (
         tab_id: string,
         name: string,
-        data: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
+        data: UpdateTileRequest,
         checkpoint: boolean = false
     ) => {
         "use server";
@@ -1565,30 +1501,7 @@ export const updateTileByName = async (apiKey: string) => {
 export const updateTileById = async (apiKey: string) => {
     return async (
         id: string,
-        data: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
+        data: UpdateTileRequest,
         checkpoint: boolean = false
     ) => {
         "use server";
@@ -1616,30 +1529,7 @@ export const updateTileUnified = async (apiKey: string) => {
         id?: string; 
         tab_id?: string; 
         name?: string; 
-        data: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        }; 
+        data: UpdateTileRequest; 
         checkpoint?: boolean;
     }) => {
         "use server";
@@ -1667,32 +1557,7 @@ export const patchTileByName = async (apiKey: string) => {
     return async (
         tab_id: string,
         name: string,
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
+        updateData: Partial<UpdateTileRequest>,
         checkpoint: boolean = false
     ) => {
         "use server";
@@ -1718,32 +1583,7 @@ export const patchTileByName = async (apiKey: string) => {
 export const patchTileById = async (apiKey: string) => {
     return async (
         id: string,
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        },
+        updateData: Partial<UpdateTileRequest>,
         checkpoint: boolean = false
     ) => {
         "use server";
@@ -1771,32 +1611,7 @@ export const patchTileUnified = async (apiKey: string) => {
         id?: string; 
         tab_id?: string; 
         name?: string;
-        updateData: {
-            name?: string;
-            position?: TilePosition;
-            type?: string;
-            minW?: number;
-            minH?: number;
-            visible?: boolean;
-            locked?: boolean;
-            moved?: boolean;
-            static?: boolean;
-            color?: string;
-            context?: string;
-            table?: string;
-            auto_update?: string;
-            freeze?: string;
-            filters?: string;
-            common_filter?: string;
-            metric?: string;
-            column_context?: string;
-            grouping?: string;
-            table_tile?: TableTileData;
-            plot_tile?: PlotTileData;
-            view_tile?: ViewTileData;
-            editor_tile?: EditorTileData;
-            terminal_tile?: TerminalTileData;
-        };
+        updateData: Partial<UpdateTileRequest>;
         checkpoint?: boolean;
     }) => {
         "use server";
@@ -2337,4 +2152,302 @@ export const renameFile = async (adminKey: string, userId: string) => {
         return responseJson;
     }
 }
+
+// ===== TEMPLATE ACTIONS =====
+
+// Export project template
+export const exportProjectAsTemplate = async (apiKey: string) => {
+    return async (
+        params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+    ): Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }> => {
+        "use server";
+
+        const requestBody: ExportProjectTemplateRequest = {
+            project: params.project,
+            interface_names: params.interface_names,
+            checkpoint: options?.checkpoint || false,
+            include_metadata: options?.include_metadata !== false,
+            description: options?.description,
+            tags: options?.tags || [],
+            template_name: options?.template_name,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/project?export_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to export project template: ${response.status}` };
+        }
+
+        return await response.json();
+    };
+};
+
+// Import project template
+export const importProjectFromTemplate = async (apiKey: string) => {
+    return async (
+        template: ProjectTemplateSchema,
+        options: Omit<ImportProjectTemplateRequest, 'template'>,
+    ): Promise<TemplateImportResponse | { error: string }> => {
+        "use server";
+
+        const requestBody: ImportProjectTemplateRequest = {
+            project: options.project,
+            template,
+            interface_name_prefix: options.interface_name_prefix,
+            validate_first: options.validate_first || false,
+            auto_sanitize: options.auto_sanitize || false,
+            overwrite_existing: options.overwrite_existing || false,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/project?import_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to import project template: ${response.status}`, success: false };
+        }
+
+        return await response.json();
+    };
+};
+
+// Export interface template
+export const exportInterfaceAsTemplate = async (apiKey: string) => {
+    return async (
+        params: Omit<ExportInterfaceTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        options?: Pick<ExportInterfaceTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+    ): Promise<TemplateExportResponse<InterfaceTemplateSchema> | { error: string }> => {
+        "use server";
+
+        const { interface_id, project, interface_name } = params;
+
+        const requestBody: ExportInterfaceTemplateRequest = {
+            interface_id,
+            project,
+            interface_name,
+            checkpoint: options?.checkpoint || false,
+            include_metadata: options?.include_metadata !== false,
+            description: options?.description,
+            tags: options?.tags || [],
+            template_name: options?.template_name,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface?export_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to export interface template: ${response.status}` };
+        }
+
+        return await response.json();
+    };
+};
+
+// Import interface template
+export const importInterfaceFromTemplate = async (apiKey: string) => {
+    return async (
+        template: InterfaceTemplateSchema,
+        options: Omit<ImportInterfaceTemplateRequest, 'template'>,
+    ): Promise<TemplateImportResponse | { error: string }> => {
+        "use server";
+
+        const requestBody: ImportInterfaceTemplateRequest = {
+            project: options.project,
+            template,
+            new_interface_name: options.new_interface_name,
+            validate_first: options.validate_first || false,
+            auto_sanitize: options.auto_sanitize || false,
+            overwrite_existing: options.overwrite_existing || false,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/interface?import_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to import interface template: ${response.status}`, success: false };
+        }
+
+        return await response.json();
+    };
+};
+
+// Export tab template
+export const exportTabAsTemplate = async (apiKey: string) => {
+    return async (
+        params: Omit<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        options?: Pick<ExportTabTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+    ): Promise<TemplateExportResponse<TabTemplateSchema> | { error: string }> => {
+        "use server";
+
+        const { tab_id, interface_id, tab_name } = params;
+
+        const requestBody: ExportTabTemplateRequest = {
+            tab_id,
+            interface_id,
+            tab_name,
+            checkpoint: options?.checkpoint || false,
+            include_metadata: options?.include_metadata !== false,
+            description: options?.description,
+            tags: options?.tags || [],
+            template_name: options?.template_name,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?export_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to export tab template: ${response.status}` };
+        }
+
+        return await response.json();
+    };
+};
+
+// Import tab template
+export const importTabFromTemplate = async (apiKey: string) => {
+    return async (
+        template: TabTemplateSchema,
+        params: Pick<ImportTabTemplateRequest, 'interface_id' | 'interface_name'>,
+        options: Omit<ImportTabTemplateRequest, 'template' | 'interface_id' | 'interface_name'>,
+    ): Promise<TemplateImportResponse | { error: string }> => {
+        "use server";
+
+        const { interface_id, interface_name } = params;
+
+        const requestBody: ImportTabTemplateRequest = {
+            project: options.project,
+            template,
+            interface_id,
+            interface_name,
+            new_tab_name: options.new_tab_name,
+            validate_first: options.validate_first || false,
+            auto_sanitize: options.auto_sanitize || false,
+            overwrite_existing: options.overwrite_existing || false,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tab?import_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to import tab template: ${response.status}`, success: false };
+        }
+
+        return await response.json();
+    };
+};
+
+// Export tile template
+export const exportTileAsTemplate = async (apiKey: string) => {
+    return async (
+        params: Omit<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        options?: Pick<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+    ): Promise<TemplateExportResponse<TileTemplateSchema> | { error: string }> => {
+        "use server";
+
+        const { tile_id, tab_id, tile_name } = params;
+
+        const requestBody: ExportTileTemplateRequest = {
+            tile_id,
+            tab_id,
+            tile_name,
+            checkpoint: options?.checkpoint || false,
+            include_metadata: options?.include_metadata !== false,
+            description: options?.description,
+            tags: options?.tags || [],
+            template_name: options?.template_name,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?export_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to export tile template: ${response.status}` };
+        }
+
+        return await response.json();
+    };
+};
+
+// Import tile template
+export const importTileFromTemplate = async (apiKey: string) => {
+    return async (
+        template: TileTemplateSchema,
+        params: Pick<ImportTileTemplateRequest, 'tab_id' | 'interface_id' | 'tab_name'>,
+        options: Omit<ImportTileTemplateRequest, 'template' | 'tab_id' | 'interface_id' | 'tab_name'>
+    ): Promise<TemplateImportResponse | { error: string }> => {
+        "use server";
+
+        const { tab_id, interface_id, tab_name } = params;
+
+        const requestBody: ImportTileTemplateRequest = {
+            project: options.project,
+            template,
+            tab_id,
+            interface_id,
+            tab_name,
+            new_tile_name: options.new_tile_name,
+            validate_first: options.validate_first || false,
+            auto_sanitize: options.auto_sanitize || false,
+            overwrite_existing: options.overwrite_existing || false,
+        };
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/tile?import_template`,
+            {
+                method: "POST",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(requestBody),
+            }
+        );
+
+        if (!response.ok) {
+            return { error: `Failed to import tile template: ${response.status}`, success: false };
+        }
+
+        return await response.json();
+    };
+};
 

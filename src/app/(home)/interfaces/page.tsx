@@ -80,6 +80,15 @@ import {
     getTileCheckpointByName,
     getInterfaceCheckpointById,
     getTileCheckpointById,
+    // Template actions
+    exportProjectAsTemplate,
+    importProjectFromTemplate,
+    exportInterfaceAsTemplate,
+    importInterfaceFromTemplate,
+    exportTabAsTemplate,
+    importTabFromTemplate,
+    exportTileAsTemplate,
+    importTileFromTemplate,
     // file helpers
     listFiles,
     readFile,
@@ -115,7 +124,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         get: await getProjects(apiKey),
         create: await createProject(apiKey),
         rename: await renameProject(apiKey),
-        delete: await deleteProject(apiKey)
+        delete: await deleteProject(apiKey),
+        exportTemplate: await exportProjectAsTemplate(apiKey),
+        importTemplate: await importProjectFromTemplate(apiKey)
     };
 
     const logsActions = {
@@ -185,6 +196,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         getInterfaceCheckpointByName,
         getInterfaceCheckpointById,
         getInterfaceCheckpointUnified,
+        exportInterfaceAsTemplate,
+        importInterfaceFromTemplate,
         apiKey
     );
 
@@ -206,6 +219,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         getTabCheckpointByName,
         getTabCheckpointById,
         getTabCheckpointUnified,
+        exportTabAsTemplate,
+        importTabFromTemplate,
         apiKey
     );
 
@@ -233,6 +248,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
         getTileCheckpointByName,
         getTileCheckpointById,
         getTileCheckpointUnified,
+        exportTileAsTemplate,
+        importTileFromTemplate,
         apiKey
     );
 
