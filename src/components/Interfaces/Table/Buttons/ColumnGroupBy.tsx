@@ -1,5 +1,4 @@
-import { Filter, Group, LoaderCircle } from "lucide-react";
-import { Ungroup } from "lucide-react";
+import { Filter, Group, LoaderCircle, X, Ungroup } from "lucide-react";
 import { Column, ColumnSort } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { getAllChildColumns, isAllChildrenGrouped } from "@/utils/evals/columnOperations";
@@ -113,7 +112,17 @@ const ColumnGroupBy = (({
                 <span>{isParentColumn ? "Group children columns" : "Group column"}</span>
             </DropdownMenuItem>
         ) : (
-            <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
+            <div className="relative inline-flex group">
+              <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
+              {isGrouped && (
+                <button
+                  onClick={onClick}
+                  className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-gray-400 text-white opacity-0 group-hover:opacity-100 hover:bg-gray-500 transition-opacity"
+                >
+                  <X className="h-2 w-2" />
+                </button>
+              )}
+            </div>
         )
     );
 

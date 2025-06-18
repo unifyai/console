@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Column } from "@tanstack/react-table";
-import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle } from "lucide-react";
+import { SortDesc, SortAsc, ArrowUpDown, LoaderCircle, X } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
@@ -46,19 +46,47 @@ const ColumnSort = (({
         {direction === "asc" ? <span>Sort ascending</span> : <span>Sort descending</span>}
     </DropdownMenuItem>
 
-    /* Undo sorting button */
-    const tooltip = "Undo sorting";
-    const icon = sortLoading 
-        ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> 
-        : sorting === "desc" ? <SortDesc/> : <SortAsc/>
+    /* Toggle & clear sorting buttons */
+    const tooltip = sorting ? (sorting === "asc" ? "Switch to descending" : "Switch to ascending") : "Sort ascending";
+    const icon = sortLoading
+        ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/>
+        : sorting === "desc" ? <SortDesc/> : <SortAsc/>;
+
     const variant = sorting ? "primary" : undefined;
-    const onButtonClick = () => {
-        column.clearSorting()
-        setSortLoading(true)
-    }
-    const undoButton = <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onButtonClick} disabled={!interactive || sortLoading}/>
-    
-    return (renderMode === "menuItem" ? menuItem : undoButton);
+
+    const handleToggle = () => {
+        if (!sorting) {
+            column.toggleSorting(false); // start with asc
+        } else if (sorting === "asc") {
+            column.toggleSorting(true); // switch to desc
+        } else if (sorting === "desc") {
+            column.toggleSorting(false); // switch back to asc
+        }
+        setSortLoading(true);
+    };
+
+    const handleClear = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        column.clearSorting();
+        setSortLoading(true);
+    };
+
+    const sortButton = (
+      <div className="relative inline-flex group">
+        <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={handleToggle} disabled={!interactive || sortLoading}/>
+        {sorting && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-gray-400 text-white opacity-0 group-hover:opacity-100 hover:bg-gray-500 transition-opacity"
+          >
+            <X className="h-2 w-2" />
+          </button>
+        )}
+      </div>
+    );
+
+    return renderMode === "menuItem" ? menuItem : sortButton;
 
 });
 
