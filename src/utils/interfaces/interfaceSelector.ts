@@ -6,7 +6,7 @@ import {
   TabData 
 } from "@/types/evals/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
-import getQueryClient from "@/app/getQueryClient";
+import { QueryClient } from "@tanstack/react-query";
 
 // Extended interface data with additional fields for the table
 export interface ExtendedInterfaceData extends InterfaceData {
@@ -188,7 +188,6 @@ async function createDefaultTiles(
 /**
  * Create a complete default interface with tab and tiles
  * @param project - Project ID
- * @param existingInterfaces - Array of existing interfaces to avoid name conflicts
  * @param interfaceActions - Interface actions instance
  * @param tabActions - Tab actions instance
  * @param tileActions - Tile actions instance
@@ -196,21 +195,20 @@ async function createDefaultTiles(
  * @returns The created interface data
  */
 export async function createCompleteDefaultInterface({
+  queryClient,
   project,
-  existingInterfaces,
   interfaceActions,
   tabActions,
   tileActions,
   baseName,
 }: {
+  queryClient: QueryClient;
   project: string;
-  existingInterfaces: InterfaceData[];
   interfaceActions: GranularInterfaceActions;
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   baseName?: string;
 }): Promise<InterfaceData | null> {
-  const qc = getQueryClient();
   
   try {
     // Find a unique name for the interface
@@ -224,7 +222,7 @@ export async function createCompleteDefaultInterface({
     }
 
     // Cache the new interface immediately
-    qc.setQueryData<InterfaceData[]>(
+    queryClient.setQueryData<InterfaceData[]>(
       ["interfaces", project, false],
       (old) => upsert(old, newInterface) as InterfaceData[],
     );
@@ -238,7 +236,7 @@ export async function createCompleteDefaultInterface({
     }
 
     // Keep cache in sync
-    qc.setQueryData<TabData[]>(
+    queryClient.setQueryData<TabData[]>(
       ["tabs", newInterface.id],
       (old) => upsert(old, newTab) as TabData[],
     );
@@ -258,7 +256,7 @@ export async function createCompleteDefaultInterface({
       active_tab_id: newTab.id,
     };
     
-    qc.setQueryData<InterfaceData[]>(
+    queryClient.setQueryData<InterfaceData[]>(
       ["interfaces", project, false],
       (old) => upsert(old, updatedInterface) as InterfaceData[],
     );
