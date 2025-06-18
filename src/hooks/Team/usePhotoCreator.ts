@@ -241,7 +241,7 @@ export function usePhotoCreator(
 
         } catch (error: any) {
             if (error && typeof error === 'object' && 'detail' in error && 'status' in error && error.status === 503) {
-                toast.error("Photo animation failed. The service is currently overloaded, please try again in a few minutes.", { id: toastId });
+                toast.warning("The service is currently overloaded, please try again in a few minutes.", { id: toastId });
             } else {
                 toast.error("Photo animation failed.", { id: toastId });
             }
