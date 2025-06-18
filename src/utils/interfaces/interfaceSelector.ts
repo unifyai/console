@@ -1,0 +1,271 @@
+import { InterfaceData } from "@/types/evals/grid";
+import { 
+  GranularInterfaceActions, 
+  GranularTabActions, 
+  GranularTileActions,
+  TabData 
+} from "@/types/evals/grid";
+import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
+import getQueryClient from "@/app/getQueryClient";
+
+// Extended interface data with additional fields for the table
+export interface ExtendedInterfaceData extends InterfaceData {
+  tags: string[];
+}
+
+/**
+ * Transform interfaces data with additional fields needed for the table
+ * @param interfaces - Raw interface data from API
+ * @returns Extended interface data with computed fields
+ */
+export function transformInterfacesData(
+  interfaces: InterfaceData[]
+): ExtendedInterfaceData[] {
+  return interfaces.map(iface => {
+    return {
+      ...iface,
+      tags: ['Default', 'Production'], // Placeholder tags - replace with actual logic
+    };
+  });
+}
+
+/**
+ * Filter interfaces based on search query
+ * @param interfaces - Extended interface data
+ * @param searchQuery - Search string
+ * @returns Filtered interfaces
+ */
+export function filterInterfaces(
+  interfaces: ExtendedInterfaceData[],
+  searchQuery: string
+): ExtendedInterfaceData[] {
+  if (!searchQuery.trim()) return interfaces;
+  
+  const query = searchQuery.toLowerCase();
+  return interfaces.filter(iface => 
+    iface.id?.toLowerCase().includes(query) ||
+    iface.name.toLowerCase().includes(query) ||
+    iface.tags.some(tag => tag.toLowerCase().includes(query))
+  );
+}
+
+/**
+ * Create URL for interface navigation
+ * @param searchParams - Current URL search parameters
+ * @param interfaceName - Name of the interface to navigate to
+ * @returns New URL string
+ */
+export function createInterfaceUrl(
+  searchParams: URLSearchParams,
+  interfaceName: string
+): string {
+  const currentParams = new URLSearchParams(searchParams.toString());
+  currentParams.set('interface', interfaceName);
+  return `/interfaces?${currentParams.toString()}`;
+}
+
+/**
+ * Generate placeholder tags for an interface (replace with actual logic)
+ * @param interfaceData - Interface data
+ * @returns Array of tag strings
+ */
+export function generateInterfaceTags(interfaceData: InterfaceData): string[] {
+  // TODO: Replace with actual tag logic based on interface properties
+  const tags: string[] = [];
+  
+  // Example logic based on interface properties
+  if (interfaceData.created_at) {
+    const createdDate = new Date(interfaceData.created_at);
+    const isRecent = Date.now() - createdDate.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
+    if (isRecent) tags.push('Recent');
+  }
+  
+  // Add default tags
+  tags.push('Production', 'Analysis');
+  
+  return tags;
+}
+
+/**
+ * Find a unique interface name by appending numbers if needed
+ * @param baseName - Base name to start with
+ * @param existingInterfaces - Array of existing interfaces
+ * @returns A unique interface name
+ */
+export function findUniqueInterfaceName(
+  baseName: string,
+  existingInterfaces: InterfaceData[]
+): string {
+  const existingNames = existingInterfaces.map(iface => iface.name.toLowerCase());
+  
+  // If the base name is not taken, use it
+  if (!existingNames.includes(baseName.toLowerCase())) {
+    return baseName;
+  }
+  
+  // Find the next available number
+  let counter = 1;
+  let candidateName = `${baseName}${counter}`;
+  
+  while (existingNames.includes(candidateName.toLowerCase())) {
+    counter++;
+    candidateName = `${baseName}${counter}`;
+  }
+  
+  return candidateName;
+}
+
+/**
+ * Utility helper for updating query cache
+ */
+const upsert = <T>(
+  arr: T[] | undefined,
+  item: T,
+): T[] => {
+  if (!arr) return [item];
+  const idx = arr.findIndex((i) => (i as any).id === (item as any).id);
+  if (idx === -1) return [...arr, item];
+  const clone = [...arr];
+  clone[idx] = item;
+  return clone;
+};
+
+/**
+ * Create default tiles for a tab
+ * @param tabId - ID of the tab to create tiles for
+ * @param tileActions - Tile actions instance
+ */
+async function createDefaultTiles(
+  tabId: string, 
+  tileActions: GranularTileActions
+): Promise<void> {
+  try {
+    for (const tile of defaultTiles) {
+      const { name, type, position, ...tileProps } = tile;
+
+      // Handle specialized tile data
+      const specializedData: {
+        table_tile?: typeof tile.table_tile;
+        plot_tile?: typeof tile.plot_tile;
+        view_tile?: typeof tile.view_tile;
+        editor_tile?: typeof tile.editor_tile;
+        terminal_tile?: typeof tile.terminal_tile;
+      } = {};
+      
+      if (tile.table_tile) specializedData.table_tile = tile.table_tile;
+      if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
+      if (tile.view_tile) specializedData.view_tile = tile.view_tile;
+      if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
+      if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
+      
+      // Remove specialized data and server-generated props from tileProps to avoid duplication
+      const { 
+        table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
+        id, tab_id, created_at, updated_at, ...restTileProps 
+      } = tileProps;
+      
+      // Prepare tile data with all available properties
+      const tileData = {
+        ...restTileProps,
+        ...specializedData
+      };
+      
+      await tileActions.create(
+        tabId, 
+        name, 
+        position, 
+        tileData,
+        undefined, // tile_id
+        type
+      );
+    }
+  } catch (error) {
+    console.error("[createDefaultTiles] Failed to create default tiles:", error);
+    throw error;
+  }
+}
+
+/**
+ * Create a complete default interface with tab and tiles
+ * @param project - Project ID
+ * @param existingInterfaces - Array of existing interfaces to avoid name conflicts
+ * @param interfaceActions - Interface actions instance
+ * @param tabActions - Tab actions instance
+ * @param tileActions - Tile actions instance
+ * @param baseName - Optional base name for the interface (defaults to defaultInterface.name)
+ * @returns The created interface data
+ */
+export async function createCompleteDefaultInterface({
+  project,
+  existingInterfaces,
+  interfaceActions,
+  tabActions,
+  tileActions,
+  baseName,
+}: {
+  project: string;
+  existingInterfaces: InterfaceData[];
+  interfaceActions: GranularInterfaceActions;
+  tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
+  baseName?: string;
+}): Promise<InterfaceData | null> {
+  const qc = getQueryClient();
+  
+  try {
+    // Find a unique name for the interface
+    const interfaceName = baseName || defaultInterface.name;
+
+    // Create the interface
+    const newInterface = await interfaceActions.create(project, interfaceName);
+    
+    if (!newInterface || !newInterface.id) {
+      throw new Error('Failed to create interface');
+    }
+
+    // Cache the new interface immediately
+    qc.setQueryData<InterfaceData[]>(
+      ["interfaces", project, false],
+      (old) => upsert(old, newInterface) as InterfaceData[],
+    );
+
+    // Create the default tab
+    const { name: tabName, ...tabProps } = defaultTab;
+    const newTab = await tabActions.create(newInterface.id, tabName, tabProps);
+
+    if (!newTab || !newTab.id) {
+      throw new Error('Failed to create default tab');
+    }
+
+    // Keep cache in sync
+    qc.setQueryData<TabData[]>(
+      ["tabs", newInterface.id],
+      (old) => upsert(old, newTab) as TabData[],
+    );
+
+    // Create default tiles for the new tab
+    await createDefaultTiles(newTab.id, tileActions);
+
+    // Update interface with active tab id
+    await interfaceActions.update({
+      interface_id: newInterface.id,
+      data: { active_tab_id: newTab.id },
+    });
+
+    // Update cache with active tab id
+    const updatedInterface = {
+      ...newInterface,
+      active_tab_id: newTab.id,
+    };
+    
+    qc.setQueryData<InterfaceData[]>(
+      ["interfaces", project, false],
+      (old) => upsert(old, updatedInterface) as InterfaceData[],
+    );
+
+    return updatedInterface;
+  } catch (error) {
+    console.error("[createCompleteDefaultInterface] Failed to create interface:", error);
+    throw error;
+  }
+}

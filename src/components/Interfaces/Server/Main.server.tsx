@@ -1,9 +1,9 @@
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import Interface from "../Interface";
+import InterfaceSelector from "../InterfaceSelector";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
 import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore, buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
-import { getRedirectUrl } from "@/utils/redirects/getRedirectUrl";
 
 import type {
   ProjectsActions,
@@ -106,21 +106,102 @@ export default async function Main({
     interfaces = qc.getQueryData<InterfaceData[]>(["interfaces", currentProject, false]) || [];
   }
 
+  // **NEW SIMPLIFIED LOGIC**
+  
+  // Case 1: No project selected - continue to Interface.tsx (shows DefaultProject)
+  if (!currentProject) {
+    console.log("[InterfaceWrapper] No project selected, continuing to Interface component");
+    // Continue to Interface.tsx component (will show DefaultProject)
+  }
+  
+  // Case 2: Project selected but no interface - always show InterfaceSelector
+  else if (currentProject && !interface_) {
+    console.log("[InterfaceWrapper] Project selected but no interface, showing InterfaceSelector");
+    
+    // Build minimal state for InterfaceSelector
+    const globalStoreState = buildGlobalStateForStore(
+      projects,
+      currentProject,
+      null,
+    );
+
+    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
+    const projectState = buildProjectStateForStore(
+      currentProject, 
+      currentProject,
+      contexts,
+      interfaceIds,
+      undefined
+    );
+
+    const initialState = {
+      ...globalStoreState,
+      ...projectState,
+    };
+
+    return (
+      <StoreInitializer initialState={initialState}>
+        <HydrationBoundary state={dehydrate(qc)}>
+          <InterfaceSelector
+            projectId={currentProject}
+            interfaceActions={actions.interfaceActions}
+            tabActions={actions.tabActions}
+            tileActions={actions.tileActions}
+          />
+        </HydrationBoundary>
+      </StoreInitializer>
+    );
+  }
+  
+  // Case 3: Both project and interface selected - validate interface exists
+  else if (currentProject && interface_) {
+    const currentInterface = interfaces.find(i => i.name === interface_) || null;
+    
+    if (!currentInterface) {
+      console.log("[InterfaceWrapper] Interface not found, redirecting to remove interface param");
+      // Interface doesn't exist, redirect to remove interface param (will show InterfaceSelector)
+      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}`);
+    }
+    
+    console.log("[InterfaceWrapper] Valid interface found, continuing to Interface component");
+    // Continue to Interface.tsx component with valid interface
+  }
+
+  // **EXISTING FLOW: Continue with normal rendering for Interface component**
+  
   // Get the current interface 
-  // NOTE: interface_ from query params is the NAME, not the ID
   let currentInterface: InterfaceData | null = null;
   
   if (interface_) {
     // Find by name from query param
     currentInterface = interfaces.find(i => i.name === interface_) || null;
-  } else if (interfaces.length > 0) {
-    // Default to first interface if none specified
-    currentInterface = interfaces[0];
+  }
+
+  // Build common state
+  const globalStoreState = buildGlobalStateForStore(
+    projects,
+    currentProject,
+    currentInterface?.id || null,
+  );
+
+  // Build project state
+  let projectState = {};
+  if (currentProject) {
+    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
+    const activeInterfaceId = currentInterface ? currentInterface.id : undefined;
+    
+    projectState = buildProjectStateForStore(
+      currentProject, 
+      currentProject,
+      contexts,
+      interfaceIds,
+      activeInterfaceId
+    );
   }
 
   // Extract key interface properties needed for rendering
-  let interfaceName = ""; // The name to use in query params
-  let interfaceId = ""; // The UUID to use for API calls
+  let interfaceName = "";
+  let interfaceId = "";
   let tabs: TabData[] = [];
 
   if (currentInterface) {
@@ -129,7 +210,6 @@ export default async function Main({
 
     // Only fetch tabs if we have a valid interfaceId
     if (interfaceId) {
-      // Prefetch tabs using the query client - use interfaceId for API calls
       await qc.prefetchQuery({
         queryKey: ["tabs", interfaceId],
         queryFn: () => actions.tabActions.list(interfaceId, false)
@@ -140,67 +220,27 @@ export default async function Main({
     }
   }
 
-  // Check if we need to redirect for project/interface level only
-  // Tab-level redirects will be handled client-side
-  const redirectUrl = await getRedirectUrl({
-    project,
-    interface_,
-    interfaces,
-    currentInterface,
-    tabs,
-    interfaceActions: actions.interfaceActions,
-    tabActions: actions.tabActions,
-    tileActions: actions.tileActions
-  });
-
-  if (redirectUrl) {
-    console.log("[InterfaceWrapper] Redirecting to:", redirectUrl);
-    redirect(redirectUrl);
-  }
-
-  // If we reach here, no redirect is needed - continue with normal rendering
-
-  // Build project state
-  let projectState = {};
-  if (currentProject) {
-    // Create a list of all interface IDs from the fetched interfaces
-    const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
-    
-    // If there's a current interface, set it as the active one
-    const activeInterfaceId = currentInterface ? currentInterface.id : undefined;
-    
-    projectState = buildProjectStateForStore(
-      currentProject, 
-      currentProject, // Use currentProject ID as name for now
-      contexts,
-      interfaceIds, // Use all interface IDs
-      activeInterfaceId
-    );
-  }
-  
-  // Build interface state
-  let interfaceState = {};
+  // Build interface state for the current interface
+  let currentInterfaceState = {};
   if (currentInterface) {
     // Use the active tab id from the interface if available
     const activeTabId = currentInterface.active_tab_id || undefined;
 
-    interfaceState = buildInterfaceStateForStore(
+    currentInterfaceState = buildInterfaceStateForStore(
       currentInterface, 
       activeTabId,
       tabs.map(tab => tab.id || '') || [],
       tabs.map(tab => tab.name || '') || []
     );
   } else if (interface_) {
-    // If we have an interface name but no data yet
-    interfaceState = { activeInterfaceId: interface_ };
+    currentInterfaceState = { activeInterfaceId: interface_ };
   }
 
-  // Build tab and tile state for all tabs - client will determine which is active
+  // Build tab and tile state for all tabs
   let tabState = {};
   let tileState = {};
 
   if (tabs.length > 0 && currentProject && currentInterface) {
-    // Collect all tab data, tiles, and metadata for batch processing
     const allTabData: TabData[] = [];
     const allTileData: TileData[] = [];
     const isActiveFlags: boolean[] = [];
@@ -208,20 +248,17 @@ export default async function Main({
     const tileNamesPerTab: string[][] = [];
     const tabIdsForTiles: string[] = [];
 
-    // Process each tab to collect data
     for (const tab of tabs) {
       const tabId = tab.id || "";
       if (!tabId) continue;
 
       try {
-        // Fetch tiles for each tab - let client determine which data to use
         await qc.prefetchQuery({
           queryKey: ["tiles", tabId],
           queryFn: () => actions.tileActions.list(tabId, undefined, false)
         });
         const tabTiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
         
-        // Collect tab data
         allTabData.push(tab);
 
         if (tabId === currentInterface.active_tab_id) {
@@ -233,7 +270,6 @@ export default async function Main({
         tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
         tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
         
-        // Collect tile data
         tabTiles.forEach(tile => {
           allTileData.push(tile);
           tabIdsForTiles.push(tabId);
@@ -244,19 +280,17 @@ export default async function Main({
       }
     }
 
-    // Build tab state using utility function - handles arrays
     if (allTabData.length > 0) {
       const builtTabState = buildTabStateForStore(
         allTabData,
         isActiveFlags,
-        Array(allTabData.length).fill(interfaceId), // interfaceId for each tab
+        Array(allTabData.length).fill(interfaceId),
         tileIdsPerTab,
         tileNamesPerTab
       );
       Object.assign(tabState, builtTabState);
     }
 
-    // Build tile state using utility function - handles arrays
     if (allTileData.length > 0) {
       const builtTileState = buildTileStateForStore(
         allTileData,
@@ -265,18 +299,12 @@ export default async function Main({
       Object.assign(tileState, builtTileState);
     }
   }
-
-  const globalStoreState = buildGlobalStateForStore(
-    projects,
-    currentProject,
-    interfaceId,
-  );
   
   // Merge states
   const initialState = {
     ...globalStoreState,
     ...projectState,
-    ...interfaceState,
+    ...currentInterfaceState,
     ...tabState,
     ...tileState,
   };
