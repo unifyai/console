@@ -805,9 +805,7 @@ const DataTableHeader = ({
 
       {/* Column resizer – aligned exactly at the border */}
       {header.column.getCanResize() && (
-        <div className="absolute inset-y-0 right-0" style={{ width: '15px' }}>
-          <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
-        </div>
+        <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
       )}
     </TableHead>
   );
