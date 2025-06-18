@@ -341,6 +341,7 @@ export const drawScatterPlot = (
   zoomRef: any,
   groupByColors: string = "schemeCategory10",
   interactive: boolean = true,
+  zoomEnabled: boolean = false
 ) => {
 
     // --- Define containers ---
@@ -644,15 +645,15 @@ export const drawScatterPlot = (
         .attr("width", dimensions.width)
         .attr("height", dimensions.height)
         .on("wheel", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+        event.preventDefault();
+        event.stopPropagation();
         })
         .on('dblclick', () => {
-            zoomRef.current = d3.zoomIdentity;        
-            zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
+        zoomRef.current = d3.zoomIdentity;        
+        zoomContainer.transition("zoom").duration(500).call(zoom.transform as any, d3.zoomIdentity);
         })
         .style("fill", "none")
-        .style("pointer-events", interactive ? "all" : "none")
+        .style("pointer-events", interactive && zoomEnabled ? "all" : "none")
         .lower()
     const zoom = d3
         .zoom()
@@ -781,7 +782,7 @@ export const drawScatterPlot = (
                                 zoomRef.current = finalTransform; // Update ref
 
                                 // 2. Re-attach the zoom listener
-                                zoomContainer.on('zoom', (event) => onZoom(event, zoomRef, containerRef, initialX, initialY, scaleX, scaleY, svg, container, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
+                                    zoomContainer.on('zoom', (event) => onZoom(event, zoomRef, containerRef, initialX, initialY, scaleX, scaleY, svg, container, dimensions, margins, reverseX, reverseY, xAxisProperty, yAxisProperty, xType, yType, xTable, yTable, showRegression, data, fields, g));
 
                                 // 3. Position the tooltip using the final state
                                 // Verify hover state hasn't changed during animation

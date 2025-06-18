@@ -7,7 +7,7 @@ import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { GrClearOption } from "react-icons/gr";
 import * as d3 from "d3";
 
-const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setAggregateProperty, setIsTooltipMinimized}: {
+const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGroupBy, setAggregateProperty, setIsTooltipMinimized, setZoomEnabled}: {
     settingsRef: any,
     svgRef: any,
     containerRef: any,
@@ -15,7 +15,8 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
     setYAxis: ((x: string | undefined) => void) | undefined,
     setGroupBy: ((x: string | undefined) => void) | undefined,
     setAggregateProperty: ((x: string | undefined) => void) | undefined
-    setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>
+    setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>,
+    setZoomEnabled?: ((enabled: boolean) => void) | undefined;
 }) => {
     const settings = d3.select(settingsRef.current)
 
@@ -24,6 +25,7 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
         if (setYAxis) setYAxis(undefined);
         if (setGroupBy) setGroupBy(undefined);
         if (setAggregateProperty) setAggregateProperty(undefined);
+        if (setZoomEnabled) setZoomEnabled(false);
         clearCanvas(svgRef, containerRef);
         clearFixedTooltip(settings, setIsTooltipMinimized);
     };

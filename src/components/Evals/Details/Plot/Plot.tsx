@@ -90,12 +90,13 @@ const LogsPlot = ({ logs, fields}: {
             showRegression,
             zoomRef,
             true,
+            false,
             setIsTooltipMinimized,
             svgRef,
             containerRef,
             setLogScaleXEnabled,
             setLogScaleYEnabled,
-            undefined
+            undefined,
         );
     }, [
         logs,

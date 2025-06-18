@@ -24,6 +24,7 @@ import PlotAggregate from './Buttons/PlotAggregate';
 import PlotRegression from './Buttons/PlotRegression';
 import PlotRefresh from './Buttons/PlotRefresh';
 import PlotReset from './Buttons/PlotReset';
+import PlotZoom from './Buttons/PlotZoom';
 import { ColorSchemePicker } from '@/components/Common/Misc/ColorSchemePicker';
 
 
@@ -51,6 +52,8 @@ const PlotSettings = ({
   groupings,
   aggregateProperty,
   showRegression,
+  zoomEnabled,
+  setZoomEnabled,
   tileId,
   tabId,
   interfaceId,
@@ -112,6 +115,10 @@ const PlotSettings = ({
 
   /* Scatter plot regression line */
   showRegression: string;
+
+  /* Zoom toggle */
+  zoomEnabled: boolean;
+  setZoomEnabled: (enabled: boolean) => void;
 
   /* Refreshing and streaming */
   tileId: string;
@@ -349,11 +356,17 @@ const PlotSettings = ({
          <div className="flex flex-col items-center p-2">
             {showGroupByKey && (
               <ColorSchemePicker
-                placeholder="Select a grouping color scheme"
+              placeholder="Select a grouping color scheme"
                 value={plotTileState?.plot_group_by_colors ?? undefined}
                 onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
-              />
-            )}
+                />
+              )}
+            <PlotZoom
+              interactive={interactive}
+              plotType={plotType}
+              zoomEnabled={zoomEnabled}
+              setZoomEnabled={setZoomEnabled}
+            />
             <PlotRefresh
               tileId={tileId}
               tabId={tabId}
@@ -375,6 +388,7 @@ const PlotSettings = ({
               setGroupBy={setGroupBy}
               setAggregateProperty={setAggregateProperty}
               setIsTooltipMinimized={setIsTooltipMinimized}
+              setZoomEnabled={setZoomEnabled}
             />
          </div>
       )}

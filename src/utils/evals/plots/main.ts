@@ -44,7 +44,7 @@ import { PlotTile } from "@/contexts/slices/selectors/plotTile";
  * @param {string} showRegression - (Scatter Plot specific) Flag ('true'/'false') to control the display of regression lines.
  * @param {any} zoomRef - A React ref object to store and manage the D3 zoom state across re-renders.
  * @param {boolean} interactive - Flag indicating whether interactive features like zoom/pan and tooltips should be enabled.
- * @param {() => void} drawBorders - Function to draw borders around the plot area.
+ * @param {boolean} zoomEnabled - Flag indicating whether zoom/pan is specifically enabled for this plot.
  * @param {(logs: LogProps[], fields: LogFieldsResponseProps, table: string, axisProperty: string, scale: string, setScale: (scale: string) => void, setLogScaleEnabled: (enabled: boolean) => void) => string} checkLogScalability - Function to check if data is suitable for log scale and adjust if needed.
  * @param {(svgRef: React.RefObject<SVGSVGElement>, containerRef: React.RefObject<HTMLDivElement>) => void} clearCanvas - Function to clear the SVG canvas.
  * @param {(settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>, setIsTooltipMinimized: React.Dispatch<React.SetStateAction<boolean>>) => void} clearFixedTooltip - Function to clear/hide the fixed tooltip.
@@ -82,6 +82,7 @@ export const drawPlot = (
     showRegression: string,
     zoomRef: any,
     interactive: boolean,
+    zoomEnabled: boolean,
     setIsTooltipMinimized: React.Dispatch<React.SetStateAction<boolean>>,
     svgRef: React.RefObject<SVGSVGElement>,
     containerRef: React.RefObject<HTMLDivElement>,
@@ -142,7 +143,8 @@ export const drawPlot = (
                     fields,
                     zoomRef,
                     groupByColors,
-                    interactive
+                    interactive,
+                    zoomEnabled
                 );
             } else {
                 clearCanvas(svgRef, containerRef);
@@ -250,6 +252,7 @@ export const drawPlot = (
                     zoomRef,
                     groupByColors,
                     interactive,
+                    zoomEnabled
                 );
             } else {
                 clearCanvas(svgRef, containerRef);

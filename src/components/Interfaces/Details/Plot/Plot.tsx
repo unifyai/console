@@ -146,11 +146,12 @@ const LogsPlot = ({
 
     // Track zoom level and reset when changing plot type or axes
     let zoomRef = useRef(d3.zoomIdentity);
+    const [zoomEnabled, setZoomEnabled] = useState(false);
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
         clearFixedTooltip(settings, setIsTooltipMinimized);
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
-
+ 
     // Draw plot
     useEffect(() => {
         drawPlot(
@@ -178,6 +179,7 @@ const LogsPlot = ({
             showRegression,
             zoomRef,
             interactive,
+            zoomEnabled,
             setIsTooltipMinimized,
             svgRef,
             containerRef,
@@ -202,6 +204,7 @@ const LogsPlot = ({
         showRegression,
         aggregateProperty,
         interactive,
+        zoomEnabled,
         tileUIState?.color,
         plotTileState?.plot_group_by_colors,
         tabUIState?.hoveredLog
@@ -261,6 +264,8 @@ return (
             groupings={groupings}
             aggregateProperty={aggregateProperty}
             showRegression={showRegression}
+            zoomEnabled={zoomEnabled}
+            setZoomEnabled={setZoomEnabled}
             tileId={tileId}
             tabId={tabId}
             interfaceId={interfaceId}
