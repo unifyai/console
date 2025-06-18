@@ -123,13 +123,14 @@ export function useCommand(args: UseCommandArgs) {
         // Use the interfaceActions.list method to fetch interfaces
         const interfacesList = await interfaceActions.list(newProj);
         
-        // If interfaces exist, select the first one
+        // If interfaces exist, don't auto-select - let InterfaceSelector show
         if (interfacesList && interfacesList.length > 0) {
           setDemo(null);
           setTabQueryParam(null);
-          setInterfaceQueryParam(interfacesList[0].name);
+          setInterfaceQueryParam(null); // Don't auto-select interface
           setProject(newProj);
         } else {
+          // No interfaces exist, create default
           setDemo(null);
           setTabQueryParam("tab1");
           setInterfaceQueryParam("interface1");
@@ -137,6 +138,7 @@ export function useCommand(args: UseCommandArgs) {
         }
       } catch (error) {
         console.error("Error fetching interfaces for project", error);
+        // On error, create default
         setDemo(null);
         setTabQueryParam("tab1");
         setInterfaceQueryParam("interface1");
