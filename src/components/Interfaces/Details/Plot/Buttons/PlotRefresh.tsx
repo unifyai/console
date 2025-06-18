@@ -222,6 +222,7 @@ const PlotRefresh = ({
       className="rounded-sm h-8"
       icon={icon}
       tooltip={loading || isFetching ? "Refreshing plot logs.." : tileDataState?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
+      side="left"
       onClick={onManualClick}
       disabled={loading || isFetching || tileDataState?.auto_update === "true"}
     />
@@ -232,6 +233,7 @@ const PlotRefresh = ({
       variant={tileDataState?.auto_update === "true" ? "primary" : "ghost"}
       className="rounded-sm"
       icon={<Power />}
+      side="left"
       tooltip={"Auto refresh every 5s"}
       onClick={onAutoClick}
     />
