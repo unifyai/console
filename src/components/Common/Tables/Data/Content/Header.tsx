@@ -20,6 +20,7 @@ import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
 import ColumnPinner from "../Buttons/ColumnPinner";
 import ColumnRename from "@/components/Interfaces/Table/Buttons/ColumnRename";
+import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize";
 
 // Shadcn UI dropdown
 import {
@@ -801,6 +802,13 @@ const DataTableHeader = ({
 
       {/* Rename dialog */}
       {renameDialog}
+
+      {/* Column resizer – aligned exactly at the border */}
+      {header.column.getCanResize() && (
+        <div className="absolute inset-y-0 right-0" style={{ width: '15px' }}>
+          <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
+        </div>
+      )}
     </TableHead>
   );
 };
