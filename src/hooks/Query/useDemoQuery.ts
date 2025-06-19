@@ -74,6 +74,9 @@ export function useCreateDemoQuery() {
         console.log("[useCreateDemoQuery] Running code...");
         await actions.fileActions.write("demo", { "main.py": code });
         await actions.codeActions.run("demo", "main.py");
+        while (!(await actions.codeActions.get("demo/main.py")).done) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
         console.log("[useCreateDemoQuery] Code ran successfully");
       }
       
