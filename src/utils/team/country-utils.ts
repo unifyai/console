@@ -31,7 +31,7 @@ function getCountryName(countryCode: string, locale: string = 'en'): string | nu
 
 // Function to build availablePhoneCountries from environment variable
 function buildAvailablePhoneCountriesList(): { code: string; name: string; flag: string }[] {
-    const envVar = process.env.TWILIO_AVAILABLE_PHONE_COUNTRIES;
+    const envVar = process.env.NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES;
     let countryList: { code: string; name: string; flag: string }[];
 
     const fallbackData = { code: "US", name: getCountryName("US") || "United States", flag: getFlagEmoji("US") };
@@ -41,12 +41,12 @@ function buildAvailablePhoneCountriesList(): { code: string; name: string; flag:
         const result = codesFromEnv
             .map(code => {
                 if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
-                    console.warn(`[country-utils] Invalid country code format "${code}" from TWILIO_AVAILABLE_PHONE_COUNTRIES. Skipping.`);
+                    console.warn(`[country-utils] Invalid country code format "${code}" from NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES. Skipping.`);
                     return null;
                 }
                 const name = getCountryName(code);
                 if (!name) {
-                    console.warn(`[country-utils] Country code "${code}" from TWILIO_AVAILABLE_PHONE_COUNTRIES not recognized or name not found. Skipping.`);
+                    console.warn(`[country-utils] Country code "${code}" from NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES not recognized or name not found. Skipping.`);
                     return null;
                 }
                 return { code, name, flag: getFlagEmoji(code) };
@@ -56,11 +56,11 @@ function buildAvailablePhoneCountriesList(): { code: string; name: string; flag:
         if (result.length > 0) {
             countryList = result;
         } else {
-            console.warn("[country-utils] TWILIO_AVAILABLE_PHONE_COUNTRIES was set but no valid country codes were resolved. Falling back to default (US only).");
+            console.warn("[country-utils] NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES was set but no valid country codes were resolved. Falling back to default (US only).");
             countryList = [fallbackData];
         }
     } else {
-        console.warn("[country-utils] TWILIO_AVAILABLE_PHONE_COUNTRIES not set or empty. Falling back to default (US only).");
+        console.warn("[country-utils] NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES not set or empty. Falling back to default (US only).");
         countryList = [fallbackData];
     }
     
