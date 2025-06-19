@@ -10,11 +10,13 @@ import { ImageUpload } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon } from 'lucide-react';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe } from 'lucide-react';
 import { DialogDescription } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
+import { availablePhoneCountries, getCountryFlag } from '@/utils/team/country-utils';
 
 
 const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
@@ -46,6 +48,7 @@ export function HireForm({
   const firstName = watch("first_name");
   const surname = watch("surname");
   const rhfEmail = watch("email");
+  const rhfCountry = watch("country");
 
   const [emailLocalPart, setEmailLocalPart] = React.useState('');
 
@@ -256,7 +259,7 @@ export function HireForm({
                           type="tel"
                           placeholder="e.g., +15551234567"
                           {...register("user_phone", {
-                              // Add pattern validation for phone numbers if desired
+                              required: "Your phone number is required.",
                               pattern: {
                                 value: /^\+[1-9]\d{1,14}$/,
                                 message: "Enter a valid international phone number (e.g., +15551234567)"
@@ -265,6 +268,29 @@ export function HireForm({
                       />
                       {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
                   </div>
+                   <div className="col-span-2 sm:col-span-1">
+                        <Label htmlFor="country">Phone Number Country</Label>
+                        <Select
+                            value={rhfCountry}
+                            onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
+                            disabled={isSubmitting}
+                        >
+                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
+                                <div className="flex items-center">
+                                    {rhfCountry && <span className="mr-2">{getCountryFlag(rhfCountry)}</span>}
+                                    <SelectValue placeholder="Select country..." />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availablePhoneCountries.map(country => (
+                                    <SelectItem key={country.code} value={country.code}>
+                                        <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                    </div>
               </div>
               </div>
 

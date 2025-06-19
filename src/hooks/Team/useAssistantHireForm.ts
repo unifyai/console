@@ -5,6 +5,7 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
+import { availablePhoneCountries } from '@/utils/team/country-utils';
 
 const ASSISTANT_ONBOARDING_FEE = 10;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
@@ -18,6 +19,7 @@ export function useAssistantHireForm(
     const defaultVoice = (voicePresetsConstant as Voice[])[0];
     const initialLocalPart = "new-assistant";
     const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
+    const defaultCountry = availablePhoneCountries.find(c => c.code === "US") || availablePhoneCountries[0];
 
     const hireFormMethods = useForm<AssistantFormData>({
         defaultValues: {
@@ -25,6 +27,7 @@ export function useAssistantHireForm(
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
+            country: defaultCountry.code,
             imageFile: null,
             profile_photo_url: null,
             imagePreview: null,
@@ -69,9 +72,9 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
-    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues"]);
+    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues", "country"]);
     React.useEffect(() => {
-        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues] = watchedFields;
+        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues, country] = watchedFields;
     
         if (imageFile) {
             if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
@@ -89,6 +92,7 @@ export function useAssistantHireForm(
             surname === originalValues.surname &&
             age === originalValues.age &&
             region === originalValues.region &&
+            country === originalValues.country &&
             voiceId === originalValues.voice_id;
     
         if (getValues("isPresetPristine") !== isPristine) {
@@ -120,6 +124,7 @@ export function useAssistantHireForm(
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
+        setValue("country", preset.country || defaultCountry.code, { shouldValidate: true });
 
         const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
         const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
@@ -146,6 +151,7 @@ export function useAssistantHireForm(
             age: preset.age,
             region: preset.region ?? '',
             voice_id: presetVoice.voice_id,
+            country: preset.country || defaultCountry.code,
         };
         setValue("presetOriginalValues", originalValues);
         
@@ -167,7 +173,7 @@ export function useAssistantHireForm(
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo]);
+    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, defaultCountry.code]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         const defaultFirstName = values?.first_name || '';
@@ -183,6 +189,7 @@ export function useAssistantHireForm(
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
+            country: values?.country || defaultCountry.code,
             imageFile: null, 
             profile_photo_url: null,
             imagePreview: null,
@@ -222,6 +229,10 @@ export function useAssistantHireForm(
             if (!data.region) {
                 setError("region", { type: "manual", message: "Missing assistant region." });
                 throw new Error("Missing assistant region.");
+            }
+            if (!data.country) {
+                setError("country", {type: "manual", message: "Phone number country is required."});
+                throw new Error("Phone number country is required.");
             }
             const emailValue = data.email;
             if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
@@ -276,7 +287,7 @@ export function useAssistantHireForm(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend as string | null,
                 data.about, data.voice_id, 
-                data.email, data.user_phone
+                data.email, data.user_phone, data.country
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
@@ -295,7 +306,8 @@ export function useAssistantHireForm(
                 hireFormMethods.formState.errors.first_name ||
                 hireFormMethods.formState.errors.surname ||
                 hireFormMethods.formState.errors.about ||
-                hireFormMethods.formState.errors.user_phone
+                hireFormMethods.formState.errors.user_phone ||
+                hireFormMethods.formState.errors.country
             );
 
             if (!isRHFError) {
