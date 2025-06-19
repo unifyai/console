@@ -5,6 +5,7 @@ import { useRef, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useS
 import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
+import { DraggingColumnPinnerState } from "@/types/evals/columns";
 
 import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor, DragStartEvent, DragMoveEvent, DragOverEvent, DragEndEvent, DragCancelEvent } from "@dnd-kit/core";
 import { DndContext, closestCenter } from "@dnd-kit/core";
@@ -34,7 +35,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     error?: string;
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
-    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>) => ReactNode; 
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[]) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
@@ -318,6 +319,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                             resizeMap={resizeMap}
                                                             draggingColumns={state.draggingColumns}
                                                             isAnimating={isAnimating}
+                                                            setDraggingColumnPinner={setState.setDraggingColumnPinner}
                                                         />
                                                         {/* Show skeletons under the expanding row */}
                                                         {expandingRowId === row.id && 
@@ -351,7 +353,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                 ) : (
                                     finalColumns.map((column, index) => (
                                         <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                            {FooterCell && FooterCell(column, resizeMap, table)}
+                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder)}
                                         </SortableContext>
                                     ))
                                 )}
