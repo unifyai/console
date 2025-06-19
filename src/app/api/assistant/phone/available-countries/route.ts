@@ -3,7 +3,8 @@ import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
 
 export async function GET() {
 
-    const envVar = process.env.TWILIO_AVAILABLE_PHONE_COUNTRIES;
+    const envVarName = "TWILIO_AVAILABLE_PHONE_COUNTRIES";
+    const envVar = process.env[envVarName];
     let countryDataList: { code: string; name: string; flag: string }[] = [];
 
     const fallbackData = { code: "US", name: getCountryName("US") || "United States", flag: getCountryFlag("US") };
@@ -13,11 +14,12 @@ export async function GET() {
         const result = codesFromEnv
             .map(code => {
                 if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
-                    // Log on server if needed, but don't expose detailed warnings to client
-                    return null; 
+                    console.warn(`[API /api/assistant/phone/available-countries] Invalid country code format: "${code}"`);
+                    return null;
                 }
                 const name = getCountryName(code);
                 if (!name) {
+                    console.warn(`[API /api/assistant/phone/available-countries] Could not get name for country code: "${code}"`);
                     return null;
                 }
                 return { code, name, flag: getCountryFlag(code) };
@@ -27,15 +29,14 @@ export async function GET() {
         if (result.length > 0) {
             countryDataList = result;
         } else {
-            // Fallback if env var is set but results in an empty valid list
+            console.log(`[API /api/assistant/phone/available-countries] Env var was set but resulted in an empty valid list. Using fallback.`);
             countryDataList = [fallbackData];
         }
     } else {
-        // Fallback if env var is not set or is empty: US only
+        console.log(`[API /api/assistant/phone/available-countries] ${envVarName} is not set or is empty. Using fallback.`);
         countryDataList = [fallbackData];
     }
-    
-    // Sort the final list alphabetically by country name
+
     const sortedCountryDataList = countryDataList.sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json(sortedCountryDataList);
