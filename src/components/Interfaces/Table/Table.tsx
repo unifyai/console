@@ -928,11 +928,16 @@ const LogsTable = ({
                       }}
                     />
                   )}
-                  FooterCell={(column, resizeMap, table) =>
+                  FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
                     <FooterCell
                       column={column}
                       resizeMap={resizeMap}
                       draggingColumns={state.draggingColumns}
+                      draggingColumnPinner={draggingColumnPinner}
+                      setDraggingColumnPinner={setDraggingColumnPinner}
+                      columnPinning={columnPinning}
+                      columnOrder={columnOrder}
+                      table={table}
                     >
                       {
                         column.columnDef.id === indicesTitle

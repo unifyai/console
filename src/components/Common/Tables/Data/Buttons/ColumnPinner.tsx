@@ -1,15 +1,16 @@
 import { Column, Table } from "@tanstack/react-table";
 import { CSSProperties, useState, useEffect, useCallback } from "react";
-import { Hand, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
 import { DraggingColumnPinnerState } from "@/types/evals/columns";
 import { Transform } from "@dnd-kit/utilities";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+import { createPortal } from 'react-dom';
 
 const ColumnPinner = ({
     column,
     table,
-    columnPinning,
+    columnPinning: _columnPinning,
     columnOrder,
     draggingColumnPinner,
     setDraggingColumnPinner,
@@ -25,194 +26,107 @@ const ColumnPinner = ({
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [overlayPosition, setOverlayPosition] = useState<{ left: number; top: number; height: number } | null>(null);
+    const [overlayStartLeft, setOverlayStartLeft] = useState<number>(0);
 
-    const handleDragEnd = () => {
-        setIsDragging(false);
-        setOverlayPosition(null);
-        setDraggingColumnPinner({
-            columnId: null,
-            isPinning: false,
-            direction: null,
-            transform: null
-        });
-        setStartX(0);
-    };
-
-    const getOverlayPosition = useCallback(() => {
-        const currentHeader = document.querySelector(`[data-column-id="${column.id}"]`);
-        const tableElement = currentHeader?.closest(".LogsTable");
-        if (!currentHeader || !tableElement) return null;
-
-        const currentRect = currentHeader.getBoundingClientRect();
+    // Computes table boundaries for overlay (Y-axis only). X comes from columnPositions.
+    const getOverlayMetrics = useCallback(() => {
+        const tableElement = document.querySelector(".LogsTable");
+        if (!tableElement) return null;
         const tableRect = tableElement.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        
-        // Get the footer element and its height
         const footerElement = tableElement.querySelector("tfoot");
         const footerHeight = footerElement?.getBoundingClientRect().height ?? 0;
-        
-        // Calculate the visible portion of the table
-        const tableTop = Math.max(tableRect.top, 0); // Don't go above viewport
-        const tableBottom = Math.min(tableRect.bottom - footerHeight, viewportHeight); // Subtract footer height
+        const viewportHeight = window.innerHeight;
+
+        const tableTop = Math.max(tableRect.top, 0);
+        const tableBottom = Math.min(tableRect.bottom - footerHeight, viewportHeight);
         const visibleHeight = tableBottom - tableTop;
-        
-        return {
-            left: currentRect.right,
-            top: Math.max(currentRect.top, 0), // Start from top of viewport if header is above
-            height: Math.min(visibleHeight, viewportHeight - Math.max(currentRect.top, 0) - footerHeight) // Account for footer
-        };
-    }, [column.id]);
+
+        return { top: tableTop, height: visibleHeight };
+    }, []);
 
     const handleDragStart = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent interference with other drag handlers
-        
-        if (!isDragging) {
-            setIsDragging(true);
-            setStartX(e.clientX);
-            
-            const position = getOverlayPosition();
-            if (position) {
-                setOverlayPosition(position);
-                
-                setDraggingColumnPinner({
-                    columnId: column.id,
-                    isPinning: true,
-                    direction: null,
-                    transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 }
-                });
-            }
-        }
-    }, [column.id, isDragging, setIsDragging, setStartX, getOverlayPosition, setOverlayPosition, setDraggingColumnPinner]);
+        e.stopPropagation();
+
+        if (isDragging) return;
+
+        const metrics = getOverlayMetrics();
+        if (!metrics) return;
+
+        setIsDragging(true);
+        setStartX(e.clientX);
+
+        setOverlayStartLeft(e.clientX);
+        setOverlayPosition({ left: e.clientX, top: metrics.top, height: metrics.height });
+
+        setDraggingColumnPinner({
+            columnId: column.id,
+            isPinning: true,
+            direction: null,
+            transform: { x: 0, y: 0, scaleX: 1, scaleY: 1 },
+        });
+    }, [column.id, getOverlayMetrics, isDragging, setDraggingColumnPinner]);
 
     const nextColumn = getNextLeafColumn(column, columnOrder, table);
     const prevColumn = getPreviousLeafColumn(column, columnOrder, table);
 
-    // Function to check if we're close to a column boundary
-    const isNearColumnBoundary = useCallback((dragDelta: number) => {
-        const nextHeader = nextColumn ? document.querySelector(`[data-column-id="${nextColumn.id}"]`) : null;
-        const prevHeader = prevColumn ? document.querySelector(`[data-column-id="${prevColumn.id}"]`) : null;
-        const currentHeader = document.querySelector(`[data-column-id="${column.id}"]`);
-
-        if (!currentHeader) return false;
-
-        const currentRect = currentHeader.getBoundingClientRect();
-        const threshold = currentRect.width * 0.02; // 2% of column width
-
-        if (dragDelta > 0 && nextHeader) {
-            const nextRect = nextHeader.getBoundingClientRect();
-            return Math.abs(nextRect.right - (currentRect.right + dragDelta)) < threshold;
-        } else if (dragDelta < 0 && prevHeader) {
-            const prevRect = prevHeader.getBoundingClientRect();
-            return Math.abs(prevRect.right - (currentRect.right + dragDelta)) < threshold;
-        }
-
-        return false;
-    }, [column.id, nextColumn, prevColumn]);
-
-    // Simulate overlay animation
-    const simulateOverlayAnimation = useCallback((direction: "left" | "right") => {
-        const currentHeader = document.querySelector(`[data-column-id="${column.id}"]`);
-        const targetHeader = direction === "right" 
-            ? document.querySelector(`[data-column-id="${nextColumn?.id}"]`)
-            : document.querySelector(`[data-column-id="${prevColumn?.id}"]`);
-
-        if (!currentHeader || !targetHeader) return;
-
-        const currentRect = currentHeader.getBoundingClientRect();
-        const targetRect = targetHeader.getBoundingClientRect();
-        const tableElement = currentHeader.closest(".LogsTable");
-        if (!tableElement) return;
-
-        const tableRect = tableElement.getBoundingClientRect();
-
-        setOverlayPosition({
-            left: currentRect.right,
-            top: currentRect.top,
-            height: tableRect.height - (currentRect.top - tableRect.top)
-        });
-
-        // Set pinning state to trigger animation
-        setDraggingColumnPinner({
-            columnId: column.id,
-            isPinning: true,
-            direction,
-            transform: {
-                x: direction === "right" ? targetRect.right - currentRect.right : targetRect.right - currentRect.right,
-                y: 0,
-                scaleX: 1,
-                scaleY: 1
-            }
-        });
-
-        // Clean up after animation
-        setTimeout(() => {
-            if (direction === "right" && nextColumn) {
-                nextColumn.pin("left");
-            } else if (direction === "left" && column.getIsPinned()) {
-                column.pin(false);
-            }
-            handleDragEnd();
-        }, 200);
-    }, [column, nextColumn, prevColumn, handleDragEnd]);
-
     const handleDragMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !draggingColumnPinner.isPinning || !overlayPosition) {
-            return;
-        }
+        if (!isDragging || !overlayPosition) return;
 
         const dragDelta = e.clientX - startX;
 
-        // Check if we're near a column boundary
-        if (isNearColumnBoundary(dragDelta)) {
-            handleDragEnd();
-            return;
-        }
+        setOverlayPosition((prev) =>
+            prev ? { ...prev, left: overlayStartLeft + dragDelta } : null
+        );
 
-        // Update overlay position
-        setOverlayPosition(prev => prev ? {
-            ...prev,
-            left: prev.left + dragDelta
-        } : null);
-
-        const transform: Transform = {
-            x: dragDelta,
-            y: 0,
-            scaleX: 1,
-            scaleY: 1
-        };
-
-        // Get the next/previous leaf columns
-        const nextColumn = getNextLeafColumn(column, columnOrder, table);
-        const prevColumn = getPreviousLeafColumn(column, columnOrder, table);
-
-        // Update pinning state with direction and transform
-        const newdraggingColumnPinner = {
+        const newDragging = {
             ...draggingColumnPinner,
-            direction: dragDelta > 0 ? ("right" as const) : ("left" as const),
-            transform
+            direction: dragDelta >= 0 ? ("right" as const) : ("left" as const),
+            transform: null as Transform | null,
         };
-        setDraggingColumnPinner(newdraggingColumnPinner);
+        setDraggingColumnPinner(newDragging);
+    }, [isDragging, overlayPosition, startX, overlayStartLeft, draggingColumnPinner, setDraggingColumnPinner]);
 
-        // If dragging right and there's a next leaf column that isn't pinned
-        if (dragDelta > 50 && nextColumn && !nextColumn.getIsPinned()) {
-            // Add the next column to pinned columns
-            const currentPinned = columnPinning.left || [];
-            if (!currentPinned.includes(nextColumn.id as string)) {
-                nextColumn.pin("left")
-                // Update start position after pinning
-                setStartX(e.clientX);
+    const commitPinChanges = useCallback((finalLeft: number) => {
+        const leafs: Column<any, unknown>[] = (table as any).getVisibleLeafColumns?.() ?? (table as any).getLeafColumns?.() ?? [];
+
+        if (draggingColumnPinner.direction === "right") {
+            // Pin only the immediate next column to the right
+            const next = getNextLeafColumn(column, columnOrder, table);
+            if (next && !next.getIsPinned()) {
+              next.pin("left");
+            }
+        } else if (draggingColumnPinner.direction === "left") {
+            // Unpin only the current column
+            if (column.getIsPinned()) {
+              column.pin(false);
             }
         }
-        // If dragging left and current column is pinned and there's a previous leaf column
-        else if (dragDelta < -50 && column.getIsPinned() && prevColumn) {
-            // Only unpin if the previous column is still pinned (maintain contiguous pinned columns)
-            if (prevColumn.getIsPinned()) {
-                column.pin(false)
-                // Update start position after unpinning
-                setStartX(e.clientX);
-            }
+    }, [table, draggingColumnPinner.direction, column.getIsPinned()]);
+
+    // Handle drag end early so it can be referenced before declaration
+    const handleDragEnd = useCallback(() => {
+        if (overlayPosition) {
+            commitPinChanges(overlayPosition.left);
         }
-    }, [column, columnOrder, table, columnPinning, draggingColumnPinner, isDragging, startX, isNearColumnBoundary, setStartX, setDraggingColumnPinner]);
+
+        setIsDragging(false);
+        setOverlayPosition(null);
+        setDraggingColumnPinner({ columnId: null, isPinning: false, direction: null, transform: null });
+        setStartX(0);
+    }, [overlayPosition, commitPinChanges, setDraggingColumnPinner]);
+
+    // Simple click handlers (no animation) for pin/unpin buttons
+    const handleClickUnpin = () => {
+        if (column.getIsPinned()) {
+            column.pin(false);
+        }
+    };
+
+    const handleClickPin = () => {
+        if (nextColumn && !nextColumn.getIsPinned()) {
+            nextColumn.pin("left");
+        }
+    };
 
     // Set up event listeners using useEffect
     useEffect(() => {
@@ -228,6 +142,14 @@ const ColumnPinner = ({
         }
     }, [isDragging, handleDragMove, handleDragEnd]);
 
+    // Update overlay top/height when dragging starts or viewport scrolls
+    useEffect(() => {
+        if (!isDragging) return;
+        const metrics = getOverlayMetrics();
+        if (!metrics) return;
+        setOverlayPosition((prev) => (prev ? { ...prev, top: metrics.top, height: metrics.height } : prev));
+    }, [isDragging, getOverlayMetrics]);
+
     const style: CSSProperties = {
         position: "absolute",
         right: 0,
@@ -240,20 +162,11 @@ const ColumnPinner = ({
         justifyContent: "center",
         background: !isDragging && isHovered ? "var(--primary)" : "transparent",
         opacity: !isDragging && isHovered ? 0.7 : 0,
-        transition: "opacity 0.2s, background 0.2s",
+        transition: isDragging ? undefined : "transform 0.2s ease-out",
         zIndex: 30,
         userSelect: "none",
         touchAction: "none"
     };
-
-    // Show overlay on hover
-    useEffect(() => {
-        if (isDragging) {
-            setOverlayPosition(getOverlayPosition());
-        } else {
-            setOverlayPosition(null);
-        }
-    }, [isDragging, getOverlayPosition]);
 
     return (
         <>
@@ -270,14 +183,13 @@ const ColumnPinner = ({
                             onMouseEnter={() => setIsHovered(true)}
                             onMouseLeave={() => setIsHovered(false)}
                         >
-                            <Hand className="h-4 w-4 opacity-0 hover:opacity-70 transition-opacity" />
                         </div>
                     </TooltipTrigger>
                     <TooltipContent>
                         <div className="flex items-center gap-2">
                             {column.getIsPinned() && prevColumn && (
                                 <button
-                                    onClick={() => simulateOverlayAnimation("left")}
+                                    onClick={handleClickUnpin}
                                     className="hover:bg-muted p-1 rounded flex items-center gap-1"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
@@ -287,7 +199,7 @@ const ColumnPinner = ({
                             <span className="text-muted-foreground">Drag to Pin/Unpin</span>
                             {nextColumn && !nextColumn.getIsPinned() && (
                                 <button
-                                    onClick={() => simulateOverlayAnimation("right")}
+                                    onClick={handleClickPin}
                                     className="hover:bg-muted p-1 rounded flex items-center gap-1"
                                 >
                                     <span>Pin</span>
@@ -300,7 +212,7 @@ const ColumnPinner = ({
             </TooltipProvider>
             
             {/* Draggable overlay border */}
-            {overlayPosition && (
+            {overlayPosition && createPortal(
                 <div
                     style={{
                         position: "fixed",
@@ -310,13 +222,13 @@ const ColumnPinner = ({
                         width: 4,
                         background: "var(--primary)",
                         opacity: 0.7,
-                        transform: draggingColumnPinner.transform ? `translateX(${draggingColumnPinner.transform.x}px)` : undefined,
-                        transition: "transform 0.2s ease-out",
+                        transition: isDragging ? undefined : "transform 0.2s ease-out",
                         pointerEvents: "none",
-                        zIndex: 1000,
+                        zIndex: 10000,
                         boxShadow: "0 0 4px var(--primary)"
                     }}
-                />
+                />,
+                document.body
             )}
         </>
     );

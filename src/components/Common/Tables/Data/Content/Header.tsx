@@ -765,38 +765,21 @@ const DataTableHeader = ({
           </div>
         )}
 
-        {/* Right edge components stack */}
-        <div className="absolute -right-2 top-0 bottom-0" style={{ width: '15px', height: '100%' }}>
-            {/* Column pinner - top third */}
-            {isLastLeftPinnedColumn && (
-                <div className="absolute top-0 right-0" style={{ height: '33.33%' }}>
-                    <ColumnPinner 
-                        column={header.column}
-                        table={table}
-                        columnPinning={columnPinning}
-                        columnOrder={columnOrder}
-                        draggingColumnPinner={draggingColumnPinner}
-                        setDraggingColumnPinner={setDraggingColumnPinner}
-                    />
-                </div>
-            )}
+        {/* Right edge: Column show icon only */}
+        {!header.isPlaceholder && (
+          <div className="absolute inset-y-0 right-0 flex items-center justify-center" style={{ width: '15px' }}>
+            <ColumnShow
+              table={table}
+              header={header}
+              columnVisibility={columnVisibility}
+              setColumnVisibility={setColumnVisibility}
+              columnOrder={columnOrder}
+              setColumnOrder={setColumnOrder}
+              ColumnCreate={ColumnCreate}
+            />
+          </div>
+        )}
 
-            {/* Column show – always vertically centred */}
-            {!header.isPlaceholder && (
-              <div className="absolute inset-y-0 right-0 flex items-center justify-center" style={{ width: '15px' }}>
-                <ColumnShow
-                  table={table}
-                  header={header}
-                  columnVisibility={columnVisibility}
-                  setColumnVisibility={setColumnVisibility}
-                  columnOrder={columnOrder}
-                  setColumnOrder={setColumnOrder}
-                  ColumnCreate={ColumnCreate}
-                />
-              </div>
-            )}
-
-        </div>
       </div>
       {children}
 
@@ -804,9 +787,12 @@ const DataTableHeader = ({
       {renameDialog}
 
       {/* Column resizer – aligned exactly at the border */}
-      {header.column.getCanResize() && (
-        <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
-      )}
+      {(() => {
+        const showResizer = header.column.getCanResize();
+        return showResizer ? (
+          <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
+        ) : null;
+      })()}
     </TableHead>
   );
 };

@@ -1,23 +1,35 @@
 import { CSSProperties, ReactNode } from "react";
 
-import { Column, Row } from "@tanstack/react-table";
+import { Column, Row, Table as TanTable } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
+import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize";
+import ColumnPinner from "@/components/Common/Tables/Data/Buttons/ColumnPinner";
 
-import { DraggingColumnsState } from "@/types/evals/columns";
+import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/evals/columns";
 
 const FooterCell = ({ 
     column, 
     resizeMap, 
     children, 
     draggingColumns,
+    draggingColumnPinner,
+    setDraggingColumnPinner,
+    columnPinning,
+    columnOrder,
+    table,
 }: { 
     column: Column<any| unknown>,
     resizeMap: { [x: string]: (event: unknown) => void },
     children: ReactNode,
     draggingColumns: DraggingColumnsState;
+    draggingColumnPinner: DraggingColumnPinnerState;
+    setDraggingColumnPinner: (state: DraggingColumnPinnerState) => void;
+    columnPinning: { left?: string[]; right?: string[] };
+    columnOrder: string[];
+    table: TanTable<any>;
 }) => {
     const { isDragging, setNodeRef, transform } = useSortable({id: column.id,});
 
@@ -69,6 +81,8 @@ const FooterCell = ({
             row.subRows.forEach(r => nestedExpand(r, expanded))
     }
 
+    const showResizer = column.getCanResize() && !draggingColumnPinner.isPinning;
+
     return (
         <TableCell 
             style={style}
@@ -78,7 +92,21 @@ const FooterCell = ({
             <div className="font-bold overflow-hidden text-nowrap text-ellipsis ...">
                 {children}
             </div>
+            {/* Pin handle */}
+            {isLastLeftPinnedColumn && (
+              <div className="absolute inset-y-0 right-0" style={{ width: 5 }}>
+                <ColumnPinner
+                  column={column}
+                  table={table}
+                  columnPinning={columnPinning}
+                  columnOrder={columnOrder}
+                  draggingColumnPinner={draggingColumnPinner}
+                  setDraggingColumnPinner={setDraggingColumnPinner}
+                />
+              </div>
+            )}
 
+            {showResizer ? <ColumnResizer column={column} resizeHandler={resizeMap[column.id]} /> : null}
         </TableCell>
     );
 };

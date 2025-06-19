@@ -25,6 +25,7 @@ interface DataTableRowProps<TData extends LogProps | GroupedLogProps> {
     resizeMap: {[x: string]: (event: unknown) => void;};
     draggingColumns: any;
     isAnimating: boolean;
+    setDraggingColumnPinner: (state: any) => void;
 }
 
 export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
@@ -44,7 +45,8 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
     selectedCells,
     resizeMap,
     draggingColumns,
-    isAnimating
+    isAnimating,
+    setDraggingColumnPinner
 }: DataTableRowProps<TData>) {
     const isExpanding = expandingRowId === row.original.id;
     const hasSkeletonSubRows = isExpanding && 'groupCount' in row.original && typeof row.original.groupCount === 'number' && row.original.groupCount > 0 && !row.original.isPopulated;
@@ -57,6 +59,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                         <DataTableCell
                             cell={cell}
                             row={row}
+                            table={table}
                             selectedCells={selectedCells}
                             isCellSelected={isCellSelected}
                             cellSelection={cellSelection}
@@ -70,6 +73,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                             isAnimating={isAnimating}
                             setExpandingRowId={setExpandingRowId}
                             state={state}
+                            setDraggingColumnPinner={setDraggingColumnPinner}
                         />
                     </SortableContext>
                 ))}

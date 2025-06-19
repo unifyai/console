@@ -2,7 +2,7 @@
 
 import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction } from "react";
 
-import { Header, Cell, Row, flexRender } from "@tanstack/react-table";
+import { Header, Cell, Row, Table, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
@@ -11,6 +11,7 @@ import { DraggingColumnsState } from "@/types/evals/columns";
 
 import { CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
+import ColumnPinner from "../Buttons/ColumnPinner";
 import { Skeleton } from "@/components/UI/skeleton";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
@@ -19,6 +20,7 @@ import { StateProps } from "@/types/dataTable";
 const DataTableCell = ({
   cell,
   row,
+  table,
   selectedCells,
   isCellSelected,
   cellSelection,
@@ -33,9 +35,11 @@ const DataTableCell = ({
   setExpandingRowId,
   state,
   children,
+  setDraggingColumnPinner,
 }: {
   cell: Cell<any, unknown>,
   row: Row<any>,
+  table: Table<any>,
   selectedCells: string[],
   isCellSelected: (cell: Cell<any, any>) => boolean,
   cellSelection: {
@@ -55,6 +59,7 @@ const DataTableCell = ({
   setExpandingRowId: (id: string | null) => void,
   state: StateProps,
   children?: ReactNode,
+  setDraggingColumnPinner: (state: any) => void,
 }) => {
   const { isDragging, setNodeRef, transform } = useSortable({
     id: cell.column.id,
@@ -117,7 +122,7 @@ const DataTableCell = ({
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
     height: "21px",
-    minWidth: columnID === "RowNumbering" ? "120px" : undefined,
+    minWidth: undefined,
     maxWidth: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderLeft: columnID === "RowNumbering" ? "1px solid var(--muted)" : undefined,
@@ -198,7 +203,26 @@ const DataTableCell = ({
         }
       </div>
 
-      <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]}/>
+      {(() => {
+        const showResizer = cell.column.getCanResize() && !state.draggingColumnPinner.isPinning;
+        return showResizer ? (
+          <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
+        ) : null;
+      })()}
+
+      {/* Column pin drag handle on last pinned-left column */}
+      {isLastLeftPinnedColumn && (
+        <div className="absolute inset-y-0 right-0" style={{ width: 5 }}>
+          <ColumnPinner
+            column={cell.column}
+            table={table}
+            columnPinning={state.columnPinning}
+            columnOrder={state.columnOrder}
+            draggingColumnPinner={state.draggingColumnPinner}
+            setDraggingColumnPinner={setDraggingColumnPinner}
+          />
+        </div>
+      )}
 
       {ExtraCellContent && isSelectableCell(cell) && ExtraCellContent(cell, isCellExpanded, setExpandedCells)}
 
