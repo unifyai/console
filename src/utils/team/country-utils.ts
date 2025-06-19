@@ -1,5 +1,5 @@
 // Helper to convert country code to flag emoji
-function getFlagEmoji(countryCode: string): string {
+export function getCountryFlag(countryCode: string): string {
     // Ensure countryCode is uppercase and 2 letters
     const code = countryCode.toUpperCase();
     if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
@@ -13,7 +13,7 @@ function getFlagEmoji(countryCode: string): string {
 }
 
 // Function to get country name using Intl.DisplayNames
-function getCountryName(countryCode: string, locale: string = 'en'): string | null {
+export function getCountryName(countryCode: string, locale: string = 'en'): string | null {
     try {
         const displayName = new Intl.DisplayNames([locale], { type: 'region' });
         return displayName.of(countryCode.toUpperCase()) || null;
@@ -27,60 +27,3 @@ function getCountryName(countryCode: string, locale: string = 'en'): string | nu
         return null;
     }
 }
-
-
-// Function to build availablePhoneCountries from environment variable
-function buildAvailablePhoneCountriesList(): { code: string; name: string; flag: string }[] {
-    const envVar = process.env.NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES;
-    let countryList: { code: string; name: string; flag: string }[];
-
-    const fallbackData = { code: "US", name: getCountryName("US") || "United States", flag: getFlagEmoji("US") };
-
-    if (envVar && envVar.trim() !== "") {
-        const codesFromEnv = envVar.split(',').map(code => code.trim().toUpperCase());
-        const result = codesFromEnv
-            .map(code => {
-                if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
-                    console.warn(`[country-utils] Invalid country code format "${code}" from NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES. Skipping.`);
-                    return null;
-                }
-                const name = getCountryName(code);
-                if (!name) {
-                    console.warn(`[country-utils] Country code "${code}" from NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES not recognized or name not found. Skipping.`);
-                    return null;
-                }
-                return { code, name, flag: getFlagEmoji(code) };
-            })
-            .filter(Boolean) as { code: string; name: string; flag: string }[];
-
-        if (result.length > 0) {
-            countryList = result;
-        } else {
-            console.warn("[country-utils] NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES was set but no valid country codes were resolved. Falling back to default (US only).");
-            countryList = [fallbackData];
-        }
-    } else {
-        console.warn("[country-utils] NEXT_PUBLIC_TWILIO_AVAILABLE_PHONE_COUNTRIES not set or empty. Falling back to default (US only).");
-        countryList = [fallbackData];
-    }
-    
-    // Sort the final list alphabetically by country name for consistent display in dropdowns
-    return countryList.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export const availablePhoneCountries = buildAvailablePhoneCountriesList();
-
-export const getCountryFlag = (countryCode: string | undefined): string => {
-    if (!countryCode) return "🏳️";
-    const country = availablePhoneCountries.find(c => c.code === countryCode.toUpperCase());
-    // If not in the dynamic list (e.g. an old assistant with a country no longer in env var),
-    // still try to generate its flag directly.
-    return country ? country.flag : getFlagEmoji(countryCode);
-};
-
-export const getCountryNameByCode = (countryCode: string | undefined): string => {
-    if (!countryCode) return "N/A";
-    const country = availablePhoneCountries.find(c => c.code === countryCode.toUpperCase());
-    // If not in the dynamic list, try to get its name directly.
-    return country ? country.name : (getCountryName(countryCode) || countryCode);
-};

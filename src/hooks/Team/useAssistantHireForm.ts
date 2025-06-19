@@ -5,11 +5,10 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { availablePhoneCountries } from '@/utils/team/country-utils';
-
-const ASSISTANT_ONBOARDING_FEE = 10;
-const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
-
+import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
+import { fetchAvailablePhoneCountries } from '@/lib/team/phone';
+import { AvailablePhoneCountry } from '@/types/team/assistant';
+import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/assistant_creation';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -19,7 +18,8 @@ export function useAssistantHireForm(
     const defaultVoice = (voicePresetsConstant as Voice[])[0];
     const initialLocalPart = "new-assistant";
     const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
-    const defaultCountry = availablePhoneCountries.find(c => c.code === "US") || availablePhoneCountries[0];
+    const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
+    const [isLoadingCountries, setIsLoadingCountries] = React.useState(true);
 
     const hireFormMethods = useForm<AssistantFormData>({
         defaultValues: {
@@ -27,7 +27,7 @@ export function useAssistantHireForm(
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
-            country: defaultCountry.code,
+            country: FALLBACK_DEFAULT_COUNTRY_CODE,
             imageFile: null,
             profile_photo_url: null,
             imagePreview: null,
@@ -43,6 +43,33 @@ export function useAssistantHireForm(
         },
     });
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger, watch } = hireFormMethods;
+
+    React.useEffect(() => {
+        async function loadCountries() {
+            setIsLoadingCountries(true);
+            const countries = await fetchAvailablePhoneCountries();
+            setAvailablePhoneCountries(countries);
+            // Optionally set a default country from the fetched list if needed
+            // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
+            if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                 setValue("country", countries[0].code);
+            } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                // Ensure the default value is set explicitly if it exists
+                setValue("country", FALLBACK_DEFAULT_COUNTRY_CODE);
+            } else if (countries.length === 0) {
+                 // Handle case where no countries are returned (should be at least US from fallback in fetch)
+                 const usName = getCountryName("US") || "United States";
+                 const usFlag = getCountryFlag("US");
+                 setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
+                 setValue("country", "US");
+            }
+            setIsLoadingCountries(false);
+        }
+        if(isHireDialogInitiallyOpen) { // Only fetch if dialog is to be shown
+            loadCountries();
+        }
+    }, [isHireDialogInitiallyOpen, setValue]);
+
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -124,7 +151,9 @@ export function useAssistantHireForm(
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
-        setValue("country", preset.country || defaultCountry.code, { shouldValidate: true });
+        
+        const presetCountryIsValid = availablePhoneCountries.find(c => c.code === preset.country);
+        setValue("country", presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE), { shouldValidate: true });
 
         const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
         const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
@@ -151,9 +180,9 @@ export function useAssistantHireForm(
             age: preset.age,
             region: preset.region ?? '',
             voice_id: presetVoice.voice_id,
-            country: preset.country || defaultCountry.code,
+            country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
         };
-        setValue("presetOriginalValues", originalValues);
+        setValue("presetOriginalValues", originalValues); 
         
         assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname)
             .then(res => {
@@ -173,12 +202,13 @@ export function useAssistantHireForm(
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, defaultCountry.code]);
+    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         const defaultFirstName = values?.first_name || '';
         const defaultSurname = values?.surname || '';
         const defaultLocalPart = (defaultFirstName && defaultSurname) ? `${defaultFirstName}-${defaultSurname}`.toLowerCase().replace(/[^a-z0-9-]/g, '') : 'new-assistant';
+        const initialCountry = values?.country || (availablePhoneCountries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE) ? FALLBACK_DEFAULT_COUNTRY_CODE : availablePhoneCountries[0]?.code);
 
         reset({
             first_name: defaultFirstName,
@@ -189,7 +219,7 @@ export function useAssistantHireForm(
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
-            country: values?.country || defaultCountry.code,
+            country: initialCountry,
             imageFile: null, 
             profile_photo_url: null,
             imagePreview: null,
@@ -204,7 +234,7 @@ export function useAssistantHireForm(
             presetOriginalValues: null,
         });
         setShowInsufficientFundsHint(false);
-    }, [reset, defaultVoice]);
+    }, [reset, defaultVoice, availablePhoneCountries]);
 
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
@@ -266,10 +296,8 @@ export function useAssistantHireForm(
                     throw new Error("Photo uploaded, but GCS URL was not returned.");
                 }
             } else if (data.profile_photo_url) { 
-                // From preset, already a GCS URL
                 finalImageUrlToSend = data.profile_photo_url;
             } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-                // From preset, an external URL
                 finalImageUrlToSend = data.imagePreview;
             }
             if (!data.voice_exists && data.voice_id) {
@@ -325,8 +353,8 @@ export function useAssistantHireForm(
     const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
 
     const initiateHireSequence = async (event?: React.BaseSyntheticEvent) => {
-        if (isSubmitting || isCheckingBalance || isLoadingEmails) {
-            if(isLoadingEmails)
+        if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
+            if(isLoadingEmails || isLoadingCountries)
             return;
         }
 
@@ -401,5 +429,7 @@ export function useAssistantHireForm(
         rhfInternalFormSubmit: RHFSubmitHandler,
         fetchedAssistantEmails,
         isLoadingEmails,
+        availablePhoneCountries,
+        isLoadingCountries,
     };
 }
