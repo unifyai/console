@@ -257,7 +257,7 @@ export function HireForm({
                   </div>
                   <div className="flex flex-col pb-1">
                       <Label htmlFor="email_local_part">Assistant Email</Label>
-                      <div className="flex items-center rounded-md">
+                      <div className="flex items-center rounded-md pt-1.5">
                           <Input
                               id="email_local_part" 
                               type="text"
