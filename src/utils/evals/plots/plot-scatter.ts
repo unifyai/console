@@ -47,51 +47,130 @@ const getTooltipData = (
 }
 
 function onMouseOver (
-    data: LogProps, 
-    xTable: string, 
-    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+    event: MouseEvent,
+    hoveredDatum: LogProps,
+    fields: LogFieldsResponseProps,
+    groupBy: string | undefined,
+    aggregate: string | undefined,
+    xTable: string,
+    yTable: string,
+    selectedXAxisProperty: string | undefined,
+    selectedYAxisProperty: string | undefined,
+    xType: string | undefined,
+    yType: string | undefined,
+    g: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    showRegression: string
 ) {
+    // For hover, get data for the single hoveredDatum
+    const tooltipDataSingle = getTooltipData(
+        hoveredDatum, fields, groupBy, aggregate, xTable, yTable,
+        selectedXAxisProperty, selectedYAxisProperty, xType, yType
+    );
+
+    const template = tooltipTemplate(tooltipDataSingle); // tooltipTemplate expects single
+    tooltip
+        .html(template)
+        .style("opacity", 1);
+    positionTooltipRelativeToPointer(event, tooltip, container);
+
     const containerNode = container.node();
     if (containerNode) {
-        const setHoveredLog = (containerNode as any).__setHoveredLog
-        setHoveredLog((data as LogProps)[`${xTable}.id`])
+        const setHoveredLog = (containerNode as any).__setHoveredLog;
+        setHoveredLog(hoveredDatum[`${xTable}.id`]);
+    }
+
+    // Highlight the single hovered point strongly, dim others
+    const hoveredId = hoveredDatum[`${xTable}.id`];
+
+    g.selectAll<SVGCircleElement, LogProps>("circle.data-point")
+        .transition("hover_effect")
+        .duration(150)
+        .attr("r", d => d[`${xTable}.id`] === hoveredId ? 5 : 3)
+        .style("opacity", d => d[`${xTable}.id`] === hoveredId ? 1 : 0.2);
+
+    if (showRegression === "true") {
+        if (groupBy) {
+            const hoveredGroup = JSON.stringify(getValue(fields, groupBy, hoveredDatum, xTable));
+            g.selectAll("path.best-fit")
+                .style("opacity", (d: any) => d.groupKey === hoveredGroup ? 1 : 0.1);
+            g.selectAll("text.correlation-group")
+                .style("opacity", (d: any) => d.groupKey === hoveredGroup ? 1 : 0.1);
+        } else {
+             g.selectAll("path.best-fit").style("opacity", 1);
+             g.selectAll("text.correlation").style("opacity", 1);
+        }
     }
 }
 
 function onMouseMove(
-    event: any, 
-    tooltip: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    event: any,
+    tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>,
     container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
-) { 
+) {
     positionTooltipRelativeToPointer(event, tooltip, container);
 }
 
 function onMouseOut (
-    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+    g: d3.Selection<d3.BaseType, unknown, null, undefined>,
+    tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined>,
+    container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    showRegression: string
 ) {
+    tooltip.style("opacity", 0);
+    g.selectAll("circle.data-point")
+        .transition("hover_effect_out")
+        .duration(150)
+        .attr("r", 3) // Reset radius
+        .style("opacity", 1); // Reset opacity
+
+     if (showRegression === "true") {
+         g.selectAll("path.best-fit").style("opacity", 1);
+         g.selectAll("text.correlation, text.correlation-group").style("opacity", 1);
+     }
+
     const containerNode = container.node();
     if (containerNode) {
-        const setHoveredLog = (containerNode as any).__setHoveredLog
-        setHoveredLog(undefined)
+        const setHoveredLog = (containerNode as any).__setHoveredLog;
+        setHoveredLog(undefined);
     }
 }
 
 function onClick (
-    event: any,
-    data: LogProps, 
-    fields: LogFieldsResponseProps, 
-    groupBy: string | undefined, 
-    aggregate: string | undefined, 
-    xTable: string, 
-    yTable: string, 
-    selectedXAxisProperty: string | undefined, 
-    selectedYAxisProperty: string | undefined, 
+    event: MouseEvent,
+    clickedDatum: LogProps, // The topmost datum clicked
+    allPlotData: LogProps[], // All data currently in the plot (sampled or full)
+    fields: LogFieldsResponseProps,
+    groupBy: string | undefined,
+    aggregate: string | undefined,
+    xTable: string,
+    yTable: string,
+    selectedXAxisProperty: string | undefined,
+    selectedYAxisProperty: string | undefined,
     xType: string | undefined,
     yType: string | undefined,
-    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    const tooltipData = getTooltipData(data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType)
-    showFixedTooltip(event, tooltipData, settings)
+    const overlappingPoints = findAllPointsAtCoordinates(
+        clickedDatum,
+        allPlotData,
+        fields,
+        selectedXAxisProperty!,
+        selectedYAxisProperty!,
+        xTable,
+        yTable
+    );
+
+    let dataForFixedTooltip: InfoCardData | InfoCardData[];
+    if (overlappingPoints.length > 1) {
+        dataForFixedTooltip = overlappingPoints.map(p =>
+            getTooltipData(p, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType)
+        );
+    } else {
+        dataForFixedTooltip = getTooltipData(clickedDatum, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType);
+    }
+    showFixedTooltip(event, dataForFixedTooltip, settings);
 }
 
 function onZoomStart (
@@ -319,6 +398,42 @@ export function sampleData(arr: any[], size: number) {
     return shuffled.slice(0, size);
 }
 
+/**
+ * Scan through logs data to find all points 
+ * overlapping with the hovered data point.
+ *
+ * @param {LogProps} targetDatum - The hovered log.
+ * @param {LogProps[]} allPlotData - All plotted logs.
+ * @param {LogFieldsResponseProps[]} fields - Log fields containing field metadata.
+ * @param {string} xAxisProperty - The x axis field.
+ * @param {string} yAxisProperty - The y axis field.
+ * @param {string} xTable - The table from which the x axis is populated.
+ * @param {string} yTable - The table from which the y axis is populated.
+ * @returns {LogProps[]} A list of logs corresponding to the overlapping points
+ */
+function findAllPointsAtCoordinates(
+    targetDatum: LogProps,
+    allPlotData: LogProps[],
+    fields: LogFieldsResponseProps,
+    xAxisProperty: string,
+    yAxisProperty: string,
+    xTable: string,
+    yTable: string
+): LogProps[] {
+    const targetX = getValue(fields, xAxisProperty, targetDatum, xTable);
+    const targetY = getValue(fields, yAxisProperty, targetDatum, yTable);
+
+    if (targetX === undefined || targetY === undefined) {
+        return [targetDatum]; // Or empty array if target itself is invalid
+    }
+
+    return allPlotData.filter(p => {
+        const currentX = getValue(fields, xAxisProperty, p, xTable);
+        const currentY = getValue(fields, yAxisProperty, p, yTable);
+        return currentX === targetX && currentY === targetY;
+    });
+}
+
 export const drawScatterPlot = (
   container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
   svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
@@ -347,7 +462,7 @@ export const drawScatterPlot = (
     // --- Define containers ---
     const g = svg.select(".plotData")
     const zoomContainer = svg.select(".zoom-layer")
-    const tooltip = container.select(".plotTooltip").style("opacity", 0)
+    const tooltip = container.select<HTMLDivElement>(".plotTooltip").style("opacity", 0)
 
     // --- Remove drawings from previous plots ---
     g.selectAll("path.line-item").remove();
@@ -442,10 +557,17 @@ export const drawScatterPlot = (
             .attr("r", 3)
             .style("opacity", 0)
             .style("cursor", "pointer")
-            .on("mouseover", (event, data) => onMouseOver(data, xTable, container))
+            .on("mouseover", (event, d_datum) => onMouseOver(
+                event, d_datum, fields, groupBy, aggregate, xTable, yTable,
+                selectedXAxisProperty, selectedYAxisProperty, xType, yType,
+                g, tooltip, container, showRegression
+            ))
             .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
-            .on("mouseout", (event, data) => onMouseOut(container))
-            .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
+            .on("mouseout", (event, d_datum) => onMouseOut(g, tooltip, container, showRegression))
+            .on("click", (event, d_datum) => onClick(
+                event, d_datum, data, fields, groupBy, aggregate, xTable, yTable,
+                selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings
+            ))
             .call(
                 enter => enter.transition("enter").duration(200).style("opacity", 1)),
                 update => update
@@ -466,10 +588,17 @@ export const drawScatterPlot = (
         .data(data)
         .join("circle")
         .style("cursor", "pointer")
-        .on("mouseover", (event, data) => onMouseOver(data, xTable, container))
+        .on("mouseover", (event, d_datum) => onMouseOver(
+            event, d_datum, fields, groupBy, aggregate, xTable, yTable,
+            selectedXAxisProperty, selectedYAxisProperty, xType, yType,
+            g, tooltip, container, showRegression
+        ))
         .on("mousemove", (event, _) => onMouseMove(event, tooltip, container))
-        .on("mouseout", (event, data) => onMouseOut(container))
-        .on("click", (event, data) => onClick(event, data, fields, groupBy, aggregate, xTable, yTable, selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings))
+        .on("mouseout", (event, d_datum) => onMouseOut(g, tooltip, container, showRegression))
+        .on("click", (event, d_datum) => onClick(
+            event, d_datum, data, fields, groupBy, aggregate, xTable, yTable,
+            selectedXAxisProperty, selectedYAxisProperty, xType, yType, settings
+        ))
         .attr("cx", d => x(reverseX ? Math.abs(getValue(fields, xAxisProperty as string, d, xTable) as number) : getValue(fields, xAxisProperty as string, d, xTable) as number))
         .attr("cy", d => y(reverseY ? Math.abs(getValue(fields, yAxisProperty as string, d, yTable) as number) : getValue(fields, yAxisProperty as string, d, yTable) as number))
         .attr("r", 10)
