@@ -1,7 +1,7 @@
 "use client";
 
 import * as d3 from "d3";
-import { GroupingColors, InfoCardData } from "@/types/evals/plot";
+import { InfoCardData } from "@/types/evals/plot";
 import { expandIconSVG, closeIconSVG, copiedIconSVG, copyIconSVG, minimizeIconSVG } from "./common";
 
 /**
@@ -16,21 +16,21 @@ export const tooltipTemplate = (data: InfoCardData) => {
     <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
     <p>${data.y.name}</p>
     <p class="font-bold">${data.y.value}</p>
-    `
+    `;
     if (data.group) {
         const groupTemplate = `
         <p>${data.group.name}</p>
         <p class="font-bold">${data.group.value}</p>
         <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
-        `
-        template = groupTemplate + template
+        `;
+        template = groupTemplate + template;
     }
     if (data.aggregate) {
         const aggregateTemplate = `
         <p>${data.aggregate.name}</p>
         <div style="border-bottom: 1px solid var(--foreground); margin: 4px 0;"></div>
-        `
-        template = aggregateTemplate + template
+        `;
+        template = aggregateTemplate + template;
     }
     // Instructions to pin the tooltip
     template += `
@@ -41,8 +41,8 @@ export const tooltipTemplate = (data: InfoCardData) => {
         </p>
     `;
 
-    return template
-}
+    return template;
+};
 
 /**
  * Renders the content of the fixed tooltip based on the bound datum.
@@ -51,10 +51,10 @@ export const tooltipTemplate = (data: InfoCardData) => {
  * @param settings d3.Selection of the settings panel div (used to access state/setter).
  */
 function renderFixedTooltipContent(
-    container: d3.Selection<HTMLDivElement, InfoCardData | null, null, any>,
+    container: d3.Selection<HTMLDivElement, InfoCardData | InfoCardData[] | null, null, any>,
     settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
 ) {
-    const data = container.datum(); // Get the bound data
+    const data = container.datum(); // Get the bound data (can be single or array)
 
     // Retrieve state and setter from the settings DOM node
     const settingsNode = settings.node();
@@ -71,25 +71,22 @@ function renderFixedTooltipContent(
     container.classed('hidden', false); // Ensure visible
 
     // --- Header Row using Flexbox ---
-    const header = container.append('div')
-        // Use min-h-6 instead of h-6 to allow slight wrapping if needed, keep items centered
-        .attr('class', 'flex justify-between items-center min-h-6 mb-1');
+    const header = container.append('div').attr('class', 'flex justify-between items-center min-h-6 mb-1');
 
     // --- Title ---
     header.append('span')
         .attr('class', `text-xs font-semibold mr-2`)
-        .text('Pinned Datapoint'); // Or just "Tooltip"
+        .text(Array.isArray(data) && data.length > 1 ? `${data.length} Pinned Datapoints` : 'Pinned Datapoint');
 
     // --- Button Group ---
-    const buttonGroup = header.append('div')
-        .attr('class', 'flex items-center gap-1 ml-auto'); // ml-auto pushes this group right
+    const buttonGroup = header.append('div').attr('class', 'flex items-center gap-1 ml-auto');
 
     // --- Add Minimize/Expand Button ---
     if (setIsMinimized) {
         buttonGroup.append('button')
-            .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring') // Tailwind classes
+            .attr('class', 'p-0.5 rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring')
             .attr('aria-label', isMinimized ? 'Expand tooltip' : 'Minimize tooltip')
-            .html(isMinimized ? expandIconSVG : minimizeIconSVG) // Dynamic icon
+            .html(isMinimized ? expandIconSVG : minimizeIconSVG)
             .on('click', (event) => {
                 event.stopPropagation();
                 const newState = !isMinimized;
@@ -124,12 +121,12 @@ function renderFixedTooltipContent(
 
     // --- Content Wrapper (Only add content if NOT minimized) ---
     if (!isMinimized) {
-        const contentWrapper = container.append('div')
-            .attr('class', 'tooltip-content-wrapper flex flex-col gap-1 mt-1'); // Add margin top if content exists
+        const contentWrapper = container.append('div').attr('class', 'tooltip-content-wrapper flex flex-col gap-1 mt-1');
 
-        // Helper function to add an item with a copy button
-        const addItem = (label: string, value?: string | number) => {
-             const itemDiv = contentWrapper.append('div').attr('class', 'flex items-center justify-between gap-2');
+        // Helper function to add an item (label, value, copy button)
+        // It now takes `parent` argument to append to the correct container
+        const addItem = (label: string, value: string | number | undefined, parent: d3.Selection<HTMLDivElement, any, any, any>) => {
+            const itemDiv = parent.append('div').attr('class', 'flex items-center justify-between gap-2');
             const textDiv = itemDiv.append('div').attr('class', 'flex-1 overflow-hidden');
             textDiv.append('p').attr('class', 'text-xs text-muted-foreground truncate').text(label);
             if (value != null) {
@@ -153,23 +150,50 @@ function renderFixedTooltipContent(
                     });
                 });
             } else {
-                itemDiv.append('div').attr('class', 'w-6 shrink-0'); // Placeholder for alignment
-            }
+                    itemDiv.append('div').attr('class', 'w-6 shrink-0'); // Placeholder for alignment
+                 }
         };
 
-        // --- Render Data Items ---
-        if (data.aggregate) {
-            addItem(data.aggregate.name);
-            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
-        }
-        if (data.group) {
-            addItem(data.group.name, data.group.value);
-            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
-        }
-        addItem(data.x.name, data.x.value);
-        if (data.y) {
-            contentWrapper.append('div').attr('class', 'border-b border-border my-1'); // Divider
-            addItem(data.y.name, data.y.value);
+        if (!Array.isArray(data)) { // --- Single item ---
+            if (data.aggregate) { 
+                addItem(data.aggregate.name, undefined, contentWrapper); 
+                contentWrapper.append('div').attr('class', 'border-b border-border my-1'); 
+            }
+            if (data.group) { 
+                addItem(data.group.name, data.group.value, contentWrapper); 
+                contentWrapper.append('div').attr('class', 'border-b border-border my-1'); 
+            }
+            addItem(data.x.name, data.x.value, contentWrapper);
+            if (data.y) { 
+                contentWrapper.append('div').attr('class', 'border-b border-border my-1'); 
+                addItem(data.y.name, data.y.value, contentWrapper); 
+            }
+        } else { // --- Array of items ---
+            const scrollableDiv = contentWrapper.append('div').attr('class', 'max-h-[200px] overflow-y-auto pr-1'); // Removed space-y-2 from here
+
+            data.forEach((item, index) => {
+                // Create a dedicated container for each point's data
+                const pointDataContainer = scrollableDiv.append('div').attr('class', `p-2 rounded border border-dashed border-muted/50 bg-muted/20 ${index > 0 ? 'mt-2' : ''}`); // Add some padding, border, and margin-top for separation
+
+                if (item.aggregate) {
+                    addItem(item.aggregate.name, undefined, pointDataContainer);
+                    // Add a small visual divider if there are more fields for this point
+                    if (item.group || item.x || item.y) {
+                         pointDataContainer.append('div').attr('class', 'border-b border-border/50 my-1 mx-1');
+                    }
+                }
+                if (item.group) {
+                    addItem(item.group.name, item.group.value, pointDataContainer);
+                    if (item.x || item.y) {
+                         pointDataContainer.append('div').attr('class', 'border-b border-border/50 my-1 mx-1');
+                    }
+                }
+                addItem(item.x.name, item.x.value, pointDataContainer);
+                if (item.y) {
+                    pointDataContainer.append('div').attr('class', 'border-b border-border/50 my-1 mx-1');
+                    addItem(item.y.name, item.y.value, pointDataContainer);
+                }
+            });
         }
     }
 }
@@ -178,22 +202,26 @@ function renderFixedTooltipContent(
  * Generic click handler for plot elements (bars, points, hist bins) to handle fixed tooltip.
  * If the sidebar is closed, it attempts to open it before pinning.
  * @param event The click event.
- * @param data The data associated with the clicked element (InfoCardData structure).
+ * @param data The data associated with the clicked element (InfoCardData structure or array).
  * @param settings d3.Selection of the settings panel div (which should have state/setters attached).
  */
-export function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined> ) {
+export function showFixedTooltip(
+    event: MouseEvent,
+    data: InfoCardData | InfoCardData[] | null, // Accepts single or array
+    settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>
+) {
     event.stopPropagation(); // Prevent triggering other listeners
-  
+
     const settingsNode = settings.node();
     if (!settingsNode) {
         console.error("Settings panel node not found for fixed tooltip.");
         return; // Safety check
     }
-  
+
     // Retrieve state and setter from the settings DOM node
     const isOpen = (settingsNode as any).__isOpen;
     const setIsOpen = (settingsNode as any).__setIsOpen;
-  
+
     // Define the core logic for pinning the tooltip
     const executePinning = () => {
         // Re-select the container *inside* this function,
@@ -212,7 +240,7 @@ export function showFixedTooltip( event: MouseEvent, data: InfoCardData | null, 
         fixedTooltipContainer.datum(data); // Bind the new data (or null to clear)
         renderFixedTooltipContent(fixedTooltipContainer as d3.Selection<HTMLDivElement, any, null, any>, settings); // Render
     };
-  
+
     // --- Logic based on sidebar state ---
     if (data === null) {
         // If called with null data (e.g., explicit clear), just execute immediately
@@ -354,7 +382,7 @@ export function positionTooltipRelativeToDatapoint(
     const tooltipRect = tooltipNode.getBoundingClientRect();
     const tooltipWidth = tooltipRect.width;
     const tooltipHeight = tooltipRect.height;
-    const offsetX = 15; // Increase offset slightly
+    const offsetX = 15;
     const offsetY = 15;
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
