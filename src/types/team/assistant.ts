@@ -115,6 +115,12 @@ export type VoiceOption = Voice & {
     isUserVoiceInOrchestra?: boolean;
 };
 
+export interface AvailablePhoneCountry {
+    code: string;
+    name: string;
+    flag: string;
+}
+
 export interface AssistantActions {
   "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;

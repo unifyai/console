@@ -137,6 +137,8 @@ export default function Main({
         rhfInternalFormSubmit,
         fetchedAssistantEmails,
         isLoadingEmails,
+        availablePhoneCountries,
+        isLoadingCountries,
     } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen);
     
     // --- Callbacks for UI interaction ---
@@ -329,6 +331,9 @@ export default function Main({
                     assistantActions={assistantActions}
                     onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                     allAssistantEmails={fetchedAssistantEmails}
+                    isLoadingEmails={isLoadingEmails}
+                    availablePhoneCountries={availablePhoneCountries}
+                    isLoadingCountries={isLoadingCountries}
                 />
                 <PresetsPanel                                    
                     displayedPresets={displayedPresets}

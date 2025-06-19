@@ -10,14 +10,13 @@ import { ImageUpload } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe } from 'lucide-react';
-import { DialogDescription } from "@/components/UI/dialog";
+import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { availablePhoneCountries, getCountryFlag } from '@/utils/team/country-utils';
-
+import { AvailablePhoneCountry } from '@/types/team/assistant';
+import { getCountryFlag } from '@/utils/team/country-utils';
 
 const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
 const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
@@ -29,6 +28,9 @@ export interface HireFormProps {
   assistantActions: AssistantActions;
   onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
   allAssistantEmails: string[];
+  isLoadingEmails: boolean;
+  availablePhoneCountries: AvailablePhoneCountry[];
+  isLoadingCountries: boolean;
 }
 
 export function HireForm({
@@ -38,6 +40,9 @@ export function HireForm({
     assistantActions,
     onVoiceProcessingStateChange,
     allAssistantEmails,
+    isLoadingEmails,
+    availablePhoneCountries,
+    isLoadingCountries,
 }: HireFormProps) {
   const { register, formState: { errors }, watch, setValue, getValues, trigger } = formMethods;
 
@@ -153,7 +158,7 @@ export function HireForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
       <ScrollArea className="flex-1 min-h-0">
-        <fieldset disabled={isSubmitting} className="group space-y-6 pr-4">
+        <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails} className="group space-y-6 pr-4"> {/* Disable while loading countries */}
             <div className="space-y-2">
               <div className='flex gap-2 items-center text-muted-foreground'>
                 <User className="h-4 w-4"/>
@@ -209,9 +214,9 @@ export function HireForm({
 
             {/* Contact Section */}
             <div className="space-y-2">
-              <div className='flex gap-2 items-center text-muted-foreground'>
-                <Smartphone className="h-4 w-4"/>
-                <Label className="text-base font-semibold">Contact Details</Label>
+                <div className='flex gap-2 items-center text-muted-foreground'>
+                  <Smartphone className="h-4 w-4"/>
+                  <Label className="text-base font-semibold">Contact Details</Label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                   <div className="col-span-2 sm:col-span-1">
@@ -229,24 +234,28 @@ export function HireForm({
                           </TooltipProvider>
                         </div>
                         <Select
-                            value={rhfCountry}
-                            onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
-                            disabled={isSubmitting}
+                          value={rhfCountry}
+                          onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
+                          disabled={isSubmitting || isLoadingCountries}
                         >
-                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
-                              <SelectValue placeholder="Select country..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availablePhoneCountries.map(country => (
-                                    <SelectItem key={country.code} value={country.code}>
-                                        <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
+                          <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
+                            <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {isLoadingCountries ? (
+                                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                              ) : (
+                                  availablePhoneCountries.map(country => (
+                                      <SelectItem key={country.code} value={country.code}>
+                                          <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
+                                      </SelectItem>
+                                  ))
+                              )}
+                          </SelectContent>
                         </Select>
                         {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
                   </div>
-                  <div>
+                  <div className="flex flex-col pb-1">
                       <Label htmlFor="email_local_part">Assistant Email</Label>
                       <div className="flex items-center rounded-md">
                           <Input
@@ -257,6 +266,7 @@ export function HireForm({
                               placeholder="new-assistant"
                               className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
                               aria-describedby="email_domain_part"
+                              disabled={isSubmitting || isLoadingEmails}
                           />
                           <span
                               id="email_domain_part"
@@ -281,8 +291,20 @@ export function HireForm({
                       })} />
                       {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
                   </div>
-                  <div>
-                      <Label htmlFor="user_phone">Your Phone Number</Label>
+                  <div className="flex flex-col pb-1">
+                      <div className="flex flex-row justify-between gap-2 items-center pb-1">
+                        <Label htmlFor="country">Your Phone Number</Label>
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                  <p>{"This is the phone number you will contact the assistant with."}</p>
+                              </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <Input
                           id="user_phone"
                           type="tel"
@@ -296,7 +318,7 @@ export function HireForm({
                           })}
                       />
                       {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
-                  </div>
+                    </div>
               </div>
               </div>
 
