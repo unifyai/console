@@ -216,7 +216,6 @@ const DataTableCell = ({
           <ColumnPinner
             column={cell.column}
             table={table}
-            columnPinning={state.columnPinning}
             columnOrder={state.columnOrder}
             draggingColumnPinner={state.draggingColumnPinner}
             setDraggingColumnPinner={setDraggingColumnPinner}
