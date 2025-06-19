@@ -11,6 +11,7 @@ export interface Assistant {
   age: number | null;
   region: string | null;
   about: string | null;
+  country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
   gender?: 'male' | 'female';
   // Voice fields
   voice_id: string | null; // Cartesia Voice ID
@@ -31,7 +32,7 @@ export interface Assistant {
 
 export type AssistantPreset =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel'>
-  & { gender?: 'male' | 'female'; voice_id: string };
+  & { gender?: 'male' | 'female'; voice_id: string; country: string };
 
 export type AssistantFormData =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
@@ -42,6 +43,7 @@ export type AssistantFormData =
       imageFile?: File | null; // For newly uploaded image to GCS
       imagePreview?: string | null; // For local blob preview or existing URL (either preset or GCS image)
       user_phone?: string | null;
+      country?: string; // Country code for phone number
       voice_id?: string;
       voice_name?: string;
       voice_description?: string;
@@ -51,7 +53,7 @@ export type AssistantFormData =
       // For preset video
       videoUrl?: string | null;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
     };
 
 export interface PhotoUploadResponse {
@@ -95,6 +97,7 @@ export interface AssistantUpdatePayload {
     email?: string | null;
     whatsapp_sid?: string | null;
     voice_id?: string | null;
+    country?: string | null;
 }
 
 
@@ -118,7 +121,7 @@ export interface AssistantActions {
     create: (
         first_name: string, surname: string, age: number | null, region: string | null, 
         profile_photo: string | null, about: string | null, voice_id: string | null, 
-        email: string, user_phone: string | null
+        email: string, user_phone: string | null, country: string | null
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;

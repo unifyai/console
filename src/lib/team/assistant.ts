@@ -133,7 +133,7 @@ export const createAssistant = async (apiKey: string) => {
     return async ( 
         first_name: string, surname: string, age: number | null, region: string | null, 
         profile_photo: string | null, about: string | null, voice_id: string | null, 
-        email: string, user_phone: string | null 
+        email: string, user_phone: string | null, country: string | null
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
 
@@ -156,6 +156,7 @@ export const createAssistant = async (apiKey: string) => {
                         voice_id, 
                         email,
                         user_phone,
+                        country,
                         max_parallel: 10,
                         weekly_limit: 40
                     })
