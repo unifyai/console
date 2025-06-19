@@ -209,14 +209,43 @@ export function HireForm({
 
             {/* Contact Section */}
             <div className="space-y-2">
-              <div className="flex flex-col">
-                <div className='flex gap-2 items-center text-muted-foreground'>
-                  <Smartphone className="h-4 w-4"/>
-                  <Label className="text-base font-semibold">Contact Details</Label>
-                </div>
-                <DialogDescription>Assistant phone number will be provisioned upon hiring.</DialogDescription>
+              <div className='flex gap-2 items-center text-muted-foreground'>
+                <Smartphone className="h-4 w-4"/>
+                <Label className="text-base font-semibold">Contact Details</Label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
+                  <div className="col-span-2 sm:col-span-1">
+                        <div className="flex flex-row justify-between gap-2 items-center pb-1">
+                          <Label htmlFor="country">Assistant Phone Number Country</Label>
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                    <p>{"Assistant phone number will be provisioned upon hiring."}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Select
+                            value={rhfCountry}
+                            onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
+                            disabled={isSubmitting}
+                        >
+                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
+                              <SelectValue placeholder="Select country..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availablePhoneCountries.map(country => (
+                                    <SelectItem key={country.code} value={country.code}>
+                                        <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                  </div>
                   <div>
                       <Label htmlFor="email_local_part">Assistant Email</Label>
                       <div className="flex items-center rounded-md">
@@ -268,29 +297,6 @@ export function HireForm({
                       />
                       {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
                   </div>
-                   <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="country">Phone Number Country</Label>
-                        <Select
-                            value={rhfCountry}
-                            onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
-                            disabled={isSubmitting}
-                        >
-                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
-                                <div className="flex items-center">
-                                    {rhfCountry && <span className="mr-2">{getCountryFlag(rhfCountry)}</span>}
-                                    <SelectValue placeholder="Select country..." />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {availablePhoneCountries.map(country => (
-                                    <SelectItem key={country.code} value={country.code}>
-                                        <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
-                    </div>
               </div>
               </div>
 
