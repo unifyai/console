@@ -92,7 +92,6 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
     <ActionButton
       icon={loading ? <LoaderCircle className="animate-spin" /> : <FilePlus />}
       tooltip="Add new empty log"
-      text="Add Log"
       disabled={!interactive || loading || !projectId}
       variant="outline"
     />

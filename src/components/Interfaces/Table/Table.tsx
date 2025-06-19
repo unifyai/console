@@ -585,9 +585,23 @@ const LogsTable = ({
 
   // Top area: filters, page, etc.
   const tableTop = (
-    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-3">
-      {projectId && columns.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-center LogsTablePreferences">
+    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-2 items-center">
+      {/* Leftmost: toggle/search */}
+      <div className="flex items-center gap-2">
+        <GlobalFilter
+          interactive={interactive}
+          logsFilters={logsFilters}
+          commonFilter={commonFilter}
+          setCommonFilter={syncedTileDataActions?.setCommonFilter!}
+          logs={logs}
+          currentTable={item?.name || ""}
+          tableArguments={tableArguments}
+        />
+      </div>
+
+      {/* Middle: action buttons */}
+      {projectId && (
+        <div className="flex flex-wrap items-center gap-2 LogsTablePreferences">
           <ContextSelector
             tileId={tileId}
             tabId={tabId}
@@ -601,67 +615,30 @@ const LogsTable = ({
             projectsActions={projectsActions}
             fieldsActions={fieldsActions}
           />
-          <GlobalFilter
-            interactive={interactive}
-            logsFilters={logsFilters}
-            commonFilter={commonFilter}
-            setCommonFilter={syncedTileDataActions?.setCommonFilter!}
-            logs={logs}
-            currentTable={item?.name || ""}
-            tableArguments={tableArguments}
-          />
           <VisibilityFilter
             fields={fields}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item?.context ?? null}
           />
-           {projectId && (
-            <CreateEmptyLogRow
-              projectId={projectId}
-              globalContext={item?.context || context_}
-              fields={tableDataItem.fields}
-              interactive={interactive}
-              createLogsAction={logsActions.create}
-              onSuccess={() => {
-                // No need to call updateTab anymore since whenever we mutate
-                // tracked properties, we mutate the server state using the sync hooks
-                router.refresh();
-                setPending(true);
-              }}
-              onError={(errorMessage) => {
-                // Handle error, e.g., show a toast notification
-                console.error("Failed to create log:", errorMessage);
-                // You might want to use a more sophisticated error display mechanism
-                alert(`Error: ${errorMessage}`);
-              }}
-            />
-          )}
-          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
-        </div>
-      )}
-      {projectId && (
-        <div className="w-fit flex gap-2 LogsTablePreferences">
-          <div className="scale-90">
-            <PageController
-              interactive={interactive}
-              totalPages={totalPages}
-              pageNumber={pageNumber}
-              setPageNumber={tableTileActions?.setPageNumber!}
-              pageLogs={logs.length}
-              totalLogs={logsData.count}
-              limit={limit}
-              logs={logs}
-            />
-          </div>
+
+          <CreateEmptyLogRow
+            projectId={projectId}
+            globalContext={item?.context || context_}
+            fields={tableDataItem.fields}
+            interactive={interactive}
+            createLogsAction={logsActions.create}
+            onSuccess={() => { router.refresh(); setPending(true); }}
+            onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
+          />
+
           <FreezeLogs 
             tileId={tileId}
             tabId={tabId}
             interfaceId={interfaceId}
             projectId={projectId}
           />
+
           <RefreshLogs
             tileId={tileId}
             tabId={tabId}
@@ -676,6 +653,26 @@ const LogsTable = ({
             projectsActions={projectsActions}
             contextActions={contextActions}
             fieldsActions={fieldsActions}
+          />
+
+          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
+          <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
+          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
+        </div>
+      )}
+
+      {/* Right: pagination */}
+      {projectId && (
+        <div className="flex items-center gap-2">
+          <PageController
+            interactive={interactive}
+            totalPages={totalPages}
+            pageNumber={pageNumber}
+            setPageNumber={tableTileActions?.setPageNumber!}
+            pageLogs={logs.length}
+            totalLogs={logsData.count}
+            limit={limit}
+            logs={logs}
           />
         </div>
       )}

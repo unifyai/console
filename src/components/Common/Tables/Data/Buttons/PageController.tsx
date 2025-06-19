@@ -90,9 +90,10 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
         return (
             <PaginationItem key={page}>
                 <PaginationLink
-                    className={"cursor-pointer peer" + (interactive ? "" : "opacity-50")}
+                    className={"cursor-pointer peer w-8 h-8 p-0" + (interactive ? "" : " opacity-50")}
                     onClick={() => onPaginationClick(page)}
                     isActive={pageNum == page}
+                    size="sm"
                 >
                     {paginationContent(page)}
                 </PaginationLink>
@@ -110,7 +111,7 @@ const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pa
 
     return pageWindow.length ? (
         <Pagination>
-            <PaginationContent>
+            <PaginationContent className="gap-0">
                 {prevButton}
                 {!pageWindow.includes(0) && pageButton(0)}
                 {startEllipses && <PaginationItem><PaginationEllipsis /></PaginationItem>}
