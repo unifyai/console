@@ -10,14 +10,12 @@ import { createPortal } from 'react-dom';
 const ColumnPinner = ({
     column,
     table,
-    columnPinning: _columnPinning,
     columnOrder,
     draggingColumnPinner,
     setDraggingColumnPinner,
 }: {
     column: Column<any, unknown>;
     table: Table<any>;
-    columnPinning: { left?: string[]; right?: string[] };
     columnOrder: string[];
     draggingColumnPinner: DraggingColumnPinnerState;
     setDraggingColumnPinner: (state: DraggingColumnPinnerState) => void;

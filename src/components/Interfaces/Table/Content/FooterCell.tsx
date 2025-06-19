@@ -98,7 +98,6 @@ const FooterCell = ({
                 <ColumnPinner
                   column={column}
                   table={table}
-                  columnPinning={columnPinning}
                   columnOrder={columnOrder}
                   draggingColumnPinner={draggingColumnPinner}
                   setDraggingColumnPinner={setDraggingColumnPinner}
