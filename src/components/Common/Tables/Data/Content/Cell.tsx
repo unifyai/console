@@ -113,6 +113,24 @@ const DataTableCell = ({
     return allSelected && !allHidden
   }
 
+  // determine border thickness so cells share group boundary thickness
+  const leafCols = table.getAllLeafColumns();
+  const maxDepth = Math.max(...leafCols.map(c => c.depth));
+  // find all ancestor group columns where this column is the last leaf
+  let ancestor = cell.column;
+  const boundaryDepths: number[] = [];
+  while (ancestor) {
+    if (ancestor.columnDef.meta?.isParent) {
+      const leafs = ancestor.getLeafColumns();
+      if (leafs[leafs.length - 1].id === cell.column.id) {
+        boundaryDepths.push(ancestor.depth);
+      }
+    }
+    ancestor = ancestor.parent!;
+  }
+  const boundaryDepth = boundaryDepths.length ? Math.min(...boundaryDepths) : cell.column.depth;
+  const borderThickness = columnID === "RowNumbering" ? 1 : Math.max(1, maxDepth - boundaryDepth + 1);
+
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
@@ -121,12 +139,13 @@ const DataTableCell = ({
     right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
-    height: "21px",
+    height: cell.rowSpan > 1 ? undefined : "21px",
     minWidth: 0,
     width: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
+    // thin left edge only for row numbers, dynamic right edge for all columns
     borderLeft: columnID === "RowNumbering" ? "1px solid var(--muted)" : undefined,
-    borderRight: "1px solid var(--muted)",
+    borderRight: `${borderThickness}px solid var(--muted)`,
     borderTop: "1px solid var(--muted)",
     outline: "none",
     color: cell.column.id != "RowNumbering"

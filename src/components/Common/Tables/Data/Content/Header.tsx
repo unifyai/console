@@ -321,9 +321,8 @@ const DataTableHeader = ({
   // Calculate row span for vertical merging and skip children
   // headers whose parent are spanned vertically
   const calculatedRowSpan = calculateRowSpan(header, table, headerGroupIndex)
-  if (!shouldRenderHeader(header, table, headerGroupIndex)) {
-      return null;
-  }
+  // Always render header cell (even placeholders) to keep vertical borders continuous
+  const shouldRender = shouldRenderHeader(header, table, headerGroupIndex)
 
   // Handle header coloring.
   // - Applies selection (hover) background color on any column header for which all (some) cells are selected
@@ -337,6 +336,29 @@ const DataTableHeader = ({
     getSelectableTableCells(table).every(cell => isCellSelected(cell)) && 
     Object.entries(columnVisibility).filter(([, v]) => v).length != 1
 
+  // determine border thickness so headers share group boundary thickness
+  const leafCols = table.getAllLeafColumns();
+  const maxDepth = Math.max(...leafCols.map(c => c.depth));
+  let ancestorCol = header.column;
+  const boundaryDepths: number[] = [];
+  while (ancestorCol) {
+    if (ancestorCol.columnDef.meta?.isParent) {
+      const leafs = ancestorCol.getLeafColumns();
+      if (leafs[leafs.length - 1].id === header.column.id) {
+        boundaryDepths.push(ancestorCol.depth);
+      }
+    }
+    ancestorCol = ancestorCol.parent!;
+  }
+  const boundaryDepth = boundaryDepths.length ? Math.min(...boundaryDepths) : header.column.depth;
+  const borderThickness = header.column.id === "RowNumbering" ? 1 : Math.max(1, maxDepth - boundaryDepth + 1);
+
+  // compute total width of pinned left columns so sticky parent headers start after them
+  const pinnedAreaWidth = (columnPinning.left ?? []).reduce((sum, colId) => {
+    const col = table.getColumn(colId);
+    return sum + (col?.getSize() ?? 0);
+  }, 0);
+
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
@@ -349,8 +371,9 @@ const DataTableHeader = ({
     width: `${Math.round(header.getSize())}px`,
     minWidth: hasActiveActions ? activeActionsRef.current?.clientWidth : 0,
     zIndex: isPinned ? 2 : isColumnDragging ? 1 : 0,
+    // thin left edge only for index, dynamic right edge for headers
     borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
-    borderRight: "1px solid var(--muted)",
+    borderRight: `${borderThickness}px solid var(--muted)`,
     borderTop: "1px solid var(--muted)",
     borderBottom: (header.depth + calculatedRowSpan) >= table.getHeaderGroups().length ? "1px solid var(--muted)" : undefined,
     verticalAlign: calculatedRowSpan > 1 ? 'middle' : undefined,
@@ -455,76 +478,77 @@ const DataTableHeader = ({
           {header.isPlaceholder ? null : (
             <>
               {isParentColumn ? (
-                <>
-                  {/* PARENT COLUMN LAYOUT */}
+                <div
+                  className="sticky z-20 flex items-center h-full px-2"
+                  style={{ left: `${Math.max(pinnedAreaWidth, header.column.getStart('left'))}px` }}
+                >
+                  {/* PARENT COLUMN LAYOUT (sticky) */}
                   <span
-                    className="flex items-center justify-between cursor-pointer overflow-hidden mr-4"
-                    style={{maxWidth: maxLabelWidth}}
+                    className="flex-1 cursor-pointer overflow-hidden truncate"
+                    style={{ maxWidth: maxLabelWidth }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </span>
-                  {/* parent inlined dropdown */}
-                  {interactive == true && (
+                  {interactive && (
                     <div
-                      className="flex items-center gap-0.5"
+                      className="flex items-center gap-0.5 pl-2"
                       onMouseDown={(e) => e.stopPropagation()}
                       onMouseUp={(e) => e.stopPropagation()}
                     >
-                    <BaseDropdown
-                      context="tile" 
-                      open={dropdownOpen} 
-                      setOpen={setDropdownOpen}
-                      align="end"
-                      className="min-w-[8rem]"
-                      button={
-                        <ActionButton
-                          tooltip="Parent column actions"
-                          icon={<MoreHorizontal className="h-4 w-4" />}
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDropdownOpen(true);
-                          }}
-                        />
-                      }
-                    >
-                      <DropdownMenuGroup>
-                        {!isGrouped && ColumnGroupBy && (
+                      <BaseDropdown
+                        context="tile"
+                        open={dropdownOpen}
+                        setOpen={setDropdownOpen}
+                        align="end"
+                        className="min-w-[8rem]"
+                        button={
+                          <ActionButton
+                            tooltip="Parent column actions"
+                            icon={<MoreHorizontal className="h-4 w-4" />}
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDropdownOpen(true);
+                            }}
+                          />
+                        }
+                      >
+                        <DropdownMenuGroup>
+                          {!isGrouped && ColumnGroupBy && (
+                            <DropdownMenuItem>
+                              {ColumnGroupBy(
+                                header.column,
+                                groupLoading,
+                                setGroupLoading,
+                                setGroupSortLoading,
+                                setIsGrouped,
+                                "menuItem"
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem>
-                            {ColumnGroupBy(
-                              header.column,
-                              groupLoading,
-                              setGroupLoading,
-                              setGroupSortLoading,
-                              setIsGrouped,
-                              "menuItem"
-                            )}
+                            <ColumnContext
+                              interactive={interactive}
+                              column={header.column}
+                              context={context}
+                              setContext={setContext}
+                              data={data}
+                              renderMode="menuItem"
+                            />
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem>
-                          <ColumnContext
-                            interactive={interactive}
-                            column={header.column}
-                            context={context}
-                            setContext={setContext}
-                            data={data}
-                            renderMode="menuItem"
-                          />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <ColumnHide
-                            column={header.column}
-                            columnVisibility={columnVisibility}
-                            setColumnVisibility={setColumnVisibility}
-                            renderMode="menuItem"
-                          />
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <ColumnHide
+                              column={header.column}
+                              columnVisibility={columnVisibility}
+                              setColumnVisibility={setColumnVisibility}
+                              renderMode="menuItem"
+                            />
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
                       </BaseDropdown>
                     </div>
                   )}
-                </>
+                </div>
               ) : (
                 isNotUtilColumn && (
                   <>
