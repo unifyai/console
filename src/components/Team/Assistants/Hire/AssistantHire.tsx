@@ -14,8 +14,7 @@ import {
     PopoverTrigger,
 } from "@/components/UI/popover";
 import { ApprovalStatus } from '@/types/user';
-
-const ASSISTANT_ONBOARDING_FEE = 10;
+import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 
 interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
     isHireDialogOpen: boolean;

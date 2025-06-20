@@ -17,9 +17,9 @@ import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AvailablePhoneCountry } from '@/types/team/assistant';
 import { getCountryFlag } from '@/utils/team/country-utils';
+import { EMAIL_DOMAIN_WITH_AT } from '@/constants/assistants/settings';
 
 const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
-const EMAIL_DOMAIN_WITH_AT = "@unify.ai";
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
