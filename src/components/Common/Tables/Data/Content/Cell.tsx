@@ -122,8 +122,8 @@ const DataTableCell = ({
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
     height: "21px",
-    minWidth: undefined,
-    maxWidth: `${Math.round(cell.column.getSize())}px`,
+    minWidth: 0,
+    width: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
     borderLeft: columnID === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: "1px solid var(--muted)",
