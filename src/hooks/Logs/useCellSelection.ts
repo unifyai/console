@@ -332,11 +332,24 @@ export const useCellSelection = ({
     if ("row" in target) {
       const cell = target as Cell<any, any>
       if (isRowIndexCell(cell)) {
-        const rowCells = cell.row.getAllCells()
-        const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
-        const lastCell = validCells.at(-1)
-        if (lastCell)
-          selectedEndCell = getCellSelectionData(lastCell);
+        const startRowId = selectedStartCell.split("_")[0];
+        const endRowId = (target as Cell<any, any>).row.id;
+        const rows = table.getRowModel().rows;
+        const startIdx = rows.findIndex(r => r.id === startRowId);
+        const endIdx = rows.findIndex(r => r.id === endRowId);
+        if (startIdx !== -1 && endIdx !== -1) {
+          const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+          // Gather all valid index-selection targets (includes hidden)
+          const newSelection = rows
+            .slice(from, to + 1)
+            .flatMap(row =>
+              row.getAllCells()
+                .filter(c => isValidIndexSelectionTarget(c))
+                .map(c => getCellSelectionData(c))
+            );
+          setSelectedCells(newSelection);
+        }
+        return;
       }
       else if (isValidSelectionTarget(cell))
         selectedEndCell = getCellSelectionData(cell)
