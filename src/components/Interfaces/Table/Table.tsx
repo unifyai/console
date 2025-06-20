@@ -230,7 +230,8 @@ const LogsTable = ({
                 true,
                 dataTypes,
                 fieldTypes,
-                columnContext
+                columnContext,
+                fields
               ),
               meta: {
                 columnType: "paramsHeader",
@@ -253,7 +254,8 @@ const LogsTable = ({
                 false,
                 dataTypes,
                 fieldTypes,
-                columnContext
+                columnContext,
+                fields
               ),
               meta: {
                 columnType: "entriesHeader",
@@ -270,7 +272,8 @@ const LogsTable = ({
             false,
             dataTypes,
             fieldTypes,
-            columnContext
+            columnContext,
+            fields
           )),
     ];
   }, [entriesTree, paramsTree, dataTypes, fieldTypes, logsData.params]);

@@ -141,7 +141,7 @@ const LogsTable = ({
           {
             id: paramsTitle,
             header: paramsTitle,
-            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes),
+            columns: nestedColumns(paramsTree, "params", paramsTitle, logsData, true, dataTypes, fieldTypes, undefined, fields),
             meta: {
               columnType: "paramsHeader",
               isParent: true,
@@ -155,7 +155,7 @@ const LogsTable = ({
           {
             id: entriesTitle,
             header: entriesTitle,
-            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes),
+            columns: nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes, undefined, fields),
             meta: {
               columnType: "entriesHeader",
               isParent: true,
@@ -163,7 +163,7 @@ const LogsTable = ({
             },
           },
         ]
-      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes)),
+      : nestedColumns(entriesTree, "entries", entriesTitle, logsData, false, dataTypes, fieldTypes, undefined, fields)),
   ];
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
@@ -494,7 +494,7 @@ const LogsTable = ({
         <div ref={tableRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
           {project ? (
             <div className="relative flex-col gap-2">
-              {/* “summaryPending” can optionally show a small loader over the table if you like */}
+              {/* "summaryPending" can optionally show a small loader over the table if you like */}
               <DataTable
                 className="LogsTable"
                 data={logs}

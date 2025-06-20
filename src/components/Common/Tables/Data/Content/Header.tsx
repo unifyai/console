@@ -538,8 +538,15 @@ const DataTableHeader = ({
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{`${header.id.split("/").at(-1)}: ${header.column.columnDef.meta?.dataType || "unknown"}`}</p>
+                        <TooltipContent className="whitespace-pre-wrap">
+                          <div className="flex flex-col gap-1">
+                            <span>{`${header.id.split("/").at(-1)}: ${header.column.columnDef.meta?.dataType || "unknown"}`}</span>
+                            {header.column.columnDef.meta?.description && (
+                              <span className="text-xs text-muted-foreground">
+                                {header.column.columnDef.meta.description}
+                              </span>
+                            )}
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
