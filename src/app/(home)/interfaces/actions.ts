@@ -2203,8 +2203,8 @@ export const importProjectFromTemplate = async (apiKey: string) => {
             project: options.project,
             template,
             interface_name_prefix: options.interface_name_prefix,
-            validate_first: options.validate_first || false,
-            auto_sanitize: options.auto_sanitize || false,
+            validate_first: options.validate_first || true,
+            auto_sanitize: options.auto_sanitize || true,
             overwrite_existing: options.overwrite_existing || false,
         };
 
@@ -2275,8 +2275,8 @@ export const importInterfaceFromTemplate = async (apiKey: string) => {
             project: options.project,
             template,
             new_interface_name: options.new_interface_name,
-            validate_first: options.validate_first || false,
-            auto_sanitize: options.auto_sanitize || false,
+            validate_first: options.validate_first || true,
+            auto_sanitize: options.auto_sanitize || true,
             overwrite_existing: options.overwrite_existing || false,
         };
 
@@ -2352,8 +2352,8 @@ export const importTabFromTemplate = async (apiKey: string) => {
             interface_id,
             interface_name,
             new_tab_name: options.new_tab_name,
-            validate_first: options.validate_first || false,
-            auto_sanitize: options.auto_sanitize || false,
+            validate_first: options.validate_first || true,
+            auto_sanitize: options.auto_sanitize || true,
             overwrite_existing: options.overwrite_existing || false,
         };
 
@@ -2430,8 +2430,8 @@ export const importTileFromTemplate = async (apiKey: string) => {
             interface_id,
             tab_name,
             new_tile_name: options.new_tile_name,
-            validate_first: options.validate_first || false,
-            auto_sanitize: options.auto_sanitize || false,
+            validate_first: options.validate_first || true,
+            auto_sanitize: options.auto_sanitize || true,
             overwrite_existing: options.overwrite_existing || false,
         };
 
