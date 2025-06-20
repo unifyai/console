@@ -9,9 +9,7 @@ import { cn } from '@/lib/utils';
 import { usePhotoCreator } from '@/hooks/Team/usePhotoCreator';
 import { AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-
-const PHOTO_OPERATION_COST = 0.05; // For generate/edit
-const VIDEO_ANIMATION_COST = 0.25; // For animate
+import { PHOTO_OPERATION_COST, VIDEO_ANIMATION_COST } from '@/constants/assistants/settings';
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
