@@ -5,10 +5,9 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
-import { fetchAvailablePhoneCountries } from '@/lib/team/phone';
+import { getAvailablePhoneCountries, getCountryName, getCountryFlag } from '@/utils/team/country-utils';
 import { AvailablePhoneCountry } from '@/types/team/assistant';
-import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/assistant_creation';
+import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -47,7 +46,7 @@ export function useAssistantHireForm(
     React.useEffect(() => {
         async function loadCountries() {
             setIsLoadingCountries(true);
-            const countries = await fetchAvailablePhoneCountries();
+            const countries = await getAvailablePhoneCountries();
             setAvailablePhoneCountries(countries);
             // Optionally set a default country from the fetched list if needed
             // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
