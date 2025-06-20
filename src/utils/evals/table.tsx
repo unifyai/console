@@ -538,11 +538,12 @@ export const nestedColumns = (
 	dataTypes: { [key: string]: string },
 	fieldTypes:{ [key: string]: string },
 	columnContext?: string,
+	fieldDescriptions: { [key: string]: { description?: string } } = {},
 ): ColumnDef<LogProps | GroupedLogProps>[] => {
 	return nodes.map(node => {
 		// If this node has children (nested columns), recursively build columns
 		if (node.nodes) {
-			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes, columnContext);
+			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes, columnContext, fieldDescriptions);
 			return {
 				id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
 				header: node.name,
@@ -607,7 +608,8 @@ export const nestedColumns = (
 				columnType: type,
 				enableRowSpan: enableRowSpan,
 				isParent: false,
-				renderedDepth: -1
+				renderedDepth: -1,
+				description: fieldDescriptions[node.path]?.description || ""
 			}
 		};
 	});

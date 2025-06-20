@@ -69,7 +69,14 @@ export interface LogsResponseProps {
 export type LogFieldsProps = [number, string][]
 
 export interface LogFieldsResponseProps {
-    [name: string]: {data_type: string, field_type: "entry" | "param" | "derived_entry", artifacts: string, mutable: "true" | "false", created_at: string}
+    [name: string]: {
+      data_type: string,
+      field_type: "entry" | "param" | "derived_entry",
+      artifacts: string,
+      mutable: "true" | "false",
+      created_at: string,
+      description?: string
+    }
 }
 
 export interface GroupedMetricNode {
@@ -109,7 +116,6 @@ export interface PlotArguments {
 }
 
 declare module "@tanstack/react-table" {
-    // eslint-disable-next-line no-unused-vars
     interface ColumnMeta<TData extends RowData, TValue> {
       dataType?: string | null,
       fieldType?: string | null,
@@ -117,6 +123,7 @@ declare module "@tanstack/react-table" {
       enableRowSpan?: boolean,
       isParent: boolean,
       renderedDepth: number,
+      description?: string
     }
     interface Cell<TData extends RowData, TValue> {
         rowSpan: number,
