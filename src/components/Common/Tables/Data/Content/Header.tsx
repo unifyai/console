@@ -345,7 +345,7 @@ const DataTableHeader = ({
     right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
     width: `${Math.round(header.getSize())}px`,
     minWidth: hasActiveActions ? activeActionsRef.current?.clientWidth : 0,
     zIndex: isPinned ? 2 : isColumnDragging ? 1 : 0,
@@ -450,9 +450,7 @@ const DataTableHeader = ({
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
-          className={`flex items-center justify-center h-full text-center px-1 select-none ${
-            !isNotUtilColumn ? "h-10" : ""
-          }`}
+          className={`flex flex-wrap items-center justify-between h-full text-center px-1 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
         >
           {header.isPlaceholder ? null : (
             <>
@@ -535,8 +533,7 @@ const DataTableHeader = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className="flex items-center justify-between cursor-pointer overflow-hidden"
-                            style={{maxWidth: maxLabelWidth}}
+                            className="flex-1 min-w-0 pr-2 whitespace-nowrap overflow-hidden truncate cursor-pointer"
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
@@ -549,7 +546,7 @@ const DataTableHeader = ({
 
                     {/* triple-dot for child columns */}
                     {interactive == true && (
-                      <div className="ml-4 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="ml-1 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
                         <BaseDropdown
                           context="tile"
                           open={dropdownOpen}
@@ -565,7 +562,6 @@ const DataTableHeader = ({
                               tooltip="Child column actions"
                               icon={<MoreHorizontal className="h-4 w-4" />}
                               variant="ghost"
-                              size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDropdownOpen(true);
