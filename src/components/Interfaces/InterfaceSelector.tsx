@@ -439,7 +439,15 @@ export default function InterfaceSelector({
     setIsImporting(true);
     try {
       // Pass the template data directly as expected by the API
-      const result = await interfaceActions.importTemplate(templateData.template, { project: projectId, new_interface_name: importInterfaceName.trim() });
+      const result = await interfaceActions.importTemplate(
+        templateData.template, 
+        { 
+          project: projectId, 
+          new_interface_name: importInterfaceName.trim(),
+          validate_first: true,
+          auto_sanitize: true,
+        }
+      );
 
       if ('error' in result) {
         setFileError(result.error || "Failed to import template. Please try again.");
