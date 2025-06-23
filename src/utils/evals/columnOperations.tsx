@@ -415,7 +415,8 @@ export const getNextLeafColumn = (
     const currentIndex = columnOrder.indexOf(column.id);
     if (currentIndex === -1) return undefined;
     
-    const leafColumns = table.getAllLeafColumns();
+    // prefer visible leaf columns so hidden ones are skipped
+    const leafColumns = (table.getVisibleLeafColumns?.() ?? table.getAllLeafColumns());
     const currentLeafIndex = leafColumns.findIndex(c => c.id === column.id);
     
     if (currentLeafIndex === -1 || currentLeafIndex === leafColumns.length - 1) return undefined;
@@ -434,7 +435,8 @@ export const getPreviousLeafColumn = (
     const currentIndex = columnOrder.indexOf(column.id);
     if (currentIndex === -1) return undefined;
     
-    const leafColumns = table.getAllLeafColumns();
+    // prefer visible leaf columns so hidden ones are skipped
+    const leafColumns = (table.getVisibleLeafColumns?.() ?? table.getAllLeafColumns());
     const currentLeafIndex = leafColumns.findIndex(c => c.id === column.id);
     
     if (currentLeafIndex <= 0) return undefined;

@@ -353,25 +353,35 @@ const DataTableHeader = ({
   const boundaryDepth = boundaryDepths.length ? Math.min(...boundaryDepths) : header.column.depth;
   const borderThickness = header.column.id === "RowNumbering" ? 1 : Math.max(1, maxDepth - boundaryDepth + 1);
 
-  // compute total width of pinned left columns so sticky parent headers start after them
-  const pinnedAreaWidth = (columnPinning.left ?? []).reduce((sum, colId) => {
-    const col = table.getColumn(colId);
-    return sum + (col?.getSize() ?? 0);
-  }, 0);
+  // compute left offset: if any child pinned, use its start; otherwise use index column width
+  const indexColumn = table.getColumn("RowNumbering");
+  const indexWidth = indexColumn?.getSize() ?? 0;
+  const pinnedLeaf = header.column.getLeafColumns().find(c => c.getIsPinned());
+  const pinnedAreaWidth = pinnedLeaf ? pinnedLeaf.getStart("left") : indexWidth;
+  // determine if all visible leaf children are pinned
+  const allVisibleLeafsPinned = header.column.getLeafColumns()
+    .filter(c => c.getIsVisible())
+    .every(c => c.getIsPinned());
 
+  // determine stickiness: child columns pinned directly or parent when all visible leaves pinned
+  const isParentFullyPinned = isParentColumn && allVisibleLeafsPinned;
+  const isChildPinned = isPinned && !isParentColumn;
   const style: CSSProperties = {
-    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
+    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
-    position: isPinned ? "sticky" : "relative",
-    left: isPinned === "left" ? `${header.column.getStart("left")}px` : undefined,
-    right: isPinned === "right" ? `${header.column.getAfter("right")}px` : undefined,
+    position: isChildPinned || isParentFullyPinned ? 'sticky' : 'relative',
+    left: isParentFullyPinned
+      ? `${pinnedAreaWidth}px`
+      : isChildPinned
+        ? `${header.column.getStart('left')}px`
+        : undefined,
+    right: isPinned === 'right' ? `${header.column.getAfter('right')}px` : undefined,
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
-    whiteSpace: "normal",
+    whiteSpace: 'normal',
     width: `${Math.round(header.getSize())}px`,
     minWidth: hasActiveActions ? activeActionsRef.current?.clientWidth : 0,
-    zIndex: isPinned ? 2 : isColumnDragging ? 1 : 0,
-    // thin left edge only for index, dynamic right edge for headers
+    zIndex: isChildPinned || isParentFullyPinned ? 2 : isColumnDragging ? 1 : 0,
     borderLeft: header.column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: `${borderThickness}px solid var(--muted)`,
     borderTop: "1px solid var(--muted)",
@@ -479,8 +489,8 @@ const DataTableHeader = ({
             <>
               {isParentColumn ? (
                 <div
-                  className="sticky z-20 flex items-center h-full px-2"
-                  style={{ left: `${Math.max(pinnedAreaWidth, header.column.getStart('left'))}px` }}
+                  className="sticky flex items-center h-full px-2"
+                  style={{ left: `${pinnedAreaWidth}px` }}
                 >
                   {/* PARENT COLUMN LAYOUT (sticky) */}
                   <span
@@ -548,6 +558,16 @@ const DataTableHeader = ({
                       </BaseDropdown>
                     </div>
                   )}
+                  {/* Pin handle for parent column */}
+                  <div className="ml-2 flex-none">
+                    <ColumnPinner
+                      column={header.column}
+                      table={table}
+                      columnOrder={columnOrder}
+                      draggingColumnPinner={draggingColumnPinner}
+                      setDraggingColumnPinner={setDraggingColumnPinner}
+                    />
+                  </div>
                 </div>
               ) : (
                 isNotUtilColumn && (
