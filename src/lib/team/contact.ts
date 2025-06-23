@@ -1,4 +1,6 @@
 import { ResponseProps } from "@/types/common";
+import { AvailablePhoneCountry } from "../../types/team/assistant";
+import { getCountryFlag, getCountryName } from "../../utils/team/country-utils";
 
 export const createAssistantEmail = async (apiKey: string) => {
     return async (local: string, first_name: string, last_name: string): Promise<{ email: string; user?: any; } | ResponseProps> => {
@@ -156,6 +158,30 @@ export const deleteAssistantWhatsApp = async (apiKey: string) => {
             return { info: data?.info || data?.message || `WhatsApp sender ${sid} deleted successfully.` };
         } catch (error) {
             return { detail: error instanceof Error ? error.message : "Unknown error deleting WhatsApp sender." };
+        }
+    };
+};
+
+export const listAvailablePhoneCountries = async (apiKey: string) => {
+    return async (): Promise<AvailablePhoneCountry[]> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/phone/available-countries`, {
+                method: "GET",
+                headers: { apiKey: apiKey }
+            });
+            if (!response.ok) {
+                console.error("Failed to fetch available countries, status:", response.status);
+                throw new Error('Failed to fetch available countries');
+            }
+            const data = await response.json();
+            return data as AvailablePhoneCountry[];
+        } catch (error) {
+            console.error("Error fetching available countries:", error);
+            // Fallback to US only in case of error
+            const usName = getCountryName("US") || "United States";
+            const usFlag = getCountryFlag("US");
+            return [{ code: "US", name: usName, flag: usFlag }];
         }
     };
 };

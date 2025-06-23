@@ -1,5 +1,4 @@
 import { AvailablePhoneCountry } from "@/types/team/assistant";
-import { AVAILABLE_PHONE_COUNTRIES_CODES } from "../../constants/assistants/settings";
 
 // Helper to convert country code to flag emoji
 export function getCountryFlag(countryCode: string): string {
@@ -32,37 +31,41 @@ export function getCountryName(countryCode: string, locale: string = 'en'): stri
 }
 
 // Function to get a list of AvailablePhoneCountries from a list of country codes
-export async function getAvailablePhoneCountries() {
-    let countryDataList: AvailablePhoneCountry[] = [];
-    const fallbackData = { code: "US", name: getCountryName("US") || "United States", flag: getCountryFlag("US") };
-    if (AVAILABLE_PHONE_COUNTRIES_CODES && AVAILABLE_PHONE_COUNTRIES_CODES.trim() !== "") {
-        const codes = AVAILABLE_PHONE_COUNTRIES_CODES.split(',').map(code => code.trim().toUpperCase());
-        const result = codes
-            .map(code => {
-                if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
-                    console.warn(`[country-utils] Invalid country code format: "${code}"`);
-                    return null;
-                }
-                const name = getCountryName(code);
-                if (!name) {
-                    console.warn(`[country-utils] Could not get name for country code: "${code}"`);
-                    return null;
-                }
-                return { code, name, flag: getCountryFlag(code) };
-            })
-            .filter(Boolean) as { code: string; name: string; flag: string }[];
+export function processPhoneCountryCodes(codesString: string): AvailablePhoneCountry[] {
+    const fallbackData = {
+        code: "US",
+        name: getCountryName("US") || "United States",
+        flag: getCountryFlag("US")
+    };
 
-        if (result.length > 0) {
-            countryDataList = result;
-        } else {
-            console.log(`[country-utils] AVAILABLE_PHONE_COUNTRIES_CODES was set but resulted in an empty valid list. Using fallback.`);
-            countryDataList = [fallbackData];
-        }
-    } else {
-        console.log(`[country-utils] AVAILABLE_PHONE_COUNTRIES_CODES is not set or is empty. Using fallback.`);
-        countryDataList = [fallbackData];
+    if (!codesString || codesString.trim() === "") {
+        console.log(`[country-utils] Empty country code list. Using fallback.`);
+        return [fallbackData];
     }
 
-    const sortedCountryDataList = countryDataList.sort((a, b) => a.name.localeCompare(b.name));
-    return sortedCountryDataList;
+    const codes = codesString.split(',').map(code => code.trim().toUpperCase());
+
+    const result = codes.map(code => {
+        if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)) {
+            console.warn(`[country-utils] Invalid country code format: "${code}"`);
+            return null;
+        }
+        const name = getCountryName(code);
+        if (!name) {
+            console.warn(`[country-utils] Could not get name for country code: "${code}"`);
+            return null;
+        }
+        return {
+            code,
+            name,
+            flag: getCountryFlag(code)
+        };
+    }).filter(Boolean) as AvailablePhoneCountry[];
+
+    if (result.length === 0) {
+        console.log(`[country-utils] All codes invalid or empty. Using fallback.`);
+        return [fallbackData];
+    }
+
+    return result.sort((a, b) => a.name.localeCompare(b.name));
 }

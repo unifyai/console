@@ -149,6 +149,7 @@ export interface AssistantActions {
   },
   "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
+    listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
   },
   "approval": {
     getProfile: () => Promise<HiringProfileData | ResponseProps>
