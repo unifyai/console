@@ -126,6 +126,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         manualGrouping: true,
+        groupedColumnMode: false,
         manualSorting: true,
         getRowId(originalRow, index, parent) {
             return (originalRow as LogProps | GroupedLogProps).id.toString()
