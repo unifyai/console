@@ -53,7 +53,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
 
     return (
         <>
-            <TableRow key={row.id}>
+            <TableRow key={row.id} className="snap-start">
                 {row.getVisibleCells().map(cell => (
                     <SortableContext key={cell.id} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                         <DataTableCell

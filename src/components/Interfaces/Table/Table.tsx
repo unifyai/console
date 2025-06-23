@@ -712,6 +712,18 @@ const LogsTable = ({
     });
   }, [panelCount]);
 
+  // Dynamically adjust scroll-padding-top so snapped rows land just below the header
+  useEffect(() => {
+    panelScrollRefs.forEach((ref) => {
+      const container = ref.current;
+      if (!container) return;
+      const thead = container.querySelector('thead');
+      if (thead instanceof HTMLElement) {
+        container.style.scrollPaddingTop = `${thead.clientHeight}px`;
+      }
+    });
+  }, [panelScrollRefs]);
+
   return (
     <div
       ref={containerRef} 
@@ -733,7 +745,7 @@ const LogsTable = ({
                   <div
                     key={idx}
                     ref={panelScrollRefs[idx]}
-                    className="relative flex-1 flex-col gap-2 overflow-y-auto border-l pl-2 border-gray-200 first:border-none"
+                    className="relative flex-1 flex-col gap-2 overflow-y-auto border-l pl-2 border-gray-200 first:border-none snap-y snap-mandatory"
                   >
                     <DataTable<LogProps | GroupedLogProps>
                       className="LogsTable"
