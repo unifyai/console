@@ -175,7 +175,16 @@ export const listAvailablePhoneCountries = async (apiKey: string) => {
                 throw new Error('Failed to fetch available countries');
             }
             const data = await response.json();
-            return data as AvailablePhoneCountry[];
+
+            if (Array.isArray(data?.countries)) {
+                return data.countries;
+            } else {
+                console.warn("Unexpected response format for countries:", data);
+                const usName = getCountryName("US") || "United States";
+                const usFlag = getCountryFlag("US");
+                return [{ code: "US", name: usName, flag: usFlag }];
+            }
+
         } catch (error) {
             console.error("Error fetching available countries:", error);
             // Fallback to US only in case of error

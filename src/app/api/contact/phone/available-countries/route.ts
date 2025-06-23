@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processPhoneCountryCodes } from "@/utils/team/country-utils";
 
-const baseUrl = `${process.env.COMMUNICATION_URL}/v0`;
+const baseUrl = `${process.env.COMMUNICATION_URL}`;
 
 export async function GET(request: NextRequest) {
     const apiKey = request.headers.get("apiKey");

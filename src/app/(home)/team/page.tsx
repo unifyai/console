@@ -20,6 +20,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
         redirect('/login'); 
     }
     const apiKey = user.apiKey;
+    const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
 
     const assistantActions: AssistantActions = {
         "assistant": {
@@ -45,7 +46,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
         },
         "contact": {
             listAllAssistantEmails: await listAllAssistantEmails(apiKey),
-            listAvailablePhoneCountries: await listAvailablePhoneCountries(apiKey),
+            listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),
