@@ -153,8 +153,6 @@ export async function buildOptimisticTableDataItem(
   const { queryClient, projectId, tabId, logsActions } = dependencies;
   const { updateCache = true } = options;
 
-  console.log(`[buildOptimisticTableDataItem] Processing table tile: ${tile.name}`);
-
   // Check cache first
   const cachedTableDataItem = queryClient.getQueryData(["tableDataItem", tile.id]) as TableDataItem | undefined;
   if (cachedTableDataItem && !updateCache) {
@@ -212,8 +210,6 @@ export async function buildOptimisticPlotDataItem(
 ): Promise<PlotDataItem> {
   const { queryClient, projectId, logsActions } = dependencies;
   const { updateCache = true } = options;
-
-  console.log(`[buildOptimisticPlotDataItem] Processing plot tile: ${tile.name}`);
 
   // Check cache first
   const cachedPlotDataItem = queryClient.getQueryData(["plotDataItem", tile.id]) as PlotDataItem | undefined;
