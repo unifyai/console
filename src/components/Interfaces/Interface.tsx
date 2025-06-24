@@ -26,6 +26,9 @@ import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
 import { useInterfaceSync } from '@/contexts/hooks/interface/sync/useInterfaceSync';
 import { selectActiveTab, selectTotalInactiveTabsForInterface } from '@/contexts/selectors/tab';
 import { useInterfaceData } from '@/contexts/hooks/interface/useInterfaceData';
+import SaveResetOverlay from './SaveResetOverlay';
+import { useSidebar } from '@/components/UI/sidebar';
+import { ScrollArea } from '../UI/scroll-area';
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./DefaultProject'));
@@ -73,7 +76,8 @@ const Interface = ({
 
   // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, projectQueryParam, interfaceActions, tabActions);
-  const syncedInterfaceUIActions = syncedInterfaceActions?.ui;
+  const syncedInterfaceDataActions = syncedInterfaceActions?.data ?? null;
+  const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
   
   // Get current active tab name using selector - this is our source of truth
   const state = useStoreApiContext().getState();
@@ -127,6 +131,21 @@ const Interface = ({
     }
   );
 
+  // Sidebar state for proper positioning
+  const { state: sidebarState } = useSidebar();
+  const sidebarWidth = sidebarState === 'collapsed' ? '3rem' : '14rem';
+
+  // Overlay state for save/reset operations
+  const [overlayState, setOverlayState] = useState<{
+    isVisible: boolean;
+    operation: 'saving' | 'resetting' | 'refreshing' | null;
+    status: 'loading' | 'success' | 'error' | null;
+  }>({
+    isVisible: false,
+    operation: null,
+    status: null,
+  });
+
   // Initialize command hooks
   const commandHooks = useCommand({
     projectId: projectQueryParam,
@@ -141,6 +160,7 @@ const Interface = ({
     tileActions,
     fileActions,
     codeActions,
+    setOverlayState,
   });
 
   // Reference for the grid container
@@ -205,6 +225,15 @@ const Interface = ({
       debouncedTabSwitch.cancel();
     };
   }, [debouncedTabSwitch]);
+
+  // Function to hide overlay
+  const hideOverlay = () => {
+    setOverlayState({
+      isVisible: false,
+      operation: null,
+      status: null,
+    });
+  };
 
   // Scroll to the bottom whenever new tiles are added
   useEffect(() => {
@@ -286,8 +315,13 @@ const Interface = ({
       return;
     }
     
-    // Hide the dialog
+    // Hide the dialog and show overlay
     setSaveInterfaceOpen(false);
+    setOverlayState({
+      isVisible: true,
+      operation: 'saving',
+      status: 'loading',
+    });
     
     // Show loading state
     if (tabUIActions) {
@@ -298,20 +332,35 @@ const Interface = ({
       // Get the tile IDs for this tab
       const tileIds = tabDataActions?.getItems().map(item => item.id) || [];
       
-      // Create a checkpoint of the tab and all its tiles
+      // Perform the save operation
       await saveTabWithTilesMutation.mutateAsync({
         interface_id: interfaceId,
         tab_name: activeTabName,
         tile_ids: tileIds
       });
       
-      // Show success message
+      // Show success in overlay
+      setOverlayState({
+        isVisible: true,
+        operation: 'saving',
+        status: 'success',
+      });
+      
+      // Show success message in UI state
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(true);
       }
       
     } catch (error) {
       console.error("Failed to save tab:", error);
+      
+      // Show error in overlay
+      setOverlayState({
+        isVisible: true,
+        operation: 'saving',
+        status: 'error',
+      });
+      
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(false);
       }
@@ -348,7 +397,7 @@ const Interface = ({
       case "save-interface":
         setSaveInterfaceOpen(!saveInterfaceOpen);
         break;
-      case "reset-tab":
+      case "reset-interface":
         commandHooks.resetTab();
         break;
       case "close-project":
@@ -361,7 +410,8 @@ const Interface = ({
 
   return (
     <div className="w-full h-full">
-      <div className="w-full h-full overflow-auto relative bg-background" ref={gridRef}>
+      <ScrollArea className="w-full h-full">
+        <div className="relative bg-background" ref={gridRef}>
         <Toaster richColors position="bottom-right" closeButton />
         {/* ---------------------------------------------------------
             Top-level Suspense: covers the whole Tabs area so that
@@ -379,115 +429,124 @@ const Interface = ({
             onValueChange={handleTabChange}
             className="w-full h-full flex flex-col tutorial-details-panel"
           >
-            <div className="sticky top-0 z-10 bg-background p-2 flex justify-between w-full">
-              {/* Project buttons and add/delete buttons */}
-              <ProjectButtons
-                tabIdOrName={activeTabId}
-                interfaceId={interfaceId}
-                projectQueryParam={projectQueryParam}
-                defaultProject={false}
-                setTabQueryParam={setTabQueryParamFromSync}
-                setInterfaceQueryParam={setInterfaceQueryParam}
-                setProjectQueryParam={setProjectQueryParam}
-                projectActions={projectsActions}
-                interfaceActions={interfaceActions}
-                tabActions={tabActions}
-                tileActions={tileActions}
-                fileActions={fileActions}
-                codeActions={codeActions}
-              />
-
-              <div className="flex flex-row gap-2 items-center">
-                <AutoComplete
-                  type={"Actions"}
-                  items={storeCommands.map((cmd: Command) => ({
-                    label: cmd.label,
-                    value: cmd.id,
-                    icon: cmd.icon ? iconMap[cmd.icon] : undefined,
-                    disabled: cmd.disabled
-                  }))}
-                  defaultValue={undefined}
-                  isOpen={undefined}
-                  onSelect={(commandId: string) => handleCommand(commandId)}
-                  onOpen={() => {}}
-                  loading={false}
+            {/* Floating Top Menu Elements */}
+            <div 
+              className="fixed top-0 z-50 transition-all duration-200 ease-linear pointer-events-none"
+              style={{ 
+                left: sidebarWidth,
+                right: 0,
+              }}
+            >
+              <div className="flex justify-between w-full p-4 pointer-events-auto">
+                <ProjectButtons
+                  tabIdOrName={activeTabId}
+                  interfaceId={interfaceId}
+                  projectQueryParam={projectQueryParam}
+                  defaultProject={false}
+                  setTabQueryParam={setTabQueryParamFromSync}
+                  setInterfaceQueryParam={setInterfaceQueryParam}
+                  setProjectQueryParam={setProjectQueryParam}
+                  projectActions={projectsActions}
+                  interfaceActions={interfaceActions}
+                  tabActions={tabActions}
+                  tileActions={tileActions}
+                  fileActions={fileActions}
+                  codeActions={codeActions}
+                  setOverlayState={setOverlayState}
                 />
-                {tabUIState?.resetting && <Loader2 className="animate-spin" />}
-              </div>
 
-              {/* Interface buttons */}
-              <InterfaceButtons
-                tabIdOrName={activeTabId}
-                interfaceId={interfaceId}
-                logsActions={logsActions}
-                contextActions={contextActions}
-                interfaceActions={interfaceActions}
-                tabActions={tabActions}
-                tileActions={tileActions}
-                projectsActions={projectsActions}
-                fieldsActions={fieldsActions}
-                disabled={saveTabWithTilesMutation.isPending}
-              />
+                <div className="flex flex-row gap-2 items-center">
+                  <AutoComplete
+                    type={"Actions"}
+                    items={storeCommands.map((cmd: Command) => ({
+                      label: cmd.label,
+                      value: cmd.id,
+                      icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+                      disabled: cmd.disabled
+                    }))}
+                    defaultValue={undefined}
+                    isOpen={undefined}
+                    onSelect={(commandId: string) => handleCommand(commandId)}
+                    onOpen={() => {}}
+                    loading={false}
+                  />
+                  {tabUIState?.resetting && (
+                    <div className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
+                      <Loader2 className="animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                <InterfaceButtons
+                  tabIdOrName={activeTabId}
+                  interfaceId={interfaceId}
+                  logsActions={logsActions}
+                  contextActions={contextActions}
+                  interfaceActions={interfaceActions}
+                  tabActions={tabActions}
+                  tileActions={tileActions}
+                  projectsActions={projectsActions}
+                  fieldsActions={fieldsActions}
+                  disabled={saveTabWithTilesMutation.isPending}
+                />
+              </div>
             </div>
 
-            {tabNames.length === 0 ? (
-              (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
-                <div className="flex justify-center">
-                  <Loader2 className="animate-spin my-36" />
-                </div>
-              ) : !projectQueryParam && !interfaceQueryParam ? (
-                <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
-                  <DefaultProject
-                    projectActions={projectsActions}
-                    interfaceActions={interfaceActions}
-                    tabActions={tabActions}
-                    tileActions={tileActions}
-                    logsActions={logsActions}
-                    codeActions={codeActions}
-                    fileActions={fileActions}
-                    derivedEntryActions={derivedEntryActions}
-                    setTabQueryParam={setTabQueryParamFromSync}
-                    setInterfaceQueryParam={setInterfaceQueryParam}
-                    setProjectQueryParam={setProjectQueryParam}
-                  />
-                </Suspense>
-              ) : null
-            ) : (
-              tabNames.map((tabName: string, idx: number) => (
-                <TabsContent
-                  key={idx}
-                  value={tabName}
-                  className="mb-auto tutorial-selection-pane relative"
-                >
-                  {/* Check if we're in loading states */}
-                  {(tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending) ? (
-                    <div className="flex justify-center">
-                      <Loader2 className="animate-spin my-36" />
-                    </div>
-                  ) : activeTabName !== tabName ? (
-                    <div className="flex justify-center">
-                      {/* Show different indicator for pending tab switch */}
-                      {pendingTabChange === tabName ? (
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="animate-spin my-36" />
-                          <div className="text-sm text-muted-foreground">Switching tab...</div>
-                        </div>
-                      ) : (
-                        <Loader2 className="animate-spin my-36" />
-                      )}
-                    </div>
-                  ) : tabStreamingQuery ? (
-                    /* CLIENT-FIRST APPROACH - rendering Tab directly from React Query */
-                    tabStreamingQuery.activeTab.isLoading ? (
+            {/* Content area with deadspace for floating menus */}
+            <div 
+              className="transition-all duration-200 ease-linear"
+              style={{ 
+                paddingTop: '6rem',     // Space for top floating menu
+                paddingLeft: '1rem',    // Content padding
+                paddingRight: '1rem',   // Content padding
+                minHeight: 'calc(100vh - 6rem)', // Ensure full height minus top padding
+              }}
+            >
+              {tabNames.length === 0 ? (
+                (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
+                  <div className="flex justify-center">
+                    <Loader2 className="animate-spin my-36" />
+                  </div>
+                ) : !projectQueryParam && !interfaceQueryParam ? (
+                  <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
+                    <DefaultProject
+                      projectActions={projectsActions}
+                      interfaceActions={interfaceActions}
+                      tabActions={tabActions}
+                      tileActions={tileActions}
+                      logsActions={logsActions}
+                      codeActions={codeActions}
+                      fileActions={fileActions}
+                      derivedEntryActions={derivedEntryActions}
+                      setTabQueryParam={setTabQueryParamFromSync}
+                      setInterfaceQueryParam={setInterfaceQueryParam}
+                      setProjectQueryParam={setProjectQueryParam}
+                    />
+                  </Suspense>
+                ) : null
+              ) : (
+                tabNames.map((tabName: string, idx: number) => (
+                  <TabsContent
+                    key={idx}
+                    value={tabName}
+                    className="mb-auto tutorial-selection-pane relative"
+                  >
+                    {/* Check if we're in loading states */}
+                    {(tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending) ? (
                       <div className="flex justify-center">
                         <Loader2 className="animate-spin my-36" />
                       </div>
-                    ) : tabStreamingQuery.activeTab.isError ? (
-                      <div className="flex justify-center items-center flex-col gap-4 my-36">
-                        <div className="text-destructive">Error loading tab data</div>
-                        <div className="text-sm text-muted-foreground">
-                          {tabStreamingQuery.activeTab.error?.message}
-                        </div>
+                    ) : activeTabName !== tabName ? (
+                      <div className="flex justify-center">
+                        {/* Show different indicator for pending tab switch */}
+                        {pendingTabChange === tabName ? (
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="animate-spin my-36" />
+                            <div className="text-sm text-muted-foreground">Switching tab...</div>
+                          </div>
+                        ) : (
+                          <Loader2 className="animate-spin my-36" />
+                        )}
                       </div>
                     ) : (
                       <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
@@ -530,34 +589,50 @@ const Interface = ({
                           )}
                         </div>
                       </Suspense>
-                    )
-                  ) : (
-                    /* No tab streaming available */
-                    <div className="flex justify-center items-center flex-col gap-4 my-36">
-                      <div className="text-muted-foreground">Tab streaming not available</div>
-                    </div>
-                  )}
-                </TabsContent>
-              ))
-            )}
+                    )}
+                  </TabsContent>
+                ))
+              )}
+              
+              {/* Bottom deadspace - ensures scrollable space for floating bottom menu */}
+              <div style={{ height: '10rem' }} className="w-full" />
+            </div>
 
-            {/* Interface tabs */}
-            {projectQueryParam && interfaceQueryParam && <div className="sticky bottom-0 z-10 p-2 bg-background flex w-full">
-              <InterfaceTabs
-                tabIdOrName={activeTabId}
-                interfaceId={interfaceId}
-                projectsActions={projectsActions}
-                contextActions={contextActions}
-                interfaceActions={interfaceActions}
-                tabActions={tabActions}
-                tileActions={tileActions}
-                fieldsActions={fieldsActions}
-                logsActions={logsActions}
-                setTabQueryParam={setTabQueryParamFromSync}
-                pendingTabChange={pendingTabChange}
-              />
-            </div>}
+            {/* Floating Bottom Tab Bar */}
+            {projectQueryParam && interfaceQueryParam && (
+              <div 
+                className="fixed bottom-0 z-50 transition-all duration-200 ease-linear pointer-events-none"
+                style={{ 
+                  left: sidebarWidth,
+                  right: 0,
+                }}
+              >
+                <div className="p-4 w-full flex justify-center pointer-events-auto">
+                  <InterfaceTabs
+                    tabIdOrName={activeTabId}
+                    interfaceId={interfaceId}
+                    projectsActions={projectsActions}
+                    contextActions={contextActions}
+                    interfaceActions={interfaceActions}
+                    tabActions={tabActions}
+                    tileActions={tileActions}
+                    fieldsActions={fieldsActions}
+                    logsActions={logsActions}
+                    setTabQueryParam={setTabQueryParamFromSync}
+                    pendingTabChange={pendingTabChange}
+                  />
+                </div>
+              </div>
+            )}
           </Tabs>
+          
+          {/* Save/Reset Overlay */}
+          <SaveResetOverlay
+            isVisible={overlayState.isVisible}
+            operation={overlayState.operation}
+            status={overlayState.status}
+            onComplete={hideOverlay}
+          />
         </Suspense>
 
         {/* Focus Dialog */}
@@ -633,7 +708,8 @@ const Interface = ({
             </DialogContent>
           </Dialog>
         )}
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 };

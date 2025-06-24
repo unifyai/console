@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { Assistant, AssistantActions, AssistantPreset } from "@/types/team/assistant";
 import { ActivityLogActions, MessageLog } from "@/types/team/activity";
 import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
-import { toast, Toaster } from "sonner";
+import { showSuccessToast } from "@/components/notifications";
+import { Toaster } from "sonner";
 import { AssistantProfilePanel } from './Assistants/AssistantProfile';
 import { AssistantActivityLogPanel } from './Assistants/Activity/AssistantActivityLogPanel';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -162,7 +163,7 @@ export default function Main({
 
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
-            toast.info("No presets match filters.", { duration: 3000 });
+            showSuccessToast("No presets match filters.");
             return;
         }
         const randomIndex = Math.floor(Math.random() * currentFilteredPresets.length);

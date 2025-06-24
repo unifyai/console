@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Voice, AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
 import { getLanguageLabel } from '@/utils/team/voice-utils';
 
@@ -50,12 +50,12 @@ export function useVoiceCreator(
     const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
         let backendResponse: (Voice & { info?: string; is_preset?: boolean }) | ResponseProps | null = null;
-        const toastId = toast.loading("Creating voice...");
+        const toastId = showLoadingToast("Creating voice...");
         
         try {
             if (createMode === 'clone') {
                 if (!cloneFile || !cloneName || !cloneLanguage) {
-                    toast.error("Audio file, Voice Name, and Language are required for cloning.", { id: toastId });
+                    showErrorToast("Audio file, Voice Name, and Language are required for cloning.", "Audio file, Voice Name, and Language are required for cloning.", toastId);
                     setIsProcessingCreate(false); return;
                 }
                 const formData = new FormData();
@@ -66,7 +66,7 @@ export function useVoiceCreator(
                 backendResponse = await assistantVoiceActions.clone(formData);
             } else {
                 if (!localizeBaseVoiceInfo || !localizeNewName || !localizeTargetLanguage || !localizeOriginalGender) {
-                    toast.error("Base voice, New Name, Target Language, and Original Gender are required for localization.", { id: toastId });
+                    showErrorToast("Base voice, New Name, Target Language, and Original Gender are required for localization.", "Base voice, New Name, Target Language, and Original Gender are required for localization.", toastId);
                     setIsProcessingCreate(false); return;
                 }
                 backendResponse = await assistantVoiceActions.localize(
@@ -78,7 +78,7 @@ export function useVoiceCreator(
             if (backendResponse && (backendResponse as ResponseProps).detail) {
                 const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
                 console.error(`Error creating voice: ${errorDetail}`);
-                toast.error(`Error creating voice`, { id: toastId, duration: 7000 });
+                showErrorToast(`Error creating voice`, `Error creating voice`, toastId);
             } 
             else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
                 const voiceDataFromBackend = backendResponse as VoiceOption;
@@ -88,19 +88,19 @@ export function useVoiceCreator(
                     isUserVoiceInOrchestra: true, 
                     is_preset: voiceDataFromBackend.is_preset ?? false 
                 };
-                toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
+                showSuccessToast(`Voice "${fullNewVoice.name}" created & selected!`, undefined, toastId);
                 if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
                 if (fetchUserVoices) fetchUserVoices(); 
                 resetCreateForm();
             } 
             else { 
                 console.error(`Error creating voice: Unexpected response structure from backend.`, backendResponse);
-                toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
+                showErrorToast(`Error creating voice: Unexpected response.`, `Error creating voice: Unexpected response.`, toastId);
             }
 
         } catch (error: any) {
             console.error(`Error creating voice: ${error.message}`);
-            toast.error(`Voice creation process failed`, { id: toastId, duration: 7000 });
+            showErrorToast(`Voice creation process failed`, `Voice creation process failed`, toastId);
         } finally {
             setIsProcessingCreate(false);
         }

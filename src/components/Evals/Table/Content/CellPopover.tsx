@@ -10,7 +10,8 @@ const CellPopover = ({cell, isCellExpanded, setExpandedCells}: {
     setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>
 }) => {
     
-    const [open, setOpen] = useState(isCellExpanded(cell))
+    const isExpanded = isCellExpanded(cell);
+    const [open, setOpen] = useState(isExpanded)
 
     // Transform closing event into state update for expanded cells
     useEffect(() => {
@@ -19,14 +20,14 @@ const CellPopover = ({cell, isCellExpanded, setExpandedCells}: {
             ...expandedCells, 
             [cell.id]: false
         }))
-    },[open])
+    },[open, cell.id, setExpandedCells])
 
     // Transform expand cell event to popover open state
     useEffect(() => {
-        if (isCellExpanded(cell)) 
+        if (isExpanded) 
             setOpen(true) 
         else setOpen(false)
-    }, [isCellExpanded(cell)])
+    }, [isExpanded, cell])
 
     return (
     <div style={{position: "absolute"}}>

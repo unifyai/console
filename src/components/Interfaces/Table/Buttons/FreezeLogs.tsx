@@ -6,6 +6,7 @@ import { Snowflake, LoaderCircle } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile/useTileItem";
 import { useTile } from "@/contexts/hooks/tile/useTile";
 import { useTableDataQuery } from "@/hooks/Query/useTableDataQuery";
+import { showSuccessToast, showErrorToast } from "@/components/notifications";
 
 const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
     tileId: string,
@@ -35,21 +36,31 @@ const FreezeLogs = ({ tileId, tabId, interfaceId, projectId }: {
         setLoading(false);
     },[tableDataItem?.logs])
 
-    const onClick = () => {
-        setLoading(true)
-        if (item?.freeze) {
-            setSpinnerColor("primary")
-            tileDataActions?.setFreeze("")
-        } else {
-            setSpinnerColor("white")
-            const cutoff = new Date().toISOString().replace("T", " ").replace("Z", "")
-            tileDataActions?.setFreeze(cutoff)
+    const onClick = async () => {
+        setLoading(true);
+        try {
+            const isFreezing = !item?.freeze;
+            const cutoff = isFreezing ? new Date().toISOString().replace("T", " ").replace("Z", "") : "";
+    
+            // This is a synchronous state update, so we don't need withLoadingToast
+            await tileDataActions?.setFreeze(cutoff);
+
+            showSuccessToast(
+                isFreezing ? "Logs Frozen" : "Logs Unfrozen",
+                isFreezing ? `Logs are now frozen at ${cutoff}` : "Displaying latest logs."
+            );
+
+        } catch (error) {
+            showErrorToast(error, "Failed to update freeze state.");
+        } 
+        finally {
+            setLoading(false);
         }
     }
     const variant = item?.freeze ? "primary" : "outline"
     const tooltip = item?.freeze ? `Get latest logs. (Current freeze: ${item.freeze})` : "Only get logs before freeze"
 
-    const icon = loading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : <Snowflake/>
+    const icon = loading ? <LoaderCircle className="animate-spin"/> : <Snowflake/>
 
     return (
         <ActionButton variant={variant} tooltip={tooltip} icon={icon} onClick={onClick}/>

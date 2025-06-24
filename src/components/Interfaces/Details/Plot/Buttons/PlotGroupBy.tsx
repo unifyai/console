@@ -61,7 +61,7 @@ const PlotGroupBy = ({
             </Tooltip>
         </AccordionTrigger>
         <AccordionContent>
-            <div className="max-h-60 overflow-y-auto pr-2 space-y-1">
+            <div className="max-h-60 overflow-y-auto command-scrollbar pr-2 space-y-1">
             {/* Button for "None" option */}
             <Button
                 key="none-group-by"

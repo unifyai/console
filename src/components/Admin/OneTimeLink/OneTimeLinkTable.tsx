@@ -22,7 +22,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/UI/alert-dialog";
-import { toast } from 'sonner';
+import { showErrorToast, showSuccessToast } from '@/components/notifications';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 
@@ -91,14 +91,14 @@ export function OneTimeLinkTable({
             const fullUrl = `${window.location.origin}/team?token=${token}`;
             navigator.clipboard.writeText(fullUrl).then(() => {
                 setCopiedToken(token);
-                toast.success("Full link copied to clipboard!");
+                showSuccessToast("Full link copied to clipboard!");
                 setTimeout(() => setCopiedToken(null), 2000);
             }).catch(err => {
-                toast.error("Failed to copy link.");
+                showErrorToast("Failed to copy link.");
                 console.error('Failed to copy: ', err);
             });
         } else {
-            toast.error("Cannot copy link in this environment.");
+            showErrorToast("Cannot copy link in this environment.");
         }
     };
 

@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/UI/tooltip"
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { toast } from 'sonner'; 
+import { showLoadingToast, showSuccessToast, showErrorToast } from '@/components/notifications'; 
 
 interface TaskListItemProps {
     task: Task;
@@ -100,7 +100,7 @@ export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemPro
 
         setIsSaving(true);
         setSaveError(null);
-        const toastId = toast.loading("Saving description...");
+        const toastId = showLoadingToast("Saving description...");
 
         try {
             const response = await updateTask(
@@ -115,13 +115,13 @@ export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemPro
             onTaskUpdate(task.task_id, { description: description });
             originalDescription.current = description; 
             setIsEditing(false);
-            toast.success("Description saved.", { id: toastId });
+            showSuccessToast("Description saved.", undefined, toastId);
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             setSaveError(errorMsg); 
             console.error("Failed to save task description:", errorMsg);
-            toast.error(`Failed to save task description`, { id: toastId });
+            showErrorToast(`Failed to save task description`, `Failed to save task description`, toastId);
         } finally {
             setIsSaving(false);
         }

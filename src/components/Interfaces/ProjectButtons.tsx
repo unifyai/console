@@ -1,6 +1,7 @@
 "use client";
 
-import { Ellipsis, RefreshCw } from "lucide-react";
+import React from "react";
+import { FolderCog, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import CreateProject from "./Table/Buttons/CreateProject";
 import CloseProject from "./Table/Buttons/CloseProject";
@@ -17,6 +18,7 @@ import BaseDropdown from "../Common/Dropdowns/Base";
 import { useCommand } from "@/contexts/hooks/commands/useCommand";
 import { useListProjectsQuery } from "@/hooks/Query/useProjectsQuery";
 
+
 const ProjectButtons = ({
     tabIdOrName,
     interfaceId,
@@ -31,6 +33,7 @@ const ProjectButtons = ({
     tileActions,
     fileActions,
     codeActions,
+    setOverlayState,
 }: {
     tabIdOrName: string | null;
     interfaceId: string;
@@ -45,6 +48,11 @@ const ProjectButtons = ({
     tileActions: GranularTileActions;
     fileActions: FileActions;
     codeActions: CodeActions;
+    setOverlayState: React.Dispatch<React.SetStateAction<{
+        isVisible: boolean;
+        operation: 'saving' | 'resetting' | 'refreshing' | null;
+        status: 'loading' | 'success' | 'error' | null;
+    }>>;
 }) => {
     const router = useRouter();
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -113,12 +121,13 @@ const ProjectButtons = ({
     }, [selectProjectsOpen, createProjectOpen, deleteProjectOpen]);
 
     return (
-        <div className="w-fit gap-2 flex flex-row items-center px-4">
+        <div className="w-fit gap-2 flex flex-row items-center">
             <BaseDropdown
                 context="project"
                 button={<ActionButton
+                    className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
                     tooltip="Manage Projects"
-                    icon={<Ellipsis />}
+                    icon={<FolderCog />}
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
@@ -215,13 +224,46 @@ const ProjectButtons = ({
                 loading={listProjectsQuery.isLoading}
             />
             <ActionButton
+                className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
                 variant="outline"
                 icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
                 tooltip={"Refresh Interface"}
                 disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
-                onClick={() => {
+                onClick={async () => {
                     tabUIActions?.setRefreshing(true);
-                    router.refresh();
+                    
+                    // Show overlay
+                    setOverlayState({
+                        isVisible: true,
+                        operation: 'refreshing',
+                        status: 'loading',
+                    });
+                    
+                    try {
+                        // Add minimum delay to ensure loading state is visible
+                        const [refreshResult] = await Promise.all([
+                            router.refresh(),
+                            new Promise(resolve => setTimeout(resolve, 1000)) // Minimum 1 second delay
+                        ]);
+                        
+                        // Show success in overlay
+                        setOverlayState({
+                            isVisible: true,
+                            operation: 'refreshing',
+                            status: 'success',
+                        });
+                    } catch (error) {
+                        console.error("Failed to refresh interface:", error);
+                        
+                        // Show error in overlay
+                        setOverlayState({
+                            isVisible: true,
+                            operation: 'refreshing',
+                            status: 'error',
+                        });
+                    } finally {
+                        tabUIActions?.setRefreshing(false);
+                    }
                 }}
             />
         </div>

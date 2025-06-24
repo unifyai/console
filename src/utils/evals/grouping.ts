@@ -4,6 +4,7 @@ import { sanitizeId } from "@/utils/evals/columnOperations";
 import { FiltersByColumn } from "@/types/evals/columns";
 import { combineFilters, filtersToExpression } from "./filters";
 import { getColumnMetrics } from "./common";
+import { showErrorToast } from "@/components/notifications";
 
 /*
   Utility functions to check grouping types
@@ -479,7 +480,8 @@ export async function onGroupExpand(
       resolve();
     });
   } catch (error) {
-    console.error("Error fetching grouped logs:", error);
+    showErrorToast(error, "Error fetching grouped logs");
+    throw error;
   } finally {
     setExpandingRowId(null);
   }

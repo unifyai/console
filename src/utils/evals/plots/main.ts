@@ -12,6 +12,7 @@ import { clearCanvas } from "./canvas";
 import { clearFixedTooltip } from "./tooltip";
 import { PlotActions } from "@/contexts/hooks/tile/usePlotTile";
 import { PlotTile } from "@/contexts/slices/selectors/plotTile";
+import { withLoadingToast } from "@/components/notifications";
 
 /**
  * Main function orchestrating the drawing of different plot types (Scatter, Bar, Histogram, Line) within a specified SVG container.
@@ -57,7 +58,7 @@ import { PlotTile } from "@/contexts/slices/selectors/plotTile";
  * @param {{ plot_group_by_colors?: string | null; }} [plotTileState] - Optional object containing UI states for the plot tile (e.g., grouping color scheme).
  * @returns {void}
  */
-export const drawPlot = (
+export const drawPlot = async (
     svg: d3.Selection<SVGSVGElement | null, unknown, null, undefined>,
     container: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
     settings: d3.Selection<HTMLDivElement | null, unknown, null, undefined>,
@@ -91,172 +92,181 @@ export const drawPlot = (
     plotTileActions?: PlotActions | null,
     plotTileState?: PlotTile | null
 ) => {
-        // Update svg dimensions
-        svg
-        .attr("width", dimensions.width)
-        .attr("height", dimensions.height)
-        .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
+    await withLoadingToast(
+        async () => {
+            // Update svg dimensions
+            svg
+            .attr("width", dimensions.width)
+            .attr("height", dimensions.height)
+            .attr("viewBox", [0, 0, dimensions.width, dimensions.height]);
 
-        // Update clipbox dimensions
-        svg.select("#clip-rect")
-            .attr("x", margins.left)
-            .attr("y", margins.top)
-            .attr("width", dimensions.width - margins.left - margins.right)
-            .attr("height", dimensions.height - margins.top - margins.bottom);
+            // Update clipbox dimensions
+            svg.select("#clip-rect")
+                .attr("x", margins.left)
+                .attr("y", margins.top)
+                .attr("width", dimensions.width - margins.left - margins.right)
+                .attr("height", dimensions.height - margins.top - margins.bottom);
 
-        // Draw plot borders
-        drawBorders(svg, dimensions.height, dimensions.width, margins);
+            // Draw plot borders
+            drawBorders(svg, dimensions.height, dimensions.width, margins);
 
-        const xTable = selectedXAxisProperty?.split(".")[0] || "";
-        const yTable = selectedYAxisProperty?.split(".")[0] || "";
+            const xTable = selectedXAxisProperty?.split(".")[0] || "";
+            const yTable = selectedYAxisProperty?.split(".")[0] || "";
 
-        const groupByColors = plotTileState?.plot_group_by_colors ?? undefined;
+            const groupByColors = plotTileState?.plot_group_by_colors ?? undefined;
 
-        // Draw selected plot type
-        if (plotType === "Line Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                const setScaleX = plotTileActions?.setPlotScaleX;
-                const setScaleY = plotTileActions?.setPlotScaleY;
-                if (!setScaleX || !setScaleY) {
-                    console.error("Required plotTileActions (setPlotScaleX, setPlotScaleY) not provided for Line Chart scale check.");
-                    return;
+            // Draw selected plot type
+            if (plotType === "Line Chart") {
+                if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    const setScaleX = plotTileActions?.setPlotScaleX;
+                    const setScaleY = plotTileActions?.setPlotScaleY;
+                    if (!setScaleX || !setScaleY) {
+                        console.error("Required plotTileActions (setPlotScaleX, setPlotScaleY) not provided for Line Chart scale check.");
+                        return;
+                    }
+                    const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled);
+                    const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled);
+                    drawLineChart(
+                        container,
+                        svg,
+                        settings,
+                        adjustedScaleX,
+                        adjustedScaleY,
+                        dimensions,
+                        margins,
+                        axisPadding,
+                        selectedXAxisProperty,
+                        selectedYAxisProperty,
+                        groupByProperty,
+                        aggregateProperty,
+                        xTable,
+                        yTable,
+                        logs,
+                        fields,
+                        zoomRef,
+                        groupByColors,
+                        interactive,
+                        zoomEnabled
+                    );
+                } else {
+                    clearCanvas(svgRef, containerRef);
+                    clearFixedTooltip(settings, setIsTooltipMinimized);
                 }
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled);
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable,selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled);
-                drawLineChart(
-                    container,
-                    svg,
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    zoomRef,
-                    groupByColors,
-                    interactive,
-                    zoomEnabled
-                );
-            } else {
-                clearCanvas(svgRef, containerRef);
-                clearFixedTooltip(settings, setIsTooltipMinimized);
             }
-        }
 
-        else if (plotType === "Bar Chart") {
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                drawBarChart(
-                    container,
-                    svg,
-                    settings,
-                    "linear", // Bar chart uses linear scales typically
-                    "linear",
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    metric,
-                    sortBars,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    zoomRef,
-                    groupByColors,
-                    interactive
-                );
-            } else {
-                clearCanvas(svgRef, containerRef);
-                clearFixedTooltip(settings, setIsTooltipMinimized);
-            }
-        }
-
-        else if (plotType === "Histogram") {
-            if (logs && selectedXAxisProperty) {
-                if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                const setBinCountAction = plotTileActions?.setBinCount;
-                if (!setBinCountAction) {
-                    console.error("Required plotTileActions (setBinCount) not provided for Histogram.");
-                    return;
+            else if (plotType === "Bar Chart") {
+                if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    drawBarChart(
+                        container,
+                        svg,
+                        settings,
+                        "linear", // Bar chart uses linear scales typically
+                        "linear",
+                        dimensions,
+                        margins,
+                        axisPadding,
+                        selectedXAxisProperty,
+                        selectedYAxisProperty,
+                        groupByProperty,
+                        aggregateProperty,
+                        metric,
+                        sortBars,
+                        xTable,
+                        yTable,
+                        logs,
+                        fields,
+                        zoomRef,
+                        groupByColors,
+                        interactive
+                    );
+                } else {
+                    clearCanvas(svgRef, containerRef);
+                    clearFixedTooltip(settings, setIsTooltipMinimized);
                 }
-                drawHistogram(
-                    container,
-                    svg,
-                    settings,
-                    "linear", // Histogram uses linear scales typically
-                    "linear",
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    binCount,
-                    setBinCountAction,
-                    binCounts,
-                    setBinCounts,
-                    xTable,
-                    logs,
-                    fields,
-                    groupByColors
-                );
-            } else {
-                clearCanvas(svgRef, containerRef);
-                clearFixedTooltip(settings, setIsTooltipMinimized);
             }
-        }
 
-        else { // Default to Scatter Plot
-            if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
-                const setScaleX = plotTileActions?.setPlotScaleX;
-                const setScaleY = plotTileActions?.setPlotScaleY;
-                if (!setScaleX || !setScaleY) {
-                    console.error("Required plotTileActions (setPlotScaleX, setPlotScaleY) not provided for Scatter Plot scale check.");
-                    return;
+            else if (plotType === "Histogram") {
+                if (logs && selectedXAxisProperty) {
+                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    const setBinCountAction = plotTileActions?.setBinCount;
+                    if (!setBinCountAction) {
+                        console.error("Required plotTileActions (setBinCount) not provided for Histogram.");
+                        return;
+                    }
+                    drawHistogram(
+                        container,
+                        svg,
+                        settings,
+                        "linear", // Histogram uses linear scales typically
+                        "linear",
+                        dimensions,
+                        margins,
+                        axisPadding,
+                        selectedXAxisProperty,
+                        groupByProperty,
+                        aggregateProperty,
+                        binCount,
+                        setBinCountAction,
+                        binCounts,
+                        setBinCounts,
+                        xTable,
+                        logs,
+                        fields,
+                        groupByColors
+                    );
+                } else {
+                    clearCanvas(svgRef, containerRef);
+                    clearFixedTooltip(settings, setIsTooltipMinimized);
                 }
-                const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled);
-                const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled);
-                drawScatterPlot(
-                    container,
-                    svg,
-                    settings,
-                    adjustedScaleX,
-                    adjustedScaleY,
-                    dimensions,
-                    margins,
-                    axisPadding,
-                    selectedXAxisProperty,
-                    selectedYAxisProperty,
-                    groupByProperty,
-                    aggregateProperty,
-                    showRegression,
-                    xTable,
-                    yTable,
-                    logs,
-                    fields,
-                    containerRef,
-                    zoomRef,
-                    groupByColors,
-                    interactive,
-                    zoomEnabled
-                );
-            } else {
-                clearCanvas(svgRef, containerRef);
-                clearFixedTooltip(settings, setIsTooltipMinimized);
             }
+
+            else { // Default to Scatter Plot
+                if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    const setScaleX = plotTileActions?.setPlotScaleX;
+                    const setScaleY = plotTileActions?.setPlotScaleY;
+                    if (!setScaleX || !setScaleY) {
+                        console.error("Required plotTileActions (setPlotScaleX, setPlotScaleY) not provided for Scatter Plot scale check.");
+                        return;
+                    }
+                    const adjustedScaleX = checkLogScalability(logs, fields, xTable, selectedXAxisProperty, scaleX, setScaleX, setLogScaleXEnabled);
+                    const adjustedScaleY = checkLogScalability(logs, fields, yTable, selectedYAxisProperty, scaleY, setScaleY, setLogScaleYEnabled);
+                    drawScatterPlot(
+                        container,
+                        svg,
+                        settings,
+                        adjustedScaleX,
+                        adjustedScaleY,
+                        dimensions,
+                        margins,
+                        axisPadding,
+                        selectedXAxisProperty,
+                        selectedYAxisProperty,
+                        groupByProperty,
+                        aggregateProperty,
+                        showRegression,
+                        xTable,
+                        yTable,
+                        logs,
+                        fields,
+                        containerRef,
+                        zoomRef,
+                        groupByColors,
+                        interactive,
+                        zoomEnabled
+                    );
+                } else {
+                    clearCanvas(svgRef, containerRef);
+                    clearFixedTooltip(settings, setIsTooltipMinimized);
+                }
+            }
+        },
+        {
+            loading: "Rendering plot...",
+            success: "Plot rendered successfully!",
+            error: "Failed to render plot."
         }
+    );
 };

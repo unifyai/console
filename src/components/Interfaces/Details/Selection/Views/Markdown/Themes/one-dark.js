@@ -1,4 +1,4 @@
-export default {
+const oneDark = {
     "code[class*=\"language-\"]": {
         "background": "var(--background)",
         "color": "hsl(220, 14%, 71%)",
@@ -500,3 +500,5 @@ export default {
         "stroke": "hsl(220, 14%, 71%)"
     }
 }
+
+export default oneDark;

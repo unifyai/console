@@ -6,8 +6,11 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
+import { useTabUI } from '@/contexts/hooks/tab';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { getTileButtonsRef, getTileCardRef } from '@/utils/refRegistry';
+import { resolveColorHierarchy } from "@/utils/evals/plots/common";
+import { ScrollArea } from '../UI/scroll-area';
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Interfaces/Table/Table"));
@@ -49,6 +52,7 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // Use granular hooks for better code organization
   const { meta: tileMetaState } = useTileMeta(tileId, tabId);
   const { ui: tileUIState } = useTileUI(tileId, tabId);
+  const { ui: tabUIState } = useTabUI(tabId);
 
   // Get refs from registry
   const tileButtonsRef = getTileButtonsRef(tileId);
@@ -56,6 +60,9 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
 
   // Extract required data
   const { type: tileType } = tileMetaState || {};
+    
+  // Resolve color using hierarchical precedence
+  const resolvedColor = resolveColorHierarchy(tileUIState?.color, tabUIState?.color);
 
   // Update tile primary and secondary colors
   // Node: Need to update buttons and tile content separately 
@@ -63,26 +70,24 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // interferes with ref manipulation
   useEffect(() => {
       if (tileButtonsRef && tileButtonsRef.current) {
-          const color = tileUIState?.color;
-          if (color) {
-              tileButtonsRef.current.style.setProperty("--primary", color);
-              tileButtonsRef.current.style.setProperty("--accent", color);
+          if (resolvedColor) {
+              tileButtonsRef.current.style.setProperty("--primary", resolvedColor);
+              tileButtonsRef.current.style.setProperty("--accent", resolvedColor);
           } else {
               tileButtonsRef.current.style.removeProperty("--primary");
               tileButtonsRef.current.style.removeProperty("--accent");
           }
       }
       if (tileCardRef && tileCardRef.current) {
-          const color = tileUIState?.color;
-          if (color) {
-              tileCardRef.current.style.setProperty("--primary", color);
-              tileCardRef.current.style.setProperty("--accent", color);
+          if (resolvedColor) {
+              tileCardRef.current.style.setProperty("--primary", resolvedColor);
+              tileCardRef.current.style.setProperty("--accent", resolvedColor);
           } else {
               tileCardRef.current.style.removeProperty("--primary");
               tileCardRef.current.style.removeProperty("--accent");
           }
       }
-  }, [tileUIState?.color]);
+  }, [resolvedColor, tileButtonsRef, tileCardRef]);
 
   switch (tileType) {
     case "Table":

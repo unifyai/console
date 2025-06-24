@@ -1154,7 +1154,7 @@ export default function DictionaryView({
       const paths = gatherAllPaths();
       effectiveCollapseRecursively(paths);
     }
-  }, [traceForceExpandAll, traceForceCollapseAll, inTraceView]);
+  }, [traceForceExpandAll, traceForceCollapseAll, inTraceView, effectiveExpandRecursively, effectiveCollapseRecursively, gatherAllPaths]);
 
 
   if (diffMode === "none") {

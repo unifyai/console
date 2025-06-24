@@ -407,8 +407,7 @@ const IconPicker = React.forwardRef<
         )}
         <div
           ref={parentRef}
-          className="max-h-60 overflow-auto"
-          style={{ scrollbarWidth: 'thin' }}
+          className="max-h-60 overflow-auto command-scrollbar"
         >
           {isLoading ? (
             <IconsColumnSkeleton />

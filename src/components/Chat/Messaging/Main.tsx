@@ -73,7 +73,7 @@ const Messaging = ({
         }
         isInitialMount.current = false;
       }
-    }, [endpoints]);
+    }, [endpoints, selectedEndpoints.length]);
     
   const [pinnedEndpoints, setPinnedEndpoints] = useState<Endpoint[]>([]);
 

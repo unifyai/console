@@ -21,3 +21,26 @@ export const getPrimaryColorFromNode = (node: Element | null): string => {
     }
     return fallback;
 };
+
+/**
+ * Resolves color hierarchy by returning the first available color from the provided hierarchy.
+ * Returns the primary color if available, otherwise falls back to the secondary color.
+ * If neither is available, falls back to the CSS --primary variable.
+ * 
+ * @param {string | null | undefined} primaryColor - The primary color value (e.g., tile color)
+ * @param {string | null | undefined} secondaryColor - The fallback color value (e.g., tab color)
+ * @returns {string} The resolved color value, with CSS --primary as ultimate fallback
+ */
+export const resolveColorHierarchy = (
+    primaryColor: string | null | undefined, 
+    secondaryColor: string | null | undefined
+): string => {
+    if (primaryColor && primaryColor.trim() !== '') {
+        return primaryColor;
+    }
+    if (secondaryColor && secondaryColor.trim() !== '') {
+        return secondaryColor;
+    }
+    // Fallback to CSS primary color
+    return getPrimaryColorFromNode(null);
+};

@@ -80,7 +80,7 @@ const ProfileForm = ({user, onPrem}: {
 
   useEffect(() => {
     setInitialFormState({ ...formState });
-  }, [user]);
+  }, [user, formState]);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

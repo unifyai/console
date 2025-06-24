@@ -36,7 +36,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
           variant="outline"
           role="combobox"
           aria-expanded={isOpen != undefined ? isOpen : open}
-          className={`h-8 px-3 w-[200px] justify-between truncate ... ${className}`}
+          className={`h-8 px-3 w-[200px] justify-between truncate backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200 ${className}`}
           disabled={disabled}
         >
           {icon && icon}
@@ -49,37 +49,38 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
       <PopoverContent className="w-[200px] p-0">
         {loading ? <div className="h-10 flex justify-center items-center">
             <Loader2 className="animate-spin" />
-          </div> : <Command>
-          <CommandInput placeholder={`Search ${type}...`} className="h-10" disabled={disabled} />
-          <CommandList>
-            <CommandEmpty>{`No ${type} found.`}</CommandEmpty>
-            <CommandGroup>
-              {items.map((item) => (
-                <CommandItem
-                  key={item.value}
-                  value={item.value}
-                  disabled={item.disabled}
-                  onSelect={(currentValue) => {
-                    setValue(currentValue === value ? "" : currentValue);
-                    setIcon(currentValue === value ? undefined : item?.icon);
-                    onSelect(currentValue === value ? "" : currentValue);
-                    setOpen(false)
-                  }}
-                  className="h-10"
-                >
-                  {item.icon && item.icon}
-                  {item.label}
-                  <Check
-                    className={cn(
-                      "ml-auto",
-                      value === item.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>}
+          </div> :
+          <Command>
+            <CommandInput placeholder={`Search ${type}...`} className="h-10 bg-transparent border-none [&_[cmdk-input-wrapper]]:border-none" disabled={disabled} />
+            <CommandList>
+              <CommandEmpty>{`No ${type} found.`}</CommandEmpty>
+              <CommandGroup>
+                {items.map((item) => (
+                  <CommandItem
+                    key={item.value}
+                    value={item.value}
+                    disabled={item.disabled}
+                    onSelect={(currentValue) => {
+                      setValue(currentValue === value ? "" : currentValue);
+                      setIcon(currentValue === value ? undefined : item?.icon);
+                      onSelect(currentValue === value ? "" : currentValue);
+                      setOpen(false)
+                    }}
+                    className="h-10 cursor-pointer"
+                  >
+                    {item.icon && item.icon}
+                    {item.label}
+                    <Check
+                      className={cn(
+                        "ml-auto",
+                        value === item.value ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>}
       </PopoverContent>
     </Popover>
   )

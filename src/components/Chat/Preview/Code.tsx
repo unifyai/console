@@ -37,7 +37,7 @@ const CodePreview = ({apiKey, modelArguments, selectedLanguage, selectedVariant}
         const snippets = generateSnippet(selectedLanguage, selectedVariant, request)
         setCode(snippets.code)
         setSecureCode(snippets.secureCode)
-    }, [selectedLanguage, selectedVariant])
+    }, [selectedLanguage, selectedVariant, request])
     
     // Pip install header
     let install = null;

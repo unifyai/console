@@ -114,7 +114,8 @@ export async function fetchAndBuildTableDataItem(
   fields: LogFieldsResponseProps,
   projectId: string,
   logsActions: LogsActions,
-  previousLogs?: LogProps[] | GroupedLogProps[]
+  previousLogs?: LogProps[] | GroupedLogProps[],
+  signal?: AbortSignal
 ): Promise<TableDataItem> {
   // Build filter expression
   const filterExpression = buildFilterExpression(
@@ -158,7 +159,8 @@ export async function fetchAndBuildTableDataItem(
     groupingExpression ? 0 : null,
     null,
     null,
-    null
+    null, 
+    signal
   );
   const tGetLogsEnd = performance.now();
   perfLog(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);

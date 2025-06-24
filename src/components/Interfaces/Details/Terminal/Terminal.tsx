@@ -169,7 +169,7 @@ export default function Terminal({
       // @ts-ignore
       codeActions.stopTerminal(sessionId.current);
     }
-  }, []);
+  }, [codeActions]);
 
   // Poll terminal output every second
   useEffect(() => {
@@ -186,7 +186,7 @@ export default function Terminal({
     }, 2000);
 
     return () => clearInterval(id);
-  }, [started]);
+  }, [started, codeActions]);
 
   return (
     <div className="flex flex-col h-full">

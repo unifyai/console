@@ -254,17 +254,18 @@ const ListView: React.FC<ListViewProps> = ({
 }) => {
   const multiMode = (comparables && comparables.length > 0) ? true : false;
 
-  let labelKeys: string[] = [];
-  if (!multiMode) {
-    if (Array.isArray(value)) {
-      labelKeys = value.map((_, idx: number) => `Item ${idx}`);
+  const labelKeys = useMemo(() => {
+    if (!multiMode) {
+      if (Array.isArray(value)) {
+        return value.map((_: any, idx: number) => `Item ${idx}`);
+      }
+      return [];
     }
-  } else {
     const baseLen = Array.isArray(value) ? value.length : 0;
-    const compLens = (comparables ?? []).map((arr) => (Array.isArray(arr) ? arr.length : 0));
+    const compLens = (comparables ?? []).map((arr: any) => (Array.isArray(arr) ? arr.length : 0));
     const maxLen = Math.max(baseLen, ...compLens);
-    labelKeys = Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
-  }
+    return Array.from({ length: maxLen }, (_, i) => `Item ${i}`);
+  }, [multiMode, value, comparables]);
 
 
   const defaultOpen = useMemo(() => {

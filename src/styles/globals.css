@@ -145,3 +145,105 @@
   margin: 3px !important;
   background-image: var(--resizable-handle) !important;
 }
+
+/* Tile hover effects - show action buttons when hovering anywhere on tile */
+.group:hover .tile-action-buttons {
+  opacity: 1 !important;
+}
+
+/* Action button borders use neutral border color */
+.tile-action-buttons button {
+  border-color: var(--border) !important;
+}
+
+/* Custom scrollbar styling for command components */
+.command-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.command-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.command-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.command-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.command-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border);
+  opacity: 0.8;
+}
+
+.command-scrollbar::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Hide cmdk library scroll buttons */
+[cmdk-list] [cmdk-scroll-area] [cmdk-scroll-button] {
+  display: none !important;
+}
+
+/* Alternative selectors for cmdk scroll buttons */
+[data-cmdk-scroll-area] [data-cmdk-scroll-button] {
+  display: none !important;
+}
+
+/* Hide any scroll buttons in command components */
+[cmdk-root] [role="button"][aria-label*="scroll"] {
+  display: none !important;
+}
+
+/* More comprehensive cmdk scroll button hiding */
+[cmdk-list]::before,
+[cmdk-list]::after {
+  display: none !important;
+}
+
+/* Hide scroll indicators and buttons in cmdk components */
+[cmdk-list] button[cmdk-scroll-up-button],
+[cmdk-list] button[cmdk-scroll-down-button],
+[cmdk-list] [data-cmdk-scroll-up-button],
+[cmdk-list] [data-cmdk-scroll-down-button] {
+  display: none !important;
+}
+
+/* Hide any button that might be a scroll button in command popover */
+.command-scrollbar button[aria-hidden="true"] {
+  display: none !important;
+}
+
+/* Force disable cmdk internal scrolling and use browser scrolling */
+[cmdk-list] {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+/* Ensure the parent handles scrolling */
+[cmdk-root] {
+  overflow: hidden !important;
+}
+
+/* Hide all cmdk scroll-related elements */
+[cmdk-scroll-area],
+[data-cmdk-scroll-area] {
+  display: none !important;
+}
+
+/* Additional specific targeting for command components */
+.command-scrollbar [cmdk-list] {
+  overflow: visible !important;
+  scrollbar-width: none !important;
+}
+
+.command-scrollbar [cmdk-list]::-webkit-scrollbar {
+  display: none !important;
+}

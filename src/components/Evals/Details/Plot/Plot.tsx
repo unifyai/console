@@ -17,6 +17,9 @@ import { drawPlot } from "@/utils/evals/plots/main";
 import PlotAxis from "./Buttons/PlotAxis";
 import { useQueryState, parseAsFloat, parseAsString } from "nuqs";
 
+const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
+const axisPadding = 20; // Extra padding between axes borders and plot borders
+
 const LogsPlot = ({ logs, fields}: {
     logs: LogProps[] | undefined,
     fields: LogFieldsResponseProps
@@ -26,9 +29,7 @@ const LogsPlot = ({ logs, fields}: {
     let containerRef = useRef<HTMLDivElement>(null);
     let settingsRef = useRef<HTMLDivElement>(null);
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = {top: 30, right: 100, bottom: 75, left: 60} // Margin on the sides
-    const axisPadding = 20; // Extra padding between axes borders and plot borders
-
+    
     // Plot settings
     let [plotType, setPlotType] = useQueryState("plot_type", { shallow: false });
     let [metric, setMetric] = useQueryState("plot_metric", {shallow: false, defaultValue: "mean"})
@@ -54,17 +55,15 @@ const LogsPlot = ({ logs, fields}: {
         zoomRef.current = d3.zoomIdentity
     }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
     
-    // Set up containers
-    const container = d3.select(containerRef.current)
-    const placeholder = container.select(".placeholderText") as d3.Selection<SVGTextElement, unknown, null, undefined>;
-    const svg = d3.select(svgRef.current);
-    const settings = d3.select(settingsRef.current)
-
     // Fixed tooltip states
     const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
 
     // Draw plot
     useEffect (() => {
+        const container = d3.select(containerRef.current)
+        const placeholder = container.select(".placeholderText") as d3.Selection<SVGTextElement, unknown, null, undefined>;
+        const svg = d3.select(svgRef.current);
+        const settings = d3.select(settingsRef.current)
         drawPlot(
             svg, 
             container, 
@@ -101,6 +100,7 @@ const LogsPlot = ({ logs, fields}: {
     }, [
         logs,
         dimensions,
+        fields,
         scaleX,
         scaleY,
         selectedXAxisProperty,
@@ -110,7 +110,11 @@ const LogsPlot = ({ logs, fields}: {
         metric,
         binCount,
         binCounts,
-        showRegression
+        showRegression,
+        setBinCounts,
+        setIsTooltipMinimized,
+        setLogScaleXEnabled,
+        setLogScaleYEnabled
     ]);
 
     return (

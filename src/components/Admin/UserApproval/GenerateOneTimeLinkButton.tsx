@@ -12,7 +12,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/UI/dialog";
-import { toast } from 'sonner';
+import { showErrorToast, showSuccessToast } from '@/components/notifications';
 
 interface GenerateOneTimeLinkButtonProps {
     onGenerateLink: (expiresInDays: number) => Promise<string | null>; // Returns the full URL or null
@@ -28,7 +28,7 @@ export function GenerateOneTimeLinkButton({ onGenerateLink, isLoading }: Generat
 
     const handleGenerate = async () => {
         if (expiresInDays <= 0) {
-            toast.error("Expiration days must be a positive number.");
+            showErrorToast("Expiration days must be a positive number.");
             return;
         }
         setIsGenerating(true);
@@ -45,10 +45,10 @@ export function GenerateOneTimeLinkButton({ onGenerateLink, isLoading }: Generat
         if (generatedUrl) {
             navigator.clipboard.writeText(generatedUrl).then(() => {
                 setCopied(true);
-                toast.success("Link copied to clipboard!");
+                showSuccessToast("Link copied to clipboard!");
                 setTimeout(() => setCopied(false), 2000);
             }).catch(err => {
-                toast.error("Failed to copy link.");
+                showErrorToast("Failed to copy link.");
                 console.error('Failed to copy: ', err);
             });
         }

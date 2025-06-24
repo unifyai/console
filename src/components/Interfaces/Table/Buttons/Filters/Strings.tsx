@@ -58,7 +58,7 @@ const StringColumnFilter = ({ interactive, column, columnFilters, setColumnFilte
 
     useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered])
+    }, [isFiltered, setIsFiltered])
 
     /* Event handlers */
     const onInput = (input: any, filter: StringFilter) => {

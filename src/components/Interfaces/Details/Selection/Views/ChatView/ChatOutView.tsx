@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { LogComparisonProps } from "../types";
 import {
   Accordion,
@@ -131,7 +132,14 @@ function renderMessageContent(content: unknown): JSX.Element {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
             } else if (chunk.type === "image_url" && chunk.image_url?.url) {
               return (
-                <img key={i} src={chunk.image_url.url} alt={`Image ${i}`} />
+                <Image 
+                  key={i} 
+                  src={chunk.image_url.url} 
+                  alt={`Image ${i}`} 
+                  width={500} 
+                  height={300} 
+                  className="max-w-full h-auto" 
+                />
               );
             }
             // default => show JSON

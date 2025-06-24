@@ -194,7 +194,7 @@ export default function InterfaceSelector({
     } finally {
       setIsCreating(false);
     }
-  }, [createInterfaceName, validateCreateInterfaceName, projectId, interfaceActions, tabActions, tileActions, searchParams, router]);
+  }, [createInterfaceName, validateCreateInterfaceName, projectId, interfaceActions, tabActions, tileActions, searchParams, router, queryClient]);
 
   // Execute delete interface
   const executeDeleteInterface = useCallback(async () => {

@@ -113,14 +113,14 @@ export const createCommandsSlice: StateCreator<
                     },
                     {
                         id: "save-interface",
-                        label: "Save interface",
+                        label: "Save tab",
                         category: "interface" as CommandCategory,
                         icon: "Save" as CommandIcon,
                         disabled: !project || !tabNames.length
                     },
                     {
-                        id: "reset-tab",
-                        label: "Reset interface",
+                        id: "reset-interface",
+                        label: "Reset tab",
                         category: "interface" as CommandCategory,
                         icon: "ListRestart" as CommandIcon,
                         disabled: !project || !tabNames.length

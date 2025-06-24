@@ -44,7 +44,7 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
     const structure = buildDirectoryTree(type, data);
     setInitialTree(structure);
     setTree(structure);
-  }, [data]);
+  }, [data, type]);
 
   // Handle filtering and selection using the search bar
   const [selectedFile, setSelectedFile] = useState<NodeProps | undefined>();
@@ -55,7 +55,7 @@ export default function FileDirectory ({ type, text, variant, data, defaultValue
     const selectedFile = files.find(f => f.path === selection);
     setSelectedFile(selectedFile);
     setterFunction(selectedFile);
-  }, []);
+  }, [setterFunction]);
 
 
   // Handle node update when dropping a node on a folder

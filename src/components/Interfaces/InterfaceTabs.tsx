@@ -1,17 +1,15 @@
 "use client";
 
-import { X } from "lucide-react";
 import { Plus } from "lucide-react";
 import { TabsList, TabsTrigger } from "../UI/tabs";
-import { Input } from "../UI/input";
-import { useEffect, useState } from "react";
-import ActionButton from "../Common/Buttons/Action";
-import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions } from "@/types/evals/grid";
+import { useMemo } from "react";
+import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions, TabData } from "@/types/evals/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useTab } from "@/contexts/hooks/tab";
-import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSync";
-import { toast } from "sonner";
+import { useTab, useTabUI } from "@/contexts/hooks/tab";
+import { useInterfaceSync } from "@/contexts/hooks/interface/sync";
+
 import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
+import { showSuccessToast, showErrorToast } from "@/components/notifications";
 
 /**
  * Debug flag for tab prefetching indicators
@@ -48,11 +46,6 @@ const InterfaceTabs = ({
     const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName || "");
     const tabName = tabMetaState?.name || "";
 
-    const [tabQueryParamState, setTabQueryParamState] = useState(tabName || "");
-    const [hoveredTab, setHoveredTab] = useState<string | undefined>();
-    const [errorMsg, setErrorMsg] = useState<string>();
-    const [isCreatingTab, setIsCreatingTab] = useState(false);
-
     // Global states
     const project = useStoreContext((s) => s.activeProjectId);
 
@@ -78,92 +71,15 @@ const InterfaceTabs = ({
         }
     );
 
-    useEffect(() => {
-        setTabQueryParamState(tabName || "");
-    }, [tabName]);
-
     // Enhanced tab click handler with instant switching
     const handleTabClick = (tabName: string) => {
         // Only update the URL param, Interface.tsx's handleTabChange will handle the actual switching
         setTabQueryParam(tabName);
     };
 
-    // Handle tab rename
-    const handleRenameTab = async (oldName: string, newName: string) => {
-        // Clear any previous error message
-        setErrorMsg(undefined);
-        
-        // Validation
-        if (oldName === newName) {
-            return;
-        }
-        
-        if (!newName.trim()) {
-            setErrorMsg("Tab name cannot be empty");
-            return;
-        }
-        
-        // Check for duplicates (case insensitive)
-        const duplicate = tabNamesToShow.some(name => 
-            name.toLowerCase() === newName.trim().toLowerCase() && 
-            name !== oldName
-        );
-        
-        if (duplicate) {
-            setErrorMsg(`A tab called "${newName.trim()}" already exists`);
-            return;
-        }
-
-        try {
-            // Use synchronized action to rename the tab
-            syncedInterfaceDataActions?.renameTab(oldName, newName);
-
-            setTabQueryParamState(newName);
-            
-            toast.success(`Tab renamed to "${newName}"`);
-        } catch (error) {
-            console.error("Error renaming tab:", error);
-            toast.error("Failed to rename tab. Please try again.");
-        }
-    };
-
-    // Handle tab deletion
-    const handleDeleteTab = async (tabNameToDelete: string) => {
-        try {
-            // If deleting active tab, switch to another tab first
-            if (tabName === tabNameToDelete) {
-                tabUIActions?.setPending(true);
-                const tabIdx = tabNamesToShow.indexOf(tabNameToDelete);
-                const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNamesToShow.length > 1 ? 1 : -1;
-                const nextTabName = nextTabIdx !== -1 ? tabNamesToShow[nextTabIdx] : null;
-                
-                // Use synchronized action to remove the tab
-                syncedInterfaceDataActions?.removeTab(tabNameToDelete);
-                
-                // Update active tab using synced action
-                if (nextTabName && syncedInterfaceUIActions) {
-                    syncedInterfaceUIActions.setActiveTab(nextTabName);
-                }
-            } else {
-                // Use synchronized action to remove the tab
-                syncedInterfaceDataActions?.removeTab(tabNameToDelete);
-            }
-            
-            toast.success(`Tab "${tabNameToDelete}" removed`);
-        } catch (error) {
-            console.error("Error deleting tab:", error);
-            toast.error("Failed to delete tab. Please try again.");
-        }
-    };
-
     // Handle tab creation
     const handleCreateTab = async () => {
-        try {
-            // Prevent multiple simultaneous tab creations
-            if (isCreatingTab) return;
-            
-            setIsCreatingTab(true);
-            
+        try {            
             // Generate a new tab name that doesn't exist
             let initialIndex = tabNamesToShow.length + 1;
             while (tabNamesToShow.includes(`tab${initialIndex}`)) {
@@ -182,58 +98,32 @@ const InterfaceTabs = ({
             if (result && syncedInterfaceUIActions) {
                 // Update active tab using synced action
                 syncedInterfaceUIActions.setActiveTab(newTabName);
-                setTabQueryParamState(newTabName);
-                tabUIActions?.setPending(false);
-                toast.success(`New tab "${newTabName}" created`);
-            } else {
-                tabUIActions?.setPending(false);
-                toast.error("Failed to create tab. Please try again.");
+                setTabQueryParam(newTabName);
+                showSuccessToast("Tab Created", `New tab "${newTabName}" was created successfully.`);
             }
         } catch (error) {
-            // Reset pending state on error
-            tabUIActions?.setPending(false);
+            // Error is handled by the lower-level `showErrorToast` utility
             console.error("Error creating tab:", error);
-            toast.error("Failed to create tab. Please try again.");
+            showErrorToast("Failed to create tab. Please try again.", "Tab Creation Error");
         } finally {
-            // Always reset the creating state
-            setIsCreatingTab(false);
+            // Always reset pending state
+            tabUIActions?.setPending(false);
         }
     };
 
     return (
-        <div className="flex gap-4 px-4">
-            {tabNamesToShow.length > 0 && <TabsList className="rounded-md justify-between">
-                <div className="flex flex-row gap-3">
-                    {tabNamesToShow.map((tabNameToShow, idx) => {
-                        return (
-                            <TabsTrigger
-                                key={idx}
-                                value={tabNameToShow}
-                                className="relative flex flex-row gap-2 data-[state=active]:text-accent"
-                                onMouseEnter={() => setHoveredTab(tabNameToShow)}
-                                onMouseLeave={() => setHoveredTab(undefined)}
-                            >
-                                {tabName == tabNameToShow ? (
-                                    <Input
-                                        value={tabQueryParamState}
-                                        disabled={tabUIState?.pending || tabUIState?.dataPending}
-                                        onInput={(event: React.ChangeEvent<HTMLInputElement>) => {
-                                            setTabQueryParamState(event.target.value);
-                                            // Clear error on input
-                                            if (errorMsg) setErrorMsg(undefined);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && tabNameToShow != tabQueryParamState && !tabNamesToShow.includes(tabQueryParamState)) {
-                                                handleRenameTab(tabNameToShow, tabQueryParamState);
-                                            }
-                                            else if (e.key == "Enter" && tabNameToShow == tabQueryParamState) {
-                                                setTabQueryParamState(tabNameToShow);
-                                                setErrorMsg(undefined);
-                                            }
-                                        }}
-                                        className="px-0 h-5 w-16 bg-transparent border-none outline-none focus:outline-none focus:border-none focus-visible:ring-0"
-                                    />
-                                ) : (
+        <div className="flex gap-4 items-center">
+            {tabNamesToShow.length > 0 ? (
+                <TabsList className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg justify-between">
+                    <div className="flex flex-row gap-3">
+                        {tabNamesToShow.map((tabNameToShow, idx) => {
+                            return (
+                                <TabsTrigger
+                                    key={idx}
+                                    value={tabNameToShow}
+                                    className="relative flex flex-row gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-primary/10"
+                                    
+                                >
                                     <div className="h-5 w-16 text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
                                         {tabNameToShow}
                                         {/* Cached data indicator for streaming - show if streaming enabled or if tab is prefetched */}
@@ -249,44 +139,35 @@ const InterfaceTabs = ({
                                                  title="Tab switch pending" />
                                         )}
                                     </div>
-                                )}
-                                <div
-                                    className={`z-10 absolute -top-1 -right-1 cursor-pointer mb-auto hover:text-white hover:bg-primary rounded-sm ${hoveredTab == tabNameToShow ? "opacity-100" : "opacity-0"}`}
-                                    onMouseEnter={() => tabName != tabNameToShow && tabUIActions?.setDeleting(true)}
-                                    onMouseLeave={() => tabName != tabNameToShow && tabUIActions?.setDeleting(false)}
-                                    onClick={() => {
-                                        if (tabName == tabNameToShow) {
-                                            // tabUIActions?.setPending(true);
-                                            const tabIdx = tabNamesToShow.indexOf(tabNameToShow);
-                                            const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : tabNamesToShow.length > 1 ? 1 : -1;
-                                            const nextTabName = nextTabIdx != -1 ? tabNamesToShow[nextTabIdx] : null;
-                                            if (nextTabName && syncedInterfaceUIActions) {
-                                                syncedInterfaceUIActions.setActiveTab(nextTabName);
-                                            }
-                                        }
-                                        handleDeleteTab(tabNameToShow);
-                                    }}
-                                >
-                                    <X size={14} />
-                                </div>
-                            </TabsTrigger>
-                        );
-                    })}
+
+                                </TabsTrigger>
+                            );
+                        })}
+                        
+                        {/* Add tab button integrated into tabs */}
+                        <button
+                            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={handleCreateTab}
+                            disabled={tabUIState?.pending}
+                            title="Add new tab"
+                        >
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                </TabsList>
+            ) : (
+                /* When no tabs exist, show standalone add button with glass morphism */
+                <div className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
+                    <button
+                        className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={handleCreateTab}
+                        disabled={tabUIState?.pending}
+                        title="Add new tab"
+                    >
+                        <Plus size={16} />
+                    </button>
                 </div>
-            </TabsList>}
-            <div className="flex flex-col gap-2">
-                <ActionButton
-                    variant="outline"
-                    icon={<Plus />}
-                    tooltip={"Add new tab"}
-                    disabled={tabUIState?.pending || isCreatingTab}
-                    onClick={handleCreateTab}
-                />
-                
-                {errorMsg && (
-                    <div className="text-xs text-destructive">{errorMsg}</div>
-                )}
-            </div>
+            )}
         </div>
     )
 };

@@ -35,12 +35,12 @@ const ColumnSort = (({
     const [spinnerColor, setSpinnerColor] = useState("white");
     useEffect(() => {
         setSortLoading(false);
-    },[data])
+    },[data, setSortLoading])
 
     const isSorted = column.getIsSorted() === "asc" || column.getIsSorted() === "desc";
     useEffect(() => {
         setIsSorted(isSorted);
-    }, [isSorted])
+    }, [isSorted, setIsSorted])
 
     const states = [
         { key: false, tooltip: "Sort descending", icon: <ArrowUpDown/> },

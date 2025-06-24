@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { AssistantActions, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 
@@ -13,7 +13,7 @@ const fetchBalance = async (): Promise<number> => {
         return 0;
     } catch (error) {
         console.error("Error fetching balance:", error);
-        toast.error("Could not verify your credit balance.");
+        showErrorToast("Could not verify your credit balance.");
         return 0;
     }
 };
@@ -30,33 +30,27 @@ export function usePhotoCreator(
     const [isProcessing, setIsProcessing] = React.useState(false);
 
     const insufficientFundsToast = (operationName: string) => {
-        toast.error(`Insufficient funds for AI photo ${operationName}.`, {
-            description: "Please recharge your account to continue.",
-            action: {
-                label: "Go to Billing",
-                onClick: () => window.open('/billing', '_blank'),
-            },
-        });
+        showErrorToast(`Insufficient funds for AI photo ${operationName}. Please recharge your account to continue.`);
     }
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
-            toast.error("Please enter a prompt to generate a photo.");
+            showErrorToast("Please enter a prompt to generate a photo.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = toast.loading("Checking your balance...");
+        const toastId = showLoadingToast("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < photoOperationCost) {
             insufficientFundsToast("generation");
-            toast.dismiss(toastId);
+            showErrorToast("Insufficient funds for AI photo generation. Please recharge your account to continue.", undefined, toastId);
             setIsProcessing(false);
             return;
         }
 
-        toast.loading("Generating photo...", { id: toastId });
+        // Continue with the same loading toast for generating photo
 
         try {
             const result = await photoActions.generate({ prompt });
@@ -65,7 +59,7 @@ export function usePhotoCreator(
             }
             const newUrl = (result as PhotoCreationResponse).url;
             
-            toast.loading("Processing generated image...", { id: toastId });
+            // Continue processing the generated image
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the generated image.");
             
@@ -75,10 +69,10 @@ export function usePhotoCreator(
 
             onNewFileReady(imageFile);
             setPrompt('');
-            toast.success("Photo generated successfully!", { id: toastId });
+            showSuccessToast("Photo generated successfully!", undefined, toastId);
 
         } catch (error: any) {
-            toast.error(`Photo generation failed.`, { id: toastId });
+            showErrorToast(`Photo generation failed.`, `Photo generation failed.`, toastId);
             console.error("[usePhotoCreator] generate error:", error);
         } finally {
             setIsProcessing(false);
@@ -87,26 +81,25 @@ export function usePhotoCreator(
 
     const handleEdit = async (imageSource: File | string) => {
         if (!prompt.trim()) {
-            toast.error("Please enter a prompt to edit the photo.");
+            showErrorToast("Please enter a prompt to edit the photo.");
             return;
         }
         if (!imageSource) {
-            toast.error("An existing photo is required for editing.");
+            showErrorToast("An existing photo is required for editing.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = toast.loading("Checking your balance...");
+        const toastId = showLoadingToast("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < photoOperationCost) {
             insufficientFundsToast("editing");
-            toast.dismiss(toastId);
             setIsProcessing(false);
             return;
         }
         
-        toast.loading("Editing photo...", { id: toastId });
+        // Continue with same loading toast for editing photo
 
         try {
             const formData = new FormData();
@@ -135,7 +128,7 @@ export function usePhotoCreator(
 
             const newUrl = (result as PhotoCreationResponse).url;
             
-            toast.loading("Processing edited image...", { id: toastId });
+            // Continue processing the edited image
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the edited image.");
 
@@ -145,10 +138,10 @@ export function usePhotoCreator(
 
             onNewFileReady(imageFile);
             setPrompt('');
-            toast.success("Photo edited successfully!", { id: toastId });
+            showSuccessToast("Photo edited successfully!", undefined, toastId);
 
         } catch (error: any) {
-            toast.error(`Photo editing failed.`, { id: toastId });
+            showErrorToast(`Photo editing failed.`, `Photo editing failed.`, toastId);
             console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
@@ -157,30 +150,29 @@ export function usePhotoCreator(
 
     const handleAnimate = async (imageSource: File | string) => {
         if (!ttsPrompt.trim()) {
-            toast.error("Please enter text for the animation's audio.");
+            showErrorToast("Please enter text for the animation's audio.");
             return;
         }
         if (!imageSource) {
-            toast.error("An existing photo is required for animation.");
+            showErrorToast("An existing photo is required for animation.");
             return;
         }
         if (!selectedVoice) {
-            toast.error("A voice must be selected to generate audio for animation.");
+            showErrorToast("A voice must be selected to generate audio for animation.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = toast.loading("Checking your balance...");
+        const toastId = showLoadingToast("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < videoAnimationCost) {
             insufficientFundsToast("animation");
-            toast.dismiss(toastId);
             setIsProcessing(false);
             return;
         }
         
-        toast.loading("Generating audio for animation...", { id: toastId });
+        // Continue with same loading toast for generating audio
 
         try {
             // 1. Generate TTS audio
@@ -203,7 +195,7 @@ export function usePhotoCreator(
             const audioFile = new File([audioBlob], "tts_audio_for_animation.wav", { type: "audio/wav" });
 
             // 2. Prepare FormData for animation backend
-            toast.loading("Animating photo...", { id: toastId });
+            // Continue with same loading toast for animating photo
             const formData = new FormData();
             formData.append('audio_file', audioFile);
             // Add other animation params if needed by backend/Replicate, e.g., dynamic_scale
@@ -226,7 +218,7 @@ export function usePhotoCreator(
             const remoteVideoUrl = (result as VideoAnimationResponse).video_url; 
 
             // 4. Download the animated video and pass it as a File object
-            toast.loading("Processing animated video...", { id: toastId });
+            // Continue with same loading toast for processing video
             const videoFetchResponse = await fetch(remoteVideoUrl);
             if (!videoFetchResponse.ok) throw new Error(`Failed to download the animated video from ${remoteVideoUrl}. Status: ${videoFetchResponse.status}`);
             
@@ -237,13 +229,13 @@ export function usePhotoCreator(
             onNewFileReady(newVideoFile); // This updates imageFile and imagePreview (to a blob URL for the video)
 
             setTtsPrompt(''); // Clear TTS prompt
-            toast.success("Photo animated successfully!", { id: toastId });
+            showSuccessToast("Photo animated successfully!", undefined, toastId);
 
         } catch (error: any) {
             if (error && typeof error === 'object' && 'detail' in error && 'status' in error && error.status === 503) {
-                toast.warning("The service is currently overloaded, please try again in a few minutes.", { id: toastId });
+                showErrorToast("Photo animation failed. The service is currently overloaded, please try again in a few minutes.", "Photo animation failed. The service is currently overloaded, please try again in a few minutes.", toastId);
             } else {
-                toast.error("Photo animation failed.", { id: toastId });
+                showErrorToast("Photo animation failed.", "Photo animation failed.", toastId);
             }
             console.error("[usePhotoCreator] animate error:", error);
         } finally {

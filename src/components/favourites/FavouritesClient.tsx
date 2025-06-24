@@ -10,7 +10,7 @@ import { Button } from "@/components/UI/button";
 import { Separator } from "@/components/UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/UI/alert";
 import { AlertCircle, Save, Check, Loader2, Trash2, Search, X, Star, GripVertical, RefreshCcw } from "lucide-react";
-import { toast } from "sonner";
+import { showErrorToast, showSuccessToast } from "@/components/notifications";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/UI/input";
 import {
@@ -241,7 +241,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         } catch (err) {
           errorsOccurred = true;
           console.error(`Save failed for ${fav.project}`, err);
-          toast.error(`Failed to save ${fav.project}`);
+                              showErrorToast(`Failed to save ${fav.project}`);
         }
       }
 
@@ -253,16 +253,16 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         } catch (err) {
           errorsOccurred = true;
           console.error(`Delete failed for ${fav.project}`, err);
-          toast.error(`Failed to remove ${fav.project}`);
+                              showErrorToast(`Failed to remove ${fav.project}`);
         }
       }
 
       if (errorsOccurred) {
-        toast.error("Some favourites could not be saved. Please try again.");
+                        showErrorToast("Some favourites could not be saved. Please try again.");
         // keep the changed flag so user can retry
         setIsChanged(true);
       } else {
-        toast.success("Favourites saved", { duration: 4000 });
+                        showSuccessToast("Favourites saved");
         setIsChanged(false);
         setSaveSuccess(true);
         // auto-dismiss banner
@@ -270,7 +270,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
       }
     } catch (error) {
       console.error("Error saving favourites:", error);
-      toast.error("An unexpected error occurred while saving favourites");
+                  showErrorToast("An unexpected error occurred while saving favourites");
     } finally {
       setIsSaving(false);
     }
@@ -397,7 +397,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         const favData: Favourite[] = await favRes.json();
         resetFromData(projData, favData);
       } else {
-        toast.error("Failed to refresh data");
+        showErrorToast("Failed to refresh data");
       }
     } finally {
       setIsRefreshing(false);

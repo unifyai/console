@@ -8,6 +8,8 @@ import { useTileUI } from "../useTileUI";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
+import { showErrorToast } from "@/components/notifications";
+import { withLoadingToast } from "@/components/notifications";
 
 /**
  * Debug flag for state syncing logging
@@ -149,7 +151,6 @@ export function useTableTileSync(
   const wrapTableType = async (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
 
-
     // Set UI states immediately before any operations
     if (uiActions) {
       uiActions.setLoading(true);
@@ -166,28 +167,40 @@ export function useTableTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await tableTypeMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Table",
-      updateData: { table_type: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: true,
-      rebuildPlotData: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => tableTypeMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Table",
+          updateData: { table_type: value ?? null },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: true,
+          rebuildPlotData: true,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Updating table type...",
+          success: "Table type updated!",
+          error: `Failed to set table type for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapTableType] onSettled:", value);
       uiActions?.setLoading(false);
       uiActions?.setPending(false);
-    });
+    }
   };
 
   const wrapSorting = async (value: string | undefined) => {
@@ -208,27 +221,39 @@ export function useTableTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await sortingMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Table",
-      updateData: { sorting: value ?? null },
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
-      rebuildTableData: true,
-      rebuildPlotData: false,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => sortingMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Table",
+          updateData: { sorting: value ?? null },
+          refetchProjects: false,
+          refetchContexts: false,
+          refetchFields: false,
+          rebuildTableData: true,
+          rebuildPlotData: false,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Applying sorting...",
+          success: "Sorting applied!",
+          error: `Failed to set sorting for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapSorting] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapGroupSorting = async (value: string | undefined) => {
@@ -249,27 +274,39 @@ export function useTableTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await groupSortingMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Table",
-      updateData: { group_sorting: value ?? null },
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
-      rebuildTableData: true,
-      rebuildPlotData: false,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => groupSortingMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Table",
+          updateData: { group_sorting: value ?? null },
+          refetchProjects: false,
+          refetchContexts: false,
+          refetchFields: false,
+          rebuildTableData: true,
+          rebuildPlotData: false,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Applying grouping...",
+          success: "Grouping applied successfully!",
+          error: `Failed to apply grouping for ${tileName}.`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapGroupSorting] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapColumnOrder = (value: string | undefined) => {
@@ -425,27 +462,39 @@ export function useTableTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await pageNumberMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,   
-      projectId: state.activeProjectId || "",
-      tileType: "Table",
-      updateData: { page_number: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: true,
-      rebuildPlotData: false,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => pageNumberMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,   
+          projectId: state.activeProjectId || "",
+          tileType: "Table",
+          updateData: { page_number: value ?? null },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: true,
+          rebuildPlotData: false,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Changing page...",
+          success: "Page changed!",
+          error: `Failed to set page number for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapPageNumber] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   // Create the enhanced actions object

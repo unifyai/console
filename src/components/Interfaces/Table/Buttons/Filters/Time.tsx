@@ -68,7 +68,7 @@ const TimeColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
     const isFiltered = column in columnFilters;
     useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered])
+    }, [isFiltered, setIsFiltered])
 
     /* Event handlers */
     const onInput = (value: AbsoluteDateString | RelativeDateString, filter: TimeFilter) => {

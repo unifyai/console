@@ -13,6 +13,7 @@ import "@/styles/globals.css";
 import { SidebarTrigger } from "@/components/UI/sidebar"
 import ThemeLoader from "@/components/ThemeLoader";
 import LoadingScreen from "@/components/LoadingScreen";
+import { Toaster } from "@/components/UI/Chat/sonner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <NuqsAdapter>{children}</NuqsAdapter>
                 </main>
               </Suspense>
+              <Toaster />
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

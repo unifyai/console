@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { UserApprovalEntry, AssistantHiringApprovalAction, AdminApprovalActions, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 
 export function useUserApprovals (adminApprovalActions: AdminApprovalActions) {
     const [users, setUsers] = React.useState<UserApprovalEntry[]>([]);
@@ -41,7 +41,7 @@ export function useUserApprovals (adminApprovalActions: AdminApprovalActions) {
         if ('detail' in result) {
             setError((result as ResponseProps).detail);
             if (!isLoadMore) setUsers([]);
-            toast.error(`Failed to load users: ${(result as ResponseProps).detail}`);
+            showErrorToast(`Failed to load users: ${(result as ResponseProps).detail}`);
             setHasMore(false);
         } else {
             const newUsers = result as UserApprovalEntry[];
@@ -76,13 +76,13 @@ export function useUserApprovals (adminApprovalActions: AdminApprovalActions) {
 
 
     const updateUserStatus = async (userId: string, newStatus: AssistantHiringApprovalAction): Promise<boolean> => {
-        const toastId = toast.loading(`Updating status for user...`);
+        const toastId = showLoadingToast(`Updating status for user...`);
         const result = await adminApprovalActions.updateUserStatus(userId, newStatus);
         if ('detail' in result) {
-            toast.error(`Failed: ${(result as ResponseProps).detail}`, { id: toastId });
+            showErrorToast(`Failed: ${(result as ResponseProps).detail}`, `Failed: ${(result as ResponseProps).detail}`, toastId);
             return false;
         } else {
-            toast.success((result as ResponseProps).info || "Status updated!", { id: toastId });
+            showSuccessToast((result as ResponseProps).info || "Status updated!", undefined, toastId);
             
             fetchIdRef.current += 1; // Increment for the new fetch
             const currentFetchId = fetchIdRef.current;

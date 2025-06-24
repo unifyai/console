@@ -9,6 +9,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuItem } from "@/components/UI/drop
 import { metrics } from "@/constants/logs";
 import { ChevronDown, LoaderCircle } from "lucide-react";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
+import { withLoadingToast } from "@/components/notifications";
 
 const style: CSSProperties = {
     cursor: "default",
@@ -26,9 +27,16 @@ const ColumnMetrics = ({interactive, metric, setMetric, colSpan = 1, logs}: {int
         setLoading(false);
     },[logs])
     
-    const onClick = (metric_: string) => {
-        setMetric(metric_)
-        setLoading(true)
+    const onClick = async (metric_: string) => {
+        setLoading(true);
+        await withLoadingToast(
+            async () => setMetric(metric_),
+            {
+                loading: "Updating metric...",
+                success: `Metric changed to ${metric_}.`,
+                error: "Failed to change metric."
+            }
+        );
     }
 
     return (

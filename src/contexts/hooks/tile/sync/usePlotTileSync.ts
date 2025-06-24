@@ -8,6 +8,8 @@ import { useTileMeta } from "../useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
+import { showErrorToast } from "@/components/notifications";
+import { withLoadingToast } from "@/components/notifications";
 
 /**
  * Debug flag for state syncing logging
@@ -126,18 +128,30 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    await plotTypeMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { plot_type: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
+    // 2) Optimistic server update - plotTypeMutation uses simple interface
+    try {
+      await withLoadingToast(
+        () => plotTypeMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          tileType: "Plot",
+          updateData: { plot_type: value ?? null },
+          actions: granularTileActions,
+        }),
+        {
+          loading: "Updating plot type...",
+          success: "Plot type updated!",
+          error: `Failed to set plot type for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapPlotType] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapPlotScaleX = async (value: string | undefined) => {
@@ -201,27 +215,39 @@ export function usePlotTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await xAxisMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Plot",
-      updateData: { x_axis: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: false,
-      rebuildPlotData: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => xAxisMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Plot",
+          updateData: { x_axis: value ?? null },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: false,
+          rebuildPlotData: true,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Updating X-axis...",
+          success: "X-axis updated!",
+          error: `Failed to set X-axis for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapXAxis] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapYAxis = async (value: string | undefined) => {
@@ -242,27 +268,39 @@ export function usePlotTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await yAxisMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Plot",
-      updateData: { y_axis: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: false,
-      rebuildPlotData: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => yAxisMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Plot",
+          updateData: { y_axis: value ?? null },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: false,
+          rebuildPlotData: true,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Updating Y-axis...",
+          success: "Y-axis updated!",
+          error: `Failed to set Y-axis for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapYAxis] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapPlotGroupBy = async (value: string | undefined) => {
@@ -283,27 +321,39 @@ export function usePlotTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await plotGroupByMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Plot",
-      updateData: { plot_group_by: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: false,
-      rebuildPlotData: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => plotGroupByMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Plot",
+          updateData: { plot_group_by: value ?? null },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: false,
+          rebuildPlotData: true,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Updating group by...",
+          success: "Group by updated!",
+          error: `Failed to set group-by for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapPlotGroupBy] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapPlotGroupByColors = async (value: string | undefined) => {
@@ -320,18 +370,30 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // 2) Optimistic server update
-    await plotGroupByColorsMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      tileType: "Plot",
-      updateData: { plot_group_by_colors: value ?? null },
-      actions: granularTileActions as GranularTileActions,
-    }).then(() => { 
+    // 2) Optimistic server update - plotGroupByColorsMutation uses simple interface
+    try {
+      await withLoadingToast(
+        () => plotGroupByColorsMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          tileType: "Plot",
+          updateData: { plot_group_by_colors: value ?? null },
+          actions: granularTileActions,
+        }),
+        {
+          loading: "Updating colors...",
+          success: "Colors updated!",
+          error: `Failed to set group-by colors for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapPlotGroupByColors] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapAggregateProperty = async (value: string | undefined) => {
@@ -352,27 +414,39 @@ export function usePlotTileSync(
     const state = storeApi.getState();
 
     // 2) Optimistic server update
-    await plotAggregateMutation.mutateAsync({
-      tab_id: tabId,
-      name: tileName,
-      projectId: state.activeProjectId || "",
-      tileType: "Plot",
-      updateData: { plot_aggregate: value ?? "" },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: false,
-      rebuildPlotData: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+    try {
+      await withLoadingToast(
+        () => plotAggregateMutation.mutateAsync({
+          tab_id: tabId,
+          name: tileName,
+          projectId: state.activeProjectId || "",
+          tileType: "Plot",
+          updateData: { plot_aggregate: value ?? "" },
+          refetchProjects: true,
+          refetchContexts: true,
+          refetchFields: true,
+          rebuildTableData: false,
+          rebuildPlotData: true,
+          actions: granularTileActions,
+          projectsActions: projectsActions as ProjectsActions,
+          contextActions: contextActions as ContextActions,
+          logsActions: logsActions as LogsActions,
+          fieldsActions: fieldsActions as FieldsActions,
+        }),
+        {
+          loading: "Updating aggregate...",
+          success: "Aggregate updated!",
+          error: `Failed to set aggregate property for ${tileName}`,
+        }
+      );
+    } catch (error) {
+      // Error is already handled by withLoadingToast, just re-throwing
+      throw error;
+    } finally {
       // 3. Refresh the router and set the loading state
       debugLog("[wrapAggregateProperty] onSettled:", value);
       uiActions?.setLoading(false);
-    });
+    }
   };
 
   const wrapBinCount = async (value: string | undefined) => {

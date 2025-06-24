@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { toast } from 'sonner';
+import { showErrorToast } from '@/components/notifications';
 import { VoiceOption } from '@/types/team/assistant';
 import { getRandomSampleLine } from '@/utils/team/voice-utils';
 
@@ -19,7 +19,7 @@ export function useTTSPreview() {
             };
             audioRef.current.onerror = (e) => {
                 console.error("Audio playback error:", e);
-                toast.error("Error playing audio preview.");
+                showErrorToast("Error playing audio preview.");
                 setIsPlayingPreviewForVoiceId(null);
             };
         }
@@ -70,7 +70,7 @@ export function useTTSPreview() {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: "TTS generation failed" }));
                 console.error(`Error playing voice: ${errorData.detail}`);
-                toast.error(`Error playing voice`);
+                showErrorToast(`Error playing voice`);
                 setIsPlayingPreviewForVoiceId(null);
                 return;
             }
@@ -87,7 +87,7 @@ export function useTTSPreview() {
 
         } catch (e: any) {
             console.error("TTS Preview Error:", e);
-            toast.error(`Failed to play preview`);
+            showErrorToast(`Failed to play preview`);
             setIsPlayingPreviewForVoiceId(null);
         }
     };

@@ -6,6 +6,7 @@ import { LogsActions, TileProps } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
 import { maybeConvertRawToGroupedLogs } from "./grouping";
 import { TreeNode } from "@/types/common";
+import { showErrorToast } from "@/components/notifications";
 
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
@@ -158,28 +159,41 @@ export const getLogsDetails = async (
   /* Handle column metrics */
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
-  const [metrics, minimums, maximums] = await Promise.all([
-    getColumnMetrics(
-      project, context, column_context, columns, filterExpression, null, metric, logsActions
-    ) as Promise<{ [key: string]: number }>,
-    getColumnMetrics(
-      project, context, column_context, columns, null, null, "min", logsActions
-    ) as Promise<{ [key: string]: number }>,
-    getColumnMetrics(
-      project, context, column_context, columns, null, null, "max", logsActions
-    ) as Promise<{ [key: string]: number }>
-  ]);
+  try {
+    const [metrics, minimums, maximums] = await Promise.all([
+      getColumnMetrics(
+        project, context, column_context, columns, filterExpression, null, metric, logsActions
+      ) as Promise<{ [key: string]: number }>,
+      getColumnMetrics(
+        project, context, column_context, columns, null, null, "min", logsActions
+      ) as Promise<{ [key: string]: number }>,
+      getColumnMetrics(
+        project, context, column_context, columns, null, null, "max", logsActions
+      ) as Promise<{ [key: string]: number }>
+    ]);
 
-  // Min-max boundaries for numeric and time-like column filters
-  const boundaries = { minimums, maximums }
+    // Min-max boundaries for numeric and time-like column filters
+    const boundaries = { minimums, maximums }
 
-  return {
-    entriesProperties,
-    paramsProperties,
-    logs,
-    params,
-    metrics,
-    boundaries
+    return {
+      entriesProperties,
+      paramsProperties,
+      logs,
+      params,
+      metrics,
+      boundaries
+    }
+  } catch (error) {
+    showErrorToast(error, "Failed to get log details.");
+    // Return a default/empty state on error
+    return {
+      entriesProperties: [],
+      paramsProperties: [],
+      logs: [],
+      params: {},
+      metrics: {},
+      boundaries: { minimums: {}, maximums: {} }
+    };
   }
 }
 
@@ -196,28 +210,32 @@ export const getGroupedMetrics = async (
 ) => {
   let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
   if (groupingExpression) {
-    const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-    const groupingColumnId = (groupingExpression as string).split(",")[0];
-    const metric_ = metric ?? "mean";
-    const metricsData = await getColumnMetrics(
-      project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
-    ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
-    const metrics = Object.fromEntries(
-      Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
-        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-          ([groupingValue, results]) => [groupingValue, results[metric_]]
-        ))]
-    ));
-    const sharedValues = Object.fromEntries(
-      Object.entries(metricsData).map(
-        ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-          ([groupingValue, results]) => [groupingValue, results["shared_value"]]
-        ))]
-    ));
-    groupedMetrics[groupingColumnId] = {
-      [metric_]: metrics,
-      shared_value: sharedValues
-    };
+    try {
+      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+      const groupingColumnId = (groupingExpression as string).split(",")[0];
+      const metric_ = metric ?? "mean";
+      const metricsData = await getColumnMetrics(
+        project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
+      ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
+      const metrics = Object.fromEntries(
+        Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
+          ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+            ([groupingValue, results]) => [groupingValue, results[metric_]]
+          ))]
+      ));
+      const sharedValues = Object.fromEntries(
+        Object.entries(metricsData).map(
+          ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+            ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+          ))]
+        ));
+      groupedMetrics[groupingColumnId] = {
+        [metric_]: metrics,
+        shared_value: sharedValues
+      };
+    } catch (error) {
+      showErrorToast(error, "Failed to get grouped metrics.");
+    }
   }
   return groupedMetrics;
 }

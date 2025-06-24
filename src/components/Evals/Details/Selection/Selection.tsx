@@ -432,7 +432,7 @@ function SelectionPanel({
     if (paramKeys.length !== paramOrder.length) {
       setParamOrder(paramKeys);
     }
-  }, [entryKeys, paramKeys]);
+  }, [entryKeys, paramKeys, entryOrder.length, paramOrder.length]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );

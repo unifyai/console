@@ -1,6 +1,6 @@
 "use client";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { RefreshCw, Power, Check } from "lucide-react";
+import { RefreshCw, Timer, Check } from "lucide-react";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { LogsActions, FieldsActions, PlotDataItem, ProjectsActions, ContextActions, GranularTileActions } from "@/types/evals/grid";
 import { PlotArguments } from "@/types/evals/logs";
@@ -10,6 +10,8 @@ import { usePlotAutoUpdateQuery } from "@/hooks/Query/usePlotAutoUpdateQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
+import { showLoadingToast, showSuccessToast, showErrorToast } from "@/components/notifications";
+import { withLoadingToast } from "@/components/notifications";
 
 // Helper function to fetch latest timestamps for plot tables
 function fetchLatestTimestamps(
@@ -27,7 +29,7 @@ function fetchLatestTimestamps(
       const tableColumnContext = tableArgs?.["column_context"] ?? null;
       const tableFilters = tableArgs?.["filters"] ?? null;
       const tableSubset = tableArgs?.["subset"] ?? null;
-      return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null);
+      return logsActions.getLatest(project, tableContext, tableColumnContext, tableFilters, null, null, null, null, tableSubset, null, null, null, null, null, null, null, signal);
     });
     Promise.all(promises)
       .then(latestDates => {
@@ -109,6 +111,8 @@ const PlotRefresh = ({
     data: plotDataItem,
     isFetching,
     manualRefresh,
+    stop,
+    isManualRefresh
   } = usePlotAutoUpdateQuery(
     tileId,
     tabId,
@@ -121,10 +125,9 @@ const PlotRefresh = ({
   );
 
   // Manual refresh UI states (keep the checkmark feedback)
-  const [refreshClick, setRefreshClick] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [isManualFetching, setIsManualFetching] = useState(false);
   const isMounted = useRef(false);
 
   // Mount tracking for cleanup
@@ -137,8 +140,6 @@ const PlotRefresh = ({
 
   // Show checkmark after manual refresh completes
   const displayLoadCheck = useCallback(() => {
-    setLoading(false);
-    setRefreshClick(false);
     setLoaded(true);
     const timeoutId = setTimeout(() => {
       if (isMounted.current) {
@@ -147,14 +148,6 @@ const PlotRefresh = ({
     }, 2000);
     return () => clearTimeout(timeoutId);
   }, []);
-
-  // Effect to show checkmark after manual refresh
-  useEffect(() => {
-    if (refreshClick && !loading) {
-      const cleanup = displayLoadCheck();
-      return cleanup;
-    }
-  }, [refreshClick, loading, displayLoadCheck]);
 
   // Fetch initial timestamp on mount
   useEffect(() => {
@@ -173,45 +166,69 @@ const PlotRefresh = ({
   // Auto-update toggle
   const onAutoClick = () => {
     const nextValue = tileDataState?.auto_update === "true" ? "false" : "true";
+    if (nextValue === "false") {
+        stop();
+    }
     syncedTileDataActions?.setAutoUpdate(nextValue);
+    showSuccessToast(
+      "Auto-Refresh",
+      `Auto-refresh has been ${nextValue === "true" ? "enabled" : "disabled"}.`
+    );
   };
 
-  // Manual refresh with timestamp checking
-  const onManualClick = () => {
-    if (loading || isFetching || tileDataState?.auto_update === "true" || tables.length === 0) return;
+  // Simplified manual refresh
+  const onManualClick = async () => {
+    // If already fetching, show message
+    if (isFetching || isManualFetching) {
+      showSuccessToast("Already Refreshing", "A refresh is already in progress.");
+      return;
+    }
+    if (tileDataState?.auto_update === "true" || tables.length === 0) return;
 
-    setLoading(true);
-    setRefreshClick(true);
+    setIsManualFetching(true);
 
-    // Get current plot arguments from cache
-    const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
+    try {
+      await withLoadingToast(
+        async () => {
+          // Get current plot arguments from cache
+          const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
 
-    fetchLatestTimestamps(tables, plotArguments, projectId, logsActions)
-      .then(latestTimestamp => {
-        const latestTs = latestTimestamp ? new Date(latestTimestamp).getTime() : 0;
-        const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
-        
-        if (latestTs > lastCheckTs) {
-          // Data has changed, perform the actual refresh
-          return manualRefresh().then(() => {
-            if (isMounted.current) setLastUpdated(latestTimestamp);
-          });
-        } else {
-          // No new data, just show the checkmark
-          return Promise.resolve();
+          const latestTimestamp = await fetchLatestTimestamps(tables, plotArguments, projectId, logsActions);
+          const latestTs = latestTimestamp ? new Date(latestTimestamp).getTime() : 0;
+          const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
+          
+          if (latestTs > lastCheckTs) {
+            // Data has changed, perform the actual refresh
+            const result = await manualRefresh();
+            if (isMounted.current) {
+              setLastUpdated(latestTimestamp);
+              displayLoadCheck(); // Show checkmark after successful refresh
+            }
+            return result;
+          } else {
+            // Data is already up to date
+            return Promise.resolve();
+          }
+        },
+        {
+          loading: "Refreshing plot data...",
+          success: "Plot data refreshed successfully!",
+          error: "Failed to refresh plot data."
         }
-      })
-      .catch(error => {
-        console.error("Manual plot refresh failed:", error);
-      })
-      .finally(() => {
-        if (isMounted.current) {
-          setLoading(false);
-        }
-      });
+      );
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error("Manual refresh error:", error);
+      }
+    } finally {
+      if (isMounted.current) {
+        setIsManualFetching(false);
+      }
+    }
   };
 
-  const icon = loading || isFetching || tileDataState?.auto_update === "true"
+  const isRefreshing = isFetching || isManualFetching;
+  const icon = isRefreshing
     ? <RefreshCw className="animate-spin text-green"/> 
     : loaded
     ? <Check className="text-green"/>
@@ -221,10 +238,9 @@ const PlotRefresh = ({
     <ActionButton 
       className="rounded-sm h-8"
       icon={icon}
-      tooltip={loading || isFetching ? "Refreshing plot logs.." : tileDataState?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
-      side="left"
+      tooltip={isRefreshing ? "Refreshing plot logs.." : tileDataState?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
       onClick={onManualClick}
-      disabled={loading || isFetching || tileDataState?.auto_update === "true"}
+      disabled={tileDataState?.auto_update === "true"}
     />
   );
 
@@ -232,8 +248,7 @@ const PlotRefresh = ({
     <ActionButton 
       variant={tileDataState?.auto_update === "true" ? "primary" : "ghost"}
       className="rounded-sm"
-      icon={<Power />}
-      side="left"
+      icon={<Timer />}
       tooltip={"Auto refresh every 5s"}
       onClick={onAutoClick}
     />

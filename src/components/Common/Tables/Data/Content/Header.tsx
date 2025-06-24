@@ -247,7 +247,7 @@ const DataTableHeader = ({
         },
       };
     });
-  }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data]);  
+  }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data, header.column.id, header.column.columnDef.meta?.renderedDepth, setColumnActionsApplied]);  
 
   // Visible action buttons for active states
   const activeActionsRef = useRef<HTMLDivElement | null>(null);

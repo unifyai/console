@@ -109,7 +109,7 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
         "use server";
 
         try {
@@ -134,7 +134,7 @@ export const getLogs = async (apiKey: string) => {
                 + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : "")
                 + (return_ids_only ? `&return_ids_only=${return_ids_only}` : "")
                 + (randomize ? `&randomize=${randomize}` : ""),
-                { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] } },
+                { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] }, signal },
             );
             const json = await response.json();
             if (!response.ok)
@@ -287,7 +287,7 @@ export const getLogMetrics = async (apiKey: string) => {
 
 // get latest timestamp
 export const getLatestTimestamp = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
         "use server";
 
         const response = await fetch(
@@ -309,7 +309,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (limit ? `&limit=${limit}` : "")
             + (offset ? `&offset=${offset}` : "")
             + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, signal }
         );
         return await response.json();
     };

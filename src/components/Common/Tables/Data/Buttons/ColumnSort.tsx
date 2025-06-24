@@ -33,7 +33,7 @@ const ColumnSort = (({
     const spinnerColor = sorting ? "white" : "primary";
     useEffect(() => {
         setSortingDirection(sorting);
-    }, [sorting])
+    }, [sorting, setSortingDirection])
 
     /* Sorting menu item */
     const onMenuItemClick = () => {

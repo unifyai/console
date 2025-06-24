@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task';
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
-import { toast } from 'sonner';
+import { showErrorToast } from '@/components/notifications';
 
 const TASK_PAGE_LIMIT = 20;
 
@@ -112,7 +112,7 @@ export function useTasks(
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching tasks.";
             setTaskError(errorMsg);
             console.error("Task fetch error in hook:", errorMsg);
-            toast.error(`Failed to load tasks`);
+            showErrorToast(`Failed to load tasks`);
 
             if (isInitialLoad) {
                 setTasks([]);

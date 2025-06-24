@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { toast } from 'sonner';
+import { showErrorToast, showSuccessToast } from '@/components/notifications';
 import { ResponseProps } from '@/types/common';
 import { ApprovalStatus } from '@/types/user';
 import { AssistantHiringApprovalResponse, HiringProfileData } from '@/types/user';
@@ -28,7 +28,7 @@ export function useAssistantHiringApproval({
         if ('detail' in response) {
             const errorMsg = (response as ResponseProps).detail || "Failed to load hiring status.";
             setError(errorMsg);
-            toast.error(errorMsg);
+            showErrorToast(errorMsg);
             setApprovalStatus(null); 
             setHasClaimedLink(false); 
         } else {
@@ -46,7 +46,7 @@ export function useAssistantHiringApproval({
     const processApiResponse = (response: AssistantHiringApprovalResponse, successMessage: string, operation: "request" | "claim") => {
         if (response.assistant_hiring_approval !== undefined) {
             setApprovalStatus(response.assistant_hiring_approval as ApprovalStatus);
-            toast.success(response.message || successMessage);
+            showSuccessToast(response.message || successMessage);
             if (operation === "claim") {
                 setHasClaimedLink(true); 
             }
@@ -55,7 +55,7 @@ export function useAssistantHiringApproval({
         } else {
             const errorMessage = response.message || response.detail || "An unknown error occurred.";
             setError(errorMessage);
-            toast.error(errorMessage);
+            showErrorToast(errorMessage);
             return false;
         }
     };

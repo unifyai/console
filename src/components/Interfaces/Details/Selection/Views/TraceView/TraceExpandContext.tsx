@@ -120,7 +120,7 @@ export function TraceExpandProvider({
         return next;
       });
     },
-    [forceExpandAll, forceCollapseAll]
+    [forceExpandAll, forceCollapseAll, setOpenKeys]
   );
 
   /**
@@ -133,7 +133,7 @@ export function TraceExpandProvider({
     setForceCollapseAll(false);
     setForceExpandAll(true);
     setOpenKeys(new Set()); // clear openKeys, as everything is considered open anyway
-  }, []);
+  }, [setOpenKeys]);
 
   /**
    * collapseAll: sets "forceCollapseAll = true" and "forceExpandAll = false"
@@ -144,7 +144,7 @@ export function TraceExpandProvider({
     setForceExpandAll(false);
     setForceCollapseAll(true);
     setOpenKeys(new Set()); // none explicitly open
-  }, []);
+  }, [setOpenKeys]);
 
   /**
    * expandRecursively: adds all paths in the provided array to openKeys.
@@ -157,7 +157,7 @@ export function TraceExpandProvider({
       paths.forEach(p => next.add(p));
       return next;
     });
-  }, []);
+  }, [setOpenKeys]);
 
   /**
    * collapseRecursively: removes all paths in the provided array from openKeys.
@@ -170,7 +170,7 @@ export function TraceExpandProvider({
       paths.forEach(p => next.delete(p));
       return next;
     });
-  }, []);
+  }, [setOpenKeys]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => {
@@ -195,7 +195,8 @@ export function TraceExpandProvider({
     collapseAll, 
     expandRecursively, 
     collapseRecursively,
-    instanceId
+    instanceId,
+    setOpenKeys
   ]);
 
   return (

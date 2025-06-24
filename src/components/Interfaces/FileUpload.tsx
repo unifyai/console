@@ -9,7 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Switch } from "@/components/UI/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/UI/table";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { toast } from "sonner";
+import { showLoadingToast, showErrorToast, showSuccessToast } from "@/components/notifications";
 import { Loader2, Upload, FileText, Trash2, X, AlertCircle, ChevronsUpDown, Check } from "lucide-react"; // Added ChevronsUpDown, Check
 import Papa from "papaparse";
 import { useDropzone } from "react-dropzone";
@@ -159,163 +159,162 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
       return keys;
     };
       
-      const parseFile = async (selectedFile: File): Promise<ParsedData> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-      
-          reader.onload = async (event) => {
-            try {
-              const text = (event.target?.result as string) || '';
-              if (!text.trim()) {
-                throw new Error("File is empty or contains only whitespace.");
-              }
-      
-              let headers: string[] = [];
-              let rows: Record<string, any>[] = [];
-      
-              if (selectedFile.name.endsWith('.csv')) {
-                // — CSV Handling —
-                let rawHeaders: string[] = [];
-                let previewError: Error | null = null;
-      
-                Papa.parse(text, {
-                  preview: 1,
-                  skipEmptyLines: true,
-                  complete: (results) => {
-                    if (
-                      results.data.length === 0 ||
-                      !Array.isArray(results.data[0])
-                    ) {
-                      previewError = new Error("Could not parse header row from CSV.");
-                    } else {
-                      rawHeaders = (results.data[0] as string[]).map(h => h.trim());
-                      if (rawHeaders.every(h => !h)) {
-                        previewError = new Error(
-                          "CSV header row is empty or contains only delimiters."
-                        );
-                      }
-                    }
-                    if (results.errors.length && !previewError) {
-                      previewError = new Error(
-                        `Error parsing CSV header: ${results.errors[0].message}`
+    const handleFileDrop = useCallback(async (acceptedFiles: File[]) => {
+        const parseFile = async (selectedFile: File): Promise<ParsedData> => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+          
+              reader.onload = async (event) => {
+                try {
+                  const text = (event.target?.result as string) || '';
+                  if (!text.trim()) {
+                    throw new Error("File is empty or contains only whitespace.");
+                  }
+          
+                  let headers: string[] = [];
+                  let rows: Record<string, any>[] = [];
+          
+                  if (selectedFile.name.endsWith('.csv')) {
+                    // — CSV Handling —
+                    let rawHeaders: string[] = [];
+                    let previewError: Error | null = null;
+          
+                    Papa.parse(text, {
+                      preview: 1,
+                      skipEmptyLines: true,
+                      complete: (results) => {
+                        if (
+                          results.data.length === 0 ||
+                          !Array.isArray(results.data[0])
+                        ) {
+                          previewError = new Error("Could not parse header row from CSV.");
+                        } else {
+                          rawHeaders = (results.data[0] as string[]).map(h => h.trim());
+                          if (rawHeaders.every(h => !h)) {
+                            previewError = new Error(
+                              "CSV header row is empty or contains only delimiters."
+                            );
+                          }
+                        }
+                        if (results.errors.length && !previewError) {
+                          previewError = new Error(
+                            `Error parsing CSV header: ${results.errors[0].message}`
+                          );
+                        }
+                      },
+                    });
+          
+                    if (previewError) throw previewError;
+                    if (!rawHeaders.length) throw new Error("CSV must have a header row.");
+          
+                    checkHeadersForDuplicates(rawHeaders, "column names in CSV header");
+          
+                    const full = Papa.parse<Record<string, any>>(text, {
+                      header: true,
+                      skipEmptyLines: true,
+                      transformHeader: h => h.trim(),
+                    });
+                    if (full.errors.length) {
+                      throw new Error(
+                        `CSV Parsing Error (Row ${full.errors[0].row}): ${full.errors[0].message}`
                       );
                     }
-                  },
-                });
-      
-                if (previewError) throw previewError;
-                if (!rawHeaders.length) throw new Error("CSV must have a header row.");
-      
-                checkHeadersForDuplicates(rawHeaders, "column names in CSV header");
-      
-                const full = Papa.parse<Record<string, any>>(text, {
-                  header: true,
-                  skipEmptyLines: true,
-                  transformHeader: h => h.trim(),
-                });
-                if (full.errors.length) {
-                  throw new Error(
-                    `CSV Parsing Error (Row ${full.errors[0].row}): ${full.errors[0].message}`
-                  );
-                }
-      
-                headers = rawHeaders;
-                rows = full.data;
-                if (!rows.length) {
-                  throw new Error("CSV contains no data rows after the header.");
-                }
-      
-              } else if (selectedFile.name.endsWith('.jsonl')) {
-                // — JSONL with regex pre‑scan —
-                const lines = text
-                  .trim()
-                  .split('\n')
-                  .map(l => l.trim())
-                  .filter(l => l);
-      
-                if (!lines.length) {
-                  throw new Error("JSONL file is empty or contains only empty lines.");
-                }
-      
-                // extract keys from the very first line before parsing
-                const rawKeys = extractTopLevelKeys(lines[0]);
-                checkHeadersForDuplicates(rawKeys, "keys in the first JSONL object literal");
-      
-                rows = lines.map((line, i) => {
-                  try {
-                    return JSON.parse(line);
-                  } catch (e: any) {
-                    throw new Error(`Error parsing JSONL on line ${i + 1}: ${e.message}`);
+          
+                    headers = rawHeaders;
+                    rows = full.data;
+                    if (!rows.length) {
+                      throw new Error("CSV contains no data rows after the header.");
+                    }
+          
+                  } else if (selectedFile.name.endsWith('.jsonl')) {
+                    // — JSONL with regex pre‑scan —
+                    const lines = text
+                      .trim()
+                      .split('\n')
+                      .map(l => l.trim())
+                      .filter(l => l);
+          
+                    if (!lines.length) {
+                      throw new Error("JSONL file is empty or contains only empty lines.");
+                    }
+          
+                    // extract keys from the very first line before parsing
+                    const rawKeys = extractTopLevelKeys(lines[0]);
+                    checkHeadersForDuplicates(rawKeys, "keys in the first JSONL object literal");
+          
+                    rows = lines.map((line, i) => {
+                      try {
+                        return JSON.parse(line);
+                      } catch (e: any) {
+                        throw new Error(`Error parsing JSONL on line ${i + 1}: ${e.message}`);
+                      }
+                    });
+          
+                    headers = rawKeys;
+          
+                  } else if (selectedFile.name.endsWith('.json')) {
+                    // — JSON with regex pre‑scan —
+                    // find the first `{ ... }` inside the top‑level array
+                    const firstObjMatch = text.match(/^\s*\[\s*({[\s\S]*?})/);
+                    if (!firstObjMatch) {
+                      throw new Error("Could not locate the first object literal in JSON.");
+                    }
+          
+                    const rawKeys = extractTopLevelKeys(firstObjMatch[1]);
+                    checkHeadersForDuplicates(rawKeys, "keys in the first JSON object literal");
+          
+                    let parsedJson: any;
+                    try {
+                      parsedJson = JSON.parse(text);
+                    } catch (e: any) {
+                      throw new Error(`Error parsing JSON: ${e.message}`);
+                    }
+          
+                    if (!Array.isArray(parsedJson)) {
+                      throw new Error("JSON file must contain a top‑level array.");
+                    }
+                    if (parsedJson.length === 0) {
+                      throw new Error("JSON array is empty.");
+                    }
+          
+                    rows = parsedJson.filter(
+                      item => item && typeof item === 'object' && !Array.isArray(item)
+                    );
+                    if (!rows.length) {
+                      throw new Error("JSON array contains no valid object items.");
+                    }
+          
+                    headers = rawKeys;
+          
+                  } else {
+                    throw new Error("Unsupported file type.");
                   }
-                });
-      
-                headers = rawKeys;
-      
-              } else if (selectedFile.name.endsWith('.json')) {
-                // — JSON with regex pre‑scan —
-                // find the first `{ ... }` inside the top‑level array
-                const firstObjMatch = text.match(/^\s*\[\s*({[\s\S]*?})/);
-                if (!firstObjMatch) {
-                  throw new Error("Could not locate the first object literal in JSON.");
+          
+                  // Final sanity checks
+                  if (!headers.length) {
+                    throw new Error("Could not determine headers/keys from the file.");
+                  }
+                  if (!rows.length) {
+                    throw new Error("File contains no data rows after parsing.");
+                  }
+          
+                  resolve({
+                    headers,
+                    rows,
+                    previewRows: rows.slice(0, MAX_PREVIEW_ROWS),
+                  });
+                } catch (err: any) {
+                  reject(err);
                 }
-      
-                const rawKeys = extractTopLevelKeys(firstObjMatch[1]);
-                checkHeadersForDuplicates(rawKeys, "keys in the first JSON object literal");
-      
-                let parsedJson: any;
-                try {
-                  parsedJson = JSON.parse(text);
-                } catch (e: any) {
-                  throw new Error(`Error parsing JSON: ${e.message}`);
-                }
-      
-                if (!Array.isArray(parsedJson)) {
-                  throw new Error("JSON file must contain a top‑level array.");
-                }
-                if (parsedJson.length === 0) {
-                  throw new Error("JSON array is empty.");
-                }
-      
-                rows = parsedJson.filter(
-                  item => item && typeof item === 'object' && !Array.isArray(item)
-                );
-                if (!rows.length) {
-                  throw new Error("JSON array contains no valid object items.");
-                }
-      
-                headers = rawKeys;
-      
-              } else {
-                throw new Error("Unsupported file type.");
-              }
-      
-              // Final sanity checks
-              if (!headers.length) {
-                throw new Error("Could not determine headers/keys from the file.");
-              }
-              if (!rows.length) {
-                throw new Error("File contains no data rows after parsing.");
-              }
-      
-              resolve({
-                headers,
-                rows,
-                previewRows: rows.slice(0, MAX_PREVIEW_ROWS),
-              });
-            } catch (err: any) {
-              reject(err);
-            }
-          };
-      
-          reader.onerror = () => {
-            reject(new Error("Error reading file."));
-          };
-      
-          reader.readAsText(selectedFile);
-        });
-    };
-    
-    const handleFileDrop = useCallback(async (acceptedFiles: File[]) => {
+              };
+          
+              reader.onerror = () => {
+                reject(new Error("Error reading file."));
+              };
+          
+              reader.readAsText(selectedFile);
+            });
+        };
         setError(null);
         if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current); // Clear error timeout
         setParsedData(null);
@@ -353,7 +352,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
             setFile(null);
             setParsedData(null);
         }
-    }, [parseFile]);
+    }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: handleFileDrop,
@@ -380,7 +379,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
         const entryKeys = Object.keys(columnTypes).filter(k => columnTypes[k] === 'entry');
 
         if (entryKeys.length === 0) {
-            toast.error("Please mark at least one column as 'Entry'.");
+            showErrorToast("Please mark at least one column as 'Entry'.");
             setError("At least one column must be marked as 'Entry'.");
             return;
         }
@@ -409,7 +408,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
         setIsUploading(true);
         setError(null); // Clear previous errors
         if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-        const toastId = toast.loading(`Uploading ${allRows.length} logs...`);
+        const toastId = showLoadingToast(`Uploading ${allRows.length} logs...`);
 
         try {
             const response: ResponseProps = await logsActions.create(
@@ -420,7 +419,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
             );
 
             if (response && response.info) {
-                toast.success(response.info, { id: toastId });
+                showSuccessToast(response.info, undefined, toastId);
                 setOpen(false); // Close dialog on success
             } else if (response && response.detail) {
                 throw new Error(response.detail);
@@ -430,7 +429,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
         } catch (e: any) {
             console.error("Upload failed:", e);
             setError(`Upload failed: ${e.message}`);
-            toast.error(`Upload failed: ${e.message}`, { id: toastId });
+            showErrorToast(e.message, `Upload failed: ${e.message}`, toastId);
         } finally {
             setIsUploading(false);
         }

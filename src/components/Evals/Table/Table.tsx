@@ -351,7 +351,10 @@ const LogsTable = ({
     commonFilter,
     sortingStr,
     groupingStr,
-    selectedCells
+    selectedCells,
+    baseLog,
+    comparisonLogs,
+    setSelectedCells
   ]);
 
   const resetParamsStates = () => {

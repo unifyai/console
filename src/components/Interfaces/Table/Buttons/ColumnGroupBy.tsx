@@ -38,7 +38,7 @@ const ColumnGroupBy = (({
     /* Display loader when data updates */
     useEffect(() => {
         setGroupLoading(false);
-    },[data])
+    },[data, setGroupLoading])
     const [spinnerColor, setSpinnerColor] = useState("white");
 
     // Check if column has child columns
@@ -49,7 +49,7 @@ const ColumnGroupBy = (({
 
     useEffect(() => {
         setIsGrouped(isGrouped);
-    }, [isGrouped])
+    }, [isGrouped, setIsGrouped])
 
     const states = [
         { 

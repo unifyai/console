@@ -73,7 +73,7 @@ const ImageColumnFilter = ({
 
     useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered])
+    }, [isFiltered, setIsFiltered])
 
     const baseBtn = <ActionButton icon={icon} tooltip={tooltip} variant={variant} disabled={disabled} onClick={onClick}/>;
 

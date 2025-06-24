@@ -179,7 +179,7 @@ const PlotSettings = ({
         node.__setIsOpen = setIsOpen;
     }
   }, [
-      isOpen, setIsOpen
+      isOpen, setIsOpen, settingsRef
   ]);
 
   // Show fixed tooltip / grouping key
@@ -189,30 +189,14 @@ const PlotSettings = ({
   return (
     <div 
       ref={settingsRef}
-      className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'} rounded-r-md`}
+      className={`relative flex flex-col bg-background border-l transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'}`}
     >
-
-      {/* Toggle Button */}
-      <div className={`flex ${isOpen ? 'justify-end' : 'justify-center'} p-2 border-t border-border`}>
-        <Tooltip content={isOpen ? "Hide settings" : "Show settings"} side="left">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            aria-label={isOpen ? 'Collapse settings' : 'Expand settings'}
-            className="h-8 w-8"
-          >
-            {isOpen ? <LuPanelLeftOpen size={18} /> : <LuPanelRightOpen size={18} />}
-          </Button>
-        </Tooltip>
-      </div>
-
       {/* Settings Content Area */}
       <div className={`flex-1 flex flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 delay-100`}>
         {isOpen && (
           <ScrollArea>
             {/* Scrollable Accordion Section */}
-            <div className="flex-1 overflow-y-auto px-1">
+            <div className="flex-1 px-1">
               <Accordion type="multiple" defaultValue={defaultAccordionValue} className="w-full px-2">
 
                 {/* Plot Type Selection */}
@@ -319,34 +303,57 @@ const PlotSettings = ({
               </Accordion>
             </div>
 
-            {/* Divider */}
-            { (showFixedTooltip || showGroupByKey) && <hr className="mx-3 my-3 border-border" /> }
-
             {/* Fixed Tooltip and Grouping Key */}
-            <div className="flex flex-col gap-2 px-3 pb-4">
-              {/* Fixed Tooltip Container */}
-              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
-                isTooltipMinimized 
-                  ? 'h-10 overflow-hidden px-2 py-1' 
-                  : 'p-3'
-                }`}
-              >
-                {/* Content is rendered by d3 inside renderFixedTooltipContent */}
-              </div>
-
-              {/* Grouping Key Container */}
-              {showGroupByKey && (
-                <div
-                  style={{ "scrollbar-width": "none" } as React.CSSProperties}
-                  className={`groupingKey flex flex-col gap-1 w-full rounded-md border border-muted transition-all duration-200 ease-in-out ${
-                    isGroupingKeyMinimized
-                    ? "h-10 overflow-hidden px-2 py-1"
-                    : "max-h-[150px] p-3"
+            { (showFixedTooltip || showGroupByKey) && (
+              <div className="flex flex-col gap-2 px-3 py-2">
+                {/* Fixed Tooltip Container */}
+                <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+                  isTooltipMinimized 
+                    ? 'h-10 overflow-hidden px-2 py-1' 
+                    : 'p-3'
                   }`}
                 >
-                  {/* Content is rendered by d3 */}
+                  {/* Content is rendered by d3 inside renderFixedTooltipContent */}
                 </div>
-              )}
+
+                {/* Grouping Key Container */}
+                {showGroupByKey && (
+                  <div
+                    className={`groupingKey w-full rounded-md border border-muted transition-all duration-200 ease-in-out ${
+                      isGroupingKeyMinimized
+                      ? "h-10 overflow-hidden px-2 py-1"
+                      : "max-h-[150px] p-3"
+                    }`}
+                  >
+                    {!isGroupingKeyMinimized ? (
+                      <ScrollArea className="h-full">
+                        <div className="flex flex-col gap-1">
+                          {/* Content is rendered by d3 */}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {/* Content is rendered by d3 */}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) }
+
+            {/* Bottom Controls - only clear plot button */}
+            <div className="p-3">
+              <PlotReset
+                settingsRef={settingsRef}
+                svgRef={svgRef}
+                containerRef={containerRef}
+                setXAxis={setXAxis}
+                setYAxis={setYAxis}
+                setGroupBy={setGroupBy}
+                setAggregateProperty={setAggregateProperty}
+                setIsTooltipMinimized={setIsTooltipMinimized}
+                setZoomEnabled={setZoomEnabled}
+              />
             </div>
           </ScrollArea>
         )}
@@ -354,14 +361,15 @@ const PlotSettings = ({
 
       {/* Folded State Icons */}
       {!isOpen && (
-         <div className="flex flex-col items-center p-2">
+         <div className="flex flex-col items-center p-2 flex-1 justify-center gap-2">
             {showGroupByKey && (
               <ColorSchemePicker
-              placeholder="Select a grouping color scheme"
+                placeholder="Select a grouping color scheme"
                 value={plotTileState?.plot_group_by_colors ?? undefined}
                 onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
-                />
-              )}
+                useDialog={true}
+              />
+            )}
             <PlotZoom
               interactive={interactive}
               plotType={plotType}
@@ -380,19 +388,23 @@ const PlotSettings = ({
               contextActions={contextActions} 
               fieldsActions={fieldsActions}
             />
-            <PlotReset
-              settingsRef={settingsRef}
-              svgRef={svgRef}
-              containerRef={containerRef}
-              setXAxis={setXAxis}
-              setYAxis={setYAxis}
-              setGroupBy={setGroupBy}
-              setAggregateProperty={setAggregateProperty}
-              setIsTooltipMinimized={setIsTooltipMinimized}
-              setZoomEnabled={setZoomEnabled}
-            />
          </div>
       )}
+
+      {/* Toggle Button - moved to bottom */}
+      <div className={`flex ${isOpen ? 'justify-end' : 'justify-center'} p-2 border-t`}>
+        <Tooltip content={isOpen ? "Hide settings" : "Show settings"} side="left">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            aria-label={isOpen ? 'Collapse settings' : 'Expand settings'}
+            className="h-8 w-8"
+          >
+            {isOpen ? <LuPanelLeftOpen size={18} /> : <LuPanelRightOpen size={18} />}
+          </Button>
+        </Tooltip>
+      </div>
     </div>
   );
 };

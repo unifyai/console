@@ -94,7 +94,7 @@ const NumericColumnFilter = ({
 
     useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered])
+    }, [isFiltered, setIsFiltered])
 
     /* Event handlers */
     const onInput = (value: any, filter: NumericFilter) => {

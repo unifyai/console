@@ -9,12 +9,14 @@ import { icons, tabTypes } from "@/constants/logs";
 import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/evals/grid";
 import { LogsActions } from "@/types/evals/grid";
 import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
+import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useTile } from '@/contexts/hooks/tile';
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { resolveColorHierarchy } from "@/utils/evals/plots/common";
 
 const TileRenderer = lazy(() => import('./TileRenderer'));
 
@@ -87,74 +89,23 @@ const TileCard = ({
   const tileName = tileMetaState?.name;
   const tableName = tileDataState?.table;
 
-  return (
-  <TileColorContext.Provider value={tileUIState?.color || null}>
-    <div ref={tileCardRef} className="relative flex w-full h-full border">
-      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tileType) ? "mt-4" : tileType ? "mt-2" : "justify-center")}>
-        <div className="flex gap-4 z-20">
-          {tabUIState?.edit && <div className="w-fit">
-            <BaseDropdown
-              context="tile"
-              button={<ActionButton
-                tooltip="Select tile type"
-                text={tileType}
-                icon={tileType ? undefined : <Plus />}
-                variant="outline"
-                size="default"
-              />}
-            >
-              {(!tabUIState?.edit ? [] : tabTypes).map((tabType, idx) => {
-                return (
-                  <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                      if (tileName) {
-                        // If tabType is either a "Table" or "Plot" and the item.table is already set,
-                        // then we need to first mark it as null
-                        if (tabType === "Table" || tabType === "Plot" && tableName) {
-                          syncedTileDataActions?.setTable(undefined);
-                        }
+  // Resolve color using hierarchical precedence (but keep null if no colors set)
+  const resolvedColor = tileUIState?.color || tabUIState?.color || null;
 
-                        if (tileType === undefined && tabType === "Table") {
-                          syncedTableTileActions?.setTableType("Data Table");
-                        }
-                        syncedTileMetaActions?.setType(tabType);
-                      }
-                    }}
-                    className="w-64 flex justify-between items-center"
-                  >
-                    <span>{tabType}</span>{icons[tabType as keyof typeof icons]}
-                  </DropdownMenuItem>
-                )
-              })}
-            </BaseDropdown>
-          </div>}
-          {tileType && tabUIState?.edit && tileType === "View" && <div className="w-fit">
-            <BaseDropdown
-              context="tile"
-              button={<ActionButton
-                tooltip="Select table"
-                text={tableName || "Select Table"}
-                variant="outline"
-                size="default"
-              />}
-            >
-              {(!tabUIState?.edit ? [] : tableNames).map((tile, idx) => {
-                return (
-                  <DropdownMenuItem
-                    key={idx}
-                    onSelect={() => {
-                      syncedTileDataActions?.setTable(tile);
-                    }}
-                    className="w-64"
-                  >
-                    {tile}
-                  </DropdownMenuItem>
-                )
-              })}
-            </BaseDropdown>
-          </div>}
-        </div>
+  return (
+  <TileColorContext.Provider value={resolvedColor}>
+    <div ref={tileCardRef} className="relative flex w-full h-full border">
+      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tileType && tileType !== "Plot") ? "mt-4" : (tileType && tileType !== "Plot") ? "mt-8" : tileType === "Plot" ? "" : "justify-center")}>
+        {/* Show overlay for unlinked View tiles that need linking */}
+        {tileType === "View" && !tableName && tabUIState?.edit && (
+          <UnlinkedTileOverlay
+            tileType={tileType}
+            tileName={tileName}
+            tableNames={tableNames}
+            onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
+            isEditMode={tabUIState?.edit || false}
+          />
+        )}
 
         {/* Tile content */}
         {!!tileType && <Suspense

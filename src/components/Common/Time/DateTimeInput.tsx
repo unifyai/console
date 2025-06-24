@@ -171,7 +171,7 @@ const DateTimeInput = React.forwardRef<
         return value
       }
       return 0;
-    }, [date, picker, relative]);
+    }, [date, picker, relative, attributes]);
     React.useEffect(() => {
       if (relative) {
         const dateObject = (rebaseDate(date, "relative") as RelativeDateString).split(";");
@@ -180,7 +180,7 @@ const DateTimeInput = React.forwardRef<
         const offset = Math.max(0, value)
         setOffset(offset)
       }
-    }, [relative])
+    }, [relative, date, picker, attributes])
     const [offset, setOffset] = React.useState(initialOffset);
 
     /* Track input and date value */

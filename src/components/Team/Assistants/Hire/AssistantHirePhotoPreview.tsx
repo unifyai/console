@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/UI/skeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 
 const getFilenameFromUrl = (url: string, defaultFilenameBase: string): string => {
     try {
@@ -86,7 +86,7 @@ export function ImageUpload({
     } else if (videoElement && !videoElement.paused) {
         videoElement.pause();
     }
-  }, [videoSource, videoError, isPlayable, isVideoLoading, hasPlayedOnce]);
+  }, [videoSource, videoError, isPlayable, hasPlayedOnce, isVideoLoading]);
 
   const shouldRenderVideo = videoSource && !videoError;
   const showDownloadButton = (imageFile || videoSource) && !isVideoLoading;
@@ -120,7 +120,7 @@ export function ImageUpload({
 
     if (!sourceToDownload) {
         console.warn("Download attempted without a downloadable source.");
-        toast.warning("No downloadable content available.");
+                    showErrorToast("No downloadable content available.");
         return;
     }
 
@@ -151,7 +151,7 @@ export function ImageUpload({
         console.error("Error downloading media:", error);
         // Determine if it was likely a video or image based on original sources
         const wasVideo = (imageFile && imageFile.type.startsWith('video/')) || videoUrl;
-        toast.error(`Could not download ${wasVideo ? 'video' : 'image'}.`);
+                    showErrorToast(`Could not download ${wasVideo ? 'video' : 'image'}.`);
     }
   };
   

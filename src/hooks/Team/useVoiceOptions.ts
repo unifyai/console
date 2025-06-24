@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { VoiceOption, Voice, AssistantActions } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
 import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
 
@@ -81,26 +81,26 @@ export function useVoiceOptions(
 
     const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<boolean> => {
         if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {
-            toast.error("This voice cannot be deleted.");
+            showErrorToast("This voice cannot be deleted.");
             return false;
         }
 
-        const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
+        const toastId = showLoadingToast(`Deleting voice "${voiceToDelete.name}"...`);
         try {
             const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id);
             if (deleteResult.detail) { 
-                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
-                toast.error(`Error deleting voice}`, { id: toastId });
+                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`);
+                showErrorToast(deleteResult.detail, `Error deleting voice`, toastId);
                 return false;
             }
 
-            toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
+            showSuccessToast(`Voice "${voiceToDelete.name}" deleted.`, undefined, toastId);
             fetchUserVoicesFromOrchestra(); 
             if (onVoiceDeleted) onVoiceDeleted(voiceToDelete.voice_id);
             return true;
         } catch (error: any) {
             console.error(`[useVoiceOptions.ts] Error during voice deletion: ${error.message}`)
-            toast.error(`Error deleting voice`, { id: toastId });
+            showErrorToast(error.message, `Error deleting voice`, toastId);
             return false;
         }
     };

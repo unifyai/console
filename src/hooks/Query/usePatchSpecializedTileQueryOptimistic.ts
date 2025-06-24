@@ -25,6 +25,7 @@ import { selectProjectById } from '@/contexts/selectors/project';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 import { TileType } from '@/contexts/slices/selectors/tile';
+import { showErrorToast } from '@/components/notifications';
 
 
 /**
@@ -202,7 +203,8 @@ T extends TileType
           queryClient.setQueryData(["tableArguments", tab_id], newTableArguments);
           queryClient.setQueryData(["plotArguments", tab_id], newPlotArguments);
         } catch (error) {
-          console.error("Error building tab arguments:", error);
+          showErrorToast(error, "Error building tab arguments");
+          throw error;
         }
       } else {
         // Initialize empty arguments if no tiles
@@ -241,7 +243,8 @@ T extends TileType
           // Update the TableDataItem in the cache
           queryClient.setQueryData(['tableDataItem', optimisticTile.id], tableDataItem);
         } catch (error) {
-          console.error("Error building optimistic TableDataItem:", error);
+          showErrorToast(error, `Error building optimistic TableDataItem for ${optimisticTile.name}`);
+          throw error;
         }
       }
       
@@ -280,12 +283,14 @@ T extends TileType
               // Update the cache with the new PlotDataItem
               queryClient.setQueryData(['plotDataItem', plotTile.id], plotDataItem);
             } catch (error) {
-              console.error(`Error building optimistic PlotDataItem for ${plotTile.name}:`, error);
+              showErrorToast(error, `Error building optimistic PlotDataItem for ${plotTile.name}`);
+              throw error;
             }
           }
         }
       } catch (error) {
-        console.error("Error updating plot dependencies:", error);
+        showErrorToast(error, "Error updating plot dependencies");
+        throw error;
       }
       
       // Return the previous data for potential rollback

@@ -96,7 +96,7 @@ const ColumnUpdate = ({
     /* Display loader when data updates - this stops the updateLoading state */
     useEffect(() => {
         setUpdateLoading(false);
-    },[logs])
+    },[logs, setUpdateLoading])
 
     // Handle inputs
     const handleExpression = (value: string) => {

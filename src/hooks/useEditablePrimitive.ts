@@ -1,5 +1,5 @@
 import React from "react";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 
 export function useEditablePrimitive<T>(
   initial: T,
@@ -19,7 +19,7 @@ export function useEditablePrimitive<T>(
     if (validate) {
       const res = validate(draft);
       if (res !== true) {
-        toast.error(typeof res === "string" ? res : "Invalid value");
+        showErrorToast(typeof res === "string" ? res : "Invalid value");
         // Removed verbose debug logging – validation errors are still surfaced via toast
         return;
       }

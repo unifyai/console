@@ -313,10 +313,9 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   const suggestions = 
     <div 
       ref={suggestionsRef}
-      style={{"scrollbar-width": "none"} as React.CSSProperties}
       className="
         absolute z-20 left-0 mt-[40px] 
-        w-full h-fit max-h-[150px] overflow-y-auto 
+        w-full h-fit max-h-[150px] overflow-y-auto command-scrollbar
         border rounded-none rounded-tr-md rounded-br-md 
         bg-background shadow-md
       "

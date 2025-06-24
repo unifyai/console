@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -32,6 +32,7 @@ import { CopyButton } from "@/components/Common/Buttons/Copy";
 import { LogComparisonProps } from "../types";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ChatView from "../ChatView";
+import Image from "next/image";
 
 /*------------------------------------------------------------------------
   Helper functions for compressing row indices => "1-3,5,7-9", etc.
@@ -715,15 +716,16 @@ export default function UnifiedTraceView({
   // Grouping logic
   const [groupSignature, setGroupSignature] = useState("");
 
-  function minimalSpanHierarchy(span: Span): any {
+  const minimalSpanHierarchy = useCallback((span: Span): any => {
     return {
       name: span.span_name,
       children: (span.child_spans ?? []).map(minimalSpanHierarchy),
     };
-  }
-  function minimalSpanTree(spans: Span[]): any {
+  }, []);
+  
+  const minimalSpanTree = useCallback((spans: Span[]): any => {
     return spans.map(minimalSpanHierarchy);
-  }
+  }, [minimalSpanHierarchy]);
 
   const groupedRows = useMemo(() => {
     const result: { signature: string; rowIndices: number[] }[] = [];
@@ -744,7 +746,7 @@ export default function UnifiedTraceView({
       result.push({ signature, rowIndices: rows });
     }
     return result;
-  }, [allTraces, rowIndexes]);
+  }, [allTraces, rowIndexes, minimalSpanTree]);
 
   function labelForGroupRows(rows: number[]): string {
     if (!rows.length) return "--";
@@ -760,17 +762,17 @@ export default function UnifiedTraceView({
     return arr;
   }, [groupedRows]);
 
-  function unifyGroupIntoOne(rowIndices: number[]): Span[] {
+  const unifyGroupIntoOne = useCallback((rowIndices: number[]): Span[] => {
     if (!rowIndices.length) return [];
     const firstRow = rowIndices[0];
     const i = rowIndexes.indexOf(firstRow);
     return allTraces[i] ?? [];
-  }
+  }, [rowIndexes, allTraces]);
 
   // Build final patched diff
   const finalPatchRoot = useMemo<PatchDiffNode | null>(() => {
     if (!allTraces.length) return null;
-    // Wrap the base row in the synthetic “ROOT”
+    // Wrap the base row in the synthetic "ROOT"
     const baseWrapped = wrapAsRootSpan(baseRowSpans, "baseRow");
     if (!groupSignature) {
       // Compare with itself => minimal changes
@@ -784,7 +786,7 @@ export default function UnifiedTraceView({
     const groupSpans = unifyGroupIntoOne(found.rowIndices);
     const groupWrapped = wrapAsRootSpan(groupSpans, "groupRow");
     return computeSpanDiffByName(baseWrapped, groupWrapped);
-  }, [groupSignature, groupedRows, baseRowSpans, allTraces, rowIndexes]);
+  }, [groupSignature, groupedRows, baseRowSpans, allTraces, unifyGroupIntoOne]);
 
   // Decide which row(s) is the "compare" side
   const groupCompareRows = useMemo(() => {
@@ -794,7 +796,7 @@ export default function UnifiedTraceView({
     return found.rowIndices;
   }, [groupSignature, groupedRows]);
 
-  // Whenever finalPatchRoot changes, flatten out the “ROOT” node,
+  // Whenever finalPatchRoot changes, flatten out the "ROOT" node,
   // then find any previously selectedSpanId.
   useEffect(() => {
     if (!finalPatchRoot) return;
@@ -831,7 +833,7 @@ export default function UnifiedTraceView({
     } else {
       setSelectedNode(found);
     }
-  }, [finalPatchRoot]);
+  }, [finalPatchRoot, selectedSpanId, setSelectedNode, setSelectedSpanId]);
 
   function onSelectNode(n: PatchDiffNode | null) {
     if (!n) {

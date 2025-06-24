@@ -1,7 +1,8 @@
 "use client";
 
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import ActionButton from "@/components/Common/Buttons/Action";
+import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { clearCanvas } from "@/utils/evals/plots/canvas";
 import { clearFixedTooltip } from "@/utils/evals/plots/tooltip";
 import { GrClearOption } from "react-icons/gr";
@@ -18,9 +19,10 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
     setIsTooltipMinimized: Dispatch<SetStateAction<boolean>>,
     setZoomEnabled?: ((enabled: boolean) => void) | undefined;
 }) => {
-    const settings = d3.select(settingsRef.current)
+    const settings = d3.select(settingsRef.current);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    const onClick = () => {
+    const handleClearPlot = async () => {
         if (setXAxis) setXAxis(undefined);
         if (setYAxis) setYAxis(undefined);
         if (setGroupBy) setGroupBy(undefined);
@@ -28,15 +30,33 @@ const PlotReset = ({settingsRef, svgRef, containerRef, setXAxis, setYAxis, setGr
         if (setZoomEnabled) setZoomEnabled(false);
         clearCanvas(svgRef, containerRef);
         clearFixedTooltip(settings, setIsTooltipMinimized);
+        return { info: "Plot cleared successfully" };
     };
+
     return (
-        <ActionButton
-            icon={<GrClearOption/>}
-            tooltip="Clear plot"
-            onClick={onClick}
-            side="left"
-        />
-    )
+        <>
+            <ActionButton
+                icon={<GrClearOption/>}
+                text="Clear Plot"
+                tooltip="Clear all plot settings and data"
+                onClick={() => setShowDeleteDialog(true)}
+                variant="destructive"
+                className="w-full justify-start"
+            />
+            
+            {/* Clear confirmation dialog */}
+            <DeleteDialog
+                args={[]}
+                type="plot configuration"
+                deletingFunction={handleClearPlot}
+                showDialog={showDeleteDialog}
+                setShowDialog={setShowDeleteDialog}
+                onDelete={() => {
+                    // Dialog will auto-close after successful clearing
+                }}
+            />
+        </>
+    );
 }
 
 export default PlotReset;

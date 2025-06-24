@@ -117,7 +117,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     useEffect(() => {
         setIsGroupingUpdating(false);
         setIsUpdatingLogs(false);
-    }, [data]);
+    }, [data, setIsGroupingUpdating, setIsUpdatingLogs]);
 
     // Init table
     const table = useReactTable({

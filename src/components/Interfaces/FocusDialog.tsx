@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { DoublePanels } from "../Common/Body/DoublePanels";
+import { ScrollArea } from "../UI/scroll-area";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
 import { Badge } from "../UI/badge";
@@ -82,7 +83,7 @@ const FocusDialog = ({
                         fileActions={fileActions}
                         projectsActions={projectsActions}
                     />
-                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-20" : "h-10")}>
+                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-28" : "h-10")}>
                         <div>
                             <Badge variant="primary">{tile.name}</Badge>
                         </div>
@@ -133,8 +134,8 @@ const FocusDialog = ({
     return (
         <DoublePanels
             isLoading={false}
-            first={<div className="h-full overflow-auto p-2">{focusedTilesToRender[0]}</div>}
-            second={<div className="h-full overflow-auto p-2">{focusedTilesToRender[1]}</div>}
+            first={<ScrollArea className="h-full"><div className="p-2">{focusedTilesToRender[0]}</div></ScrollArea>}
+            second={<ScrollArea className="h-full"><div className="p-2">{focusedTilesToRender[1]}</div></ScrollArea>}
         />
     );
 };

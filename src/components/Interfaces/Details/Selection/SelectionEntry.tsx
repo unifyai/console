@@ -344,7 +344,7 @@ export default function SelectionEntry({
     if (!isTopLevelExpandable) return "";
     const prefixStr = source === "entries" ? "entries" : "params";
     return makePrefixedDictPath(prefixStr, 0, property);
-  }, [isTopLevelExpandable, property, source]);
+  }, [isTopLevelExpandable, source, property]);
 
   const subPaths = useMemo(() => {
     if (!isTopLevelExpandable || !topLevelPath) return [];
@@ -356,7 +356,7 @@ export default function SelectionEntry({
       paths = gatherAllSubPaths(rawValue, topLevelPath, prefixStr, 0);
     }
     return paths;
-  }, [rawValue, isTopLevelExpandable, topLevelPath, source, comps, property]);
+  }, [rawValue, isTopLevelExpandable, topLevelPath, source, comps]);
 
   const allOpen = useMemo(() => {
     if (!isTopLevelExpandable || !subPaths.length) return false;
@@ -366,7 +366,28 @@ export default function SelectionEntry({
   // Trace state management
   const [traceUIState, setTraceUIState] = useState({ collapsedNodes: {} as Record<string, boolean>, selectedNode: null as any | null, selectedSpanId: "", groupSignature: "", traceExpandOpenKeys: new Set<string>(), });
   const [traceScrollState, setTraceScrollState] = useState({ leftScrollPosition: 0, rightScrollPosition: 0, });
-  const persistedTraceState = useMemo(() => externalTraceState || { collapsedNodes: traceUIState.collapsedNodes, setCollapsedNodes: (v: any) => setTraceUIState(p => ({ ...p, collapsedNodes: typeof v === 'function' ? v(p.collapsedNodes) : v })), selectedNode: traceUIState.selectedNode, setSelectedNode: (v: any) => setTraceUIState(p => ({ ...p, selectedNode: typeof v === 'function' ? v(p.selectedNode) : v })), selectedSpanId: traceUIState.selectedSpanId, setSelectedSpanId: (v: any) => setTraceUIState(p => ({ ...p, selectedSpanId: typeof v === 'function' ? v(p.selectedSpanId) : v })), groupSignature: traceUIState.groupSignature, setGroupSignature: (v: any) => setTraceUIState(p => ({ ...p, groupSignature: typeof v === 'function' ? v(p.groupSignature) : v })), traceExpandOpenKeys: traceUIState.traceExpandOpenKeys, setTraceExpandOpenKeys: (v: any) => setTraceUIState(p => ({ ...p, traceExpandOpenKeys: typeof v === 'function' ? v(p.traceExpandOpenKeys) : v })), leftScrollPosition: traceScrollState.leftScrollPosition, setLeftScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, leftScrollPosition: typeof v === 'function' ? v(p.leftScrollPosition) : v })), rightScrollPosition: traceScrollState.rightScrollPosition, setRightScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, rightScrollPosition: typeof v === 'function' ? v(p.rightScrollPosition) : v })), }, [traceUIState, traceScrollState, externalTraceState, property]);
+  
+  // Memoize trace state setters to prevent unnecessary re-renders
+  const traceStateSetters = useMemo(() => ({
+    setCollapsedNodes: (v: any) => setTraceUIState(p => ({ ...p, collapsedNodes: typeof v === 'function' ? v(p.collapsedNodes) : v })),
+    setSelectedNode: (v: any) => setTraceUIState(p => ({ ...p, selectedNode: typeof v === 'function' ? v(p.selectedNode) : v })),
+    setSelectedSpanId: (v: any) => setTraceUIState(p => ({ ...p, selectedSpanId: typeof v === 'function' ? v(p.selectedSpanId) : v })),
+    setGroupSignature: (v: any) => setTraceUIState(p => ({ ...p, groupSignature: typeof v === 'function' ? v(p.groupSignature) : v })),
+    setTraceExpandOpenKeys: (v: any) => setTraceUIState(p => ({ ...p, traceExpandOpenKeys: typeof v === 'function' ? v(p.traceExpandOpenKeys) : v })),
+    setLeftScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, leftScrollPosition: typeof v === 'function' ? v(p.leftScrollPosition) : v })),
+    setRightScrollPosition: (v: any) => setTraceScrollState(p => ({ ...p, rightScrollPosition: typeof v === 'function' ? v(p.rightScrollPosition) : v })),
+  }), []);
+  
+  const persistedTraceState = useMemo(() => externalTraceState || {
+    collapsedNodes: traceUIState.collapsedNodes,
+    selectedNode: traceUIState.selectedNode,
+    selectedSpanId: traceUIState.selectedSpanId,
+    groupSignature: traceUIState.groupSignature,
+    traceExpandOpenKeys: traceUIState.traceExpandOpenKeys,
+    leftScrollPosition: traceScrollState.leftScrollPosition,
+    rightScrollPosition: traceScrollState.rightScrollPosition,
+    ...traceStateSetters
+  }, [traceUIState, traceScrollState, externalTraceState, traceStateSetters]);
   const valuePath: (string | number)[] = useMemo(() => incomingPath && incomingPath.length > 0 ? incomingPath : [property], [incomingPath, property]);
 
   // Wrapper for single save edits (adds source)
@@ -396,7 +417,7 @@ export default function SelectionEntry({
   }, [
     rawValue, comps, version, comparableVersions, baseLog, baseLogIndex, comparisonLogs, comparisonLogsIndex,
     diffMode, splitView, displayMode, childNesting, source, topLevelPath, unifiedType,
-    isEmpty, fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
+    fieldName, isImmutable, viewTracesAsDict, persistedTraceState, cellEditMode,
     handleSaveEditForView, handleGroupSaveEditForView, onTraceUpdate, valuePath,
     logsActions, context
   ]);
@@ -429,7 +450,7 @@ export default function SelectionEntry({
   const isLeaf = useMemo(() => (unifiedType === "trace" ? false : !isTopLevelExpandable), [unifiedType, isTopLevelExpandable]);
 
   // Content node rendering
-  const contentNode = useMemo(() => renderedContent, [isLeaf, cellEditMode, rawValue, renderedContent]);
+  const contentNode = useMemo(() => renderedContent, [renderedContent]);
 
   // No longer returning null if isEmpty is true. Always render the accordion item.
   // if (isEmpty) return null; 

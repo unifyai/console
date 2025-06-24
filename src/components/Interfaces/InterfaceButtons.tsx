@@ -1,16 +1,20 @@
 "use client";
 
 import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions, ProjectsActions, FieldsActions } from "@/types/evals/grid";
-import { Eye, Hammer, SquareMousePointer, Info, Ellipsis } from "lucide-react";
-import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette } from "lucide-react";
+import { Eye, Hammer, SquareMousePointer, Info, Settings, Trash, Pen } from "lucide-react";
+import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette, Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
+import BaseDialog from "../Common/Dialogs/Base";
 import { DropdownMenuItem } from "../UI/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { Switch } from "../UI/switch";
 import { Label } from "../UI/label";
+import { Input } from "../UI/input";
+import SubmitButton from "../Common/Buttons/Submit";
 import Tooltip from "../Common/Misc/Tooltip";
 import ColorPicker from "../Common/Misc/ColorPicker";
+import DeleteDialog from "../Common/Dialogs/Delete";
 import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
 import ContextSelector from "./Table/Content/ContextSelector";
@@ -22,7 +26,10 @@ import { useTiles } from "@/contexts/hooks/useStore";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Query/useRestoreLastSavedTabWithTilesQuery';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
+import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSync";
 import { useListContextsQuery } from "@/hooks/Query/useContextsQuery";
+import { showSuccessToast, showErrorToast } from "@/components/notifications";
+import { resolveColorHierarchy } from "@/utils/evals/plots/common";
 
 const InterfaceButtons = ({
     tabIdOrName,
@@ -77,6 +84,11 @@ const InterfaceButtons = ({
     const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
     const syncedTabDataActions = syncedTabActions?.data ?? null;
     const syncedTabUIActions = syncedTabActions?.ui ?? null;
+
+    // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, project, interfaceActions, tabActions);
+    const syncedInterfaceDataActions = syncedInterfaceActions?.data ?? null;
+    const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
 
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
@@ -153,20 +165,264 @@ const InterfaceButtons = ({
     const setSaveInterfaceOpen = useStoreContext((s) => s.setSaveInterfaceOpen);
     const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
 
+    // Delete tab state
+    const [deleteTabOpen, setDeleteTabOpen] = useState(false);
+
+    // Handle tab deletion
+    const handleDeleteTab = async () => {
+        if (!tabName || !interfaceId) {
+            return { error: "No tab selected for deletion" };
+        }
+        
+        try {
+            // If this is the only tab, prevent deletion
+            const interfaceData = syncedInterfaceDataActions?.getTabNames() || [];
+            if (interfaceData.length <= 1) {
+                return { error: "Cannot delete the last remaining tab" };
+            }
+
+            // Switch to another tab first
+            const tabIdx = interfaceData.indexOf(tabName);
+            const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : interfaceData.length > 1 ? 1 : -1;
+            const nextTabName = nextTabIdx !== -1 ? interfaceData[nextTabIdx] : null;
+            
+            // Update active tab before deletion
+            if (nextTabName && syncedInterfaceUIActions) {
+                syncedInterfaceUIActions.setActiveTab(nextTabName);
+            }
+            
+            // Use synchronized action to remove the tab
+            await syncedInterfaceDataActions?.removeTab(tabName);
+            
+            return { info: `Tab "${tabName}" was successfully deleted.` };
+        } catch (error) {
+            return { error: "Failed to delete tab. Please try again." };
+        }
+    };
+
+    // Rename tab state
+    const [renameTabOpen, setRenameTabOpen] = useState(false);
+    const [newTabName, setNewTabName] = useState("");
+    const [renameError, setRenameError] = useState("");
+
+    // Handle tab rename
+    const handleRenameTab = async () => {
+        if (!tabName || !interfaceId) {
+            setRenameError("No tab selected for renaming");
+            return;
+        }
+        
+        const trimmedName = newTabName.trim();
+        
+        // Validation
+        if (!trimmedName) {
+            setRenameError("Tab name cannot be empty");
+            return;
+        }
+        
+        if (trimmedName === tabName) {
+            setRenameTabOpen(false);
+            setNewTabName("");
+            setRenameError("");
+            return;
+        }
+        
+        // Check for duplicates (case insensitive)
+        const interfaceData = syncedInterfaceDataActions?.getTabNames() || [];
+        const duplicate = interfaceData.some(name => 
+            name.toLowerCase() === trimmedName.toLowerCase() && 
+            name !== tabName
+        );
+        
+        if (duplicate) {
+            setRenameError(`A tab called "${trimmedName}" already exists`);
+            return;
+        }
+
+        try {
+            // Use synchronized action to rename the tab
+            await syncedInterfaceDataActions?.renameTab(tabName, trimmedName);
+            
+            showSuccessToast("Tab Renamed", `Tab successfully renamed to "${trimmedName}"`);
+            setRenameTabOpen(false);
+            setNewTabName("");
+            setRenameError("");
+        } catch (error) {
+            setRenameError("Failed to rename tab. Please try again.");
+        }
+    };
+
+    // Reset rename dialog when it opens
     useEffect(() => {
-        if (fileUploadOpen || globalContextOpen)
+        if (renameTabOpen) {
+            setNewTabName(tabName || "");
+            setRenameError("");
+        }
+    }, [renameTabOpen, tabName]);
+
+    useEffect(() => {
+        if (fileUploadOpen || globalContextOpen || deleteTabOpen || renameTabOpen)
             setDropdownOpen(true);
         else
             setDropdownOpen(false);
-    }, [fileUploadOpen, globalContextOpen]);
+    }, [fileUploadOpen, globalContextOpen, deleteTabOpen, renameTabOpen]);
 
     return (
-        <div className="flex items-center gap-2 px-4">
+        <div className="flex items-center gap-2">
+            {/* Edit mode buttons - individual buttons when in edit mode */}
+            {tabUIState?.edit && (
+                <>
+                    {/* Save Tab */}
+                    <ActionButton
+                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
+                        tooltip={!project ? "Select a project first" : "Save Tab"}
+                        icon={saveIcon}
+                        variant={variant}
+                        disabled={isDisabled}
+                        onClick={() => setSaveInterfaceOpen(true)}
+                    />
+                    
+                    {/* Reset Tab */}
+                    <ActionButton
+                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
+                        tooltip={!project ? "Select a project first" : "Reset Tab"}
+                        icon={resetIcon}
+                        variant="outline"
+                        disabled={isDisabled || tabUIState?.resetting}
+                        onClick={() => {
+                            if (resetInterfaceCommand) {
+                                resetInterfaceCommand.action?.();
+                            }
+                        }}
+                    />
+                    
+                    {/* Add Tile */}
+                    <ActionButton
+                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
+                        tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
+                        icon={<Plus />}
+                        variant="outline"
+                        disabled={!tabUIState?.edit || !project || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
+                        onClick={() => {
+                            // Use the same logic as AddTile but inline
+                            const items = syncedTabDataActions?.getItems() || [];
+                            const visibleItems = items.filter(item => item.visible);
+                            
+                            let initialIndex = items.length;
+                            while (items.some(item => item.name == "Tile_" + initialIndex))
+                                initialIndex++;
+                            const newTileName = "Tile_" + initialIndex;
+
+                            // Calculate the best position for the new tile
+                            const position = {
+                                x: (() => {
+                                    // Group items by row
+                                    const rowGroups = visibleItems.reduce((acc, item) => {
+                                        const row = Math.floor(item.y);
+                                        if (!acc[row]) acc[row] = [];
+                                        acc[row].push(item);
+                                        return acc;
+                                    }, {} as Record<number, any[]>);
+
+                                    // Try to find space in existing rows first
+                                    const rows = Object.keys(rowGroups).map(Number).sort();
+                                    for (const row of rows) {
+                                        const rowItems = rowGroups[row];
+                                        rowItems.sort((a, b) => a.x - b.x);
+                                        
+                                        let x = 0;
+                                        for (const item of rowItems) {
+                                            if (item.x - x >= 4) {
+                                                return x;
+                                            }
+                                            x = item.x + item.w;
+                                        }
+                                        
+                                        if (x <= 8) {
+                                            return x;
+                                        }
+                                    }
+                                    return 0;
+                                })(),
+                                y: (() => {
+                                    const rowGroups = visibleItems.reduce((acc, item) => {
+                                        const row = Math.floor(item.y);
+                                        if (!acc[row]) acc[row] = [];
+                                        acc[row].push(item);
+                                        return acc;
+                                    }, {} as Record<number, any[]>);
+
+                                    const rows = Object.keys(rowGroups).map(Number).sort();
+                                    
+                                    for (const row of rows) {
+                                        const rowItems = rowGroups[row];
+                                        const rowSpace = rowItems.reduce((occupied, item) => {
+                                            occupied.push({start: item.x, end: item.x + item.w});
+                                            return occupied;
+                                        }, [] as {start: number, end: number}[]);
+
+                                        let x = 0;
+                                        for (const space of rowSpace) {
+                                            if (space.start - x >= 4) {
+                                                return row;
+                                            }
+                                            x = space.end;
+                                        }
+                                        if (x <= 8) {
+                                            return row;
+                                        }
+                                    }
+                                    return rows.length ? Math.max(...rows) + 4 : 0;
+                                })(),
+                                width: 4,
+                                height: 4,
+                            };
+
+                            syncedTabDataActions?.initTile(newTileName, {
+                                position,
+                                minW: null,
+                                minH: null,
+                                type: null,
+                                visible: true,
+                            });
+                        }}
+                    />
+                    
+                    {/* Paste */}
+                    <ActionButton
+                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
+                        icon={<Clipboard />}
+                        variant="outline"
+                        tooltip="Paste"
+                        disabled={!tabUIState?.copied || isDisabled}
+                        onClick={handlePaste}
+                    />
+                    
+                    {/* Change Tab Color */}
+                    <ColorPicker
+                        value={resolveColorHierarchy(null, tabUIState?.color)}
+                        onChange={(color) => syncedTabUIActions?.setColor(color)}
+                        useDialog={true}
+                        showReset={true}
+                        onReset={() => syncedTabUIActions?.setColor(undefined)}
+                    >
+                        <ActionButton
+                            className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
+                            icon={<Palette />}
+                            variant="outline"
+                            tooltip="Change Tab Color"
+                            disabled={!project}
+                        />
+                    </ColorPicker>
+                </>
+            )}
+            
             <BaseDropdown
                 context="tab"
                 button={<ActionButton
-                    tooltip="Manage Tab"
-                    icon={<Ellipsis />}
+                    className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
+                    tooltip="Tab Settings"
+                    icon={<Settings />}
                     variant="outline"
                 />}
                 className="min-w-0 w-fit"
@@ -186,18 +442,7 @@ const InterfaceButtons = ({
                         />
                     </div>
 
-                    {/* Focus pane */}
-                    <div className="w-full border-b py-1">
-                        <ActionButton
-                            className="transition-all"
-                            text="Open Focus Pane"
-                            tooltip="Open Focus Pane"
-                            icon={<FocusIcon />}
-                            variant="ghost"
-                            disabled={isDisabled}
-                            onClick={() => setFocusPaneOpen(true)}
-                        />
-                    </div>
+
 
                     {/* Context selector */}
                     <div className="w-full border-b py-1">
@@ -217,25 +462,28 @@ const InterfaceButtons = ({
                         />
                     </div>
 
-                    {/* Save button */}
+                    {/* Save button - only show in non-edit mode */}
+                    {!tabUIState?.edit && (
                     <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            text="Save Interface"
-                            tooltip={!project ? "Select a project first" : "Save Interface"}
+                            text="Save Tab"
+                            tooltip={!project ? "Select a project first" : "Save Tab"}
                             icon={saveIcon}
                             variant={variant}
                             disabled={isDisabled}
-                            onClick={async () => setSaveInterfaceOpen(true)}
+                            onClick={() => setSaveInterfaceOpen(true)}
                         />
                     </div>
+                    )}
 
-                    {/* Reset button */}
+                    {/* Reset button - only show in non-edit mode */}
+                    {!tabUIState?.edit && (
                     <div className="w-full border-b py-1">
                         <ActionButton
                             className="transition-all"
-                            text="Reset Interface"
-                            tooltip={!project ? "Select a project first" : "Reset Interface"}
+                            text="Reset Tab"
+                            tooltip={!project ? "Select a project first" : "Reset Tab"}
                             icon={resetIcon}
                             variant="ghost"
                             disabled={isDisabled || tabUIState?.resetting}
@@ -246,8 +494,77 @@ const InterfaceButtons = ({
                             }}
                         />
                     </div>
+                    )}
 
-                    {/* Add tile button */}
+                    {/* Rename button */}
+                    <div className="w-full border-b py-1">
+                        <BaseDialog
+                            button={
+                                <ActionButton
+                                    className="transition-all"
+                                    text="Rename Tab"
+                                    tooltip={!project ? "Select a project first" : "Rename Tab"}
+                                    icon={<Pen />}
+                                    variant="ghost"
+                                    disabled={isDisabled}
+                                    onClick={() => setRenameTabOpen(true)}
+                                />
+                            }
+                            title="Rename Tab"
+                            body={
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="tab-name">Tab Name</Label>
+                                        <Input
+                                            id="tab-name"
+                                            value={newTabName}
+                                            onChange={(e) => {
+                                                setNewTabName(e.target.value);
+                                                if (renameError) setRenameError("");
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    handleRenameTab();
+                                                }
+                                            }}
+                                            placeholder="Enter tab name"
+                                            autoFocus
+                                        />
+                                        {renameError && (
+                                            <p className="text-xs text-destructive mt-1">{renameError}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            }
+                            footer={
+                                <SubmitButton
+                                    text="Rename"
+                                    onClick={handleRenameTab}
+                                    disabled={!newTabName.trim() || newTabName.trim() === tabName}
+                                />
+                            }
+                            open={renameTabOpen}
+                            setOpen={setRenameTabOpen}
+                        />
+                    </div>
+
+                    {/* Delete button */}
+                    <div className="w-full border-b py-1">
+                        <DeleteDialog
+                            type="tab"
+                            args={[]}
+                            deletingFunction={handleDeleteTab}
+                            variant="ghost"
+                            text="Delete Tab"
+                            customOpen={deleteTabOpen}
+                            setCustomOpen={setDeleteTabOpen}
+                            onDelete={() => {}}
+                            icon={<Trash />}
+                        />
+                    </div>
+
+                    {/* Add tile button - only show in non-edit mode */}
+                    {!tabUIState?.edit && (
                     <div className="w-full border-b py-1">
                         <AddTile
                             project={project || ""}
@@ -258,6 +575,7 @@ const InterfaceButtons = ({
                             tileActions={tileActions}
                         />
                     </div>
+                    )}
 
                     {/* Show hidden items dropdown */}
                     <div className="w-full border-b py-1">
@@ -300,7 +618,8 @@ const InterfaceButtons = ({
                         </BaseDropdown>
                     </div>
 
-                    {/* Paste button */}
+                    {/* Paste button - only show in non-edit mode */}
+                    {!tabUIState?.edit && (
                     <div className="w-full border-b py-1">
                         <ActionButton
                             variant="ghost"
@@ -311,12 +630,17 @@ const InterfaceButtons = ({
                             onClick={handlePaste}
                         />
                     </div>
+                    )}
 
-                    {/* Color selector */}
+                    {/* Color selector - only show in non-edit mode */}
+                    {!tabUIState?.edit && (
                     <div className="w-full pt-1">
                         <ColorPicker
-                            value={tabUIState?.color ?? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()}
+                            value={resolveColorHierarchy(null, tabUIState?.color)}
                             onChange={(color) => syncedTabUIActions?.setColor(color)}
+                            useDialog={true}
+                            showReset={true}
+                            onReset={() => syncedTabUIActions?.setColor(undefined)}
                         >
                             <ActionButton
                                 className="cursor-pointer hover:z-10"
@@ -328,16 +652,28 @@ const InterfaceButtons = ({
                             />
                         </ColorPicker>
                     </div>
+                    )}
                 </div>
             </BaseDropdown>
 
 
             {/* Right side - Edit and Interactive mode switches */}
-            <div className="flex items-center gap-2 border rounded-md p-1">
+            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
                 <Switch
                     id="edit"
                     checked={tabUIState?.edit || false}
-                    onCheckedChange={() => tabUIActions?.setEdit(!tabUIState?.edit)}
+                    onCheckedChange={() => {
+                        const newEditState = !tabUIState?.edit;
+                        tabUIActions?.setEdit(newEditState);
+                        
+                        // Show helpful notification
+                        showSuccessToast(
+                            "Edit Mode",
+                            newEditState 
+                                ? "You can now edit your interface! Drag tiles, resize, and modify layouts." 
+                                : "Edit mode disabled. Your interface layout is now locked."
+                        );
+                    }}
                     disabled={!project}
                 />
                 <Label htmlFor="edit" className="cursor-pointer">
@@ -347,11 +683,22 @@ const InterfaceButtons = ({
                 </Label>
             </div>
 
-            <div className="flex items-center gap-2 border rounded-md p-1">
+            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
                 <Switch
                     id="interactive"
                     checked={tabUIState?.interactive || false}
-                    onCheckedChange={() => tabUIActions?.setInteractive(!tabUIState?.interactive)}
+                    onCheckedChange={() => {
+                        const newInteractiveState = !tabUIState?.interactive;
+                        tabUIActions?.setInteractive(newInteractiveState);
+                        
+                        // Show helpful notification
+                        showSuccessToast(
+                            "Interactive Mode",
+                            newInteractiveState 
+                                ? "Interactive mode enabled! You can now sort, filter, and manipulate data controls." 
+                                : "Interactive mode disabled. Sorting, filtering, and data controls are now locked."
+                        );
+                    }}
                     disabled={!project}
                 />
                 <Label htmlFor="interactive" className="cursor-pointer">
@@ -361,17 +708,7 @@ const InterfaceButtons = ({
                 </Label>
             </div>
 
-            <Tooltip content="Toggle info icons">
-                <Info
-                    name="help"
-                    size={16}
-                    onClick={() => {
-                        if (project && tabUIState?.interactive) tabUIActions?.setHelp(!tabUIState?.help)
-                    }}
-                    opacity={!project || !tabUIState?.interactive ? 0.5 : 1}
-                    className={`mb-0.5 ml-0.5 ${project && tabUIState?.interactive && tabUIState?.help ? "text-primary" : ""} ${project && tabUIState?.interactive && !tabUIState?.help ? "hover:text-primary" : ""}`}
-                />
-            </Tooltip>
+
         </div>
     );
 };

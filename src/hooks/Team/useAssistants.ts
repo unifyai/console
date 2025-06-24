@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { isGcsPhoto } from '@/utils/team/gcs-utils';
 
 export function useAssistants(
@@ -13,15 +13,15 @@ export function useAssistants(
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
-    const fetchAssistantsWithDetails = React.useCallback(async (showLoadingToast = true) => {
+    const fetchAssistantsWithDetails = React.useCallback(async (shouldShowLoadingToast = true) => {
         
         setIsLoading(true);
         setError(null);
         // setAssistants([]); // Don't clear immediately if just refreshing
 
         let toastId: string | number | undefined;
-        if (showLoadingToast) {
-            toastId = toast.loading("Refreshing assistants...");
+        if (shouldShowLoadingToast) {
+            toastId = showLoadingToast("Refreshing assistants...");
         }
 
         try {
@@ -58,15 +58,17 @@ export function useAssistants(
                 })
             );
             setAssistants(assistantsWithSignedUrls);
-            if (toastId) toast.dismiss(toastId);
 
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching assistants.";
             setError(errorMsg);
             setAssistants([]);
             console.error("Assistant fetch error in hook:", errorMsg);
-            if (toastId) toast.error(`Failed to load assistants`, { id: toastId });
-            else if(showLoadingToast) toast.error(`Failed to load assistants`);
+            if (toastId) {
+                showErrorToast(errorMsg, "Failed to load assistants", toastId);
+            } else if (shouldShowLoadingToast) {
+                showErrorToast(errorMsg, "Failed to load assistants");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -81,7 +83,7 @@ export function useAssistants(
         const assistantId = assistantToDelete.agent_id;
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
         
-        const toastId = toast.loading(`Ending contract for ${displayName}...`);
+        const toastId = showLoadingToast(`Ending contract for ${displayName}...`);
 
         try {
             const deleteResult = await assistantActions.delete(assistantId);
@@ -90,12 +92,12 @@ export function useAssistants(
             }
 
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
-            toast.success(`${displayName} removed from team.`, { id: toastId });
+            showSuccessToast(`${displayName} removed from team.`, undefined, toastId);
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error(`[useAssistants] Error during deletion process for ${displayName}:`, errorMsg);
-            toast.error(`Failed to remove ${displayName}`, { id: toastId });
+            showErrorToast(errorMsg, `Failed to remove ${displayName}`, toastId);
             return false;
         }
     }, [assistantActions]);
@@ -104,7 +106,7 @@ export function useAssistants(
         id: string,
         about: string | null,
     ): Promise<boolean> => {
-        const toastId = toast.loading("Updating profile...");
+        const toastId = showLoadingToast("Updating profile...");
         try {
             const payload: AssistantUpdatePayload = { about };
             const result = await assistantActions.update(id, payload);
@@ -130,11 +132,11 @@ export function useAssistants(
                 return a;
             }));
 
-            toast.success("Profile updated.", { id: toastId });
+            showSuccessToast("Profile updated.", undefined, toastId);
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "Unknown error";
-            toast.error(`Profile update failed: ${errorMsg}`, { id: toastId });
+            showErrorToast(errorMsg, `Profile update failed: ${errorMsg}`, toastId);
             console.error("Assistant update error in hook:", errorMsg);
             return false;
         }

@@ -19,6 +19,7 @@ import RowBadge from "../RowBadge";
 import MarkdownRenderer from "../Markdown/MarkdownRenderer";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
+import Image from "next/image";
 
 import DictionaryView from "../DictionaryView";
 import ListView from "../ListView";
@@ -135,7 +136,7 @@ function renderMessageContent(content: unknown): JSX.Element {
               chunk.type === "image_url" &&
               chunk.image_url?.url
             ) {
-              return <img key={i} src={chunk.image_url.url} alt={`Image ${i}`} />;
+              return <Image key={i} src={chunk.image_url.url} alt={`Image ${i}`} width={200} height={200} />;
             }
             // default => JSON
             return (

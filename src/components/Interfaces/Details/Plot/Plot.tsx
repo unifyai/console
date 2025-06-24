@@ -10,7 +10,7 @@ import { useTab } from '@/contexts/hooks/tab';
 import PlotSettings from "./Sidebar";
 import { drawPlot } from "@/utils/evals/plots/main";
 import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Query/usePlotDataQuery";
-import { usePlotTileSync }   from '@/contexts/hooks/tile/sync/usePlotTileSync';
+import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
 import { PlotArguments } from "@/types/evals/logs";
 
 const LogsPlot = ({ 
@@ -91,8 +91,8 @@ const LogsPlot = ({
     let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = { top: 0, right: 10, bottom: 65, left: 70 } // Margin on the sides
-    const axisPadding = 20; // Extra padding between axes borders and plot borders
+    const margins = useMemo(() => ({ top: 10, right: 15, bottom: 45, left: 55 }), []); // Optimized margins
+    const axisPadding = 15; // Extra padding between axes borders and plot borders
 
     // Plot settings
     let plotType = item?.plot_type;
@@ -135,7 +135,7 @@ const LogsPlot = ({
             (settingsRef.current as any).__isTooltipMinimized = isTooltipMinimized;
             (settingsRef.current as any).__setIsTooltipMinimized = setIsTooltipMinimized;
         }
-    }, [isTooltipMinimized, setIsTooltipMinimized]);
+    }, [isTooltipMinimized, setIsTooltipMinimized, settingsRef]);
 
 
     // Set up containers
@@ -150,7 +150,7 @@ const LogsPlot = ({
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
         clearFixedTooltip(settings, setIsTooltipMinimized);
-    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType, settings, setIsTooltipMinimized])
  
     // Draw plot
     useEffect(() => {
@@ -207,7 +207,15 @@ const LogsPlot = ({
         zoomEnabled,
         tileUIState?.color,
         plotTileState?.plot_group_by_colors,
-        tabUIState?.hoveredLog
+        tabUIState?.hoveredLog,
+        container,
+        fields,
+        margins,
+        placeholder,
+        plotTileActions,
+        plotTileState,
+        settings,
+        svg
     ]);
 
 return (
@@ -215,11 +223,11 @@ return (
   
       {/* Chart Container */}
       <div
-        className="flex flex-1 h-full bg-background relative border-t border-border overflow-hidden"
+        className="flex flex-1 h-full bg-background relative overflow-hidden"
         ref={containerRef}
       >
         {/* SVG content*/}
-        <svg ref={svgRef} className="flex w-full h-full absolute z-0">
+        <svg ref={svgRef} className="w-full h-full absolute top-0 left-0 z-0">
            <defs>
              <clipPath id={clipId}>
                <rect id={"clip-rect"} />

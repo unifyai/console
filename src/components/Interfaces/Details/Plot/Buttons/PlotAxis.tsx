@@ -107,7 +107,7 @@ const PlotAxis = ({ interactive = true, fields, axisProperty, setAxisProperty, a
             </Tooltip>
         </AccordionTrigger>
         <AccordionContent>
-            <div className="max-h-60 overflow-y-auto pr-2 space-y-1">
+            <div className="max-h-60 overflow-y-auto command-scrollbar pr-2 space-y-1">
             {/* Outer Accordion for Tables */}
             <Accordion type="multiple" className="w-full">
                 {Object.entries(choices).map(([table, columns]) => (

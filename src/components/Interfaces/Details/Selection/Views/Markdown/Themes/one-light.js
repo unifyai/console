@@ -1,4 +1,4 @@
-export default {
+const oneLightTheme = {
     "code[class*=\"language-\"]": {
         "background": "var(--background)",
         "color": "hsl(230, 8%, 24%)",
@@ -488,3 +488,5 @@ export default {
         "stroke": "hsl(230, 8%, 24%)"
     }
 }
+
+export default oneLightTheme;

@@ -31,7 +31,7 @@ import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Icon } from "@/components/UI/icon-picker";
-import { toast } from "sonner"; // Added toast import
+import { showErrorToast, showSuccessToast } from "@/components/notifications"; // Added notification imports
 
 /** A single nav item with an icon and label. */
 function renderMenuItem(item: NavItem, isActive: boolean, isSubItem: boolean = false, sidebarState?: string) {
@@ -200,7 +200,7 @@ export default function NavMenu() {
 
   useEffect(() => {
     setOpen(false); 
-  }, []); 
+  }, [setOpen]); 
 
   const navItemsFromList = NavListSource();
   const teamItem = navItemsFromList.find(item => item.title === "Team");
@@ -297,9 +297,9 @@ export default function NavMenu() {
         // Revert UI and show error
         setProjects(initialProjectsSnapshot); // Revert to last known good state before this attempt
         console.error(`Failed to remove favourite ${projectTitle}:`, res.status, await res.text());
-        toast.error(`Could not remove ${projectTitle} from favourites.`);
+                    showErrorToast(`Could not remove ${projectTitle} from favourites.`);
       } else {
-        toast.success(`${projectTitle} removed from favourites.`);
+                    showSuccessToast(`${projectTitle} removed from favourites.`);
         // Update snapshot after successful deletion
         setInitialProjectsSnapshot(prev => prev.filter(p => p.favId !== favIdToRemove));
       }
@@ -307,7 +307,7 @@ export default function NavMenu() {
       // Revert UI and show error
       setProjects(initialProjectsSnapshot); // Revert to last known good state
       console.error(`Error removing favourite ${projectTitle}:`, err);
-      toast.error(`Error removing ${projectTitle}.`);
+              showErrorToast(`Error removing ${projectTitle}.`);
     }
   };
 

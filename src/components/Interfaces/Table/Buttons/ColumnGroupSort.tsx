@@ -101,7 +101,7 @@ const ColumnGroupSort = (({
     const spinnerColor = sortingOrder ? "white" : "primary";
     useEffect(() => {
         setGroupSortingDirection(sortingOrder);
-    }, [sortingOrder])
+    }, [sortingOrder, setGroupSortingDirection])
 
     /* Group sorting menu item */
     const onMenuItemClick = () => {

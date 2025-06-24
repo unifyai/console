@@ -55,7 +55,7 @@ const defaultPanelState: PanelState = {
 };
 
 import SelectionPanel from "@/components/Interfaces/Details/Selection/SelectionPanel";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
 import { maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
@@ -122,8 +122,8 @@ export default function Selection({
     }
   }, [tileActionsWithId, tileActionsWithTable, tileMetaStateWithId, tileMetaStateWithTable]);
 
-  const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem, item?.table]);
-  const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem, item?.table]);
+  const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem]);
+  const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem]);
   const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
   const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
   const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
@@ -311,7 +311,7 @@ export default function Selection({
       if (!prevLogForUpdate) {
         console.error("Could not find the log in the previous state to construct update payload.");
         if (tableDataItem) rollbackLogs(prevLogs);
-        toast.error("Failed to update log: Inconsistent log data.");
+                    showErrorToast("Failed to update log: Inconsistent log data.");
         return;
       }
 
@@ -359,12 +359,12 @@ export default function Selection({
         );
         if (response.detail) {
           console.error("[DEBUG] handleSaveMany – error", response.detail);
-          toast.error(`Failed to update log entry`);
+          showErrorToast(`Failed to update log entry`);
           return;
         }
       } catch (err: any) {
         console.error("[DEBUG] handleSaveMany – backend error", err);
-        toast.error(`Failed to update log entry`);
+        showErrorToast(`Failed to update log entry`);
         return;
       }
 
@@ -374,7 +374,7 @@ export default function Selection({
       }
 
     },
-    [projectId, context, updateLogsDeep, tableDataItem?.logs, rollbackLogs, logsActions.update, fields]
+    [projectId, context, updateLogsDeep, rollbackLogs, logsActions, fields, tableDataItem]
   );
 
   /*******************************************************************************

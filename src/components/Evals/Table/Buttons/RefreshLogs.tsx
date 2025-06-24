@@ -1,7 +1,7 @@
 "use client";
 
 import ActionButton from "@/components/Common/Buttons/Action";
-import { RefreshCw, Power, Check } from "lucide-react";
+import { RefreshCw, Timer, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
@@ -25,13 +25,13 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
         if (!auto) return;
         const interval = setInterval(() => setTimestamp(Date.now().toString()), 2000) // Refresh every 2000ms
         return () => clearInterval(interval)
-    }, [auto])
+    }, [auto, setTimestamp])
     const onAutoClick = () => setAuto(!auto)
     const autoRefresh = 
         <ActionButton
             variant={auto ? "primary" : "outline"}
             className="rounded-none rounded-tr-lg rounded-br-lg"
-            icon={<Power/>}
+            icon={<Timer/>}
             tooltip={"Auto refresh every 2 seconds"}
             onClick={() => onAutoClick()}
         />
@@ -55,7 +55,7 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     }
     useEffect(() => {
         if (refreshClick) displayLoadCheck();
-    }, [logs]);
+    }, [logs, refreshClick]);
 
     // We compare the timestamp string returned from the get latest timestamp endpoint
     // with the timestamp saved last time the refresh button was used, except the first
@@ -63,7 +63,7 @@ const RefreshLogs = ({context, project, filterExpression, sortingExpression, get
     
     const [lastUpdated, setLastUpdated] = useState<string>("")
 
-    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest))}, [])
+    useEffect(() => {getLatest(project, context, filterExpression, sortingExpression, null, null, null, 0).then(latest => setLastUpdated(latest))}, [project, context, filterExpression, sortingExpression, getLatest])
     
     const onManualClick = () => {
         setLoading(true)

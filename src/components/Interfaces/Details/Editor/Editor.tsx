@@ -169,7 +169,7 @@ const Editor = ({
     useEffect(() => {
         if (!pending && output !== "")
             setComplete(true);
-    }, [pending]);
+    }, [pending, output]);
 
     useEffect(() => {
         if (complete)
@@ -203,7 +203,7 @@ const Editor = ({
         }, 1000);
     
         return () => clearInterval(id);
-      }, [pending]);
+      }, [pending, codeActions, projectId, tempFileName, tempFileType]);
 
     // Memoized env variables parsing
     const envVars = useMemo(() => {

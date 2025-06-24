@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
 import DiffViewer from "@/components/Common/Misc/DiffViewer";
 import { LogComparisonProps } from "./types";

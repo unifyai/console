@@ -6,7 +6,7 @@ import { ExternalLink, Loader2, Play } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import ActionButton from "../Common/Buttons/Action";
 import { DerivedEntryActions, LogsActions, ProjectsActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceData, TabData, TileData, FileActions } from "@/types/evals/grid";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { demos } from "@/constants/logs";
 import { useQueryState } from "nuqs";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -79,7 +79,7 @@ const DefaultProject = ({
             : Object.keys(demos)[0]
         ];
 
-    const storeDemo = async () => {
+    const storeDemo = useCallback(async () => {
         if (!demoInterface || !demoTab || !demoTiles) {
             return;
         }
@@ -142,14 +142,14 @@ const DefaultProject = ({
             console.error("Error creating demo:", error);
             // Error handling is now managed by the hook
         }
-    };
+    }, [demoInterface, demoTab, demoTiles, projects, setProjectQueryParam, setCreate, createDemoMutation, demoDerivedColumns, demoCode, interfaceActions, tabActions, tileActions, codeActions, fileActions, derivedEntryActions, setInterfaceQueryParam, setTabQueryParam, setDemo]);
 
     // Reset mutations if there was an error
     useEffect(() => {
         if (isError) {
             createDemoMutation.reset();
         }
-    }, [isError]);
+    }, [isError, createDemoMutation]);
 
     useEffect(() => {
         if (demo == null)
@@ -157,7 +157,7 @@ const DefaultProject = ({
         if (create && demo && !isPending) {
             storeDemo();
         }
-    }, [create, demo, isPending]);
+    }, [create, demo, isPending, storeDemo, setDemo]);
 
     return <>
         <div className="h-[94vh] flex flex-col gap-4 items-center">
@@ -183,7 +183,7 @@ const DefaultProject = ({
                                         size="default"
                                     />}
                                 >
-                                    <div className="max-h-[80vh] overflow-y-auto">
+                                    <div className="max-h-[80vh] overflow-y-auto command-scrollbar">
                                         {Object.entries(demosTree.children).sort((a, b) => {
                                             if (a[0] === "<root>") return -1;
                                             if (b[0] === "<root>") return 1;
@@ -225,7 +225,7 @@ const DefaultProject = ({
                         </div>
                     </div>}
 
-                    <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto rounded-md border border-1 p-2">
+                    <div className="relative h-[400px] w-[600px] mb-auto overflow-y-auto command-scrollbar rounded-md border border-1 p-2">
                         <CodeBlock
                             code={demoCode}
                             language="python"

@@ -84,6 +84,7 @@ const ColumnPinner = ({
         setDraggingColumnPinner(newDragging);
     }, [isDragging, overlayPosition, startX, overlayStartLeft, draggingColumnPinner, setDraggingColumnPinner]);
 
+    const isPinned = column.getIsPinned();
     const commitPinChanges = useCallback((finalLeft: number) => {
         const leafs: Column<any, unknown>[] = (table as any).getVisibleLeafColumns?.() ?? (table as any).getLeafColumns?.() ?? [];
 
@@ -95,11 +96,11 @@ const ColumnPinner = ({
             }
         } else if (draggingColumnPinner.direction === "left") {
             // Unpin only the current column
-            if (column.getIsPinned()) {
+            if (isPinned) {
               column.pin(false);
             }
         }
-    }, [table, draggingColumnPinner.direction, column.getIsPinned()]);
+    }, [table, draggingColumnPinner.direction, isPinned, column, columnOrder]);
 
     // Handle drag end early so it can be referenced before declaration
     const handleDragEnd = useCallback(() => {

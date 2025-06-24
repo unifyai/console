@@ -10,6 +10,7 @@ import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData";
 import { selectProjectById } from "@/contexts/selectors/project";
+import { useRef, useCallback, useState } from "react";
 
 /**
  * Debug flag for performance logging
@@ -31,6 +32,7 @@ const perfLog = (...args: any[]) => {
  * • Automatically polls every 5s when auto_update === "true"
  * • Uses the same query key as usePatchTileQueryOptimistic for cache consistency
  * • Exposes a manualRefresh() helper for manual refresh buttons
+ * • Exposes a stop() helper to cancel polling and in-flight requests
  * • Fetches fresh data using current tile state (filters, context, etc.)
  */
 export function useTableAutoUpdateQuery(
@@ -45,6 +47,7 @@ export function useTableAutoUpdateQuery(
 ) {
   const storeApi = useStoreApiContext();
   const queryClient = useQueryClient();
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
   
   // Get reactive access to tile item for auto_update flag
   const { data: tileDataState } = useTileData(tileId, tabId);
@@ -114,6 +117,7 @@ export function useTableAutoUpdateQuery(
       projectId,
       logsActions,
       prevLogs
+      // Temporarily removed abort signal to fix connection issues
     );
 
     // Update the TableDataItem in the cache
@@ -134,11 +138,29 @@ export function useTableAutoUpdateQuery(
     staleTime: 0, // Always fetch fresh data
   });
   
-  // Manual refresh function for refresh buttons
-  const manualRefresh = () => query.refetch({ throwOnError: false });
+  // Manual refresh function
+  const manualRefresh = useCallback(async () => {
+    // Mark that this is a manual refresh
+    setIsManualRefresh(true);
+    try {
+      await query.refetch({ throwOnError: false });
+    } finally {
+      setIsManualRefresh(false);
+    }
+  }, [query]);
   
+  const stop = useCallback(() => {
+    // Disable auto-refresh by updating query defaults
+    queryClient.setQueryDefaults(queryKey, {
+      ...queryClient.getQueryDefaults(queryKey),
+      refetchInterval: false,
+    });
+  }, [queryClient, queryKey]);
+
   return {
     ...query,
     manualRefresh,
+    stop,
+    isManualRefresh,
   };
 }

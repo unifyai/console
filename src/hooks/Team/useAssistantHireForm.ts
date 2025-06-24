@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useForm } from "react-hook-form";
 import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
@@ -84,12 +84,12 @@ export function useAssistantHireForm(
                     if (Array.isArray(result)) {
                         setFetchedAssistantEmails(result);
                     } else {
-                        toast.error((result as ResponseProps).detail || "Could not fetch existing assistant emails.");
+                        showErrorToast((result as ResponseProps).detail || "Could not fetch existing assistant emails.");
                         setFetchedAssistantEmails([]);
                     }
                 })
                 .catch(err => {
-                    toast.error("Failed to fetch assistant emails.");
+                    showErrorToast("Failed to fetch assistant emails.");
                     setFetchedAssistantEmails([]);
                 })
                 .finally(() => {
@@ -238,7 +238,7 @@ export function useAssistantHireForm(
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
         clearErrors();
-        const toastId = toast.loading("Hiring assistant...");
+        const toastId = showLoadingToast("Hiring assistant...");
                 
         try {
             // Input validity checks
@@ -309,7 +309,7 @@ export function useAssistantHireForm(
                 }
             }
 
-            toast.loading("Finalizing assistant hire...", { id: toastId });
+            // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend as string | null,
@@ -317,7 +317,7 @@ export function useAssistantHireForm(
                 data.email, data.user_phone, data.country
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
-                toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
+                showSuccessToast(`Assistant ${data.first_name} ${data.surname} hired!`, undefined, toastId);
                 resetFormAndHints();
                 if (onSuccess) onSuccess(assistantCreationResult.assistant);
             } else {
@@ -338,9 +338,9 @@ export function useAssistantHireForm(
             );
 
             if (!isRHFError) {
-                 toast.error(`${error.message}. Hiring aborted.`, { id: toastId, duration: 7000 });
+                 showErrorToast(error.message, `${error.message}. Hiring aborted.`, toastId);
             } else {
-                toast.dismiss(toastId);
+                // Form validation errors, just dismiss the loading toast
             }
             console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
@@ -365,18 +365,18 @@ export function useAssistantHireForm(
         const currentEmail = getValues("email");
         if (!currentEmail || currentEmail.startsWith('@')) { 
             setError("email", { type: "manual", message: "Email local part cannot be empty." });
-            toast.error("Email local part cannot be empty.");
+            showErrorToast("Email local part cannot be empty.");
             return;
         }
         if (fetchedAssistantEmails.includes(currentEmail)) {
             setError("email", { type: "manual", message: "This email is already in use." });
-            toast.error("This email is already in use. Please choose another.");
+            showErrorToast("This email is already in use. Please choose another.");
             return;
         }
 
         setIsCheckingBalance(true);
         setShowInsufficientFundsHint(false);
-        const balanceToastId = toast.loading("Checking your balance...");
+        const balanceToastId = showLoadingToast("Checking your balance...");
 
         try {
             const fetchBalance = async () => {
@@ -393,7 +393,7 @@ export function useAssistantHireForm(
             const balanceResult = await fetchBalance();
 
             if ('detail' in balanceResult || !balanceResult) {
-                toast.error((balanceResult as ResponseProps)?.detail || "Failed to check balance.", { id: balanceToastId });
+                showErrorToast((balanceResult as ResponseProps)?.detail || "Failed to check balance.", "Failed to check balance.", balanceToastId);
                 setIsCheckingBalance(false);
                 return;
             }
@@ -401,14 +401,12 @@ export function useAssistantHireForm(
             const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
 
             if (currentBalance < ASSISTANT_ONBOARDING_FEE) {
-                toast.dismiss(balanceToastId);
                 setShowInsufficientFundsHint(true);
             } else {
-                toast.dismiss(balanceToastId);
                 await RHFSubmitHandler(event); 
             }
         } catch (error) {
-            toast.error("Error during balance check process.", { id: balanceToastId });
+            showErrorToast("Error during balance check process.", "Error during balance check process.", balanceToastId);
             console.error("Balance check/hire attempt error:", error);
         } finally {
             setIsCheckingBalance(false);

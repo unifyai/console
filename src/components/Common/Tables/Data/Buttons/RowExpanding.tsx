@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { Row } from "@tanstack/react-table";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export interface RowExpandingProps {
     row: Row<any | unknown>;
@@ -34,17 +34,17 @@ const RowExpanding = ({
         }
     };
 
-    const handleInitialExpand = async () => {
+    const handleInitialExpand = useCallback(async () => {
         if (isExpanded && !row.original.isPopulated) {
             // await handleOnExpand();
             row.toggleExpanded(false);
         }
-    };
+    }, [isExpanded, row]);
 
     // Effect to handle initial expanded state on page load
     useEffect(() => {
         handleInitialExpand();
-    }, []);
+    }, [handleInitialExpand]);
 
     const handleClick = async (e: React.MouseEvent) => {
         e.stopPropagation();

@@ -716,22 +716,25 @@ export default function SelectionPanel({
   }, [baseLog, comparisonLogs, columnOrdering]);
 
   // Filter "visible" columns
-  function visibleEntries(): string[] {
+  const visibleEntries = useCallback((): string[] => {
     const filtered = entryKeys.filter((col) => entriesFilter[col] !== false);
     return filtered;
-  }
-  function visibleEntriesKey(): string {
+  }, [entryKeys, entriesFilter]);
+  
+  const visibleEntriesKey = useCallback((): string => {
     const arr = [...visibleEntries()];
     return arr.join(",");
-  }
-  function visibleParams(): string[] {
+  }, [visibleEntries]);
+  
+  const visibleParams = useCallback((): string[] => {
     const filtered = paramKeys.filter((col) => paramsFilter[col] !== false);
     return filtered;
-  }
-  function visibleParamsKey(): string {
+  }, [paramKeys, paramsFilter]);
+  
+  const visibleParamsKey = useCallback((): string => {
     const arr = [...visibleParams()];
     return arr.join(",");
-  }
+  }, [visibleParams]);
 
   // On mount / filter change, load from global reorder or fallback
   useEffect(() => {
@@ -773,7 +776,7 @@ export default function SelectionPanel({
     if (missing.length > 0) {
       onPanelStateChange({ paramOrder: [...finalP, ...missing] });
     }
-  }, [paramKeys, paramsFilter, paramOrderings, visibleParamsKey, columnOrdering, paramOrder, allPossibleColumns?.params]);
+  }, [paramKeys, paramsFilter, paramOrderings, visibleParams, visibleParamsKey, columnOrdering, paramOrder, allPossibleColumns?.params, onPanelStateChange]);
 
   useEffect(() => {
     const vKey = visibleEntriesKey();
@@ -814,7 +817,7 @@ export default function SelectionPanel({
     if (missingE.length > 0) {
       onPanelStateChange({ entryOrder: [...finalE, ...missingE] });
     }
-  }, [entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntriesKey, columnOrdering, allPossibleColumns?.entries]);
+  }, [entryKeys, entriesFilter, entryOrderings, entryOrder, visibleEntries, visibleEntriesKey, columnOrdering, allPossibleColumns?.entries, onPanelStateChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -1075,7 +1078,7 @@ export default function SelectionPanel({
     // Propagate save for the single row ID
     onSaveMany([targetRowId], saveDesc);
 
-  }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency for correction logic
+  }, [sortedLogs, onSaveMany]); // baseLog dependency removed as it's not used in the callback logic
 
   /*****************************************************************************
    * Handle Group Save Edit Local (For grouped edits)
@@ -1130,7 +1133,7 @@ export default function SelectionPanel({
     // Propagate save for ALL row IDs in the group
     onSaveMany(targetRowIds, saveDesc);
 
-  }, [sortedLogs, onSaveMany, baseLog]); // Added baseLog dependency
+  }, [sortedLogs, onSaveMany]); // baseLog dependency removed as it's not used in the callback logic
 
     /*****************************************************************************
      * Handle Trace Update (from polling)
@@ -1397,7 +1400,7 @@ export default function SelectionPanel({
               >
                 <div className="flex flex-col gap-1 p-3">
                   <p className="font-bold text-medium pb-1">Select visible columns</p>
-                  <div className="max-h-[60vh] overflow-y-auto pr-2">
+                  <div className="max-h-[60vh] overflow-y-auto command-scrollbar pr-2">
                     {/* Master toggle for all */}
                     <div className="flex justify-between items-center mb-5 mt-3">
                       <span className="font-bold text-sm">
@@ -1647,7 +1650,7 @@ export default function SelectionPanel({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 min-h-0 space-y-6">
+        <div className="flex-1 overflow-y-auto command-scrollbar px-5 min-h-0 space-y-6">
           {EntriesSection()}
           {ParamSection()}
         </div>

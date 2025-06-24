@@ -6,7 +6,7 @@ import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**

@@ -64,7 +64,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
 
     useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered])
+    }, [isFiltered, setIsFiltered])
 
     /* Event handlers */
     const onInput = (input: string, filter: BooleanFilter) => {

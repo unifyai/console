@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { ReactNode, useCallback, useMemo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
-import { Pipette, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/UI/dialog";
+import { Pipette, Plus, RotateCcw } from "lucide-react";
 import { RgbaColorPicker } from "react-colorful";
 import { debounce } from "lodash";
 import { Button } from "@/components/UI/button";
@@ -15,11 +16,42 @@ const DEFAULT_CHILDREN = (
   </div>
 );
 
+// Get the primary color from CSS variables as default
+const getDefaultColor = (): string => {
+  try {
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    if (primaryColor) {
+      // Convert CSS color to hex if it's not already
+      const div = document.createElement('div');
+      div.style.color = primaryColor;
+      document.body.appendChild(div);
+      const computedColor = getComputedStyle(div).color;
+      document.body.removeChild(div);
+      
+      // Convert rgb to hex
+      const match = computedColor.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      }
+      return primaryColor.startsWith('#') ? primaryColor : '#2a862a';
+    }
+  } catch (e) {
+    console.warn('Failed to get primary color from CSS variables');
+  }
+  return '#2a862a'; // Fallback to forest green
+};
+
 type TColorPicker = {
   value: string;
   onChange: (value: string) => void;
   handleAdd?: (value: string) => void;
   children?: React.ReactNode;
+  useDialog?: boolean;
+  showReset?: boolean;
+  onReset?: () => void;
 };
 
 const ColorPicker: React.FC<TColorPicker> = ({
@@ -27,11 +59,22 @@ const ColorPicker: React.FC<TColorPicker> = ({
   onChange,
   handleAdd,
   children = DEFAULT_CHILDREN,
+  useDialog = false,
+  showReset = false,
+  onReset,
 }) => {
-  const color = useMemo(() => {
-    const rgba = hexToRgba(value);
-    return { hex: value, alpha: rgba ? rgba.a : 1 };
+  // Ensure we always have a valid color value
+  const safeValue = useMemo(() => {
+    if (value && typeof value === 'string' && value.trim() !== '') {
+      return value.trim();
+    }
+    return getDefaultColor();
   }, [value]);
+
+  const color = useMemo(() => {
+    const rgba = hexToRgba(safeValue);
+    return { hex: safeValue, alpha: rgba ? rgba.a : 1 };
+  }, [safeValue]);
 
   const debouncedOnChange = useMemo(
     () => debounce((newValue: string) => onChange(newValue), 50),
@@ -95,45 +138,75 @@ const ColorPicker: React.FC<TColorPicker> = ({
     [debouncedOnChange]
   );
 
-  return (
-    <Popover>
-      <PopoverTrigger>{children}</PopoverTrigger>
-      <PopoverContent align="center" side="top" className="w-[18rem] max-h-[25rem] h-fit">
-        <div className="size-full flex flex-col items-center justify-between">
-          <RgbaColorPicker
-            color={hexToRgba(color.hex) as any}
-            onChange={handleColorChange}
-            className="!w-full aspect-square"
-          />
-          <div className="w-full flex flex-col items-center gap-[1.5rem] md:gap-[1.5vw] mt-[0.5rem] md:mt-[0.5vw]">
-            <div className="w-full h-[2.5rem] md:h-[2.5vw] flex items-center justify-center">
-              <label className="mr-[0.5rem] md:mr-[0.5vw]">HEX</label>
-              <Input
-                className="w-full !rounded-r-none !tracking-widest"
-                value={color.hex}
-                onChange={handleChangeColor}
-              />
-              <Input
-                type="text"
-                min="0"
-                max="1"
-                step="0.01"
-                value={color.alpha.toFixed(2)}
-                onChange={handleChangeAlpha}
-                className="w-[5rem] md:w-[5vw] !pr-0 !rounded-l-none tracking-widest"
-              />
-            </div>
+  const ColorPickerContent = () => (
+    <div className="w-[18rem] max-h-[25rem] h-fit">
+      <div className="size-full flex flex-col items-center justify-between">
+        <RgbaColorPicker
+          color={hexToRgba(color.hex) || { r: 42, g: 134, b: 42, a: 1 }}
+          onChange={handleColorChange}
+          className="!w-full aspect-square"
+        />
+        <div className="w-full flex flex-col items-center gap-[1.5rem] md:gap-[1.5vw] mt-[0.5rem] md:mt-[0.5vw]">
+          <div className="w-full h-[2.5rem] md:h-[2.5vw] flex items-center justify-center">
+            <label className="mr-[0.5rem] md:mr-[0.5vw]">HEX</label>
+            <Input
+              className="w-full !rounded-r-none !tracking-widest"
+              value={color.hex}
+              onChange={handleChangeColor}
+            />
+            <Input
+              type="text"
+              min="0"
+              max="1"
+              step="0.01"
+              value={color.alpha.toFixed(2)}
+              onChange={handleChangeAlpha}
+              className="w-[5rem] md:w-[5vw] !pr-0 !rounded-l-none tracking-widest"
+            />
+          </div>
+          <div className="w-full flex items-center gap-2">
             {handleAdd && (
-                <Button
-                    className="w-full gap-0"
-                    onClick={() => handleAdd(value)}
-                >
-                    <Plus className="h-4 md:h-[1.2vw] aspect-square" />
-                    Add New Colour
-                </Button>
+              <Button
+                className="flex-1 gap-0"
+                onClick={() => handleAdd(safeValue)}
+              >
+                <Plus className="h-4 md:h-[1.2vw] aspect-square" />
+                Add New Colour
+              </Button>
+            )}
+            {showReset && onReset && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onReset}
+                className="gap-1"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </Button>
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+
+  if (useDialog) {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="w-fit max-w-none">
+          <ColorPickerContent />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent align="center" side="top" className="w-fit max-w-none">
+        <ColorPickerContent />
       </PopoverContent>
     </Popover>
   );

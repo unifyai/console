@@ -6,7 +6,7 @@ import RowBadge from "./RowBadge";
 import { CopyButton } from "@/components/Common/Buttons/Copy";
 import MarkdownRenderer from "./Markdown/MarkdownRenderer";
 import { useEditablePrimitive } from "@/hooks/useEditablePrimitive";
-import { toast } from "sonner";
+import { showErrorToast } from "@/components/notifications";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
 /**
@@ -138,7 +138,7 @@ const EditableTimestampField = ({
       if (parsedDate) {
         onGroupSave({ logIndices, path, newValue: newValue }); // Save the valid string
       } else {
-        toast.error("Invalid timestamp format. Changes not saved.");
+                    showErrorToast("Invalid timestamp format. Changes not saved.");
       }
     },
     (val) => parseTimestamp(val) ? true : "Invalid timestamp format" // Validation function

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AdminApprovalActions, OneTimeLinkResponse, OneTimeLinkEntry, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { ResponseProps } from '@/types/common';
-import { toast } from 'sonner';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 
 export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
     // --- State and logic for generating a single link ---
@@ -43,7 +43,7 @@ export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
             const errorMsg = (result as ResponseProps).detail;
             setLinksError(errorMsg);
             if (!isLoadMore) setLinks([]);
-            toast.error(`Failed to load links: ${errorMsg}`);
+            showErrorToast(`Failed to load links: ${errorMsg}`);
             setHasMoreLinks(false);
         } else {
             const newLinks = result as OneTimeLinkEntry[];
@@ -93,20 +93,20 @@ export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
         setIsGeneratingLink(true);
         setGenerationError(null);
         setGeneratedLinkData(null); // Clear previous specific generation data
-        const toastId = toast.loading("Generating approval link...");
+        const toastId = showLoadingToast("Generating approval link...");
 
         const result = await adminApprovalActions.generateOneTimeLink(expiresInDays);
 
         if ('detail' in result) {
             const errorMsg = (result as ResponseProps).detail;
             setGenerationError(errorMsg);
-            toast.error(`Failed to generate link: ${errorMsg}`, { id: toastId });
+            showErrorToast(`Failed to generate link: ${errorMsg}`, `Failed to generate link: ${errorMsg}`, toastId);
             setIsGeneratingLink(false);
             return null;
         } else {
             const linkData = result as OneTimeLinkResponse;
             setGeneratedLinkData(linkData); // Store the raw backend response for the new link
-            toast.success("One-time approval link generated!", { id: toastId });
+            showSuccessToast("One-time approval link generated!", undefined, toastId);
             setIsGeneratingLink(false);
             
             // Refresh the list to ensure the new link appears
@@ -123,13 +123,13 @@ export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
 
     // Function to delete a link from the list
     const deleteLink = async (linkId: string): Promise<boolean> => {
-        const toastId = toast.loading(`Deleting link...`);
+        const toastId = showLoadingToast(`Deleting link...`);
         const result = await adminApprovalActions.deleteOneTimeLink(linkId);
         if ('detail' in result) {
-            toast.error(`Failed: ${(result as ResponseProps).detail}`, { id: toastId });
+            showErrorToast(`Failed: ${(result as ResponseProps).detail}`, `Failed: ${(result as ResponseProps).detail}`, toastId);
             return false;
         } else {
-            toast.success((result as ResponseProps).info || "Link deleted!", { id: toastId });
+            showSuccessToast((result as ResponseProps).info || "Link deleted!", undefined, toastId);
             // Optimistic update: remove from local state
             setLinks(prev => prev.filter(link => link.id !== linkId));
             // Note: This might cause a slight desync with total count if not refreshing,

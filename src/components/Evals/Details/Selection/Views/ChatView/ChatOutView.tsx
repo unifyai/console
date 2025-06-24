@@ -26,6 +26,7 @@ import MatrixView from "../MatrixView";
 import StringView from "../StringView";
 import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
+import Image from "next/image";
 
 import {
   isDict,
@@ -167,7 +168,7 @@ function renderMessageContent(content: unknown): JSX.Element {
               return <MarkdownRenderer key={i}>{chunk.text}</MarkdownRenderer>;
             } else if (chunk.type === "image_url" && chunk.image_url?.url) {
               return (
-                <img key={i} src={chunk.image_url.url} alt={`Image ${i}`} />
+                <Image key={i} src={chunk.image_url.url} alt={`Image ${i}`} width={200} height={200} />
               );
             }
             // default => show JSON
@@ -329,7 +330,7 @@ export default function ChatOutView({
     co && typeof co === "object" ? co : {}
   );
 
-  // unify “choices”
+  // unify "choices"
   const baseChoices = Array.isArray(baseObj.choices) ? baseObj.choices : [];
   const compChoiceArrays = compObjs.map((o) =>
     Array.isArray(o.choices) ? o.choices : []

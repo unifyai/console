@@ -248,32 +248,37 @@ const DictionaryView: React.FC<DictionaryViewProps> = ({
   diffMode = "none",
   splitView = false,
 }) => {
-  let allKeys: string[] = [];
-  let allDicts: any[] = [];
-  let allIndexes: number[] = [];
-
-  if (!comparables || comparables.length === 0) {
-    allKeys = isDict(value) ? Object.keys(value) : [];
-    allDicts = [value];
-    allIndexes = [baseLogIndex];
-  } else {
+  const allKeys = useMemo(() => {
+    if (!comparables || comparables.length === 0) {
+      return isDict(value) ? Object.keys(value) : [];
+    }
     const joined = [value, ...comparables];
-    allDicts = joined;
-    allIndexes = [baseLogIndex, ...comparisonLogsIndex];
-
     const unionKeys = new Set<string>();
     joined.forEach((obj) => {
       if (obj && isDict(obj)) {
         Object.keys(obj).forEach((k) => unionKeys.add(k));
       }
     });
-    allKeys = Array.from(unionKeys).sort();
-  }
+    return Array.from(unionKeys).sort();
+  }, [value, comparables]);
+
+  const allDicts = useMemo(() => {
+    if (!comparables || comparables.length === 0) {
+      return [value];
+    }
+    return [value, ...comparables];
+  }, [value, comparables]);
+
+  const allIndexes: number[] = useMemo(() => {
+    if (!comparables || comparables.length === 0) {
+      return [baseLogIndex];
+    }
+    return [baseLogIndex, ...comparisonLogsIndex];
+  }, [baseLogIndex, comparisonLogsIndex, comparables]);
 
   const keyTypeMap = useMemo(() => {
     return buildKeyToTypeMap(allKeys, value, comparables);
   }, [allKeys, value, comparables]);
-
 
   const defaultOpenKeys = useMemo(() => {
     return allKeys.filter((k) => {

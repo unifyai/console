@@ -214,7 +214,7 @@ export default function TimelineViewButton({
       const scrollPosition = Math.max(0, (scrollableWidth - containerWidth) * relativePosition);
       if (containerRef.current) containerRef.current.scrollLeft = scrollPosition;
     }
-  }, [zoomFactor, open]);
+  }, [zoomFactor, open, minStart, maxValue]);
 
   // Remount BarChart only when row-count changes (avoids pulse).
   const barChartKey = `${processedChartData.length}`;
@@ -243,7 +243,7 @@ export default function TimelineViewButton({
     const maxContainerHeight = Math.min(800, window.innerHeight * 0.7);
     // Always show scrollbar when content exceeds the container
     return maxContainerHeight;
-  }, [chartHeight]);
+  }, []);
 
   // Custom tooltip for the chart.
   const CustomTooltip = ({ active, payload, label }: any) => {

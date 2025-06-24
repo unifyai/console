@@ -31,6 +31,7 @@ import {
 } from '@/utils/data/buildServerDataOptimistic';
 import { selectTabById, selectTabByName } from "@/contexts/selectors/tab";
 import { convertTabToTabData } from "@/contexts/utils/sliceUtils";
+import { showErrorToast } from "@/components/notifications";
 
 /**
  * Debug flag for tab prefetching logging
@@ -238,7 +239,7 @@ export function useTabDataOptimistic() {
               break;
           }
         } catch (error) {
-          console.error(`[buildCompleteTabData] Error processing tile ${tileId}:`, error);
+          showErrorToast(error, `Error processing tile ${tile.name}`);
           // Continue processing other tiles
         }
       }

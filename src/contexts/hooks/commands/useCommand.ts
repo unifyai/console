@@ -44,6 +44,12 @@ export interface UseCommandArgs {
    tileActions: GranularTileActions;
    fileActions: FileActions;
    codeActions: CodeActions;
+   /* Overlay state setter for save/reset operations */
+   setOverlayState?: (state: {
+     isVisible: boolean;
+     operation: 'saving' | 'resetting' | null;
+     status: 'loading' | 'success' | 'error' | null;
+   }) => void;
 }
 
 /**
@@ -64,6 +70,7 @@ export function useCommand(args: UseCommandArgs) {
     tileActions,
     fileActions,
     codeActions,
+    setOverlayState,
   } = args;
 
   const router = useRouter();
@@ -312,7 +319,16 @@ export function useCommand(args: UseCommandArgs) {
     try {
       tabUIActions.setPending(true);
       
-      // Use the updated restoration hook with the correct parameters
+      // Show overlay if available
+      if (setOverlayState) {
+        setOverlayState({
+          isVisible: true,
+          operation: 'resetting',
+          status: 'loading',
+        });
+      }
+      
+      // Perform the reset operation
       await restoreTabWithTilesMutation.mutateAsync({
         interface_id: interfaceId,
         project_id: projectId,
@@ -320,6 +336,15 @@ export function useCommand(args: UseCommandArgs) {
         tab_actions: tabActions,
         tile_actions: tileActions
       });
+      
+      // Show success in overlay
+      if (setOverlayState) {
+        setOverlayState({
+          isVisible: true,
+          operation: 'resetting',
+          status: 'success',
+        });
+      }
       
       tabUIActions.setResetting(true);
       tabUIActions.setEdit(true);
@@ -330,6 +355,16 @@ export function useCommand(args: UseCommandArgs) {
       
     } catch (error) {
       console.error("Failed to restore from checkpoints:", error);
+      
+      // Show error in overlay
+      if (setOverlayState) {
+        setOverlayState({
+          isVisible: true,
+          operation: 'resetting',
+          status: 'error',
+        });
+      }
+      
       tabUIActions.setPending(false);
     }
   }, [
@@ -340,7 +375,8 @@ export function useCommand(args: UseCommandArgs) {
     interfaceActions, 
     tabActions, 
     tileActions,
-    router
+    router,
+    setOverlayState
   ]);
 
   const setFileUpload = (fileUploadOpen: boolean) => {
@@ -437,7 +473,7 @@ export function useCommand(args: UseCommandArgs) {
       },
       {
         id: "save-interface",
-        label: "Save Interface",
+        label: "Save Tab",
         category: "interface",
         icon: "Save",
         disabled: !projectId || !tabNames.length,
@@ -446,8 +482,8 @@ export function useCommand(args: UseCommandArgs) {
         },
       },
       {
-        id: "reset-tab",
-        label: "Reset Interface",
+        id: "reset-interface",
+        label: "Reset Tab",
         category: "interface",
         icon: "ListRestart",
         disabled: !projectId || !tabNames.length || !tabId,
@@ -503,7 +539,7 @@ export function useCommand(args: UseCommandArgs) {
         return setGlobalContext;
       case "save-interface":
         return setSaveInterface;
-      case "reset-tab":
+      case "reset-interface":
         return resetTabCommand;
       default:
         return null;

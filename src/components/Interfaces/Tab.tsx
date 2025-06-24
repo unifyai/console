@@ -210,7 +210,7 @@ const Tab = ({
               moved: tile.moved,
               static: tile.static,
             }}
-            className="relative"
+            className="relative group"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Dependency-aware tile renderer */}
