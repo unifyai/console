@@ -146,6 +146,29 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         }
     });
 
+    // When grouping changes, move grouped columns to the left in the column order
+    useEffect(() => {
+      const groupingIds = state.grouping as string[];
+      if (!groupingIds.length) return;
+      const currentOrder = state.columnOrder;
+      // Preserve the index column if present
+      const rowNum = currentOrder.find(id => id === "RowNumbering");
+      // Other columns excluding the index
+      const rest = currentOrder.filter(id => id !== "RowNumbering");
+      // Grouped columns, in the order defined by grouping state
+      const grouped = groupingIds.filter(id => rest.includes(id));
+      // Remaining columns not grouped
+      const remaining = rest.filter(id => !grouped.includes(id));
+      const newOrder = [
+        ...(rowNum ? [rowNum] : []),
+        ...grouped,
+        ...remaining,
+      ];
+      if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
+        setState.setColumnOrder(newOrder);
+      }
+    }, [state.grouping]);
+
     // Set up drag-and-drop
     const sensors = useSensors(
         useSensor(MouseSensor, {}),
@@ -154,13 +177,28 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     );
 
     const visibleColumns = table.getVisibleLeafColumns();
-    const finalColumns = (
-        visibleColumns.length > 1
-            ? visibleColumns[0].id != "RowNumbering"
-                ? [visibleColumns[1], visibleColumns[0], ...visibleColumns.slice(2)]
-                : visibleColumns
-            : visibleColumns
-    );
+
+    // Reorder columns: move grouped columns (state.grouping) to the left in grouping order
+    const groupingIds = state.grouping as string[];
+    // Extract the index column if present
+    const indexColumn = visibleColumns.find(col => col.id === "RowNumbering");
+    // Other columns excluding the index column
+    const otherColumns = visibleColumns.filter(col => col.id !== "RowNumbering");
+
+    // Grouped columns in the order of grouping state
+    const groupedColumns = groupingIds
+        .map(id => otherColumns.find(col => col.id === id))
+        .filter((col): col is typeof otherColumns[0] => Boolean(col));
+
+    // Remaining columns that are not grouped
+    const remainingColumns = otherColumns.filter(col => !groupingIds.includes(col.id));
+
+    // Compose final columns: index, grouped, then remaining
+    const finalColumns = [
+        ...(indexColumn ? [indexColumn] : []),
+        ...groupedColumns,
+        ...remainingColumns,
+    ];
 
     const resizeMap = table.getFlatHeaders().map(
         (header: Header<TData, unknown>) => ({[header.column.id]: header.getResizeHandler()})
