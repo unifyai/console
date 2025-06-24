@@ -219,11 +219,11 @@ export function useTile(
       ...meta,
       ...data,
       ...ui,
-      ...tableTile,
-      ...plotTile,
-      ...viewTile,
-      ...editorTile,
-      ...terminalTile
+      tableTile,
+      plotTile,
+      viewTile,
+      editorTile,
+      terminalTile
     } as Tile;
     
     return baseTile;

@@ -1,0 +1,165 @@
+"use client";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  GranularTileActions,
+  ProjectsActions,
+  ContextActions,
+  FieldsActions,
+  LogsActions,
+  TileData,
+  PlotDataItem,
+} from "@/types/evals/grid";
+import {
+  fetchProjectsContextsFields,
+  buildOptimisticPlotDataItem,
+  OptimisticUpdateDependencies,
+} from "@/utils/data/buildServerDataOptimistic";
+import { getUsedTableNames } from "@/utils/data/buildPlotDataItem";
+import { usePlotArgumentsQuery } from "./usePlotDataQuery";
+import { PlotArguments } from "@/types/evals/logs";
+import { useMemo } from "react";
+
+/**
+ * Hook that guarantees a PlotDataItem exists for the given plot tile.
+ * It assumes that all table dependencies have already been built by useEnsureTableTileData
+ * and are available in the cache. This avoids duplication of table building logic.
+ */
+export function useEnsurePlotTileData(params: {
+  interfaceId: string;
+  tabId: string;
+  tileId: string;
+  projectId: string;
+  actions: {
+    tileActions: GranularTileActions;
+    projectsActions: ProjectsActions;
+    contextActions: ContextActions;
+    fieldsActions: FieldsActions;
+    logsActions: LogsActions;
+  };
+}) {
+  const { interfaceId, tabId, tileId, projectId, actions } = params;
+  const queryClient = useQueryClient();
+
+  const { data: plotArguments } = usePlotArgumentsQuery(tabId);
+  
+  // Check dependency readiness more reactively
+  const dependenciesReady = useMemo(() => {
+    if (!tileId || !projectId) return false;
+    
+    // Get tiles to find the plot tile
+    const tiles = queryClient.getQueryData<TileData[]>(["tiles", tabId]);
+    if (!tiles) return false;
+    
+    const plotTile = tiles.find((t) => t.id === tileId);
+    if (!plotTile) return false;
+    
+    // Get dependency names
+    const depsNames = getUsedTableNames(plotTile);
+    console.log(`[useEnsurePlotTileData] Checking dependencies for plot ${plotTile.name}: [${depsNames.join(', ')}]`);
+    
+    // Check if all dependencies have their data cached
+    for (const tableName of depsNames) {
+      const depTile = tiles.find((t) => t.name === tableName);
+      if (!depTile || !depTile.id) {
+        console.log(`[useEnsurePlotTileData] Dependency table "${tableName}" not found`);
+        return false;
+      }
+
+      const tableData = queryClient.getQueryData(["tableDataItem", depTile.id]);
+      if (!tableData) {
+        console.log(`[useEnsurePlotTileData] Dependency "${tableName}" (${depTile.id}) not ready`);
+        return false;
+      }
+      
+      console.log(`[useEnsurePlotTileData] Dependency "${tableName}" is ready ✓`);
+    }
+    
+    console.log(`[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`);
+    return true;
+  }, [tileId, projectId, tabId, queryClient]);
+
+  return useQuery<PlotDataItem>({
+    queryKey: ["ensurePlotTileData", tileId, projectId],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    enabled: !!tileId && !!projectId && !!plotArguments && dependenciesReady,
+    queryFn: async () => {
+      console.log(`[useEnsurePlotTileData] Building plot data for tile: ${tileId}`);
+      
+      // Fast-path: already exists
+      const existing = queryClient.getQueryData<PlotDataItem>([
+        "plotDataItem",
+        tileId,
+      ]);
+      if (existing) {
+        console.log(`[useEnsurePlotTileData] Plot data already cached for tile: ${tileId}`);
+        return existing;
+      }
+
+      /* --------------------------------------------------
+       * Get tile metadata
+       * ------------------------------------------------*/
+      let tiles = queryClient.getQueryData<TileData[]>(["tiles", tabId]);
+      if (!tiles) {
+        tiles = await actions.tileActions.list(tabId, undefined, false);
+        queryClient.setQueryData(["tiles", tabId], tiles);
+      }
+      const plotTile = tiles?.find((t) => t.id === tileId);
+      if (!plotTile) throw new Error(`Plot tile ${tileId} not found in tab ${tabId}`);
+
+      /* --------------------------------------------------
+       * Verify that all table dependencies are ready
+       * (They should have been built by useEnsureTableTileData)
+       * ------------------------------------------------*/
+      const depsNames = getUsedTableNames(plotTile);
+      console.log(`[useEnsurePlotTileData] Plot tile ${plotTile.name} depends on tables: [${depsNames.join(', ')}]`);
+      
+      for (const tableName of depsNames) {
+        const depTile = tiles?.find((t) => t.name === tableName);
+        if (!depTile || !depTile.id) {
+          throw new Error(`Dependency table "${tableName}" not found for plot tile ${plotTile.name}`);
+        }
+
+        const tableData = queryClient.getQueryData(["tableDataItem", depTile.id]);
+        if (!tableData) {
+          throw new Error(`Table data for "${tableName}" (${depTile.id}) not ready. This should have been built by useEnsureTableTileData before plot building started.`);
+        }
+        
+        console.log(`[useEnsurePlotTileData] Dependency "${tableName}" is ready for plot ${plotTile.name}`);
+      }
+
+      /* --------------------------------------------------
+       * Build the plot data item itself
+       * ------------------------------------------------*/
+      const dependencies: OptimisticUpdateDependencies = {
+        queryClient,
+        projectId,
+        tabId,
+        projectsActions: actions.projectsActions,
+        contextActions: actions.contextActions,
+        fieldsActions: actions.fieldsActions,
+        logsActions: actions.logsActions,
+      } as OptimisticUpdateDependencies;
+
+      const { fieldsArray } = await fetchProjectsContextsFields(
+        dependencies,
+        tiles!.filter((t) => t.type === "Table"),
+        { refetchFields: true, updateCache: true }
+      );
+
+      console.log(`[useEnsurePlotTileData] Building plot data item for: ${plotTile.name}`);
+      const plotDataItem = await buildOptimisticPlotDataItem(
+        dependencies,
+        plotTile,
+        tiles!.filter((t) => t.type === "Table"),
+        plotArguments as PlotArguments,
+        fieldsArray,
+        { updateCache: true }
+      );
+
+      console.log(`[useEnsurePlotTileData] Successfully built plot data for: ${plotTile.name}`);
+      return plotDataItem;
+    },
+  });
+} 

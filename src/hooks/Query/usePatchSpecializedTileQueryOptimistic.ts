@@ -26,9 +26,8 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { selectProjectById } from '@/contexts/selectors/project';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
+import { TileType } from '@/contexts/slices/selectors/tile';
 
-// Define TileType as a string union if not imported
-type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
 
 /**
  * Hook to patch a specialized tile with optimistic updates that cascade to related data
