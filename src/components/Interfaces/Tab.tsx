@@ -9,10 +9,15 @@ import SkeletonLoader from "../Common/Loaders/SkeletonLoader";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
+import { Tile } from "@/contexts/slices/selectors/tile";
+
+// Import the new dependency management system
+import { useDependencyAwareSortedTilesForTab } from "@/utils/tileDependencies/dependencyManager";
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
-const TileCard = lazy(() => import('./TileCard'));
+
 const TileButtons = lazy(() => import('./TileButtons'));
+const TileCard = lazy(() => import('./TileCard'));
 
 interface TabComponentProps {
   tabId: string;
@@ -58,10 +63,15 @@ const Tab = ({
     return tabDataState?.tileIds || [];
   }, [tabDataState?.tileIds]);
 
-  // Get tile props from store data only  
-  const tileProps = useMemo(() => {
-    return (!tabDataActions) ? [] : tabDataActions.getItems();
-  }, [tabDataActions]);
+  // Tab only needs sorted tiles
+  const { sortedTiles } = useDependencyAwareSortedTilesForTab(
+    tabId,
+    {
+      logDependencyChanges: true,
+      enableCircularDependencyDetection: true,
+      maxDependencyDepth: 10
+    }
+  );
 
   // Get the unregisterTileRefs function from Zustand
   const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
@@ -85,24 +95,24 @@ const Tab = ({
   }, [tileIds, unregisterTileRefs]);
 
   // Item layout change handler
-  const onLayoutChange = (newLayout: Layout[]) => {
+  const onLayoutChange = (newLayouts: Layout[]) => {
     if (!tabUIState?.pending && syncedTabDataActions) {
-      newLayout.forEach((layoutItem) => {
-        const originalItem = tileProps.find((tileProp: TileProps) => tileProp.id === layoutItem.i);
+      newLayouts.forEach((newLayout) => {
+        const originalTile = sortedTiles.find((tile: Tile) => tile.id === newLayout.i);
 
         // Update the tile layout
         const tileLayout: TileLayout = {
-          x: layoutItem.x,
-          y: layoutItem.y,
-          w: layoutItem.w,
-          h: layoutItem.h,
-          minW: layoutItem.minW,
-          minH: layoutItem.minH,
-          moved: layoutItem.moved,
-          static: layoutItem.static,
+          x: newLayout.x,
+          y: newLayout.y,
+          w: newLayout.w,
+          h: newLayout.h,
+          minW: newLayout.minW,
+          minH: newLayout.minH,
+          moved: newLayout.moved,
+          static: newLayout.static,
         };
         
-        syncedTabDataActions.updateTileLayout(originalItem?.id ?? "", tileLayout);
+        syncedTabDataActions.updateTileLayout(originalTile?.id ?? "", tileLayout);
       });
     } else {
       tabUIActions?.setPending(false);
@@ -111,38 +121,43 @@ const Tab = ({
 
   const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
 
-  // Build the list of tiles to render - client-side only
+  // Build the list of tiles to render using the new dependency-aware system
   const tilesToRender = useMemo(() => {
-    return tileProps.map(({ id }) => ({
-      tileId: id,
-      element: (
-        <Suspense
-          key={id}
-          fallback={
-            <div className="w-full h-full flex items-center justify-center border p-4">
-              <SkeletonLoader />
-            </div>
-          }
-        >
-          <TileCard
-            tileId={id}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            tileActions={tileActions}
-            logsActions={logsActions}
-            fieldsActions={fieldsActions}
-            derivedEntryActions={derivedEntryActions}
-            contextActions={contextActions}
-            codeActions={codeActions}
-            fileActions={fileActions}
-            projectsActions={projectsActions}
-          />
-        </Suspense>
-      ),
-    }));
+    const renderTiles = sortedTiles.map((tile) => {
+      return {
+        tileId: tile.id,
+        tile,
+        element: (
+          <Suspense
+            key={tile.id}
+            fallback={
+              <div className="w-full h-full flex items-center justify-center border p-4">
+                <SkeletonLoader />
+              </div>
+            }
+          >
+            <TileCard
+              tileId={tile.id}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              tileActions={tileActions}
+              projectsActions={projectsActions}
+              logsActions={logsActions}
+              fieldsActions={fieldsActions}
+              derivedEntryActions={derivedEntryActions}
+              contextActions={contextActions}
+              codeActions={codeActions}
+              fileActions={fileActions}
+            />
+          </Suspense>
+        ),
+      };
+    });
+    
+    return renderTiles.filter((renderTile): renderTile is NonNullable<typeof renderTile> => renderTile !== null);
   }, [
-    tileProps,
+    sortedTiles,
     tabId,
     interfaceId,
     projectId,
@@ -152,6 +167,7 @@ const Tab = ({
     derivedEntryActions,
     contextActions,
     codeActions,
+    fileActions,
     projectsActions,
   ]);
   
@@ -177,23 +193,32 @@ const Tab = ({
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
     >
-      {tilesToRender.map(({ tileId, element }) => {
-        const item = tileProps.find((prop: TileProps) => prop.id === tileId);
-        if (!item || !item.visible) return null;
+      {tilesToRender.map(({ tileId, tile, element }) => {
+        if (!tile.visible) return null;
 
         return (
           <div
-            key={item.id}
-            data-grid={item}
+            key={tile.id}
+            data-grid={{
+              i: tile.id,
+              x: tile.position.x,
+              y: tile.position.y,
+              w: tile.position.width,
+              h: tile.position.height,
+              minW: tile.minW,
+              minH: tile.minH,
+              moved: tile.moved,
+              static: tile.static,
+            }}
             className="relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Client-rendered TileCard */}
+            {/* Dependency-aware tile renderer */}
             {element}
 
             {/* Client-side controls */}
             <TileButtons
-              tileId={item.id}
+              tileId={tile.id}
               tabId={tabId}
               interfaceId={interfaceId}
               projectId={projectId}

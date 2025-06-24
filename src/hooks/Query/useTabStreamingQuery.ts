@@ -98,6 +98,7 @@ export function useTabStreamingQuery(
           refetchContexts: false,
           refetchFields: true,
           updateCache: true,
+          skipTileData: true,
         }
       );
     },
@@ -172,6 +173,7 @@ export function useTabStreamingQuery(
             refetchContexts: false,
             refetchFields: true,
             updateCache: true,
+            skipTileData: false,
           }
         );
 
@@ -281,6 +283,7 @@ export function useTabStreamingQuery(
                 refetchContexts: false,
                 refetchFields: true,
                 updateCache: true,
+                skipTileData: true,
               }
             );
 
