@@ -50,7 +50,7 @@ export type AssistantFormData =
       voice_gender?: CartesiaGender;
       voice_language?: SupportedLanguage;
       voice_exists?: boolean;
-      // For preset video
+      voice_provider?: "cartesia" | "elevenlabs";
       videoUrl?: string | null;
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;

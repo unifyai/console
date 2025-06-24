@@ -7,14 +7,14 @@ import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
 import { AvailablePhoneCountry } from '@/types/team/assistant';
-import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
     onSuccess?: (newAssistant: Assistant) => void,
     isHireDialogInitiallyOpen?: boolean
 ) {
-    const defaultVoice = (voicePresetsConstant as Voice[])[0];
+    const defaultVoice = (voicePresetsConstant as Voice[]).find(v => v.provider === VOICE_PROVIDER) || (voicePresetsConstant as Voice[])[0];
     const initialLocalPart = "new-assistant";
     const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
@@ -35,6 +35,7 @@ export function useAssistantHireForm(
             voice_language: defaultVoice.language as SupportedLanguage,
             voice_description: defaultVoice.description,
             voice_gender: defaultVoice.gender as Gender,
+            voice_provider: defaultVoice.provider || VOICE_PROVIDER,
             voice_exists: false,
             videoUrl: null,
             isPresetPristine: false,
@@ -171,6 +172,7 @@ export function useAssistantHireForm(
         setValue("voice_language", presetVoice.language as SupportedLanguage);
         setValue("voice_gender", presetVoice.gender as Gender);
         setValue("voice_exists", false);
+        setValue("voice_provider", presetVoice.provider || VOICE_PROVIDER);
         setValue("isPresetPristine", true);
 
         const originalValues = {
@@ -228,6 +230,7 @@ export function useAssistantHireForm(
             voice_description: values?.voice_description || defaultVoice.description,
             voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
             voice_exists: values?.voice_exists || false,
+            voice_provider: values?.voice_provider || defaultVoice.provider || VOICE_PROVIDER,
             videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,

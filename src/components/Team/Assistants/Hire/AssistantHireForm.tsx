@@ -17,7 +17,7 @@ import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AvailablePhoneCountry } from '@/types/team/assistant';
 import { getCountryFlag } from '@/utils/team/country-utils';
-import { EMAIL_DOMAIN_WITH_AT } from '@/constants/assistants/settings';
+import { EMAIL_DOMAIN_WITH_AT, VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 const staticSkillsText = `My bio doesn't influence my abilities. I come with the same foundational skills as all other assistants on the platform and can specialize in whichever area you want me to.`;
 
@@ -87,7 +87,7 @@ export function HireForm({
         } else if (cleanSname) {
             return cleanSname;
         }
-        return "new-assistant"; // Fallback
+        return "new-assistant"; 
     };
 
     if (!getValues("emailManuallyEdited") && (firstName || surname)) {
@@ -133,32 +133,25 @@ export function HireForm({
 
 
   const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
-      if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
-          return {
-              voice_id: rhfVoiceId,
-              language: rhfVoiceLanguage as SupportedLanguage,
-              gender: rhfVoiceGender as Gender,
-              name: rhfVoiceName,
-              description: rhfVoiceDescription || '',
-              // These are not strictly needed by PhotoCustomization for TTS but are part of VoiceOption
-              is_preset: rhfIsPresetPristine, 
-              isUserVoiceInOrchestra: getValues("voice_exists") // Assuming voice_exists reflects this
-          };
-      }
-      return null;
+    if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
+        return {
+            voice_id: rhfVoiceId,
+            language: rhfVoiceLanguage as SupportedLanguage,
+            gender: rhfVoiceGender as Gender,
+            name: rhfVoiceName,
+            description: rhfVoiceDescription || '',
+            provider: getValues("voice_provider") || VOICE_PROVIDER,
+            is_preset: rhfIsPresetPristine, 
+            isUserVoiceInOrchestra: getValues("voice_exists") 
+        };
+    }
+    return null;
   }, [rhfVoiceId, rhfVoiceLanguage, rhfVoiceGender, rhfVoiceName, rhfVoiceDescription, rhfIsPresetPristine, getValues]);
-
-  const handleNewVideoReady = React.useCallback((url: string) => {
-      setValue("videoUrl", url);
-      // If a video is generated, it's no longer a pristine preset (if it was one)
-      setValue("isPresetPristine", false); 
-  }, [setValue]);
-
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
       <ScrollArea className="flex-1 min-h-0">
-        <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails} className="group space-y-6 pr-4"> {/* Disable while loading countries */}
+        <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails} className="group space-y-6 pr-4"> 
             <div className="space-y-2">
               <div className='flex gap-2 items-center text-muted-foreground'>
                 <User className="h-4 w-4"/>
@@ -346,7 +339,6 @@ export function HireForm({
                       currentImageFile={imageFile ?? null}
                       disabled={isSubmitting}
                       selectedVoice={selectedVoiceForPhotoCustomization}
-                      onNewVideoReady={handleNewVideoReady}
                   />
                 </div>
             </div>
@@ -365,6 +357,7 @@ export function HireForm({
                         setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
                         setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
                         setValue("voice_language", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
+                        setValue("voice_provider", selectedVoice?.provider || VOICE_PROVIDER, { shouldValidate: true });
                         setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
                     }}
                     initialVoiceId={getValues("voice_id")}
@@ -373,6 +366,7 @@ export function HireForm({
                 />
                  {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
                  {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}
+                 {errors.voice_provider && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_provider.message}</p>}
           </div>
 
        </fieldset>
