@@ -61,6 +61,22 @@ This application includes several debug environment variables that enable detail
   - Displays visual indicators in the UI showing prefetched tabs and streaming progress
   - Includes prefetch progress indicators and tab switch timing information
 
+### Performance Monitoring
+
+- **`NEXT_PUBLIC_DEBUG_PERFORMANCE=true`**
+  - Enables detailed performance timing logs for critical data operations
+  - Shows execution times for table data building, plot data fetching, and argument processing
+  - Includes timing measurements for logs retrieval, field processing, and data transformation
+  - Useful for identifying performance bottlenecks and optimizing data processing workflows
+
+### State Synchronization
+
+- **`NEXT_PUBLIC_DEBUG_STATE_SYNCING=true`**
+  - Enables detailed logging for state synchronization between client and server
+  - Shows optimistic updates, server sync operations, and mutation state changes
+  - Includes logging for interface, tab, and tile synchronization operations
+  - Useful for debugging state consistency issues and sync conflicts
+
 ### Usage Example
 
 To enable all debug features during development, add these to your `.env.local` file:
@@ -69,6 +85,8 @@ To enable all debug features during development, add these to your `.env.local` 
 NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true
 NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
 NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
+NEXT_PUBLIC_DEBUG_PERFORMANCE=true
+NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
 ```
 
 **Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.

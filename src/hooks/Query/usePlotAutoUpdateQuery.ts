@@ -12,6 +12,21 @@ import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData
 import { selectProjectById } from "@/contexts/selectors/project";
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Auto-updating plot data query hook that:
  * • Automatically polls every 5s when auto_update === "true"
  * • Uses the same query key as usePatchTileQueryOptimistic for cache consistency
@@ -70,7 +85,7 @@ export function usePlotAutoUpdateQuery(
       contextActions,
       fieldsActions
     );
-    console.log(
+    perfLog(
       `[perf] usePlotAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(
         performance.now() - tProjectsAndContexts
       ).toFixed(2)} ms`

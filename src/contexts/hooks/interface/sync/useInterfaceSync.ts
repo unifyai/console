@@ -16,6 +16,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CompleteTabData } from "@/hooks/Query/useTabDataOptimistic";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Extended interface for InterfaceUIActions with synchronized server updates
  */
 export interface SyncedInterfaceUIActions extends InterfaceUIActions {
@@ -93,7 +108,7 @@ export function useInterfaceSync(
         active: true
       };
 
-      console.log("Creating tab:", {
+      debugLog("Creating tab:", {
         interface_id: interfaceId,
         name: newTabName,
         data: initialState,
@@ -110,7 +125,7 @@ export function useInterfaceSync(
         actions: tabActions
       });
 
-      console.log(`Tab ${newTabName} created with ID ${tabId}`);
+      debugLog(`Tab ${newTabName} created with ID ${tabId}`);
 
       // Also update the interface's active_tab_id on the server
       const result2 = await updateInterfaceMutation.mutateAsync({
@@ -121,7 +136,7 @@ export function useInterfaceSync(
         actions: interfaceActions as GranularInterfaceActions
       });
 
-      console.log("Interface update result:", result2);
+      debugLog("Interface update result:", result2);
       return result;
       
     } catch (error) {
@@ -249,7 +264,7 @@ export function useInterfaceSync(
         }
       }
 
-      console.log(`Active tab set to: ${tabIdOrName} (ID: ${tabId})`);
+      debugLog(`Active tab set to: ${tabIdOrName} (ID: ${tabId})`);
       
     } catch (error) {
       console.error(`Failed to set active tab to ${tabIdOrName}:`, error);

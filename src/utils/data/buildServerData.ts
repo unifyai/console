@@ -2,6 +2,21 @@ import { Context, ContextActions, FieldsActions, ProjectsActions, TileData } fro
 import { LogFieldsResponseProps } from "@/types/evals/logs";
 import { QueryClient } from "@tanstack/react-query";
 
+/**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
 /*
 * Builds the projects and contexts for a tab
 * either from the cache or from the server based
@@ -24,7 +39,7 @@ export async function fetchOrBuildProjectsAndContexts(
             queryKey: ["projects"],
             queryFn: () => projectsActions.get(),
         });
-        console.log(
+        perfLog(
           `[perf] fetchOrBuildProjectsAndContexts – fetchProjects: ${(
             performance.now() - tProjects
           ).toFixed(2)} ms`
@@ -37,7 +52,7 @@ export async function fetchOrBuildProjectsAndContexts(
             queryKey: ["contexts", projectId],
             queryFn: () => contextActions.get(projectId),
         });
-        console.log(
+        perfLog(
           `[perf] fetchOrBuildProjectsAndContexts – fetchContexts: ${(
             performance.now() - tContexts
           ).toFixed(2)} ms`
@@ -46,14 +61,14 @@ export async function fetchOrBuildProjectsAndContexts(
 
     const tProjects = performance.now();
     projects = queryClient.getQueryData<string[]>(["projects"]) || [];
-    console.log(
+    perfLog(
       `[perf] fetchOrBuildProjectsAndContexts – getProjects: ${(
         performance.now() - tProjects
       ).toFixed(2)} ms`
     );
     const tContexts = performance.now();
     contexts = queryClient.getQueryData<Context[]>(["contexts", projectId]) || [];
-    console.log(
+    perfLog(
       `[perf] fetchOrBuildProjectsAndContexts – getContexts: ${(
         performance.now() - tContexts
       ).toFixed(2)} ms`
@@ -85,14 +100,14 @@ export async function fetchOrBuildFields(
           queryKey: ["fields", projectId, tile.context ?? null],
           queryFn: () => fieldsActions.get(projectId, tile.context ?? null),
         });
-        console.log(
+        perfLog(
           `[perf] fetchOrBuildFields – fetchField: ${(
             performance.now() - tField
           ).toFixed(2)} ms`
         );
       })
     );
-    console.log(
+    perfLog(
       `[perf] fetchOrBuildFields – fetchFields: ${(
         performance.now() - tFields
       ).toFixed(2)} ms`
@@ -129,7 +144,7 @@ export async function fetchOrBuildProjectsContextsFields(
     projectsActions,
     contextActions
   );
-  console.log(
+  perfLog(
     `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildProjectsAndContexts: ${(
       performance.now() - tStart
     ).toFixed(2)} ms`
@@ -142,12 +157,12 @@ export async function fetchOrBuildProjectsContextsFields(
     refetchFields,
     fieldsActions
   );
-  console.log(
+  perfLog(
     `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildFields: ${(
       performance.now() - tFields
     ).toFixed(2)} ms`
   );
-  console.log(
+  perfLog(
     `[perf] fetchOrBuildProjectsContextsFields – total: ${(
       performance.now() - tStart
     ).toFixed(2)} ms`

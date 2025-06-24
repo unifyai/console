@@ -29,6 +29,21 @@ import { selectProjectById } from '@/contexts/selectors/project';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Hook to patch a tile with optimistic updates that cascade to related data
  * This is an enhanced version of usePatchTileQuery that handles:
  * 1. For Table tiles: rebuilds TableDataItem and updates the cache
@@ -51,6 +66,8 @@ export function usePatchTileQueryOptimistic() {
       refetchProjects = false,
       refetchContexts = false,
       refetchFields = true,
+      rebuildTableData = true,
+      rebuildPlotData = true,
       actions,
       projectsActions,
       contextActions,
@@ -84,6 +101,8 @@ export function usePatchTileQueryOptimistic() {
       refetchProjects: boolean;
       refetchContexts: boolean;
       refetchFields: boolean;
+      rebuildTableData: boolean;
+      rebuildPlotData: boolean;
       actions: GranularTileActions;
       projectsActions: ProjectsActions;
       contextActions: ContextActions;
@@ -109,6 +128,8 @@ export function usePatchTileQueryOptimistic() {
         refetchProjects,
         refetchContexts,
         refetchFields,
+        rebuildTableData,
+        rebuildPlotData,
         actions,
         projectsActions,
         contextActions,
@@ -129,7 +150,7 @@ export function usePatchTileQueryOptimistic() {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       const tCancel = performance.now();
       await queryClient.cancelQueries({ queryKey: tileKey });
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – cancelQueries: ${(
           performance.now() - tCancel
         ).toFixed(2)} ms`
@@ -139,8 +160,6 @@ export function usePatchTileQueryOptimistic() {
       const tUpdateCache = performance.now();
       const previousTiles = queryClient.getQueryData<TileData[]>(['tiles', tab_id]);
 
-      console.log("[usePatchTileQueryOptimistic] previousTiles:", previousTiles);
-      
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
       const projectData = selectProjectById(state, projectId);
@@ -148,8 +167,6 @@ export function usePatchTileQueryOptimistic() {
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
 
-      console.log("[usePatchTileQueryOptimistic] tilesInTabData:", tilesInTabData);
-    
       let optimisticTile: TileData | null = null;
       if (id) {
         optimisticTile = tilesInTabData.find(tile => tile.id === id) as TileData;
@@ -157,13 +174,11 @@ export function usePatchTileQueryOptimistic() {
         optimisticTile = tilesInTabData.find(tile => tile.tab_id === tab_id && tile.name === name) as TileData;
       }
 
-      console.log("[usePatchTileQueryOptimistic] optimisticTile:", optimisticTile);
-
       const tileType = optimisticTile?.type;
       
       // Update the tiles list in the cache
       queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – set tiles cache: ${(
           performance.now() - tUpdateCache
         ).toFixed(2)} ms`
@@ -179,7 +194,7 @@ export function usePatchTileQueryOptimistic() {
         projectsActions,
         contextActions
       );
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – fetchOrBuildProjectsAndContexts: ${(
           performance.now() - tProjectsAndContexts
         ).toFixed(2)} ms`
@@ -217,7 +232,7 @@ export function usePatchTileQueryOptimistic() {
         refetchFields,
         fieldsActions
       );
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – fetchOrBuildFields: ${(
           performance.now() - tFields
         ).toFixed(2)} ms`
@@ -243,14 +258,14 @@ export function usePatchTileQueryOptimistic() {
         queryClient.setQueryData(["tableArguments", tab_id], {});
         queryClient.setQueryData(["plotArguments", tab_id], {});
       }
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – buildTabArguments: ${(
           performance.now() - tBuildArgs
         ).toFixed(2)} ms`
       );
         
       // Step 1: If it's a Table tile, rebuild its TableDataItem and update the cache
-      if (tileType === "Table") {
+      if (tileType === "Table" && rebuildTableData) {
         try {
 
           // Get fields from cache
@@ -265,7 +280,7 @@ export function usePatchTileQueryOptimistic() {
               projectId,
               logsActions
             );
-            console.log(
+            perfLog(
               `[perf] onMutate(${name}) – fetchAndBuildTableDataItem: ${(
                 performance.now() - tTableDataItem
               ).toFixed(2)} ms`
@@ -295,7 +310,7 @@ export function usePatchTileQueryOptimistic() {
       
       try {
         // Step 3: For plot tiles that depend on this table, rebuild their PlotDataItem
-        if (tileType === 'Table' || plotTilesData.length > 0) {
+        if ((tileType === 'Table' || plotTilesData.length > 0) && rebuildPlotData) {
           // Determine which plot tiles need to be updated
           let plotTilesToUpdate: TileData[] = [];
           
@@ -313,14 +328,11 @@ export function usePatchTileQueryOptimistic() {
             }
           }
           
-          console.log("[usePatchTileQueryOptimistic] plotTilesToUpdate:", plotTilesToUpdate);
-          
           // Update each plot that needs updating
           const tPlotDataItem = performance.now();
           const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
           for (const plotTile of plotTilesToUpdate) {
             try {
-              console.log("[usePatchTileQueryOptimistic] building plotDataItem for:", plotTile.name);
               // Build the updated PlotDataItem
               const plotDataItem = await buildPlotDataItem(
                 plotTile,
@@ -330,7 +342,6 @@ export function usePatchTileQueryOptimistic() {
                 projectId,
                 logsActions
               );
-              console.log("[usePatchTileQueryOptimistic] plotDataItem:", plotDataItem);
               
               // Update the cache with the new PlotDataItem
               queryClient.setQueryData(['plotDataItem', plotTile.id], plotDataItem);
@@ -338,7 +349,7 @@ export function usePatchTileQueryOptimistic() {
               console.error(`Error building optimistic PlotDataItem for ${plotTile.name}:`, error);
             }
           }
-          console.log(
+          perfLog(
             `[perf] onMutate(${name}) – buildPlotDataItem: ${(
               performance.now() - tPlotDataItem
             ).toFixed(2)} ms`
@@ -349,7 +360,7 @@ export function usePatchTileQueryOptimistic() {
       }
 
       const tEnd = performance.now();
-      console.log(
+      perfLog(
         `[perf] onMutate(${name}) – total: ${(
           tEnd - t0
         ).toFixed(2)} ms`

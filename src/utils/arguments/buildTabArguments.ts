@@ -4,6 +4,21 @@ import { buildTableArguments } from "./buildTableArguments";
 import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "./buildPlotArguments";
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Builds both TableArguments and PlotArguments for all tiles in a tab
  * This centralizes the arguments creation logic at the tab level
  * 
@@ -30,13 +45,13 @@ export function buildTabArguments(
   const tBuildTableArgs = performance.now();
   let tableArguments = buildTableArguments(tableTiles, fields, existingTableArgs);
   const tBuildTableArgsEnd = performance.now();
-  console.log(`[perf] buildTableArguments: ${(tBuildTableArgsEnd - tBuildTableArgs).toFixed(2)} ms`);
+  perfLog(`[perf] buildTableArguments: ${(tBuildTableArgsEnd - tBuildTableArgs).toFixed(2)} ms`);
     
   // Step 2: Build base PlotArguments from TableArguments
   const tBuildPlotArgs = performance.now();
   let plotArguments = buildPlotArguments(tableArguments, existingPlotArgs);
   const tBuildPlotArgsEnd = performance.now();
-  console.log(`[perf] buildPlotArguments: ${(tBuildPlotArgsEnd - tBuildPlotArgs).toFixed(2)} ms`);
+  perfLog(`[perf] buildPlotArguments: ${(tBuildPlotArgsEnd - tBuildPlotArgs).toFixed(2)} ms`);
   
   // Step 3: Update PlotArguments for each plot tile's specific needs
   const tUpdatePlotArgs = performance.now();
@@ -44,7 +59,7 @@ export function buildTabArguments(
     plotArguments = updatePlotArgumentsForUsedTables(plotTile, tableTiles, plotArguments);
   }
   const tUpdatePlotArgsEnd = performance.now();
-  console.log(`[perf] updatePlotArgumentsForUsedTables: ${(tUpdatePlotArgsEnd - tUpdatePlotArgs).toFixed(2)} ms`);
+  perfLog(`[perf] updatePlotArgumentsForUsedTables: ${(tUpdatePlotArgsEnd - tUpdatePlotArgs).toFixed(2)} ms`);
 
   return { tableArguments, plotArguments };
 } 

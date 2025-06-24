@@ -10,6 +10,21 @@ import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Properties of the PlotTile that will be synced with the server
  */
 export type SyncedPlotProperties = 'plot_type' | 'plot_scale_x' | 'plot_scale_y' | 'x_axis' | 'y_axis' | 'plot_group_by' | 'plot_group_by_colors' | 'plot_aggregate' | 'bin_count' | 'regression_line';
@@ -73,11 +88,11 @@ export function usePlotTileSync(
   // Create individual mutation hooks for each property
   const plotScaleXMutation = usePatchSpecializedTileQuery<"Plot">();
   const plotScaleYMutation = usePatchSpecializedTileQuery<"Plot">();
-  const plotTypeMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const plotTypeMutation = usePatchSpecializedTileQuery<"Plot">();
   const xAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
   const yAxisMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
   const plotGroupByMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
-  const plotGroupByColorsMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
+  const plotGroupByColorsMutation = usePatchSpecializedTileQuery<"Plot">();
   const plotAggregateMutation = usePatchSpecializedTileQueryOptimistic<"Plot">();
   const binCountMutation = usePatchSpecializedTileQuery<"Plot">();
   const regressionLineMutation = usePatchSpecializedTileQuery<"Plot">();
@@ -111,27 +126,16 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
-
     // 2) Optimistic server update
     await plotTypeMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
-      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_type: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+      actions: granularTileActions as GranularTileActions,
+    }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPlotType] onSettled:", value);
+      debugLog("[wrapPlotType] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -154,7 +158,7 @@ export function usePlotTileSync(
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPlotScaleX] onSettled:", value);
+      debugLog("[wrapPlotScaleX] onSettled:", value);
     });
   };
 
@@ -175,7 +179,7 @@ export function usePlotTileSync(
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPlotScaleY] onSettled:", value);
+      debugLog("[wrapPlotScaleY] onSettled:", value);
     });
   };
 
@@ -206,6 +210,8 @@ export function usePlotTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: false,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -213,7 +219,7 @@ export function usePlotTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapXAxis] onSettled:", value);
+      debugLog("[wrapXAxis] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -245,6 +251,8 @@ export function usePlotTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: false,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -252,7 +260,7 @@ export function usePlotTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapYAxis] onSettled:", value);
+      debugLog("[wrapYAxis] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -284,6 +292,8 @@ export function usePlotTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: false,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -291,7 +301,7 @@ export function usePlotTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPlotGroupBy] onSettled:", value);
+      debugLog("[wrapPlotGroupBy] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -310,27 +320,16 @@ export function usePlotTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
-
     // 2) Optimistic server update
     await plotGroupByColorsMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
-      projectId: state.activeProjectId || "",
       tileType: "Plot",
       updateData: { plot_group_by_colors: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
-    }).then(() => {
+      actions: granularTileActions as GranularTileActions,
+    }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPlotGroupByColors] onSettled:", value);
+      debugLog("[wrapPlotGroupByColors] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -362,6 +361,8 @@ export function usePlotTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: false,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -369,7 +370,7 @@ export function usePlotTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapAggregateProperty] onSettled:", value);
+      debugLog("[wrapAggregateProperty] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -391,7 +392,7 @@ export function usePlotTileSync(
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapBinCount] onSettled:", value);
+      debugLog("[wrapBinCount] onSettled:", value);
     });
   };
 
@@ -412,7 +413,7 @@ export function usePlotTileSync(
       actions: granularTileActions as GranularTileActions,
     }).then(() => { 
       // 3. Refresh the router and set the loading state
-      console.log("[wrapRegressionLine] onSettled:", value);
+      debugLog("[wrapRegressionLine] onSettled:", value);
     });
   };
 

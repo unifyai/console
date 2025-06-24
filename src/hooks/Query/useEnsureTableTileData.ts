@@ -17,6 +17,21 @@ import {
 } from "@/utils/data/buildServerDataOptimistic";
 
 /**
+ * Debug flag for tile dependency logging
+ * Set NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true to enable detailed tile dependency logs
+ */
+const DEBUG_TILE_DEPENDENCIES = process.env.NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES === 'true';
+
+/**
+ * Conditional debug logger for tile dependencies
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_TILE_DEPENDENCIES) {
+    console.log(...args);
+  }
+};
+
+/**
  * Hook that guarantees the TableDataItem for a given table tile exists in the React-Query cache.
  * It suspends (using React-Query + Suspense) until the data has been built and cached.
  */
@@ -43,12 +58,17 @@ export function useEnsureTableTileData(params: {
     gcTime: Infinity,
     enabled: !!tileId && !!projectId,
     queryFn: async () => {
+      debugLog(`[useEnsureTableTileData] Building table data for tile: ${tileId}`);
+      
       // Fast-path: if data already cached just return it.
       const existing = queryClient.getQueryData<TableDataItem>([
         "tableDataItem",
         tileId,
       ]);
-      if (existing) return existing;
+      if (existing) {
+        debugLog(`[useEnsureTableTileData] Table data already cached for tile: ${tileId}`);
+        return existing;
+      }
 
       /* --------------------------------------------------
        * Locate the TileData metadata (cheap)             
@@ -60,6 +80,8 @@ export function useEnsureTableTileData(params: {
       }
       const tile = tiles?.find((t) => t.id === tileId);
       if (!tile) throw new Error(`Tile ${tileId} not found in tab ${tabId}`);
+
+      debugLog(`[useEnsureTableTileData] Building table data item for: ${tile.name}`);
 
       /* --------------------------------------------------
        * Build dependencies & fetch required resources    
@@ -91,6 +113,7 @@ export function useEnsureTableTileData(params: {
         { updateCache: true }
       );
 
+      debugLog(`[useEnsureTableTileData] Successfully built table data for: ${tile.name}`);
       return tableDataItem;
     },
   });

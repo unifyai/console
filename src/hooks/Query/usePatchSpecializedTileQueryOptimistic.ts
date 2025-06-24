@@ -4,8 +4,6 @@ import { useMutation } from '@tanstack/react-query';
 import { 
   GranularTileActions, 
   TileData, 
-  TableDataItem, 
-  PlotDataItem,
   LogsActions,
   FieldsActions,
   ProjectsActions,
@@ -51,6 +49,8 @@ T extends TileType
       refetchProjects = false,
       refetchContexts = false,
       refetchFields = true,
+      rebuildTableData = true,
+      rebuildPlotData = true,
       actions,
       projectsActions,
       contextActions,
@@ -65,6 +65,8 @@ T extends TileType
       refetchProjects: boolean;
       refetchContexts: boolean;
       refetchFields: boolean;
+      rebuildTableData: boolean;
+      rebuildPlotData: boolean;
       actions: GranularTileActions;
       projectsActions: ProjectsActions;
       contextActions: ContextActions;
@@ -84,6 +86,8 @@ T extends TileType
         refetchProjects,
         refetchContexts,
         refetchFields,
+        rebuildTableData,
+        rebuildPlotData,
         actions,
         projectsActions,
         contextActions,
@@ -207,7 +211,7 @@ T extends TileType
       }
         
       // Step 1: If it's a Table tile, rebuild its TableDataItem and update the cache
-      if (tileType === "Table") {
+      if (tileType === "Table" && rebuildTableData) {
         try {
           // Get fields from cache
           const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTile?.context]) || {} as LogFieldsResponseProps;
@@ -243,7 +247,7 @@ T extends TileType
       
       try {
         // Step 3: For plot tiles that depend on this table, rebuild their PlotDataItem
-        if (tileType === 'Table' || plotTilesData.length > 0) {
+        if ((tileType === 'Table' || plotTilesData.length > 0) && rebuildPlotData) {
           // Determine which plot tiles need to be updated
           let plotTilesToUpdate: TileData[] = [];
           

@@ -15,6 +15,21 @@ import { selectTileByTabIdAndName } from "@/contexts/selectors/tile";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Properties of the base Tile that will be synced with the server
  */
 export type SyncedTileProperties = 'type' | 'table' | 'filters' | 'context' | 'column_context' | 
@@ -181,6 +196,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -188,7 +205,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router without setting states again
-      console.log("[wrapType] onSettled:", type);
+      debugLog("[wrapType] onSettled:", type);
       uiActions.setLoading(false);
       uiActions.setPending(false);
     });
@@ -214,6 +231,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: false,
+      rebuildPlotData: false,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -244,9 +263,11 @@ export function useTileSync(
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { filters: filters ?? null } as Partial<TileData>,
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      rebuildTableData: true, 
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -254,7 +275,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router
-      console.log("[wrapFilters] onSettled:", filters);
+      debugLog("[wrapFilters] onSettled:", filters);
       uiActions.setLoading(false);
     });
   };
@@ -285,6 +306,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -292,7 +315,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router - UI states already set
-      console.log("[wrapContext] onSettled:", context);
+      debugLog("[wrapContext] onSettled:", context);
       uiActions.setLoading(false);
       uiActions.setPending(false);
     });
@@ -324,6 +347,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -331,7 +356,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router - UI states already set
-      console.log("[wrapColumnContext] onSettled:", columnContext);
+      debugLog("[wrapColumnContext] onSettled:", columnContext);
       uiActions.setLoading(false);
       uiActions.setPending(false);
     });
@@ -374,6 +399,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -381,7 +408,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Single router refresh for both changes
-      console.log("[wrapContextAndColumnContext] onSettled:", context, columnContext);
+      debugLog("[wrapContextAndColumnContext] onSettled:", context, columnContext);
       uiActions.setLoading(false);
       uiActions.setPending(false);
     });
@@ -409,9 +436,11 @@ export function useTileSync(
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { common_filter: commonFilter ?? null } as Partial<TileData>,
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -419,7 +448,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router
-      console.log("[wrapCommonFilter] onSettled:", commonFilter);
+      debugLog("[wrapCommonFilter] onSettled:", commonFilter);
       uiActions.setLoading(false);
     });
   };
@@ -446,9 +475,11 @@ export function useTileSync(
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { grouping: grouping ?? null } as Partial<TileData>,
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -456,7 +487,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router
-      console.log("[wrapGrouping] onSettled:", grouping);
+      debugLog("[wrapGrouping] onSettled:", grouping);
       uiActions.setLoading(false);
     });
   };
@@ -486,6 +517,8 @@ export function useTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -493,7 +526,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router
-      console.log("[wrapMetric] onSettled:", metric);
+      debugLog("[wrapMetric] onSettled:", metric);
       uiActions.setLoading(false);
     });
   };
@@ -520,9 +553,11 @@ export function useTileSync(
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { freeze: freeze ?? null } as Partial<TileData>,
-      refetchProjects: false,
-      refetchContexts: false,
-      refetchFields: false,
+      refetchProjects: true,
+      refetchContexts: true,
+      refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -530,7 +565,7 @@ export function useTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router
-      console.log("[wrapFreeze] onSettled:", freeze);
+      debugLog("[wrapFreeze] onSettled:", freeze);
       uiActions.setLoading(false);
     });
   };

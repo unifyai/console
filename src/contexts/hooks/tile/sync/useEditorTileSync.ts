@@ -10,6 +10,21 @@ import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Properties of the EditorTile that will be synced with the server
  */
 export type SyncedEditorProperties = 'file_type' | 'content' | 'file_name';
@@ -71,7 +86,7 @@ export function useEditorTileSync(
   const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
-  const fileTypeMutation = usePatchSpecializedTileQueryOptimistic<"Editor">();
+  const fileTypeMutation = usePatchSpecializedTileQuery<"Editor">();
   const contentMutation = usePatchSpecializedTileQuery<"Editor">();
   const fileNameMutation = usePatchSpecializedTileQuery<"Editor">();
 
@@ -97,27 +112,16 @@ export function useEditorTileSync(
     // Don't attempt server update if we don't have required info
     if (!tileName || !tabId) return;
 
-    // Get fresh data from Zustand using the pure selectors
-    const state = storeApi.getState();
-
     // 2) Optimistic server update
     await fileTypeMutation.mutateAsync({
       tab_id: tabId,
       name: tileName,
-      projectId: state.activeProjectId || "",
       tileType: "Editor",
       updateData: { file_type: value ?? null },
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      actions: granularTileActions,
-      projectsActions: projectsActions as ProjectsActions,
-      contextActions: contextActions as ContextActions,
-      logsActions: logsActions as LogsActions,
-      fieldsActions: fieldsActions as FieldsActions,
+      actions: granularTileActions
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapFileType] onSettled:", value);
+      debugLog("[wrapFileType] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };

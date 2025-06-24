@@ -7,6 +7,21 @@ import { processContext } from "@/utils/evals/columnOperations";
 import { maybeFlattenGroupedLogs } from "../evals/grouping";
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Builds a TableDataItem from logs data and other inputs
  * Can be used directly in client components instead of passing through a server component
  */
@@ -58,7 +73,7 @@ export async function buildTableDataItem(
     logsActions
   );
   const tGetLogsDetailsEnd = performance.now();
-  console.log(`[perf] getLogsDetails: ${(tGetLogsDetailsEnd - tGetLogsDetails).toFixed(2)} ms`);
+  perfLog(`[perf] getLogsDetails: ${(tGetLogsDetailsEnd - tGetLogsDetails).toFixed(2)} ms`);
 
   const limit = 20; // Default page size
 
@@ -146,13 +161,13 @@ export async function fetchAndBuildTableDataItem(
     null
   );
   const tGetLogsEnd = performance.now();
-  console.log(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
+  perfLog(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
 
   // Build table data item using the fetched logs data
   const tBuildTableDataItem = performance.now();
   const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
-  console.log(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
+  perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
 
   return tableDataItem;
 }
