@@ -18,7 +18,6 @@ interface PhotoCustomizationProps {
     currentImageFile: File | null;
     disabled?: boolean;
     selectedVoice: VoiceOption | null;
-    onNewVideoReady: (url: string) => void;
 }
 
 export function PhotoCustomization({
@@ -28,7 +27,6 @@ export function PhotoCustomization({
     currentImageFile,
     disabled = false,
     selectedVoice,
-    onNewVideoReady,
 }: PhotoCustomizationProps) {
     const [activeTab, setActiveTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -41,7 +39,8 @@ export function PhotoCustomization({
         handleEdit,
         handleAnimate,
     } = usePhotoCreator(
-        assistantActions.photo, 
+        assistantActions.photo,
+        assistantActions.voice.generate,
         onNewFileReady,
         PHOTO_OPERATION_COST,
         VIDEO_ANIMATION_COST,
@@ -60,7 +59,7 @@ export function PhotoCustomization({
     return (
         <div className={cn("flex-1 self-stretch", disabled && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex flex-col h-full">
-                <TabsList className="grid w-full grid-cols-3 h-9"> {/* Changed to grid-cols-3 */}
+                <TabsList className="grid w-full grid-cols-3 h-9"> 
                     <TabsTrigger value="upload" disabled={disabled}>Upload</TabsTrigger>
                     <TabsTrigger value="create" disabled={disabled}>Create</TabsTrigger>
                     <TabsTrigger value="animate" disabled={disabled}>Animate</TabsTrigger> 

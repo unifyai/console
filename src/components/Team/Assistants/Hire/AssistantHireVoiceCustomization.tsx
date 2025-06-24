@@ -9,10 +9,10 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption } from '@/types/team/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { SupportedLanguage } from "@cartesia/cartesia-js/api";
+import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
 
 // Import Hooks
 import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
@@ -20,10 +20,10 @@ import { useVoiceCreator } from '@/hooks/Team/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Team/useTTSPreview';
 
 // Import Utils/Constants
-import { languageOptions, getLanguageFlag } from '@/utils/team/voice-utils';
+import { languageOptions, getLanguageFlag } from '@/utils/team/voice-utils'; 
 
 interface VoiceCustomizationProps {
-    assistantActions: AssistantActions; // Full actions for hooks
+    assistantActions: AssistantActions; 
     onVoiceSelected: (selectedVoice: VoiceOption | null) => void;
     initialVoiceId?: string | null;
     disabled?: boolean;
@@ -57,7 +57,7 @@ export function VoiceCustomization({
     const handleVoiceCreatedAndSelectedByHook = React.useCallback((newVoice: VoiceOption) => {
         onVoiceSelected(newVoice);
         setSelectedCartesiaVoiceId(newVoice.voice_id);
-        setActiveTab('select'); // Switch back to select tab
+        setActiveTab('select'); 
     }, [onVoiceSelected]);
 
     const {
@@ -79,8 +79,7 @@ export function VoiceCustomization({
     const {
         playPreview,
         isPlayingPreviewForVoiceId,
-        // stopPreview, // if needed
-    } = useTTSPreview();
+    } = useTTSPreview({ generateSpeechAction: assistantActions.voice.generate }); 
 
     React.useEffect(() => {
         setSelectedCartesiaVoiceId(initialVoiceId);
@@ -129,7 +128,6 @@ export function VoiceCustomization({
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
-
                     
                     {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
@@ -156,10 +154,14 @@ export function VoiceCustomization({
                 <TabsContent value="select" className="mt-1">
                     <ScrollArea className="h-[200px] p-2 border rounded-md">
                         <div className="space-y-1">
-                            {allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)}
+                            {isLoadingUserVoices ? (
+                                <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                            ) : allDisplayableVoices.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>
+                            ) : (
+                                allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
+                            )}
                         </div>
-                        {isLoadingUserVoices && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>}
-                        {!isLoadingUserVoices && allDisplayableVoices.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>}
                     </ScrollArea>
                 </TabsContent>
 
@@ -197,7 +199,6 @@ export function VoiceCustomization({
                     </Button>
                 </TabsContent>
             </Tabs>
-            {/* Audio element is managed by useTTSPreview hook */}
         </div>
     );
 }

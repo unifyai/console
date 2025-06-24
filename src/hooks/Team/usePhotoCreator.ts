@@ -1,7 +1,19 @@
 import * as React from 'react';
-import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
-import { AssistantActions, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/team/assistant';
+import { toast } from 'sonner';
+import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/team/assistant'; // Added GenerateSpeechPayload
 import { ResponseProps } from '@/types/common';
+import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+
+// Helper to convert Base64 to Uint8Array (if not already globally available)
+function base64ToUint8Array(base64: string): Uint8Array {
+    const binary_string = atob(base64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes;
+}
 
 const fetchBalance = async (): Promise<number> => {
     try {
@@ -13,13 +25,14 @@ const fetchBalance = async (): Promise<number> => {
         return 0;
     } catch (error) {
         console.error("Error fetching balance:", error);
-        showErrorToast("Could not verify your credit balance.");
+        toast.error("Could not verify your credit balance.");
         return 0;
     }
 };
 
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
+    generateSpeechAction: AssistantActions['voice']['generate'],
     onNewFileReady: (file: File) => void,
     photoOperationCost: number,
     videoAnimationCost: number,
@@ -30,27 +43,33 @@ export function usePhotoCreator(
     const [isProcessing, setIsProcessing] = React.useState(false);
 
     const insufficientFundsToast = (operationName: string) => {
-        showErrorToast(`Insufficient funds for AI photo ${operationName}. Please recharge your account to continue.`);
+        toast.error(`Insufficient funds for AI photo ${operationName}.`, {
+            description: "Please recharge your account to continue.",
+            action: {
+                label: "Go to Billing",
+                onClick: () => window.open('/billing', '_blank'),
+            },
+        });
     }
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
-            showErrorToast("Please enter a prompt to generate a photo.");
+            toast.error("Please enter a prompt to generate a photo.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = showLoadingToast("Checking your balance...");
+        const toastId = toast.loading("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < photoOperationCost) {
             insufficientFundsToast("generation");
-            showErrorToast("Insufficient funds for AI photo generation. Please recharge your account to continue.", undefined, toastId);
+            toast.dismiss(toastId);
             setIsProcessing(false);
             return;
         }
 
-        // Continue with the same loading toast for generating photo
+        toast.loading("Generating photo...", { id: toastId });
 
         try {
             const result = await photoActions.generate({ prompt });
@@ -59,7 +78,7 @@ export function usePhotoCreator(
             }
             const newUrl = (result as PhotoCreationResponse).url;
             
-            // Continue processing the generated image
+            toast.loading("Processing generated image...", { id: toastId });
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the generated image.");
             
@@ -69,10 +88,10 @@ export function usePhotoCreator(
 
             onNewFileReady(imageFile);
             setPrompt('');
-            showSuccessToast("Photo generated successfully!", undefined, toastId);
+            toast.success("Photo generated successfully!", { id: toastId });
 
         } catch (error: any) {
-            showErrorToast(`Photo generation failed.`, `Photo generation failed.`, toastId);
+            toast.error(`Photo generation failed.`, { id: toastId });
             console.error("[usePhotoCreator] generate error:", error);
         } finally {
             setIsProcessing(false);
@@ -81,25 +100,26 @@ export function usePhotoCreator(
 
     const handleEdit = async (imageSource: File | string) => {
         if (!prompt.trim()) {
-            showErrorToast("Please enter a prompt to edit the photo.");
+            toast.error("Please enter a prompt to edit the photo.");
             return;
         }
         if (!imageSource) {
-            showErrorToast("An existing photo is required for editing.");
+            toast.error("An existing photo is required for editing.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = showLoadingToast("Checking your balance...");
+        const toastId = toast.loading("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < photoOperationCost) {
             insufficientFundsToast("editing");
+            toast.dismiss(toastId);
             setIsProcessing(false);
             return;
         }
         
-        // Continue with same loading toast for editing photo
+        toast.loading("Editing photo...", { id: toastId });
 
         try {
             const formData = new FormData();
@@ -112,9 +132,6 @@ export function usePhotoCreator(
                 formData.append('input_image_file', imageSource);
             } else if (typeof imageSource === 'string') {
                 if (imageSource.startsWith('blob:')) {
-                     // While technically possible to fetch blob and resend, it's complex.
-                     // Backend edit endpoint expects a public URL or a direct file for Replicate.
-                     // Simplest for now is to prevent editing local blob previews.
                      throw new Error("Cannot edit a local photo preview. Please use a saved or generated photo.");
                 }
                 formData.append('input_image_url', imageSource);
@@ -128,7 +145,7 @@ export function usePhotoCreator(
 
             const newUrl = (result as PhotoCreationResponse).url;
             
-            // Continue processing the edited image
+            toast.loading("Processing edited image...", { id: toastId });
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the edited image.");
 
@@ -138,10 +155,10 @@ export function usePhotoCreator(
 
             onNewFileReady(imageFile);
             setPrompt('');
-            showSuccessToast("Photo edited successfully!", undefined, toastId);
+            toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
-            showErrorToast(`Photo editing failed.`, `Photo editing failed.`, toastId);
+            toast.error(`Photo editing failed.`, { id: toastId });
             console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
@@ -150,56 +167,59 @@ export function usePhotoCreator(
 
     const handleAnimate = async (imageSource: File | string) => {
         if (!ttsPrompt.trim()) {
-            showErrorToast("Please enter text for the animation's audio.");
+            toast.error("Please enter text for the animation's audio.");
             return;
         }
         if (!imageSource) {
-            showErrorToast("An existing photo is required for animation.");
+            toast.error("An existing photo is required for animation.");
             return;
         }
-        if (!selectedVoice) {
-            showErrorToast("A voice must be selected to generate audio for animation.");
+        if (!selectedVoice || !selectedVoice.provider || !selectedVoice.language) {
+            toast.error("A complete voice (with provider and language) must be selected to generate audio for animation.");
             return;
         }
 
         setIsProcessing(true);
-        const toastId = showLoadingToast("Checking your balance...");
+        const toastId = toast.loading("Checking your balance...");
 
         const currentBalance = await fetchBalance();
         if (currentBalance < videoAnimationCost) {
             insufficientFundsToast("animation");
+            toast.dismiss(toastId);
             setIsProcessing(false);
             return;
         }
         
-        // Continue with same loading toast for generating audio
+        toast.loading("Generating audio for animation...", { id: toastId });
 
         try {
-            // 1. Generate TTS audio
-            const ttsResponse = await fetch(`/api/voices/tts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    cartesiaVoiceId: selectedVoice.voice_id,
-                    text: ttsPrompt,
-                    language: selectedVoice.language
-                })
-            });
+            const ttsPayload: GenerateSpeechPayload = {
+                text: ttsPrompt,
+                provider: selectedVoice.provider,
+                voice_id: selectedVoice.voice_id,
+                output_format: "mp3", // Replicate likely prefers mp3 or wav
+                // Add provider specific fields
+                ...(selectedVoice.provider === 'cartesia' && { 
+                    model_id: 'sonic-2', 
+                    cartesia_language: selectedVoice.language as SupportedLanguage 
+                }),
+                ...(selectedVoice.provider === 'elevenlabs' && { 
+                    model_id: 'eleven_multilingual_v2' 
+                }),
+            };
 
-            if (!ttsResponse.ok) {
-                const errorData = await ttsResponse.json().catch(() => ({ detail: "TTS generation failed for animation." }));
-                throw new Error(errorData.detail);
+            const ttsResult = await generateSpeechAction(ttsPayload);
+
+            if (ttsResult.detail || !ttsResult.audioBase64 || !ttsResult.contentType) {
+                throw new Error(ttsResult.detail || "TTS generation failed for animation.");
             }
-            const audioBlob = await ttsResponse.blob();
-            if (audioBlob.size === 0) throw new Error("Generated audio was empty.");
-            const audioFile = new File([audioBlob], "tts_audio_for_animation.wav", { type: "audio/wav" });
+            
+            const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64);
+            const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType }); // Use mp3 extension as default
 
-            // 2. Prepare FormData for animation backend
-            // Continue with same loading toast for animating photo
+            toast.loading("Animating photo...", { id: toastId });
             const formData = new FormData();
             formData.append('audio_file', audioFile);
-            // Add other animation params if needed by backend/Replicate, e.g., dynamic_scale
-            // formData.append('dynamic_scale', '1.0'); 
 
             if (imageSource instanceof File) {
                 formData.append('image_file', imageSource);
@@ -210,10 +230,16 @@ export function usePhotoCreator(
                 formData.append('image_url', imageSource);
             }
             
-            // 3. Call animate action
             const result = await photoActions.animate(formData);
             if ((result as ResponseProps).detail) {
-                throw result;
+                // Check for status code if available in ResponseProps from animate action
+                const responsePropsResult = result as ResponseProps & { status?: number };
+                if (responsePropsResult.status === 503) {
+                    toast.warning("The animation service is currently overloaded. Please try again in a few minutes.", { id: toastId });
+                    setIsProcessing(false);
+                    return;
+                }
+                throw new Error((result as ResponseProps).detail);
             }
             const remoteVideoUrl = (result as VideoAnimationResponse).video_url; 
 
@@ -229,20 +255,19 @@ export function usePhotoCreator(
             onNewFileReady(newVideoFile); // This updates imageFile and imagePreview (to a blob URL for the video)
 
             setTtsPrompt(''); // Clear TTS prompt
-            showSuccessToast("Photo animated successfully!", undefined, toastId);
+            toast.success("Photo animated successfully!", { id: toastId });
 
         } catch (error: any) {
             if (error && typeof error === 'object' && 'detail' in error && 'status' in error && error.status === 503) {
-                showErrorToast("Photo animation failed. The service is currently overloaded, please try again in a few minutes.", "Photo animation failed. The service is currently overloaded, please try again in a few minutes.", toastId);
+                toast.warning("The animation service is currently overloaded, please try again in a few minutes.", { id: toastId });
             } else {
-                showErrorToast("Photo animation failed.", "Photo animation failed.", toastId);
+                toast.error(`Photo animation failed: ${error.message || "Unknown error"}.`, { id: toastId });
             }
             console.error("[usePhotoCreator] animate error:", error);
         } finally {
             setIsProcessing(false);
         }
     };
-
 
     return {
         prompt, setPrompt,

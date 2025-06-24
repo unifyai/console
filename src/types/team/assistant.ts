@@ -103,17 +103,32 @@ export interface AssistantUpdatePayload {
 
 // Assistant voice types
 export interface Voice {
-  voice_id: string; // Cartesia Voice ID (PK in your 'voices' table)
+  voice_id: string; 
   name: string; 
   description: string;
-  gender: Gender; // 'female', 'male' - consistent with Cartesia
-  language: SupportedLanguage; // language code e.g. 'en'
-  is_preset?: boolean; // Indicates if this is a Cartesia preset voice
+  gender: Gender;
+  language: SupportedLanguage; 
+  provider: "cartesia" | "elevenlabs";
+  is_preset?: boolean; 
 }
 
 export type VoiceOption = Voice & {  
     isUserVoiceInOrchestra?: boolean;
 };
+
+export interface GenerateSpeechPayload {
+    text: string;
+    provider: "cartesia" | "elevenlabs";
+    voice_id: string;
+    model_id?: string;
+    output_format: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
+    cartesia_language?: SupportedLanguage;
+    cartesia_sample_rate?: number;
+    cartesia_bit_rate?: number;
+    elevenlabs_optimize_streaming_latency?: number;
+    elevenlabs_voice_settings_stability?: number;
+    elevenlabs_voice_settings_similarity_boost?: number;
+}
 
 export interface AvailablePhoneCountry {
     code: string;
@@ -144,7 +159,8 @@ export interface AssistantActions {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
     register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
-    clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>; 
+    clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
+    generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
   },
   "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;

@@ -1,6 +1,17 @@
 import { ResponseProps } from "@/types/common";
-import { LocalizeTargetLanguage, Gender as CartesiaGender, SupportedLanguage } from "@cartesia/cartesia-js/api";
-import { Voice } from "@/types/team/assistant";
+import { GenerateSpeechPayload, Voice } from "@/types/team/assistant";
+import { Gender as CartesiaGender, SupportedLanguage } from "@cartesia/cartesia-js/api";
+
+// Helper to convert ArrayBuffer to Base64
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
 
 export const listVoices = async (apiKey: string) => {
     return async (): Promise<(Voice & {is_preset?: boolean})[] | ResponseProps> => {
@@ -58,5 +69,47 @@ export const cloneVoice = async (apiKey: string) => {
             if (!response.ok) return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
             return data.info as (Voice & {info?:string; is_preset?: boolean});
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error during voice clone." }; }
+    };
+};
+
+
+export const generateSpeech = async (apiKey: string) => {
+    return async (payload: GenerateSpeechPayload): Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/generate`, {
+                method: "POST",
+                headers: {
+                    apiKey: apiKey,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const contentType = response.headers.get("content-type") || "application/octet-stream";
+
+            if (!response.ok) {
+                let errorDetail = "Failed to generate speech.";
+                try {
+                    const errorData = await response.json();
+                    errorDetail = errorData.detail || errorDetail;
+                } catch (e) {
+                     const textError = await response.text();
+                     errorDetail = textError || errorDetail;
+                }
+                return { detail: errorDetail, status: response.status, contentType };
+            }
+            
+            const audioArrayBuffer = await response.arrayBuffer(); 
+            if (audioArrayBuffer.byteLength === 0) {
+                return { detail: "Generated audio was empty.", contentType };
+            }
+            const audioBase64 = arrayBufferToBase64(audioArrayBuffer); // Convert to Base64
+            return { audioBase64, contentType }; // Return Base64 string
+
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown error generating speech.";
+            return { detail: message };
+        }
     };
 };

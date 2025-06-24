@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { VoiceOption, Voice, AssistantActions } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
+import { toast } from 'sonner';
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
-import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
+import voicePresetsConstant from "@/constants/assistants/voice_presets.js"; // Ensure this file has 'provider'
 
 export function useVoiceOptions(
     assistantVoiceActions: AssistantActions['voice'],
@@ -15,8 +15,9 @@ export function useVoiceOptions(
             voice_id: vp.voice_id,
             language: vp.language as SupportedLanguage,
             gender: vp.gender as CartesiaGender,
-            is_preset: true, // Presets from constant are marked as such
-            isUserVoiceInOrchestra: false, // Initially, assume not in DB until confirmed by fetch
+            provider: vp.provider || "cartesia" as Voice["provider"],
+            is_preset: true, 
+            isUserVoiceInOrchestra: false, 
         }))
     );
     const [userVoicesFromOrchestra, setUserVoicesFromOrchestra] = React.useState<VoiceOption[]>([]);
@@ -29,6 +30,7 @@ export function useVoiceOptions(
             if (Array.isArray(result)) {
                 setUserVoicesFromOrchestra(result.map(v => ({
                     ...v,
+                    provider: v.provider || "cartesia",
                     isUserVoiceInOrchestra: true, 
                     is_preset: v.is_preset ?? false,
                 })));
@@ -81,26 +83,26 @@ export function useVoiceOptions(
 
     const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<boolean> => {
         if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {
-            showErrorToast("This voice cannot be deleted.");
+            toast.error("This voice cannot be deleted.");
             return false;
         }
 
-        const toastId = showLoadingToast(`Deleting voice "${voiceToDelete.name}"...`);
+        const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
             const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id);
             if (deleteResult.detail) { 
-                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`);
-                showErrorToast(deleteResult.detail, `Error deleting voice`, toastId);
+                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
+                toast.error(`Error deleting voice}`, { id: toastId });
                 return false;
             }
 
-            showSuccessToast(`Voice "${voiceToDelete.name}" deleted.`, undefined, toastId);
+            toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
             if (onVoiceDeleted) onVoiceDeleted(voiceToDelete.voice_id);
             return true;
         } catch (error: any) {
             console.error(`[useVoiceOptions.ts] Error during voice deletion: ${error.message}`)
-            showErrorToast(error.message, `Error deleting voice`, toastId);
+            toast.error(`Error deleting voice`, { id: toastId });
             return false;
         }
     };
