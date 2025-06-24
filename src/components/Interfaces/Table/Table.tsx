@@ -733,7 +733,7 @@ const LogsTable = ({
                   <div
                     key={idx}
                     ref={panelScrollRefs[idx]}
-                    className="relative flex-1 flex-col gap-2 overflow-y-auto border-l pl-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                    className="relative flex-1 flex-col gap-2 overflow-y-auto border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
                   >
                     <DataTable<LogProps | GroupedLogProps>
                       className="LogsTable"
