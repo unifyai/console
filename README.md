@@ -34,6 +34,45 @@ followed by
 npm start
 ```
 
+## Debug Environment Variables
+
+This application includes several debug environment variables that enable detailed logging and visual indicators for development and troubleshooting purposes. Set these variables to `true` to enable their respective debug features:
+
+### UI and State Management
+
+- **`NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true`**
+  - Enables detailed console logging for initial state building on the server side
+  - Shows comprehensive logs for project loading, interface setup, tab initialization, and store state construction
+  - Useful for debugging server-side rendering and initial hydration issues
+
+### Tile Dependencies
+
+- **`NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true`**
+  - Enables comprehensive logging for the tile dependency management system
+  - Shows dependency graph building, external dependency checking, and tile render states
+  - Displays visual indicators in the UI showing which dependencies tiles are waiting for
+  - Includes emoji-based logging (🔍 🚀 ⏳ ✅ ❌) for easy identification of dependency states
+
+### Tab Prefetching and Streaming
+
+- **`NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true`**
+  - Enables detailed logging for tab prefetching and streaming operations
+  - Shows tab data building progress, prefetch queue management, and cache hit/miss information
+  - Displays visual indicators in the UI showing prefetched tabs and streaming progress
+  - Includes prefetch progress indicators and tab switch timing information
+
+### Usage Example
+
+To enable all debug features during development, add these to your `.env.local` file:
+
+```bash
+NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true
+NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
+NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
+```
+
+**Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -33,6 +33,12 @@ const FocusDialog = lazy(() => import('./FocusDialog'));
 const EditTileName = lazy(() => import('./EditTileName'));
 const Tab = lazy(() => import('./Tab'));
 
+/**
+ * Debug flag for tab prefetching indicators
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable streaming indicators
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
 interface InterfaceComponentProps {
   interfaceId: string;
   projectsActions: ProjectsActions;
@@ -490,7 +496,7 @@ const Interface = ({
                           {renderActiveTab()}
                           
                           {/* Show streaming indicators */}
-                          {tabStreamingQuery.prefetchProgress.total > 0 && (
+                          {DEBUG_TAB_PREFETCHING && tabStreamingQuery.prefetchProgress.total > 0 && (
                             <div className="fixed bottom-16 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded border">
                               <div className="flex items-center gap-2">
                                 {(() => {

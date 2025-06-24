@@ -13,6 +13,12 @@ import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSy
 import { toast } from "sonner";
 import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
 
+/**
+ * Debug flag for tab prefetching indicators
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable prefetched tab indicators
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
 const InterfaceTabs = ({ 
   tabIdOrName,
   interfaceId,  
@@ -231,7 +237,7 @@ const InterfaceTabs = ({
                                     <div className="h-5 w-16 text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
                                         {tabNameToShow}
                                         {/* Cached data indicator for streaming - show if streaming enabled or if tab is prefetched */}
-                                        {(() => {
+                                        {DEBUG_TAB_PREFETCHING && (() => {
                                           const isPrefetched = prefetchedTabs?.has(tabNameToShow) || false;
                                           return (
                                             <div className={`absolute -top-1 -left-1 w-1.5 h-1.5 bg-green-500 ${isPrefetched ? "" : "animate-pulse"} rounded-full`} title="Tab Prefetched" />

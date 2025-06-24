@@ -32,6 +32,21 @@ import {
 import { selectTabById, selectTabByName } from "@/contexts/selectors/tab";
 import { convertTabToTabData } from "@/contexts/utils/sliceUtils";
 
+/**
+ * Debug flag for tab prefetching logging
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable detailed prefetching logs
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
+/**
+ * Conditional debug logger for tab prefetching
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_TAB_PREFETCHING) {
+    console.log(...args);
+  }
+};
+
 type TabDataActions = {
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
@@ -96,7 +111,7 @@ export function useTabDataOptimistic() {
       skipTileData = false,
     } = options;
 
-    console.log(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
+    debugLog(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
     
     try {      
       // Find the specific tab by tabId and tabName (not the active tab)

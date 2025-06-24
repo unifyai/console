@@ -25,6 +25,21 @@ import type {
 } from "@/types/evals/grid";
 import { redirect } from "next/navigation";
 
+/**
+ * Debug flag for UI initial state logging
+ * Set NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true to enable detailed logging
+ */
+const DEBUG_UI_INITIAL_STATE = process.env.NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE === 'true';
+
+/**
+ * Conditional debug logger for UI initial state
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_UI_INITIAL_STATE) {
+    console.log(...args);
+  }
+};
+
 type InterfaceWrapperActions = {
   projectsActions: ProjectsActions;
   contextActions: ContextActions;
@@ -49,7 +64,7 @@ export default async function Main({
   actions: InterfaceWrapperActions;
 }) {
 
-  console.log("[Main.server] Starting render with:", { project, interface_ });
+  debugLog("[Main.server] Starting render with:", { project, interface_ });
   const qc = getQueryClient();
 
   /* Enhanced prefetch for projects and contexts */
@@ -59,21 +74,21 @@ export default async function Main({
     queryFn: actions.projectsActions.get 
   });
   projects = qc.getQueryData<string[]>(["projects"]) || [];
-  console.log("[Main.server] Loaded projects:", projects);
+  debugLog("[Main.server] Loaded projects:", projects);
 
   // Get the current project if it was provided in the URL
   const currentProject = projects.find(proj => proj == project) || null;
-  console.log("[Main.server] Current project:", currentProject);
+  debugLog("[Main.server] Current project:", currentProject);
 
   // **ALWAYS INITIALIZE WITH MINIMAL GLOBAL STATE**
-  console.log("[Main.server] Building minimal global state for initialization");
+  debugLog("[Main.server] Building minimal global state for initialization");
   const minimalGlobalState = buildGlobalStateForStore(
     projects,
     null, // Always start with no project selected - will be updated via slice
     null, // Always start with no interface selected - will be updated via slice
     null  // Always start with no tab selected - will be updated via slice
   );
-  console.log("[Main.server] Minimal global state built:", { 
+  debugLog("[Main.server] Minimal global state built:", { 
     projectCount: minimalGlobalState.projects?.length 
   });
 
@@ -88,7 +103,7 @@ export default async function Main({
     
     // Get contexts from cache
     contexts = qc.getQueryData<Context[]>(["contexts", currentProject]) || [];
-    console.log("[Main.server] Loaded contexts for project:", currentProject, "contexts:", contexts.length);
+    debugLog("[Main.server] Loaded contexts for project:", currentProject, "contexts:", contexts.length);
   }
 
   // Get or create devbox
@@ -100,12 +115,12 @@ export default async function Main({
       queryFn: () => actions.devboxActions.get(),
     });
     devbox = qc.getQueryData(["devbox"]) || null;
-    console.log("[Main.server] Devbox status:", devbox ? "exists" : "not found");
+    debugLog("[Main.server] Devbox status:", devbox ? "exists" : "not found");
 
     // If devbox is not found, create it
     if (!devbox) {
       await actions.devboxActions.create();
-      console.log("[Main.server] Created new devbox");
+      debugLog("[Main.server] Created new devbox");
       }
     }
   } catch (error) {
@@ -122,7 +137,7 @@ export default async function Main({
 
     // Get interfaces from cache
     interfaces = qc.getQueryData<InterfaceData[]>(["interfaces", currentProject, false]) || [];
-    console.log("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
+    debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
   }
 
   // **BUILD ALL STATE SLICES THAT WE NEED**
@@ -145,12 +160,12 @@ export default async function Main({
 
   // Case 1: No project selected
   if (!currentProject) {
-    console.log("[Main.server] No project selected, no additional slices needed");
+    debugLog("[Main.server] No project selected, no additional slices needed");
     // No additional slices needed
   }
   // Case 2: Project selected but no interface
   else if (currentProject && !interface_) {
-    console.log("[Main.server] Project selected but no interface");
+    debugLog("[Main.server] Project selected but no interface");
     
     // Update global state to set active project
     globalStateSlice = { activeProjectId: currentProject };
@@ -158,7 +173,7 @@ export default async function Main({
     
     // Build project state slice
     const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
-    console.log("[Main.server] Building project state slice, interfaceIds:", interfaceIds);
+    debugLog("[Main.server] Building project state slice, interfaceIds:", interfaceIds);
     projectStateSlice = buildProjectStateForStore(
       currentProject, 
       currentProject,
@@ -167,26 +182,26 @@ export default async function Main({
       undefined
     );
     stateSlices.push(projectStateSlice);
-    console.log("[Main.server] Project state slice built");
+    debugLog("[Main.server] Project state slice built");
   }
   // Case 3: Both project and interface selected
   else if (currentProject && interface_) {
     const currentInterface = interfaces.find(i => i.name === interface_) || null;
-    console.log("[Main.server] Validating interface:", interface_, "found:", !!currentInterface);
+    debugLog("[Main.server] Validating interface:", interface_, "found:", !!currentInterface);
     
     if (!currentInterface) {
-      console.log("[Main.server] Interface not found, redirecting to remove interface param");
+      debugLog("[Main.server] Interface not found, redirecting to remove interface param");
       redirect(`/interfaces?project=${encodeURIComponent(currentProject)}`);
     }
     
-    console.log("[Main.server] Valid interface found, building all state slices");
+    debugLog("[Main.server] Valid interface found, building all state slices");
     
     // Build all state slices for full interface rendering
     const interfaceIds = interfaces.map(iface => iface.id).filter(Boolean) as string[];
     const activeInterfaceId = currentInterface.id;
     
     // Build project state slice
-    console.log("[Main.server] Building project state slice");
+    debugLog("[Main.server] Building project state slice");
     projectStateSlice = buildProjectStateForStore(
       currentProject, 
       currentProject,
@@ -195,7 +210,7 @@ export default async function Main({
       activeInterfaceId
     );
     stateSlices.push(projectStateSlice);
-    console.log("[Main.server] Project state slice built");
+    debugLog("[Main.server] Project state slice built");
 
     // Get tabs for the interface
     let tabs: TabData[] = [];
@@ -208,12 +223,12 @@ export default async function Main({
       });
       
       tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
-      console.log("[Main.server] Loaded tabs for interface:", interfaceId, "tabs:", tabs.map(t => t.name));
+      debugLog("[Main.server] Loaded tabs for interface:", interfaceId, "tabs:", tabs.map(t => t.name));
     }
 
     // Build interface state slice
     const activeTabId = currentInterface.active_tab_id || undefined;
-    console.log("[Main.server] Building interface state slice");
+    debugLog("[Main.server] Building interface state slice");
     interfaceStateSlice = buildInterfaceStateForStore(
       currentInterface, 
       activeTabId,
@@ -221,11 +236,11 @@ export default async function Main({
       tabs.map(tab => tab.name || '') || []
     );
     stateSlices.push(interfaceStateSlice);
-    console.log("[Main.server] Interface state slice built");
+    debugLog("[Main.server] Interface state slice built");
 
     // Build tab and tile state slices
     if (tabs.length > 0) {
-      console.log("[Main.server] Building tab and tile state slices for", tabs.length, "tabs");
+      debugLog("[Main.server] Building tab and tile state slices for", tabs.length, "tabs");
       const allTabData: TabData[] = [];
       const allTileData: TileData[] = [];
       const isActiveFlags: boolean[] = [];
@@ -243,13 +258,13 @@ export default async function Main({
             queryFn: () => actions.tileActions.list(tabId, undefined, false)
           });
           const tabTiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
-          console.log("[Main.server] Loaded tiles for tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
+          debugLog("[Main.server] Loaded tiles for tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
           
           allTabData.push(tab);
 
           if (tabId === currentInterface.active_tab_id) {
             isActiveFlags.push(true);
-            console.log("[Main.server] Tab", tab.name, "is active");
+            debugLog("[Main.server] Tab", tab.name, "is active");
           } else {
             isActiveFlags.push(false);
           }
@@ -268,7 +283,7 @@ export default async function Main({
       }
 
       if (allTabData.length > 0) {
-        console.log("[Main.server] Building tab state slice for", allTabData.length, "tabs");
+        debugLog("[Main.server] Building tab state slice for", allTabData.length, "tabs");
         tabStateSlice = buildTabStateForStore(
           allTabData,
           isActiveFlags,
@@ -277,17 +292,17 @@ export default async function Main({
           tileNamesPerTab
         );
         stateSlices.push(tabStateSlice);
-        console.log("[Main.server] Tab state slice built");
+        debugLog("[Main.server] Tab state slice built");
       }
 
       if (allTileData.length > 0) {
-        console.log("[Main.server] Building tile state slice for", allTileData.length, "tiles");
+        debugLog("[Main.server] Building tile state slice for", allTileData.length, "tiles");
         tileStateSlice = buildTileStateForStore(
           allTileData,
           tabIdsForTiles
         );
         stateSlices.push(tileStateSlice);
-        console.log("[Main.server] Tile state slice built");
+        debugLog("[Main.server] Tile state slice built");
       }
     }
 
@@ -298,18 +313,18 @@ export default async function Main({
       activeTabId: (tabStateSlice as Partial<IStoreState>).activeTabId || null
     };
     stateSlices.unshift(globalStateSlice); // Add at beginning so it's applied first
-    console.log("[Main.server] Global state slice built:", globalStateSlice);
+    debugLog("[Main.server] Global state slice built:", globalStateSlice);
   }
 
   // **RENDER WITH CONSISTENT PATTERN**
-  console.log("[Main.server] Rendering with", stateSlices.length, "state slices");
+  debugLog("[Main.server] Rendering with", stateSlices.length, "state slices");
 
   // Merge all state slices into the minimal global state for synchronous initialization
   const completeInitialState: Partial<IStoreState> = stateSlices.reduce(
     (acc, slice) => ({ ...acc, ...slice }), 
     minimalGlobalState
   );
-  console.log("[Main.server] Complete initial state built:", {
+  debugLog("[Main.server] Complete initial state built:", {
     activeProjectId: completeInitialState.activeProjectId,
     activeInterfaceId: completeInitialState.activeInterfaceId,
     activeTabId: completeInitialState.activeTabId,

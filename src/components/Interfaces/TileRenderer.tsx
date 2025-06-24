@@ -8,6 +8,12 @@ import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 
 const Tile = lazy(() => import("@/components/Interfaces/Tile"));
 
+/**
+ * Debug flag for tile dependency logging and display
+ * Set NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true to enable missing dependency display
+ */
+const DEBUG_TILE_DEPENDENCIES = process.env.NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES === 'true';
+
 export interface TileRendererProps {
   tileId: string;
   tabId: string;
@@ -65,7 +71,7 @@ const TileRenderer: React.FC<TileRendererProps> = ({
     return (
       <div className="w-full h-full flex items-center justify-center">
         <SkeletonLoader />
-        {renderState?.missingDependencies?.length && renderState?.missingDependencies?.length > 0 && (
+        {DEBUG_TILE_DEPENDENCIES && renderState?.missingDependencies?.length && renderState?.missingDependencies?.length > 0 && (
           <div className="absolute bottom-2 left-2 text-xs text-gray-500">
             <div>Waiting for:</div>
             {renderState?.missingDependencies.map((missing, index) => (
