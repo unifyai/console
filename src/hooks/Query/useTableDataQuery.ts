@@ -101,7 +101,6 @@ export function useTableDataQueryWithTracking(
   const updateWithTracking = useCallback((newData: Partial<TableDataItem>) => {
     // Update our local reference first
     tableDataItemRef.current = { ...tableDataItemRef.current, ...newData };
-    console.log("[updateWithTracking] Updating with tracking...");
     // Then call the actual mutation
     updateTableData(newData);
   }, [updateTableData]);
@@ -117,8 +116,6 @@ export function useTableDataQueryWithTracking(
   ) => {
     const result: any = { ...tableDataItemRef.current };
 
-    console.log("[mergeUpdatesIntoTableDataItem] partialUpdates:", partialUpdates);
-    
     // Use the field-by-field merge approach from the original code
     Object.keys(partialUpdates).forEach(key => {
       const updateKey = key as keyof TableDataItem;
@@ -290,8 +287,6 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
   useEffect(() => {
     if (!tabId || !tileName) return;
 
-    console.log("[useUpdateAvailableFieldsForTableArgumentsQuery] availableFields", availableFields);
-
     queryClient.setQueryData<TableArguments>(
       ["tableArguments", tabId],
       (prev = {} as TableArguments) => ({
@@ -317,10 +312,6 @@ export function useUpdateTableDataItem(tileId: string) {
   
   return useMutation<TableDataItem, Error, Partial<TableDataItem>, { previousData?: TableDataItem }>({
     mutationFn: async (newData) => {
-      // In a real application, you would make an API call here
-      // For now, we're just simulating a successful update
-      console.log(`[updateTableDataItem] Updating table data for tile ${tileId}:`, newData);
-      
       // Simulating API response
       return {
         ...(queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]) || {}),
@@ -330,19 +321,18 @@ export function useUpdateTableDataItem(tileId: string) {
     
     // When mutate is called:
     onMutate: async (newData) => {
-      console.log(`[updateTableDataItem] onMutate:`, newData);
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: ["tableDataItem", tileId] });
       
       // Snapshot the previous value
       const previousData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
-      console.log(`[updateTableDataItem] previousData:`, previousData);
+      
       // Optimistically update to the new value
       queryClient.setQueryData<TableDataItem>(["tableDataItem", tileId], (old) => ({
         ...(old || {}),
         ...newData
       } as TableDataItem));
-      console.log(`[updateTableDataItem] newData:`, newData);
+      
       // Return a context object with the snapshotted value
       return { previousData };
     },
@@ -355,7 +345,6 @@ export function useUpdateTableDataItem(tileId: string) {
     
     // Always refetch after error or success to ensure cache is correct
     onSettled: () => {
-      console.log(`[updateTableDataItem] onSettled:`, tileId);
       queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId], refetchType: 'none' });
     },
   });

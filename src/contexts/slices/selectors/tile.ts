@@ -18,6 +18,8 @@ export interface TilePosition {
   height: number;
 }
 
+export type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
+
 // Tile metadata - core identifying information
 export interface TileMeta {
   id: string;

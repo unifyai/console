@@ -13,6 +13,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
 import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart, mergeHeadersHorizontally } from "@/utils/evals/table";
+import { getParentID } from "@/utils/evals/columnOperations";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -97,6 +98,21 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     const tableHeaderRef = useRef<HTMLTableSectionElement>(null); // For <thead>
     const tableFooterRef = useRef<HTMLTableSectionElement>(null); // For <tfoot>
 
+    // Dynamically adjust scroll-padding-top so rows snap just below the header, even if it resizes
+    useEffect(() => {
+        const header = tableHeaderRef.current;
+        const container = scrollContainerRef?.current;
+        if (!header || !container) return;
+        // Create a ResizeObserver to watch header height changes
+        const ro = new ResizeObserver(() => {
+            container.style.scrollPaddingTop = `${header.clientHeight}px`;
+        });
+        ro.observe(header);
+        // Initial measurement
+        container.style.scrollPaddingTop = `${header.clientHeight}px`;
+        return () => ro.disconnect();
+    }, [scrollContainerRef, tableHeaderRef]);
+
     // Effect to handle data updates
     useEffect(() => {
         setIsGroupingUpdating(false);
@@ -126,6 +142,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         getFilteredRowModel: getFilteredRowModel(),
         getExpandedRowModel: getExpandedRowModel(),
         manualGrouping: true,
+        groupedColumnMode: false,
         manualSorting: true,
         getRowId(originalRow, index, parent) {
             return (originalRow as LogProps | GroupedLogProps).id.toString()
@@ -145,6 +162,62 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         }
     });
 
+    // When grouping changes, move grouped columns to the left in the column order
+    useEffect(() => {
+      const groupingIds = state.grouping as string[];
+      if (!groupingIds.length) return;
+      const currentOrder = state.columnOrder;
+      // Preserve the index column if present
+      const rowNum = currentOrder.find(id => id === "RowNumbering");
+      // Other columns excluding the index
+      const rest = currentOrder.filter(id => id !== "RowNumbering");
+      // Build a set of all IDs to move: include grouping keys and their entire header groups
+      const moveSet = new Set<string>();
+      groupingIds.forEach(groupId => {
+        // Always include the grouping key itself if present
+        if (rest.includes(groupId)) {
+          moveSet.add(groupId);
+        }
+        // Determine the immediate parent header ID (if any)
+        const lastSlash = groupId.lastIndexOf('/');
+        if (lastSlash > -1) {
+          const parentId = groupId.slice(0, lastSlash);
+          // Include the parent header ID
+          if (rest.includes(parentId)) {
+            moveSet.add(parentId);
+          }
+          // Include all descendants (siblings) under this parent
+          rest.forEach(id => {
+            if (id.startsWith(parentId + '/')) {
+              moveSet.add(id);
+            }
+          });
+        }
+      });
+      // Partition rest into those to move and remaining, preserving original order
+      const grouped = rest.filter(id => moveSet.has(id));
+      // Within each parent group, put newly grouped columns first
+      grouped.sort((a, b) => {
+        const pa = getParentID(a);
+        const pb = getParentID(b);
+        if (pa === pb) {
+          const aIsG = groupingIds.includes(a);
+          const bIsG = groupingIds.includes(b);
+          if (aIsG !== bIsG) return aIsG ? -1 : 1;
+        }
+        return 0;
+      });
+      const remaining = rest.filter(id => !moveSet.has(id));
+      const newOrder = [
+        ...(rowNum ? [rowNum] : []),
+        ...grouped,
+        ...remaining,
+      ];
+      if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
+        setState.setColumnOrder(newOrder);
+      }
+    }, [state.grouping]);
+
     // Set up drag-and-drop
     const sensors = useSensors(
         useSensor(MouseSensor, {}),
@@ -153,13 +226,28 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     );
 
     const visibleColumns = table.getVisibleLeafColumns();
-    const finalColumns = (
-        visibleColumns.length > 1
-            ? visibleColumns[0].id != "RowNumbering"
-                ? [visibleColumns[1], visibleColumns[0], ...visibleColumns.slice(2)]
-                : visibleColumns
-            : visibleColumns
-    );
+
+    // Reorder columns: move grouped columns (state.grouping) to the left in grouping order
+    const groupingIds = state.grouping as string[];
+    // Extract the index column if present
+    const indexColumn = visibleColumns.find(col => col.id === "RowNumbering");
+    // Other columns excluding the index column
+    const otherColumns = visibleColumns.filter(col => col.id !== "RowNumbering");
+
+    // Grouped columns in the order of grouping state
+    const groupedColumns = groupingIds
+        .map(id => otherColumns.find(col => col.id === id))
+        .filter((col): col is typeof otherColumns[0] => Boolean(col));
+
+    // Remaining columns that are not grouped
+    const remainingColumns = otherColumns.filter(col => !groupingIds.includes(col.id));
+
+    // Compose final columns: index, grouped, then remaining
+    const finalColumns = [
+        ...(indexColumn ? [indexColumn] : []),
+        ...groupedColumns,
+        ...remainingColumns,
+    ];
 
     const resizeMap = table.getFlatHeaders().map(
         (header: Header<TData, unknown>) => ({[header.column.id]: header.getResizeHandler()})

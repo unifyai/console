@@ -19,8 +19,6 @@ import {
   TableArguments, 
   PlotArguments 
 } from "@/types/evals/logs";
-import { buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
-import { IStoreState } from "@/contexts/store";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { 
   fetchProjectsContextsFields,
@@ -33,6 +31,21 @@ import {
 } from '@/utils/data/buildServerDataOptimistic';
 import { selectTabById, selectTabByName } from "@/contexts/selectors/tab";
 import { convertTabToTabData } from "@/contexts/utils/sliceUtils";
+
+/**
+ * Debug flag for tab prefetching logging
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable detailed prefetching logs
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
+/**
+ * Conditional debug logger for tab prefetching
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_TAB_PREFETCHING) {
+    console.log(...args);
+  }
+};
 
 type TabDataActions = {
   tabActions: GranularTabActions;
@@ -52,10 +65,6 @@ export type CompleteTabData = {
   fields: LogFieldsResponseProps[];
   tableArguments: TableArguments;
   plotArguments: PlotArguments;
-  
-  // Store state (from TabWrapper.server.tsx)
-  tabState: Partial<IStoreState>;
-  tileState: Partial<IStoreState>;
   
   // Tile-specific data (from each tile wrapper)
   tileDataItems: Record<string, TableDataItem | PlotDataItem>;
@@ -84,23 +93,34 @@ export function useTabDataOptimistic() {
       refetchContexts?: boolean;
       refetchFields?: boolean;
       updateCache?: boolean;
+      /**
+       * When true, the function will perform a lightweight initialisation that only
+       * fetches tab-level metadata (tiles, basic store state etc.).
+       * Heavy per-tile processing (logs, fields, arguments, metrics …) is skipped so that
+       * the UI can start rendering much sooner.  Individual tiles are expected to build
+       * their own data progressively further down the component tree.
+       */
+      skipTileData?: boolean;
     } = {}
   ): Promise<CompleteTabData> => {
     const {
       refetchProjects = false,
       refetchContexts = false,
       refetchFields = true,
-      updateCache = true
+      updateCache = true,
+      skipTileData = false,
     } = options;
 
-    console.log(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
+    debugLog(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
     
     try {      
       // Find the specific tab by tabId and tabName (not the active tab)
       const state = storeApi.getState();
-      let targetTab = convertTabToTabData(selectTabById(state, tabId));
+      const tabState = selectTabById(state, tabId);
+      let targetTab = convertTabToTabData(tabState);
       if (!targetTab) {
-        targetTab = convertTabToTabData(selectTabByName(state, interfaceId, tabName));
+        const tabState = selectTabByName(state, interfaceId, tabName);
+        targetTab = convertTabToTabData(tabState);
         if (!targetTab) {
           throw new Error(`Tab not found: ${tabName} (ID: ${tabId}) in interface ${interfaceId}`);
         }
@@ -121,6 +141,27 @@ export function useTabDataOptimistic() {
       // Filter tiles by type (matching TabWrapper.server.tsx)
       const tableTiles = tiles.filter(t => t.type === "Table");
       const plotTiles = tiles.filter(t => t.type === "Plot");
+
+      /* ------------------------------------------------------------------
+       * FAST-PATH: lightweight mode – just populate store & cache basics
+       * ------------------------------------------------------------------ */
+      if (skipTileData) {
+
+        return {
+          // Tab level data
+          tabData: targetTab,
+          tiles,
+          tableTiles,
+          plotTiles,
+          // Light-weight placeholders – will be filled progressively by individual tiles
+          fields: [],
+          tableArguments: {} as TableArguments,
+          plotArguments: {} as PlotArguments,
+
+          // No tile-specific data yet
+          tileDataItems: {},
+        } as CompleteTabData;
+      }
 
       // Create shared dependencies object
       const dependencies: OptimisticUpdateDependencies = {
@@ -211,16 +252,6 @@ export function useTabDataOptimistic() {
         fields: fieldsArray,
         tableArguments,
         plotArguments,
-        
-        // Store state
-        tabState: buildTabStateForStore(
-          targetTab,
-          targetTab.active || false, // Use the tab's actual active state
-          interfaceId,
-          tiles.map(tile => tile.id || ''),
-          tiles.map(tile => tile.name || '')
-        ),
-        tileState: buildTileStateForStore(tiles, finalTabId),
         
         // Tile-specific data
         tileDataItems,

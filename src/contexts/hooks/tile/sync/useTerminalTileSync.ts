@@ -18,6 +18,21 @@ import { useTileMeta } from "../useTileMeta";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Properties of the TerminalTile that will be synced with the server
  */
 export type SyncedTerminalProperties = "shell_type";

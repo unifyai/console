@@ -12,6 +12,21 @@ import { Tile } from "@/contexts/slices/selectors/tile";
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Extended interface for TabDataActions with additional parameters
  * for the synchronized versions
  */
@@ -98,7 +113,7 @@ export function useTabSync(
         actions: tileActions
       });
 
-      console.log(`Tile ${tileName} created with ID ${tileId}`);
+      debugLog(`Tile ${tileName} created with ID ${tileId}`);
       
       return result;
     } catch (error) {
@@ -357,7 +372,7 @@ export function useTabSync(
         if (sourceTableDataItem) {
           // Set the new tile's tableDataItem in the cache
           queryClient.setQueryData(["tableDataItem", newTileId], sourceTableDataItem);
-          console.log(`Copied tableDataItem from ${sourceTileId} to ${newTileId}`);
+          debugLog(`Copied tableDataItem from ${sourceTileId} to ${newTileId}`);
         }
       }
       
@@ -368,11 +383,11 @@ export function useTabSync(
         if (sourcePlotDataItem) {
           // Set the new tile's plotDataItem in the cache
           queryClient.setQueryData(["plotDataItem", newTileId], sourcePlotDataItem);
-          console.log(`Copied plotDataItem from ${sourceTileId} to ${newTileId}`);
+          debugLog(`Copied plotDataItem from ${sourceTileId} to ${newTileId}`);
         }
       }
       
-      console.log(`Tile ${sourceTileName} copied to ${newTileName} with ID ${newTileId}`);
+      debugLog(`Tile ${sourceTileName} copied to ${newTileName} with ID ${newTileId}`);
       
       return result;
     } catch (error) {
@@ -477,7 +492,7 @@ export function useTabSync(
     await Promise.all(promises);
       
     // Refresh the router to update UI with new data
-    console.log("[wrapRemoveContextFromTab] onSettled:", context);
+    debugLog("[wrapRemoveContextFromTab] onSettled:", context);
     refreshRouter({
       externalPendingSetters: setPending ? [setPending] : []
     });
@@ -516,7 +531,7 @@ export function useTabSync(
     }, {
       onSettled: () => {
         // Refresh the router to update UI with new data
-        console.log("[wrapGlobalContext] onSettled:", context);
+        debugLog("[wrapGlobalContext] onSettled:", context);
         refreshRouter({
           externalPendingSetters: setPending ? [setPending] : []
         });

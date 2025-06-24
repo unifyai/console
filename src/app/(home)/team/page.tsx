@@ -4,7 +4,7 @@ import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/team/photo";
 import { listVoices, registerVoice, deleteVoice, cloneVoice, localizeVoice } from "@/lib/team/voice"; 
-import { listAllAssistantEmails } from "@/lib/team/contact";
+import { listAllAssistantEmails, listAvailablePhoneCountries } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
 import { ActivityLogActions } from "@/types/team/activity";
@@ -20,7 +20,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
         redirect('/login'); 
     }
     const apiKey = user.apiKey;
-    const userId = user.id;
+    const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
 
     const assistantActions: AssistantActions = {
         "assistant": {
@@ -46,6 +46,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
         },
         "contact": {
             listAllAssistantEmails: await listAllAssistantEmails(apiKey),
+            listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),

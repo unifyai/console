@@ -14,7 +14,7 @@ import type {
   GranularTileActions,
   ProjectsActions,
 } from "@/types/evals/grid";
-import { LogFieldsResponseProps, LogsResponseProps, TableArguments } from "@/types/evals/logs";
+import { LogFieldsResponseProps, LogsResponseProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 
 type TableWrapperActions = {
@@ -42,10 +42,6 @@ export default async function TableWrapper({
   console.log("[TableWrapper] Rendering...");
   const qc = getQueryClient();
   const tileId = tile.id || "";
-  const tileName = tile.name; // We'll use this as the key in tableArguments
-
-  // Get pre-built tableArguments from cache instead of building them here
-  const tableArguments = qc.getQueryData<TableArguments>(["tableArguments", tabId]) || {} as TableArguments;
 
   // Prefetch fields
   await qc.prefetchQuery({

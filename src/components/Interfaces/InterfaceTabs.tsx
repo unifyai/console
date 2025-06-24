@@ -13,6 +13,12 @@ import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSy
 import { toast } from "sonner";
 import { useTabStreamingQuery } from '@/hooks/Query/useTabStreamingQuery';
 
+/**
+ * Debug flag for tab prefetching indicators
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable prefetched tab indicators
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
 const InterfaceTabs = ({ 
   tabIdOrName,
   interfaceId,  
@@ -45,6 +51,7 @@ const InterfaceTabs = ({
     const [tabQueryParamState, setTabQueryParamState] = useState(tabName || "");
     const [hoveredTab, setHoveredTab] = useState<string | undefined>();
     const [errorMsg, setErrorMsg] = useState<string>();
+    const [isCreatingTab, setIsCreatingTab] = useState(false);
 
     // Global states
     const project = useStoreContext((s) => s.activeProjectId);
@@ -152,6 +159,11 @@ const InterfaceTabs = ({
     // Handle tab creation
     const handleCreateTab = async () => {
         try {
+            // Prevent multiple simultaneous tab creations
+            if (isCreatingTab) return;
+            
+            setIsCreatingTab(true);
+            
             // Generate a new tab name that doesn't exist
             let initialIndex = tabNamesToShow.length + 1;
             while (tabNamesToShow.includes(`tab${initialIndex}`)) {
@@ -182,6 +194,9 @@ const InterfaceTabs = ({
             tabUIActions?.setPending(false);
             console.error("Error creating tab:", error);
             toast.error("Failed to create tab. Please try again.");
+        } finally {
+            // Always reset the creating state
+            setIsCreatingTab(false);
         }
     };
 
@@ -222,7 +237,7 @@ const InterfaceTabs = ({
                                     <div className="h-5 w-16 text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
                                         {tabNameToShow}
                                         {/* Cached data indicator for streaming - show if streaming enabled or if tab is prefetched */}
-                                        {(() => {
+                                        {DEBUG_TAB_PREFETCHING && (() => {
                                           const isPrefetched = prefetchedTabs?.has(tabNameToShow) || false;
                                           return (
                                             <div className={`absolute -top-1 -left-1 w-1.5 h-1.5 bg-green-500 ${isPrefetched ? "" : "animate-pulse"} rounded-full`} title="Tab Prefetched" />
@@ -264,7 +279,7 @@ const InterfaceTabs = ({
                     variant="outline"
                     icon={<Plus />}
                     tooltip={"Add new tab"}
-                    disabled={tabUIState?.pending}
+                    disabled={tabUIState?.pending || isCreatingTab}
                     onClick={handleCreateTab}
                 />
                 

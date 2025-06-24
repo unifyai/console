@@ -10,6 +10,21 @@ import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSp
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 
 /**
+ * Debug flag for state syncing logging
+ * Set NEXT_PUBLIC_DEBUG_STATE_SYNCING=true to enable detailed state synchronization logs
+ */
+const DEBUG_STATE_SYNCING = process.env.NEXT_PUBLIC_DEBUG_STATE_SYNCING === 'true';
+
+/**
+ * Conditional debug logger for state syncing
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_STATE_SYNCING) {
+    console.log(...args);
+  }
+};
+
+/**
  * Properties of the TableTile that will be synced with the server
  */
 export type SyncedTableProperties = 'table_type' | 
@@ -160,6 +175,8 @@ export function useTableTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: true,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -167,7 +184,7 @@ export function useTableTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapTableType] onSettled:", value);
+      debugLog("[wrapTableType] onSettled:", value);
       uiActions?.setLoading(false);
       uiActions?.setPending(false);
     });
@@ -200,6 +217,8 @@ export function useTableTileSync(
       refetchProjects: false,
       refetchContexts: false,
       refetchFields: false,
+      rebuildTableData: true,
+      rebuildPlotData: false,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -207,7 +226,7 @@ export function useTableTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapSorting] onSettled:", value);
+      debugLog("[wrapSorting] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -239,6 +258,8 @@ export function useTableTileSync(
       refetchProjects: false,
       refetchContexts: false,
       refetchFields: false,
+      rebuildTableData: true,
+      rebuildPlotData: false,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -246,7 +267,7 @@ export function useTableTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapGroupSorting] onSettled:", value);
+      debugLog("[wrapGroupSorting] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };
@@ -413,6 +434,8 @@ export function useTableTileSync(
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
+      rebuildTableData: true,
+      rebuildPlotData: false,
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
@@ -420,7 +443,7 @@ export function useTableTileSync(
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
       // 3. Refresh the router and set the loading state
-      console.log("[wrapPageNumber] onSettled:", value);
+      debugLog("[wrapPageNumber] onSettled:", value);
       uiActions?.setLoading(false);
     });
   };

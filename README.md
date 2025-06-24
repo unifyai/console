@@ -34,6 +34,63 @@ followed by
 npm start
 ```
 
+## Debug Environment Variables
+
+This application includes several debug environment variables that enable detailed logging and visual indicators for development and troubleshooting purposes. Set these variables to `true` to enable their respective debug features:
+
+### UI and State Management
+
+- **`NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true`**
+  - Enables detailed console logging for initial state building on the server side
+  - Shows comprehensive logs for project loading, interface setup, tab initialization, and store state construction
+  - Useful for debugging server-side rendering and initial hydration issues
+
+### Tile Dependencies
+
+- **`NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true`**
+  - Enables comprehensive logging for the tile dependency management system
+  - Shows dependency graph building, external dependency checking, and tile render states
+  - Displays visual indicators in the UI showing which dependencies tiles are waiting for
+  - Includes emoji-based logging (🔍 🚀 ⏳ ✅ ❌) for easy identification of dependency states
+
+### Tab Prefetching and Streaming
+
+- **`NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true`**
+  - Enables detailed logging for tab prefetching and streaming operations
+  - Shows tab data building progress, prefetch queue management, and cache hit/miss information
+  - Displays visual indicators in the UI showing prefetched tabs and streaming progress
+  - Includes prefetch progress indicators and tab switch timing information
+
+### Performance Monitoring
+
+- **`NEXT_PUBLIC_DEBUG_PERFORMANCE=true`**
+  - Enables detailed performance timing logs for critical data operations
+  - Shows execution times for table data building, plot data fetching, and argument processing
+  - Includes timing measurements for logs retrieval, field processing, and data transformation
+  - Useful for identifying performance bottlenecks and optimizing data processing workflows
+
+### State Synchronization
+
+- **`NEXT_PUBLIC_DEBUG_STATE_SYNCING=true`**
+  - Enables detailed logging for state synchronization between client and server
+  - Shows optimistic updates, server sync operations, and mutation state changes
+  - Includes logging for interface, tab, and tile synchronization operations
+  - Useful for debugging state consistency issues and sync conflicts
+
+### Usage Example
+
+To enable all debug features during development, add these to your `.env.local` file:
+
+```bash
+NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true
+NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
+NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
+NEXT_PUBLIC_DEBUG_PERFORMANCE=true
+NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
+```
+
+**Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

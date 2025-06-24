@@ -150,18 +150,7 @@ export default async function TileWrapper({
           tabId={tabId}
           interfaceId={interfaceId}
           projectId={projectId}
-          projectsActions={actions.projectsActions}
-          tileActions={actions.tileActions}
-          logsActions={actions.logsActions}
-          fieldsActions={actions.fieldsActions}
-          derivedEntryActions={actions.derivedEntryActions}
-          contextActions={actions.contextActions}
-          codeActions={actions.codeActions}
-          fileActions={actions.fileActions}
-          tableContent={tile.type === "Table" ? renderTileContent() : undefined}
-          plotContent={tile.type === "Plot" ? renderTileContent() : undefined}
-          viewContent={tile.type === "View" ? renderTileContent() : undefined}
-          editorContent={tile.type === "Editor" ? renderTileContent() : undefined}
+          actions={actions}
         />
       </Suspense>
     </HydrationBoundary>

@@ -4,8 +4,6 @@ import { useMutation } from '@tanstack/react-query';
 import { 
   GranularTileActions, 
   TileData, 
-  TableDataItem, 
-  PlotDataItem,
   LogsActions,
   FieldsActions,
   ProjectsActions,
@@ -26,9 +24,8 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { selectProjectById } from '@/contexts/selectors/project';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
+import { TileType } from '@/contexts/slices/selectors/tile';
 
-// Define TileType as a string union if not imported
-type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
 
 /**
  * Hook to patch a specialized tile with optimistic updates that cascade to related data
@@ -52,6 +49,8 @@ T extends TileType
       refetchProjects = false,
       refetchContexts = false,
       refetchFields = true,
+      rebuildTableData = true,
+      rebuildPlotData = true,
       actions,
       projectsActions,
       contextActions,
@@ -66,6 +65,8 @@ T extends TileType
       refetchProjects: boolean;
       refetchContexts: boolean;
       refetchFields: boolean;
+      rebuildTableData: boolean;
+      rebuildPlotData: boolean;
       actions: GranularTileActions;
       projectsActions: ProjectsActions;
       contextActions: ContextActions;
@@ -85,6 +86,8 @@ T extends TileType
         refetchProjects,
         refetchContexts,
         refetchFields,
+        rebuildTableData,
+        rebuildPlotData,
         actions,
         projectsActions,
         contextActions,
@@ -208,7 +211,7 @@ T extends TileType
       }
         
       // Step 1: If it's a Table tile, rebuild its TableDataItem and update the cache
-      if (tileType === "Table") {
+      if (tileType === "Table" && rebuildTableData) {
         try {
           // Get fields from cache
           const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTile?.context]) || {} as LogFieldsResponseProps;
@@ -244,7 +247,7 @@ T extends TileType
       
       try {
         // Step 3: For plot tiles that depend on this table, rebuild their PlotDataItem
-        if (tileType === 'Table' || plotTilesData.length > 0) {
+        if ((tileType === 'Table' || plotTilesData.length > 0) && rebuildPlotData) {
           // Determine which plot tiles need to be updated
           let plotTilesToUpdate: TileData[] = [];
           

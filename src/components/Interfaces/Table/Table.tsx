@@ -11,7 +11,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
-import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/evals/table";
@@ -55,6 +55,8 @@ import { shallow } from "zustand/vanilla/shallow";
 import { useTableArgumentsQuery, useTableDataQueryWithTracking, useUpdateAvailableFieldsForTableArgumentsQuery } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
+import ActionButton from "@/components/Common/Buttons/Action";
+import { SquareSplitHorizontal } from "lucide-react";
 
 const LogsTable = ({
   tileId,
@@ -80,6 +82,7 @@ const LogsTable = ({
   contextActions: ContextActions,
 }) => {
   const router = useRouter(); // Initialize useRouter
+  const [panelCount, setPanelCount] = useState(1);
 
   // Get access to the tab data and actions with granular access
   const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
@@ -661,6 +664,13 @@ const LogsTable = ({
           <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
           <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
+          <ActionButton
+            tooltip={`Cycle split view (${panelCount})`}
+            icon={<SquareSplitHorizontal className="h-4 w-4" />}
+            onClick={() => setPanelCount(c => (c === 2 ? 1 : c + 1))}
+            variant="ghost"
+            size="icon"
+          />
         </div>
       )}
 
@@ -688,8 +698,19 @@ const LogsTable = ({
     if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTable", "LogsTablePreferences"])
   }
 
-  //Ref for auto scroll
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Manage per-panel scroll refs
+  const [panelScrollRefs, setPanelScrollRefs] = useState<React.RefObject<HTMLDivElement>[]>(() =>
+    Array.from({ length: panelCount }, () => createRef<HTMLDivElement>())
+  );
+  useEffect(() => {
+    setPanelScrollRefs(prev => {
+      const updated = prev.slice(0, panelCount);
+      while (updated.length < panelCount) {
+        updated.push(createRef<HTMLDivElement>());
+      }
+      return updated;
+    });
+  }, [panelCount]);
 
   return (
     <div
@@ -703,263 +724,270 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col min-h-0">
           {tableTop && tableTop}
-          <div ref={scrollContainerRef} className="w-full h-fit overflow-y-auto tutorial-logs-table">
+          <div className="w-full flex-1 min-h-0 tutorial-logs-table">
             {projectId ? (
-              <div className="relative flex-col gap-2">
-                {/* "summaryPending" can optionally show a small loader over the table if you like */}
-                <DataTable<LogProps | GroupedLogProps>
-                  className="LogsTable"
-                  interactive={interactive}
-                  auto_update={item?.auto_update === "true"}
-                  data={logs}
-                  columns={columns}
-                  state={state}
-                  setState={setState}
-                  scrollContainerRef={scrollContainerRef}
-                  ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
-                    <ColumnGroupBy
+              <div className="flex h-full gap-2">
+                {Array.from({ length: panelCount }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    ref={panelScrollRefs[idx]}
+                    className="relative flex-1 flex-col gap-2 overflow-y-auto border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                  >
+                    <DataTable<LogProps | GroupedLogProps>
+                      className="LogsTable"
                       interactive={interactive}
                       auto_update={item?.auto_update === "true"}
-                      column={column}
-                      grouping={state.grouping}
-                      setGrouping={setState.setGrouping}
-                      setGroupSorting={setState.setGroupSorting}
                       data={logs}
-                      groupLoading={groupLoading}
-                      setGroupLoading={setGroupLoading}
-                      setGroupSortLoading={setGroupSortLoading}
-                      setIsGrouped={setIsGrouped}
-                      renderMode={renderMode}
-                    />
-                  )}
-                  ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setGroupSortingDirection, renderMode = "button", direction) => (
-                    <ColumnGroupSort
-                      interactive={interactive}
-                      column={column}
-                      groupSorting={groupSorting}
-                      setGroupSorting={setGroupSorting}
-                      logs={logs}
-                      groupSortLoading={groupSortLoading}
-                      setGroupSortLoading={setGroupSortLoading}
-                      setGroupSortingDirection={setGroupSortingDirection}
-                      renderMode={renderMode}
-                      direction={direction}
-                    />
-                  )}
-                  ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
-                    <ColumnFilter
-                      interactive={interactive}
-                      setColumnFilterQuery={setLogsFilters}
-                      boundaries={boundaries}
-                      columnFilters={searchParamToFilters(logsFilters, item?.column_context)}
-                      column={column.id}
-                      dataTypes={dataTypes}
-                      open={open}
-                      setOpen={setOpen}
-                      filterLoading={filterLoading}
-                      setIsFiltered={setIsFiltered}
-                      setFilterLoading={setFilterLoading}
-                      renderMode={renderMode as "button" | "menuItem"}
-                    />
-                  )}
-                  ColumnDelete={(column) => (
-                    <ColumnDelete
-                      tileId={tileId}
-                      tabId={tabId}
-                      project={projectId}
-                      context={context}
-                      columnContext={item?.column_context}
-                      column={column.id}
-                      interactive={interactive}
-                      setPending={setPending}
-                      getLogFieldsIds={logsActions.get}
-                      deleteLogFields={logsActions.delete}
-                      logsActions={logsActions}
-                      projectsActions={projectsActions}
-                      contextActions={contextActions}
-                      fieldsActions={fieldsActions}
-                    />
-                  )}
-                  ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
-                    <ColumnCreate
-                      tileId={tileId}
-                      tabId={tabId}
-                      project={projectId}
-                      context={item?.context}
-                      columnContext={item?.column_context}
-                      currentTable={item?.name || ""}
-                      tableArguments={tableArguments}
-                      logs={logs}
-                      columnOrder={columnOrder}
-                      previousColumn={previousColumn}
-                      create={derivedEntryActions.create}
-                      setPending={setPending}
-                      setColumnOrder={setColumnOrder}
-                      setOpen={setOpen}
-                      logsActions={logsActions}
-                      projectsActions={projectsActions}
-                      contextActions={contextActions}
-                      fieldsActions={fieldsActions}
-                    />
-                  )}
-                  ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
-                    <ColumnUpdate
-                      tileId={tileId}
-                      tabId={tabId}
-                      project={projectId}
-                      context={item?.context}
-                      colId={colId}
-                      previousEquation={fields[sanitizeId(colId)].artifacts}
-                      currentTable={item?.name || ""}
-                      tableArguments={tableArguments}
-                      logs={logs}
-                      open={open}
-                      updateLoading={updateLoading}
-                      renderMode={renderMode as "button" | "menuItem"}
-                      update={derivedEntryActions.update}
-                      setPending={setPending}
-                      setOpen={setOpen}
-                      setUpdateLoading={setUpdateLoading}
-                      logsActions={logsActions}
-                      projectsActions={projectsActions}
-                      contextActions={contextActions}
-                      fieldsActions={fieldsActions}
-                    />
-                  )}
-                  RowExpanding={(props: RowExpandingProps) => (
-                    <RowExpanding
-                      row={props.row}
-                      groupingColumnId={props.groupingColumnId}
-                      isLoading={props.isLoading}
-                      isAnimating={props.isAnimating}
-                      setExpandingRowId={props.setExpandingRowId}
-                      onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
-                        setLoadingSubGroup(true)
-                        setLoadingGroups(prev => {
-                          const next = new Set(prev);
-                          if (next.has("_all_groups_")) {
-                            next.delete("_all_groups_");
-                          }
-                          next.add(props.row.id);
-                          return next;
-                        });
-                        
-                        await onGroupExpand(
-                          props.row.id,
-                          groupingColumnId,
-                          groupingValue,
-                          parentId,
-                          projectId!,
-                          item?.context || context || context_ || null,
-                          item?.column_context ?? null,
-                          filterExpression,
-                          sortingExpression,
-                          groupingExpression,
-                          groupSortingExpression,
-                          limit,
-                          offset,
-                          logsActions,
-                          setExpandingRowId,
-                          updateTableDataItemWithUpdater,
-                          item as TileProps,
-                          dataTypes,
-                          fields,
-                          logs,
-                          logs.length ? [...entriesProperties, ...paramsProperties] : []
-                        );
+                      columns={columns}
+                      state={state}
+                      setState={setState}
+                      scrollContainerRef={panelScrollRefs[idx]}
+                      ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
+                        <ColumnGroupBy
+                          interactive={interactive}
+                          auto_update={item?.auto_update === "true"}
+                          column={column}
+                          grouping={state.grouping}
+                          setGrouping={setState.setGrouping}
+                          setGroupSorting={setState.setGroupSorting}
+                          data={logs}
+                          groupLoading={groupLoading}
+                          setGroupLoading={setGroupLoading}
+                          setGroupSortLoading={setGroupSortLoading}
+                          setIsGrouped={setIsGrouped}
+                          renderMode={renderMode}
+                        />
+                      )}
+                      ColumnGroupSort={(column, groupSortLoading, setGroupSortLoading, setGroupSortingDirection, renderMode = "button", direction) => (
+                        <ColumnGroupSort
+                          interactive={interactive}
+                          column={column}
+                          groupSorting={groupSorting}
+                          setGroupSorting={setGroupSorting}
+                          logs={logs}
+                          groupSortLoading={groupSortLoading}
+                          setGroupSortLoading={setGroupSortLoading}
+                          setGroupSortingDirection={setGroupSortingDirection}
+                          renderMode={renderMode}
+                          direction={direction}
+                        />
+                      )}
+                      ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
+                        <ColumnFilter
+                          interactive={interactive}
+                          setColumnFilterQuery={setLogsFilters}
+                          boundaries={boundaries}
+                          columnFilters={searchParamToFilters(logsFilters, item?.column_context)}
+                          column={column.id}
+                          dataTypes={dataTypes}
+                          open={open}
+                          setOpen={setOpen}
+                          filterLoading={filterLoading}
+                          setIsFiltered={setIsFiltered}
+                          setFilterLoading={setFilterLoading}
+                          renderMode={renderMode as "button" | "menuItem"}
+                        />
+                      )}
+                      ColumnDelete={(column) => (
+                        <ColumnDelete
+                          tileId={tileId}
+                          tabId={tabId}
+                          project={projectId}
+                          context={context}
+                          columnContext={item?.column_context}
+                          column={column.id}
+                          interactive={interactive}
+                          setPending={setPending}
+                          getLogFieldsIds={logsActions.get}
+                          deleteLogFields={logsActions.delete}
+                          logsActions={logsActions}
+                          projectsActions={projectsActions}
+                          contextActions={contextActions}
+                          fieldsActions={fieldsActions}
+                        />
+                      )}
+                      ColumnCreate={(previousColumn: string, setOpen: (open: boolean) => void) => (
+                        <ColumnCreate
+                          tileId={tileId}
+                          tabId={tabId}
+                          project={projectId}
+                          context={item?.context}
+                          columnContext={item?.column_context}
+                          currentTable={item?.name || ""}
+                          tableArguments={tableArguments}
+                          logs={logs}
+                          columnOrder={columnOrder}
+                          previousColumn={previousColumn}
+                          create={derivedEntryActions.create}
+                          setPending={setPending}
+                          setColumnOrder={setColumnOrder}
+                          setOpen={setOpen}
+                          logsActions={logsActions}
+                          projectsActions={projectsActions}
+                          contextActions={contextActions}
+                          fieldsActions={fieldsActions}
+                        />
+                      )}
+                      ColumnUpdate={(colId: string, updateLoading: boolean, setUpdateLoading: (updateLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode = "button") => (
+                        <ColumnUpdate
+                          tileId={tileId}
+                          tabId={tabId}
+                          project={projectId}
+                          context={item?.context}
+                          colId={colId}
+                          previousEquation={fields[sanitizeId(colId)].artifacts}
+                          currentTable={item?.name || ""}
+                          tableArguments={tableArguments}
+                          logs={logs}
+                          open={open}
+                          updateLoading={updateLoading}
+                          renderMode={renderMode as "button" | "menuItem"}
+                          update={derivedEntryActions.update}
+                          setPending={setPending}
+                          setOpen={setOpen}
+                          setUpdateLoading={setUpdateLoading}
+                          logsActions={logsActions}
+                          projectsActions={projectsActions}
+                          contextActions={contextActions}
+                          fieldsActions={fieldsActions}
+                        />
+                      )}
+                      RowExpanding={(props: RowExpandingProps) => (
+                        <RowExpanding
+                          row={props.row}
+                          groupingColumnId={props.groupingColumnId}
+                          isLoading={props.isLoading}
+                          isAnimating={props.isAnimating}
+                          setExpandingRowId={props.setExpandingRowId}
+                          onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
+                            setLoadingSubGroup(true)
+                            setLoadingGroups(prev => {
+                              const next = new Set(prev);
+                              if (next.has("_all_groups_")) {
+                                next.delete("_all_groups_");
+                              }
+                              next.add(props.row.id);
+                              return next;
+                            });
+                            
+                            await onGroupExpand(
+                              props.row.id,
+                              groupingColumnId,
+                              groupingValue,
+                              parentId,
+                              projectId!,
+                              item?.context || context || context_ || null,
+                              item?.column_context ?? null,
+                              filterExpression,
+                              sortingExpression,
+                              groupingExpression,
+                              groupSortingExpression,
+                              limit,
+                              offset,
+                              logsActions,
+                              setExpandingRowId,
+                              updateTableDataItemWithUpdater,
+                              item as TileProps,
+                              dataTypes,
+                              fields,
+                              logs,
+                              logs.length ? [...entriesProperties, ...paramsProperties] : []
+                            );
 
-                        setLoadingGroups(prev => {
-                          const next = new Set(prev);
-                          next.delete(props.row.id);
-                          return next;
-                        });
-                      }}
-                    />
-                  )}
-                  AggregatedCell={(cell, row) => (
-                    <AggregatedCell
-                      isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
-                      cell={cell}
-                      metric={tableDataItem.metric}
-                      getMetric={(key: string) => {
-                        const groupingColumnId = row.groupingColumnId;
-                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
-                        const groupedMetrics = (
-                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
-                            ? tableDataItem.groupedMetrics[groupingColumnId]
-                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
-                              ? tableDataItem.groupedMetrics[slicedRowId] : { [metric]: {} }
-                        )[metric] || {};
-                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
-                        const groupingValue = row.getValue(key) as string;
-                        const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
-                        const exclude_nulls = true;
-                        const exclude_undefined = true;
-                        const formattedValue = formatCellValue(
-                          value, 
-                          cell.column.columnDef.meta?.dataType ?? "",
-                          cell.column.getSize(),
-                          exclude_nulls,
-                          exclude_undefined
-                        );
-                        return formattedValue;
-                      }}
-                      getSharedValue={(key: string) => {
-                        const slicedRowId = row.id.split(">").slice(0, -1).join(">");
-                        const groupingColumnId = row.groupingColumnId;
-                        const groupedSharedValues = (
-                          tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
-                            ? tableDataItem.groupedMetrics[groupingColumnId]
-                            : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
-                              ? tableDataItem.groupedMetrics[slicedRowId] : { ["shared_value"]: {} }
-                        )["shared_value"] || {};
-                        const newKey = key.replace("Entries/", "").replace("Parameters/", "");
-                        const groupingValue = row.getValue(key) as string;
-                        const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
-                        const exclude_nulls = true;
-                        const exclude_undefined = true;
-                        const formattedValue = formatCellValue(
-                          value, 
-                          cell.column.columnDef.meta?.dataType ?? "", 
-                          cell.column.getSize(),
-                          exclude_nulls,
-                          exclude_undefined
-                        );
-                        return formattedValue;
-                      }}
-                    />
-                  )}
-                  FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
-                    <FooterCell
-                      column={column}
-                      resizeMap={resizeMap}
-                      draggingColumns={state.draggingColumns}
-                      draggingColumnPinner={draggingColumnPinner}
-                      setDraggingColumnPinner={setDraggingColumnPinner}
-                      columnPinning={columnPinning}
-                      columnOrder={columnOrder}
-                      table={table}
-                    >
-                      {
-                        column.columnDef.id === indicesTitle
-                          ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
-                          : !column.getIsGrouped()
-                            ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
-                            : null
+                            setLoadingGroups(prev => {
+                              const next = new Set(prev);
+                              next.delete(props.row.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      )}
+                      AggregatedCell={(cell, row) => (
+                        <AggregatedCell
+                          isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
+                          cell={cell}
+                          metric={tableDataItem.metric}
+                          getMetric={(key: string) => {
+                            const groupingColumnId = row.groupingColumnId;
+                            const slicedRowId = row.id.split(">").slice(0, -1).join(">");
+                            const groupedMetrics = (
+                              tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                                ? tableDataItem.groupedMetrics[groupingColumnId]
+                                : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                                  ? tableDataItem.groupedMetrics[slicedRowId] : { [metric]: {} }
+                            )[metric] || {};
+                            const newKey = key.replace("Entries/", "").replace("Parameters/", "");
+                            const groupingValue = row.getValue(key) as string;
+                            const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
+                            const exclude_nulls = true;
+                            const exclude_undefined = true;
+                            const formattedValue = formatCellValue(
+                              value, 
+                              cell.column.columnDef.meta?.dataType ?? "",
+                              cell.column.getSize(),
+                              exclude_nulls,
+                              exclude_undefined
+                            );
+                            return formattedValue;
+                          }}
+                          getSharedValue={(key: string) => {
+                            const slicedRowId = row.id.split(">").slice(0, -1).join(">");
+                            const groupingColumnId = row.groupingColumnId;
+                            const groupedSharedValues = (
+                              tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
+                                ? tableDataItem.groupedMetrics[groupingColumnId]
+                                : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
+                                  ? tableDataItem.groupedMetrics[slicedRowId] : { ["shared_value"]: {} }
+                            )["shared_value"] || {};
+                            const newKey = key.replace("Entries/", "").replace("Parameters/", "");
+                            const groupingValue = row.getValue(key) as string;
+                            const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
+                            const exclude_nulls = true;
+                            const exclude_undefined = true;
+                            const formattedValue = formatCellValue(
+                              value, 
+                              cell.column.columnDef.meta?.dataType ?? "", 
+                              cell.column.getSize(),
+                              exclude_nulls,
+                              exclude_undefined
+                            );
+                            return formattedValue;
+                          }}
+                        />
+                      )}
+                      FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
+                        <FooterCell
+                          column={column}
+                          resizeMap={resizeMap}
+                          draggingColumns={state.draggingColumns}
+                          draggingColumnPinner={draggingColumnPinner}
+                          setDraggingColumnPinner={setDraggingColumnPinner}
+                          columnPinning={columnPinning}
+                          columnOrder={columnOrder}
+                          table={table}
+                        >
+                          {
+                            column.columnDef.id === indicesTitle
+                              ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
+                              : !column.getIsGrouped()
+                                ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
+                                : null
+                          }
+                        </FooterCell>
                       }
-                    </FooterCell>
-                  }
-                  ExtraComponents={(table) => {
-                    return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
-                  }}
-                  ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
-                    <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
-                  }
-                  error={"detail" in logsData ? logsData["detail"] : undefined}
-                  onRenameColumn={renameColumn}
-                />
+                      ExtraComponents={(table) => {
+                        return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
+                      }}
+                      ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
+                        <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
+                      }
+                      error={"detail" in logsData ? logsData["detail"] : undefined}
+                      onRenameColumn={renameColumn}
+                    />
+                  </div>
+                ))}
               </div>
             ) : (
               <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />

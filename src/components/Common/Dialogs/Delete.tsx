@@ -7,7 +7,7 @@ import BaseDialog from "./Base";
 import ActionButton from "../Buttons/Action"
 import DeleteButton from "../Buttons/Delete";
 
-const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setShowDialog, customOpen, setCustomOpen, onDelete, icon = <Trash/>, text, expectedResponseType, className }: {
+const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setShowDialog, customOpen, setCustomOpen, onDelete, removeLabel, icon = <Trash/>, text, expectedResponseType, className }: {
     args: any[],
     type: string
     deletingFunction: (...args: any[]) => Promise<ResponseProps | string>,
@@ -17,6 +17,7 @@ const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setSh
     customOpen?: boolean,
     setCustomOpen?: (open: boolean) => any,
     onDelete?: () => void,
+    removeLabel?: string,
     icon?: ReactNode,
     text?: string,
     expectedResponseType?: ResponseProps | "string",
@@ -64,9 +65,44 @@ const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setSh
     }
     const button =   setShowDialog ? null : <ActionButton tooltip={tooltip} icon={icon} text={text} variant={variant} className={className} onClick={onClick}/>
 
+    let deleteText = "Delete";
+    if (removeLabel) {
+        deleteText = "Delete from all contexts";
+    }
+
     const title =   tooltip + " ?"
     const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
-    const footer =  success ? null : <DeleteButton disabled={loading} onClick={onSubmit} loading={loading}/>
+    const footer = success ? null : (
+        <div className="flex items-center gap-2">
+          {removeLabel && (
+            <ActionButton
+              tooltip={removeLabel}
+              text={removeLabel}
+              variant="secondary"
+              onClick={() => {
+                setError(false);
+                setLoading(true);
+                // Build removeArgs: unique list of [id, null] pairs
+                const [projectArg, contextArg, idsAndFieldsArg, sourceType] = args;
+                const uniqueIds = Array.from(new Set((idsAndFieldsArg as [number, any][]).map(([id]) => id)));
+                const removeFields = uniqueIds.map(id => [id, null]);
+                const removeArgs = [projectArg, contextArg, removeFields, sourceType];
+                deletingFunction(...removeArgs).then(data => {
+                    if (expectedResponseType === "string" || "info" in (data as ResponseProps)) {
+                        setSuccess(true);
+                        if (onDelete) {onDelete()} else {window.location.reload()};
+                        setTimeout(() => setOpen(false), 2000);
+                    } else {
+                        setError(true);
+                        setLoading(false);
+                    }
+                });
+              }}
+            />
+          )}
+          <DeleteButton disabled={loading} onClick={onSubmit} loading={loading} deleteText={deleteText}/>
+        </div>
+    )
 
     return (
         <BaseDialog button={button} title={title} body={body} footer={footer} open={showDialog ? showDialog : open} triggerClassName={className} setOpen={setShowDialog ? setShowDialog : setOpen}/>

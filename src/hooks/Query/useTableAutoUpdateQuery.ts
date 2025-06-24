@@ -12,6 +12,21 @@ import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData
 import { selectProjectById } from "@/contexts/selectors/project";
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Auto-updating table data query hook that:
  * • Automatically polls every 5s when auto_update === "true"
  * • Uses the same query key as usePatchTileQueryOptimistic for cache consistency
@@ -62,7 +77,7 @@ export function useTableAutoUpdateQuery(
       contextActions,
       fieldsActions
     );
-    console.log(
+    perfLog(
       `[perf] useTableAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(
         performance.now() - tProjectsAndContexts
       ).toFixed(2)} ms`
@@ -86,7 +101,7 @@ export function useTableAutoUpdateQuery(
     const tLogs = performance.now();
     const prevTableDataItem = queryClient.getQueryData<TableDataItem>(queryKey);
     const prevLogs = prevTableDataItem?.logs ?? [];
-    console.log(
+    perfLog(
       `[perf] useTableAutoUpdateQuery – getLogs: ${(
         performance.now() - tLogs
       ).toFixed(2)} ms`

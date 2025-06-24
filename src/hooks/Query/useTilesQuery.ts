@@ -3,9 +3,8 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { GranularTileActions, TileData, TilePosition } from '@/types/evals/grid';
 import { useQueryClient } from "@tanstack/react-query";
+import { TileType } from '@/contexts/slices/selectors/tile';
 
-// Define TileType as a string union if not imported
-type TileType = "Table" | "Plot" | "View" | "Editor" | "Terminal";
 
 /**
  * Hook to fetch all tiles for a tab

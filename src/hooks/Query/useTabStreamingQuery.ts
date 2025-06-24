@@ -15,6 +15,21 @@ import { useTabDataOptimistic, CompleteTabData } from './useTabDataOptimistic';
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { selectTabByName } from "@/contexts/selectors/tab";
 
+/**
+ * Debug flag for tab prefetching logging
+ * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable detailed prefetching logs
+ */
+const DEBUG_TAB_PREFETCHING = process.env.NEXT_PUBLIC_DEBUG_TAB_PREFETCHING === 'true';
+
+/**
+ * Conditional debug logger for tab prefetching
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_TAB_PREFETCHING) {
+    console.log(...args);
+  }
+};
+
 type StreamingActions = {
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
@@ -78,7 +93,7 @@ export function useTabStreamingQuery(
         throw new Error(`Active tab ${activeTabName} not found`);
       }
 
-      console.log("[useTabStreamingQuery] Active tab:", activeTab);
+      debugLog("[useTabStreamingQuery] Active tab:", activeTab);
 
       return buildCompleteTabData(
         interfaceId,
@@ -98,6 +113,7 @@ export function useTabStreamingQuery(
           refetchContexts: false,
           refetchFields: true,
           updateCache: true,
+          skipTileData: true,
         }
       );
     },
@@ -138,7 +154,7 @@ export function useTabStreamingQuery(
     const newPrefetching = new Set(prefetchQueue.map(tab => tab.name!));
     if (newPrefetching.size !== currentlyPrefetching.size || 
         !Array.from(newPrefetching).every(name => currentlyPrefetching.has(name))) {
-      console.log(`[useTabStreamingQuery] Updating prefetch queue:`, Array.from(newPrefetching));
+      debugLog(`[useTabStreamingQuery] Updating prefetch queue:`, Array.from(newPrefetching));
       setCurrentlyPrefetching(newPrefetching);
     }
   }, [prefetchQueue, currentlyPrefetching]);
@@ -152,7 +168,7 @@ export function useTabStreamingQuery(
           throw new Error("Missing required parameters for tab prefetching");
         }
 
-        console.log(`[useTabStreamingQuery] Starting prefetch for tab: ${tab.name} (non-active)`);
+        debugLog(`[useTabStreamingQuery] Starting prefetch for tab: ${tab.name} (non-active)`);
         
         const completeData = await buildCompleteTabData(
           interfaceId,
@@ -172,6 +188,7 @@ export function useTabStreamingQuery(
             refetchContexts: false,
             refetchFields: true,
             updateCache: true,
+            skipTileData: false,
           }
         );
 
@@ -198,7 +215,7 @@ export function useTabStreamingQuery(
       const tabName = prefetchQueue[index]?.name;
       if (tabName) {
         if (query.isSuccess) {
-          console.log(`[useTabStreamingQuery] Completed prefetch for tab: ${tabName}`);
+          debugLog(`[useTabStreamingQuery] Completed prefetch for tab: ${tabName}`);
           newCompleted.add(tabName);
           stillPrefetching.delete(tabName);
         } else if (query.isError) {
@@ -227,11 +244,11 @@ export function useTabStreamingQuery(
     
     if (cachedData) {
       // Tab data is already cached, switching will be instant
-      console.log(`[switchTab] Tab ${tabName} is cached - instant switch available`);
+      debugLog(`[switchTab] Tab ${tabName} is cached - instant switch available`);
       return true;
     } else {
       // Need to fetch data, will show loading state
-      console.log(`[switchTab] Tab ${tabName} not cached - will need to load`);
+      debugLog(`[switchTab] Tab ${tabName} not cached - will need to load`);
       return false;
     }
   }, [queryClient, interfaceId, projectId]);
@@ -246,7 +263,7 @@ export function useTabStreamingQuery(
   // Function to prefetch specific tab (if not already prefetched or in queue)
   const prefetchTab = useCallback(async (tabName: string) => {
     if (!prefetchedTabs.has(tabName) && !currentlyPrefetching.has(tabName) && projectId) {
-      console.log(`[prefetchTab] Manually prefetching tab: ${tabName} (non-active)`);
+      debugLog(`[prefetchTab] Manually prefetching tab: ${tabName} (non-active)`);
       
       // Find the tab to get its ID
       const state = storeApi.getState();
@@ -281,6 +298,7 @@ export function useTabStreamingQuery(
                 refetchContexts: false,
                 refetchFields: true,
                 updateCache: true,
+                skipTileData: true,
               }
             );
 
@@ -314,7 +332,7 @@ export function useTabStreamingQuery(
   }) => {
     if (!projectId) return null;
 
-    console.log(`[refreshTabData] Refreshing tab data for: ${tabName}`);
+    debugLog(`[refreshTabData] Refreshing tab data for: ${tabName}`);
     
     // Find the tab to get its ID
     const state = storeApi.getState();

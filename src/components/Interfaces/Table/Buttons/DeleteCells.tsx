@@ -62,6 +62,23 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 
 	const args = fieldsToDelete.length > 0 ? [project, context, fieldsToDelete, 'all'] : [];
 
+	// Show remove-from-context only if every selected row has all its fields selected
+	const selectedIds = Array.from(new Set(deletableCells.map(cell => cell.split('_')[0] as string)));
+	let removeLabel: string | undefined;
+	if (selectedIds.length > 0) {
+		const allMatch = selectedIds.every(rowId => {
+			const log = flattenedLogs.find(l => String(l.id) === rowId) as LogProps | undefined;
+			if (!log) return false;
+			const totalFields = Object.keys((log as any).params || {}).length
+				+ Object.keys((log as any).entries || {}).length;
+			const selectedCount = deletableCells.filter(cell => cell.split('_')[0] === rowId).length;
+			return selectedCount === totalFields;
+		});
+		if (allMatch) {
+			removeLabel = 'Remove from this context only';
+		}
+	}
+
 	return (showDialog &&
 		<DeleteDialog
 			deletingFunction={deleteLogFields}
@@ -70,6 +87,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 			showDialog={showDialog}
 			setShowDialog={setShowDialog}
 			onDelete={onDelete}
+			removeLabel={removeLabel}
 		/>
 	);
 }

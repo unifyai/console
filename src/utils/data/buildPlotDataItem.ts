@@ -5,6 +5,21 @@ import { processContext } from "@/utils/evals/columnOperations";
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/evals/common";
 
 /**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
+/**
  * Builds a PlotDataItem from plot data and other inputs
  * Can be used directly in client components instead of passing through a server component
  */
@@ -35,7 +50,7 @@ export async function buildPlotDataItem(
     logsActions
   );
   const tFetchPlotDataByTableEnd = performance.now();
-  console.log(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
+  perfLog(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
 
   // Process plot data
   let plotDataItem: PlotDataItem;

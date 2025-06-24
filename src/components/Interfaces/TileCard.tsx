@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, Suspense, lazy, useEffect } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Plus } from "lucide-react";
 import ActionButton from "../Common/Buttons/Action";
 import BaseDropdown from "../Common/Dropdowns/Base";
@@ -16,7 +16,7 @@ import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/refRegistry';
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
-const Tile = lazy(() => import('./Tile'));
+const TileRenderer = lazy(() => import('./TileRenderer'));
 
 interface TileCardProps {
   tileId: string;
@@ -157,28 +157,31 @@ const TileCard = ({
         </div>
 
         {/* Tile content */}
-        <Suspense fallback={
-          <div className="w-full h-full flex-1 flex items-center justify-center">
-            <SkeletonLoader />
-          </div>
-        }>
-          {children || (
-            <Tile
-                tileId={tileId}
-                tabId={tabId}
-                interfaceId={interfaceId}
-                projectId={projectId}
-                tileActions={tileActions}
-                logsActions={logsActions}
-                fieldsActions={fieldsActions}
-                derivedEntryActions={derivedEntryActions}
-                contextActions={contextActions}
-                codeActions={codeActions}
-                fileActions={fileActions}
-                projectsActions={projectsActions}
+        {!!tileType && <Suspense
+            key={tileId}
+            fallback={
+              <div className="w-full h-full flex-1 flex items-center justify-center">
+                <SkeletonLoader />
+              </div>
+            }
+          >
+            <TileRenderer
+              tileId={tileId}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              actions={{
+                tileActions,
+                projectsActions,
+                logsActions,
+                fieldsActions,
+                derivedEntryActions,
+                contextActions,
+                codeActions,
+                fileActions,
+              }}
             />
-          )}
-        </Suspense>
+          </Suspense>}
 
       </div>
     </div>
