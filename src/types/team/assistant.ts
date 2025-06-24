@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage, Gender } from "@cartesia/cartesia-js/api";
+import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 
 // Assistant profile types
@@ -117,8 +117,8 @@ export type VoiceOption = Voice & {
 };
 
 export interface GenerateSpeechPayload {
-    text: string;
-    provider: "cartesia" | "elevenlabs";
+    text: string; 
+provider: "cartesia" | "elevenlabs";
     voice_id: string;
     model_id?: string;
     output_format: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
@@ -136,8 +136,36 @@ export interface AvailablePhoneCountry {
     flag: string;
 }
 
+export interface VoiceDesignGeneratePreviewsRequest {
+    voice_description: string;
+    text?: string;
+    auto_generate_text?: boolean;
+    model_id?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";
+}
+
+export interface VoiceDesignPreviewItem {
+    audio_base_64: string;
+    generated_voice_id: string;
+    media_type: string;
+    duration_secs?: number;
+}
+
+export interface VoiceDesignGeneratePreviewsAPIResponse {
+    previews: VoiceDesignPreviewItem[];
+    text: string; 
+}
+
+export interface VoiceDesignCreateFromPreviewRequest {
+    generated_voice_id: string;
+    voice_name: string;
+    voice_description: string;
+    labels?: { [key: string]: string };
+    language: SupportedLanguage;
+    gender?: CartesiaGender | 'other';
+}
+
 export interface AssistantActions {
-  "assistant": {
+    "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
     create: (
         first_name: string, surname: string, age: number | null, region: string | null, 
@@ -146,29 +174,31 @@ export interface AssistantActions {
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
-  },
-  "photo": {    
+    },
+    "photo": {    
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
     downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
     animate: (formData: FormData) => Promise<VideoAnimationResponse | ResponseProps>;
-  },
-  "voice": {
+    },
+    "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
     register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
-  },
-  "contact": {
+    preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
+    design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    },
+    "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
-  },
-  "approval": {
+    },
+    "approval": {
     getProfile: () => Promise<HiringProfileData | ResponseProps>
     requestAccess: () => Promise<AssistantHiringApprovalResponse>;
     claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
-  }
+    }
 }

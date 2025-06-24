@@ -7,12 +7,13 @@ import { Button } from "@/components/UI/button";
 import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
+import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { AssistantActions, VoiceOption } from '@/types/team/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react'; 
+import { AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
+import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api"; 
 
 // Import Hooks
 import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
@@ -21,6 +22,7 @@ import { useTTSPreview } from '@/hooks/Team/useTTSPreview';
 
 // Import Utils/Constants
 import { languageOptions, getLanguageFlag } from '@/utils/team/voice-utils'; 
+import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions; 
@@ -30,6 +32,8 @@ interface VoiceCustomizationProps {
     onProcessingStateChange?: (isProcessing: boolean) => void;
 }
 
+type ActiveCreatorTab = "select" | "clone" | "design";
+
 export function VoiceCustomization({
     assistantActions,
     onVoiceSelected,
@@ -37,15 +41,15 @@ export function VoiceCustomization({
     disabled = false,
     onProcessingStateChange,
 }: VoiceCustomizationProps) {
-    const [activeTab, setActiveTab] = React.useState<'select' | 'create'>('select');
-    const [selectedCartesiaVoiceId, setSelectedCartesiaVoiceId] = React.useState<string | null>(initialVoiceId);
+    const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
+    const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
     const handleVoiceDeletedFromHook = React.useCallback((deletedVoiceId: string) => {
-        if (selectedCartesiaVoiceId === deletedVoiceId) {
-            setSelectedCartesiaVoiceId(null);
+        if (selectedVoiceId === deletedVoiceId) {
+            setSelectedVoiceId(null);
             onVoiceSelected(null);
         }
-    }, [selectedCartesiaVoiceId, onVoiceSelected]);
+    }, [selectedVoiceId, onVoiceSelected]);
 
     const {
         allDisplayableVoices,
@@ -56,13 +60,22 @@ export function VoiceCustomization({
 
     const handleVoiceCreatedAndSelectedByHook = React.useCallback((newVoice: VoiceOption) => {
         onVoiceSelected(newVoice);
-        setSelectedCartesiaVoiceId(newVoice.voice_id);
-        setActiveTab('select'); 
+        setSelectedVoiceId(newVoice.voice_id);
+        setActiveMainTab('select'); 
     }, [onVoiceSelected]);
 
     const {
+        createMode, setCreateMode, // Keep createMode, set it based on activeMainTab
         cloneFile, setCloneFile, cloneFileName, setCloneFileName,
         cloneName, setCloneName, cloneDescription, setCloneDescription, cloneLanguage, setCloneLanguage,
+        designVoiceDescription, setDesignVoiceDescription,
+        designSampleText, setDesignSampleText,
+        designPreviews, 
+        selectedPreviewId, setSelectedPreviewId,
+        isGeneratingPreviews, handleGenerateDesignPreviews,
+        designFinalVoiceName, setDesignFinalVoiceName,
+        designFinalLanguage, setDesignFinalLanguage,
+        designFinalGender, setDesignFinalGender,
         isProcessingCreate,
         handleCreateAndSelect,
         resetCreateForm, 
@@ -71,10 +84,9 @@ export function VoiceCustomization({
     // Effect to inform parent about processing state changes
     React.useEffect(() => {
         if (onProcessingStateChange) {
-            onProcessingStateChange(isProcessingCreate);
+            onProcessingStateChange(isProcessingCreate || isGeneratingPreviews);
         }
-    }, [isProcessingCreate, onProcessingStateChange]);
-
+    }, [isProcessingCreate, isGeneratingPreviews, onProcessingStateChange]);
 
     const {
         playPreview,
@@ -82,25 +94,32 @@ export function VoiceCustomization({
     } = useTTSPreview({ generateSpeechAction: assistantActions.voice.generate }); 
 
     React.useEffect(() => {
-        setSelectedCartesiaVoiceId(initialVoiceId);
-        if (initialVoiceId && activeTab !== 'select') { 
+        setSelectedVoiceId(initialVoiceId);
+        if (initialVoiceId && activeMainTab !== 'select') { 
              const voice = allDisplayableVoices.find(v => v.voice_id === initialVoiceId);
              if (voice) {
-                setActiveTab('select');
+                setActiveMainTab('select');
              }
         }
     }, [initialVoiceId, allDisplayableVoices]);
 
+    // Update createMode in useVoiceCreator hook when tab changes
+    React.useEffect(() => {
+        if (activeMainTab === 'clone') {
+            setCreateMode('clone');
+        } else if (activeMainTab === 'design') {
+            setCreateMode('design');
+        }
+    }, [activeMainTab, setCreateMode]);
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
-        setSelectedCartesiaVoiceId(voice.voice_id);
+        setSelectedVoiceId(voice.voice_id);
         onVoiceSelected(voice); 
     };
 
     const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
-        const isSelected = selectedCartesiaVoiceId === voice.voice_id;
-        const itemIsDisabled = disabled || isProcessingCreate; 
-
+        const isSelected = selectedVoiceId === voice.voice_id;
+        const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
         return (
             <div
                 className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
@@ -142,22 +161,51 @@ export function VoiceCustomization({
     });
     VoiceListItem.displayName = "VoiceListItem";
 
+    const audioPreviewRefs = React.useRef<Record<string, HTMLAudioElement | null>>({});
+
+    const playDesignPreviewAudio = (preview: VoiceDesignPreviewItem) => {
+         const audioId = `design-preview-${preview.generated_voice_id}`;
+         let audio = audioPreviewRefs.current[audioId];
+         if (!audio) {
+             audio = new Audio();
+             audioPreviewRefs.current[audioId] = audio;
+             audio.onended = () => setSelectedPreviewId(prev => prev === preview.generated_voice_id ? null : prev);
+         }
+         if (selectedPreviewId === preview.generated_voice_id && !audio.paused) {
+             audio.pause();
+             audio.currentTime = 0;
+             setSelectedPreviewId(null); 
+         } else {
+             Object.values(audioPreviewRefs.current).forEach(audElem => audElem?.pause()); 
+             audio.src = `data:${preview.media_type};base64,${preview.audio_base_64}`;
+             audio.play().catch(e => toast.error("Failed to play preview audio."));
+             setSelectedPreviewId(preview.generated_voice_id); 
+             setDesignFinalVoiceName(`${designVoiceDescription.substring(0,15) || 'Designed Voice'} (${getLanguageFlag(designFinalLanguage)})`);
+         }
+    };
 
     return (
-        <div className={cn("", (disabled || isProcessingCreate) && "opacity-70 cursor-not-allowed")}>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'select' | 'create')} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-9">
-                    <TabsTrigger value="select" disabled={disabled || isProcessingCreate}>Select Voice</TabsTrigger>
-                    <TabsTrigger value="create" disabled={disabled || isProcessingCreate}>Create Voice</TabsTrigger>
+        <div className={cn("", (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-70 cursor-not-allowed")}>
+            <Tabs 
+                value={activeMainTab} 
+                onValueChange={(v) => setActiveMainTab(v as ActiveCreatorTab)} 
+                className="w-full"
+            >
+                <TabsList className={cn("grid w-full h-9", VOICE_PROVIDER === 'elevenlabs' ? "grid-cols-3" : "grid-cols-2")}>
+                    <TabsTrigger value="select" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Select</TabsTrigger>
+                    <TabsTrigger value="clone" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Clone</TabsTrigger>
+                    {VOICE_PROVIDER === 'elevenlabs' && (
+                        <TabsTrigger value="design" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Design</TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value="select" className="mt-1">
-                    <ScrollArea className="h-[200px] p-2 border rounded-md">
+                    <ScrollArea className="h-[220px] p-2 border rounded-md">
                         <div className="space-y-1">
                             {isLoadingUserVoices ? (
                                 <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
                             ) : allDisplayableVoices.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating one.</p>
+                                <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating or designing one.</p>
                             ) : (
                                 allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
                             )}
@@ -165,39 +213,102 @@ export function VoiceCustomization({
                     </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="create" className="p-3 border rounded-md space-y-3">
-                    <>
-                        <div>
-                            <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
-                            {!cloneFileName ? (
-                                <label className="mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled || isProcessingCreate}>
-                                    <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span>
-                                    <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCloneFile(f); setCloneFileName(f.name); } }} disabled={disabled || isProcessingCreate} />
-                                </label>
-                            ) : (
-                                <div className="mt-0.5 flex items-center justify-between p-1.5 border rounded-md bg-muted/50 text-sm h-9">
-                                    <span className="truncate">{cloneFileName}</span>
-                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => { setCloneFile(null); setCloneFileName(null); }} disabled={disabled || isProcessingCreate}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate} /></div>
-                            <div>
-                                <Label htmlFor="clone-language" className="text-xs">Language of Clip</Label>
-                                <Select value={cloneLanguage} onValueChange={(v) => setCloneLanguage(v as SupportedLanguage)} disabled={disabled || isProcessingCreate}>
-                                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Lang..." /></SelectTrigger>
-                                    <SelectContent>{languageOptions.map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
-                                </Select>
+                <TabsContent value="clone" className="p-3 border rounded-md space-y-3 min-h-[236px]"> {/* Added min-height for consistency */}
+                    <div>
+                        <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
+                        {!cloneFileName ? (
+                            <label className="mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center disabled:opacity-50" aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
+                                <span className="flex items-center space-x-2"> <UploadCloud className="w-5 h-5 text-gray-600" /> <span className="font-medium text-gray-600 text-sm">Drop or <span className="text-blue-600 underline">browse</span></span></span>
+                                <input type="file" id="clone-file" accept=".wav,.mp3" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCloneFile(f); setCloneFileName(f.name); } }} disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                            </label>
+                        ) : (
+                            <div className="mt-0.5 flex items-center justify-between p-1.5 border rounded-md bg-muted/50 text-sm h-9">
+                                <span className="truncate">{cloneFileName}</span>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => { setCloneFile(null); setCloneFileName(null); }} disabled={disabled || isProcessingCreate || isGeneratingPreviews}><Trash2 className="h-4 w-4" /></Button>
                             </div>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                        <div>
+                            <Label htmlFor="clone-language" className="text-xs">Language of Clip</Label>
+                            <Select value={cloneLanguage} onValueChange={(v) => setCloneLanguage(v as SupportedLanguage)} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
+                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Lang..." /></SelectTrigger>
+                                <SelectContent>{languageOptions.map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
+                            </Select>
                         </div>
-                        <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate} /></div>
-                    </>
-
-                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate}>
-                        {isProcessingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
+                    </div>
+                    <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                    
+                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
+                        {isProcessingCreate && createMode === 'clone' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select from Clone
                     </Button>
                 </TabsContent>
+
+                {VOICE_PROVIDER === 'elevenlabs' && (
+                    <TabsContent value="design" className="p-3 border rounded-md space-y-3 min-h-[236px]"> {/* Added min-height */}
+                        <div className="space-y-3">
+                            <div>
+                                <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
+                                <Textarea id="design-desc" value={designVoiceDescription} onChange={e => setDesignVoiceDescription(e.target.value)} placeholder="e.g., A calm and soothing female voice with a British accent..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                            </div>
+                            <div>
+                                <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
+                                <Input id="design-sample" value={designSampleText} onChange={e => setDesignSampleText(e.target.value)} placeholder="e.g., Hello, this is a sample text." className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                            </div>
+                            <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !designVoiceDescription.trim()}>
+                                {isGeneratingPreviews ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Generate Previews
+                            </Button>
+
+                            {designPreviews.length > 0 && (
+                                <div className="space-y-2 pt-2">
+                                    <Label className="text-xs">Select a Preview to Finalize:</Label>
+                                    <ScrollArea className="h-[100px] border rounded-md p-1">
+                                        {designPreviews.map((preview, idx) => (
+                                            <Button
+                                                key={preview.generated_voice_id}
+                                                variant={selectedPreviewId === preview.generated_voice_id ? "default" : "outline"}
+                                                size="sm"
+                                                className="w-full justify-start h-8 mb-1 text-xs"
+                                                onClick={() => playDesignPreviewAudio(preview)}
+                                                disabled={isGeneratingPreviews || isProcessingCreate}
+                                            >
+                                                <MicVocal className="mr-2 h-3 w-3" />
+                                                Preview {idx + 1}
+                                                {/* Indicator for which preview is selected for playback/finalization */}
+                                                {selectedPreviewId === preview.generated_voice_id && <CheckCircle2 className="ml-auto h-3 w-3 text-green-500"/>}
+                                            </Button>
+                                        ))}
+                                    </ScrollArea>
+                                    {selectedPreviewId && (
+                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                                            <div><Label htmlFor="design-final-name" className="text-xs">Final Voice Name</Label><Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                                            <div>
+                                                <Label htmlFor="design-final-lang" className="text-xs">Language</Label>
+                                                <Select value={designFinalLanguage} onValueChange={(v) => setDesignFinalLanguage(v as SupportedLanguage)} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
+                                                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>{languageOptions.map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            </div>
+                                             <div>
+                                                <Label htmlFor="design-final-gender" className="text-xs">Gender</Label>
+                                                <Select value={designFinalGender} onValueChange={(v) => setDesignFinalGender(v as CartesiaGender | 'other')} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
+                                                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>{["male", "female"].map(g => <SelectItem key={g} value={g} className="text-sm">{g}</SelectItem>)}
+                                                     <SelectItem value="other" className="text-sm">Other/Neutral</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (createMode === 'design' && !selectedPreviewId)}>
+                                {isProcessingCreate && createMode === 'design' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select from Design
+                            </Button>
+                        </div>
+                    </TabsContent>
+                )}
             </Tabs>
         </div>
     );
