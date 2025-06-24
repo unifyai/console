@@ -712,18 +712,6 @@ const LogsTable = ({
     });
   }, [panelCount]);
 
-  // Dynamically adjust scroll-padding-top so snapped rows land just below the header
-  useEffect(() => {
-    panelScrollRefs.forEach((ref) => {
-      const container = ref.current;
-      if (!container) return;
-      const thead = container.querySelector('thead');
-      if (thead instanceof HTMLElement) {
-        container.style.scrollPaddingTop = `${thead.clientHeight}px`;
-      }
-    });
-  }, [panelScrollRefs]);
-
   return (
     <div
       ref={containerRef} 

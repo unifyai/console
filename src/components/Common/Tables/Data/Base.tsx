@@ -97,6 +97,21 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     const tableHeaderRef = useRef<HTMLTableSectionElement>(null); // For <thead>
     const tableFooterRef = useRef<HTMLTableSectionElement>(null); // For <tfoot>
 
+    // Dynamically adjust scroll-padding-top so rows snap just below the header, even if it resizes
+    useEffect(() => {
+        const header = tableHeaderRef.current;
+        const container = scrollContainerRef?.current;
+        if (!header || !container) return;
+        // Create a ResizeObserver to watch header height changes
+        const ro = new ResizeObserver(() => {
+            container.style.scrollPaddingTop = `${header.clientHeight}px`;
+        });
+        ro.observe(header);
+        // Initial measurement
+        container.style.scrollPaddingTop = `${header.clientHeight}px`;
+        return () => ro.disconnect();
+    }, [scrollContainerRef, tableHeaderRef]);
+
     // Effect to handle data updates
     useEffect(() => {
         setIsGroupingUpdating(false);
