@@ -13,6 +13,7 @@ import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
 import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart, mergeHeadersHorizontally } from "@/utils/evals/table";
+import { getParentID } from "@/utils/evals/columnOperations";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -170,10 +171,43 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
       const rowNum = currentOrder.find(id => id === "RowNumbering");
       // Other columns excluding the index
       const rest = currentOrder.filter(id => id !== "RowNumbering");
-      // Grouped columns, in the order defined by grouping state
-      const grouped = groupingIds.filter(id => rest.includes(id));
-      // Remaining columns not grouped
-      const remaining = rest.filter(id => !grouped.includes(id));
+      // Build a set of all IDs to move: include grouping keys and their entire header groups
+      const moveSet = new Set<string>();
+      groupingIds.forEach(groupId => {
+        // Always include the grouping key itself if present
+        if (rest.includes(groupId)) {
+          moveSet.add(groupId);
+        }
+        // Determine the immediate parent header ID (if any)
+        const lastSlash = groupId.lastIndexOf('/');
+        if (lastSlash > -1) {
+          const parentId = groupId.slice(0, lastSlash);
+          // Include the parent header ID
+          if (rest.includes(parentId)) {
+            moveSet.add(parentId);
+          }
+          // Include all descendants (siblings) under this parent
+          rest.forEach(id => {
+            if (id.startsWith(parentId + '/')) {
+              moveSet.add(id);
+            }
+          });
+        }
+      });
+      // Partition rest into those to move and remaining, preserving original order
+      const grouped = rest.filter(id => moveSet.has(id));
+      // Within each parent group, put newly grouped columns first
+      grouped.sort((a, b) => {
+        const pa = getParentID(a);
+        const pb = getParentID(b);
+        if (pa === pb) {
+          const aIsG = groupingIds.includes(a);
+          const bIsG = groupingIds.includes(b);
+          if (aIsG !== bIsG) return aIsG ? -1 : 1;
+        }
+        return 0;
+      });
+      const remaining = rest.filter(id => !moveSet.has(id));
       const newOrder = [
         ...(rowNum ? [rowNum] : []),
         ...grouped,
