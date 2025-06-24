@@ -196,11 +196,7 @@ export default function NavMenu() {
       const url = `/interfaces?project=${encodeURIComponent(p.title)}`;
       try { router.prefetch(url); } catch (_) { /* ignore prefetch errors */ }
     });
-  }, [projects, router]);
-
-  useEffect(() => {
-    setOpen(false); 
-  }, [setOpen]); 
+  }, [projects, router]); 
 
   const navItemsFromList = NavListSource();
   const teamItem = navItemsFromList.find(item => item.title === "Team");

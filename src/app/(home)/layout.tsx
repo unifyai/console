@@ -10,7 +10,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import "@/styles/globals.css";
 
-import { SidebarTrigger } from "@/components/UI/sidebar"
+import { SidebarInset } from "@/components/UI/sidebar";
 import ThemeLoader from "@/components/ThemeLoader";
 import LoadingScreen from "@/components/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
@@ -23,11 +23,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             <ThemeLoader>
               <NavMenu/>
-              <Suspense fallback={<LoadingScreen/>}>
-                <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
-                  <NuqsAdapter>{children}</NuqsAdapter>
-                </main>
-              </Suspense>
+              <SidebarInset>
+                <Suspense fallback={<LoadingScreen/>}>
+                  <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
+                    <NuqsAdapter>{children}</NuqsAdapter>
+                  </main>
+                </Suspense>
+              </SidebarInset>
               <Toaster />
             </ThemeLoader>
           </Providers>
