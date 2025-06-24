@@ -60,18 +60,3 @@ export const cloneVoice = async (apiKey: string) => {
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error during voice clone." }; }
     };
 };
-
-export const localizeVoice = async (apiKey: string) => {
-    return async (baseCartesiaVoiceId: string, name: string, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender, description?: string, dialect?: string): Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps> => {
-        "use server";
-        try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/localize`, {
-                method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ base_cartesia_voice_id: baseCartesiaVoiceId, name, description, target_language: targetLanguage, original_speaker_gender: originalSpeakerGender, dialect })
-            });
-            const data = await response.json();
-            if (!response.ok) return { detail: data.detail || `Voice localization failed: ${response.statusText}` };
-            return data.info as (Voice & {info?:string; is_preset?: boolean});
-        } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error during voice localization." }; }
-    };
-};

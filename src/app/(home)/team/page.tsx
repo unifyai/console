@@ -3,7 +3,7 @@ import Main from "@/components/Team/Main";
 import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/team/photo";
-import { listVoices, registerVoice, deleteVoice, cloneVoice, localizeVoice } from "@/lib/team/voice"; 
+import { listVoices, registerVoice, deleteVoice, cloneVoice } from "@/lib/team/voice"; 
 import { listAllAssistantEmails, listAvailablePhoneCountries } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
@@ -42,7 +42,6 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             register: await registerVoice(apiKey),
             delete: await deleteVoice(apiKey),
             clone: await cloneVoice(apiKey),
-            localize: await localizeVoice(apiKey),
         },
         "contact": {
             listAllAssistantEmails: await listAllAssistantEmails(apiKey),

@@ -9,10 +9,10 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption } from '@/types/team/assistant';
-import { Globe, Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, X } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { SupportedLanguage, Gender as CartesiaGender, LocalizeTargetLanguage } from "@cartesia/cartesia-js/api";
+import { SupportedLanguage } from "@cartesia/cartesia-js/api";
 
 // Import Hooks
 import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
@@ -20,7 +20,7 @@ import { useVoiceCreator } from '@/hooks/Team/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Team/useTTSPreview';
 
 // Import Utils/Constants
-import { languageOptions, getLanguageFlag, getLanguageLabel, cartesiaLocalizeGenderOptions } from '@/utils/team/voice-utils';
+import { languageOptions, getLanguageFlag } from '@/utils/team/voice-utils';
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions; // Full actions for hooks
@@ -61,16 +61,11 @@ export function VoiceCustomization({
     }, [onVoiceSelected]);
 
     const {
-        createMode, setCreateMode,
         cloneFile, setCloneFile, cloneFileName, setCloneFileName,
         cloneName, setCloneName, cloneDescription, setCloneDescription, cloneLanguage, setCloneLanguage,
-        localizeBaseVoiceInfo, localizeNewName, setLocalizeNewName,
-        localizeNewDescription, setLocalizeNewDescription, localizeTargetLanguage, setLocalizeTargetLanguage,
-        localizeOriginalGender, setLocalizeOriginalGender, 
         isProcessingCreate,
         handleCreateAndSelect,
         resetCreateForm, 
-        prepareForLocalize,
     } = useVoiceCreator(assistantActions.voice, handleVoiceCreatedAndSelectedByHook, fetchUserVoices);
 
     // Effect to inform parent about processing state changes
@@ -103,20 +98,15 @@ export function VoiceCustomization({
         onVoiceSelected(voice); 
     };
 
-    const handleLocalizeRequestFromList = (baseVoice: VoiceOption) => {
-        prepareForLocalize(baseVoice, languageOptions); 
-        setActiveTab('create');
-    };
-
     const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
         const isSelected = selectedCartesiaVoiceId === voice.voice_id;
-        const itemIsDisabled = disabled || isProcessingCreate; // Disable item interactions if any creation is ongoing or main form disabled
+        const itemIsDisabled = disabled || isProcessingCreate; 
 
         return (
             <div
                 className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
                     isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30",
-                    itemIsDisabled && "opacity-60 cursor-not-allowed hover:bg-transparent" // Style for disabled item
+                    itemIsDisabled && "opacity-60 cursor-not-allowed hover:bg-transparent" 
                 )}
                 onClick={() => !itemIsDisabled && handleSelectVoiceDisplay(voice)}
             >
@@ -140,11 +130,6 @@ export function VoiceCustomization({
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
 
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); handleLocalizeRequestFromList(voice); }} disabled={itemIsDisabled}><Globe className="h-4 w-4" /></Button>
-                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Localize "${voice.name}"`}</p></TooltipContent></Tooltip>
-                    </TooltipProvider>
                     
                     {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
@@ -179,8 +164,7 @@ export function VoiceCustomization({
                 </TabsContent>
 
                 <TabsContent value="create" className="p-3 border rounded-md space-y-3">
-                    {/* Clone Mode UI */}
-                    {createMode === 'clone' && (<>
+                    <>
                         <div>
                             <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
                             {!cloneFileName ? (
@@ -206,48 +190,9 @@ export function VoiceCustomization({
                             </div>
                         </div>
                         <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate} /></div>
-                    </>)}
+                    </>
 
-                    {/* Localize Mode UI */}
-                    {createMode === 'localize' && localizeBaseVoiceInfo && (<>
-                        <div className="py-1 px-2 border rounded-md bg-muted/50 text-sm h-9 flex items-center justify-between">
-                            <div className="flex items-center">
-                                <span>Base: </span>
-                                <span className="font-semibold ml-1">{getLanguageFlag(localizeBaseVoiceInfo.language)} {localizeBaseVoiceInfo.name}</span>
-                            </div>
-                            <TooltipProvider delayDuration={100}>
-                                <Tooltip><TooltipTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 ml-1 text-muted-foreground hover:text-destructive" onClick={() => resetCreateForm(true)} disabled={disabled || isProcessingCreate}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>Cancel localization & switch to Clone</p></TooltipContent></Tooltip>
-                            </TooltipProvider>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div><Label htmlFor="localize-name" className="text-xs">New Voice Name</Label><Input id="localize-name" value={localizeNewName} onChange={e => setLocalizeNewName(e.target.value)} className="h-8 text-sm" disabled={disabled || isProcessingCreate} /></div>
-                            <div>
-                                <Label htmlFor="localize-target-lang" className="text-xs">Target Language</Label>
-                                <Select value={localizeTargetLanguage} onValueChange={(v) => setLocalizeTargetLanguage(v as LocalizeTargetLanguage)} disabled={disabled || isProcessingCreate}>
-                                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Target Lang..." /></SelectTrigger>
-                                    <SelectContent>{languageOptions.filter(l => l.value !== localizeBaseVoiceInfo.language).map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div>
-                            <Label htmlFor="localize-gender" className="text-xs">Original Speaker Gender (of base voice)</Label>
-                            <Select value={localizeOriginalGender} disabled>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                <SelectContent>{cartesiaLocalizeGenderOptions.map(g => <SelectItem key={g.value} value={g.value} className="text-sm">{g.label}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div><Label htmlFor="localize-desc" className="text-xs">Description (Optional)</Label><Textarea id="localize-desc" value={localizeNewDescription} onChange={e => setLocalizeNewDescription(e.target.value)} placeholder="Notes about localized voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate} /></div>
-                    </>)}
-                    {createMode === 'localize' && !localizeBaseVoiceInfo && (
-                        <p className="text-sm text-muted-foreground text-center py-4">Select a voice from the Select Voice tab and click the <Globe className="inline h-4 w-4"/> icon to localize it.</p>
-                    )}
-
-
-                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || (createMode === 'localize' && !localizeBaseVoiceInfo)}>
+                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate}>
                         {isProcessingCreate ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
                     </Button>
                 </TabsContent>

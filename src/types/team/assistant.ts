@@ -145,7 +145,6 @@ export interface AssistantActions {
     register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>; 
-    localize: (baseCartesiaVoiceId: string, name: string, targetLanguage: LocalizeTargetLanguage, originalSpeakerGender: CartesiaGender, description?: string, dialect?:string) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
   },
   "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
