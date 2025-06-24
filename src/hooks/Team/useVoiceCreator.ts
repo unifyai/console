@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Voice, AssistantActions, VoiceOption } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
+import { SupportedLanguage } from "@cartesia/cartesia-js/api";
+import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useVoiceCreator(
     assistantVoiceActions: AssistantActions['voice'],
@@ -18,7 +19,7 @@ export function useVoiceCreator(
 
     const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
 
-    const resetCreateForm = React.useCallback(() => {
+    const resetCreateForm = React.useCallback(() => { 
         setCloneFile(null); setCloneFileName(null); setCloneName(''); setCloneDescription(''); setCloneLanguage('en');
     }, []);
 
@@ -38,20 +39,22 @@ export function useVoiceCreator(
             formData.append('name', cloneName);
             formData.append('language', cloneLanguage);
             if (cloneDescription) formData.append('description', cloneDescription);
+            formData.append('provider', VOICE_PROVIDER);
             backendResponse = await assistantVoiceActions.clone(formData);
 
             if (backendResponse && (backendResponse as ResponseProps).detail) {
                 const errorDetail = (backendResponse as ResponseProps).detail || `Unknown clone error.`;
                 console.error(`Error creating voice: ${errorDetail}`);
-                toast.error(`Error creating voice`, { id: toastId, duration: 7000 });
+                toast.error(`Error creating voice: ${errorDetail}`, { id: toastId, duration: 7000 });
             } 
             else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
                 const voiceDataFromBackend = backendResponse as VoiceOption;
 
                 const fullNewVoice: VoiceOption = {
                     ...voiceDataFromBackend,
+                    provider: voiceDataFromBackend.provider || VOICE_PROVIDER, 
                     isUserVoiceInOrchestra: true, 
-                    is_preset: voiceDataFromBackend.is_preset ?? false 
+                    is_preset: voiceDataFromBackend.is_preset ?? false,
                 };
                 toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
                 if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
@@ -65,7 +68,7 @@ export function useVoiceCreator(
 
         } catch (error: any) {
             console.error(`Error creating voice: ${error.message}`);
-            toast.error(`Voice creation process failed`, { id: toastId, duration: 7000 });
+            toast.error(`Voice creation process failed: ${error.message}`, { id: toastId, duration: 7000 });
         } finally {
             setIsProcessingCreate(false);
         }
