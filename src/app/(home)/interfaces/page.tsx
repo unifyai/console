@@ -107,8 +107,32 @@ import { redirect } from "next/navigation";
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 import Main from "@/components/Interfaces/Server/Main.server";
+import { SearchParams } from "nuqs";
 
-const InterfacesPage = async ({ searchParams }: { searchParams: { project?: string, interface?: string } }) => {
+/**
+ * Debug flag for UI initial state logging
+ * Set NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true to enable detailed logging
+ */
+const DEBUG_UI_INITIAL_STATE = process.env.NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE === 'true';
+
+/**
+ * Conditional debug logger for UI initial state
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_UI_INITIAL_STATE) {
+    console.log(...args);
+  }
+};
+
+const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) => {
+    // Debug logging for searchParams
+    debugLog("[InterfacesPage] ==> SERVER COMPONENT RENDER <==");
+    debugLog("[InterfacesPage] Received searchParams:", searchParams);
+    debugLog("[InterfacesPage] Project:", searchParams?.project);
+    debugLog("[InterfacesPage] Interface:", searchParams?.interface);
+    debugLog("[InterfacesPage] All keys:", Object.keys(searchParams));
+    debugLog("[InterfacesPage] Timestamp:", new Date().toISOString());
+
     // get user and api key
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const user = await getCurrentUser();
@@ -255,8 +279,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: { project?: stri
 
     return (
         <Main
-            project={searchParams?.project ?? null}
-            interface_={searchParams?.interface ?? null}
+            project={searchParams?.project as string | null}
+            interface_={searchParams?.interface as string | null}
             actions={
                 {
                     projectsActions,

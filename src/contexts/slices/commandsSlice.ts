@@ -139,7 +139,7 @@ export const createCommandsSlice: StateCreator<
                         case "focus-pane":
                         case "global-context":
                         case "save-interface":
-                        case "reset-tab":
+                        case "reset-interface":
                             return { ...cmd, disabled: !project || !tabNames.length };
                         default:
                             return cmd;

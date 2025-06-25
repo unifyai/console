@@ -77,6 +77,14 @@ This application includes several debug environment variables that enable detail
   - Includes logging for interface, tab, and tile synchronization operations
   - Useful for debugging state consistency issues and sync conflicts
 
+### Command Operations
+
+- **`NEXT_PUBLIC_DEBUG_COMMANDS=true`**
+  - Enables detailed logging for command execution and management
+  - Shows project creation, deletion, selection, and interface operations
+  - Includes command palette state updates, modal state changes, and navigation operations
+  - Useful for debugging command system workflows and UI state management
+
 ### Usage Example
 
 To enable all debug features during development, add these to your `.env.local` file:
@@ -87,6 +95,7 @@ NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
 NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
 NEXT_PUBLIC_DEBUG_PERFORMANCE=true
 NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
+NEXT_PUBLIC_DEBUG_COMMANDS=true
 ```
 
 **Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.
@@ -179,45 +188,4 @@ To ensure a consistent and organized codebase, we follow these naming convention
 - **Examples**:
   - `Header.tsx`
   - `UserProfile.tsx`
-  - Directory: `components/UserProfile/UserProfile.tsx`
-
-### Files
-- **Utility/Helper Functions**: camelCase
-- **General Files**: kebab-case
-- **Configuration Files**: lowercase
-- **Examples**:
-  - `apiClient.ts` (utility)
-  - `dataFormatter.ts` (utility)
-  - `next.config.js` (configuration)
-  - `README.md`, `LICENSE` (general)
-
-### Hooks
-- **Usage**: Prefix with `use`, use camelCase.
-- **Examples**:
-  - `useAuth.ts`
-  - `useFetchData.ts`
-
-### Styles
-- **Usage**: kebab-case, associate with component where applicable.
-- **Examples**:
-  - `header.module.css`
-  - `globals.css`
-  - `user-profile.module.css`
-
-### API Routes
-- **Usage**: Lowercase and kebab-case.
-- **Examples**:
-  - `pages/api/user/login.ts`
-  - `pages/api/products/[id].ts`
-
-### Dynamic Routes
-- **Usage**: Wrap dynamic segments in brackets, use camelCase inside brackets.
-- **Examples**:
-  - `[userId].tsx`
-  - `[productSlug].tsx`
-
-### Public Assets
-- **Usage**: kebab-case
-- **Examples**:
-  - `logo.png`
-  - `background-image.jpg`
+  - Directory: `

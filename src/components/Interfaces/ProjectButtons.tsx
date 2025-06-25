@@ -70,7 +70,6 @@ const ProjectButtons = ({
     const projects = useStoreContext((s) => s.projects);
     const projectsData = projects.map((p: string) => ({ path: p, type: "file" }));
     const setProjects = useStoreContext((s) => s.setProjects);
-    const setProject = setProjectQueryParam;
 
     // Interface states and actions with granular access
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabIdOrName || "");
@@ -83,7 +82,7 @@ const ProjectButtons = ({
         projectId: project,
         interfaceId,
         tabId: tabIdOrName,
-        setProject,
+        setProjectQueryParam,
         setTabQueryParam,
         setInterfaceQueryParam,
         projectActions,
@@ -162,11 +161,7 @@ const ProjectButtons = ({
                                 return await createProjectCommand(name).then(
                                     (response: ResponseProps) => {
                                         if ("info" in response) {
-                                            return selectProjectCommand({ path: name }).then(
-                                                () => {
-                                                    return response;
-                                                }
-                                            );
+                                            return response;
                                         }
                                         throw new Error(response.detail);
                                     }

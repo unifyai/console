@@ -13,7 +13,7 @@
 
 import { useCallback, useMemo, useEffect } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { Command } from "@/contexts/slices/selectors/commands";
+import { Command, CommandCategory, CommandIcon } from "@/contexts/slices/selectors/commands";
 import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
 import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Query/useProjectsQuery";
 import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions } from "@/types/evals/grid";
@@ -26,6 +26,21 @@ import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
 /**
+ * Debug flag for command operations logging
+ * Set NEXT_PUBLIC_DEBUG_COMMANDS=true to enable detailed command execution logs
+ */
+const DEBUG_COMMANDS = process.env.NEXT_PUBLIC_DEBUG_COMMANDS === 'true';
+
+/**
+ * Conditional debug logger for command operations
+ */
+const debugLog = (...args: any[]) => {
+  if (DEBUG_COMMANDS) {
+    console.log(...args);
+  }
+};
+
+/**
  * Simplified arguments for useCommand
  */
 export interface UseCommandArgs {
@@ -34,7 +49,7 @@ export interface UseCommandArgs {
   interfaceId?: string | null;
   tabId?: string | null;
   /* Router/query-param helpers */
-  setProject?: (project: string | null) => void;
+  setProjectQueryParam?: (project: string | null) => void;
   setTabQueryParam?: (tab: string | null) => void;
   setInterfaceQueryParam?: (interface_: string | null) => void;
    /* Server-side actions */
@@ -61,7 +76,7 @@ export function useCommand(args: UseCommandArgs) {
     projectId,
     interfaceId,
     tabId,
-    setProject,
+    setProjectQueryParam,
     setTabQueryParam,
     setInterfaceQueryParam,
     projectActions,
@@ -115,11 +130,13 @@ export function useCommand(args: UseCommandArgs) {
   /* -------------------------------------------------------------------------- */
 
   const selectProject = useCallback(async (proj: FileProps | undefined) => {
-    if (!setProject || !setTabQueryParam || !setInterfaceQueryParam) return;
+    if (!setProjectQueryParam || !setTabQueryParam || !setInterfaceQueryParam) return;
 
     const newProj = proj ? proj.path : null;
+    debugLog("[selectProject] Starting project selection:", { newProj, currentProject: projectId });
     
     // Set UI state
+    debugLog("[selectProject] Setting UI pending states");
     tabUIActions?.setPending(true);
     tabUIActions?.setDataPending(true);
     interfaceDataActions?.setTabNames([]);
@@ -127,81 +144,103 @@ export function useCommand(args: UseCommandArgs) {
     // Then fetch interfaces for this project if it's not null
     if (newProj && setInterfaceQueryParam) {
       try {
+        debugLog("[selectProject] Fetching interfaces for project:", newProj);
         // Use the interfaceActions.list method to fetch interfaces
         const interfacesList = await interfaceActions.list(newProj);
+        debugLog("[selectProject] Found interfaces:", interfacesList?.length || 0);
         
         // If interfaces exist, don't auto-select - let InterfaceSelector show
         if (interfacesList && interfacesList.length > 0) {
+          debugLog("[selectProject] Interfaces exist, navigating to interface selector");
           setDemo(null);
           setTabQueryParam(null);
           setInterfaceQueryParam(null); // Don't auto-select interface
-          setProject(newProj);
+          setProjectQueryParam(newProj);
         } else {
-          // No interfaces exist, create default
+          // No interfaces exist, let the interface selector page handle interface creation manually
+          debugLog("[selectProject] No interfaces found, navigating to interface selector for manual creation");
           setDemo(null);
-          setTabQueryParam("tab1");
-          setInterfaceQueryParam("interface1");
-          setProject(newProj);
+          setTabQueryParam(null);
+          setInterfaceQueryParam(null);
+          setProjectQueryParam(newProj);
         }
       } catch (error) {
         console.error("Error fetching interfaces for project", error);
-        // On error, create default
+        // On error, let the interface selector page handle interface creation manually
+        debugLog("[selectProject] Error fetching interfaces, falling back to manual creation");
         setDemo(null);
-        setTabQueryParam("tab1");
-        setInterfaceQueryParam("interface1");
-        setProject(newProj);
+        setTabQueryParam(null);
+        setInterfaceQueryParam(null);
+        setProjectQueryParam(newProj);
       }
 
       // Ensure project directory exists & has .env
       try {
+        debugLog("[selectProject] Checking for .env file in project:", newProj);
         const res: any = await fileActions.list(newProj);
         const hasEnv = Array.isArray(res)
           ? res.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"))
           : Array.isArray(res.files) && res.files.some((e:any)=> (typeof e === "string" ? e === ".env" : e.name === ".env"));
         if (!hasEnv) {
+          debugLog("[selectProject] Creating .env file for project:", newProj);
           await fileActions.write(newProj, { ".env": "" });
+        } else {
+          debugLog("[selectProject] .env file already exists");
         }
       } catch(e) {
         // Directory might not exist; create .env to implicitly create dir
+        debugLog("[selectProject] Project directory may not exist, creating .env to initialize:", newProj);
         try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
       }
 
       // Ensure .env file is not empty
+      debugLog("[selectProject] Verifying .env file content");
       const res: any = await fileActions.read(newProj, ".env");
       const content = (res && typeof res === "object" && "content" in res) ? (res as any).content : "";
       if (content === "") {
+        debugLog("[selectProject] .env file is empty, initializing with empty content");
         await fileActions.write(newProj, { ".env": "" });
       }
     } else {
+      debugLog("[selectProject] No project selected or missing setInterfaceQueryParam, using demo mode");
       setDemo(null);
       setTabQueryParam("tab1");
       setInterfaceQueryParam("interface1");
-      setProject(newProj);
+      setProjectQueryParam(newProj);
       if (newProj) {
         try { await fileActions.write(newProj, { ".env": "" }); } catch(_) {}
       }
     }
+    
+    debugLog("[selectProject] Project selection completed:", newProj);
   }, [
     tabUIActions, 
     interfaceDataActions, 
     setDemo,
     setTabQueryParam, 
-    setProject, 
+    setProjectQueryParam, 
     setInterfaceQueryParam, 
     interfaceActions,
-    fileActions
+    fileActions,
+    projectId
   ]);
 
   const createProject = useCallback(async (name: string): Promise<ResponseProps> => {
-    if (!setProject || !setTabQueryParam || !setInterfaceQueryParam) {
+    if (!setProjectQueryParam || !setTabQueryParam || !setInterfaceQueryParam) {
       return { error: "Missing required parameters" } as unknown as ResponseProps;
     }
 
+    debugLog("[createProject] Starting project creation:", name);
+    tabUIActions?.setPending(true);
+    tabUIActions?.setDataPending(true);
+
     // First create the base project on the backend (simple project)
+    debugLog("[createProject] Creating base project on backend");
     await createOnlyProjectMutation.mutateAsync({ name, actions: projectActions });
 
     // Immediately create an .env file in the new project
     try {
+      debugLog("[createProject] Creating .env file for new project");
       await fileActions.write(name, { ".env": "" });
     } catch(e) { console.error("Failed to write .env", e); }
 
@@ -210,8 +249,10 @@ export function useCommand(args: UseCommandArgs) {
       ...defaultInterface,
       project_id: name,
     };
+    debugLog("[createProject] Creating default interface:", newInterface.name);
 
     // Create interface, tab, tiles
+    debugLog("[createProject] Creating interface, tab, and tiles");
     await createProjectMutation.mutateAsync({
       interface: newInterface,
       tab: defaultTab,
@@ -224,17 +265,17 @@ export function useCommand(args: UseCommandArgs) {
     });
 
     // Update UI & local store
+    debugLog("[createProject] Updating UI state and local store");
     setDemo(null);
-    setProject(name);
-    setInterfaceQueryParam("interface1");
-    setTabQueryParam("tab1");
-    tabUIActions?.setPending(true);
-    tabUIActions?.setDataPending(true);
-    interfaceDataActions?.setTabNames(["tab1"]);
+    setProjectQueryParam(name);
+    setInterfaceQueryParam(defaultInterface.name);
+    setTabQueryParam(defaultTab.name);
+    interfaceDataActions?.setTabNames([defaultTab.name]);
 
     // Ensure local project list includes the new project
     setProjects([...projects, name]);
-
+    debugLog("[createProject] Updated projects list, new count:", projects.length + 1);
+    debugLog("[createProject] Project creation completed successfully:", name);
     return { info: "Project created successfully" } as unknown as ResponseProps;
   }, [
     createOnlyProjectMutation,
@@ -244,9 +285,8 @@ export function useCommand(args: UseCommandArgs) {
     tabActions,
     tileActions,
     setDemo,
-    setProject,
+    setProjectQueryParam,
     setInterfaceQueryParam,
-    setTabQueryParam,
     tabUIActions,
     interfaceDataActions,
     setProjects,
@@ -255,46 +295,57 @@ export function useCommand(args: UseCommandArgs) {
   ]);
 
   const closeProject = useCallback(() => {
-    if (!setProject || !setTabQueryParam || !setInterfaceQueryParam) return;
+    if (!setProjectQueryParam || !setTabQueryParam || !setInterfaceQueryParam) return;
     
+    debugLog("[closeProject] Closing current project:", projectId);
     tabUIActions?.setPending(true);
     tabUIActions?.setDataPending(true);
     setTabQueryParam(null);
     interfaceDataActions?.setTabNames([]);
     setInterfaceQueryParam(null);
-    setProject(null);
+    setProjectQueryParam(null);
+    debugLog("[closeProject] Project closed, UI state reset");
   }, [
     tabUIActions, 
     setTabQueryParam, 
     interfaceDataActions, 
     setInterfaceQueryParam, 
-    setProject
+    setProjectQueryParam,
+    projectId
   ]);
 
   const deleteProject = useCallback(async (name: string): Promise<ResponseProps> => {
+    debugLog("[deleteProject] Starting project deletion:", name);
+    
     // Remove project directory via fileActions helper
     try {
+      debugLog("[deleteProject] Deleting project directory");
       await fileActions.delete(name, "", true);
     } catch (e) {
       console.error("Failed to delete project directory", e);
     }
     
+    debugLog("[deleteProject] Deleting project from backend");
     await deleteProjectMutation.mutateAsync({ name, actions: projectActions });
 
     // UI updates
+    debugLog("[deleteProject] Updating UI and local state");
     closeProject();
     // Filter local list
-    setProjects(projects.filter((p) => p !== name));
+    const newProjects = projects.filter((p) => p !== name);
+    setProjects(newProjects);
+    debugLog("[deleteProject] Updated projects list, new count:", newProjects.length);
 
-    if (tabUIActions && setTabQueryParam && interfaceDataActions && setInterfaceQueryParam && setProject) {
+    if (tabUIActions && setTabQueryParam && interfaceDataActions && setInterfaceQueryParam && setProjectQueryParam) {
       tabUIActions.setPending(true);
       tabUIActions.setDataPending(true);
       setTabQueryParam(null);
       interfaceDataActions.setTabNames([]);
       setInterfaceQueryParam(null);
-      setProject(null);
+      setProjectQueryParam(null);
     }
 
+    debugLog("[deleteProject] Project deletion completed:", name);
     return { info: "Project deleted successfully" } as unknown as ResponseProps;
   }, [
     deleteProjectMutation, 
@@ -306,7 +357,7 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions,
     setTabQueryParam,
     setInterfaceQueryParam,
-    setProject,
+    setProjectQueryParam,
     fileActions
   ]);
 
@@ -315,6 +366,8 @@ export function useCommand(args: UseCommandArgs) {
       console.error("Cannot reset tab: missing required parameters");
       return;
     }
+    
+    debugLog("[resetTabCommand] Starting tab reset for project:", projectId, "interface:", interfaceId);
     
     try {
       tabUIActions.setPending(true);
@@ -328,6 +381,9 @@ export function useCommand(args: UseCommandArgs) {
         });
       }
       
+      // Use the updated restoration hook with the correct parameters
+      debugLog("[resetTabCommand] Executing restoration mutation");
+
       // Perform the reset operation
       await restoreTabWithTilesMutation.mutateAsync({
         interface_id: interfaceId,
@@ -346,13 +402,16 @@ export function useCommand(args: UseCommandArgs) {
         });
       }
       
+      debugLog("[resetTabCommand] Setting UI states after restoration");
       tabUIActions.setResetting(true);
       tabUIActions.setEdit(true);
       tabUIActions.setPending(false);
       
       // Refresh the UI
+      debugLog("[resetTabCommand] Refreshing router");
       router.refresh();
       
+      debugLog("[resetTabCommand] Tab reset completed successfully");
     } catch (error) {
       console.error("Failed to restore from checkpoints:", error);
       
@@ -380,18 +439,22 @@ export function useCommand(args: UseCommandArgs) {
   ]);
 
   const setFileUpload = (fileUploadOpen: boolean) => {
+    debugLog("[setFileUpload] Setting file upload modal state:", fileUploadOpen);
     storeSetFileUploadOpen(fileUploadOpen);
   }
 
   const setFocusPane = (focusPaneOpen: boolean) => {
+    debugLog("[setFocusPane] Setting focus pane state:", focusPaneOpen);
     storeSetFocusPaneOpen(focusPaneOpen);
   }
 
   const setGlobalContext = (globalContextOpen: boolean) => {
+    debugLog("[setGlobalContext] Setting global context modal state:", globalContextOpen);
     storeSetGlobalContextOpen(globalContextOpen);
   }
 
   const setSaveInterface = (saveInterfaceOpen: boolean) => {
+    debugLog("[setSaveInterface] Setting save interface modal state:", saveInterfaceOpen);
     storeSetSaveInterfaceOpen(saveInterfaceOpen);
   }
 
@@ -400,22 +463,22 @@ export function useCommand(args: UseCommandArgs) {
   /* -------------------------------------------------------------------------- */
 
   const commands = useMemo<Command[]>(() => {
-    return [
+    const commandList: Command[] = [
       {
         id: "select-projects",
         label: "Select Projects",
-        category: "project",
-        icon: "Folder",
+        category: "project" as CommandCategory,
+        icon: "Folder" as CommandIcon,
         disabled: false,
-        action: (proj) => {
+        action: (proj: FileProps | undefined) => {
           selectProject(proj);
         },
       },
       {
         id: "create-project",
         label: "Create Project",
-        category: "project",
-        icon: "Plus",
+        category: "project" as CommandCategory,
+        icon: "Plus" as CommandIcon,
         disabled: false,
         action: (name: string) => {
           createProject(name);
@@ -424,8 +487,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "close-project",
         label: "Close Project",
-        category: "project",
-        icon: "X",
+        category: "project" as CommandCategory,
+        icon: "X" as CommandIcon,
         disabled: !projectId,
         action: () => {
           closeProject();
@@ -434,8 +497,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "delete-project",
         label: "Delete Project",
-        category: "project",
-        icon: "Trash",
+        category: "project" as CommandCategory,
+        icon: "Trash" as CommandIcon,
         disabled: !projectId,
         action: (name: string) => {
           deleteProject(name);
@@ -444,8 +507,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "file-upload",
         label: "Upload Files",
-        category: "interface",
-        icon: "Upload",
+        category: "interface" as CommandCategory,
+        icon: "Upload" as CommandIcon,
         disabled: !projectId,
         action: (fileUploadOpen: boolean) => {
           setFileUpload(fileUploadOpen);
@@ -454,8 +517,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "focus-pane",
         label: "Open Focus Pane",
-        category: "interface",
-        icon: "Focus",
+        category: "interface" as CommandCategory,
+        icon: "Focus" as CommandIcon,
         disabled: !projectId || !tabNames.length,
         action: (focusPaneOpen: boolean) => {
           setFocusPane(focusPaneOpen);
@@ -464,8 +527,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "global-context",
         label: "Edit Global Context",
-        category: "interface",
-        icon: "FolderTree",
+        category: "interface" as CommandCategory,
+        icon: "FolderTree" as CommandIcon,
         disabled: !projectId || !tabNames.length,
         action: (globalContextOpen: boolean) => {
           setGlobalContext(globalContextOpen);
@@ -474,8 +537,8 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "save-interface",
         label: "Save Tab",
-        category: "interface",
-        icon: "Save",
+        category: "interface" as CommandCategory,
+        icon: "Save" as CommandIcon,
         disabled: !projectId || !tabNames.length,
         action: (saveInterfaceOpen: boolean) => {
           setSaveInterface(saveInterfaceOpen);
@@ -484,14 +547,19 @@ export function useCommand(args: UseCommandArgs) {
       {
         id: "reset-interface",
         label: "Reset Tab",
-        category: "interface",
-        icon: "ListRestart",
+        category: "interface" as CommandCategory,
+        icon: "ListRestart" as CommandIcon,
         disabled: !projectId || !tabNames.length || !tabId,
         action: () => {
           resetTabCommand();
         },
       }
     ];
+    
+    debugLog("[commands] Built command list with", commandList.length, "commands. Available commands:", 
+      commandList.map(cmd => `${cmd.id}${cmd.disabled ? ' (disabled)' : ''}`).join(', '));
+    
+    return commandList;
   }, [
     projectId,
     tabNames,
@@ -510,6 +578,7 @@ export function useCommand(args: UseCommandArgs) {
   // Keep the zustand slice in-sync whenever `commands` changes
   useEffect(() => {
     if (commands.length > 0 && (!storeCommands.length || storeCommands.length !== commands.length)) {
+      debugLog("[useEffect] Updating store commands. Previous count:", storeCommands.length, "New count:", commands.length);
       storeSetCommands(commands);
     }
   }, [commands, storeCommands.length, storeSetCommands]);
@@ -522,6 +591,7 @@ export function useCommand(args: UseCommandArgs) {
    * Map a command ID to its implementation
    */
   const mapCommandToAction = (commandId: string) => {
+    debugLog("[mapCommandToAction] Mapping command ID to action:", commandId);
     switch (commandId) {
       case "select-projects":
         return selectProject;
@@ -542,6 +612,7 @@ export function useCommand(args: UseCommandArgs) {
       case "reset-interface":
         return resetTabCommand;
       default:
+        debugLog("[mapCommandToAction] Unknown command ID:", commandId);
         return null;
     }
   };

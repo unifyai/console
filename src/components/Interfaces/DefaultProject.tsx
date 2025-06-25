@@ -87,6 +87,7 @@ const DefaultProject = ({
         if (projects?.includes(demoInterface.project_id || "")) {
             setTimeout(() => {
                 setProjectQueryParam(demoInterface.project_id || null);
+                setDemo(null);
                 setCreate(null);
             }, 3000);
             return;

@@ -151,7 +151,7 @@ const Interface = ({
     projectId: projectQueryParam,
     interfaceId,
     tabId: activeTabId,
-    setProject: setProjectQueryParam,
+    setProjectQueryParam,
     setTabQueryParam: setTabQueryParamFromSync,
     setInterfaceQueryParam,
     projectActions: projectsActions,

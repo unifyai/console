@@ -64,6 +64,11 @@ export default async function Main({
   actions: InterfaceWrapperActions;
 }) {
 
+  debugLog("[Main.server] === PARAMETER DEBUG ===");
+  debugLog("[Main.server] Received project:", project, typeof project);
+  debugLog("[Main.server] Received interface_:", interface_, typeof interface_);
+  debugLog("[Main.server] === END PARAMETER DEBUG ===");
+
   debugLog("[Main.server] Starting render with:", { project, interface_ });
   const qc = getQueryClient();
 
