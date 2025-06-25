@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueries, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
-import { TableDataItem } from "@/types/evals/grid";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { TableBoundaries, TableDataItem, TableMetrics } from "@/types/evals/grid";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTileData, useTileMeta } from "@/contexts/hooks/tile";
 import { LogFieldsResponseProps, TableArguments } from "@/types/evals/logs";
@@ -7,13 +7,26 @@ import { useTabMeta } from "@/contexts/hooks/tab";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { setDeep } from "@/utils/objectPath";
 import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
+import { getColumnMetrics } from "@/utils/evals/common";
+import { LogsActions } from "@/types/evals/grid";
+
+/**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
 
 export const EMPTY_TABLEDATAITEM: TableDataItem = {
   columnContexts: [],
-  baseIndex: undefined,
-  hiddenColumns: undefined,
-  columnOrdering: undefined,
-  selection: undefined,
   fields: {},
   logsData: { params: {}, logs: [], count: 0, groups: {} },
   totalPages: 0,
@@ -21,9 +34,7 @@ export const EMPTY_TABLEDATAITEM: TableDataItem = {
   paramsProperties: [],
   logs: [],
   params: [],
-  metrics: {},
   groupedMetrics: {},
-  boundaries: { minimums: {}, maximums: {} },
   metric: "",
 };
 
@@ -348,4 +359,114 @@ export function useUpdateTableDataItem(tileId: string) {
       queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId], refetchType: 'none' });
     },
   });
+}
+
+/**
+ * Hook for fetching table metrics in the background
+ * @param tileId ID of the tile to get metrics for
+ * @param tabId ID of the tab containing the tile
+ * @param enabled Whether the query should be enabled
+ * @param logsActions Actions for fetching logs data
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ * @param filterExpression Filter expression
+ * @param metric Metric to calculate
+ * @param caller Debug string to identify which component called this
+ */
+export function useTableMetricsQuery(
+  tileId: string | null,
+  tabId: string | null,
+  enabled: boolean = true,
+  logsActions?: LogsActions,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[],
+  filterExpression?: string | null,
+  metric?: string,
+  caller?: string
+) {
+  const callerInfo = caller || "unknown";
+  const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length);
+
+  return useQuery<TableMetrics>({
+    queryKey: ["tableMetrics", tileId, tabId],
+    queryFn: async () => {
+      if (!logsActions || !projectId || !columns || columns.length === 0) {
+        throw new Error("Missing required parameters for metrics query");
+      }
+
+      const tStart = performance.now();
+      const result = await getColumnMetrics(
+        projectId,
+        context || null,
+        columnContext || null,
+        columns,
+        filterExpression || null,
+        null,
+        metric || "mean",
+        logsActions
+      ) as TableMetrics;
+      const tEnd = performance.now();
+      perfLog(`[pref] getColumnMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
+      return result;
+    },
+    enabled: isEnabled,
+    staleTime: 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+  });
+}
+
+/**
+ * Hook for fetching table boundaries (min/max values) in the background
+ * @param tileId ID of the tile to get boundaries for
+ * @param tabId ID of the tab containing the tile
+ * @param enabled Whether the query should be enabled
+ */
+export function useTableBoundariesQuery(
+  tileId: string | null,
+  tabId: string | null,
+  enabled: boolean = true
+) {
+  return useQuery<TableBoundaries>({
+    queryKey: ["tableBoundaries", tileId, tabId],
+    // No queryFn - data is only populated by background triggers
+    enabled: !!(tileId && tabId && enabled),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,   // 10 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+  });
+}
+
+/**
+ * Hook for invalidating metrics query and tracking loading state
+ * @param tileId ID of the tile
+ * @param tabId ID of the tab containing the tile
+ */
+export function useInvalidateTableMetrics(
+  tileId: string | null,
+  tabId: string | null
+) {
+  const queryClient = useQueryClient();
+
+  const resetMetrics = useCallback(() => {
+    if (tileId && tabId) {
+      // Invalidate the query to trigger a refetch
+      // This allows ColumnMetrics to monitor the loading state
+      queryClient.invalidateQueries({
+        queryKey: ["tableMetrics", tileId, tabId],
+        refetchType: 'active'
+      });
+    }
+  }, [queryClient, tileId, tabId]);
+
+  return { resetMetrics };
 }

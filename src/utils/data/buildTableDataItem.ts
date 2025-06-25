@@ -1,10 +1,11 @@
-import { TableDataItem, TileData } from "@/types/evals/grid";
+import { TableBoundaries, TableDataItem, TableMetrics, TileData } from "@/types/evals/grid";
 import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
-import { getLogsDetails } from "@/utils/evals/common";
+import { getColumnMetrics, extractLogsData } from "@/utils/evals/common";
 import { LogsActions } from "@/types/evals/grid";
 import { processContext } from "@/utils/evals/columnOperations";
 import { maybeFlattenGroupedLogs } from "../evals/grouping";
+import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Debug flag for performance logging
@@ -22,8 +23,76 @@ const perfLog = (...args: any[]) => {
 };
 
 /**
+ * Triggers metrics fetching in the background without blocking
+ */
+export async function buildTableMetricsQuery(
+  projectId: string,
+  tile: TileData,
+  context: string | null,
+  columnContext: string | null,
+  columns: string[],
+  filterExpression: string | null,
+  metric: string,
+  logsActions: LogsActions,
+  queryClient: QueryClient,
+) {
+    // Set the query data in the background
+    queryClient.fetchQuery({
+      queryKey: ["tableMetrics", tile.id, tile.tab_id],
+      queryFn: async () => {
+        const tStart = performance.now();
+        const result = await getColumnMetrics(
+          projectId, context, columnContext, columns, filterExpression, null, metric, logsActions
+        ) as TableMetrics;
+        const tEnd = performance.now();
+        perfLog(`[perf] background metrics fetch: ${(tEnd - tStart).toFixed(2)}ms`);
+        return result;
+      },
+      staleTime: 5 * 60 * 1000,
+    }).catch((error: unknown) => {
+      console.error("Background metrics fetch failed:", error);
+    });
+}
+
+/**
+ * Triggers boundaries (min/max) fetching in the background without blocking
+ */
+export async function buildTableBoundariesQuery(
+  projectId: string,
+  tile: TileData,
+  context: string | null,
+  columnContext: string | null,
+  columns: string[],
+  logsActions: LogsActions,
+  queryClient: QueryClient,
+) {
+    // Set the query data in the background
+    queryClient.fetchQuery({
+      queryKey: ["tableBoundaries", tile.id, tile.tab_id],
+      queryFn: async () => {
+        const tStart = performance.now();
+        const [minimums, maximums] = await Promise.all([
+          getColumnMetrics(
+            projectId, context, columnContext, columns, null, null, "min", logsActions
+          ) as Promise<TableMetrics>,
+          getColumnMetrics(
+            projectId, context, columnContext, columns, null, null, "max", logsActions
+          ) as Promise<TableMetrics>
+        ]);
+        const tEnd = performance.now();
+        perfLog(`[perf] background boundaries fetch: ${(tEnd - tStart).toFixed(2)}ms`);
+        return { minimums, maximums } as TableBoundaries;
+      },
+      staleTime: 5 * 60 * 1000,
+    }).catch((error: unknown) => {
+      console.error("Background boundaries fetch failed:", error);
+    });
+}
+
+/**
  * Builds a TableDataItem from logs data and other inputs
  * Can be used directly in client components instead of passing through a server component
+ * Now optimized to load main table data fast while triggering metrics/boundaries in background
  */
 export async function buildTableDataItem(
   tile: TileData,
@@ -31,16 +100,17 @@ export async function buildTableDataItem(
   logsData: LogsResponseProps,
   projectId: string,
   logsActions: LogsActions,
+  queryClient: QueryClient,
   previousLogs?: LogProps[] | GroupedLogProps[]
 ): Promise<TableDataItem> {
-  // Build filter expression
-  const filterExpression = buildFilterExpression(
-    tile.filters,
-    tile.common_filter,
-    tile.column_context,
-    tile.freeze,
-    fields
-  );
+  // // Build filter expression
+  // const filterExpression = buildFilterExpression(
+  //   tile.filters,
+  //   tile.common_filter,
+  //   tile.column_context,
+  //   tile.freeze,
+  //   fields
+  // );
 
   // Process column contexts
   const prefixes = Object.keys(fields).map(
@@ -58,22 +128,44 @@ export async function buildTableDataItem(
     }).flat().sort())
   );
 
-  // Get logs details
-  const tGetLogsDetails = performance.now();
-  const { entriesProperties, paramsProperties, logs, params, metrics, boundaries } = await getLogsDetails(
+  // Get logs details WITHOUT metrics and boundaries for faster loading
+  const textractLogsData = performance.now();
+  const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
     logsData,
     fields,
-    tile.context || null,
     tile.column_context || null,
-    projectId,
-    filterExpression,
-    tile.metric,
     tile.table_tile?.sorting || null,
-    tile.table_tile?.hidden_columns,
-    logsActions
+    tile.table_tile?.hidden_columns
   );
-  const tGetLogsDetailsEnd = performance.now();
-  perfLog(`[perf] getLogsDetails: ${(tGetLogsDetailsEnd - tGetLogsDetails).toFixed(2)} ms`);
+  const textractLogsDataExtract = performance.now();
+  perfLog(`[perf] extractLogsData: ${(textractLogsDataExtract - textractLogsData).toFixed(2)} ms`);
+
+  // Trigger background queries for metrics and boundaries if we have the necessary dependencies
+  const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
+  if (columns.length > 0) {
+    // // Don't await these - let them run in background
+    // buildTableMetricsQuery(
+    //   projectId,
+    //   tile,
+    //   tile.context || null,
+    //   tile.column_context || null,
+    //   columns,
+    //   filterExpression,
+    //   tile.metric ?? "mean",
+    //   logsActions,
+    //   queryClient,
+    // );
+
+    buildTableBoundariesQuery(
+      projectId,
+      tile,
+      tile.context || null,
+      tile.column_context || null,
+      columns,
+      logsActions,
+      queryClient,
+    );
+  }
 
   const limit = 20; // Default page size
 
@@ -82,13 +174,9 @@ export async function buildTableDataItem(
     newCells = getNewCells(previousLogs, logs);
   }
 
-  // Construct table data item
+  // Construct table data item (without metrics and boundaries for now)
   const tableDataItem: TableDataItem = {
     columnContexts: columnContexts,
-    baseIndex: tile.table_tile?.selected,
-    hiddenColumns: tile.table_tile?.hidden_columns,
-    columnOrdering: tile.table_tile?.column_order,
-    selection: tile.table_tile?.selected,
     fields,
     logsData,
     totalPages: Math.ceil(logsData.count / limit),
@@ -96,8 +184,6 @@ export async function buildTableDataItem(
     paramsProperties,
     logs,
     params,
-    metrics,
-    boundaries,
     metric: tile.metric ?? "mean",
     newCells: newCells
   };
@@ -114,6 +200,7 @@ export async function fetchAndBuildTableDataItem(
   fields: LogFieldsResponseProps,
   projectId: string,
   logsActions: LogsActions,
+  queryClient: QueryClient,
   previousLogs?: LogProps[] | GroupedLogProps[],
   signal?: AbortSignal
 ): Promise<TableDataItem> {
@@ -167,7 +254,7 @@ export async function fetchAndBuildTableDataItem(
 
   // Build table data item using the fetched logs data
   const tBuildTableDataItem = performance.now();
-  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions, previousLogs);
+  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, logsActions, queryClient, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
   perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
 

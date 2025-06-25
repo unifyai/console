@@ -8,6 +8,21 @@ import { maybeConvertRawToGroupedLogs } from "./grouping";
 import { TreeNode } from "@/types/common";
 import { showErrorToast } from "@/components/notifications";
 
+/**
+ * Debug flag for performance logging
+ * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
+ */
+const DEBUG_PERFORMANCE = process.env.NEXT_PUBLIC_DEBUG_PERFORMANCE === 'true';
+
+/**
+ * Conditional debug logger for performance metrics
+ */
+const perfLog = (...args: any[]) => {
+  if (DEBUG_PERFORMANCE) {
+    console.log(...args);
+  }
+};
+
 /* 
     Convert object / string inputs to their length value and return the value of numeric inputs. 
 */
@@ -160,17 +175,40 @@ export const getLogsDetails = async (
   // Getting metrics for filtered logs, and min / max values for full logs.
   // Min / max bounds are used to set the filtering range for numeric columns
   try {
+    const totalStart = performance.now();
+
     const [metrics, minimums, maximums] = await Promise.all([
-      getColumnMetrics(
-        project, context, column_context, columns, filterExpression, null, metric, logsActions
-      ) as Promise<{ [key: string]: number }>,
-      getColumnMetrics(
-        project, context, column_context, columns, null, null, "min", logsActions
-      ) as Promise<{ [key: string]: number }>,
-      getColumnMetrics(
-        project, context, column_context, columns, null, null, "max", logsActions
-      ) as Promise<{ [key: string]: number }>
+      (async () => {
+        const start = performance.now();
+        const result = await getColumnMetrics(
+          project, context, column_context, columns, filterExpression, null, metric, logsActions
+        ) as { [key: string]: number };
+        const end = performance.now();
+        perfLog(`[perf] getColumnMetrics (filtered metrics) took ${(end - start).toFixed(2)}ms`);
+        return result;
+      })(),
+      (async () => {
+        const start = performance.now();
+        const result = await getColumnMetrics(
+          project, context, column_context, columns, null, null, "min", logsActions
+        ) as { [key: string]: number };
+        const end = performance.now();
+        perfLog(`[perf] getColumnMetrics (minimums) took ${(end - start).toFixed(2)}ms`);
+        return result;
+      })(),
+      (async () => {
+        const start = performance.now();
+        const result = await getColumnMetrics(
+          project, context, column_context, columns, null, null, "max", logsActions
+        ) as { [key: string]: number };
+        const end = performance.now();
+        perfLog(`[perf] getColumnMetrics (maximums) took ${(end - start).toFixed(2)}ms`);
+        return result;
+      })()
     ]);
+
+    const totalEnd = performance.now();
+    perfLog(`[perf] All three getColumnMetrics calls completed in parallel, total time: ${(totalEnd - totalStart).toFixed(2)}ms`);
 
     // Min-max boundaries for numeric and time-like column filters
     const boundaries = { minimums, maximums }

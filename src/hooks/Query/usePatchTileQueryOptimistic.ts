@@ -278,7 +278,8 @@ export function usePatchTileQueryOptimistic() {
               optimisticTile,
               fields,
               projectId,
-              logsActions
+              logsActions,
+              queryClient
             );
             perfLog(
               `[perf] onMutate(${name}) – fetchAndBuildTableDataItem: ${(

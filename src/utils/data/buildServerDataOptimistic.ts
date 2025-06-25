@@ -170,7 +170,8 @@ export async function buildOptimisticTableDataItem(
     tile,
     fields,
     projectId,
-    logsActions
+    logsActions,
+    queryClient
   );
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)

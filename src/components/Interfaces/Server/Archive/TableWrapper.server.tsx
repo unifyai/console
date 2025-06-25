@@ -103,7 +103,7 @@ export default async function TableWrapper({
   const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
 
   // Build table data item
-  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, actions.logsActions);
+  const tableDataItem = await buildTableDataItem(tile, fields, logsData, projectId, actions.logsActions, qc);
 
   // Prefetch the table data item
   await qc.prefetchQuery({
