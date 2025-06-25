@@ -14,6 +14,7 @@ import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
+import { VoiceListItemSkeleton } from './AssistantHireVoiceItemSkeleton';
 
 // Import Hooks
 import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
@@ -224,12 +225,24 @@ export function VoiceCustomization({
                 </TabsList>
 
                 <TabsContent value="select" className="mt-1">
-                    <ScrollArea className="h-[260px] p-2 border rounded-md">
-                        <div className="space-y-1">
-                            {isLoadingUserVoices ? (
-                                <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
-                            ) : allDisplayableVoices.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating or designing one.</p>
+                    <ScrollArea className="h-[260px] p-2 border rounded-md relative"> {/* Added relative for absolute positioning of skeleton overlay */}
+                        {isLoadingUserVoices && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col p-0 space-y-1 overflow-hidden">
+                                {/* The skeletons are inside this overlay */}
+                                {[...Array(5)].map((_, i) => (
+                                    <VoiceListItemSkeleton key={`voice-skeleton-${i}`} />
+                                ))}
+                            </div>
+                        )}
+                        <div className={cn(
+                            "space-y-1",
+                            isLoadingUserVoices && "opacity-0" // Hide actual content when loading
+                        )}>
+                            {/* This part is only rendered if not loading, or visible underneath if opacity wasn't 0 */}
+                            {!isLoadingUserVoices && allDisplayableVoices.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full">
+                                    <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating or designing one.</p>
+                                </div>
                             ) : (
                                 allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
                             )}
