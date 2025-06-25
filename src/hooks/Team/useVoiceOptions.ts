@@ -3,23 +3,30 @@ import { VoiceOption, Voice, AssistantActions } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
-import voicePresetsConstant from "@/constants/assistants/voice_presets.js"; // Ensure this file has 'provider'
+import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
+import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useVoiceOptions(
     assistantVoiceActions: AssistantActions['voice'],
     onVoiceDeleted?: (voiceId: string) => void
 ) {
-    const [presetVoices] = React.useState<VoiceOption[]>(
-        (voicePresetsConstant as Voice[]).map(vp => ({
+    const [presetVoices] = React.useState<VoiceOption[]>(() => {
+        const allPresets = voicePresetsConstant as Voice[];
+        // Filter presets based on the VOICE_PROVIDER setting
+        const filteredPresets = allPresets.filter(
+            preset => preset.provider === VOICE_PROVIDER
+        );
+        return filteredPresets.map(vp => ({
             ...vp,
             voice_id: vp.voice_id,
             language: vp.language as SupportedLanguage,
             gender: vp.gender as CartesiaGender,
-            provider: vp.provider || "cartesia" as Voice["provider"],
+            provider: vp.provider,
             is_preset: true, 
             isUserVoiceInOrchestra: false, 
-        }))
-    );
+        }));
+    });
+
     const [userVoicesFromOrchestra, setUserVoicesFromOrchestra] = React.useState<VoiceOption[]>([]);
     const [isLoadingUserVoices, setIsLoadingUserVoices] = React.useState(false);
 
@@ -28,9 +35,16 @@ export function useVoiceOptions(
         try {
             const result = await assistantVoiceActions.list();
             if (Array.isArray(result)) {
+                // Also filter user's voices from DB if their provider doesn't match VOICE_PROVIDER
+                // This might be too restrictive if a user has old voices from a different provider
+                // For now, let's assume voices in DB are valid regardless of current VOICE_PROVIDER setting,
+                // or that the backend /assistant/voice list already filters by active provider if necessary.
+                // The main goal here is to filter the *presets*.
+                // If user voices from DB should also be filtered by current VOICE_PROVIDER, add filter here:
+                // .filter(v => v.provider === VOICE_PROVIDER)
                 setUserVoicesFromOrchestra(result.map(v => ({
                     ...v,
-                    provider: v.provider || "cartesia",
+                    provider: v.provider || VOICE_PROVIDER,
                     isUserVoiceInOrchestra: true, 
                     is_preset: v.is_preset ?? false,
                 })));
@@ -52,11 +66,20 @@ export function useVoiceOptions(
     }, [fetchUserVoicesFromOrchestra]);
 
     const allDisplayableVoices = React.useMemo(() => {
+        // User voices from Orchestra are already potentially filtered or should be shown regardless of current preset provider setting.
+        // Preset voices are now filtered at initialization.
         const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map(uv => uv.voice_id));
-        const combined = [
-            ...userVoicesFromOrchestra, // These are definitively in the DB
-            ...presetVoices.filter(upv => !orchestraVoiceIds.has(upv.voice_id)) // Add constant presets not in DB
-        ];
+        
+        // Add user voices first
+        const combined = [...userVoicesFromOrchestra];
+
+        // Add filtered preset voices that are not already present as user voices (e.g., user registered a preset)
+        presetVoices.forEach(pv => {
+            if (!orchestraVoiceIds.has(pv.voice_id)) {
+                combined.push(pv);
+            }
+        });
+        
         const finalMap = new Map<string, VoiceOption>();
         combined.forEach(voice => {
             if (!finalMap.has(voice.voice_id)) {
@@ -69,6 +92,7 @@ export function useVoiceOptions(
                 }
             }
         });
+
         const finalCombined = Array.from(finalMap.values());
         finalCombined.sort((a, b) => {
             // Primary sort: Non-presets first

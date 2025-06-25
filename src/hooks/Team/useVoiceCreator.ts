@@ -67,8 +67,9 @@ export function useVoiceCreator(
                 text: trimmedSampleText.length > 0 ? trimmedSampleText : undefined,
             });
 
-            if ('detail' in result) { 
-                toast.error((result as ResponseProps).detail || "Failed to generate previews.", { id: toastId });
+            if ('detail' in result) {
+                console.error(`[useVoiceCreator] ${(result as ResponseProps).detail || "Failed to generate previews."}`)
+                toast.error("Failed to generate previews.", { id: toastId });
             } else { 
                 setDesignPreviews(result.previews || []);
                 if ((result.previews || []).length === 0) {
@@ -78,7 +79,8 @@ export function useVoiceCreator(
                 }
             }
         } catch (error: any) {
-            toast.error(`Preview generation failed: ${error.message}`, { id: toastId });
+            console.error(`[useVoiceCreator] Preview generation failed: ${error.message}`)
+            toast.error(`Preview generation failed.`, { id: toastId });
         } finally {
             setIsGeneratingPreviews(false);
         }
@@ -150,7 +152,7 @@ export function useVoiceCreator(
 
         } catch (error: any) {
             console.error(`Error creating voice: ${error.message}`);
-            toast.error(`Voice creation process failed: ${error.message}`, { id: toastId, duration: 7000 });
+            toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
         } finally {
             setIsProcessingCreate(false);
         }
