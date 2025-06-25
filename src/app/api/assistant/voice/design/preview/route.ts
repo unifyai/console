@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
     try {
         requestBody = await request.json();
     } catch (error) {
+        console.error("Failed to parse JSON body in POST /api/assistant/voice/design/preview:", error);
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
             }
         );
 
-        const responseData = await orchestraResponse.json();
+        const responseData = await orchestraResponse.json();         
         return NextResponse.json(responseData, { status: orchestraResponse.status });
 
     } catch (error: any) {

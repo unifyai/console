@@ -7,17 +7,8 @@ import {
     VoiceDesignCreateFromPreviewRequest
 } from "@/types/team/assistant"; 
 import { Gender as CartesiaGender, SupportedLanguage } from "@cartesia/cartesia-js/api"; 
-
-// Helper to convert ArrayBuffer to Base64
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
+import { arrayBufferToBase64 } from "@/utils/team/voice-utils";
+import { formatFastApiError } from "@/utils/team/api-utils";
 
 export const listVoices = async (apiKey: string) => {
     return async (): Promise<(Voice & {is_preset?: boolean})[] | ResponseProps> => {
@@ -131,10 +122,21 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
             });
             const data = await response.json();
             if (!response.ok) {
-                return { detail: data.detail || `Failed to generate voice previews: ${response.statusText}`, status: response.status };
+                // Format the error detail before returning
+                const errorMessage = formatFastApiError(data.detail);
+                return { detail: errorMessage || `Failed to generate voice previews: ${response.statusText}`, status: response.status };
             }
-            // The proxy already returns the "info" object from backend directly
-            return data.info as VoiceDesignGeneratePreviewsAPIResponse; 
+            // The proxy returns the backend response directly, which might be { info: ... } or just the data
+            // Backend schema for /v0/assistant/voice/design/preview is InfoResponse[VoiceDesignGeneratePreviewsAPIResponse]
+            // So data should be { info: { previews: [], text: "" } }
+            if (data.info && data.info.previews !== undefined) {
+               return data.info as VoiceDesignGeneratePreviewsAPIResponse;
+            }
+            // If 'info' wrapper is missing but structure matches
+            if (data.previews !== undefined) {
+               return data as VoiceDesignGeneratePreviewsAPIResponse;
+            }
+            return { detail: "Unexpected response structure from preview generation.", status: response.status };
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error generating voice previews.";
             return { detail: message };
@@ -142,7 +144,6 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
     };
 };
 
-// New Server Action for Create from Design Preview
 export const designVoiceCreateFromPreview = async (apiKey: string) => {
     return async (payload: VoiceDesignCreateFromPreviewRequest): Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps> => {
         "use server";
@@ -154,10 +155,19 @@ export const designVoiceCreateFromPreview = async (apiKey: string) => {
             });
             const data = await response.json();
             if (!response.ok) {
-                return { detail: data.detail || `Failed to create voice from preview: ${response.statusText}`, status: response.status };
+                const errorMessage = formatFastApiError(data.detail);
+                return { detail: errorMessage || `Failed to create voice from preview: ${response.statusText}`, status: response.status };
             }
-            // The proxy already returns the "info" object from backend directly
-            return data.info as (Voice & {info?: string; is_preset?: boolean});
+            // Backend schema is InfoResponse[VoiceRead]
+            // So data should be { info: { voice_id: ..., name: ...}}
+            if (data.info && data.info.voice_id) {
+                return data.info as (Voice & {info?: string; is_preset?: boolean});
+            }
+            // If 'info' wrapper is missing but structure matches
+            if (data.voice_id) {
+               return data as (Voice & {info?: string; is_preset?: boolean});
+            }
+            return { detail: "Unexpected response structure from voice creation.", status: response.status };
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error creating voice from preview.";
             return { detail: message };

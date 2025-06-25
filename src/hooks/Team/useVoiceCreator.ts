@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant'; // Added VoiceDesignPreviewItem
+import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
-import { VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { SupportedLanguage } from "@cartesia/cartesia-js/api";
+import { VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 
 type CreateMode = 'clone' | 'design';
 
@@ -21,47 +21,55 @@ export function useVoiceCreator(
     const [cloneDescription, setCloneDescription] = React.useState('');
     const [cloneLanguage, setCloneLanguage] = React.useState<SupportedLanguage>('en');
 
-    // Design state (for ElevenLabs text-to-voice)
+    // Design state
     const [designVoiceDescription, setDesignVoiceDescription] = React.useState('');
     const [designSampleText, setDesignSampleText] = React.useState('');
     const [designPreviews, setDesignPreviews] = React.useState<VoiceDesignPreviewItem[]>([]);
     const [selectedPreviewId, setSelectedPreviewId] = React.useState<string | null>(null);
     const [isGeneratingPreviews, setIsGeneratingPreviews] = React.useState(false);
-    // For final creation from preview
     const [designFinalVoiceName, setDesignFinalVoiceName] = React.useState(''); 
     const [designFinalLanguage, setDesignFinalLanguage] = React.useState<SupportedLanguage>('en');
-    const [designFinalGender, setDesignFinalGender] = React.useState<CartesiaGender | 'other'>('female');
 
-    const [isProcessingCreate, setIsProcessingCreate] = React.useState(false); // For the final "Create & Select Voice"
+    const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
 
     const resetCreateForm = React.useCallback(() => { 
         setCloneFile(null); setCloneFileName(null); setCloneName(''); setCloneDescription(''); setCloneLanguage('en');
-        
         setDesignVoiceDescription(''); setDesignSampleText(''); 
         setDesignPreviews([]); setSelectedPreviewId(null);
-        setDesignFinalVoiceName(''); setDesignFinalLanguage('en'); setDesignFinalGender('female');
-        // setCreateMode('clone'); // Optionally reset mode, or let user keep current mode
+        setDesignFinalVoiceName(''); setDesignFinalLanguage('en');
     }, []);
 
     const handleGenerateDesignPreviews = async () => {
-        if (VOICE_PROVIDER !== 'elevenlabs' || !designVoiceDescription.trim()) {
-            toast.error("Voice description is required for design mode.");
+        if (VOICE_PROVIDER !== 'elevenlabs') {
+            toast.error("Design mode is only for ElevenLabs.");
             return;
         }
+
+        const trimmedVoiceDesc = designVoiceDescription.trim();
+        const trimmedSampleText = designSampleText.trim();
+
+        if (trimmedVoiceDesc.length < DESIGN_VOICE_DESC_MIN_LENGTH || trimmedVoiceDesc.length > DESIGN_VOICE_DESC_MAX_LENGTH) {
+            toast.error(`Voice description must be between ${DESIGN_VOICE_DESC_MIN_LENGTH} and ${DESIGN_VOICE_DESC_MAX_LENGTH} characters.`);
+            return;
+        }
+        if (trimmedSampleText.length > 0 && (trimmedSampleText.length < DESIGN_SAMPLE_TEXT_MIN_LENGTH || trimmedSampleText.length > DESIGN_SAMPLE_TEXT_MAX_LENGTH)) {
+            toast.error(`If sample text is provided, it must be between ${DESIGN_SAMPLE_TEXT_MIN_LENGTH} and ${DESIGN_SAMPLE_TEXT_MAX_LENGTH} characters.`);
+            return;
+        }
+
         setIsGeneratingPreviews(true);
-        setDesignPreviews([]); // Clear old previews
+        setDesignPreviews([]); 
         setSelectedPreviewId(null);
         const toastId = toast.loading("Generating voice design previews...");
         try {
             const result = await assistantVoiceActions.preview({
-                voice_description: designVoiceDescription,
-                text: designSampleText.trim() || undefined, // Send undefined if empty
-                // model_id: "eleven_multilingual_ttv_v2" // Optional, backend might have a default
+                voice_description: trimmedVoiceDesc,
+                text: trimmedSampleText.length > 0 ? trimmedSampleText : undefined,
             });
 
-            if ('detail' in result) { // Error
+            if ('detail' in result) { 
                 toast.error((result as ResponseProps).detail || "Failed to generate previews.", { id: toastId });
-            } else { // Success
+            } else { 
                 setDesignPreviews(result.previews || []);
                 if ((result.previews || []).length === 0) {
                     toast.info("No previews were generated. Try a different description.", { id: toastId });
@@ -108,7 +116,6 @@ export function useVoiceCreator(
                     voice_name: designFinalVoiceName,
                     voice_description: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
                     language: designFinalLanguage,
-                    gender: designFinalGender,
                     // labels: {} // Optional labels
                 });
             } else {
@@ -166,7 +173,6 @@ export function useVoiceCreator(
         handleGenerateDesignPreviews,
         designFinalVoiceName, setDesignFinalVoiceName,
         designFinalLanguage, setDesignFinalLanguage,
-        designFinalGender, setDesignFinalGender,
         // Common
         isProcessingCreate,
         handleCreateAndSelect,
