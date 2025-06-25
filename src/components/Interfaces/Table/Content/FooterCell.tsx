@@ -89,7 +89,7 @@ const FooterCell = ({
             ref={setNodeRef} 
             className="group/cell relative select-none overflow-visible"
         >
-            <div className="font-bold overflow-hidden text-nowrap text-ellipsis ...">
+            <div className="font-bold text-nowrap text-ellipsis min-h-[1rem] flex flex-col items-center justify-center">
                 {children}
             </div>
             {/* Pin handle */}

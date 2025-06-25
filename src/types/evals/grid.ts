@@ -51,12 +51,21 @@ export interface TileProps {
     shell_type?: string;
 }
 
+export interface TableMetrics {
+    [key: string]: number | string;
+}
+
+export interface TableGroupedMetrics {
+    [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } }
+}
+
+export interface TableBoundaries {
+    minimums: { [key: string]: number },
+    maximums: { [key: string]: number }
+}
+
 export interface TableDataItem {
     columnContexts: string[],
-    baseIndex: string | undefined,
-    hiddenColumns: string | undefined,
-    columnOrdering: string | undefined,
-    selection: string | undefined,
     fields: LogFieldsResponseProps,
     logsData: LogsResponseProps,
     totalPages: number,
@@ -64,9 +73,7 @@ export interface TableDataItem {
     paramsProperties: string[],
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
-    metrics: { [key: string]: number },
-    groupedMetrics?: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } },
-    boundaries: { minimums: { [key: string]: number }, maximums: { [key: string]: number } },
+    groupedMetrics?: TableGroupedMetrics,
     metric: string,
     newCells?: string[]
 }

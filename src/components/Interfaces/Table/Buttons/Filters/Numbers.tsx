@@ -14,10 +14,9 @@ import { Slider } from "@/components/UI/slider";
 import { initFilters, combineFilters } from "@/utils/evals/filters";
 import { Trash, Plus, Minus, CircleX, LoaderCircle } from "lucide-react";
 import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import BaseDialog from "@/components/Common/Dialogs/Base";
-import { sanitizeId } from "@/utils/evals/columnOperations";
 import { formatNumber } from "@/utils/formatNumber";
+import { useTableBoundariesQuery } from "@/hooks/Query/useTableDataQuery";
 
 interface NumericFilter {
     key: number,
@@ -27,11 +26,12 @@ interface NumericFilter {
 }
 
 const NumericColumnFilter = ({
+    tileId,
+    tabId,
     interactive,
     column,
     columnFilters,
     setColumnFilterQuery,
-    boundaries,
     dataTypes,
     open,
     setOpen,
@@ -40,19 +40,27 @@ const NumericColumnFilter = ({
     setIsFiltered,
     renderMode
 }: {
+    tileId?: string,
+    tabId?: string
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
-    boundaries: {minimums: {[key: string]: number;}, maximums: {[key: string]: number}},
     dataTypes: {[key: string]: string},
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
-    renderMode: "button" | "menuItem"
+    renderMode: "button" | "menuItem",
 }) => {
+
+    // Use the boundaries query - this will be populated by background fetch
+    const { data: queryBoundaries, isLoading: isBoundariesLoading } = useTableBoundariesQuery(
+        tileId || null,
+        tabId || null,
+        true
+    );
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
@@ -70,14 +78,17 @@ const NumericColumnFilter = ({
     ]
     const modes = options.map(option => option.name)
 
-    const [minValue, maxValue] = [boundaries.minimums[column], boundaries.maximums[column]]
+    const [minValue, maxValue] = [queryBoundaries?.minimums[column], queryBoundaries?.maximums[column]]
     const sliderMin = minValue;
     const sliderMax = maxValue;
+
+    // Show loading state if boundaries are being fetched and we don't have data for this column
+    const shouldShowBoundariesLoading = isBoundariesLoading && (minValue === undefined || maxValue === undefined);
 
     // Choose step size based on data type
     let stepSize = 1; // default step for non-float
     if (dataTypes[column] === "float") {
-        const range = sliderMax - sliderMin;
+        const range = sliderMax! - sliderMin!;
         // Avoid dividing by zero if range is 0
         stepSize = range !== 0 ? range / 1000 : 1;
     }
@@ -233,31 +244,38 @@ const NumericColumnFilter = ({
                 >
                     {["exists", "isNone"].includes(option.name) ? toggleInput(filter) : valueInput(filter, option)}
                 </InputWithStartSelect>
-                {withSlider && 
-                    <div className="flex flex-col grow w-full px-2">
-                        <span
-                            className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
-                            aria-hidden="true"
-                        >
-                            <span>{formatNumber(sliderMin)}</span>
-                            <span>{formatNumber(sliderMax)}</span>
-                        </span>
-                        <Slider
-                            className="w-full"
-                            value={[parseFloat(filter.value)]}
-                            onValueChange={(vals) => {
-                                const val = vals[0];
-                                // Force it to 3 decimal places
-                                const precise = parseFloat(val.toFixed(3));
-                                onInput(precise.toString(), filter);
-                            }}
-                            min={sliderMin}
-                            max={sliderMax}
-                            step={stepSize}
-                            aria-label="Slider with input"
-                        />
-                    </div>
-                }
+                {withSlider && (
+                    shouldShowBoundariesLoading ? (
+                        <div className="flex flex-col grow w-full px-2">
+                            <div className="h-4 bg-muted rounded animate-pulse mb-2" />
+                            <div className="h-2 bg-muted rounded animate-pulse" />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col grow w-full px-2">
+                            <span
+                                className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
+                                aria-hidden="true"
+                            >
+                                <span>{formatNumber(sliderMin!)}</span>
+                                <span>{formatNumber(sliderMax!)}</span>
+                            </span>
+                            <Slider
+                                className="w-full"
+                                value={[parseFloat(filter.value) || sliderMin!]}
+                                onValueChange={(vals) => {
+                                    const val = vals[0];
+                                    // Force it to 3 decimal places
+                                    const precise = parseFloat(val.toFixed(3));
+                                    onInput(precise.toString(), filter);
+                                }}
+                                min={sliderMin!}
+                                max={sliderMax!}
+                                step={stepSize}
+                                aria-label="Slider with input"
+                            />
+                        </div>
+                    )
+                )}
             </div>
         )}
     const remove = (filter: NumericFilter) =>

@@ -14,7 +14,6 @@ import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from 
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
 import { Loader2 } from "lucide-react";
-import { ResponseProps } from "@/types/common";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
@@ -112,10 +111,8 @@ const LogsTable = ({
     params,
     entriesProperties,
     paramsProperties,
-    metrics,
     logsData,
     totalPages,
-    boundaries
   } = tableDataItem;
 
   const tileName = tileMetaState?.name || "";
@@ -787,9 +784,10 @@ const LogsTable = ({
                         )}
                         ColumnFilters={(column, filterLoading, setIsFiltered, setFilterLoading, open, setOpen, renderMode = "button") => (
                           <ColumnFilter
+                            tileId={tileId}
+                            tabId={tabId}
                             interactive={interactive}
                             setColumnFilterQuery={setLogsFilters}
-                            boundaries={boundaries}
                             columnFilters={searchParamToFilters(logsFilters, item?.column_context)}
                             column={column.id}
                             dataTypes={dataTypes}
@@ -981,9 +979,34 @@ const LogsTable = ({
                           >
                             {
                               column.columnDef.id === indicesTitle
-                                ? logs?.length ? <ColumnMetrics interactive={interactive} metric={state.metric} setMetric={setState.setMetric} logs={logs} /> : null
+                                ? logs.length > 0
+                                ? <ColumnMetrics
+                                    tileId={tileId}
+                                    tabId={tabId}
+                                    projectId={projectId}
+                                    interactive={interactive}
+                                    metric={state.metric}
+                                    setMetric={setState.setMetric}
+                                    logs={logs}
+                                    entriesProperties={entriesProperties}
+                                    paramsProperties={paramsProperties}
+                                    filterExpression={filterExpression}
+                                    logsActions={logsActions}
+                                  /> : null
                                 : !column.getIsGrouped()
-                                  ? <SummaryCell column={column} state={state} metrics={metrics} pending={summaryPending} draggingColumns={state.draggingColumns} />
+                                  ? <SummaryCell
+                                      tileId={tileId}
+                                      tabId={tabId}
+                                      projectId={projectId}
+                                      column={column}
+                                      pending={summaryPending}
+                                      draggingColumns={state.draggingColumns}
+                                      entriesProperties={entriesProperties}
+                                      paramsProperties={paramsProperties}
+                                      filterExpression={filterExpression}
+                                      logsLength={logs.length}
+                                      logsActions={logsActions}
+                                    />
                                   : null
                             }
                           </FooterCell>

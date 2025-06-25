@@ -12,15 +12,74 @@ import { formatNumber } from "@/utils/formatNumber";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { DraggingColumnsState } from "@/types/evals/columns";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "@/utils/evals/format";
+import { useTableMetricsQuery } from "@/hooks/Query/useTableDataQuery";
+import { useState, useEffect, useRef } from "react";
+import { LogsActions } from "@/types/evals/grid";
+import { useTileData } from "@/contexts/hooks";
 
-const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
+const SummaryCell = ({
+	tileId,
+	tabId,
+	projectId,
+	column,
+	pending,
+	draggingColumns,
+	entriesProperties,
+	paramsProperties,
+	filterExpression,
+	logsLength,
+	logsActions
+}: {
+	tileId?: string;
+	tabId?: string;
+	projectId: string | undefined;
 	column: Column<any | unknown>,
-	state: StateProps,
-	metrics: { [key: string]: any },
 	pending: boolean,
 	draggingColumns: DraggingColumnsState;
+	entriesProperties: string[];
+	paramsProperties: string[];
+	filterExpression: string | null;
+	logsLength: number;
+	logsActions: LogsActions;
 }) => {
 	const { isDragging, setNodeRef, transform } = useSortable({ id: column.id });
+
+	const { data: tileDataState } = useTileData(tileId || null, tabId || null);
+
+	// Local loading state to handle metric changes
+	const [isMetricChanging, setIsMetricChanging] = useState(false);
+	const currentMetricRef = useRef(tileDataState?.metric);
+
+	// Use the metrics query - this will actively fetch metrics
+	const columns = logsLength > 0 ? [...entriesProperties, ...paramsProperties] : [];
+	const { data: queryMetrics, isLoading: isMetricsLoading, isFetching } = useTableMetricsQuery(
+		tileId || null,
+		tabId || null,
+		true, // enabled - this will trigger the query
+		logsActions,
+		projectId,
+		tileDataState?.context,
+		tileDataState?.column_context,
+		columns,
+		filterExpression,
+		tileDataState?.metric || "mean",
+		"SummaryCell" // caller identifier
+	);
+
+	// Detect metric changes to show loading state
+	useEffect(() => {
+		if (currentMetricRef.current !== tileDataState?.metric) {
+			setIsMetricChanging(true);
+			currentMetricRef.current = tileDataState?.metric;
+		}
+	}, [tileDataState?.metric]);
+
+	// Reset loading state when new metrics are available
+	useEffect(() => {
+		if (!isMetricsLoading && !isFetching && queryMetrics) {
+			setIsMetricChanging(false);
+		}
+	}, [isMetricsLoading, isFetching, queryMetrics]);
 
 	// Pre-calculate checks for active and over states
 	const isInActiveGroup = draggingColumns.active.ids?.includes(column.id);
@@ -52,12 +111,18 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
 		width: `calc(var(--header-${column.id}-size) * 1px)`,
 		zIndex: isColumnDragging || isPinned ? 1 : 0,
 	};
-    const metricTooltip = `${state.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
+    const metricTooltip = `${tileDataState?.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
-	let logEntryMetric = sanitizeId(column.id) in metrics ? metrics[sanitizeId(column.id)] : 0;
+	// Show loading if:
+	// 1. We're in the process of changing metrics (local state)
+	// 2. React Query is loading or fetching
+	// 3. We don't have metrics data yet
+	const shouldShowLoading = isMetricChanging || isMetricsLoading || isFetching || !queryMetrics;
+
+	let logEntryMetric = queryMetrics?.[sanitizeId(column.id)] ?? 0 as any;
 	logEntryMetric = parseFloat(logEntryMetric) ? formatNumber(parseFloat(logEntryMetric)) : logEntryMetric
 	logEntryMetric = logEntryMetric?.toString() ?? ""
-    if (logEntryMetric && column.columnDef.meta?.dataType === "timedelta" && state.metric != "count"){
+    if (logEntryMetric && column.columnDef.meta?.dataType === "timedelta" && tileDataState?.metric != "count"){
 		try {
 			logEntryMetric = durationToTimeDelta(timeDeltaValueToDuration(logEntryMetric));
 		} 
@@ -65,13 +130,18 @@ const SummaryCell = ({ column, state, metrics, pending, draggingColumns }: {
 			console.error("Error formatting timedelta:", error);
 		}
 	}
+
 	return (
 		<>
-			{<TableCell style={style} ref={setNodeRef}>
+			<TableCell style={style} ref={setNodeRef}>
 				<Tooltip content={metricTooltip}>
-					{logEntryMetric}
+					{shouldShowLoading ? (
+						<div className="h-4 w-16 bg-muted rounded animate-pulse" />
+					) : (
+						logEntryMetric
+					)}
 				</Tooltip>
-			</TableCell>}
+			</TableCell>
 		</>
 	);
 };

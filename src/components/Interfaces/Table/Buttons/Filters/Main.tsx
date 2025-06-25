@@ -18,12 +18,13 @@ import { Dispatch, SetStateAction } from "react";
 */
 
 type ColumnFilterProps = {
+    tileId?: string,
+    tabId?: string,
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
     setColumnFilterQuery: (columnFilters: FiltersByColumn) => void,
     dataTypes: {[key: string]: string},
-    boundaries: {minimums: {[key: string]: any}, maximums: {[key: string]: any}},
     open: boolean,
     setOpen: Dispatch<SetStateAction<boolean>>,
     filterLoading: boolean,
@@ -33,12 +34,13 @@ type ColumnFilterProps = {
 }
 
 const ColumnFilter = ({
+    tileId,
+    tabId,
     interactive,
     column,
     columnFilters,
     setColumnFilterQuery,
     dataTypes,
-    boundaries,
     open,
     setOpen,
     filterLoading,
@@ -52,11 +54,12 @@ const ColumnFilter = ({
 
     if (["float", "int"].includes(dataTypes[column])) {
         filter = <NumericColumnFilter
+        tileId={tileId}
+        tabId={tabId}
         interactive={interactive}
         column={column}
         columnFilters={columnFilters}
         setColumnFilterQuery={setColumnFilterQuery}
-        boundaries={boundaries}
         dataTypes={dataTypes}
         open={open}
         setOpen={setOpen}
