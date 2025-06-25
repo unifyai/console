@@ -14,7 +14,7 @@ export interface Assistant {
   country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
   gender?: 'male' | 'female';
   // Voice fields
-  voice_id: string | null; // Cartesia Voice ID
+  voice_id: string | null; // Provider Voice ID
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -31,8 +31,15 @@ export interface Assistant {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel'>
-  & { gender?: 'male' | 'female'; voice_id: string; country: string };
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
+  & { 
+      gender?: 'male' | 'female'; 
+      country: string;
+      voice_ids: {
+          cartesia?: string | null;
+          elevenlabs?: string | null;
+      };
+    };
 
 export type AssistantFormData =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
@@ -178,7 +185,7 @@ export interface AssistantActions {
     "photo": {    
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
     download: (filePathOrUrl: string) => Promise<{signedUrl?: string; detail?: string;}>;
-    downloadPresetVideo: (firstName: string, lastName: string) => Promise<{signedUrl?: string; detail?: string;}>;
+    downloadPresetVideo: (firstName: string, lastName: string, provider: string) => Promise<{signedUrl?: string; detail?: string;}>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
     animate: (formData: FormData) => Promise<VideoAnimationResponse | ResponseProps>;

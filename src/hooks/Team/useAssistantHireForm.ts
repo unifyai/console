@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -14,7 +14,20 @@ export function useAssistantHireForm(
     onSuccess?: (newAssistant: Assistant) => void,
     isHireDialogInitiallyOpen?: boolean
 ) {
-    const defaultVoice = (voicePresetsConstant as Voice[]).find(v => v.provider === VOICE_PROVIDER) || (voicePresetsConstant as Voice[])[0];
+    
+    // Find a default voice that matches the current VOICE_PROVIDER
+    const getDefaultVoiceForProvider = () => {
+        let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === VOICE_PROVIDER);
+        if (!suitableDefault && voicePresetsConstant.length > 0) {
+            suitableDefault = (voicePresetsConstant as Voice[])[0]; // Fallback to first preset if no provider match
+        }
+        if (!suitableDefault) { // Absolute fallback if voicePresetsConstant is empty
+            return { voice_id: '', name: 'Default', language: 'en', description: 'Default voice', gender: 'female', provider: VOICE_PROVIDER };
+        }
+        return suitableDefault;
+    };
+    const defaultVoice = getDefaultVoiceForProvider();
+
     const initialLocalPart = "new-assistant";
     const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
@@ -30,18 +43,19 @@ export function useAssistantHireForm(
             imageFile: null,
             profile_photo_url: null,
             imagePreview: null,
-            voice_id: defaultVoice.voice_id,
+            voice_id: defaultVoice.voice_id, // Set initial voice_id from the default voice
             voice_name: defaultVoice.name,
             voice_language: defaultVoice.language as SupportedLanguage,
             voice_description: defaultVoice.description,
             voice_gender: defaultVoice.gender as Gender,
             voice_provider: defaultVoice.provider || VOICE_PROVIDER,
-            voice_exists: false,
+            voice_exists: false, // Default voice is a preset, not existing user voice
             videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
         },
     });
+
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger, watch } = hireFormMethods;
 
     React.useEffect(() => {
@@ -99,9 +113,9 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
-    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues", "country"]);
+    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues", "country", "voice_provider"]);
     React.useEffect(() => {
-        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues, country] = watchedFields;
+        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues, country, voiceProvider] = watchedFields;
     
         if (imageFile) {
             if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
@@ -120,7 +134,8 @@ export function useAssistantHireForm(
             age === originalValues.age &&
             region === originalValues.region &&
             country === originalValues.country &&
-            voiceId === originalValues.voice_id;
+            voiceId === originalValues.voice_id &&
+            voiceProvider == originalValues.voice_id;
     
         if (getValues("isPresetPristine") !== isPristine) {
             setValue("isPresetPristine", isPristine);
@@ -141,7 +156,7 @@ export function useAssistantHireForm(
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
-        handleImageRemove();
+        handleImageRemove(); // Assuming this utility function exists from previous steps
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
@@ -164,15 +179,46 @@ export function useAssistantHireForm(
         setValue("email", `${localPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
         setValue("emailManuallyEdited", false);
 
+        // Determine the voice_id based on VOICE_PROVIDER
+        const providerSpecificVoiceId = preset.voice_ids[VOICE_PROVIDER] || null;
+        
+        // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
+        let selectedPresetVoiceDetails: VoiceOption | undefined = (voicePresetsConstant as VoiceOption[]).find(
+            vp => vp.voice_id === providerSpecificVoiceId && vp.provider === VOICE_PROVIDER
+        );
 
-        const presetVoice = (voicePresetsConstant as Voice[]).find(vp => vp.voice_id === preset.voice_id) || defaultVoice;
-        setValue("voice_id", presetVoice.voice_id);
-        setValue("voice_name", presetVoice.name);
-        setValue("voice_description", presetVoice.description);
-        setValue("voice_language", presetVoice.language as SupportedLanguage);
-        setValue("voice_gender", presetVoice.gender as Gender);
-        setValue("voice_exists", false);
-        setValue("voice_provider", presetVoice.provider || VOICE_PROVIDER);
+        if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
+            // Fallback if voice ID is in preset but not in voice_presets.js for that provider
+            // This should ideally not happen if data is consistent.
+            console.warn(`Voice ID ${providerSpecificVoiceId} for provider ${VOICE_PROVIDER} found in assistant preset but not in voice_presets.js. Using fallback.`);
+            selectedPresetVoiceDetails = {
+                voice_id: providerSpecificVoiceId,
+                name: "Preset Voice",
+                description: "Preset voice",
+                gender: preset.gender === 'male' ? 'male' : 'female', // Infer from assistant preset
+                language: 'en', // Default language
+                provider: VOICE_PROVIDER,
+                is_preset: true,
+                isUserVoiceInOrchestra: false,
+            };
+        } else if (!selectedPresetVoiceDetails) {
+            // If no specific voice ID for the provider, or if it's null, use the default voice for the provider
+            selectedPresetVoiceDetails = defaultVoice as VoiceOption; // Cast because defaultVoice is Voice
+            if(selectedPresetVoiceDetails) { // Ensure defaultVoice itself is valid
+                 selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
+                 selectedPresetVoiceDetails.is_preset = true;
+            }
+            console.warn(`No voice_id found for provider ${VOICE_PROVIDER} in preset. Using default voice.`);
+        }
+
+
+        setValue("voice_id", selectedPresetVoiceDetails.voice_id);
+        setValue("voice_name", selectedPresetVoiceDetails.name);
+        setValue("voice_description", selectedPresetVoiceDetails.description);
+        setValue("voice_language", selectedPresetVoiceDetails.language as SupportedLanguage);
+        setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
+        setValue("voice_provider", selectedPresetVoiceDetails.provider || VOICE_PROVIDER);
+        setValue("voice_exists", false); // Presets are not "user voices in orchestra" initially
         setValue("isPresetPristine", true);
 
         const originalValues = {
@@ -180,30 +226,32 @@ export function useAssistantHireForm(
             surname: preset.surname,
             age: preset.age,
             region: preset.region ?? '',
-            voice_id: presetVoice.voice_id,
+            voice_id: selectedPresetVoiceDetails.voice_id, // Use the selected voice_id
+            profile_photo_url: preset.profile_photo,
             country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
         };
-        setValue("presetOriginalValues", originalValues); 
-        
-        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname)
+        setValue("presetOriginalValues", originalValues);
+
+        // Fetch provider-specific video
+        setValue("videoUrl", null); // Clear previous video URL
+        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, VOICE_PROVIDER)
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoUrl", res.signedUrl);
                 } else {
-                    setValue("isPresetPristine", false);
-                    setValue("videoUrl", null);
-                    console.warn(res.detail || `Preset video could not be loaded for ${preset.first_name} ${preset.surname}.`);
+                    setValue("isPresetPristine", false); // If video fails, it's not a "pristine" preset experience
+                    console.warn(res.detail || `Preset video for provider ${VOICE_PROVIDER} could not be loaded for ${preset.first_name} ${preset.surname}.`);
                 }
             })
             .catch(err => {
                 setValue("isPresetPristine", false);
                 setValue("videoUrl", null);
-                console.error('Error fetching preset video:', err);
+                console.error(`Error fetching preset video for provider ${VOICE_PROVIDER}:`, err);
             });
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries]);
+    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries, getValues]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         const defaultFirstName = values?.first_name || '';

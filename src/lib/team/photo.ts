@@ -106,10 +106,11 @@ export const downloadPhoto = async () => {
 };
 
 export const downloadPresetVideo = async () => {
-    return async (firstName: string, lastName: string): Promise<{ signedUrl?: string; detail?: string }> => {
+    return async (firstName: string, lastName: string, provider: string): Promise<{ signedUrl?: string; detail?: string }> => {
         "use server";
 
-        const objectPath = `preset_assistants/${firstName}_${lastName}.mp4`;
+        // Construct object path using firstName, lastName, and provider
+        const objectPath = `preset_assistants/${firstName}_${lastName}_${provider.toLowerCase()}.mp4`;
 
         const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
         if (!bucketName) {
