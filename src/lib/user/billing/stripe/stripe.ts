@@ -133,6 +133,12 @@ export async function createCheckoutSession(userID: string, customerID: string):
       price: priceId,
       quantity: 1,
     }],
+    automatic_tax: {
+      enabled: true,
+    },
+    customer_update: {
+      address: 'auto',
+    },
     customer: customerID,
     client_reference_id: userID,
     success_url: `${process.env.NEXTAUTH_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
