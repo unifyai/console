@@ -154,6 +154,50 @@ export async function withLoadingToast<T>(
 }
 
 /**
+ * Wraps an asynchronous action with immediate loading toast and delayed success notification.
+ * Shows loading toast immediately, executes the action, but waits for external signal for success.
+ * Returns a function to manually trigger the success toast when ready.
+ *
+ * @param action The asynchronous function to execute.
+ * @param messages The messages to display for loading, success, and error states.
+ * @param abortController Optional AbortController to cancel the operation.
+ * @returns Object with result and showSuccess function.
+ */
+export async function withDelayedLoadingToast<T>(
+    action: (abortSignal?: AbortSignal) => Promise<T>,
+    messages: { loading: string; success: string; error: string },
+    abortController?: AbortController
+): Promise<{ result: T; showSuccess: () => void; hideLoading: () => void }> {
+    // Show loading toast immediately
+    const toastId = showLoadingToast(messages.loading);
+
+    try {
+        const result = await action(abortController?.signal);
+        
+        // Return result with functions to control toast state
+        return {
+            result,
+            showSuccess: () => {
+                showSuccessToast(messages.success, undefined, toastId);
+            },
+            hideLoading: () => {
+                if (toastId) {
+                    toast.dismiss(toastId);
+                }
+            }
+        };
+    } catch (error) {
+        // If the action failed, show error message
+        if ((error as Error).name !== 'AbortError') {
+            showErrorToast(error, messages.error, toastId);
+        }
+        
+        // Re-throw the error so it can be handled by the calling function
+        throw error;
+    }
+}
+
+/**
  * Enhanced version of withLoadingToast that creates its own AbortController
  * and cleans up automatically when the component unmounts or the operation completes.
  */
