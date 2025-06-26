@@ -558,5 +558,413 @@ export default [
     "gender": "male",
     "language": "ja",
     "provider": "cartesia",
+  },
+  {
+    "voice_id": "21m00Tcm4TlvDq8ikWAM",
+    "name": "Korean Female Calm 1", // Original: Rachel
+    "description": "A young, female, calm voice with a american accent.",
+    "gender": "female",
+    "language": "ko",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "29vD33N1CtxCmqQRPOHJ",
+    "name": "English Male Well-rounded 1", // Original: Drew
+    "description": "A middle aged, male, well-rounded voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "2EiwWnXFnvU5JabPnv8n",
+    "name": "Spanish Male Veteran 1", // Original: Clyde
+    "description": "A middle aged, male, veteran voice with a american accent.",
+    "gender": "male",
+    "language": "es",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "5Q0t7uMcjvnagumLfvZi",
+    "name": "English Male Authoritative 1", // Original: Paul
+    "description": "A middle aged, male, authoritative voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "9BWtsMINqrJLrRacOk9x",
+    "name": "English Female Husky 1", // Original: Aria
+    "description": "A middle-aged female with an African-American accent. Calm with a hint of rasp.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "CYw3kZ02Hs0563khs1Fj",
+    "name": "English Male Conversational 1", // Original: Dave
+    "description": "A young, male, conversational voice with a british accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+    "name": "Turkish Male Neutral 1", // Original: Roger
+    "description": "A neutral adult male voice",
+    "gender": "male",
+    "language": "tr",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "EXAVITQu4vr4xnSDxMaL",
+    "name": "Italian Female Professional 1", // Original: Sarah
+    "description": "Young adult woman with a confident and warm, mature quality and a reassuring, professional tone.",
+    "gender": "female",
+    "language": "it",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "ErXwobaYiN019PkySvjV",
+    "name": "English Male Well-rounded 2", // Original: Antoni
+    "description": "A young, male, well-rounded voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "FGY2WhTYpPnrIDTdsKH5",
+    "name": "English Female Sassy 1", // Original: Laura
+    "description": "This young adult female voice delivers sunny enthusiasm with a quirky attitude.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "GBv7mTt0atIp3Br8iCZE",
+    "name": "English Male Calm 1", // Original: Thomas
+    "description": "A young, male, calm voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "IKne3meq5aSn9XLyUdCD",
+    "name": "French Male Hyped 1", // Original: Charlie
+    "description": "A young male with a confident and energetic voice.",
+    "gender": "male",
+    "language": "fr",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "name": "English Male Mature 1", // Original: George
+    "description": "Warm resonance that instantly captivates listeners.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "LcfcDJNUP1GQjkzn1xUU",
+    "name": "Korean Female Calm 2", // Original: Emily
+    "description": "A middle aged, female, calm voice with.",
+    "gender": "female",
+    "language": "ko",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "MF3mGyEYCl7XYWbV9V6O",
+    "name": "Portuguese Female Emotional 1", // Original: Elli
+    "description": "A young, female, emotional voice with a american accent.",
+    "gender": "female",
+    "language": "pt",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "N2lVS1w4EtoT3dr4eOWO",
+    "name": "Spanish Male General 1", // Original: Callum
+    "description": "A young, deceptively gravelly male voice.",
+    "gender": "male",
+    "language": "es",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "ODq5zmih8GrVes37Dizd",
+    "name": "Chinese Male Shouty 1", // Original: Patrick
+    "description": "A middle aged, male, shouty voice.",
+    "gender": "male",
+    "language": "zh",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "SAz9YHcvj6GT2YYXdXww",
+    "name": "German Female Calm 1", // Original: River
+    "description": "A relaxed, neutral voice ready for narrations or conversational projects.",
+    "gender": "female",
+    "language": "de",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "SOYHLrjzK2X1ezoPC6cr",
+    "name": "English Male Rough 1", // Original: Harry
+    "description": "An animated warrior ready to charge forward.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "TX3LPaxmHKxFdv7VOQHJ",
+    "name": "Japanese Male Confident 2", // Original: Liam
+    "description": "A young adult with energy and warmth.",
+    "gender": "male",
+    "language": "ja",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "ThT5KcBeYPX3keUQqHPh",
+    "name": "English Female Pleasant 1", // Original: Dorothy
+    "description": "A young, female, pleasant voice with a british accent.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "TxGEqnHWrfWFTfGW9XjX",
+    "name": "Chinese Male Deep 1", // Original: Josh
+    "description": "A young, male, deep voice.",
+    "gender": "male",
+    "language": "zh",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "VR6AewLTigWG4xSOukaG",
+    "name": "English Male Crisp 1", // Original: Arnold
+    "description": "A middle aged, male, crisp voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "XB0fDUnXU5powFXDhCwa",
+    "name": "Portuguese Female Relaxed 1", // Original: Charlotte
+    "description": "Sensual and raspy, she's ready to voice your temptress in video games.",
+    "gender": "female",
+    "language": "pt",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "Xb7hH8MSUJpSbSDYk0k2",
+    "name": "Japanese Female Professional 1", // Original: Alice
+    "description": "Clear and engaging, friendly woman with a British accent suitable for e-learning.",
+    "gender": "female",
+    "language": "ja",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "XrExE9yKIg1WjnnlVkGX",
+    "name": "English Female Upbeat 1", // Original: Matilda
+    "description": "A professional woman with a pleasing alto pitch. Suitable for many use cases.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "Yko7PKHZNXotIFUBG7I9",
+    "name": "French Male Calm 3", // Original: George
+    "description": "A middle aged, male, calm voice.",
+    "gender": "male",
+    "language": "fr",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "ZQe5CZNOzWyzPSCn5a3c",
+    "name": "English Male Calm 4", // Original: James
+    "description": "An old, male, calm voice with a australian accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "Zlb1dXrM653N07WRdFW3",
+    "name": "Hindi Male Articulate 1", // Original: Joseph
+    "description": "A middle aged, male, articulate voice with a british accent.",
+    "gender": "male",
+    "language": "hi",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "bIHbv24MWmeRgasZH58o",
+    "name": "English Male Chill 1", // Original: Will
+    "description": "A middle aged, conversational and laid back male voice.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "bVMeCyTHy58xNoL34h3p",
+    "name": "Spanish Male Excited 1", // Original: Jeremy
+    "description": "A young, male, excited voice with a irish accent.",
+    "gender": "male",
+    "language": "es",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "cgSgspJ2msm6clMCkdW9",
+    "name": "English Female Cute 1", // Original: Jessica
+    "description": "Young and popular, this playful American female voice is perfect for trendy content.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "cjVigY5qzO86Huf0OWal",
+    "name": "English Male Classy 1", // Original: Eric
+    "description": "A smooth tenor pitch from a man in his 40s - perfect for agentic use cases.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "flq6f7yk4E4fJM5XTYuZ",
+    "name": "Portuguese Male Calm 1", // Original: Michael
+    "description": "An old, male, calm voice with a american accent.",
+    "gender": "male",
+    "language": "pt",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "iP95p4xoKVk53GoZ742B",
+    "name": "English Male Casual 1", // Original: Chris
+    "description": "Natural and real, this down-to-earth voice is great across many use-cases.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "jsCqWAovK2LkecY7zXl4",
+    "name": "Hindi Female Expressive 1", // Original: Freya
+    "description": "A young, female, expressive voice with a american accent.",
+    "gender": "female",
+    "language": "hi",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "nPczCjzI2devNBz1zQrb",
+    "name": "English Male Classy 2", // Original: Brian
+    "description": "Middle-aged man with a resonant and comforting tone.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "oWAxZDx7w5VEj9dCyTzz",
+    "name": "Spanish Female Pleasant 1", // Original: Grace
+    "description": "A young, female, pleasant voice with a us-southern accent.",
+    "gender": "female",
+    "language": "es",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "onwK4e9ZLuTAKqWW03F9",
+    "name": "English Male Formal 1", // Original: Daniel
+    "description": "A strong voice perfect for delivering a professional broadcast or news story.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "pFZP5JQG7iQjIQuC4Bku",
+    "name": "Polish Female Confident 1", // Original: Lily
+    "description": "Velvety British female voice delivers news and narrations with warmth and clarity.",
+    "gender": "female",
+    "language": "pl",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "pMsXgVXv3BLzUgSXRplE",
+    "name": "English Female Pleasant 2", // Original: Serena
+    "description": "A middle aged, female, pleasant voice with a american accent.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "pNInz6obpgDQGcFmaJgB",
+    "name": "English Male Deep 2", // Original: Adam
+    "description": "A deep resonant male voice.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "pqHfZKP75CvOlQylNhV4",
+    "name": "Hindi Male Crisp 2", // Original: Bill
+    "description": "Friendly and comforting voice ready to narrate your stories.",
+    "gender": "male",
+    "language": "hi",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "t0jbNlBVZ17f02VDIeMI",
+    "name": "Spanish Male Raspy 1", // Original: Jessie
+    "description": "An old, male, raspy voice with a american accent.",
+    "gender": "male",
+    "language": "es",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "wViXBPUzp2ZZixB1xQuM",
+    "name": "English Male Crisp 3", // Original: Arnold
+    "description": "A middle aged, male, crisp voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "yoZ06aMxZJJ28mfd3POQ",
+    "name": "English Male Raspy 2", // Original: Sam
+    "description": "A young, male, raspy voice with a american accent.",
+    "gender": "male",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "z9fAnlkpzviPz146aGWa",
+    "name": "English Female Poised 1", // Original: Glinda
+    "description": "A middle aged, female, poised voice with a american accent.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "zcAOhNBS3c14rBihAFp1",
+    "name": "Italian Male Neutral 1", // Original: Giovanni
+    "description": "A young, male, Neutral voice with a italian accent.",
+    "gender": "male",
+    "language": "it",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "zrHiDhphv9ZnVXBqCLjz",
+    "name": "Chinese Female Childish 1", // Original: Mimi
+    "description": "A young, female, childish and enthusiastic voice.",
+    "gender": "female",
+    "language": "zh",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "AZnzlk1XvdvUeBnXmlld",
+    "name": "English Female Childish 1", // Original: Domi
+    "description": "A young, female, childish voice with an american accent.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "D38z5RcWu1voky8WS1ja",
+    "name": "Hindi Male Experienced 1", // Original: Fin
+    "description": "A middle aged, male, mature voice that conveys experience.",
+    "gender": "male",
+    "language": "hi",
+    "provider": "elevenlabs",
   }
 ]
