@@ -10,6 +10,7 @@ import ListColumnFilter from "./Lists";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { Dispatch, SetStateAction } from "react";
+import { LogsActions } from "@/types/evals/grid";
 
 /* 
     Supported operands: "==", "!=", "is", "<", ">", "<=", "=>", "in", "not in", "exists" (images only)
@@ -20,6 +21,7 @@ import { Dispatch, SetStateAction } from "react";
 type ColumnFilterProps = {
     tileId?: string,
     tabId?: string,
+    projectId?: string,
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
@@ -30,12 +32,16 @@ type ColumnFilterProps = {
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
-    renderMode: "button" | "menuItem"
+    renderMode: "button" | "menuItem",
+    entriesProperties: string[],
+    paramsProperties: string[],
+    logsActions: LogsActions
 }
 
 const ColumnFilter = ({
     tileId,
     tabId,
+    projectId,
     interactive,
     column,
     columnFilters,
@@ -46,7 +52,10 @@ const ColumnFilter = ({
     filterLoading,
     setIsFiltered,
     setFilterLoading,
-    renderMode
+    renderMode,
+    entriesProperties,
+    paramsProperties,
+    logsActions
 }: ColumnFilterProps) => {
     
     let filter;
@@ -56,6 +65,7 @@ const ColumnFilter = ({
         filter = <NumericColumnFilter
         tileId={tileId}
         tabId={tabId}
+        projectId={projectId}
         interactive={interactive}
         column={column}
         columnFilters={columnFilters}
@@ -66,7 +76,10 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        logsActions={logsActions}/>
     }
     else if (dataTypes[column] === "timestamp" || dataTypes[column] === "time" || dataTypes[column] === "date" || dataTypes[column] === "timedelta") {
         filter = <TimeColumnFilter

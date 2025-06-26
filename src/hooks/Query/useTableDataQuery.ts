@@ -392,7 +392,17 @@ export function useTableMetricsQuery(
   const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length);
 
   return useQuery<TableMetrics>({
-    queryKey: ["tableMetrics", tileId, tabId],
+    queryKey: [
+      "tableMetrics", 
+      tileId, 
+      tabId, 
+      projectId, 
+      context, 
+      columnContext, 
+      columns, 
+      filterExpression, 
+      metric
+    ],
     queryFn: async () => {
       if (!logsActions || !projectId || !columns || columns.length === 0) {
         throw new Error("Missing required parameters for metrics query");
@@ -427,18 +437,72 @@ export function useTableMetricsQuery(
  * @param tileId ID of the tile to get boundaries for
  * @param tabId ID of the tab containing the tile
  * @param enabled Whether the query should be enabled
+ * @param logsActions Actions for fetching logs data
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ * @param caller Debug string to identify which component called this
  */
 export function useTableBoundariesQuery(
   tileId: string | null,
   tabId: string | null,
-  enabled: boolean = true
+  enabled: boolean = true,
+  logsActions?: LogsActions,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[],
+  caller?: string
 ) {
+  const callerInfo = caller || "unknown";
+  const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length);
+
   return useQuery<TableBoundaries>({
-    queryKey: ["tableBoundaries", tileId, tabId],
-    // No queryFn - data is only populated by background triggers
-    enabled: !!(tileId && tabId && enabled),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000,   // 10 minutes
+    queryKey: [
+      "tableBoundaries", 
+      tileId, 
+      tabId, 
+      projectId, 
+      context, 
+      columnContext, 
+      columns
+    ],
+    queryFn: async () => {
+      if (!logsActions || !projectId || !columns || columns.length === 0) {
+        throw new Error("Missing required parameters for boundaries query");
+      }
+
+      const tStart = performance.now();
+      const [minimums, maximums] = await Promise.all([
+        getColumnMetrics(
+          projectId,
+          context || null,
+          columnContext || null,
+          columns,
+          null,
+          null,
+          "min",
+          logsActions
+        ) as Promise<TableMetrics>,
+        getColumnMetrics(
+          projectId,
+          context || null,
+          columnContext || null,
+          columns,
+          null,
+          null,
+          "max",
+          logsActions
+        ) as Promise<TableMetrics>
+      ]);
+      const tEnd = performance.now();
+      perfLog(`[perf] getColumnMetrics(boundaries) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
+      
+      return { minimums, maximums } as TableBoundaries;
+    },
+    enabled: isEnabled,
+    staleTime: 0,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -450,23 +514,84 @@ export function useTableBoundariesQuery(
  * Hook for invalidating metrics query and tracking loading state
  * @param tileId ID of the tile
  * @param tabId ID of the tab containing the tile
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ * @param filterExpression Filter expression
+ * @param metric Metric to calculate
  */
 export function useInvalidateTableMetrics(
   tileId: string | null,
-  tabId: string | null
+  tabId: string | null,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[],
+  filterExpression?: string | null,
+  metric?: string
 ) {
   const queryClient = useQueryClient();
 
   const resetMetrics = useCallback(() => {
     if (tileId && tabId) {
-      // Invalidate the query to trigger a refetch
-      // This allows ColumnMetrics to monitor the loading state
+      // Invalidate the exact query using the same queryKey structure
       queryClient.invalidateQueries({
-        queryKey: ["tableMetrics", tileId, tabId],
+        queryKey: [
+          "tableMetrics", 
+          tileId, 
+          tabId, 
+          projectId, 
+          context, 
+          columnContext, 
+          columns, 
+          filterExpression, 
+          metric
+        ],
         refetchType: 'active'
       });
     }
-  }, [queryClient, tileId, tabId]);
+  }, [queryClient, tileId, tabId, projectId, context, columnContext, columns, filterExpression, metric]);
 
   return { resetMetrics };
+}
+
+/**
+ * Hook for invalidating boundaries query and tracking loading state
+ * @param tileId ID of the tile
+ * @param tabId ID of the tab containing the tile
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ */
+export function useInvalidateTableBoundaries(
+  tileId: string | null,
+  tabId: string | null,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[]
+) {
+  const queryClient = useQueryClient();
+
+  const resetBoundaries = useCallback(() => {
+    if (tileId && tabId) {
+      // Invalidate the exact query using the same queryKey structure
+      queryClient.invalidateQueries({
+        queryKey: [
+          "tableBoundaries", 
+          tileId, 
+          tabId, 
+          projectId, 
+          context, 
+          columnContext, 
+          columns
+        ],
+        refetchType: 'active'
+      });
+    }
+  }, [queryClient, tileId, tabId, projectId, context, columnContext, columns]);
+
+  return { resetBoundaries };
 }

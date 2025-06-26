@@ -786,6 +786,7 @@ const LogsTable = ({
                           <ColumnFilter
                             tileId={tileId}
                             tabId={tabId}
+                            projectId={projectId}
                             interactive={interactive}
                             setColumnFilterQuery={setLogsFilters}
                             columnFilters={searchParamToFilters(logsFilters, item?.column_context)}
@@ -797,6 +798,9 @@ const LogsTable = ({
                             setIsFiltered={setIsFiltered}
                             setFilterLoading={setFilterLoading}
                             renderMode={renderMode as "button" | "menuItem"}
+                            entriesProperties={entriesProperties}
+                            paramsProperties={paramsProperties}
+                            logsActions={logsActions}
                           />
                         )}
                         ColumnDelete={(column) => (

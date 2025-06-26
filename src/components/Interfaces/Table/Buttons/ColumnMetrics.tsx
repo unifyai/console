@@ -72,7 +72,16 @@ const ColumnMetrics = ({
         "ColumnMetrics" // caller identifier
     );
     
-    const { resetMetrics } = useInvalidateTableMetrics(tileId || null, tabId || null);
+    const { resetMetrics } = useInvalidateTableMetrics(
+        tileId || null, 
+        tabId || null,
+        projectId,
+        tileDataState?.context,
+        tileDataState?.column_context,
+        columns,
+        filterExpression,
+        tileDataState?.metric || "mean"
+    );
     
     // Track when metrics finish loading to show success toast
     const prevDataUpdatedAtRef = useRef(dataUpdatedAt);

@@ -223,8 +223,7 @@ T extends TileType
             optimisticTile,
             fields,
             projectId,
-            logsActions,
-            queryClient
+            logsActions
           );
 
           // Update available fields in the tableArguments (if we have tableArguments for this tile)

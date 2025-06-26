@@ -116,7 +116,6 @@ export function useTableAutoUpdateQuery(
       fields,
       projectId,
       logsActions,
-      queryClient,
       prevLogs
       // Temporarily removed abort signal to fix connection issues
     );

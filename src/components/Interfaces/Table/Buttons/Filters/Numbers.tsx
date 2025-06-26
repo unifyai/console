@@ -17,6 +17,8 @@ import {  DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import BaseDialog from "@/components/Common/Dialogs/Base";
 import { formatNumber } from "@/utils/formatNumber";
 import { useTableBoundariesQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTileData } from "@/contexts/hooks";
+import { LogsActions } from "@/types/evals/grid";
 
 interface NumericFilter {
     key: number,
@@ -28,6 +30,7 @@ interface NumericFilter {
 const NumericColumnFilter = ({
     tileId,
     tabId,
+    projectId,
     interactive,
     column,
     columnFilters,
@@ -38,10 +41,14 @@ const NumericColumnFilter = ({
     filterLoading,
     setFilterLoading,
     setIsFiltered,
-    renderMode
+    renderMode,
+    entriesProperties,
+    paramsProperties,
+    logsActions
 }: {
     tileId?: string,
-    tabId?: string
+    tabId?: string,
+    projectId?: string,
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
@@ -53,13 +60,27 @@ const NumericColumnFilter = ({
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
     renderMode: "button" | "menuItem",
+    entriesProperties: string[],
+    paramsProperties: string[],
+    logsActions: LogsActions
 }) => {
 
-    // Use the boundaries query - this will be populated by background fetch
+    const { data: tileDataState } = useTileData(tileId || null, tabId || null);
+
+    // Get columns for the query
+    const columns = [...entriesProperties, ...paramsProperties];
+
+    // Use the boundaries query - this will actively fetch boundaries
     const { data: queryBoundaries, isLoading: isBoundariesLoading } = useTableBoundariesQuery(
         tileId || null,
         tabId || null,
-        true
+        true, // enabled
+        logsActions,
+        projectId,
+        tileDataState?.context,
+        tileDataState?.column_context,
+        columns,
+        "Numbers" // caller identifier
     );
 
     /* Display loader when data updates */
