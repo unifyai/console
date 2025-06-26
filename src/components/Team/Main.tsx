@@ -26,8 +26,6 @@ import { usePanelManager } from '@/hooks/Team/usePanelManager';
 import { useActivityLogs } from '@/hooks/Team/useActivityLogs';
 import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringApproval';
 
-// Constants
-import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
 
 interface MainProps {
     taskActions: TaskActions;
@@ -116,7 +114,7 @@ export default function Main({
         presetRegionFilter, setPresetRegionFilter,
         presetGenderFilter, setPresetGenderFilter,
         availableAgeBrackets, availableRegions, availableGenders,
-        currentFilteredPresets,
+        currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
 
     const handleHireSuccess = React.useCallback((newAssistant: Assistant) => {
@@ -152,7 +150,7 @@ export default function Main({
             setPresetGenderFilter('all');
             setIsDialogBusyProcessingVoice(false); 
     
-            const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (assistantPresetsConstant as AssistantPreset[]);
+            const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
             if (presetsToUse.length > 0) {
                 const randomIndex = Math.floor(Math.random() * presetsToUse.length);
                 selectPresetForHireForm(presetsToUse[randomIndex]);

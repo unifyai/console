@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { AssistantPreset } from '@/types/team/assistant';
 import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
+import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 const PRESETS_PAGE_LIMIT = 12;
 const PRESET_AGE_BRACKETS = ['all', '18-25', '26-35', '36-45', '46-55', '56+'];
@@ -15,7 +16,9 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export function useAssistantPresets() {
-    const [allAssistantPresets] = React.useState<AssistantPreset[]>(() => shuffleArray(assistantPresetsConstant as AssistantPreset[]));
+    const [allAssistantPresets] = React.useState<AssistantPreset[]>(() => shuffleArray(
+        assistantPresetsConstant.filter(assistant => assistant.voice_ids[VOICE_PROVIDER] && assistant.voice_ids[VOICE_PROVIDER] != "") as AssistantPreset[]
+    ));
 
     const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
     const [presetRegionFilter, setPresetRegionFilter] = React.useState<string>('all');
@@ -83,6 +86,7 @@ export function useAssistantPresets() {
         availableAgeBrackets: PRESET_AGE_BRACKETS,
         availableRegions: uniquePresetRegions,
         availableGenders: uniquePresetGenders,
-        currentFilteredPresets, // Expose this if needed for "randomize"
+        currentFilteredPresets,
+        allAssistantPresets,
     };
 }
