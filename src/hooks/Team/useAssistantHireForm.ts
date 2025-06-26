@@ -113,32 +113,50 @@ export function useAssistantHireForm(
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
 
-    const watchedFields = watch(["first_name", "surname", "age", "region", "voice_id", "imageFile", "profile_photo_url", "presetOriginalValues", "country", "voice_provider"]);
+    const watchedFields = watch([
+        "first_name", "surname", "age", "region", "about",
+        "voice_id", "voice_provider", // Ensure voice_provider is watched
+        "imageFile", "profile_photo_url", 
+        "presetOriginalValues", "country"
+        // videoUrl is handled more directly for pristine state after preset selection
+    ]); 
     React.useEffect(() => {
-        const [firstName, surname, age, region, voiceId, imageFile, profilePhotoUrl, originalValues, country, voiceProvider] = watchedFields;
+        const [
+            firstName, surname, age, region, about,
+            voiceId, voiceProvider,
+            imageFile, profilePhotoUrl, 
+            originalValues, country
+        ] = watchedFields;
     
         if (imageFile) {
-            if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
-            if (getValues("videoUrl")) setValue("videoUrl", null);
+            if (getValues("isPresetPristine")) {
+                setValue("isPresetPristine", false);
+            }
+            if (getValues("videoUrl") && originalValues) {
+                setValue("videoUrl", null);
+            }
             return;
         }
-    
+
         if (!originalValues) {
-            if (getValues("isPresetPristine")) setValue("isPresetPristine", false);
+            if (getValues("isPresetPristine")) {
+                setValue("isPresetPristine", false);
+            }
             return;
         }
         
-        const isPristine = 
+        let isPristine = 
             firstName === originalValues.first_name &&
             surname === originalValues.surname &&
             age === originalValues.age &&
-            region === originalValues.region &&
+            (region ?? '') === (originalValues.region ?? '') &&
             country === originalValues.country &&
             voiceId === originalValues.voice_id &&
-            voiceProvider == originalValues.voice_id;
+            (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url)) &&
+            voiceProvider === VOICE_PROVIDER;
     
-        if (getValues("isPresetPristine") !== isPristine) {
-            setValue("isPresetPristine", isPristine);
+        if (getValues("isPresetPristine") && !isPristine) {
+            setValue("isPresetPristine", false);
         }
     }, [watchedFields, getValues, setValue]);
 
@@ -211,7 +229,6 @@ export function useAssistantHireForm(
             console.warn(`No voice_id found for provider ${VOICE_PROVIDER} in preset. Using default voice.`);
         }
 
-
         setValue("voice_id", selectedPresetVoiceDetails.voice_id);
         setValue("voice_name", selectedPresetVoiceDetails.name);
         setValue("voice_description", selectedPresetVoiceDetails.description);
@@ -219,14 +236,14 @@ export function useAssistantHireForm(
         setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
         setValue("voice_provider", selectedPresetVoiceDetails.provider || VOICE_PROVIDER);
         setValue("voice_exists", false); // Presets are not "user voices in orchestra" initially
+        
         setValue("isPresetPristine", true);
-
         const originalValues = {
             first_name: preset.first_name,
             surname: preset.surname,
             age: preset.age,
             region: preset.region ?? '',
-            voice_id: selectedPresetVoiceDetails.voice_id, // Use the selected voice_id
+            voice_id: selectedPresetVoiceDetails.voice_id,
             profile_photo_url: preset.profile_photo,
             country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
         };
