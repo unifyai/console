@@ -48,7 +48,13 @@ export function usePlotDataQueryWithTracking(tileId: string) {
   } = useQuery<PlotDataItem>({
     queryKey: ["plotDataItem", tileId],
     placeholderData: EMPTY_PLOTDATAITEM,
-    staleTime: 30000,
+    // Disable all auto-refreshing:
+    staleTime: Infinity,        // Never mark as stale automatically
+    gcTime: Infinity,           // Never garbage collect
+    refetchOnMount: false,      // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,  // Don't refetch when network reconnects
+    refetchInterval: false,     // No periodic refetching
     enabled: !!tileId,
   });
 

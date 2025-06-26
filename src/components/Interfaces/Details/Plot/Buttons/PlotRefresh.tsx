@@ -77,6 +77,11 @@ const PlotRefresh = ({
 }) => {
   // Get access to the tab context and actions with granular access
   const { data: tabDataState } = useTab(tabId, interfaceId);
+
+  const pendingRef = useRef(pending);
+
+  // Sync pending ref 
+  useEffect(() => { pendingRef.current = pending }, [pending]);
   
   // Get tileIds from tab data properly
   const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
@@ -117,7 +122,7 @@ const PlotRefresh = ({
     tileId,
     tabId,
     projectId,
-    pending,
+    pendingRef.current,
     logsActions,
     projectsActions,
     contextActions,

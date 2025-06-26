@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlotDataItem, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/evals/grid";
-import { LogFieldsResponseProps, PlotArguments } from "@/types/evals/logs";
+import { PlotArguments } from "@/types/evals/logs";
 import { buildPlotDataItem } from "@/utils/data/buildPlotDataItem";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { selectTileById, selectTilesForTab } from "@/contexts/selectors/tile";
@@ -10,7 +10,7 @@ import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData";
 import { selectProjectById } from "@/contexts/selectors/project";
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Debug flag for performance logging
@@ -126,34 +126,15 @@ export function usePlotAutoUpdateQuery(
   const query = useQuery<PlotDataItem>({
     queryKey,
     queryFn,
-    enabled: false, // Keep query disabled by default
-    refetchInterval: false, // No automatic polling
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: false, // Never refetch on window focus
-    refetchOnReconnect: false, // Never refetch on network reconnect
-    refetchOnMount: false, // Never refetch on component mount
-    staleTime: Infinity, // Never mark as stale automatically
-    gcTime: Infinity, // Never garbage collect the cache
-    retry: false, // Don't retry failed requests automatically
+    enabled: !!tileId && !!tileDataState && !pending,
+    refetchInterval: autoUpdate ? 5000 : false,
+    refetchIntervalInBackground: autoUpdate,
+    refetchOnWindowFocus: autoUpdate,
+    refetchOnReconnect: autoUpdate,
+    refetchOnMount: false,
+    staleTime: 0, // Always fetch fresh data
   });
-  
-  // Manually enable polling only when auto-update is enabled
-  useEffect(() => {
-    if (autoUpdate && tileId && tabId && tileDataState && !pending) {
-      queryClient.setQueryDefaults(queryKey, {
-        refetchInterval: 5000,
-        refetchIntervalInBackground: true,
-      });
-      // Start the query manually
-      query.refetch();
-    } else {
-      queryClient.setQueryDefaults(queryKey, {
-        refetchInterval: false,
-        refetchIntervalInBackground: false,
-      });
-    }
-  }, [autoUpdate, tileId, tabId, tileDataState, pending, queryClient, queryKey, query]);
-    
+
   // Manual refresh function
   const manualRefresh = useCallback(async () => {
     // Mark that this is a manual refresh
