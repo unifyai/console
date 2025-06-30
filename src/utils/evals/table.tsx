@@ -1149,3 +1149,8 @@ export const shouldRenderHeader = (
 	// console.log(`[shouldRenderHeader] Rendering ${header.id}`);
 	return true;
 };
+
+export function isHiddenByDefault(id: string): boolean {
+  // Hide if any path segment starts with an underscore
+  return id.split("/").some(segment => segment.startsWith("_"));
+};

@@ -46,6 +46,7 @@ import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
+import { isHiddenByDefault } from "@/utils/evals/table";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
@@ -302,19 +303,52 @@ const LogsTable = ({
     tableTileActions?.setColumnOrder(order.join(","));
   }, [tableTileActions, setManualColumnOrderOverride]);
 
-  const allColumnsVisible = Object.fromEntries(columnIDs.map((x) => [x, true]));
-  const columnVisibility = hiddenColumns
-    ? {
-      ...allColumnsVisible,
-      ...Object.fromEntries(hiddenColumns.split(",").map((x) => [x, false])),
+  // On launch or context change, ensure underscore-prefixed columns are hidden by default, preserving user toggles
+  useEffect(() => {
+    // Determine current user-hidden list (undefined means no override)
+    const currentHidden = hiddenColumns != null
+      ? hiddenColumns.split(",").filter(x => x)
+      : null;
+    // Compute underscore-prefixed IDs in this context
+    const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id));
+    let newHiddenList: string[];
+    if (currentHidden === null) {
+      // Initial load: hide all underscores
+      newHiddenList = underscoreIds;
+    } else {
+      // Context change or user override: union existing hidden list with underscores
+      newHiddenList = Array.from(new Set([...currentHidden, ...underscoreIds]));
     }
-    : allColumnsVisible;
+    const newHiddenStr = newHiddenList.join(",");
+    // If changed, persist
+    if ((hiddenColumns || "") !== newHiddenStr) {
+      tableTileActions?.setHiddenColumns(newHiddenStr || undefined);
+    }
+  }, [columnIDs, context, hiddenColumns, tableTileActions]);
 
+  // Compute column visibility map: user override or default underscore hide
+  const hiddenList = hiddenColumns != null ? hiddenColumns.split(",").filter(x => x) : undefined;
+  const columnVisibility = Object.fromEntries(
+    columnIDs.map(id => [
+      id,
+      hiddenList !== undefined
+        ? !hiddenList.includes(id)
+        : !isHiddenByDefault(id)
+    ])
+  );
+  
+  // Toggle handler for updating hiddenColumns from visibility map
   const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]);
-    tableTileActions?.setHiddenColumns(hidden.length ? hidden.join(",") : undefined);
+    tableTileActions?.setHiddenColumns(
+      hidden.length
+        ? hidden.join(",")
+        : hidden.length === 0
+          ? ""
+          : undefined
+    );
   }, [tableTileActions]);
-
+  
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = useCallback((filtersObj: FiltersByColumn) => {
     const keys = Object.keys(filtersObj);
@@ -389,7 +423,7 @@ const LogsTable = ({
     transform: null
   });
 
-  // Table state management
+  // Replace the broken state binding for columnVisibility
   const state = {
     tableDataItem,
     selectedCells,
@@ -406,6 +440,8 @@ const LogsTable = ({
     draggingColumns,
     draggingColumnPinner,
   };
+
+  // Replace the broken setColumnVisibility in setState
   const setState = {
     setSelectedCells: (cells: string[]) => tableTileActions?.setSelected(cells.join(",")),
     setMetric: (newMetric: string) => syncedTileDataActions?.setMetric(newMetric),
@@ -772,8 +808,8 @@ const LogsTable = ({
                           <ColumnGroupSort
                             interactive={interactive}
                             column={column}
-                            groupSorting={groupSorting}
-                            setGroupSorting={setGroupSorting}
+                            groupSorting={state.groupSorting}
+                            setGroupSorting={setState.setGroupSorting}
                             logs={logs}
                             groupSortLoading={groupSortLoading}
                             setGroupSortLoading={setGroupSortLoading}
@@ -921,7 +957,7 @@ const LogsTable = ({
                           <AggregatedCell
                             isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                             cell={cell}
-                            metric={tableDataItem.metric}
+                            metric={state.metric}
                             getMetric={(key: string) => {
                               const groupingColumnId = row.groupingColumnId;
                               const slicedRowId = row.id.split(">").slice(0, -1).join(">");
