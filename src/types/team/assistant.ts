@@ -167,7 +167,7 @@ export interface VoiceDesignCreateFromPreviewRequest {
     voice_name: string;
     voice_description: string;
     labels?: { [key: string]: string };
-    language: SupportedLanguage;
+    language?: SupportedLanguage;
     gender?: CartesiaGender | 'other';
 }
 

@@ -68,14 +68,13 @@ export function VoiceCustomization({
     const {
         createMode, setCreateMode, // Keep createMode, set it based on activeMainTab
         cloneFile, setCloneFile, cloneFileName, setCloneFileName,
-        cloneName, setCloneName, cloneDescription, setCloneDescription, cloneLanguage, setCloneLanguage,
+        cloneName, setCloneName, cloneDescription, setCloneDescription,
         designVoiceDescription, setDesignVoiceDescription,
         designSampleText, setDesignSampleText,
         designPreviews, 
         selectedPreviewId, setSelectedPreviewId,
         isGeneratingPreviews, handleGenerateDesignPreviews,
         designFinalVoiceName, setDesignFinalVoiceName,
-        designFinalLanguage, setDesignFinalLanguage,
         isProcessingCreate,
         handleCreateAndSelect,
         resetCreateForm, 
@@ -372,17 +371,11 @@ export function VoiceCustomization({
                 </TabsContent>
 
                 <TabsContent value="clone" className="p-3 border rounded-md space-y-3 min-h-[276px]"> {/* Added min-height for consistency */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div><Label htmlFor="clone-name" className="text-xs">Voice Name</Label><Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
-                        <div>
-                            <Label htmlFor="clone-language" className="text-xs">Language</Label>
-                            <Select value={cloneLanguage} onValueChange={(v) => setCloneLanguage(v as SupportedLanguage)} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Lang..." /></SelectTrigger>
-                                <SelectContent>{languageOptions.map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="clone-name" className="text-xs">Voice Name</Label>
+                        <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
                     </div>
-                    <div>
+                    <div className="pt-2">
                         <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
                         {!cloneFileName ? (
                             <label 
@@ -471,7 +464,7 @@ export function VoiceCustomization({
                             </div>
                         )}
                     </div>
-                    <div><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                    <div className="pt-1"><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
                     
                     <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
                         {isProcessingCreate && createMode === 'clone' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
@@ -480,21 +473,12 @@ export function VoiceCustomization({
 
                 {VOICE_PROVIDER === 'elevenlabs' && (
                     <TabsContent value="design" className="p-3 border rounded-md space-y-3 min-h-[276px]">
-                        <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <div>
-                                    <Label htmlFor="design-final-name" className="text-xs">Voice Name</Label>
-                                    <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
-                                </div>
-                                <div>
-                                    <Label htmlFor="design-final-lang" className="text-xs">Language</Label>
-                                    <Select value={designFinalLanguage} onValueChange={(v) => setDesignFinalLanguage(v as SupportedLanguage)} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
-                                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                                        <SelectContent>{languageOptions.map(l => <SelectItem key={l.value} value={l.value} className="text-sm">{l.flag} {l.label}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <Label htmlFor="design-final-name" className="text-xs">Voice Name</Label>
+                                <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
                             </div>
-                            <div>
+                            <div className="space-y-1">
                                 <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
                                 <Textarea 
                                     id="design-desc" 
@@ -510,7 +494,7 @@ export function VoiceCustomization({
                                     {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH} (min {DESIGN_VOICE_DESC_MIN_LENGTH})
                                 </p>
                             </div>
-                            <div>
+                            <div className="space-y-1">
                                 <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
                                 <Input 
                                     id="design-sample" 

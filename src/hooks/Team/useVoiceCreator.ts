@@ -19,7 +19,6 @@ export function useVoiceCreator(
     const [cloneFileName, setCloneFileName] = React.useState<string | null>(null);
     const [cloneName, setCloneName] = React.useState('');
     const [cloneDescription, setCloneDescription] = React.useState('');
-    const [cloneLanguage, setCloneLanguage] = React.useState<SupportedLanguage>('en');
 
     // Design state
     const [designVoiceDescription, setDesignVoiceDescription] = React.useState('');
@@ -28,20 +27,19 @@ export function useVoiceCreator(
     const [selectedPreviewId, setSelectedPreviewId] = React.useState<string | null>(null);
     const [isGeneratingPreviews, setIsGeneratingPreviews] = React.useState(false);
     const [designFinalVoiceName, setDesignFinalVoiceName] = React.useState(''); 
-    const [designFinalLanguage, setDesignFinalLanguage] = React.useState<SupportedLanguage>('en');
 
     const [isProcessingCreate, setIsProcessingCreate] = React.useState(false);
 
     const resetCreateForm = React.useCallback(() => { 
-        setCloneFile(null); setCloneFileName(null); setCloneName(''); setCloneDescription(''); setCloneLanguage('en');
+        setCloneFile(null); setCloneFileName(null); setCloneName(''); setCloneDescription('');
         setDesignVoiceDescription(''); setDesignSampleText(''); 
         setDesignPreviews([]); setSelectedPreviewId(null);
-        setDesignFinalVoiceName(''); setDesignFinalLanguage('en');
+        setDesignFinalVoiceName('');
     }, []);
 
     const handleGenerateDesignPreviews = async () => {
         if (VOICE_PROVIDER !== 'elevenlabs') {
-            toast.error("Design mode is only for ElevenLabs.");
+            toast.error("Voice design is only available for the ElevenLabs provider.");
             return;
         }
 
@@ -93,14 +91,13 @@ export function useVoiceCreator(
         
         try {
             if (createMode === 'clone') {
-                if (!cloneFile || !cloneName || !cloneLanguage) {
-                    toast.error("Audio file, Voice Name, and Language are required for cloning.", { id: toastId });
+                if (!cloneFile || !cloneName) {
+                    toast.error("Audio file and Voice Name are required for cloning.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
                 const formData = new FormData();
                 formData.append('file', cloneFile);
                 formData.append('name', cloneName);
-                formData.append('language', cloneLanguage);
                 if (cloneDescription) formData.append('description', cloneDescription);
                 formData.append('provider', VOICE_PROVIDER);
                 backendResponse = await assistantVoiceActions.clone(formData);
@@ -109,15 +106,14 @@ export function useVoiceCreator(
                     toast.error("Design mode is only available for ElevenLabs provider.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
-                if (!selectedPreviewId || !designFinalVoiceName.trim() || !designFinalLanguage) {
-                    toast.error("A preview must be selected, and a final voice name and language are required.", { id: toastId });
+                if (!selectedPreviewId || !designFinalVoiceName.trim()) {
+                    toast.error("A preview must be selected and a final voice name is required.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
                 backendResponse = await assistantVoiceActions.design({
                     generated_voice_id: selectedPreviewId,
                     voice_name: designFinalVoiceName,
                     voice_description: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
-                    language: designFinalLanguage,
                     // labels: {} // Optional labels
                 });
             } else {
@@ -165,7 +161,6 @@ export function useVoiceCreator(
         cloneFileName, setCloneFileName,
         cloneName, setCloneName,
         cloneDescription, setCloneDescription,
-        cloneLanguage, setCloneLanguage,
         // Design
         designVoiceDescription, setDesignVoiceDescription,
         designSampleText, setDesignSampleText,
@@ -174,7 +169,6 @@ export function useVoiceCreator(
         isGeneratingPreviews,
         handleGenerateDesignPreviews,
         designFinalVoiceName, setDesignFinalVoiceName,
-        designFinalLanguage, setDesignFinalLanguage,
         // Common
         isProcessingCreate,
         handleCreateAndSelect,
