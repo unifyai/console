@@ -198,6 +198,10 @@ export default function NavMenu() {
     });
   }, [projects, router]); 
 
+  useEffect(() => {
+    setOpen(false); 
+  }, []); 
+
   const navItemsFromList = NavListSource();
   const teamItem = navItemsFromList.find(item => item.title === "Team");
   const interfacesMainItem = navItemsFromList.find(item => item.title === "Interfaces");
