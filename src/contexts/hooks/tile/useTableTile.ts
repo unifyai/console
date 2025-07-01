@@ -35,6 +35,7 @@ export interface TableTileDataActions {
   setTableType: (tableType: string | undefined) => void;
   setColumnOrder: (columnOrder: string | undefined) => void;
   setHiddenColumns: (hiddenColumns: string | undefined) => void;
+  setDefaultHiddenColumns: (defaultHiddenColumns: boolean | undefined) => void;
   setSorting: (sorting: string | undefined) => void;
   setGroupSorting: (groupSorting: string | undefined) => void;
   setColumnsPinLeft: (columnsPinLeft: string | undefined) => void;
@@ -102,6 +103,7 @@ export function useTableTile(
       table_type: tableTile.table_type,
       column_order: tableTile.column_order,
       hidden_columns: tableTile.hidden_columns,
+      default_hidden_columns: tableTile.default_hidden_columns,
       sorting: tableTile.sorting,
       group_sorting: tableTile.group_sorting,
       columns_pin_left: tableTile.columns_pin_left,
@@ -114,6 +116,7 @@ export function useTableTile(
     tableTile?.table_type,
     tableTile?.column_order,
     tableTile?.hidden_columns,
+    tableTile?.default_hidden_columns,
     tableTile?.sorting,
     tableTile?.group_sorting,
     tableTile?.columns_pin_left,
@@ -171,6 +174,13 @@ export function useTableTile(
       setHiddenColumns: (hiddenColumns) => {
         const update: Partial<TableTile> = { 
           hidden_columns: hiddenColumns 
+        };
+        storeUpdateTableTile(tileId, update);
+      },
+      
+      setDefaultHiddenColumns: (defaultHiddenColumns) => {
+        const update: Partial<TableTile> = {
+          default_hidden_columns: defaultHiddenColumns
         };
         storeUpdateTableTile(tileId, update);
       },

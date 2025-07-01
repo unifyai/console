@@ -8,11 +8,13 @@ import { Switch } from "@/components/UI/switch";
 import { processContext, sanitizeId, updateColumnVisibility } from "@/utils/evals/columnOperations";
 import { LogProps, LogFieldsResponseProps, GroupedLogProps } from "@/types/evals/logs";
 
-const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, context}: {
+const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, context, defaultHidden, setDefaultHidden }: {
     fields: LogFieldsResponseProps,
     columnVisibility: { [key: string]: boolean },
     setColumnVisibility: (x: { [key: string]: boolean }) => void,
     context: string | null,
+    defaultHidden: boolean,
+    setDefaultHidden: (val: boolean) => void,
 }) => {
 
     const [paramColumns, entryColumns] = fields 
@@ -130,6 +132,11 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
                     container.scrollTop += e.deltaY;
                 }}
             >
+                {/* Toggle for default hide underscore columns */}
+                <div className="flex justify-between items-center mb-3">
+                    <span className="font-bold text-sm">Hide underscore-prefixed columns by default</span>
+                    <Switch checked={defaultHidden} onCheckedChange={setDefaultHidden}/>
+                </div>
                 {hideAll}
                 {hideParams}
                 {hideEntries}

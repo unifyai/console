@@ -16,6 +16,7 @@ export interface TableTileData {
   table_type?: string | null;     // Type of table
   column_order?: string | null;   // Column ordering information
   hidden_columns?: string | null; // Hidden columns configuration
+  default_hidden_columns?: boolean | null; // Default hide underscore columns flag
   sorting?: string | null;        // Sorting expression
   group_sorting?: string | null;  // How groups are sorted
   columns_pin_left?: string | null; // Columns pinned to the left
@@ -36,7 +37,7 @@ export type TableTile = TableTileMeta & TableTileData & TableTileUI;
 // tableKeys: all keys that are used in `asTileItem` in `useTileItem` hook to convert
 // a TableTile into a TileProps
 export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
-  "table_type","column_order","hidden_columns","sorting",
+  "table_type","column_order","hidden_columns","default_hidden_columns","sorting",
   "group_sorting","columns_pin_left","columns_pin_right",
   "selected","page_number"
 ];
@@ -61,6 +62,7 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     table_type: initialState.table_type !== undefined ? initialState.table_type : null,
     column_order: initialState.column_order !== undefined ? initialState.column_order : null,
     hidden_columns: initialState.hidden_columns !== undefined ? initialState.hidden_columns : null,
+    default_hidden_columns: initialState.default_hidden_columns !== undefined ? initialState.default_hidden_columns : null,
     sorting: initialState.sorting !== undefined ? initialState.sorting : null,
     group_sorting: initialState.group_sorting !== undefined ? initialState.group_sorting : null,
     columns_pin_left: initialState.columns_pin_left !== undefined ? initialState.columns_pin_left : null,

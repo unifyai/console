@@ -188,6 +188,11 @@ const LogsTable = ({
     const sortingStr = item?.sorting;
     const columnOrderStr = item?.column_order;
     const hiddenColumns = item?.hidden_columns;
+    // Derive defaultHidden from store (tableTileState) so toggles persist
+    const defaultHidden = tableTileState?.default_hidden_columns;
+    const setDefaultHidden = useCallback((val: boolean) => {
+      tableTileActions?.setDefaultHiddenColumns(val);
+    }, [tableTileActions]);
     const groupingStr = item?.grouping;
     const groupSortingStr = item?.group_sorting;
     const columnsPinLeft = item?.columns_pin_left;
@@ -303,37 +308,33 @@ const LogsTable = ({
     tableTileActions?.setColumnOrder(order.join(","));
   }, [tableTileActions, setManualColumnOrderOverride]);
 
-  // On launch or context change, ensure underscore-prefixed columns are hidden by default, preserving user toggles
+  // Auto-hide underscores once per context when enabled
   useEffect(() => {
-    // Determine current user-hidden list (undefined means no override)
+    if (!defaultHidden) return;
     const currentHidden = hiddenColumns != null
       ? hiddenColumns.split(",").filter(x => x)
-      : null;
-    // Compute underscore-prefixed IDs in this context
+      : [];
+    // Compute underscore-prefixed IDs
     const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id));
-    let newHiddenList: string[];
-    if (currentHidden === null) {
-      // Initial load: hide all underscores
-      newHiddenList = underscoreIds;
-    } else {
-      // Context change or user override: union existing hidden list with underscores
-      newHiddenList = Array.from(new Set([...currentHidden, ...underscoreIds]));
+    // Only hide those not already hidden
+    const toHide = underscoreIds.filter(id => !currentHidden.includes(id));
+    if (toHide.length && tableTileActions) {
+      tableTileActions.setHiddenColumns([...currentHidden, ...toHide].join(","));
     }
-    const newHiddenStr = newHiddenList.join(",");
-    // If changed, persist
-    if ((hiddenColumns || "") !== newHiddenStr) {
-      tableTileActions?.setHiddenColumns(newHiddenStr || undefined);
-    }
-  }, [columnIDs, context, hiddenColumns, tableTileActions]);
+  }, [columnIDs, context, defaultHidden, tableTileActions]);
 
-  // Compute column visibility map: user override or default underscore hide
-  const hiddenList = hiddenColumns != null ? hiddenColumns.split(",").filter(x => x) : undefined;
+  // Compute column visibility map: user override or default underscore hide when enabled
+  const hiddenList = hiddenColumns != null
+    ? hiddenColumns.split(",").filter(x => x)
+    : undefined;
   const columnVisibility = Object.fromEntries(
     columnIDs.map(id => [
       id,
       hiddenList !== undefined
         ? !hiddenList.includes(id)
-        : !isHiddenByDefault(id)
+        : defaultHidden
+          ? !isHiddenByDefault(id)
+          : true
     ])
   );
   
@@ -668,6 +669,8 @@ const LogsTable = ({
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
             context={item?.context ?? null}
+            defaultHidden={defaultHidden ?? true}
+            setDefaultHidden={setDefaultHidden}
           />
 
           <CreateEmptyLogRow

@@ -153,6 +153,7 @@ export function useTabData(
             table_tile: {
               column_order: tileItem.column_order,
               hidden_columns: tileItem.hidden_columns,
+              default_hidden_columns: tileItem.default_hidden_columns,
               sorting: tileItem.sorting,
               group_sorting: tileItem.group_sorting,
               columns_pin_left: tileItem.columns_pin_left,

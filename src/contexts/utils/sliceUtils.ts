@@ -67,6 +67,8 @@ export function convertTileToTileData(tile: Tile): TileData {
       tableTile.column_order = tile.tableTile.column_order;
     if (tile.tableTile.hidden_columns !== null && tile.tableTile.hidden_columns !== undefined) 
       tableTile.hidden_columns = tile.tableTile.hidden_columns;
+    if (tile.tableTile.default_hidden_columns !== null && tile.tableTile.default_hidden_columns !== undefined) 
+      tableTile.default_hidden_columns = tile.tableTile.default_hidden_columns;
     if (tile.tableTile.sorting !== null && tile.tableTile.sorting !== undefined) 
       tableTile.sorting = tile.tableTile.sorting;
     if (tile.tableTile.group_sorting !== null && tile.tableTile.group_sorting !== undefined) 

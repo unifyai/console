@@ -33,6 +33,7 @@ export type SyncedTableProperties = 'table_type' |
 'page_number' | 
 'column_order' |
 'hidden_columns' |
+'default_hidden_columns' |
 'sorting' | 
 'group_sorting' | 
 'columns_pin_left' | 
@@ -101,7 +102,7 @@ export function useTableTileSync(
   const hiddenColumnsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const columnsPinLeftTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const columnsPinRightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const defaultHiddenColumnsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -120,6 +121,9 @@ export function useTableTileSync(
       if (columnsPinRightTimeoutRef.current) {
         clearTimeout(columnsPinRightTimeoutRef.current);
       }
+      if (defaultHiddenColumnsTimeoutRef.current) {
+        clearTimeout(defaultHiddenColumnsTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -133,7 +137,7 @@ export function useTableTileSync(
   const columnsPinRightMutation = usePatchSpecializedTileQuery<"Table">();
   const selectedMutation = usePatchSpecializedTileQuery<"Table">();
   const pageNumberMutation = usePatchSpecializedTileQueryOptimistic<"Table">();
-
+  const defaultHiddenColumnsMutation = usePatchSpecializedTileQuery<"Table">();
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
     table_type: tableTypeMutation,
@@ -141,6 +145,7 @@ export function useTableTileSync(
     group_sorting: groupSortingMutation,
     column_order: columnOrderMutation,
     hidden_columns: hiddenColumnsMutation,
+    default_hidden_columns: defaultHiddenColumnsMutation,
     columns_pin_left: columnsPinLeftMutation,
     columns_pin_right: columnsPinRightMutation,
     selected: selectedMutation,
@@ -363,6 +368,32 @@ export function useTableTileSync(
     }, 500); // 500ms debounce delay
   };    
 
+  const wrapDefaultHiddenColumns = (value: boolean | undefined) => {
+    if (!tableTileActions || !granularTileActions) return;
+    
+    // 1) Update local state immediately (no debouncing for UI responsiveness)
+    tableTileActions.setDefaultHiddenColumns(value);
+
+    // Don't attempt server update if we don't have required info
+    if (!tileName || !tabId) return;
+
+    // 2) Debounce the server mutation
+    // Clear any existing timeout
+    if (defaultHiddenColumnsTimeoutRef.current) {
+      clearTimeout(defaultHiddenColumnsTimeoutRef.current);
+    }
+
+    defaultHiddenColumnsTimeoutRef.current = setTimeout(() => {
+      defaultHiddenColumnsMutation.mutate({
+        tab_id: tabId,
+        name: tileName,
+        tileType: "Table",
+        updateData: { default_hidden_columns: value ?? true },
+        actions: granularTileActions
+      });
+    }, 500); // 500ms debounce delay
+  };
+
   const wrapColumnsPinLeft = (value: string | undefined) => {
     if (!tableTileActions || !granularTileActions) return;
     
@@ -509,6 +540,7 @@ export function useTableTileSync(
       setGroupSorting: wrapGroupSorting,
       setColumnOrder: wrapColumnOrder,
       setHiddenColumns: wrapHiddenColumns,
+      setDefaultHiddenColumns: wrapDefaultHiddenColumns,
       setColumnsPinLeft: wrapColumnsPinLeft,
       setColumnsPinRight: wrapColumnsPinRight,
       setSelected: wrapSelected,
@@ -530,6 +562,7 @@ export function useTableTileSync(
         table_type: false,
         column_order: false,
         hidden_columns: false,
+        default_hidden_columns: true,
         sorting: false,
         group_sorting: false,
         columns_pin_left: false,
@@ -544,6 +577,7 @@ export function useTableTileSync(
         group_sorting: null,
         column_order: null,
         hidden_columns: null,
+        default_hidden_columns: null,
         columns_pin_left: null,
         columns_pin_right: null,
         selected: null,
@@ -561,6 +595,7 @@ export function useTableTileSync(
     group_sorting: mutations.group_sorting.isPending,
     column_order: mutations.column_order.isPending,
     hidden_columns: mutations.hidden_columns.isPending,
+    default_hidden_columns: mutations.default_hidden_columns.isPending,
     columns_pin_left: mutations.columns_pin_left.isPending,
     columns_pin_right: mutations.columns_pin_right.isPending,
     selected: mutations.selected.isPending,
@@ -578,6 +613,7 @@ export function useTableTileSync(
     group_sorting: mutations.group_sorting.error,
     column_order: mutations.column_order.error,
     hidden_columns: mutations.hidden_columns.error,
+    default_hidden_columns: mutations.default_hidden_columns.error,
     columns_pin_left: mutations.columns_pin_left.error,
     columns_pin_right: mutations.columns_pin_right.error,
     selected: mutations.selected.error,

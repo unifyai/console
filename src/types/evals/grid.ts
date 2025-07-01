@@ -28,6 +28,7 @@ export interface TileProps {
     metric?: string;
     column_order?: string;
     hidden_columns?: string;
+    default_hidden_columns?: boolean;
     sorting?: string;
     grouping?: string;
     group_sorting?: string;
@@ -125,6 +126,7 @@ export type ItemType =
     | "page_number"
     | "column_order"
     | "hidden_columns"
+    | "default_hidden_columns"
     | "sorting"
     | "grouping"
     | "group_sorting"
@@ -202,6 +204,7 @@ export interface TableTileData {
     page_number?: string;
     column_order?: string;
     hidden_columns?: string;
+    default_hidden_columns?: boolean;
     sorting?: string;
     group_sorting?: string;
     columns_pin_left?: string;

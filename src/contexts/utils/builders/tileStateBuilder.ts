@@ -118,6 +118,7 @@ function buildTableTileData(tableTileData: TableTileData): TableTile {
     offset: tableTileData.page_number ? parseInt(tableTileData.page_number) * 20 : 0,  // Hardcoded for now
     column_order: tableTileData.column_order,
     hidden_columns: tableTileData.hidden_columns,
+    default_hidden_columns: tableTileData.default_hidden_columns,
     sorting: tableTileData.sorting,
     group_sorting: tableTileData.group_sorting,
     columns_pin_left: tableTileData.columns_pin_left,
