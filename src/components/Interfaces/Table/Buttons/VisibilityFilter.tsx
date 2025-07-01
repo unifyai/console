@@ -134,7 +134,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
             >
                 {/* Toggle for default hide underscore columns */}
                 <div className="flex justify-between items-center mb-3">
-                    <span className="font-bold text-sm">Hide underscore-prefixed columns by default</span>
+                    <span className="font-bold text-sm">Hide hidden columns by default</span>
                     <Switch checked={defaultHidden} onCheckedChange={setDefaultHidden}/>
                 </div>
                 {hideAll}
