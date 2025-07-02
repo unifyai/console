@@ -2,12 +2,13 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { MessageSquare, Phone, Mail, Contact, History } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Assistant } from "@/types/team/assistant";
+import type { Assistant, AssistantStatus } from "@/types/team/assistant";
 import ActionButton from '../../../Common/Buttons/Action';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
 
 interface AssistantListItemProps {
     assistant: Assistant;
+    status: AssistantStatus | null | undefined;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
@@ -15,6 +16,7 @@ interface AssistantListItemProps {
 
 export function AssistantListItem({
     assistant,
+    status,
     isSelected,
     onShowProfile,
     onShowActivityLog,
@@ -32,6 +34,7 @@ export function AssistantListItem({
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const isOnline = status?.running === true;
 
     return (
         <div
@@ -44,10 +47,20 @@ export function AssistantListItem({
             <div className="flex items-center gap-3 min-w-0">
                 <HoverCard openDelay={200} closeDelay={100}>
                     <HoverCardTrigger asChild>
-                        <Avatar className="h-8 w-8 cursor-default flex-shrink-0">
-                            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                            <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                            <Avatar className="h-8 w-8 cursor-default flex-shrink-0">
+                                <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+                                <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            {status !== undefined && (
+                                <span
+                                    className={cn(
+                                        "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
+                                        isOnline ? "bg-green-500" : "bg-gray-400"
+                                    )}
+                                />
+                            )}
+                        </div>
                     </HoverCardTrigger>
                     <HoverCardContent className="w-80" side="right" align="start">
                          <div className="flex justify-between space-x-4">

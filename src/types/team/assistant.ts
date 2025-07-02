@@ -30,6 +30,16 @@ export interface Assistant {
   signedProfilePhotoUrl?: string;
 }
 
+export interface AssistantStatus {
+    running: boolean;
+    uptime_seconds: number;
+    process_id: number | null;
+    assistant_id: string;
+    shutdown_reason: string | null;
+    inactivity_timeout_minutes: number;
+    message: string | null;
+}
+
 export type AssistantPreset =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
   & { 
@@ -202,6 +212,7 @@ export interface AssistantActions {
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
+    status: (assistantId: string) => Promise<(AssistantStatus & ResponseProps) | ResponseProps>;
     },
     "photo": {    
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 

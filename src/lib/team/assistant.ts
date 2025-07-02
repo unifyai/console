@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload } from "@/types/team/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus } from "@/types/team/assistant";
 
 export const listAssistants = async (apiKey: string) => {
     return async (): Promise<Assistant[] | ResponseProps> => {
@@ -44,6 +44,30 @@ export const listAssistants = async (apiKey: string) => {
             return { detail: errorMessage };
         }
 
+    };
+};
+
+export const getAssistantStatus = async (apiKey: string) => {
+    return async (assistantId: string): Promise<(AssistantStatus & ResponseProps) | ResponseProps> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/status`,
+                { method: "GET", headers: { apiKey: apiKey } }
+            );
+
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to get status for assistant ${assistantId}: ${response.statusText}` };
+            }
+
+            return data.info as (AssistantStatus & ResponseProps);
+        } catch (error) {
+            console.error(`[assistant.ts getAssistantStatus] Error fetching status for assistant ${assistantId}:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
+        }
     };
 };
 

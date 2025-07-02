@@ -4,7 +4,7 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Team/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Team/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantPreset } from "@/types/team/assistant";
+import { Assistant, AssistantActions, AssistantPreset, AssistantStatus } from "@/types/team/assistant";
 import { ActivityLogActions, MessageLog } from "@/types/team/activity";
 import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
 import { showSuccessToast } from "@/components/notifications";
@@ -25,6 +25,7 @@ import { useAssistantHireForm } from '@/hooks/Team/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Team/usePanelManager';
 import { useActivityLogs } from '@/hooks/Team/useActivityLogs';
 import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringApproval';
+import { useAssistantStatus } from '@/hooks/Team/useAssistantStatus';
 import { FormProvider } from 'react-hook-form';
 
 
@@ -58,6 +59,12 @@ export default function Main({
         deleteAssistant,
         updateAssistantProfile,
     } = useAssistants(assistantActions); 
+
+    // --- Assistant Status Polling ---
+    const { statuses: assistantStatuses } = useAssistantStatus(
+        assistants,
+        assistantActions.assistant.status
+    );
 
     // --- Task Filters & Data ---
     const {
@@ -226,6 +233,7 @@ export default function Main({
                 <div className={cn("h-full transition-all duration-300 ease-in-out relative border-r", assistantListWidth, "flex-shrink-0")}>
                     <AssistantList
                         assistants={assistants}
+                        assistantStatuses={assistantStatuses}
                         assistantError={assistantError}
                         isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
                         error={assistantError}

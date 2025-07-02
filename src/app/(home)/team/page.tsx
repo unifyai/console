@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Team/Main";
 import { getTasks, updateTask } from "@/lib/team/task";
-import { listAssistants, createAssistant, deleteAssistant, updateAssistant } from "@/lib/team/assistant";
+import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/team/photo";
 import { 
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
@@ -31,6 +31,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             create: await createAssistant(apiKey),
             update: await updateAssistant(apiKey),
             delete: await deleteAssistant(apiKey),
+            status: await getAssistantStatus(adminKey),
         },
         "photo": {
             upload: await uploadPhoto(apiKey),
