@@ -25,6 +25,7 @@ import { useAssistantHireForm } from '@/hooks/Team/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Team/usePanelManager';
 import { useActivityLogs } from '@/hooks/Team/useActivityLogs';
 import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringApproval';
+import { FormProvider } from 'react-hook-form';
 
 
 interface MainProps {
@@ -138,6 +139,8 @@ export default function Main({
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
+        availableSocialPlatforms,
+        isLoadingSocialPlatforms,
     } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen);
     
     // --- Callbacks for UI interaction ---
@@ -224,7 +227,7 @@ export default function Main({
                     <AssistantList
                         assistants={assistants}
                         assistantError={assistantError}
-                        isLoading={isLoadingAssistants || (isHireDialogOpen && isLoadingEmails)}
+                        isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
                         activityLogAssistantId={activityLogAssistantId}
@@ -304,51 +307,55 @@ export default function Main({
                     />
                 </div>
             </div>
-
-            {/* Hire Dialog */}
-            <AssistantHire
-                isHireDialogOpen={isHireDialogOpen}
-                isHireSubmitting={isHireFormSubmitting}
-                setIsHireDialogOpen={setIsHireDialogOpen}
-                isAssistantPresetsOpen={isAssistantPresetsOpen}
-                setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
-                handleRandomizePreset={handleRandomizePreset}
-                currentFilteredPresets={currentFilteredPresets}
-                onHireAttempt={initiateHireSequence}
-                isProcessingVoice={isDialogBusyProcessingVoice} 
-                isCheckingBalance={isCheckingBalance}
-                showInsufficientFundsHint={showInsufficientFundsHint}
-                setShowInsufficientFundsHint={setShowInsufficientFundsHint}
-                userApprovalStatus={userHiringApprovalStatus}
-                isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
-                onRequestAccess={requestHiringAccess}
-            >
-                <HireForm
+            <FormProvider {...hireFormMethods}>
+                <AssistantHire
                     formMethods={hireFormMethods}
-                    onSubmit={rhfInternalFormSubmit}
-                    isSubmitting={isHireFormSubmitting || isLoadingEmails}
-                    assistantActions={assistantActions}
-                    onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
-                    allAssistantEmails={fetchedAssistantEmails}
-                    isLoadingEmails={isLoadingEmails}
-                    availablePhoneCountries={availablePhoneCountries}
-                    isLoadingCountries={isLoadingCountries}
-                />
-                <PresetsPanel                                    
-                    displayedPresets={displayedPresets}
-                    onPresetSelect={selectPresetForHireForm}
-                    onClose={() => setIsAssistantPresetsOpen(false)}
-                    onLoadMore={loadMorePresets}
-                    canLoadMore={canLoadMorePresets}
-                    isLoadingMore={isLoadingMorePresets}
-                    ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter}
-                    availableAgeBrackets={availableAgeBrackets}
-                    regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter}
-                    availableRegions={availableRegions}
-                    genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter}
-                    availableGenders={availableGenders} 
-                />
-            </AssistantHire>
+                    isHireDialogOpen={isHireDialogOpen}
+                    isHireSubmitting={isHireFormSubmitting}
+                    setIsHireDialogOpen={setIsHireDialogOpen}
+                    isAssistantPresetsOpen={isAssistantPresetsOpen}
+                    setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
+                    handleRandomizePreset={handleRandomizePreset}
+                    currentFilteredPresets={currentFilteredPresets}
+                    onHireAttempt={initiateHireSequence}
+                    isProcessingVoice={isDialogBusyProcessingVoice} 
+                    isCheckingBalance={isCheckingBalance}
+                    showInsufficientFundsHint={showInsufficientFundsHint}
+                    setShowInsufficientFundsHint={setShowInsufficientFundsHint}
+                    userApprovalStatus={userHiringApprovalStatus}
+                    isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
+                    onRequestAccess={requestHiringAccess}
+                    availableSocialPlatforms={availableSocialPlatforms}
+                >
+                    <HireForm
+                        formMethods={hireFormMethods}
+                        onSubmit={rhfInternalFormSubmit}
+                        isSubmitting={isHireFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
+                        assistantActions={assistantActions}
+                        onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
+                        allAssistantEmails={fetchedAssistantEmails}
+                        isLoadingEmails={isLoadingEmails}
+                        availablePhoneCountries={availablePhoneCountries}
+                        isLoadingCountries={isLoadingCountries}
+                        availableSocialPlatforms={availableSocialPlatforms}
+                        isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                    />
+                    <PresetsPanel                                    
+                        displayedPresets={displayedPresets}
+                        onPresetSelect={selectPresetForHireForm}
+                        onClose={() => setIsAssistantPresetsOpen(false)}
+                        onLoadMore={loadMorePresets}
+                        canLoadMore={canLoadMorePresets}
+                        isLoadingMore={isLoadingMorePresets}
+                        ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter}
+                        availableAgeBrackets={availableAgeBrackets}
+                        regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter}
+                        availableRegions={availableRegions}
+                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter}
+                        availableGenders={availableGenders} 
+                    />
+                </AssistantHire>
+            </FormProvider>
         </>
     );
 }

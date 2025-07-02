@@ -44,6 +44,7 @@ export function VoiceCustomization({
 }: VoiceCustomizationProps) {
     const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
+    const [isDesignDescTooltipOpen, setIsDesignDescTooltipOpen] = React.useState(false);
 
     const handleVoiceDeletedFromHook = React.useCallback((deletedVoiceId: string) => {
         if (selectedVoiceId === deletedVoiceId) {
@@ -58,6 +59,16 @@ export function VoiceCustomization({
         fetchUserVoices,
         deleteUserVoice,
     } = useVoiceOptions(assistantActions.voice, handleVoiceDeletedFromHook);
+
+    const selectedVoice = React.useMemo(
+        () => allDisplayableVoices.find(v => v.voice_id === selectedVoiceId),
+        [allDisplayableVoices, selectedVoiceId]
+    );
+
+    const otherVoices = React.useMemo(
+        () => allDisplayableVoices.filter(v => v.voice_id !== selectedVoiceId),
+        [allDisplayableVoices, selectedVoiceId]
+    );
 
     const handleVoiceCreatedAndSelectedByHook = React.useCallback((newVoice: VoiceOption) => {
         onVoiceSelected(newVoice);
@@ -111,6 +122,24 @@ export function VoiceCustomization({
         }
     }, [activeMainTab, setCreateMode]);
 
+    // Effect to show the design description tooltip automatically
+    React.useEffect(() => {
+        let showTimer: NodeJS.Timeout;
+        let hideTimer: NodeJS.Timeout;
+        if (activeMainTab === 'design') {
+            // Use a short timeout to let the UI transition finish
+            showTimer = setTimeout(() => {
+                setIsDesignDescTooltipOpen(true);
+            }, 500);
+
+            // And a timeout to close it automatically after a few seconds
+            hideTimer = setTimeout(() => {
+                setIsDesignDescTooltipOpen(false);
+            }, 5000);
+        }
+        return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+    }, [activeMainTab]);
+
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
         setSelectedVoiceId(voice.voice_id);
         onVoiceSelected(voice); 
@@ -121,8 +150,8 @@ export function VoiceCustomization({
         const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
         return (
             <div
-                className={cn("flex items-center gap-2 p-2 rounded-md hover:bg-muted cursor-pointer border",
-                    isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30",
+                className={cn("flex items-center gap-2 p-2 rounded-md cursor-pointer border",
+                    isSelected ? "bg-primary text-primary-foreground border-primary" : "border-transparent hover:border-muted-foreground/30 hover:bg-muted",
                     itemIsDisabled && "opacity-60 cursor-not-allowed hover:bg-transparent" 
                 )}
                 onClick={() => !itemIsDisabled && handleSelectVoiceDisplay(voice)}
@@ -344,202 +373,225 @@ export function VoiceCustomization({
                     )}
                 </TabsList>
 
-                <TabsContent value="select" className="mt-1">
-                    <ScrollArea className="h-[260px] p-2 border rounded-md relative"> {/* Added relative for absolute positioning of skeleton overlay */}
-                        {isLoadingUserVoices && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col p-0 space-y-1 overflow-hidden">
-                                {/* The skeletons are inside this overlay */}
+                <TabsContent value="select" className="mt-2 border rounded-md h-[276px]">
+                    <ScrollArea className="h-full w-full">
+                        {isLoadingUserVoices ? (
+                            <div className="p-2 space-y-1">
                                 {[...Array(5)].map((_, i) => (
                                     <VoiceListItemSkeleton key={`voice-skeleton-${i}`} />
                                 ))}
                             </div>
-                        )}
-                        <div className={cn(
-                            "space-y-1",
-                            isLoadingUserVoices && "opacity-0" // Hide actual content when loading
-                        )}>
-                            {/* This part is only rendered if not loading, or visible underneath if opacity wasn't 0 */}
-                            {!isLoadingUserVoices && allDisplayableVoices.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full">
-                                    <p className="text-sm text-muted-foreground text-center py-4">No voices. Try creating or designing one.</p>
+                        ) : (
+                            <div>
+                                {selectedVoice && (
+                                    <div className="sticky top-0 bg-background z-10 p-2 border-b">
+                                        <VoiceListItem voice={selectedVoice} />
+                                    </div>
+                                )}
+                                <div className="p-2 space-y-1">
+                                    {otherVoices.length === 0 && !selectedVoice ? (
+                                        <div className="flex flex-col items-center justify-center pt-10">
+                                            <p className="text-sm text-muted-foreground text-center">No voices. Try creating or designing one.</p>
+                                        </div>
+                                    ) : (
+                                        otherVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
+                                    )}
                                 </div>
-                            ) : (
-                                allDisplayableVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
-                            )}
+                            </div>
+                        )}
+                    </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="clone" className="mt-2 border rounded-md h-[276px]">
+                    <ScrollArea className="h-full w-full">
+                        <div className="p-3 space-y-3">
+                            <div className="space-y-1">
+                                <Label htmlFor="clone-name" className="text-xs">Voice Name</Label>
+                                <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                            </div>
+                            <div className="pt-2">
+                                <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
+                                {!cloneFileName ? (
+                                    <label 
+                                        htmlFor="clone-file-input"
+                                        className={cn(
+                                            "mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center",
+                                            (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-50 cursor-not-allowed",
+                                            isDraggingOverClone && "border-primary ring-2 ring-primary ring-offset-2"
+                                        )}
+                                        onDragEnter={handleDragEnterClone}
+                                        onDragLeave={handleDragLeaveClone}
+                                        onDragOver={handleDragOverClone}
+                                        onDrop={handleDropClone}
+                                        aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                    >
+                                        <span className="flex items-center space-x-2"> 
+                                            <UploadCloud className="w-5 h-5 text-gray-600" /> 
+                                            <span className="font-medium text-gray-600 text-sm">
+                                                {isDraggingOverClone ? "Drop file here" : "Drop or "}
+                                                {!isDraggingOverClone && <span className="text-blue-600 underline">browse</span>}
+                                            </span>
+                                        </span>
+                                        <input 
+                                            type="file" 
+                                            id="clone-file-input"
+                                            accept=".wav,.mp3" 
+                                            className="hidden" 
+                                            onChange={(e) => { 
+                                                const f = e.target.files?.[0]; 
+                                                if (f) { 
+                                                    if (f.type.startsWith("audio/")) {
+                                                        setCloneFile(f); 
+                                                        setCloneFileName(f.name); 
+                                                    } else {
+                                                        toast.error("Invalid file type. Please select an audio file (.wav, .mp3).");
+                                                        e.target.value = '';
+                                                    }
+                                                } 
+                                            }} 
+                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
+                                        />
+                                    </label>
+                                ) : (
+                                    <div className="mt-0.5 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-sm h-9">
+                                        <span className="truncate mr-2 flex-1" title={cloneFileName}>{cloneFileName}</span>
+                                        <div className="flex items-center gap-1">
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-transparent pt-0.5"
+                                                            onClick={handleTogglePlayClonePreview}
+                                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneAudioObjectURL}
+                                                        >
+                                                            {isPlayingClonePreview ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>{isPlayingClonePreview ? "Pause preview" : "Play preview"}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent pt-0.5" 
+                                                            onClick={handleClearCloneFile} 
+                                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>Remove file</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="pt-1"><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                            
+                            <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
+                                {isProcessingCreate && createMode === 'clone' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
+                            </Button>
                         </div>
                     </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="clone" className="p-3 border rounded-md space-y-3 min-h-[276px]"> {/* Added min-height for consistency */}
-                    <div className="space-y-1">
-                        <Label htmlFor="clone-name" className="text-xs">Voice Name</Label>
-                        <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
-                    </div>
-                    <div className="pt-2">
-                        <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
-                        {!cloneFileName ? (
-                            <label 
-                                htmlFor="clone-file-input"
-                                className={cn(
-                                    "mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center",
-                                    (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-50 cursor-not-allowed",
-                                    isDraggingOverClone && "border-primary ring-2 ring-primary ring-offset-2"
-                                )}
-                                onDragEnter={handleDragEnterClone}
-                                onDragLeave={handleDragLeaveClone}
-                                onDragOver={handleDragOverClone}
-                                onDrop={handleDropClone}
-                                aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-                            >
-                                <span className="flex items-center space-x-2"> 
-                                    <UploadCloud className="w-5 h-5 text-gray-600" /> 
-                                    <span className="font-medium text-gray-600 text-sm">
-                                        {isDraggingOverClone ? "Drop file here" : "Drop or "}
-                                        {!isDraggingOverClone && <span className="text-blue-600 underline">browse</span>}
-                                    </span>
-                                </span>
-                                <input 
-                                    type="file" 
-                                    id="clone-file-input"
-                                    accept=".wav,.mp3" 
-                                    className="hidden" 
-                                    onChange={(e) => { 
-                                        const f = e.target.files?.[0]; 
-                                        if (f) { 
-                                            if (f.type.startsWith("audio/")) {
-                                                setCloneFile(f); 
-                                                setCloneFileName(f.name); 
-                                            } else {
-                                                toast.error("Invalid file type. Please select an audio file (.wav, .mp3).");
-                                                e.target.value = '';
-                                            }
-                                        } 
-                                    }} 
-                                    disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
-                                />
-                            </label>
-                        ) : (
-                            <div className="mt-0.5 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-sm h-9">
-                                <span className="truncate mr-2 flex-1" title={cloneFileName}>{cloneFileName}</span>
-                                <div className="flex items-center gap-1">
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-transparent pt-0.5"
-                                                    onClick={handleTogglePlayClonePreview}
-                                                    disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneAudioObjectURL}
-                                                >
-                                                    {isPlayingClonePreview ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>{isPlayingClonePreview ? "Pause preview" : "Play preview"}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button 
-                                                    type="button" 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent pt-0.5" 
-                                                    onClick={handleClearCloneFile} 
-                                                    disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Remove file</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="pt-1"><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
-                    
-                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
-                        {isProcessingCreate && createMode === 'clone' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
-                    </Button>
-                </TabsContent>
-
                 {VOICE_PROVIDER === 'elevenlabs' && (
-                    <TabsContent value="design" className="p-3 border rounded-md space-y-3 min-h-[276px]">
-                        <div className="space-y-4">
-                            <div className="space-y-1">
-                                <Label htmlFor="design-final-name" className="text-xs">Voice Name</Label>
-                                <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
-                                <Textarea 
-                                    id="design-desc" 
-                                    value={designVoiceDescription} 
-                                    onChange={e => setDesignVoiceDescription(e.target.value)} 
-                                    placeholder="e.g., A calm and soothing female voice with a British accent..." 
-                                    rows={2} 
-                                    className="text-sm min-h-[50px]" 
-                                    disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
-                                    maxLength={DESIGN_VOICE_DESC_MAX_LENGTH}
-                                />
-                                <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH))}>
-                                    {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH} (min {DESIGN_VOICE_DESC_MIN_LENGTH})
-                                </p>
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
-                                <Input 
-                                    id="design-sample" 
-                                    value={designSampleText} 
-                                    onChange={e => setDesignSampleText(e.target.value)} 
-                                    placeholder={`e.g., Hello, this is a sample reference text for generating the voice.`}
-                                    className="h-8 text-sm" 
-                                    disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-                                    maxLength={DESIGN_SAMPLE_TEXT_MAX_LENGTH}
-                                />
-                                <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designSampleText.length, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH, true))}>
-                                    {designSampleText.length}/{DESIGN_SAMPLE_TEXT_MAX_LENGTH} 
-                                    {designSampleText.length > 0 && ` (min ${DESIGN_SAMPLE_TEXT_MIN_LENGTH})`}
-                                </p>
-                            </div>
-                            <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !designVoiceDescription.trim()}>
-                                {isGeneratingPreviews ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Generate Previews
-                            </Button>
+                    <TabsContent value="design" className="mt-2 border rounded-md h-[276px]">
+                        <ScrollArea className="h-full w-full">
+                            <div className="p-3 space-y-3">
+                                <div className="space-y-4">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="design-final-name" className="text-xs">Voice Name</Label>
+                                        <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex flex-row justify-between gap-2 items-center pb-1">
+                                            <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip open={isDesignDescTooltipOpen} onOpenChange={setIsDesignDescTooltipOpen}>
+                                                    <TooltipTrigger asChild>
+                                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="left" align="end" className="max-w-xs text-sm">
+                                                        <p>{"Voice description language will be used to determine the voice's primary language."}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                        <Textarea 
+                                            id="design-desc" 
+                                            value={designVoiceDescription} 
+                                            onChange={e => setDesignVoiceDescription(e.target.value)} 
+                                            placeholder="e.g., A calm and soothing female voice with a British accent..." 
+                                            rows={2} 
+                                            className="text-sm min-h-[50px]" 
+                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
+                                            maxLength={DESIGN_VOICE_DESC_MAX_LENGTH}
+                                        />
+                                        <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH))}>
+                                            {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH} (min {DESIGN_VOICE_DESC_MIN_LENGTH})
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
+                                        <Input 
+                                            id="design-sample" 
+                                            value={designSampleText} 
+                                            onChange={e => setDesignSampleText(e.target.value)} 
+                                            placeholder={`e.g., Hello, this is a sample reference text for generating the voice.`}
+                                            className="h-8 text-sm" 
+                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                            maxLength={DESIGN_SAMPLE_TEXT_MAX_LENGTH}
+                                        />
+                                        <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designSampleText.length, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH, true))}>
+                                            {designSampleText.length}/{DESIGN_SAMPLE_TEXT_MAX_LENGTH} 
+                                            {designSampleText.length > 0 && ` (min ${DESIGN_SAMPLE_TEXT_MIN_LENGTH})`}
+                                        </p>
+                                    </div>
+                                    <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !designVoiceDescription.trim()}>
+                                        {isGeneratingPreviews ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Generate Previews
+                                    </Button>
 
-                            {designPreviews.length > 0 && (
-                                <div className="space-y-2 pt-2">
-                                    <Label className="text-xs">Select a Preview to Finalize:</Label>
-                                    <ScrollArea className="h-[120px] border rounded-md p-1"> {/* Increased height */}
-                                        {designPreviews.map((preview, idx) => (
-                                            <Button
-                                                type="button" // Explicitly set type
-                                                key={preview.generated_voice_id}
-                                                variant={selectedPreviewId === preview.generated_voice_id ? "default" : "outline"}
-                                                size="sm"
-                                                className="w-full justify-start h-8 mb-1 text-xs"
-                                                onClick={(e) => playDesignPreviewAudio(e, preview)}
-                                                disabled={isGeneratingPreviews || isProcessingCreate}
-                                            >
-                                                <MicVocal className="mr-2 h-3 w-3" />
-                                                Preview {idx + 1}
-                                                {selectedPreviewId === preview.generated_voice_id && <Play className="ml-auto h-3 w-3" />}
-                                            </Button>
-                                        ))}
-                                    </ScrollArea>
+                                    {designPreviews.length > 0 && (
+                                        <div className="space-y-2 pt-2">
+                                            <Label className="text-xs">Select a Preview to Finalize:</Label>
+                                            <ScrollArea className="h-[120px] border rounded-md p-1"> {/* Increased height */}
+                                                {designPreviews.map((preview, idx) => (
+                                                    <Button
+                                                        type="button" // Explicitly set type
+                                                        key={preview.generated_voice_id}
+                                                        variant={selectedPreviewId === preview.generated_voice_id ? "default" : "outline"}
+                                                        size="sm"
+                                                        className="w-full justify-start h-8 mb-1 text-xs"
+                                                        onClick={(e) => playDesignPreviewAudio(e, preview)}
+                                                        disabled={isGeneratingPreviews || isProcessingCreate}
+                                                    >
+                                                        <MicVocal className="mr-2 h-3 w-3" />
+                                                        Preview {idx + 1}
+                                                        {selectedPreviewId === preview.generated_voice_id && <Play className="ml-auto h-3 w-3" />}
+                                                    </Button>
+                                                ))}
+                                            </ScrollArea>
+                                        </div>
+                                    )}
+                                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (createMode === 'design' && !selectedPreviewId)}>
+                                        {isProcessingCreate && createMode === 'design' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
+                                    </Button>
                                 </div>
-                            )}
-                            <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (createMode === 'design' && !selectedPreviewId)}>
-                                {isProcessingCreate && createMode === 'design' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
-                            </Button>
-                        </div>
+                            </div>
+                        </ScrollArea>
                     </TabsContent>
                 )}
             </Tabs>

@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { AvailablePhoneCountry } from "../../types/team/assistant";
+import { AvailablePhoneCountry, AvailableSocialPlatform } from "../../types/team/assistant";
 import { getCountryFlag, getCountryName } from "../../utils/team/country-utils";
 
 export const createAssistantEmail = async (apiKey: string) => {
@@ -191,6 +191,51 @@ export const listAvailablePhoneCountries = async (apiKey: string) => {
             const usName = getCountryName("US") || "United States";
             const usFlag = getCountryFlag("US");
             return [{ code: "US", name: usName, flag: usFlag }];
+        }
+    };
+};
+
+export const listAvailableSocialPlatforms = async (apiKey: string) => {
+    return async (): Promise<AvailableSocialPlatform[] | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/social/available-platforms`, {
+                method: "GET",
+                headers: { apiKey: apiKey }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to list available social platforms: ${response.statusText}` };
+            }
+            if (data.platforms && Array.isArray(data.platforms)) {
+                return data.platforms as AvailableSocialPlatform[];
+            }
+            return { detail: "Listing social platforms succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error listing social platforms." };
+        }
+    };
+};
+
+export const verifySocialAccount = async (apiKey: string) => {
+    return async (platform: string, account_identifier: string): Promise<{ verification_code: string; sent_at: string; } | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/social/verify`, {
+                method: "POST",
+                headers: { apiKey: apiKey, "Content-Type": "application/json" },
+                body: JSON.stringify({ platform, account_identifier })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to send verification for ${platform}: ${response.statusText}` };
+            }
+            if (data.verification_code && data.sent_at) {
+                return data as { verification_code: string; sent_at: string; };
+            }
+            return { detail: "Verification succeeded but response format was unexpected." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error during verification." };
         }
     };
 };

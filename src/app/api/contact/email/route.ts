@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
             {
                 method: "GET",
                 headers: {
-                    "Authorization": `Bearer ${ORCHESTRA_ADMIN_KEY}`,
+                    "Authorization": `Bearer ${apiKey}`,
                     "accept": "application/json",
                 }
             }

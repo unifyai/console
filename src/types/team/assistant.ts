@@ -19,7 +19,7 @@ export interface Assistant {
   email: string | null;
   phone: string | null;
   user_phone: string | null;
-  whatsapp_sid?: string | null;
+  user_whatsapp_number: string | null;
   // Contract fields
   weekly_limit: number | null;
   max_parallel: number | null;
@@ -31,7 +31,7 @@ export interface Assistant {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
   & { 
       gender?: 'male' | 'female'; 
       country: string;
@@ -41,8 +41,21 @@ export type AssistantPreset =
       };
     };
 
+export interface SocialAccount {
+  platform: string;
+  identifier: string;
+  isVerified: boolean;
+  
+  // UI state for verification flow
+  isVerifying: boolean;
+  verificationCodeSent: string | null;
+  verificationSentAt: Date | null;
+  verificationAttempts: number;
+  verificationError: string | null;
+}
+
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'whatsapp_sid' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
   & { 
       email?: string; 
       emailManuallyEdited?: boolean; 
@@ -50,6 +63,7 @@ export type AssistantFormData =
       imageFile?: File | null; // For newly uploaded image to GCS
       imagePreview?: string | null; // For local blob preview or existing URL (either preset or GCS image)
       user_phone?: string | null;
+      user_whatsapp_number?: string | null;
       country?: string; // Country code for phone number
       voice_id?: string;
       voice_name?: string;
@@ -61,6 +75,7 @@ export type AssistantFormData =
       videoUrl?: string | null;
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
+      social_accounts?: SocialAccount[];
     };
 
 export interface PhotoUploadResponse {
@@ -102,7 +117,7 @@ export interface AssistantUpdatePayload {
     user_phone?: string | null;
     phone?: string | null;
     email?: string | null;
-    whatsapp_sid?: string | null;
+    user_whatsapp_number?: string | null;
     voice_id?: string | null;
     country?: string | null;
 }
@@ -143,6 +158,11 @@ export interface AvailablePhoneCountry {
     flag: string;
 }
 
+export interface AvailableSocialPlatform {
+    name: string;
+    cost: number;
+}
+
 export interface VoiceDesignGeneratePreviewsRequest {
     voice_description: string;
     text?: string;
@@ -177,7 +197,8 @@ export interface AssistantActions {
     create: (
         first_name: string, surname: string, age: number | null, region: string | null, 
         profile_photo: string | null, about: string | null, voice_id: string | null, 
-        email: string, user_phone: string | null, country: string | null
+        email: string, user_phone: string | null, country: string | null,
+        user_whatsapp_number: string | null
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
@@ -202,6 +223,8 @@ export interface AssistantActions {
     "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
+    listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
+    verifySocialAccount: (platform: string, account_identifier: string) => Promise<{ verification_code: string; sent_at: string; } | ResponseProps>;
     },
     "approval": {
     getProfile: () => Promise<HiringProfileData | ResponseProps>

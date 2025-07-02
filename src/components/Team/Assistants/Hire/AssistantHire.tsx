@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AssistantFormData, AssistantPreset, AssistantActions } from '@/types/team/assistant';
+import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPlatform } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
@@ -15,6 +15,7 @@ import {
 } from "@/components/UI/popover";
 import { ApprovalStatus } from '@/types/user';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
+import { useFormContext, UseFormReturn } from 'react-hook-form';
 
 interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
     isHireDialogOpen: boolean;
@@ -33,6 +34,8 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     userApprovalStatus: ApprovalStatus | 'loading'; 
     isLoadingUserApproval: boolean; 
     onRequestAccess: () => Promise<boolean | void>;
+    formMethods: UseFormReturn<AssistantFormData>;
+    availableSocialPlatforms: AvailableSocialPlatform[];
 }
 
 export function AssistantHire ({
@@ -52,8 +55,23 @@ export function AssistantHire ({
     userApprovalStatus,
     isLoadingUserApproval, 
     onRequestAccess,
+    availableSocialPlatforms,
+    formMethods,
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
+    
+    const { watch } = useFormContext<AssistantFormData>();
+    const socialAccounts = watch("social_accounts", []) || [];
+
+    const totalOnboardingFee = React.useMemo(() => {
+        const socialCosts = socialAccounts
+            .filter(acc => acc.isVerified)
+            .reduce((sum, acc) => {
+                const platformInfo = availableSocialPlatforms.find(p => p.name === acc.platform);
+                return sum + (platformInfo?.cost || ASSISTANT_ONBOARDING_FEE); // Fallback cost
+            }, 0);
+        return ASSISTANT_ONBOARDING_FEE + socialCosts;
+    }, [socialAccounts, availableSocialPlatforms]);
 
     const isUserApproved = userApprovalStatus === "approved";
     const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval;
@@ -195,62 +213,65 @@ export function AssistantHire ({
                     </div>
                 )}
 
-                <DialogFooter className="px-6 py-3 border-t flex-shrink-0">
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline" disabled={isOverallDialogBusy}>Cancel</Button>
-                    </DialogClose>
-                    <Popover
-                        modal={true} 
-                        open={showInsufficientFundsHint && isUserApproved} 
-                        onOpenChange={(isOpenByRadix) => {
-                            if (!isOpenByRadix) {
-                                setShowInsufficientFundsHint(false);
-                            }
-                        }}
-                    >
-                        <PopoverTrigger asChild>
-                            <Button 
-                                type="button" 
-                                onClick={onHireAttempt} 
-                                className="bg-green-600 hover:bg-green-700 text-white" 
-                                disabled={isPrimaryActionDisabled}
-                            >
-                                {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {hireButtonLabel()}
-                            </Button>
-                        </PopoverTrigger>
-                        {isUserApproved && ( 
-                            <PopoverContent 
-                                side="top" 
-                                align="end" 
-                                className="w-80"
-                            >
-                                <div className="grid gap-4">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center">
-                                            <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-                                            <h3 className="font-medium leading-none text-destructive">Insufficient Funds</h3>
+                <DialogFooter className="px-6 py-3 border-t flex-shrink-0 flex items-center">
+                    <div className="text-sm mr-auto">
+                        <span className="text-muted-foreground">Total Onboarding Fee: </span>
+                        <span className="font-semibold">{totalOnboardingFee.toFixed(2)} Credits</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Popover
+                            modal={true} 
+                            open={showInsufficientFundsHint && isUserApproved} 
+                            onOpenChange={(isOpenByRadix) => {
+                                if (!isOpenByRadix) {
+                                    setShowInsufficientFundsHint(false);
+                                }
+                            }}
+                        >
+                            <PopoverTrigger asChild>
+                                <Button 
+                                    type="button" 
+                                    onClick={onHireAttempt} 
+                                    className="bg-green-600 hover:bg-green-700 text-white" 
+                                    disabled={isPrimaryActionDisabled}
+                                >
+                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {hireButtonLabel()}
+                                </Button>
+                            </PopoverTrigger>
+                            {isUserApproved && ( 
+                                <PopoverContent 
+                                    side="top" 
+                                    align="end" 
+                                    className="w-80"
+                                >
+                                    <div className="grid gap-4">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center">
+                                                <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
+                                                <h3 className="font-medium leading-none text-destructive">Insufficient Funds</h3>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground">
+                                                Your required balance is ${totalOnboardingFee.toFixed(2)}. Please recharge your account.
+                                            </p>
                                         </div>
-                                        <p className="text-sm text-muted-foreground">
-                                            Assistants have a ${ASSISTANT_ONBOARDING_FEE} onboarding fee. Please recharge your account.
-                                        </p>
+                                        <Button 
+                                            variant="default" 
+                                            size="sm" 
+                                            className="w-full"
+                                            onClick={(e) => {
+                                                e.stopPropagation(); 
+                                                window.open('/billing', '_blank');
+                                                setShowInsufficientFundsHint(false);
+                                            }}
+                                        >
+                                            Go to Billing
+                                        </Button>
                                     </div>
-                                    <Button 
-                                        variant="default" 
-                                        size="sm" 
-                                        className="w-full"
-                                        onClick={(e) => {
-                                            e.stopPropagation(); 
-                                            window.open('/billing', '_blank');
-                                            setShowInsufficientFundsHint(false);
-                                        }}
-                                    >
-                                        Go to Billing
-                                    </Button>
-                                </div>
-                            </PopoverContent>
-                        )}
-                    </Popover>
+                                </PopoverContent>
+                            )}
+                        </Popover>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

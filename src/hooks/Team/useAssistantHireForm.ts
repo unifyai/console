@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -8,6 +8,7 @@ import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { getCountryName, getCountryFlag } from '@/utils/team/country-utils';
 import { AvailablePhoneCountry } from '@/types/team/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { toast } from 'sonner';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -39,6 +40,8 @@ export function useAssistantHireForm(
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
+            user_whatsapp_number: null,
+            social_accounts: [],
             country: FALLBACK_DEFAULT_COUNTRY_CODE,
             imageFile: null,
             profile_photo_url: null,
@@ -90,6 +93,8 @@ export function useAssistantHireForm(
     const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
     const [fetchedAssistantEmails, setFetchedAssistantEmails] = React.useState<string[]>([]);
     const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
+    const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
+    const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(false);
 
     React.useEffect(() => {
         if (isHireDialogInitiallyOpen) {
@@ -109,6 +114,24 @@ export function useAssistantHireForm(
                 })
                 .finally(() => {
                     setIsLoadingEmails(false);
+                });
+
+            setIsLoadingSocialPlatforms(true);
+            assistantActions.contact.listAvailableSocialPlatforms()
+                .then(result => {
+                    if (Array.isArray(result)) {
+                        setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
+                    } else {
+                        showErrorToast((result as ResponseProps).detail || "Could not fetch social platforms.");
+                        setAvailableSocialPlatforms([]);
+                    }
+                })
+                .catch(err => {
+                    showErrorToast("Failed to fetch social platforms.");
+                    setAvailableSocialPlatforms([]);
+                })
+                .finally(() => {
+                    setIsLoadingSocialPlatforms(false);
                 });
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
@@ -184,6 +207,7 @@ export function useAssistantHireForm(
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
+        setValue("social_accounts", []);
         
         const presetCountryIsValid = availablePhoneCountries.find(c => c.code === preset.country);
         setValue("country", presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE), { shouldValidate: true });
@@ -285,6 +309,8 @@ export function useAssistantHireForm(
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
+            user_whatsapp_number: values?.user_whatsapp_number || null,
+            social_accounts: [],
             country: initialCountry,
             imageFile: null, 
             profile_photo_url: null,
@@ -349,6 +375,12 @@ export function useAssistantHireForm(
                 throw new Error("No voice selected.");
             }
 
+            // Social accounts validation
+            if (data.social_accounts && data.social_accounts.some(acc => !acc.isVerified)) {
+                toast.error("All added social accounts must be verified before hiring.");
+                throw new Error("Unverified social accounts.");
+            }
+
             // Registering voices / uploading custom photos
             let finalImageUrlToSend = data.profile_photo_url;
             if (data.imageFile) {
@@ -377,12 +409,16 @@ export function useAssistantHireForm(
                 }
             }
 
+            const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
+            const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
+
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend as string | null,
                 data.about, data.voice_id, 
-                data.email, data.user_phone, data.country
+                data.email, data.user_phone, data.country,
+                user_whatsapp_number
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 showSuccessToast(`Assistant ${data.first_name} ${data.surname} hired!`, undefined, toastId);
@@ -420,8 +456,8 @@ export function useAssistantHireForm(
     const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
 
     const initiateHireSequence = async (event?: React.BaseSyntheticEvent) => {
-        if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
-            if(isLoadingEmails || isLoadingCountries)
+        if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries || isLoadingSocialPlatforms) {
+            if(isLoadingEmails || isLoadingCountries || isLoadingSocialPlatforms)
             return;
         }
 
@@ -439,6 +475,12 @@ export function useAssistantHireForm(
         if (fetchedAssistantEmails.includes(currentEmail)) {
             setError("email", { type: "manual", message: "This email is already in use." });
             showErrorToast("This email is already in use. Please choose another.");
+            return;
+        }
+        
+        const socialAccounts = getValues("social_accounts") || [];
+        if (socialAccounts.some(acc => !acc.isVerified)) {
+            toast.error("All added social accounts must be verified before hiring.");
             return;
         }
 
@@ -467,8 +509,17 @@ export function useAssistantHireForm(
             }
 
             const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
+            
+            const socialCosts = socialAccounts
+                .filter(acc => acc.isVerified)
+                .reduce((sum, acc) => {
+                    const platformInfo = availableSocialPlatforms.find(p => p.name === acc.platform);
+                    return sum + (platformInfo?.cost || ASSISTANT_ONBOARDING_FEE);
+                }, 0);
+            const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE + socialCosts;
 
-            if (currentBalance < ASSISTANT_ONBOARDING_FEE) {
+
+            if (currentBalance < totalOnboardingFee) {
                 setShowInsufficientFundsHint(true);
             } else {
                 await RHFSubmitHandler(event); 
@@ -496,5 +547,7 @@ export function useAssistantHireForm(
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
+        availableSocialPlatforms,
+        isLoadingSocialPlatforms,
     };
 }

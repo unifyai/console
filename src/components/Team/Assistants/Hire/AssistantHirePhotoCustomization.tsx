@@ -52,7 +52,8 @@ export function PhotoCustomization({
         onNewFileReady(file);
     };
 
-    const isEditDisabled = !currentImageUrl || isProcessing || disabled;
+    const isGenerateDisabled = !prompt.trim() || isProcessing || disabled;
+    const isEditDisabled = !currentImageUrl || !prompt.trim() || isProcessing || disabled;
     const isAnimateDisabled = !currentImageUrl || !ttsPrompt.trim() || !selectedVoice || isProcessing || disabled;
     const imageSourceForOperations = currentImageFile || currentImageUrl;
 
@@ -117,7 +118,7 @@ export function PhotoCustomization({
 
                                         </TooltipTrigger>
                                         <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                            <p>{!currentImageUrl ? "An existing photo is needed to edit" : "Edit current photo"}</p>
+                                            <p>{"Edit current photo"}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -130,7 +131,7 @@ export function PhotoCustomization({
                                                 size="icon" 
                                                 className="h-8 w-8"
                                                 onClick={handleGenerate}
-                                                disabled={disabled || isProcessing}
+                                                disabled={isGenerateDisabled}
                                             >
                                                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                             </Button>

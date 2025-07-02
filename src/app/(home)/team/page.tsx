@@ -7,7 +7,7 @@ import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/team/voice"; 
-import { listAllAssistantEmails, listAvailablePhoneCountries } from "@/lib/team/contact";
+import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount } from "@/lib/team/contact";
 import { TaskActions } from "@/types/team/task";
 import { AssistantActions } from "@/types/team/assistant";
 import { ActivityLogActions } from "@/types/team/activity";
@@ -50,8 +50,10 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
             design: await designVoiceCreateFromPreview(apiKey),
         },
         "contact": {
-            listAllAssistantEmails: await listAllAssistantEmails(apiKey),
+            listAllAssistantEmails: await listAllAssistantEmails(adminKey),
             listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
+            listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
+            verifySocialAccount: await verifySocialAccount(adminKey),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),
