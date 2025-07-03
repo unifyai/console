@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const response = await fetch(
-            `${COMMUNICATION_URL}/verify`,
+            `${COMMUNICATION_URL}/social/verify`,
             {
                 method: "POST",
                 headers: {
