@@ -12,7 +12,8 @@ import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTR
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
     onSuccess?: (newAssistant: Assistant) => void,
-    isHireDialogInitiallyOpen?: boolean
+    isHireDialogInitiallyOpen?: boolean,
+    availableSocialPlatforms: AvailableSocialPlatform[] = []
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
     
@@ -93,8 +94,6 @@ export function useAssistantHireForm(
     const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
     const [fetchedAssistantEmails, setFetchedAssistantEmails] = React.useState<string[]>([]);
     const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
-    const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
-    const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(false);
 
     React.useEffect(() => {
         if (isHireDialogInitiallyOpen) {
@@ -114,24 +113,6 @@ export function useAssistantHireForm(
                 })
                 .finally(() => {
                     setIsLoadingEmails(false);
-                });
-
-            setIsLoadingSocialPlatforms(true);
-            assistantActions.contact.listAvailableSocialPlatforms()
-                .then(result => {
-                    if (Array.isArray(result)) {
-                        setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
-                    } else {
-                        toast.error((result as ResponseProps).detail || "Could not fetch social platforms.");
-                        setAvailableSocialPlatforms([]);
-                    }
-                })
-                .catch(err => {
-                    toast.error("Failed to fetch social platforms.");
-                    setAvailableSocialPlatforms([]);
-                })
-                .finally(() => {
-                    setIsLoadingSocialPlatforms(false);
                 });
         }
     }, [assistantActions.contact, isHireDialogInitiallyOpen]);
@@ -459,8 +440,8 @@ export function useAssistantHireForm(
     const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
 
     const initiateHireSequence = async (event?: React.BaseSyntheticEvent) => {
-        if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries || isLoadingSocialPlatforms) {
-            if(isLoadingEmails || isLoadingCountries || isLoadingSocialPlatforms)
+        if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
+            if(isLoadingEmails || isLoadingCountries)
             return;
         }
 
@@ -555,7 +536,5 @@ export function useAssistantHireForm(
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
-        availableSocialPlatforms,
-        isLoadingSocialPlatforms,
     };
 }

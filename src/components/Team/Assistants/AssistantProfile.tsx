@@ -2,14 +2,17 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { Button } from "@/components/UI/button";
 import { Textarea } from "@/components/UI/textarea";
+import { Input } from "@/components/UI/input";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle, PlusCircle, PenLine } from "lucide-react";
 import { WhatsApp } from '@mui/icons-material';
-import type { Assistant } from '@/types/team/assistant';
+import type { Assistant, AssistantActions, AssistantUpdatePayload, SocialAccount, AvailableSocialPlatform, AssistantFormData } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
-import ActionButton from '../../Common/Buttons/Action';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { FormProvider, useForm, useFieldArray } from 'react-hook-form';
+import { SocialAccountInput } from './Hire/SocialAccountInput';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/UI/dropdown-menu";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,64 +25,101 @@ import {
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
 import { toast } from 'sonner';
+import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
     onClose: () => void;
-    onUpdateProfile: (id: string, about: string | null) => Promise<any>; 
+    onUpdateProfile: (id: string, payload: Partial<AssistantUpdatePayload>) => Promise<any>; 
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
+    assistantActions: AssistantActions;
+    availableSocialPlatforms: AvailableSocialPlatform[];
+    isLoadingSocialPlatforms: boolean;
 }
 
 export function AssistantProfilePanel({
     assistant,
     onClose,
     onUpdateProfile,
-    onDeleteAssistant
+    onDeleteAssistant,
+    assistantActions,
+    availableSocialPlatforms,
+    isLoadingSocialPlatforms,
 }: AssistantProfilePanelProps) {
-
-    const [about, setAbout] = React.useState(assistant?.about || '');
-    const [isEditingAbout, setIsEditingAbout] = React.useState(false);
-    const [isSavingAbout, setIsSavingAbout] = React.useState(false);
-    const originalAbout = React.useRef(assistant?.about || '');
+    
+    const [isSaving, setIsSaving] = React.useState(false);
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+    const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
+
+    const formMethods = useForm<AssistantFormData>();
+    const { control, register, handleSubmit, reset, formState: { errors, isDirty } } = formMethods;
+    const { fields, append, remove } = useFieldArray({ control, name: "social_accounts" });
 
     React.useEffect(() => {
         if (assistant) {
-            setAbout(assistant.about ?? '');
-            originalAbout.current = assistant.about ?? '';
-            setIsEditingAbout(false);
-            setIsSavingAbout(false);
-            setIsDeleting(false);
-        } else {
-            setAbout('');
-            setIsEditingAbout(false);
-            setIsSavingAbout(false);
+            const socialAccounts: SocialAccount[] = [];
+            if (assistant.user_whatsapp_number) {
+                socialAccounts.push({
+                    platform: 'whatsapp',
+                    identifier: assistant.user_whatsapp_number,
+                    isVerified: true,
+                    isVerifying: false,
+                    verificationCodeSent: null,
+                    verificationSentAt: null,
+                    verificationAttempts: 0,
+                    verificationError: null,
+                });
+            }
+
+            reset({
+                about: assistant.about || '',
+                user_phone: assistant.user_phone || '',
+                social_accounts: socialAccounts,
+            });
+            setIsSaving(false);
             setIsDeleting(false);
         }
-    }, [assistant]);
+    }, [assistant, reset]);
 
-    const handleSaveAbout = async () => {
-        if (isSavingAbout || about === originalAbout.current) return;
+    const handleSaveAll = handleSubmit(async (formData) => {
+        if (isSaving) return;
+        if (formData.social_accounts?.some(acc => !acc.isVerified)) {
+            toast.error("Please verify all added social accounts before saving.");
+            return;
+        }
 
-        setIsSavingAbout(true);
-        const toastId = toast.loading("Updating profile...");
+        setIsSaving(true);
+        const whatsappAccount = formData.social_accounts?.find(acc => acc.platform === 'whatsapp');
+        const payload: Partial<AssistantUpdatePayload> = {
+            about: formData.about,
+            user_phone: formData.user_phone,
+            user_whatsapp_number: whatsappAccount ? whatsappAccount.identifier : null,
+        };
+
         try {
-            await onUpdateProfile(assistant.agent_id, about);
-            originalAbout.current = about;
-            setIsEditingAbout(false);
-            toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
-        } catch (error) {
-            console.error("Failed to update about section:", error);
-            toast.error(`Failed to update 'About'`, { id: toastId });
+            await onUpdateProfile(assistant.agent_id, payload);
+            reset(formData); // This updates the form's default values to the new state, clearing `isDirty`
+        } catch (e) {
+            console.error("Failed to update profile", e);
         } finally {
-            setIsSavingAbout(false);
+            setIsSaving(false);
         }
-    };
+    });
 
-    const handleDiscardAbout = () => {
-        setAbout(originalAbout.current);
-        setIsEditingAbout(false);
+    const handleDiscardAll = () => {
+        if (assistant) {
+            const socialAccounts: SocialAccount[] = [];
+            if (assistant.user_whatsapp_number) {
+                socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+            }
+            reset({
+                about: assistant.about || '',
+                user_phone: assistant.user_phone || '',
+                social_accounts: socialAccounts,
+            });
+        }
     };
 
      const handleDeleteConfirm = async () => {
@@ -96,7 +136,15 @@ export function AssistantProfilePanel({
              setIsDeleting(false);
         }
      };
-
+     
+    const handleAddSocialAccount = (platform: string) => {
+        if (fields.some(field => field.platform === platform)) {
+            toast.info(`You have already added an account for ${platform}.`);
+            return;
+        }
+        append({ platform: platform, identifier: '', isVerified: false, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+        setJustAddedPlatform(platform);
+    };
 
     if (!assistant) return null;
 
@@ -105,124 +153,174 @@ export function AssistantProfilePanel({
 
     return (
         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-            <div className="h-full flex flex-col w-full bg-background">
-                {/* Manual Header */}
-                <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
-                    <div className='flex items-center justify-between'>
-                        <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Close Profile</span>
-                        </Button>
-                    </div>
-                </div>
-
-                <ScrollArea className="flex-1">
-                    <div className="py-4 sm:py-6 space-y-6">
-                        {/* Basic Info */}
-                        <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
-                            <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border">
-                                <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                                <AvatarFallback className="text-xl">
-                                    {`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">
-                                <Label className="text-muted-foreground">First Name</Label>
-                                <span>{assistant.first_name}</span>
-                                <Label className="text-muted-foreground">Last Name</Label>
-                                <span>{assistant.surname}</span>
-                                <Label className="text-muted-foreground">Age</Label>
-                                <span>{assistant.age ?? 'N/A'}</span>
-                                <Label className="text-muted-foreground">Region</Label>
-                                <span>{assistant.region ?? 'N/A'}</span>
-                            </div>
+            <FormProvider {...formMethods}>
+                <form onSubmit={handleSaveAll} className="h-full flex flex-col w-full bg-background">
+                    {/* Header */}
+                    <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
+                        <div className='flex items-center justify-between'>
+                            <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} disabled={isSaving}>
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Close Profile</span>
+                            </Button>
                         </div>
+                    </div>
 
-                        <Separator />
+                    <ScrollArea className="flex-1">
+                        <div className="py-4 sm:py-6 space-y-6">
+                            {/* Basic Info */}
+                            <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
+                                <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border">
+                                    <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+                                    <AvatarFallback className="text-xl">
+                                        {`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">
+                                    <Label className="text-muted-foreground">First Name</Label>
+                                    <span>{assistant.first_name}</span>
+                                    <Label className="text-muted-foreground">Last Name</Label>
+                                    <span>{assistant.surname}</span>
+                                    <Label className="text-muted-foreground">Age</Label>
+                                    <span>{assistant.age ?? 'N/A'}</span>
+                                    <Label className="text-muted-foreground">Region</Label>
+                                    <span>{assistant.region ?? 'N/A'}</span>
+                                </div>
+                            </div>
 
-                        {/* About Section */}
-                        <div className="px-4 sm:px-6 space-y-2 group">
-                            <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About</Label>
-                            <div className="relative">
+                            <Separator />
+
+                            {/* About Section */}
+                            <div className="px-4 sm:px-6 space-y-2 group">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor={`about-${assistant.agent_id}`} className="text-base font-semibold">About Me</Label>
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <PenLine className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Editable Section</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                                 <Textarea
                                     id={`about-${assistant.agent_id}`}
-                                    value={about}
-                                    onChange={(e) => { setAbout(e.target.value); setIsEditingAbout(true); }}
+                                    {...register("about")}
                                     placeholder="Enter details about the assistant..."
-                                    disabled={isSavingAbout}
-                                    className={cn(
-                                        "text-sm min-h-[100px] resize-none peer", 
-                                        isEditingAbout ? "border-primary focus-visible:ring-primary/50" : "border-transparent bg-transparent focus-visible:bg-background focus-visible:border-input focus-visible:ring-input"
-                                    )}
+                                    disabled={isSaving}
+                                    className="text-sm min-h-[100px] resize-none peer"
                                     rows={4}
                                 />
-                                {isEditingAbout && (
-                                    <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
-                                        <ActionButton
-                                            tooltip="Save About"
-                                            icon={isSavingAbout ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4 text-green-600"/>}
-                                            onClick={handleSaveAbout}
-                                            disabled={isSavingAbout || about === originalAbout.current}
-                                            variant="ghost"
-                                            size="sm"
-                                            className="hover:bg-green-100 p-1.5 h-auto w-auto rounded-md"
-                                        />
-                                        <ActionButton
-                                            tooltip="Discard About"
-                                            icon={<Undo2 className="h-4 w-4 text-amber-600"/>}
-                                            onClick={handleDiscardAbout}
-                                            disabled={isSavingAbout}
-                                            variant="ghost"
-                                            size="sm"
-                                            className="hover:bg-amber-100 p-1.5 h-auto w-auto rounded-md"
-                                        />
-                                    </div>
-                                )}
                             </div> 
-                        </div>
 
-                        <Separator />
+                            <Separator />
 
-                        {/* Contact Section - Display only, not editable here */}
-                        <div className="px-4 sm:px-6 space-y-3">
-                            <h3 className="text-base font-semibold">Contact</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-3">
-                                    <Mail className="h-4 w-4 text-muted-foreground" />
-                                    {assistant.email ? (
-                                        <span className="truncate">
-                                            {assistant.email}
-                                        </span>
-                                    ) : (
-                                        <span>N/A</span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Phone className="h-4 w-4 text-muted-foreground" />
-                                    <span>{assistant.phone ?? 'N/A'}</span>
-                                </div>
-                                {assistant.user_whatsapp_number && (
+                            {/* Contact Section */}
+                            <div className="px-4 sm:px-6 space-y-3 group/contact">
+                                <h3 className="text-base font-semibold">My Contact</h3>
+                                <div className="space-y-4 text-sm">
+                                    {/* Assistant-owned details (display only) */}
                                     <div className="flex items-center gap-3">
-                                        <WhatsApp className="h-4 w-4 text-muted-foreground" />
-                                        <span>{assistant.user_whatsapp_number}</span>
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                        <span className="truncate">{assistant.email || 'N/A'}</span>
                                     </div>
-                                )}
+                                    <div className="flex items-center gap-3">
+                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                        <span>{assistant.phone || 'N/A'}</span>
+                                    </div>
+                                    {assistant.assistant_whatsapp_number && (
+                                        <div className="flex items-center gap-3">
+                                            <WhatsApp className="h-4 w-4 text-muted-foreground" />
+                                            <span>{assistant.assistant_whatsapp_number}</span>
+                                        </div>
+                                    )}
+
+                                    <Separator className="my-3"/>
+
+                                    {/* User-owned details (editable) */}
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-semibold">Where Can I Reach Out?</h3>
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <PenLine className="h-4 w-4 text-muted-foreground" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Editable Section</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`user-phone-${assistant.agent_id}`}>Your Phone Number</Label>
+                                        <Input
+                                            id={`user-phone-${assistant.agent_id}`}
+                                            type="tel"
+                                            placeholder="e.g., +15551234567"
+                                            {...register("user_phone", {
+                                                required: "Your phone number is required.",
+                                                pattern: { value: /^\+[1-9]\d{7,14}$/, message: "Enter a valid international phone number (e.g., +15551234567)" },
+                                            })}
+                                            className="h-9"
+                                            disabled={isSaving}
+                                        />
+                                        {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+                                    </div>
+
+                                    {fields.map((field, index) => {
+                                        const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
+                                        const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
+                                        return <SocialAccountInput key={field.id} index={index} platform={field.platform} justAddedPlatform={justAddedPlatform} onRemove={() => remove(index)} clearJustAdded={() => setJustAddedPlatform(null)} assistantActions={assistantActions} cost={platformCost} />;
+                                    })}
+                                    
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button type="button" variant="outline" className="w-full border-dashed" disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}>
+                                                <PlusCircle className="mr-2 h-4 w-4" /> Add Social Account
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                            {isLoadingSocialPlatforms ? <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                                                : availableSocialPlatforms.length > 0 ? (
+                                                availableSocialPlatforms.map(platform => (
+                                                    <DropdownMenuItem key={platform.name} onSelect={() => handleAddSocialAccount(platform.name)} disabled={fields.some(f => f.platform === platform.name)} className="capitalize flex justify-between">
+                                                        <span>{platform.name}</span>
+                                                        <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
+                                                    </DropdownMenuItem>
+                                                ))
+                                            ) : <DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </ScrollArea>
+                    </ScrollArea>
 
-                {/* Footer Action Button */}
-                <div className="px-4 py-3 sm:px-6 sm:py-4 border-t flex justify-end flex-shrink-0">
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" disabled={isDeleting}>
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                            End contract
-                        </Button>
-                    </AlertDialogTrigger>
-                </div>
-            </div>
+                    {/* Footer Action Buttons */}
+                    <div className="px-4 py-3 sm:px-6 sm:py-4 border-t flex justify-between items-center flex-shrink-0">
+                        <AlertDialogTrigger asChild>
+                            <Button type="button" variant="destructive" size="sm" disabled={isDeleting || isSaving}>
+                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
+                                End contract
+                            </Button>
+                        </AlertDialogTrigger>
+                        {isDirty && (
+                            <div className="flex items-center gap-2">
+                                <Button type="button" variant="warning" size="sm" onClick={handleDiscardAll} disabled={isSaving} className="flex items-center">
+                                    <Undo2 className="h-4 w-4"/> 
+                                    Undo
+                                </Button>
+                                <Button type="submit" size="sm" disabled={isSaving} className="flex items-center">
+                                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} 
+                                    Update
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </form>
+            </FormProvider>
 
             {/* Alert Dialog Content */}
             <AlertDialogContent>

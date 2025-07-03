@@ -36,6 +36,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     onRequestAccess: () => Promise<boolean | void>;
     formMethods: UseFormReturn<AssistantFormData>;
     availableSocialPlatforms: AvailableSocialPlatform[];
+    isLoadingSocialPlatforms: boolean;
 }
 
 export function AssistantHire ({
@@ -56,6 +57,7 @@ export function AssistantHire ({
     isLoadingUserApproval, 
     onRequestAccess,
     availableSocialPlatforms,
+    isLoadingSocialPlatforms,
     formMethods,
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
@@ -74,8 +76,8 @@ export function AssistantHire ({
     }, [socialAccounts, availableSocialPlatforms]);
 
     const isUserApproved = userApprovalStatus === "approved";
-    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval;
-    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval;
+    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
+    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval || isLoadingSocialPlatforms;
 
 
     const handleDialogClose = (open: boolean) => {
@@ -103,6 +105,7 @@ export function AssistantHire ({
         if (isCheckingBalance) return "Checking Balance...";
         if (isHireSubmitting) return "Hiring..."; 
         if (isProcessingVoice) return "Processing Voice...";
+        if (isLoadingSocialPlatforms) return "Loading data...";
         return "Hire Assistant";
     };
 
@@ -235,7 +238,7 @@ export function AssistantHire ({
                                     className="bg-green-600 hover:bg-green-700 text-white" 
                                     disabled={isPrimaryActionDisabled}
                                 >
-                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isLoadingSocialPlatforms) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {hireButtonLabel()}
                                 </Button>
                             </PopoverTrigger>

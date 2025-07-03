@@ -4,17 +4,17 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Team/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Team/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantPreset, AssistantStatus } from "@/types/team/assistant";
+import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform } from "@/types/team/assistant";
 import { ActivityLogActions, MessageLog } from "@/types/team/activity";
 import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
-import { showSuccessToast } from "@/components/notifications";
+import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { AssistantProfilePanel } from './Assistants/AssistantProfile';
 import { AssistantActivityLogPanel } from './Assistants/Activity/AssistantActivityLogPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Assistants/Hire/AssistantHire';
 import { HireForm } from '@/components/Team/Assistants/Hire/AssistantHireForm';
-import { PresetsPanel } from '@/components/Team/Assistants/Hire/Presets/AssistantHirePresetsList';
+import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
 
 // Import Hooks
 import { useAssistants } from '@/hooks/Team/useAssistants';
@@ -27,6 +27,7 @@ import { useActivityLogs } from '@/hooks/Team/useActivityLogs';
 import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringApproval';
 import { useAssistantStatus } from '@/hooks/Team/useAssistantStatus';
 import { FormProvider } from 'react-hook-form';
+import { ResponseProps } from '@/types/common';
 
 
 interface MainProps {
@@ -116,6 +117,29 @@ export default function Main({
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
 
+    const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
+    const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
+
+    React.useEffect(() => {
+        setIsLoadingSocialPlatforms(true);
+        assistantActions.contact.listAvailableSocialPlatforms()
+            .then(result => {
+                if (Array.isArray(result)) {
+                    setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
+                } else {
+                    toast.error((result as ResponseProps).detail || "Could not fetch social platforms.");
+                    setAvailableSocialPlatforms([]);
+                }
+            })
+            .catch(err => {
+                toast.error("Failed to fetch social platforms.");
+                setAvailableSocialPlatforms([]);
+            })
+            .finally(() => {
+                setIsLoadingSocialPlatforms(false);
+            });
+    }, [assistantActions.contact]);
+
     const {
         displayedPresets, loadMorePresets, canLoadMorePresets, isLoadingMorePresets,
         presetAgeFilter, setPresetAgeFilter,
@@ -146,9 +170,7 @@ export default function Main({
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
-        availableSocialPlatforms,
-        isLoadingSocialPlatforms,
-    } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen);
+    } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen, availableSocialPlatforms);
     
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
@@ -171,7 +193,7 @@ export default function Main({
 
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
-            showSuccessToast("No presets match filters.");
+            toast.info("No presets match filters.");
             return;
         }
         const randomIndex = Math.floor(Math.random() * currentFilteredPresets.length);
@@ -179,8 +201,8 @@ export default function Main({
     };
     
     // Profile Panel Actions
-    const onUpdateProfileSubmit = async (id: string, about: string | null) => {
-        const success = await updateAssistantProfile(id, about);
+    const onUpdateProfileSubmit = async (id: string, payload: Partial<AssistantUpdatePayload>) => {
+        const success = await updateAssistantProfile(id, payload);
         if (!success) throw new Error("Update failed in hook.");
     };
 
@@ -261,6 +283,9 @@ export default function Main({
                                 onClose={handleProfileClose}
                                 onUpdateProfile={onUpdateProfileSubmit}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
+                                assistantActions={assistantActions}
+                                availableSocialPlatforms={availableSocialPlatforms}
+                                isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                             />
                         </motion.div>
                     )}
@@ -334,6 +359,7 @@ export default function Main({
                     isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
                     onRequestAccess={requestHiringAccess}
                     availableSocialPlatforms={availableSocialPlatforms}
+                    isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                 >
                     <HireForm
                         formMethods={hireFormMethods}

@@ -81,10 +81,10 @@ export function AssistantListItem({
                                      <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
                                      <span className="truncate">{assistant.phone}</span>
                                  </div>
-                                 {assistant.user_whatsapp_number && (
+                                 {assistant.assistant_whatsapp_number && (
                                      <div className="flex items-center pt-1 text-xs text-muted-foreground">
                                          <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                         <span className="truncate">{assistant.user_whatsapp_number}</span>
+                                         <span className="truncate">{assistant.assistant_whatsapp_number}</span>
                                      </div>
                                  )}
                              </div>

@@ -18,6 +18,7 @@ export interface Assistant {
   // Contact fields
   email: string | null;
   phone: string | null;
+  assistant_whatsapp_number: string | null;
   user_phone: string | null;
   user_whatsapp_number: string | null;
   // Contract fields
@@ -41,7 +42,7 @@ export interface AssistantStatus {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
   & { 
       gender?: 'male' | 'female'; 
       country: string;
@@ -65,7 +66,7 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'profile_photo' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
   & { 
       email?: string; 
       emailManuallyEdited?: boolean; 
@@ -210,7 +211,7 @@ export interface AssistantActions {
         email: string, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
-    update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
+    update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
     status: (assistantId: string) => Promise<AssistantStatus | ResponseProps>;
     },

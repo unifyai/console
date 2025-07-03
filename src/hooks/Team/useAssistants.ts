@@ -104,11 +104,10 @@ export function useAssistants(
 
     const updateAssistantProfile = React.useCallback(async (
         id: string,
-        about: string | null,
+        payload: Partial<AssistantUpdatePayload>
     ): Promise<boolean> => {
         const toastId = toast.loading("Updating profile...");
         try {
-            const payload: AssistantUpdatePayload = { about };
             const result = await assistantActions.update(id, payload);
             if (result && 'detail' in result && result.detail) {
                 throw new Error((result as ResponseProps).detail);
@@ -116,10 +115,7 @@ export function useAssistants(
 
             setAssistants(prev => prev.map(a => {
                 if (a.agent_id === id) {
-                    const updatedAssistant = { 
-                        ...a, 
-                        about: about ?? a.about,
-                    };
+                    const updatedAssistant = { ...a, ...payload };
                     if (isGcsPhoto(updatedAssistant.profile_photo)) {
                         photoActions.download(updatedAssistant.profile_photo!).then(res => { // Non-null assertion as isGcsPhoto checks for null
                             if (res.signedUrl) {
