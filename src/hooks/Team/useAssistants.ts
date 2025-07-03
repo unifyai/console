@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
-import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
+import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/team/gcs-utils';
 
 export function useAssistants(
@@ -21,7 +21,7 @@ export function useAssistants(
 
         let toastId: string | number | undefined;
         if (shouldShowLoadingToast) {
-            toastId = showLoadingToast("Refreshing assistants...");
+            toastId = toast.loading("Refreshing assistants...");
         }
 
         try {
@@ -65,9 +65,9 @@ export function useAssistants(
             setAssistants([]);
             console.error("Assistant fetch error in hook:", errorMsg);
             if (toastId) {
-                showErrorToast(errorMsg, "Failed to load assistants", toastId);
+                toast.error("Failed to load assistants", { id: toastId });
             } else if (shouldShowLoadingToast) {
-                showErrorToast(errorMsg, "Failed to load assistants");
+                toast.error("Failed to load assistants", { id: toastId });
             }
         } finally {
             setIsLoading(false);
@@ -83,7 +83,7 @@ export function useAssistants(
         const assistantId = assistantToDelete.agent_id;
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
         
-        const toastId = showLoadingToast(`Ending contract for ${displayName}...`);
+        const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
         try {
             const deleteResult = await assistantActions.delete(assistantId);
@@ -92,12 +92,12 @@ export function useAssistants(
             }
 
             setAssistants((prev) => prev.filter((a) => a.agent_id !== assistantId));
-            showSuccessToast(`${displayName} removed from team.`, undefined, toastId);
+            toast.success(`${displayName} removed from team.`, { id: toastId });
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error(`[useAssistants] Error during deletion process for ${displayName}:`, errorMsg);
-            showErrorToast(errorMsg, `Failed to remove ${displayName}`, toastId);
+            toast.error(`Failed to remove ${displayName}`, { id: toastId });
             return false;
         }
     }, [assistantActions]);
@@ -106,7 +106,7 @@ export function useAssistants(
         id: string,
         about: string | null,
     ): Promise<boolean> => {
-        const toastId = showLoadingToast("Updating profile...");
+        const toastId = toast.loading("Updating profile...");
         try {
             const payload: AssistantUpdatePayload = { about };
             const result = await assistantActions.update(id, payload);
@@ -132,11 +132,11 @@ export function useAssistants(
                 return a;
             }));
 
-            showSuccessToast("Profile updated.", undefined, toastId);
+            toast.success("Profile updated.", { id: toastId });
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "Unknown error";
-            showErrorToast(errorMsg, `Profile update failed: ${errorMsg}`, toastId);
+            toast.error(`Profile update failed`, { id: toastId });
             console.error("Assistant update error in hook:", errorMsg);
             return false;
         }

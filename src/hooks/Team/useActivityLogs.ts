@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Assistant } from '@/types/team/assistant';
 import { MessageLog, ActivityLogActions, MessageLogEntry, MessageMedium } from '@/types/team/activity';
 import { LogProps, LogsResponseProps } from '@/types/evals/logs';
-import { showErrorToast } from '@/components/notifications';
+import { toast } from 'sonner';
 
 const MESSAGE_PAGE_LIMIT = 20;
 const USER_IDENTIFIER = "user"; // Special identifier for the user
@@ -101,7 +101,7 @@ export function useActivityLogs(
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching messages.";
             setLogError(errorMsg);
             console.error("Message fetch error in hook:", errorMsg);
-            showErrorToast(`Failed to load activity logs`);
+            toast.error(`Failed to load activity logs`);
 
             if (isInitialLoad) {
                 setMessages([]);

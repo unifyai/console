@@ -20,7 +20,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
-import { showLoadingToast, showSuccessToast, showErrorToast } from "@/components/notifications";
+import { toast } from 'sonner';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -62,15 +62,15 @@ export function AssistantProfilePanel({
         if (isSavingAbout || about === originalAbout.current) return;
 
         setIsSavingAbout(true);
-        const toastId = showLoadingToast("Updating profile...");
+        const toastId = toast.loading("Updating profile...");
         try {
             await onUpdateProfile(assistant.agent_id, about);
             originalAbout.current = about;
             setIsEditingAbout(false);
-            showSuccessToast(`${assistant.first_name}'s 'About' section updated.`, undefined, toastId);
+            toast.success(`${assistant.first_name}'s 'About' section updated.`, { id: toastId });
         } catch (error) {
             console.error("Failed to update about section:", error);
-            showErrorToast(`Failed to update 'About'`, `Failed to update 'About'`, toastId);
+            toast.error(`Failed to update 'About'`, { id: toastId });
         } finally {
             setIsSavingAbout(false);
         }
