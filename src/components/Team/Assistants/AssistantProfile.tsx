@@ -5,6 +5,7 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle } from "lucide-react";
+import { WhatsApp } from '@mui/icons-material';
 import type { Assistant } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
 import ActionButton from '../../Common/Buttons/Action';
@@ -201,6 +202,12 @@ export function AssistantProfilePanel({
                                     <Phone className="h-4 w-4 text-muted-foreground" />
                                     <span>{assistant.phone ?? 'N/A'}</span>
                                 </div>
+                                {assistant.user_whatsapp_number && (
+                                    <div className="flex items-center gap-3">
+                                        <WhatsApp className="h-4 w-4 text-muted-foreground" />
+                                        <span>{assistant.user_whatsapp_number}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

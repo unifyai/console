@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { MessageSquare, Phone, Mail, Contact, History } from "lucide-react";
+import { WhatsApp } from '@mui/icons-material';
 import { cn } from "@/lib/utils";
 import type { Assistant, AssistantStatus } from "@/types/team/assistant";
 import ActionButton from '../../../Common/Buttons/Action';
@@ -80,6 +81,12 @@ export function AssistantListItem({
                                      <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
                                      <span className="truncate">{assistant.phone}</span>
                                  </div>
+                                 {assistant.user_whatsapp_number && (
+                                     <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                                         <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
+                                         <span className="truncate">{assistant.user_whatsapp_number}</span>
+                                     </div>
+                                 )}
                              </div>
                          </div>
                     </HoverCardContent>
