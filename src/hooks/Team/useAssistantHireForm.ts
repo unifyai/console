@@ -41,19 +41,25 @@ export function useAssistantHireForm(
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
+            user_phone_isVerified: false,
+            user_phone_isVerifying: false,
+            user_phone_verificationCodeSent: null,
+            user_phone_verificationSentAt: null,
+            user_phone_verificationAttempts: 0,
+            user_phone_verificationError: null,
             user_whatsapp_number: null,
             social_accounts: [],
             country: FALLBACK_DEFAULT_COUNTRY_CODE,
             imageFile: null,
             profile_photo_url: null,
             imagePreview: null,
-            voice_id: defaultVoice.voice_id, // Set initial voice_id from the default voice
+            voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
             voice_language: defaultVoice.language as SupportedLanguage,
             voice_description: defaultVoice.description,
             voice_gender: defaultVoice.gender as Gender,
             voice_provider: defaultVoice.provider || VOICE_PROVIDER,
-            voice_exists: false, // Default voice is a preset, not existing user voice
+            voice_exists: false,
             videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
@@ -188,6 +194,12 @@ export function useAssistantHireForm(
         setValue("imagePreview", preset.profile_photo);
         setValue("imageFile", null);
         setValue("user_phone", '');
+        setValue("user_phone_isVerified", false);
+        setValue("user_phone_isVerifying", false);
+        setValue("user_phone_verificationCodeSent", null);
+        setValue("user_phone_verificationSentAt", null);
+        setValue("user_phone_verificationAttempts", 0);
+        setValue("user_phone_verificationError", null);
         setValue("social_accounts", []);
         
         const presetCountryIsValid = availablePhoneCountries.find(c => c.code === preset.country);
@@ -290,6 +302,12 @@ export function useAssistantHireForm(
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
+            user_phone_isVerified: false,
+            user_phone_isVerifying: false,
+            user_phone_verificationCodeSent: null,
+            user_phone_verificationSentAt: null,
+            user_phone_verificationAttempts: 0,
+            user_phone_verificationError: null,
             user_whatsapp_number: values?.user_whatsapp_number || null,
             social_accounts: [],
             country: initialCountry,
@@ -351,6 +369,10 @@ export function useAssistantHireForm(
             if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
                 setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
                 throw new Error("Valid international phone number is required");
+            }
+            if (!data.user_phone_isVerified) {
+                setError("user_phone", { type: "manual", message: "Your phone number must be verified."});
+                throw new Error("Your phone number must be verified.");
             }
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
@@ -459,6 +481,11 @@ export function useAssistantHireForm(
         if (fetchedAssistantEmails.includes(currentEmail)) {
             setError("email", { type: "manual", message: "This email is already in use." });
             toast.error("This email is already in use. Please choose another.");
+            return;
+        }
+
+        if (!getValues("user_phone_isVerified")) {
+            toast.error("Your phone number must be verified before hiring.");
             return;
         }
         

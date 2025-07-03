@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { UseFormReturn, useFieldArray, FormProvider } from "react-hook-form";
+import { UseFormReturn, useFieldArray, FormProvider, Controller, useFormContext, useWatch } from "react-hook-form";
 import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
@@ -10,7 +10,7 @@ import { ImageUpload } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle } from 'lucide-react';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -28,8 +28,127 @@ import { Button } from '@/components/UI/button';
 import { toast } from 'sonner';
 import { SocialAccountInput } from './SocialAccountInput';
 import { allCountryNames } from '@/constants/assistants/countries';
+import { cn } from '@/lib/utils';
+import { useAccountVerification } from '@/hooks/Team/useAccountVerification';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
+
+const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({ assistantActions }) => {
+    const { control, getValues, setValue, formState: { errors } } = useFormContext<AssistantFormData>();
+    const [isCancelPhoneHovered, setIsCancelPhoneHovered] = React.useState(false);
+    
+    const phoneFieldNames = React.useMemo(() => ({
+        identifier: 'user_phone' as 'user_phone',
+        isVerified: 'user_phone_isVerified' as 'user_phone_isVerified',
+        isVerifying: 'user_phone_isVerifying' as 'user_phone_isVerifying',
+        verificationCodeSent: 'user_phone_verificationCodeSent' as 'user_phone_verificationCodeSent',
+        verificationSentAt: 'user_phone_verificationSentAt' as 'user_phone_verificationSentAt',
+        verificationAttempts: 'user_phone_verificationAttempts' as 'user_phone_verificationAttempts',
+        verificationError: 'user_phone_verificationError' as 'user_phone_verificationError',
+    }), []);
+
+    const {
+        isVerifying,
+        isVerificationFlowActive,
+        verificationError,
+        cooldown,
+        verificationInput,
+        setVerificationInput,
+        handleVerify,
+        handleCancelVerification,
+        handleSubmitCode,
+    } = useAccountVerification({
+        platform: 'phone',
+        fieldNames: phoneFieldNames,
+        assistantActions
+    });
+    
+    const handleVerifyClick = (isRetry: boolean) => {
+        const phoneNumber = getValues('user_phone');
+        if (!phoneNumber || phoneNumber.trim() === '') {
+            toast.error("Please enter a phone number to verify.");
+            return;
+        }
+        handleVerify(isRetry);
+    };
+    
+    const isPhoneVerified = useWatch({ control, name: 'user_phone_isVerified' });
+    const phoneValue = useWatch({ control, name: 'user_phone' });
+    const isSubmitting = useFormContext<AssistantFormData>().formState.isSubmitting;
+
+    const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value;
+        setValue('user_phone', newValue);
+        if (getValues('user_phone_isVerified')) {
+            setValue('user_phone_isVerified', false);
+        }
+    };
+    
+    return (
+        <div className="space-y-1">
+             <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    {isVerificationFlowActive ? (
+                        <Input
+                            id="user_phone_verification_code"
+                            placeholder="Enter verification code..."
+                            value={verificationInput}
+                            onChange={(e) => setVerificationInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitCode(); } }}
+                            className={cn("h-9 pr-[5.5rem]", verificationError && "border-destructive")}
+                        />
+                    ) : (
+                        <Input id="user_phone" type="tel" value={phoneValue || ''} placeholder="e.g., +15551234567" className="h-9" disabled={isVerifying || isSubmitting} onChange={handlePhoneInputChange} />
+                    )}
+                     {isVerificationFlowActive && (
+                         <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary" onClick={handleSubmitCode}><span className="text-xl mt-1">↳</span></Button>
+                             </TooltipTrigger><TooltipContent><p>Submit Code</p></TooltipContent></Tooltip></TooltipProvider>
+                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
+                                     <RefreshCw className={cn("h-4 w-4 mt-0.5", cooldown > 0 && "opacity-50")} />
+                                 </Button>
+                             </TooltipTrigger><TooltipContent><p>{cooldown > 0 ? `Retry in ${cooldown}s` : "Resend Code"}</p></TooltipContent></Tooltip></TooltipProvider>
+                         </div>
+                    )}
+                </div>
+                {isPhoneVerified ? (
+                     <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex items-center justify-center h-8 w-8 cursor-help">
+                                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Number Verified</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                ) : (
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary"
+                                    onMouseEnter={() => setIsCancelPhoneHovered(true)} onMouseLeave={() => setIsCancelPhoneHovered(false)}
+                                    onClick={isVerifying ? handleCancelVerification : () => handleVerifyClick(false)}
+                                    disabled={isSubmitting}>
+                                    {isVerifying ? (isCancelPhoneHovered ? <X className="h-4 w-4 text-destructive" /> : <LoaderIcon className="h-4 w-4 animate-spin" />) : <Check className="h-4 w-4 hover:text-primary" />}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top"><p>{isVerifying ? "Cancel" : "Verify Number"}</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+            </div>
+            {errors.user_phone ? (<p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>
+            ) : verificationError ? (<p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>
+            ) : null}
+        </div>
+    );
+};
+
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
@@ -421,73 +540,62 @@ export function HireForm({
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                            </div>
-                            <Input
-                                id="user_phone"
-                                type="tel"
-                                placeholder="e.g., +15551234567"
-                                {...register("user_phone", {
-                                    required: "Your phone number is required.",
-                                    pattern: {
-                                    value: /^\+[1-9]\d{7,14}$/,
-                                    message: "Enter a valid international phone number (e.g., +15551234567)"
-                                    }
-                                })}
-                            />
-                            {errors.user_phone && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+
                         </div>
+                        <PhoneVerificationSection assistantActions={assistantActions} />
+                    </div>
 
-                        {fields.map((field, index) => {
-                            const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
-                            const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
-                            return (
-                                <SocialAccountInput
-                                    key={field.id}
-                                    index={index}
-                                    platform={field.platform}
-                                    justAddedPlatform={justAddedPlatform}
-                                    onRemove={remove}
-                                    clearJustAdded={() => setJustAddedPlatform(null)}
-                                    assistantActions={assistantActions}
-                                    cost={platformCost}
-                                />
-                            );
-                        })}
+                    {fields.map((field, index) => {
+                        const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
+                        const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
+                        return (
+                            <SocialAccountInput
+                                key={field.id}
+                                index={index}
+                                platform={field.platform}
+                                justAddedPlatform={justAddedPlatform}
+                                onRemove={remove}
+                                clearJustAdded={() => setJustAddedPlatform(null)}
+                                assistantActions={assistantActions}
+                                cost={platformCost}
+                            />
+                        );
+                    })}
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="w-full border-dashed"
-                                    disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
-                                >
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add Social Account
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                                {isLoadingSocialPlatforms ? (
-                                    <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-                                ) : availableSocialPlatforms.length > 0 ? (
-                                    availableSocialPlatforms.map(platform => (
-                                        <DropdownMenuItem
-                                            key={platform.name}
-                                            onSelect={() => handleAddSocialAccount(platform.name)}
-                                            disabled={fields.some(f => f.platform === platform.name)}
-                                            className="capitalize flex justify-between"
-                                        >
-                                            <span>{platform.name}</span>
-                                            <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
-                                        </DropdownMenuItem>
-                                    ))
-                                ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full border-dashed"
+                                disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
+                            >
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Social Account
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {isLoadingSocialPlatforms ? (
+                                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                            ) : availableSocialPlatforms.length > 0 ? (
+                                availableSocialPlatforms.map(platform => (
+                                    <DropdownMenuItem
+                                        key={platform.name}
+                                        onSelect={() => handleAddSocialAccount(platform.name)}
+                                        disabled={fields.some(f => f.platform === platform.name)}
+                                        className="capitalize flex justify-between"
+                                    >
+                                        <span>{platform.name}</span>
+                                        <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
+                                    </DropdownMenuItem>
+                                ))
+                            ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     </div>
                 </div>
 
-        </fieldset>
+            </fieldset>
         </ScrollArea>
         </form>
     </FormProvider>

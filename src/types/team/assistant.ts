@@ -71,11 +71,17 @@ export type AssistantFormData =
       email?: string; 
       emailManuallyEdited?: boolean; 
       profile_photo_url?: string | null;
-      imageFile?: File | null; // For newly uploaded image to GCS
-      imagePreview?: string | null; // For local blob preview or existing URL (either preset or GCS image)
+      imageFile?: File | null;
+      imagePreview?: string | null;
       user_phone?: string | null;
+      user_phone_isVerified?: boolean;
+      user_phone_isVerifying?: boolean;
+      user_phone_verificationCodeSent?: string | null;
+      user_phone_verificationSentAt?: Date | null;
+      user_phone_verificationAttempts?: number;
+      user_phone_verificationError?: string | null;
       user_whatsapp_number?: string | null;
-      country?: string; // Country code for phone number
+      country?: string;
       voice_id?: string;
       voice_name?: string;
       voice_description?: string;
@@ -102,11 +108,9 @@ export interface PhotoGenerateRequest {
     prompt_upsampling?: boolean;
 }
 
-// This type is no longer used for API calls, as the endpoint now takes FormData.
-// It can be kept for conceptual reference or removed.
 export interface PhotoEditRequest {
     prompt: string;
-    input_image: string; // Must be a public URL
+    input_image: string;
     aspect_ratio?: string;
     output_format?: string;
     safety_tolerance?: number;
