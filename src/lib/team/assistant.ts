@@ -57,12 +57,22 @@ export const getAssistantStatus = async (apiKey: string) => {
                 { method: "GET", headers: { apiKey: apiKey } }
             );
 
-            const data = await response.json();
+            const data = await response.json(); 
+
             if (!response.ok) {
                 return { detail: data.detail || `Failed to get status for assistant ${assistantId}: ${response.statusText}` };
             }
+            
+            if (data.info) {
+                return data.info as AssistantStatus;
+            }
+            
+            if ('running' in data) {
+                return data as AssistantStatus;
+            }
 
-            return data.info as (AssistantStatus & ResponseProps);
+            return { detail: "Unexpected response format from status endpoint." };
+
         } catch (error) {
             console.error(`[assistant.ts getAssistantStatus] Error fetching status for assistant ${assistantId}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";

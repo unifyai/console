@@ -212,7 +212,7 @@ export interface AssistantActions {
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: AssistantUpdatePayload) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;
-    status: (assistantId: string) => Promise<(AssistantStatus & ResponseProps) | ResponseProps>;
+    status: (assistantId: string) => Promise<AssistantStatus | ResponseProps>;
     },
     "photo": {    
     upload: (formData: FormData) => Promise<PhotoUploadResponse | ResponseProps>; 
