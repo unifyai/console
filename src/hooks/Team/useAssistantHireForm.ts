@@ -344,8 +344,8 @@ export function useAssistantHireForm(
                 throw new Error("Missing assistant surname.");
             }
             const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-            if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) <= 0)) {
-                setError("age", { type: "manual", message: "Valid age is required." });
+            if (data.age != null && (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)) {
+                setError("age", { type: "manual", message: "Age must be between 18 and 70." });
                 throw new Error("Invalid age provided.");
             }
             if (!data.region) {

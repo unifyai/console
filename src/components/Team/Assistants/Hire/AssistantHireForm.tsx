@@ -211,7 +211,7 @@ export function HireForm({
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="age">Age</Label>
-                    <Input id="age" type="number" {...register("age", { valueAsNumber: true, min: { value: 1, message: "Age must be positive" }})} />
+                    <Input id="age" type="number" {...register("age", { valueAsNumber: true, min: { value: 18, message: "Age must be at least 18" }, max: { value: 70, message: "Age must be 70 or less" } })} />
                     {errors.age && <p className="text-sm font-medium text-destructive mt-1">{errors.age.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
