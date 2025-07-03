@@ -14,6 +14,7 @@ export function useAssistantHireForm(
     onSuccess?: (newAssistant: Assistant) => void,
     isHireDialogInitiallyOpen?: boolean
 ) {
+    const toastIdRef = React.useRef<string | number | undefined>(undefined);
     
     // Find a default voice that matches the current VOICE_PROVIDER
     const getDefaultVoiceForProvider = () => {
@@ -331,7 +332,8 @@ export function useAssistantHireForm(
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
         clearErrors();
-        const toastId = toast.loading("Hiring assistant...");
+        
+        toastIdRef.current = toast.loading("Hiring assistant...", { id: toastIdRef.current });
                 
         try {
             // Input validity checks
@@ -420,7 +422,8 @@ export function useAssistantHireForm(
                 user_whatsapp_number
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
-                toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastId });
+                toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
+                toastIdRef.current = undefined;
                 resetFormAndHints();
                 if (onSuccess) onSuccess(assistantCreationResult.assistant);
             } else {
@@ -441,10 +444,11 @@ export function useAssistantHireForm(
             );
 
             if (!isRHFError) {
-                 toast.error(`${error.message}. Hiring aborted.`, { id: toastId });
+                 toast.error(`${error.message}. Hiring aborted.`,  { id: toastIdRef.current });
             } else {
-                // Form validation errors, just dismiss the loading toast
+                 if(toastIdRef.current) toast.dismiss(toastIdRef.current);
             }
+            toastIdRef.current = undefined;
             console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
         } finally {
@@ -485,7 +489,7 @@ export function useAssistantHireForm(
 
         setIsCheckingBalance(true);
         setShowInsufficientFundsHint(false);
-        const balanceToastId = toast.loading("Checking your balance...");
+        toastIdRef.current = toast.loading("Checking your balance...");
 
         try {
             const fetchBalance = async () => {
@@ -502,8 +506,9 @@ export function useAssistantHireForm(
             const balanceResult = await fetchBalance();
 
             if ('detail' in balanceResult || !balanceResult) {
-                console.error(`[useAssistantHireForm] ${(balanceResult as ResponseProps)?.detail || "Failed to check balance."}`, { id: balanceToastId });
-                toast.error("Failed to check balance.", { id: balanceToastId });
+                console.error(`[useAssistantHireForm] ${(balanceResult as ResponseProps)?.detail || "Failed to check balance."}`);
+                toast.error("Failed to check balance.", { id: toastIdRef.current });
+                toastIdRef.current = undefined;
                 setIsCheckingBalance(false);
                 return;
             }
@@ -521,12 +526,15 @@ export function useAssistantHireForm(
 
             if (currentBalance < totalOnboardingFee) {
                 setShowInsufficientFundsHint(true);
+                if(toastIdRef.current) toast.dismiss(toastIdRef.current);
+                toastIdRef.current = undefined;
             } else {
                 await RHFSubmitHandler(event); 
             }
         } catch (error) {
-            toast.error("Error during balance check process.", { id: balanceToastId });
+            toast.error("Error during balance check process.", { id: toastIdRef.current });
             console.error("[useAssistantHireForm] Balance check/hire attempt error:", error);
+            toastIdRef.current = undefined;
         } finally {
             setIsCheckingBalance(false);
         }
