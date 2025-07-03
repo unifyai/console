@@ -35,7 +35,7 @@ export function useAssistantHireForm(
 
     const hireFormMethods = useForm<AssistantFormData>({
         defaultValues: {
-            first_name: '', surname: '', age: null, region: '', about: '',
+            first_name: '', surname: '', age: null, region: 'United States', about: '',
             email: initialEmail,
             emailManuallyEdited: false,
             user_phone: '',
@@ -200,7 +200,7 @@ export function useAssistantHireForm(
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
-        setValue("region", preset.region ?? '', { shouldValidate: true });
+        setValue("region", preset.region ?? 'United States', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
         setValue("profile_photo_url", preset.profile_photo);
         setValue("imagePreview", preset.profile_photo);
@@ -303,7 +303,7 @@ export function useAssistantHireForm(
             first_name: defaultFirstName,
             surname: defaultSurname,
             age: values?.age || null,
-            region: values?.region || '',
+            region: values?.region || 'United States',
             about: values?.about || '',
             email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
             emailManuallyEdited: values?.emailManuallyEdited || false,

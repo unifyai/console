@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/UI/button';
 import { toast } from 'sonner';
 import { SocialAccountInput } from './SocialAccountInput';
+import { allCountryNames } from '@/constants/assistants/countries';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -94,6 +95,7 @@ export function HireForm({
   const surname = watch("surname");
   const rhfEmail = watch("email");
   const rhfCountry = watch("country");
+  const rhfRegion = watch("region");
 
   const [emailLocalPart, setEmailLocalPart] = React.useState('');
 
@@ -215,9 +217,24 @@ export function HireForm({
                     {errors.age && <p className="text-sm font-medium text-destructive mt-1">{errors.age.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
-                    <Label htmlFor="region">Region</Label>
-                    <Input id="region" placeholder="e.g., United States" {...register("region")} />
-                    {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
+                        <Label htmlFor="region">Region</Label>
+                        <Select
+                            value={rhfRegion || ''}
+                            onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
+                            disabled={isSubmitting}
+                        >
+                            <SelectTrigger id="region" {...register("region", { required: "Region is required." })}>
+                                <SelectValue placeholder="Select a region..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allCountryNames.map(countryName => (
+                                    <SelectItem key={countryName} value={countryName}>
+                                        {countryName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
                     </div>
                 </div>
                 <div className="flex flex-col w-full space-y-2 pt-1">
