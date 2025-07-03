@@ -412,7 +412,7 @@ export function HireForm({
                                 {...register("user_phone", {
                                     required: "Your phone number is required.",
                                     pattern: {
-                                    value: /^\+[1-9]\d{1,14}$/,
+                                    value: /^\+[1-9]\d{7,14}$/,
                                     message: "Enter a valid international phone number (e.g., +15551234567)"
                                     }
                                 })}

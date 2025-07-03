@@ -76,13 +76,13 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
             return;
         }
 
-        const identifier = getValues(`social_accounts.${index}.identifier`);
-        if (!identifier || !/^\+[1-9]\d{1,14}$/.test(identifier)) {
-            toast.error("Please enter a valid international phone number (e.g., +15551234567).");
-            setValue(`social_accounts.${index}.verificationError`, "Invalid phone number format.");
+        const isValid = await trigger(`social_accounts.${index}.identifier`);
+        if (!isValid) {
+            toast.error("Please enter a valid international phone number for verification.");
             return;
         }
-
+        
+        const identifier = getValues(`social_accounts.${index}.identifier`);
         setValue(`social_accounts.${index}.isVerifying`, true);
         setValue(`social_accounts.${index}.verificationError`, null);
         if (isRetry) {
@@ -187,7 +187,13 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                         <Controller
                             name={`social_accounts.${index}.identifier`}
                             control={control}
-                            rules={{ required: `${platform} identifier is required.` }}
+                            rules={{ 
+                                required: `${platform} identifier is required.`,
+                                pattern: {
+                                    value: /^\+[1-9]\d{7,14}$/,
+                                    message: "Enter a valid international phone number (e.g., +15551234567)"
+                                }
+                            }}
                             render={({ field }) => (
                                 <Input
                                     {...field}

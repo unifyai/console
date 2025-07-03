@@ -365,7 +365,7 @@ export function useAssistantHireForm(
                 setError("email", { type: "manual", message: "This email is already in use." });
                 throw new Error("Email already in use.");
             }
-            if (!data.user_phone) {
+            if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
                 setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
                 throw new Error("Valid international phone number is required");
             }
