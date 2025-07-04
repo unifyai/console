@@ -51,6 +51,9 @@ export default function Main({
         handleShowActivityLog, handleActivityLogClose,
     } = usePanelManager();
 
+    // --- Assistant List Fold State ---
+    const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
+
     // --- Assistant Data & Actions ---
     const {
         assistants,
@@ -239,7 +242,8 @@ export default function Main({
     
     // Determine active panel for width calculations
     const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
-    const assistantListWidth = activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
+    const assistantListWidth = isAssistantListFolded ? "w-20"
+                             : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[350px] xl:w-[400px]" 
                              : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
 
@@ -264,6 +268,8 @@ export default function Main({
                         onShowProfile={handleShowProfile}
                         onShowActivityLog={handleShowActivityLog}
                         onOpenHireDialog={handleOpenHireDialog}
+                        isFolded={isAssistantListFolded}
+                        onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
                     />
                 </div>
 

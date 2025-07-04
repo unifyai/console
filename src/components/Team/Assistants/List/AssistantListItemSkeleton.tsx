@@ -2,7 +2,11 @@ import * as React from 'react';
 import { Skeleton } from '../../../UI/skeleton';
 import { cn } from '@/lib/utils';
 
-export function AssistantListItemSkeleton() {
+export function AssistantListItemSkeleton({ isFolded }: { isFolded?: boolean }) {
+    if (isFolded) {
+        return <Skeleton className="h-8 w-8 rounded-full flex-shrink-0 bg-muted" />;
+    }
+
     return (
         <div className={cn("flex items-center justify-between p-2 rounded-md")}>
             <div className="flex items-center gap-3 min-w-0 flex-1">
