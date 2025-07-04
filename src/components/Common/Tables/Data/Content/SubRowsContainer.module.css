@@ -1,0 +1,43 @@
+/* Custom scrollbar styles to match shadcn scroll-area appearance */
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+.customScrollbar::-webkit-scrollbar {
+  width: var(--scrollbar-width, 10px);
+  height: var(--scrollbar-width, 10px);
+}
+
+.customScrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, transparent);
+  border-radius: 0;
+}
+
+.customScrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, hsl(var(--border)));
+  border-radius: 9999px; /* rounded-full equivalent */
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+.customScrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, hsl(var(--border)));
+}
+
+.customScrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+.customScrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, hsl(var(--border))) var(--scrollbar-track, transparent);
+}
+
+/* General scrollbar behavior */
+.customScrollbar {
+  /* Ensure smooth scrolling */
+  scroll-behavior: smooth;
+  
+  /* Ensure content doesn't get cut off */
+  box-sizing: border-box;
+} 
