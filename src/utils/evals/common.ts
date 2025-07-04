@@ -1,8 +1,8 @@
-import { GroupedMetrics, GroupedMetricNode, GroupedMetricLeaf, LogItemProps, LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps } from "../../types/evals/logs";
+import { GroupedMetrics, GroupedMetricNode, GroupedMetricLeaf, LogItemProps, LogsResponseProps, GroupedLogProps, LogProps, LogFieldsResponseProps, GroupedLogPropsRaw } from "../../types/evals/logs";
 import _ from "lodash";
 import { formatNumber } from "../formatNumber";
 import { processContext } from "./columnOperations";
-import { LogsActions, TileProps } from "@/types/evals/grid";
+import { LogsActions, TableGroupedMetrics } from "@/types/evals/grid";
 import { Row } from "@tanstack/react-table";
 import { maybeConvertRawToGroupedLogs } from "./grouping";
 import { TreeNode } from "@/types/common";
@@ -92,26 +92,34 @@ export function computeStatistic(statistic: string, data: number[]): string {
   }
 }
 
+/*
+  Extract logs from a logs response.
+*/
+export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedLogPropsRaw) {
+  // If logs is an array (non-grouped case), process it directly
+  // If it's GroupedLogPropsRaw (grouped case), convert it first
+  const logs = Array.isArray(rawLogs) 
+      ? rawLogs.map(log => ({
+          type: "ungrouped",
+          id: log.id, 
+          ts: log.ts, 
+          params: log.params, 
+          derived_entries: {}, 
+          entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
+          clipped_fields: log.clipped_fields,
+        } as LogProps))
+      : maybeConvertRawToGroupedLogs(params, rawLogs, null);
+  
+  return logs;
+}
+
 /* 
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
 export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, column_context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;
-
-    // If logs is an array (non-grouped case), process it directly
-    // If it's GroupedLogPropsRaw (grouped case), convert it first
-    const logs = Array.isArray(rawLogs) 
-        ? rawLogs.map(log => ({
-            type: "ungrouped",
-            id: log.id, 
-            ts: log.ts, 
-            params: log.params, 
-            derived_entries: {}, 
-            entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
-            clipped_fields: log.clipped_fields,
-          }))
-        : maybeConvertRawToGroupedLogs(params, rawLogs, null);
+    const logs = extractLogs(params, rawLogs);
 
     let [paramsProperties, entriesProperties] = [
       Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
@@ -246,7 +254,7 @@ export const getGroupedMetrics = async (
   fields: LogFieldsResponseProps,
   logsActions: LogsActions
 ) => {
-  let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
+  let groupedMetrics: TableGroupedMetrics = {};
   if (groupingExpression) {
     try {
       const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));

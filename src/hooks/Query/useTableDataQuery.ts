@@ -1,14 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { TableBoundaries, TableDataItem, TableMetrics } from "@/types/evals/grid";
+import { TableBoundaries, TableDataItem, TableMetrics, TableGroupedMetrics } from "@/types/evals/grid";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTileData, useTileMeta } from "@/contexts/hooks/tile";
-import { LogFieldsResponseProps, TableArguments } from "@/types/evals/logs";
+import { LogFieldsResponseProps, TableArguments, LogsResponseProps } from "@/types/evals/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { setDeep } from "@/utils/objectPath";
 import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
-import { getColumnMetrics } from "@/utils/evals/common";
+import { getColumnMetrics, getGroupedMetrics } from "@/utils/evals/common";
+import { getNewCells } from "@/utils/data/buildTableDataItem";
+import { appendToGroupedLogs, maybeConvertRawToGroupedLogs, updateGroupedSubRows, appendToGroupedSubRows, isGroupedLogs, isUngroupedLogs } from "@/utils/evals/grouping";
 import { LogsActions } from "@/types/evals/grid";
+import { LogProps, GroupedLogProps } from "@/types/evals/logs";
 
 /**
  * Debug flag for performance logging
@@ -28,14 +31,12 @@ const perfLog = (...args: any[]) => {
 export const EMPTY_TABLEDATAITEM: TableDataItem = {
   columnContexts: [],
   fields: {},
-  logsData: { params: {}, logs: [], count: 0, groups: {} },
-  totalPages: 0,
+  totalCount: 0,
+  error: undefined,
   entriesProperties: [],
   paramsProperties: [],
   logs: [],
-  params: [],
-  groupedMetrics: {},
-  metric: "",
+  params: []
 };
 
 /**
@@ -151,7 +152,7 @@ export function useTableDataQueryWithTracking(
   }, [updateWithTracking]);
 
   // Function for deep updating specific logs by row IDs
-  const updateLogsDeep = useCallback((
+  const updateLogsByRowIds = useCallback((
     rowIds: string[], 
     desc: { 
       source: "entries" | "params"; 
@@ -160,7 +161,7 @@ export function useTableDataQueryWithTracking(
     }
   ) => {
     if (!tileId || rowIds.length === 0) {
-      console.log("[DEBUG] Aborting updateLogsDeep – missing tileId or empty rowIds");
+      console.log("[DEBUG] Aborting updateLogsByRowIds – missing tileId or empty rowIds");
       return;
     }
 
@@ -192,13 +193,13 @@ export function useTableDataQueryWithTracking(
     });
 
     if (!changed) {
-      console.log("[DEBUG] updateLogsDeep detected no changes – skipping state merge");
+      console.log("[DEBUG] updateLogsByRowIds detected no changes – skipping state merge");
       return; // nothing mutated
     }
 
     // Guard: avoid clobbering entire container if path is empty
     if (desc.path.length === 0) {
-      console.warn("[DEBUG] updateLogsDeep – empty path, skipping to avoid overwriting container", { desc });
+      console.warn("[DEBUG] updateLogsByRowIds – empty path, skipping to avoid overwriting container", { desc });
       return;
     }
 
@@ -206,6 +207,127 @@ export function useTableDataQueryWithTracking(
     updateTableDataItem({
       ...tableDataItemRef.current,
       logs: nextLogs,
+    });
+  }, [tileId, updateTableDataItem]);
+
+  // Function for updating logs from logsActions.get response
+  // Supports both top-level and targeted group updates with replace/append modes:
+  // - When targetGroupId and groupFilters are provided, updates/appends at specific group location
+  // - When no targeting provided, handles simple top-level replace/append scenarios
+  // - Uses updateGroupedSubRows for targeted replace, appendToGroupSubRows for targeted append
+  const updateLogs = useCallback((
+    logsData: LogsResponseProps,
+    mode: "replace" | "append" = "replace",
+    targetGroupId?: string | null, // For grouped Load More scenarios
+    targetGroupFilters?: [string, string][], // For targeting specific subrows
+    preConvertedLogs?: GroupedLogProps[] | LogProps[] // Optional pre-converted logs to avoid double conversion
+  ) => {
+    if (!tileId) {
+      console.log("[DEBUG] Aborting updateLogs – missing tileId");
+      return;
+    }
+
+    const currentTableDataItem = tableDataItemRef.current;
+
+    // Convert raw logs using the same logic as onGroupExpand
+    const newLogs = preConvertedLogs || maybeConvertRawToGroupedLogs(logsData.params, logsData.logs, targetGroupId);
+
+    // Calculate new cells by comparing with existing logs
+    const previousLogs = currentTableDataItem.logs;
+    const newCells = getNewCells(previousLogs, newLogs);
+
+    // Extract error from logsData
+    const error = "detail" in logsData ? logsData["detail"] : undefined;
+
+    // Check log types once at the beginning to avoid redundancy
+    const currentLogs = currentTableDataItem.logs;
+    const isCurrentGrouped = isGroupedLogs(currentLogs);
+    const isCurrentUngrouped = isUngroupedLogs(currentLogs);
+    const isNewGrouped = isGroupedLogs(newLogs);
+    const isNewUngrouped = isUngroupedLogs(newLogs);
+
+    // Determine final logs based on mode and scenario
+    let finalLogs: LogProps[] | GroupedLogProps[];
+    
+    // Branch 1: If we have targeting information (targetGroupId and groupFilters)
+    if (targetGroupId && targetGroupFilters && targetGroupFilters.length > 0) {
+      // Targeting only makes sense with grouped logs
+      if (isCurrentGrouped) {
+        if (mode === "replace") {
+          // Replace mode with targeting - replace at specific location using updateGroupedSubRows
+          // Pass pre-converted logs to avoid double conversion
+          finalLogs = updateGroupedSubRows(
+            currentLogs as GroupedLogProps[],
+            logsData, // Pass the original LogsResponseProps for totalChildren calculation
+            targetGroupFilters,
+            targetGroupId,
+            newLogs // Pass pre-converted logs to avoid double conversion
+          );
+        } else {
+          // Append mode with targeting - append at specific location using appendToGroupedSubRows
+          finalLogs = appendToGroupedSubRows(
+            currentLogs,
+            newLogs as GroupedLogProps[] | LogProps[],
+            targetGroupFilters
+          );
+        }
+      } else {
+        // Targeting requested but logs are ungrouped - warn and fallback
+        console.warn("[DEBUG] updateLogs: targeting requested but existing logs are ungrouped, falling back to simple operation");
+        if (mode === "replace") {
+          finalLogs = newLogs;
+        } else {
+          // For ungrouped logs, just append if both are ungrouped
+          finalLogs = isCurrentUngrouped && isNewUngrouped 
+            ? [...currentLogs, ...newLogs]
+            : newLogs;
+        }
+      }
+    } 
+    // Branch 2: No targeting - handle simple scenarios
+    else {
+      // Handle ungrouped current logs
+      if (isCurrentUngrouped) {
+        if (mode === "replace") {
+          // Replace mode: simply use new logs
+          finalLogs = newLogs;
+        } else {
+          // Append mode: append if new logs are also ungrouped
+          finalLogs = isNewUngrouped 
+            ? [...currentLogs, ...newLogs]
+            : newLogs; // If new logs are grouped, replace instead
+        }
+      }
+      // Handle grouped current logs
+      else if (isCurrentGrouped) {
+        if (mode === "replace") {
+          // Replace mode: simply use new logs
+          finalLogs = newLogs;
+        } else {
+          // Append mode: merge at top level if new logs are also grouped
+          if (isNewGrouped) {
+            finalLogs = appendToGroupedLogs(currentLogs as any, newLogs as any);
+          } else {
+            // If new logs are ungrouped but current are grouped, can't meaningfully append
+            console.warn("[DEBUG] updateLogs: append mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs");
+            finalLogs = currentLogs;
+          }
+        }
+      } 
+      // Fallback for edge cases (neither grouped nor ungrouped)
+      else {
+        console.error("[DEBUG] updateLogs: currentLogs are neither grouped nor ungrouped, using newLogs as fallback");
+        finalLogs = newLogs;
+      }
+    }
+
+    // Update the table data item
+    updateTableDataItem({
+      ...currentTableDataItem,
+      logs: finalLogs,
+      params: logsData.params,
+      newCells,
+      error
     });
   }, [tileId, updateTableDataItem]);
 
@@ -237,7 +359,8 @@ export function useTableDataQueryWithTracking(
     updateTableDataItem,
     mergeUpdatesIntoTableDataItem,
     updateTableDataItemWithUpdater,
-    updateLogsDeep
+    updateLogsByRowIds,
+    updateLogs,
   };
 }
 
@@ -256,8 +379,7 @@ export function useTableArgumentsQuery(
   return useQuery<TableArguments>({
     queryKey: ["tableArguments", tabId],
     // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
+    staleTime: 0,
     refetchOnMount: false,      // Don't refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnReconnect: false,  // Don't refetch when network reconnects
@@ -511,6 +633,83 @@ export function useTableBoundariesQuery(
 }
 
 /**
+ * Hook for fetching table grouped metrics in the background
+ * @param tileId ID of the tile to get grouped metrics for
+ * @param tabId ID of the tab containing the tile
+ * @param enabled Whether the query should be enabled
+ * @param logsActions Actions for fetching logs data
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ * @param filterExpression Filter expression
+ * @param groupingExpression Grouping expression
+ * @param metric Metric to calculate
+ * @param fields Field definitions for data type checking
+ * @param caller Debug string to identify which component called this
+ */
+export function useTableGroupedMetricsQuery(
+  tileId: string | null,
+  tabId: string | null,
+  enabled: boolean = true,
+  logsActions?: LogsActions,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[],
+  filterExpression?: string | null,
+  groupingExpression?: string | null,
+  metric?: string,
+  fields?: LogFieldsResponseProps,
+  caller?: string
+) {
+  const callerInfo = caller || "unknown";
+  const isEnabled = !!(tileId && tabId && enabled && logsActions && projectId && columns?.length && groupingExpression && fields);
+
+  return useQuery<TableGroupedMetrics>({
+    queryKey: [
+      "tableGroupedMetrics", 
+      tileId, 
+      tabId, 
+      projectId, 
+      context, 
+      columnContext, 
+      columns, 
+      filterExpression, 
+      groupingExpression,
+      metric
+    ],
+    queryFn: async () => {
+      if (!logsActions || !projectId || !columns || columns.length === 0 || !groupingExpression || !fields) {
+        throw new Error("Missing required parameters for grouped metrics query");
+      }
+
+      const tStart = performance.now();
+      const result = await getGroupedMetrics(
+        projectId,
+        context || null,
+        columnContext || null,
+        columns,
+        filterExpression || null,
+        groupingExpression,
+        metric || "mean",
+        fields,
+        logsActions
+      ) as TableGroupedMetrics;
+      const tEnd = performance.now();
+      perfLog(`[perf] getGroupedMetrics(metric: ${metric}) ${callerInfo}: ${(tEnd - tStart).toFixed(2)}ms`);
+      return result;
+    },
+    enabled: isEnabled,
+    staleTime: 0,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+  });
+}
+
+/**
  * Hook for invalidating metrics query and tracking loading state
  * @param tileId ID of the tile
  * @param tabId ID of the tab containing the tile
@@ -594,4 +793,58 @@ export function useInvalidateTableBoundaries(
   }, [queryClient, tileId, tabId, projectId, context, columnContext, columns]);
 
   return { resetBoundaries };
+}
+
+/**
+ * Hook for invalidating grouped metrics query and tracking loading state
+ * @param tileId ID of the tile
+ * @param tabId ID of the tab containing the tile
+ * @param projectId Project ID for the query
+ * @param context Context for the query
+ * @param columnContext Column context for the query
+ * @param columns Array of column names
+ * @param filterExpression Filter expression
+ * @param groupingExpression Grouping expression
+ * @param metric Metric to calculate
+ */
+export function useInvalidateTableGroupedMetrics(
+  tileId: string | null,
+  tabId: string | null,
+  projectId?: string | null,
+  context?: string | null,
+  columnContext?: string | null,
+  columns?: string[],
+  filterExpression?: string | null,
+  groupingExpression?: string | null,
+  metric?: string
+) {
+  const queryClient = useQueryClient();
+
+  const resetGroupedMetrics = useCallback(() => {
+    if (tileId && tabId) {
+      // Invalidate both top-level and sub-group metrics
+      queryClient.invalidateQueries({
+        queryKey: [
+          "tableGroupedMetrics", 
+          tileId, 
+          tabId, 
+          projectId, 
+          context, 
+          columnContext, 
+          columns, 
+          filterExpression, 
+          groupingExpression,
+          metric
+        ],
+        refetchType: 'active'
+      });
+      
+      queryClient.invalidateQueries({
+        queryKey: ["tableSubGroupMetrics", tileId, tabId],
+        refetchType: 'active'
+      });
+    }
+  }, [queryClient, tileId, tabId, projectId, context, columnContext, columns, filterExpression, groupingExpression, metric]);
+
+  return { resetGroupedMetrics };
 }

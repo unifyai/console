@@ -116,8 +116,7 @@ export function usePlotArgumentsQuery(tabId: string | null) {
     queryKey: ["plotArguments", tabId],
     // The data is prefetched by the server component
     // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
+    staleTime: 0,
     refetchOnMount: false,      // Don't refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnReconnect: false,  // Don't refetch when network reconnects

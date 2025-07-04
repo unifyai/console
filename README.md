@@ -85,6 +85,14 @@ This application includes several debug environment variables that enable detail
   - Includes command palette state updates, modal state changes, and navigation operations
   - Useful for debugging command system workflows and UI state management
 
+### Query Management
+
+- **`NEXT_PUBLIC_DEBUG_INFINITE_QUERIES=true`**
+  - Enables detailed logging for infinite query operations and data fetching
+  - Shows query execution, cache management, and pagination state changes
+  - Includes logging for load more operations, query invalidation, and data merging
+  - Useful for debugging data fetching workflows and infinite scroll behaviors
+
 ### Usage Example
 
 To enable all debug features during development, add these to your `.env.local` file:
@@ -96,6 +104,7 @@ NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
 NEXT_PUBLIC_DEBUG_PERFORMANCE=true
 NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
 NEXT_PUBLIC_DEBUG_COMMANDS=true
+NEXT_PUBLIC_DEBUG_INFINITE_QUERIES=true
 ```
 
 **Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.

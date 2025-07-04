@@ -47,6 +47,8 @@ export function useTracePolling(
             null,                  // exclude_fields
             1,                     // limit
             0,                     // offset
+            null,                  // group_limit
+            null,                  // group_offset
             null,                  // group_depth
             null,                  // return_ids_only
             null,                  // randomize

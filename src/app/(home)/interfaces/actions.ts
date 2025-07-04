@@ -109,7 +109,7 @@ export const createLogs = async (apiKey: string) => {
 
 // get logs
 export const getLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
+    return async (project: string, context: string | null, columnContext: string | null, filterExpression: string | null, sortingExpression: string | null, groupingExpression: string | null, groupSortingExpression: string | null, from_ids: string | null, from_fields: string | null, exclude_fields: string | null, limit: number | null, offset: number | null, group_limit: number | null, group_offset: number | null, group_depth: number | null, return_ids_only: string | null, randomize: string | null, _timestamp: string | null, signal?: AbortSignal) => {
         "use server";
 
         try {
@@ -131,6 +131,8 @@ export const getLogs = async (apiKey: string) => {
                 + (exclude_fields ? `&exclude_fields=${encodeURIComponent(exclude_fields)}` : "")
                 + (limit ? `&limit=${limit}` : "")
                 + (offset ? `&offset=${offset}` : "")
+                + (group_limit ? `&group_limit=${group_limit}` : "")
+                + (group_offset ? `&group_offset=${group_offset}` : "")
                 + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : "")
                 + (return_ids_only ? `&return_ids_only=${return_ids_only}` : "")
                 + (randomize ? `&randomize=${randomize}` : ""),

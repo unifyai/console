@@ -68,14 +68,12 @@ export interface TableBoundaries {
 export interface TableDataItem {
     columnContexts: string[],
     fields: LogFieldsResponseProps,
-    logsData: LogsResponseProps,
-    totalPages: number,
+    totalCount: number,
     entriesProperties: string[],
     paramsProperties: string[],
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
-    groupedMetrics?: TableGroupedMetrics,
-    metric: string,
+    error: string | undefined,
     newCells?: string[]
 }
 
@@ -201,6 +199,8 @@ export interface TableTileData {
     table_type?: string;
     limit?: number;
     offset?: number;
+    group_limit?: number;
+    group_offset?: number;
     page_number?: string;
     column_order?: string;
     hidden_columns?: string;
@@ -585,6 +585,8 @@ export interface LogsActions {
         exclude_fields: string | null,
         limit: number | null,
         offset: number | null,
+        group_limit: number | null,
+        group_offset: number | null,
         group_depth: number | null,
         return_ids_only: string | null,
         randomize: string | null,

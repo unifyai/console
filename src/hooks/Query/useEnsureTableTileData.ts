@@ -15,6 +15,7 @@ import {
   buildOptimisticTableDataItem,
   OptimisticUpdateDependencies,
 } from "@/utils/data/buildServerDataOptimistic";
+import { TableArguments } from "@/types/evals/logs";
 
 /**
  * Debug flag for tile dependency logging
@@ -40,6 +41,7 @@ export function useEnsureTableTileData(params: {
   tabId: string;
   tileId: string;
   projectId: string;
+  tableArguments: TableArguments;
   actions: {
     tileActions: GranularTileActions;
     projectsActions: ProjectsActions;
@@ -48,7 +50,7 @@ export function useEnsureTableTileData(params: {
     logsActions: LogsActions;
   };
 }) {
-  const { interfaceId, tabId, tileId, projectId, actions } = params;
+  const { interfaceId, tabId, tileId, projectId, tableArguments, actions } = params;
   const queryClient = useQueryClient();
 
   /** Query that builds the TableDataItem if it is missing */
@@ -56,7 +58,7 @@ export function useEnsureTableTileData(params: {
     queryKey: ["ensureTableTileData", tileId, projectId],
     staleTime: Infinity,
     gcTime: Infinity,
-    enabled: !!tileId && !!projectId,
+    enabled: !!tileId && !!projectId && !!tableArguments,
     queryFn: async () => {
       debugLog(`[useEnsureTableTileData] Building table data for tile: ${tileId}`);
       
@@ -109,7 +111,7 @@ export function useEnsureTableTileData(params: {
         dependencies,
         tile,
         fieldsArray,
-        undefined,
+        tableArguments,
         { updateCache: true }
       );
 

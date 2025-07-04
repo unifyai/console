@@ -230,7 +230,7 @@ async function fetchPlotDataByTable(
           subset, 
           null, 
           1000,               // Limit to 1000 detapoints
-          null, null, null,
+          null, null, null, null, null,
           "True",             // Randomize
           Date.now().toString()
         );

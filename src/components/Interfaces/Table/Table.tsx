@@ -10,10 +10,10 @@ import {
   ColumnSizingState,
   GroupingState,
 } from "@tanstack/react-table";
-import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions } from "@/types/evals/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/evals/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2 } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers } from "lucide-react";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/evals/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
@@ -26,6 +26,7 @@ import SummaryCell from "./Content/SummaryCell";
 import FooterCell from "./Content/FooterCell";
 import GlobalFilter from "./Buttons/GlobalFilter";
 import PageController from "@/components/Common/Tables/Data/Buttons/PageController";
+import InfiniteScrollController from "@/components/Common/Tables/Data/Buttons/InfiniteScrollController";
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
@@ -44,20 +45,22 @@ import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/evals/grouping";
 import ContextSelector from "./Content/ContextSelector";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
-import { getGroupedMetrics } from "@/utils/evals/common";
 import { deselectFromClickOutside } from "@/hooks/Logs/useCellSelection";
 import { isHiddenByDefault } from "@/utils/evals/table";
+import LoadMore from "@/components/Common/Tables/Data/Buttons/LoadMore";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
 import { useTile, useTileItem } from '@/contexts/hooks/tile';
-import { useProject } from "@/contexts/hooks/project";
 import { shallow } from "zustand/vanilla/shallow";
-import { useTableArgumentsQuery, useTableDataQueryWithTracking, useUpdateAvailableFieldsForTableArgumentsQuery } from "@/hooks/Query/useTableDataQuery";
+import { useTableDataQueryWithTracking, useTableGroupedMetricsQuery, useTableArgumentsQuery } from "@/hooks/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
 import ActionButton from "@/components/Common/Buttons/Action";
-import { SquareSplitHorizontal } from "lucide-react";
+import { useInfiniteLogsQuery } from "@/hooks/Query/useInfiniteLogsQuery";
+import { useQueryClient } from "@tanstack/react-query";
+import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore";
+import { checkHasNextPage, checkHasPreviousPage } from "@/utils/evals/logsCore";
 
 const LogsTable = ({
   tileId,
@@ -83,7 +86,10 @@ const LogsTable = ({
   contextActions: ContextActions,
 }) => {
   const router = useRouter(); // Initialize useRouter
+  const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
+  const [useVirtualization, setUseVirtualization] = useState(false); // Enable virtualization by default
+
 
   // Get access to the tab data and actions with granular access
   const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
@@ -97,35 +103,148 @@ const LogsTable = ({
     uiActions: tileUIActions,
   } = useTile(tileId, tabId);
 
-  // Use the enhanced hook that includes state tracking
+  // Use the existing hook structure for metadata and mutations
   const { 
     tableData: tableDataItem, 
     isLoading: isTableDataLoading,
     isError: isTableDataError,
     error: tableDataError,
-    updateTableDataItemWithUpdater
+    updateTableDataItemWithUpdater,
+    updateLogs,
   } = useTableDataQueryWithTracking(tileId || null, tabId || null);
 
+  const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
+  const tileName = tileMetaState?.name || "";
+  const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
+  const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
+  const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;
+  const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
+
+  // Get item data for context and column context
+  const { itemActions } = useTileItem(tileId, tabId);
+  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+  // Use infinite scroll query with simplified data handling
+  const infiniteLogsQuery = useInfiniteLogsQuery({
+    tileId,
+    tabId,
+    projectId: projectId || null,
+    context: item?.context || context_ || null,
+    columnContext: item?.column_context || null,
+    filterExpression,
+    sortingExpression,
+    groupingExpression,
+    groupSortingExpression,
+    limit: tableTileState?.limit || 20,
+    group_limit: tableTileState?.group_limit || 20,
+    logsActions,
+    updateLogs,
+    enabled: !!projectId && !!tileId && !!tabId,
+  });
+
+  // Use the existing table data item as single source of truth
   const {
     fields,
     logs,
     params,
     entriesProperties,
     paramsProperties,
-    logsData,
-    totalPages,
+    totalCount,
+    error,
   } = tableDataItem;
 
-  const tileName = tileMetaState?.name || "";
-  
-  // Update the available fields for the table arguments
-  useUpdateAvailableFieldsForTableArgumentsQuery(tileId, tabId, entriesProperties, paramsProperties, fields);
-  
-  const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
-  const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
-  const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
-  const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;
-  const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
+  // Calculate hasNextPage from initial tableDataItem if infinite query hasn't loaded yet
+  const initialHasNextPage = useMemo(() => {
+    if (infiniteLogsQuery.logs.length > 0) {
+      // Use infinite query data once it's available
+      return infiniteLogsQuery.hasNextPage;
+    }
+    
+    // Calculate from initial tableDataItem using pagination utility
+    return checkHasNextPage({
+      currentLogs: logs,
+      totalCount,
+      offset: tableTileState?.offset || 0,
+      limit: tableTileState?.limit || 20,
+      groupOffset: tableTileState?.group_offset || 0,
+      groupLimit: tableTileState?.group_limit || 20,
+    });
+  }, [
+    infiniteLogsQuery.logs.length, 
+    infiniteLogsQuery.hasNextPage, 
+    logs.length, 
+    tableTileState?.limit, 
+    tableTileState?.group_limit,
+    tableTileState?.group_offset, 
+    tableTileState?.offset,
+    groupingExpression, 
+    totalCount
+  ]);
+
+  // Calculate total count from initial tableDataItem if infinite query hasn't loaded yet
+  const effectiveTotalCount = useMemo(() => {
+    if (infiniteLogsQuery.logs.length > 0) {
+      return infiniteLogsQuery.totalCount;
+    }
+    
+    // Use totalCount from tableDataItem
+    return totalCount;
+  }, [infiniteLogsQuery.logs.length, infiniteLogsQuery.totalCount, totalCount]);
+
+  // Calculate effective loaded count
+  const effectiveLoadedCount = infiniteLogsQuery.logs.length > 0 ? infiniteLogsQuery.totalLoadedCount : logs.length;
+
+  // Helper function to calculate hasNextPage for individual groups
+  const calculateGroupHasNextPage = useCallback((groupId: string): boolean => {
+    if (!groupingExpression || !logs.length) return false;
+
+    // For individual group LoadMore, we need to look at the group data
+    // groupId format: "column1:value1>column2:value2>..."
+    const groupParts = groupId.split('>');
+    
+    // Find the group in the current logs data
+    const findGroupData = (currentLogs: any[], parts: string[], partIndex: number = 0): any => {
+      if (partIndex >= parts.length) return null;
+      
+      const [column, value] = parts[partIndex].split(':');
+      const cleanColumn = column.replace(/^(Entries|Parameters)\//, '');
+      
+      // Look for this group in current logs
+      for (const log of currentLogs) {
+        if (log.type === "grouped") {
+          // Check if this log matches the current part
+          const logValue = log[column] || log[`Entries/${cleanColumn}`] || log[`Parameters/${cleanColumn}`];
+          if (logValue === value) {
+            // If this is the last part, we found our target group
+            if (partIndex === parts.length - 1) {
+              return log;
+            }
+            // Otherwise, continue searching in subRows
+            if (log.subRows && log.subRows.length > 0) {
+              return findGroupData(log.subRows, parts, partIndex + 1);
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    const targetGroup = findGroupData(logs, groupParts);
+    if (!targetGroup) return false;
+
+    // Check if the group has more items to load using pagination utilities
+    if (targetGroup.totalChildren !== undefined && targetGroup.subRows) {
+      const currentSubRowsCount = targetGroup.subRows.length;
+      return checkHasNextPage({
+        currentLogs: targetGroup.subRows,
+        totalCount: targetGroup.totalChildren,
+        groupOffset: 0, // Groups start at 0
+        groupLimit: tableTileState?.group_limit || 20,
+      });
+    }
+
+    return false;
+  }, [logs, groupingExpression, tableTileState?.group_limit]);
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTileActions, tableTile } = useTileSync(
@@ -143,16 +262,13 @@ const LogsTable = ({
   // Get access to the table tile specific data and actions with granular access
   const limit = tableTileState?.limit as number;
   const offset = tableTileState?.offset as number;
+  const group_limit = tableTileState?.group_limit as number;
+  const group_offset = tableTileState?.group_offset as number;
   
-  // Get the item representation for the current tile
-  const { itemActions } = useTileItem(tileId, tabId);
-  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
   // Display loaders for group metrics and shared values
   const [loadingGroups, setLoadingGroups] = useState<Set<string>>(new Set());
-  const [loadingSubGroup, setLoadingSubGroup] = useState<boolean>(false);
 
   // Extract params values from logs
   const paramsValues: LogItemProps = {};
@@ -210,6 +326,10 @@ const LogsTable = ({
   const entriesTitle = "Entries";
   const paramsTitle = "Parameters";
 
+  const effectiveColumnNames = useMemo(() => {
+    return logs.length ? [...entriesProperties, ...paramsProperties] : [];
+  }, [logs.length, entriesProperties, paramsProperties]);
+
   const columns = useMemo(() => {
     // Construct the columns array
     return [
@@ -233,7 +353,7 @@ const LogsTable = ({
                 paramsTree,
                 "params",
                 paramsTitle,
-                logsData,
+                params,
                 true,
                 dataTypes,
                 fieldTypes,
@@ -257,7 +377,7 @@ const LogsTable = ({
                 entriesTree,
                 "entries",
                 entriesTitle,
-                logsData,
+                params,
                 false,
                 dataTypes,
                 fieldTypes,
@@ -275,7 +395,7 @@ const LogsTable = ({
             entriesTree,
             "entries",
             entriesTitle,
-            logsData,
+            params,
             false,
             dataTypes,
             fieldTypes,
@@ -283,7 +403,7 @@ const LogsTable = ({
             fields
           )),
     ];
-  }, [entriesTree, paramsTree, dataTypes, fieldTypes, logsData, columnContext, fields, paramsProperties.length]);
+  }, [entriesTree, paramsTree, dataTypes, fieldTypes, params, columnContext, fields, paramsProperties.length]);
 
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
@@ -550,74 +670,39 @@ const LogsTable = ({
     }
   }, [columnIDs, manualColumnOrderOverride, hasNewColumns, setColumnOrder]);
 
-  // Helper function to safely access the property
-  function safeUpdatedFilterExpression(item: TableDataItem): boolean {
-    return (item as any).updatedFilterExpression;
-  }
-
-  // Effect to handle table data updates and grouped metrics
-  useEffect(() => {
-    if (!logs.length) return;
-
-    // Handle loading states and fetch grouped metrics
-    if (!loadingSubGroup && !safeUpdatedFilterExpression(tableDataItem)) {
-      setLoadingGroups((prev) => {
-        // If `prev` is already the single-element set we want, just reuse it:
-        if (prev.size === 1 && prev.has("_all_groups_")) {
-          return prev; // same reference => no state update => no re-render
-        }
-        // Otherwise create a new set
-        return new Set(["_all_groups_"]);
-      });
-    }
-
-    // Fetch grouped metrics
-    getGroupedMetrics(
-      projectId || null,
-      item?.context || null,
-      item?.column_context || null,
-      logs.length ? [...entriesProperties, ...paramsProperties] : [],
-      filterExpression,
-      groupingExpression,
-      metric,
-      fields,
-      logsActions
-    ).then((groupedMetrics) => {
-      // Update grouped metrics
-      updateTableDataItemWithUpdater(
-        undefined,
-        { groupedMetrics },
-        true
-      );
-
-      // Update loading states
-      if (loadingSubGroup) {
-        setLoadingSubGroup(false);
-      } else {
-        setLoadingGroups(prev => {
-          const next = new Set(prev);
-          next.delete("_all_groups_");
-          return next;
-        });
-      }
-    });
-  }, [
+  // Monitor the grouped metrics query loading state directly
+  const { isLoading: isGroupedMetricsLoading } = useTableGroupedMetricsQuery(
+    tileId,
+    tabId,
+    !!groupingExpression, // Only enabled when there's grouping
+    logsActions,
     projectId,
-    item?.context,
-    item?.column_context,
-    logs.length,
-    tableDataItem,
+    context,
+    columnContext,
+    effectiveColumnNames,
     filterExpression,
     groupingExpression,
     metric,
     fields,
-    logsActions,
-    item?.name,
-    entriesProperties,
-    paramsProperties,
-    loadingSubGroup,
-    updateTableDataItemWithUpdater
-  ]);
+    "Table-LoadingState"
+  );
+
+  // Effect to handle top-level grouped metrics loading states
+  // This manages the loading states for the isGroupLoading prop in AggregatedCell
+  useEffect(() => {
+    if (!logs.length || !groupingExpression) return;
+
+    // Set loading state based on query loading state
+    if (isGroupedMetricsLoading) {
+      setLoadingGroups(new Set(["_all_groups_"]));
+    } else {
+      setLoadingGroups(prev => {
+        const next = new Set(prev);
+        next.delete("_all_groups_");
+        return next;
+      });
+    }
+  }, [logs.length, groupingExpression, isGroupedMetricsLoading]);
 
   // Rename column handler
   const renameColumn = async (oldName: string, newName: string) => {
@@ -632,7 +717,7 @@ const LogsTable = ({
     }
   };
 
-  // Top area: filters, page, etc.
+  // Top area: filters, infinite scroll controller, etc.
   const tableTop = (
     <div className="mb-2 mx-1 flex flex-wrap justify-between gap-2 items-center">
       {/* Leftmost: toggle/search */}
@@ -716,21 +801,30 @@ const LogsTable = ({
             variant="ghost"
             size="icon"
           />
+          <ActionButton
+            tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
+            icon={<Layers className="h-4 w-4" />}
+            onClick={() => setUseVirtualization(!useVirtualization)}
+            variant={useVirtualization ? "primary" : "ghost"}
+            size="icon"
+          />
         </div>
       )}
 
-      {/* Right: pagination */}
+      {/* Right: infinite scroll controller instead of pagination */}
       {projectId && (
         <div className="flex items-center gap-2">
-          <PageController
+          <InfiniteScrollController
+            loadedCount={effectiveLoadedCount}
+            estimatedTotal={effectiveTotalCount}
+            totalCount={effectiveTotalCount}
+            hasNextPage={initialHasNextPage}
+            isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
+            onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
+            onRefresh={() => infiniteLogsQuery.refetch()}
             interactive={interactive}
-            totalPages={totalPages}
-            pageNumber={pageNumber}
-            setPageNumber={tableTileActions?.setPageNumber!}
-            pageLogs={logs.length}
-            totalLogs={logsData.count}
-            limit={limit}
-            logs={logs}
+            itemName={grouping.length > 0 ? "groups" : "logs"}
+            showRefresh={false}
           />
         </div>
       )}
@@ -771,7 +865,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col min-h-0">
           {tableTop && tableTop}
-          <ScrollArea className="w-full h-fit tutorial-logs-table pb-3">
+          <ScrollArea className="w-full h-fit tutorial-logs-table pb-3 overflow-x-auto">
             <div className="min-w-max w-full">
               <div className="min-w-fit w-max">
               {projectId ? (
@@ -780,7 +874,7 @@ const LogsTable = ({
                     <div
                       key={idx}
                       ref={panelScrollRefs[idx]}
-                      className="relative flex-1 flex-col gap-2 overflow-y-auto border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                      className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
                     >
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
@@ -791,6 +885,45 @@ const LogsTable = ({
                         state={state}
                         setState={setState}
                         scrollContainerRef={panelScrollRefs[idx]}
+                        
+                        // Virtualization props - only enabled when useVirtualization is true
+                        enableVirtualization={useVirtualization}
+                        virtualRowHeight={60}
+                        virtualContainerHeight={600}
+                        hasNextPage={infiniteLogsQuery.hasNextPage || initialHasNextPage}
+                        isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
+                        fetchNextPage={infiniteLogsQuery.fetchNextPage}
+                        isItemLoaded={(index: number) => !!logs[index]}
+                        
+                        // Component props
+                        LoadMore={LoadMore}
+                        
+                        // Multi-level LoadMore props
+                        GroupLoadMore={({groupId, colSpan, interactive}) => (
+                          <GroupLoadMore
+                            tileId={tileId}
+                            tabId={tabId}
+                            projectId={projectId!}
+                            context={item?.context || context || context_ || null}
+                            columnContext={item?.column_context || null}
+                            filterExpression={filterExpression}
+                            sortingExpression={sortingExpression}
+                            groupingExpression={groupingExpression}
+                            groupSortingExpression={groupSortingExpression}
+                            limit={tableTileState?.limit || 20}
+                            group_limit={tableTileState?.group_limit || 20}
+                            logsActions={logsActions}
+                            groupId={groupId}
+                            dataTypes={dataTypes}
+                            fields={fields}
+                            updateLogs={updateLogs}
+                            colSpan={colSpan}
+                            interactive={interactive}
+                            hasNextPage={calculateGroupHasNextPage(groupId)}
+                            LoadMoreComponent={LoadMore}
+                          />
+                        )}
+                        
                         ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                           <ColumnGroupBy
                             interactive={interactive}
@@ -913,8 +1046,13 @@ const LogsTable = ({
                             isLoading={props.isLoading}
                             isAnimating={props.isAnimating}
                             setExpandingRowId={props.setExpandingRowId}
-                            onExpand={async (groupingColumnId: string, groupingValue: string, parentId: string, setExpandingRowId: (id: string | null) => void) => {
-                              setLoadingSubGroup(true)
+                            onExpand={
+                              async (
+                                groupingColumnId: string, 
+                                groupingValue: string, 
+                                parentId: string, 
+                                setExpandingRowId: (id: string | null) => void,
+                              ) => {
                               setLoadingGroups(prev => {
                                 const next = new Set(prev);
                                 if (next.has("_all_groups_")) {
@@ -929,6 +1067,8 @@ const LogsTable = ({
                                 groupingColumnId,
                                 groupingValue,
                                 parentId,
+                                tileId,
+                                tabId,
                                 projectId!,
                                 item?.context || context || context_ || null,
                                 item?.column_context ?? null,
@@ -938,14 +1078,17 @@ const LogsTable = ({
                                 groupSortingExpression,
                                 limit,
                                 offset,
+                                group_limit,
+                                group_offset,
                                 logsActions,
                                 setExpandingRowId,
                                 updateTableDataItemWithUpdater,
-                                item as TileProps,
                                 dataTypes,
                                 fields,
                                 logs,
-                                logs.length ? [...entriesProperties, ...paramsProperties] : []
+                                queryClient,
+                                effectiveColumnNames,
+                                metric
                               );
 
                               setLoadingGroups(prev => {
@@ -958,55 +1101,20 @@ const LogsTable = ({
                         )}
                         AggregatedCell={(cell, row) => (
                           <AggregatedCell
-                            isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
+                            tileId={tileId}
+                            tabId={tabId}
+                            projectId={projectId}
+                            context={item?.context || context || context_ || null}
+                            columnContext={item?.column_context || null}
+                            columns={effectiveColumnNames}
+                            filterExpression={filterExpression}
+                            groupingExpression={groupingExpression}
+                            fields={fields}
+                            logsActions={logsActions}
                             cell={cell}
+                            row={row}
                             metric={state.metric}
-                            getMetric={(key: string) => {
-                              const groupingColumnId = row.groupingColumnId;
-                              const slicedRowId = row.id.split(">").slice(0, -1).join(">");
-                              const groupedMetrics = (
-                                tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
-                                  ? tableDataItem.groupedMetrics[groupingColumnId]
-                                  : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
-                                    ? tableDataItem.groupedMetrics[slicedRowId] : { [metric]: {} }
-                              )[metric] || {};
-                              const newKey = key.replace("Entries/", "").replace("Parameters/", "");
-                              const groupingValue = row.getValue(key) as string;
-                              const value = groupedMetrics[newKey] ? groupedMetrics[newKey][groupingValue] : undefined;
-                              const exclude_nulls = true;
-                              const exclude_undefined = true;
-                              const formattedValue = formatCellValue(
-                                value, 
-                                cell.column.columnDef.meta?.dataType ?? "",
-                                cell.column.getSize(),
-                                exclude_nulls,
-                                exclude_undefined
-                              );
-                              return formattedValue;
-                            }}
-                            getSharedValue={(key: string) => {
-                              const slicedRowId = row.id.split(">").slice(0, -1).join(">");
-                              const groupingColumnId = row.groupingColumnId;
-                              const groupedSharedValues = (
-                                tableDataItem.groupedMetrics && groupingColumnId in tableDataItem.groupedMetrics
-                                  ? tableDataItem.groupedMetrics[groupingColumnId]
-                                  : tableDataItem.groupedMetrics && slicedRowId in tableDataItem.groupedMetrics
-                                    ? tableDataItem.groupedMetrics[slicedRowId] : { ["shared_value"]: {} }
-                              )["shared_value"] || {};
-                              const newKey = key.replace("Entries/", "").replace("Parameters/", "");
-                              const groupingValue = row.getValue(key) as string;
-                              const value = groupedSharedValues[newKey] ? groupedSharedValues[newKey][groupingValue] : undefined;
-                              const exclude_nulls = true;
-                              const exclude_undefined = true;
-                              const formattedValue = formatCellValue(
-                                value, 
-                                cell.column.columnDef.meta?.dataType ?? "", 
-                                cell.column.getSize(),
-                                exclude_nulls,
-                                exclude_undefined
-                              );
-                              return formattedValue;
-                            }}
+                            isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                           />
                         )}
                         FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
@@ -1060,7 +1168,7 @@ const LogsTable = ({
                         ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                           <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                         }
-                        error={"detail" in logsData ? logsData["detail"] : undefined}
+                        error={error}
                         onRenameColumn={renameColumn}
                       />
                     </div>

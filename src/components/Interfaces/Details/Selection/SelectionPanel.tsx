@@ -184,7 +184,7 @@ export default function SelectionPanel({
   onPanelCountChange,
   onSaveMany,
   logsActions,
-  updateLogsDeep,
+  updateLogsByRowIds,
   context
 }: {
   panelId: number;
@@ -207,7 +207,7 @@ export default function SelectionPanel({
   onPanelCountChange: React.Dispatch<React.SetStateAction<number>>;
   onSaveMany: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void;
   logsActions: LogsActions;
-  updateLogsDeep: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void; 
+  updateLogsByRowIds: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void; 
   context: string | null
 }) {
   // Extract all values from panelState
@@ -1139,8 +1139,8 @@ export default function SelectionPanel({
      * Handle Trace Update (from polling)
      *****************************************************************************/
     const handleTraceUpdate = useCallback((logIndex: number, fieldName: string, newTrace: Span[]) => {
-      if (!updateLogsDeep) {
-          console.warn("[SelectionPanel] handleTraceUpdate: updateLogsDeep not available.");
+      if (!updateLogsByRowIds) {
+          console.warn("[SelectionPanel] handleTraceUpdate: updateLogsByRowIds not available.");
           return;
       }
 
@@ -1153,12 +1153,12 @@ export default function SelectionPanel({
 
       const source = fields[fieldName].field_type === 'param' ? 'params' : 'entries' // Need to add support for derived_entries in Traces 
 
-      updateLogsDeep([targetRowId], {
+      updateLogsByRowIds([targetRowId], {
           source: source,
           path: [fieldName],
           newValue: newTrace
       });
-  }, [sortedLogs, updateLogsDeep, fields]);
+  }, [sortedLogs, updateLogsByRowIds, fields]);
 
   /*****************************************************************************
    * EntriesSection Component - Pass both save handlers and trace update handler

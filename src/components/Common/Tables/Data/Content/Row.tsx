@@ -71,6 +71,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                             draggingColumns={draggingColumns}
                             RowExpanding={RowExpanding}
                             isAnimating={isAnimating}
+                            expandingRowId={expandingRowId}
                             setExpandingRowId={setExpandingRowId}
                             state={state}
                             setDraggingColumnPinner={setDraggingColumnPinner}

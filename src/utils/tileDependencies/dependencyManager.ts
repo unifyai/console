@@ -558,6 +558,7 @@ export function useEnsureTileDataBeforeRender(
     tabId,
     tileId: (tileType === 'Table' && shouldStartBuilding) ? tileId : '',
     projectId,
+    tableArguments: tabArgumentsQuery?.data?.tableArguments || {} as TableArguments,
     actions
   });
 
@@ -566,6 +567,7 @@ export function useEnsureTileDataBeforeRender(
     tabId,
     tileId: (tileType === 'Plot' && shouldStartBuilding) ? tileId : '',
     projectId,
+    plotArguments: tabArgumentsQuery?.data?.plotArguments || {} as PlotArguments,
     actions
   });
 

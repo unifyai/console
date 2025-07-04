@@ -1,10 +1,10 @@
 import { TableDataItem, TileData } from "@/types/evals/grid";
-import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/evals/logs";
 import { buildFilterExpression } from "@/utils/evals/filters";
 import { extractLogsData } from "@/utils/evals/common";
 import { LogsActions } from "@/types/evals/grid";
 import { processContext } from "@/utils/evals/columnOperations";
-import { maybeFlattenGroupedLogs } from "../evals/grouping";
+import { isGroupedLogs, maybeFlattenGroupedLogs } from "../evals/grouping";
 
 /**
  * Debug flag for performance logging
@@ -20,6 +20,35 @@ const perfLog = (...args: any[]) => {
     console.log(...args);
   }
 };
+
+/**
+ * Utility function to extract total count from logs response
+ * Handles both ungrouped and grouped log responses
+ */
+export function getTotalCountFromLogsResponse(logsData: LogsResponseProps): number {
+  const isGrouped = isGroupedLogs(logsData.logs);
+  if (isGrouped) {
+    // For grouped logs, check if it's GroupedLogPropsRaw format
+    if (typeof logsData.logs === 'object' && !Array.isArray(logsData.logs)) {
+      const groupedLogs = logsData.logs as GroupedLogPropsRaw;
+      // Find the first group key and get its group_count
+      const firstGroupKey = Object.keys(groupedLogs).find(key => 
+        key !== 'group_count' && key !== 'count' && 
+        typeof groupedLogs[key] === 'object'
+      );
+      
+      if (firstGroupKey && typeof groupedLogs[firstGroupKey] === 'object') {
+        const groupData = groupedLogs[firstGroupKey] as any;
+        return groupData.group_count || 0;
+      }
+    }
+    // Fallback to regular count
+    return logsData.count || 0;
+  } else {
+    // For ungrouped logs, use the regular count
+    return logsData.count || 0;
+  }
+}
 
 /**
  * Builds a TableDataItem from logs data and other inputs
@@ -61,25 +90,26 @@ export async function buildTableDataItem(
   const textractLogsDataExtract = performance.now();
   perfLog(`[perf] extractLogsData: ${(textractLogsDataExtract - textractLogsData).toFixed(2)} ms`);
 
-  const limit = 20; // Default page size
-
   let newCells: string[] = [];
   if (previousLogs) {
     newCells = getNewCells(previousLogs, logs);
   }
 
+  // Extract total count using utility function
+  const totalCount = getTotalCountFromLogsResponse(logsData);
+  const error = "detail" in logsData ? logsData["detail"] : undefined;
+
   // Construct table data item (without metrics and boundaries for now)
   const tableDataItem: TableDataItem = {
     columnContexts: columnContexts,
     fields,
-    logsData,
-    totalPages: Math.ceil(logsData.count / limit),
+    totalCount,
     entriesProperties,
     paramsProperties,
     logs,
     params,
-    metric: tile.metric ?? "mean",
-    newCells: newCells
+    newCells: newCells,
+    error: error
   };
 
   return tableDataItem;
@@ -121,9 +151,14 @@ export async function fetchAndBuildTableDataItem(
   // Fetch logs data
   const limit = tile.table_tile?.limit ?? 20;
   const offset = tile.table_tile?.offset ?? 0;
+  const group_limit = tile.table_tile?.group_limit ?? 20;
+  const group_offset = tile.table_tile?.group_offset ?? 0;
+
+  // Determine if we should use group pagination or regular pagination
+  const useGroupPagination = !!groupingExpression;
   
   const tGetLogs = performance.now();
-  const logsData = await logsActions.get(
+  const logsData: LogsResponseProps = await logsActions.get(
     projectId,
     tile.context || null,
     tile.column_context || null,
@@ -134,9 +169,11 @@ export async function fetchAndBuildTableDataItem(
     null,
     null,
     null,
-    limit,
-    offset,
-    groupingExpression ? 0 : null,
+    useGroupPagination ? null : limit, // Regular limit (not used for groups)
+    useGroupPagination ? null : offset, // Regular offset (not used for groups)
+    useGroupPagination ? group_limit : null, // Group limit (used for groups)
+    useGroupPagination ? group_offset : null, // Group offset (used for groups)
+    useGroupPagination ? 0 : null, // Group depth (used for groups)
     null,
     null,
     null, 

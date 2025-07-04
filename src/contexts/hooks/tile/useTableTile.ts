@@ -50,6 +50,8 @@ export interface TableTileUIActions {
   setLimit: (limit: number) => void;
   setOffset: (offset: number) => void;
   setPageNumber: (pageNumber: string | undefined) => void;
+  setGroupLimit: (groupLimit: number) => void;
+  setGroupOffset: (groupOffset: number) => void;
 }
 
 /**
@@ -131,6 +133,8 @@ export function useTableTile(
     return {
       limit: tableTile.limit,
       offset: tableTile.offset,
+      group_limit: tableTile.group_limit,
+      group_offset: tableTile.group_offset,
       page_number: tableTile.page_number
     } as TableTileUI;
   }, [
@@ -138,6 +142,8 @@ export function useTableTile(
     tileId,
     tableTile?.limit,
     tableTile?.offset,
+    tableTile?.group_limit,
+    tableTile?.group_offset,
     tableTile?.page_number,
   ]);
 
@@ -237,6 +243,20 @@ export function useTableTile(
       setOffset: (offset) => {
         const update: Partial<TableTile> = { 
           offset
+        };
+        storeUpdateTableTile(tileId, update);
+      },
+
+      setGroupLimit: (groupLimit) => {
+        const update: Partial<TableTile> = { 
+          group_limit: groupLimit
+        };
+        storeUpdateTableTile(tileId, update);
+      },
+      
+      setGroupOffset: (groupOffset) => {
+        const update: Partial<TableTile> = { 
+          group_offset: groupOffset
         };
         storeUpdateTableTile(tileId, update);
       },

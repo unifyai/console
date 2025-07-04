@@ -16,7 +16,6 @@ import {
   OptimisticUpdateDependencies,
 } from "@/utils/data/buildServerDataOptimistic";
 import { getUsedTableNames } from "@/utils/data/buildPlotDataItem";
-import { usePlotArgumentsQuery } from "./usePlotDataQuery";
 import { PlotArguments } from "@/types/evals/logs";
 import { useMemo } from "react";
 
@@ -45,6 +44,7 @@ export function useEnsurePlotTileData(params: {
   tabId: string;
   tileId: string;
   projectId: string;
+  plotArguments: PlotArguments;
   actions: {
     tileActions: GranularTileActions;
     projectsActions: ProjectsActions;
@@ -53,11 +53,9 @@ export function useEnsurePlotTileData(params: {
     logsActions: LogsActions;
   };
 }) {
-  const { interfaceId, tabId, tileId, projectId, actions } = params;
+  const { interfaceId, tabId, tileId, projectId, plotArguments, actions } = params;
   const queryClient = useQueryClient();
 
-  const { data: plotArguments } = usePlotArgumentsQuery(tabId);
-  
   // Check dependency readiness more reactively
   const dependenciesReady = useMemo(() => {
     if (!tileId || !projectId) return false;

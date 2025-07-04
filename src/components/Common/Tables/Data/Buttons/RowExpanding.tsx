@@ -27,7 +27,7 @@ const RowExpanding = ({
         setIsLoading(true);
             try {
                 const groupingValue = row.getValue(groupingColumnId);
-                const parentId = row.original.id.split('>').slice(0, -1).join('>');
+                const parentId = (row as any).parentId || row.original.id.split('>').slice(0, -1).join('>');
                 await onExpand(groupingColumnId, groupingValue as string, parentId, setExpandingRowId);
             } finally {
             setIsLoading(false);

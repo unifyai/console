@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, ReactNode, MouseEvent, JSX, Ref, Dispatch, SetStateAction, useState, useEffect } from "react";
+import { useRef, ReactNode, Dispatch, SetStateAction, useState, useEffect } from "react";
 
-import { ColumnFiltersState, ColumnPinningState, GroupingState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
+import { ColumnFiltersState, ColumnPinningState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
 import { DraggingColumnPinnerState } from "@/types/evals/columns";
@@ -18,12 +18,17 @@ import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from 
 
 import DataTableHeader from "./Content/Header";
 import DataTableRow from "./Content/Row";
+import SubRowsContainer from "./Content/SubRowsContainer";
 
 import { StateProps, SetStateProps } from "@/types/dataTable";
 import { GroupedLogProps, LogProps } from "@/types/evals/logs";
 import { useCellSelection } from "@/hooks/Logs/useCellSelection";
 import { useTableGrouping } from "@/hooks/useTableGrouping";
 import { RowExpandingProps } from "./Buttons/RowExpanding";
+import { LoadMoreProps } from "./Buttons/LoadMore";
+
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import InfiniteLoader from 'react-window-infinite-loader';
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -36,6 +41,26 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     error?: string;
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
+    
+    // Virtualization props with defaults
+    enableVirtualization?: boolean;
+    virtualRowHeight?: number;
+    virtualContainerHeight?: number;
+    hasNextPage?: boolean;
+    isFetchingNextPage?: boolean;
+    fetchNextPage?: () => Promise<any>;
+    isItemLoaded?: (index: number) => boolean;
+    
+    // Component props
+    LoadMore?: React.ComponentType<LoadMoreProps>;
+    
+    // Multi-level LoadMore props
+    GroupLoadMore?: React.ComponentType<{
+        groupId: string;
+        colSpan: number;
+        interactive?: boolean;
+    }> | null;
+    
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[]) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
@@ -60,6 +85,22 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     error,
     scrollContainerRef,
     onRenameColumn,
+    
+    // Virtualization props with defaults
+    enableVirtualization = false,
+    virtualRowHeight = 60,
+    virtualContainerHeight = 600,
+    hasNextPage = false,
+    isFetchingNextPage = false,
+    fetchNextPage,
+    isItemLoaded,
+    
+    // Component props
+    LoadMore,
+    
+    // Multi-level LoadMore props
+    GroupLoadMore,
+    
     FooterCell,
     ColumnGroupBy,
     ColumnGroupSort,
@@ -313,6 +354,166 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         handleDragCancel(setState.setDraggingColumns);
     }
 
+    // Virtual row renderer for react-window
+    const VirtualRow = ({ index, style }: ListChildComponentProps) => {
+        const allRows = table.getRowModel().rows;
+        const { topLevelRows, subRows } = processRowsHierarchy(allRows);
+        
+        // For virtual rendering, we only render top-level rows
+        // SubRows will be handled within their parent's context
+        const topLevelRow = topLevelRows[index];
+        
+        if (!topLevelRow) {
+            return (
+                <div style={style} className="flex items-center justify-center">
+                    <div className="animate-pulse bg-muted h-12 w-full rounded" />
+                </div>
+            );
+        }
+
+        return (
+            <div style={style}>
+                {renderHierarchicalRow(topLevelRow, subRows)}
+            </div>
+        );
+    };
+
+    // Helper function to check if item is loaded for infinite loading
+    const isItemLoadedDefault = (index: number) => {
+        return !!table.getRowModel().rows[index];
+    };
+
+    // Helper function for loading more items
+    const loadMoreItems = fetchNextPage ? () => {
+        return fetchNextPage();
+    } : () => Promise.resolve();
+
+    // Helper function to process flat rows into hierarchical structure
+    const processRowsHierarchy = (allRows: TanstackRow<TData>[]) => {
+        // Separate top-level rows (no parentId) from subRows (have parentId)
+        const topLevelRows: TanstackRow<TData>[] = [];
+        const subRows: TanstackRow<TData>[] = [];
+
+        allRows.forEach(row => {
+            const parentId = (row as any).parentId;
+            if (parentId) {
+                subRows.push(row);
+            } else {
+                topLevelRows.push(row);
+            }
+        });
+
+        return { topLevelRows, subRows };
+    };
+
+    // Helper function to check if a parent row has more pages to load for its subRows
+    const getGroupHasNextPage = (parentRow: TanstackRow<TData>, subRows: TanstackRow<TData>[]): boolean => {
+        // Find subRows that belong to this parent
+        const parentSubRows = subRows.filter(subRow => {
+            const subRowParentId = (subRow as any).parentId;
+            return subRowParentId === parentRow.id;
+        });
+
+        // For grouped logs, check if we have more items to load
+        if (parentRow.original.type === "grouped") {
+            const groupedRow = parentRow.original as any;
+            if ('groupCount' in groupedRow && 
+                typeof groupedRow.groupCount === 'number' &&
+                !!groupedRow.groupCount && parentSubRows.length) {
+                return parentSubRows.length < groupedRow.groupCount;
+            }
+        }
+
+        return false;
+    };
+
+
+
+    // Hierarchical row renderer that handles parent rows and subRows separately
+    const renderHierarchicalRow = (row: TanstackRow<TData>, allSubRows: TanstackRow<TData>[]): ReactNode[] => {
+        const elements: ReactNode[] = [];
+        
+        // Render the main row
+        elements.push(
+            <DataTableRow
+                key={row.id}
+                row={row}
+                table={table}
+                state={state}
+                setExpandingRowId={setExpandingRowId}
+                expandingRowId={expandingRowId}
+                RowExpanding={RowExpanding}
+                ExtraCellContent={ExtraCellContent}
+                AggregatedCell={AggregatedCell}
+                renderSkeletonRows={renderSkeletonRows}
+                cellSelection={cellSelection}
+                isCellSelected={isCellSelected}
+                isCellExpanded={isCellExpanded}
+                setExpandedCells={setExpandedCells}
+                selectedCells={state.selectedCells}
+                resizeMap={resizeMap}
+                draggingColumns={state.draggingColumns}
+                isAnimating={isAnimating}
+                setDraggingColumnPinner={setState.setDraggingColumnPinner}
+            />
+        );
+        
+        // Show skeleton rows for expanding groups
+        if (expandingRowId === row.id && 
+            'groupCount' in row.original && 
+            typeof row.original.groupCount === 'number' &&
+            row.original.groupCount > 0 &&
+            !row.original.isPopulated) {
+            elements.push(renderSkeletonRows(2));
+        }
+        
+        // If this row is expanded and has subRows, render them in SubRowsContainer
+        if (row.getIsExpanded()) {
+            // Find subRows that belong to this parent
+            const rowSubRows = allSubRows.filter(subRow => {
+                const subRowParentId = (subRow as any).parentId;
+                return subRowParentId === row.id;
+            });
+
+            if (rowSubRows.length > 0) {
+                const groupHasNextPage = getGroupHasNextPage(row, allSubRows);
+                
+                elements.push(
+                    <SubRowsContainer
+                        key={`${row.id}-subrows`}
+                        parentRow={row}
+                        subRows={allSubRows} // Pass all subRows for recursive filtering
+                        table={table}
+                        state={state}
+                        setExpandingRowId={setExpandingRowId}
+                        expandingRowId={expandingRowId}
+                        RowExpanding={RowExpanding}
+                        ExtraCellContent={ExtraCellContent}
+                        AggregatedCell={AggregatedCell}
+                        renderSkeletonRows={renderSkeletonRows}
+                        cellSelection={cellSelection}
+                        isCellSelected={isCellSelected}
+                        isCellExpanded={isCellExpanded}
+                        setExpandedCells={setExpandedCells}
+                        selectedCells={state.selectedCells}
+                        resizeMap={resizeMap}
+                        draggingColumns={state.draggingColumns}
+                        isAnimating={isAnimating}
+                        setDraggingColumnPinner={setState.setDraggingColumnPinner}
+                        columnCount={finalColumns.length}
+                        GroupLoadMore={GroupLoadMore}
+                        interactive={interactive}
+                        groupHasNextPage={groupHasNextPage}
+                    />
+                );
+            }
+        }
+        
+        return elements;
+    };
+
+
+
     return (<div className="relative flex h-fit w-full gap-2">
                 <DndContext
                     sensors={sensors}
@@ -386,38 +587,54 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                         )
                                     :   table.getRowModel().rows?.length 
                                         ?   (
-                                                table.getRowModel().rows.map((row) => (
-                                                    <>
-                                                        <DataTableRow
-                                                            key={row.id}
-                                                            row={row}
-                                                            table={table}
-                                                            state={state}
-                                                            setExpandingRowId={setExpandingRowId}
-                                                            expandingRowId={expandingRowId}
-                                                            RowExpanding={RowExpanding}
-                                                            ExtraCellContent={ExtraCellContent}
-                                                            AggregatedCell={AggregatedCell}
-                                                            renderSkeletonRows={renderSkeletonRows}
-                                                            cellSelection={cellSelection}
-                                                            isCellSelected={isCellSelected}
-                                                            isCellExpanded={isCellExpanded}
-                                                            setExpandedCells={setExpandedCells}
-                                                            selectedCells={state.selectedCells}
-                                                            resizeMap={resizeMap}
-                                                            draggingColumns={state.draggingColumns}
-                                                            isAnimating={isAnimating}
-                                                            setDraggingColumnPinner={setState.setDraggingColumnPinner}
-                                                        />
-                                                        {/* Show skeletons under the expanding row */}
-                                                        {expandingRowId === row.id && 
-                                                        'groupCount' in row.original && 
-                                                        typeof row.original.groupCount === 'number' &&
-                                                        row.original.groupCount > 0 &&
-                                                        !row.original.isPopulated &&
-                                                        renderSkeletonRows(2)}
-                                                    </>
-                                                ))
+                                                enableVirtualization ? (
+                                                    // Virtualized rendering
+                                                    <tr>
+                                                        <td colSpan={finalColumns.length} style={{ padding: 0 }}>
+                                                            <InfiniteLoader
+                                                                isItemLoaded={isItemLoaded || isItemLoadedDefault}
+                                                                itemCount={hasNextPage ? table.getRowModel().rows.length + 1 : table.getRowModel().rows.length}
+                                                                loadMoreItems={loadMoreItems}
+                                                            >
+                                                                {({ onItemsRendered, ref }) => (
+                                                                    <List
+                                                                        ref={ref}
+                                                                        onItemsRendered={onItemsRendered}
+                                                                        itemCount={hasNextPage ? table.getRowModel().rows.length + 1 : table.getRowModel().rows.length}
+                                                                        itemSize={virtualRowHeight}
+                                                                        width={table.getTotalSize()}
+                                                                        height={virtualContainerHeight}
+                                                                    >
+                                                                        {VirtualRow}
+                                                                    </List>
+                                                                )}
+                                                            </InfiniteLoader>
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                                                        // Hierarchical rendering with SubRowsContainer for proper nesting
+                                    <>
+                                        {(() => {
+                                            const { topLevelRows, subRows } = processRowsHierarchy(table.getRowModel().rows);
+                                            
+                                            return topLevelRows.map((row) => 
+                                                renderHierarchicalRow(row, subRows)
+                                            );
+                                        })()}
+                                        
+                                        {/* Top-level Load More Component - only render if provided and fetchNextPage is available */}
+                                        {LoadMore && fetchNextPage && (
+                                            <LoadMore
+                                                onLoadMore={fetchNextPage}
+                                                isLoading={isFetchingNextPage}
+                                                hasNextPage={hasNextPage}
+                                                colSpan={finalColumns.length}
+                                                asTableRow={true}
+                                                interactive={interactive}
+                                            />
+                                        )}
+                                    </>
+                                                )
                                             ) 
                                             :   (
                                                     // Display placeholder cell if no entry found

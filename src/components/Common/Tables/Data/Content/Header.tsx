@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, CSSProperties, ReactNode, useRef, SetStateAction, Dispatch, useEffect } from "react";
+import { useState, CSSProperties, ReactNode, useRef, SetStateAction, Dispatch, useEffect, useCallback } from "react";
 import { sanitizeId } from "@/utils/evals/columnOperations";
+import { useMemo } from "react";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -212,28 +213,34 @@ const DataTableHeader = ({
   useEffect(() => setGroupSortLoading(false),[data])
 
   // Functions to control which buttons should be shown
-  const showGroupButton = () => {
+  const showGroupButton = useCallback(() => {
     return (!isImageColumn && (groupLoading || isGrouped));
-  }
+  }, [isImageColumn, groupLoading, isGrouped])
 
-  const showSortButton = () => {
+  const showSortButton = useCallback(() => {
     return (!isParentColumn && (sortLoading || sortingDirection != false));
-  }
+  }, [isParentColumn, sortLoading, sortingDirection])
 
-  const showGroupSortButton = () => {
+  const showGroupSortButton = useCallback(() => {
     return (!isParentColumn && grouping.length && (groupSortLoading || groupSortingDirection != false))
-  }
+  }, [isParentColumn, grouping, groupSortLoading, groupSortingDirection])
 
-  const showFilterButton = () => {
+  const showFilterButton = useCallback(() => {
     return (!isParentColumn && (filterLoading || isFiltered));
-  }
+  }, [isParentColumn, filterLoading, isFiltered])
 
-  const showUpdateButton = () => {
+  const showUpdateButton = useCallback(() => {
     return (!isParentColumn && isDerivedColumn && updateLoading);
-  }
+  }, [isParentColumn, isDerivedColumn, updateLoading])
 
-  const hasActiveActions = showGroupSortButton() || showGroupButton() || showSortButton() || showFilterButton() || showUpdateButton();
-
+  const hasActiveActions = useMemo(() => {
+    return showGroupSortButton() 
+    || showGroupButton() 
+    || showSortButton() 
+    || showFilterButton() 
+    || showUpdateButton()
+  }, [showGroupSortButton, showGroupButton, showSortButton, showFilterButton, showUpdateButton])
+  
   useEffect(() => {
     setColumnActionsApplied((prev) => {
       const depth = header.column.columnDef.meta?.renderedDepth ?? 0;
@@ -247,8 +254,8 @@ const DataTableHeader = ({
         },
       };
     });
-  }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data, header.column.id, header.column.columnDef.meta?.renderedDepth, setColumnActionsApplied]);  
-
+  }, [hasActiveActions, groupSortingDirection, groupSortLoading, groupLoading, isGrouped, sortLoading, sortingDirection, filterLoading, isFiltered, updateLoading, data, header.column.id, header.column.columnDef.meta?.renderedDepth, setColumnActionsApplied]);
+  
   // Visible action buttons for active states
   const activeActionsRef = useRef<HTMLDivElement | null>(null);
   const actionButtonRef = useRef<HTMLButtonElement | null>(null);

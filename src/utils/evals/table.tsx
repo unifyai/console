@@ -533,7 +533,7 @@ export const nestedColumns = (
 	nodes: HeaderNode[], 
 	type: string,
 	prependPath: string,
-	data: LogsResponseProps,
+	params: LogItemProps,
 	enableRowSpan: boolean = false,
 	dataTypes: { [key: string]: string },
 	fieldTypes:{ [key: string]: string },
@@ -543,7 +543,7 @@ export const nestedColumns = (
 	return nodes.map(node => {
 		// If this node has children (nested columns), recursively build columns
 		if (node.nodes) {
-			const columns = nestedColumns(node.nodes, type, prependPath, data, false, dataTypes, fieldTypes, columnContext, fieldDescriptions);
+			const columns = nestedColumns(node.nodes, type, prependPath, params, false, dataTypes, fieldTypes, columnContext, fieldDescriptions);
 			return {
 				id: `${prependPath}/${node.path}`,  // needed for grouping, showing, hiding multiple column nests
 				header: node.name,
@@ -596,7 +596,7 @@ export const nestedColumns = (
 				// Attempt to map param-based lookups if needed
 				if (type === "params" && cellValue !== undefined && cellValue !== null) {
 					// If data.params[node.path] does not exist or is undefined, handle gracefully
-					cellValue = data.params?.[node.path]?.[cellValue as string] ?? cellValue;
+					cellValue = params?.[node.path]?.[cellValue as string] ?? cellValue;
 				}
 
 				// Now call our utility for final formatting

@@ -98,7 +98,7 @@ export default function Selection({
     isError: isTableDataError,
     error: tableDataError,
     mergeUpdatesIntoTableDataItem,
-    updateLogsDeep
+    updateLogsByRowIds
   } = useTableDataQueryWithTracking(item?.table || null, tabId || null);
 
   // Get table fields
@@ -369,12 +369,12 @@ export default function Selection({
       }
 
       // Optimistic local state update provided the endpoint call is successful
-      if (updateLogsDeep) {
-        updateLogsDeep(rowIds, desc);
+      if (updateLogsByRowIds) {
+        updateLogsByRowIds(rowIds, desc);
       }
 
     },
-    [projectId, context, updateLogsDeep, rollbackLogs, logsActions, fields, tableDataItem]
+    [projectId, context, updateLogsByRowIds, rollbackLogs, logsActions, fields, tableDataItem]
   );
 
   /*******************************************************************************
@@ -438,7 +438,7 @@ export default function Selection({
                 onPanelCountChange={setPanelCount}
                 onSaveMany={handleSaveMany}
                 logsActions={logsActions}
-                updateLogsDeep={updateLogsDeep}
+                updateLogsByRowIds={updateLogsByRowIds}
                 context={context}
               />
             </React.Fragment>

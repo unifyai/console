@@ -1,10 +1,11 @@
-import { LogProps, GroupedLogProps, LogFieldsResponseProps, GroupedLogPropsRaw, LogItemProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps, LogFieldsResponseProps, GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
 import { TileProps, LogsActions, TableDataItem } from "@/types/evals/grid";
 import { sanitizeId } from "@/utils/evals/columnOperations";
 import { FiltersByColumn } from "@/types/evals/columns";
 import { combineFilters, filtersToExpression } from "./filters";
 import { getColumnMetrics } from "./common";
 import { showErrorToast } from "@/components/notifications";
+import { QueryClient } from "@tanstack/react-query";
 
 /*
   Utility functions to check grouping types
@@ -55,7 +56,8 @@ export function maybeConvertRawToGroupedLogs(
         return [];
     }
 
-    const groups = (rawGroupedLogs[groupingColumnId] as Exclude<GroupedLogPropsRaw[keyof GroupedLogPropsRaw], number | undefined>)!.group;
+    const rawGroupedLogsForGroupingColumn = rawGroupedLogs[groupingColumnId] as Exclude<GroupedLogPropsRaw[keyof GroupedLogPropsRaw], number | undefined>;
+    const groups = rawGroupedLogsForGroupingColumn!.group;
 
     let groupingIndex = 0;
 
@@ -120,50 +122,92 @@ export function maybeConvertRawToGroupedLogs(
 
   existingLogs - The current nested group structure (GroupedLogProps[])
   newLogs - The newly fetched group data to insert as subRows
-  groupFilters - Array of [column, value] pairs identifying the target group
+  targetGroupFilters - Array of [column, value] pairs identifying the target group
                 (e.g., [["gender", "female"]] to identify the "female" gender group)
   returns Updated group structure with the new subRows inserted at the correct location
 */
+/*
+  Consolidated utility that efficiently updates both subRows and totalChildren field of a specific group 
+  in a nested grouping structure in a single pass.
+
+  existingLogs - The current nested group structure (GroupedLogProps[])
+  newLogsData - The newly fetched logs response data containing count information
+  targetGroupFilters - Array of [column, value] pairs identifying the target group
+  returns Updated group structure with both subRows and totalChildren updated
+*/
 export function updateGroupedSubRows(
   existingLogs: GroupedLogProps[],
-  newLogs: GroupedLogProps[] | LogProps[],
-  groupFilters: [string, string][]
+  newLogsData: LogsResponseProps,
+  targetGroupFilters: [string, string][],
+  parentId?: string,
+  preConvertedLogs?: GroupedLogProps[] | LogProps[] // Optional pre-converted logs to avoid double conversion
 ): GroupedLogProps[] {
+  // Use pre-converted logs if provided, otherwise convert now
+  const convertedNewLogs = preConvertedLogs || maybeConvertRawToGroupedLogs(
+    newLogsData.params,
+    newLogsData.logs,
+    parentId // parentId will be set by the conversion function based on filters
+  );
+
+  // Calculate totalChildren once at the beginning
+  const calculateTotalChildren = (): number => {
+    if (Array.isArray(newLogsData.logs)) {
+      // Ungrouped children - use count from response
+      return newLogsData.count;
+    } else {
+      // Grouped children - extract group_count from GroupedLogPropsRaw
+      const groupedRawLogs = newLogsData.logs as GroupedLogPropsRaw;
+      const firstGroupKey = Object.keys(groupedRawLogs).find(key => 
+        typeof groupedRawLogs[key] === 'object' && groupedRawLogs[key]?.group_count
+      );
+      return firstGroupKey ? (groupedRawLogs[firstGroupKey] as any).group_count : 0;
+    }
+  };
+
+  const totalChildren = calculateTotalChildren();
+  const isNewLogsGrouped = isGroupedLogs(convertedNewLogs);
+
   /*
-    Recursive function to find and update the target group without deep cloning the entire structure.
+    Consolidated recursive function that finds and updates both subRows and totalChildren 
+    in a single pass without deep cloning the entire structure.
     It immutably updates only the affected nodes.
    
     logs - Current level of grouped logs
     filters - Remaining filters to identify the nested group
-    returns Updated logs with modifications applied
+    returns Updated logs with both subRows and totalChildren updated
   */
-  function findAndReplaceSubRows(
+  function findAndUpdateGroup(
     logs: GroupedLogProps[],
-    filters: [string, string][]
+    targetFilters: [string, string][]
   ): GroupedLogProps[] {
-    if (filters.length === 0) return logs;
+    if (targetFilters.length === 0) return logs;
 
-    let [currentColumn, currentValue] = filters[0];
+    let [currentColumn, currentValue] = targetFilters[0];
 
     return logs.map((log) => {
       // Check if this log matches the current filter condition
       if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
-        if (filters.length === 1) {
-          // Target group found - immutably update subRows if not already populated
+        if (targetFilters.length === 1) {
+          // Target group found - update both totalChildren and subRows in one go
+          const updates: Partial<GroupedLogProps> = {
+            totalChildren: totalChildren
+          };
+
+          // Only update subRows if not already populated
           if (!log.isPopulated) {
-            return {
-              ...log,
-              subRows: Array.isArray(newLogs) && newLogs.length > 0 && newLogs[0].type === "ungrouped" 
-                ? (newLogs as LogProps[]) // Handle case when newLogs are LogProps[]
-                : (newLogs as GroupedLogProps[]), // Existing behavior for GroupedLogProps[]
-              isPopulated: true
-            };
+            updates.subRows = isNewLogsGrouped ? (convertedNewLogs as GroupedLogProps[]) : (convertedNewLogs as LogProps[]);
+            updates.isPopulated = true;
           }
+
+          return {
+            ...log,
+            ...updates
+          };
         } else if (Array.isArray(log.subRows)) {
           // Recursively update subRows for deeper levels
           return {
             ...log,
-            subRows: findAndReplaceSubRows(log.subRows as GroupedLogProps[], filters.slice(1))
+            subRows: findAndUpdateGroup(log.subRows as GroupedLogProps[], targetFilters.slice(1))
           };
         }
       }
@@ -171,19 +215,44 @@ export function updateGroupedSubRows(
     });
   }
 
-  return findAndReplaceSubRows(existingLogs, groupFilters);
+  return findAndUpdateGroup(existingLogs, targetGroupFilters);
 }
 
 /*
   Type guards to distinguish between LogProps and GroupedLogProps using the type field.
 */
-function isLogProps(logProp: LogProps | GroupedLogProps): logProp is LogProps {
+export function isLogProps(logProp: LogProps | GroupedLogProps): logProp is LogProps {
   return logProp.type === "ungrouped";
 }
 
-function isGroupedLogProps(logProp: LogProps | GroupedLogProps): logProp is GroupedLogProps {
+export function isGroupedLogProps(logProp: LogProps | GroupedLogProps): logProp is GroupedLogProps {
   return logProp.type === "grouped";
 }
+
+/**
+ * Type guards for distinguishing between grouped and ungrouped logs
+ */
+
+/**
+ * Type guard for GroupedLogPropsRaw format (object with group data)
+ */
+export function isGroupedLogPropsRaw(logs: GroupedLogPropsRaw | LogProps[] | GroupedLogProps[]): logs is GroupedLogPropsRaw {
+  return typeof logs === 'object' && !Array.isArray(logs) && logs !== null;
+}
+
+/**
+ * Type guard for any grouped logs format (either GroupedLogProps[] or GroupedLogPropsRaw)
+ */
+export function isGroupedLogs(logs: GroupedLogPropsRaw | LogProps[] | GroupedLogProps[]): logs is GroupedLogProps[] | GroupedLogPropsRaw {
+  return isGroupedLogPropsRaw(logs) || (Array.isArray(logs) && logs.length > 0 && isGroupedLogProps(logs[0]));
+}
+
+/**
+ * Type guard for ungrouped logs (only LogProps[])
+ */
+export function isUngroupedLogs(logs: GroupedLogPropsRaw | LogProps[] | GroupedLogProps[]): logs is LogProps[] {
+  return Array.isArray(logs) && logs.length > 0 && isLogProps(logs[0]);
+};
 
 /**
  * Recursively traverses items and pushes all LogProps into 'output'.
@@ -331,11 +400,54 @@ export function getGroupingFilters(
   return { currentId, updatedFilterExpression, columnFilters };
 }
 
+/*
+  Get the filters for a specific target group.
+*/
+export function getTargetGroupFilters(columnFilters: FiltersByColumn) {
+  const targetGroupFilters: [string, string][] = [];
+  Object.entries(columnFilters).forEach(([cKey, filter]) => {
+    const [fn, value] = Object.entries(filter)[0];
+    let effectiveValue = value;
+
+    // Remove "&&" or "||" with surrounding spaces
+    effectiveValue = effectiveValue?.replace(/\s*(&&|\|\|)\s*/g, '').trim();
+
+    // Trim the outer quotes if they exist
+    if (effectiveValue.startsWith('"') && effectiveValue.endsWith('"')) {
+      effectiveValue = effectiveValue.slice(1, -1);
+    }
+    // Convert null values to "null"
+    if (fn === "exists") {
+      effectiveValue = "null";
+    }
+    targetGroupFilters.push([cKey, effectiveValue] as [string, string]);
+  });
+  return targetGroupFilters;
+}
+
+export function getUpdatedGroupingExpression(
+  groupingExpression: string | null,
+  groupingColumnId: string,
+) {
+  // Get the current grouping expression
+  const currentGrouping = groupingExpression?.split(",") || [];
+    
+  // Find the index of the current grouping column
+  const currentIndex = currentGrouping.indexOf(groupingColumnId);
+  
+  // Get the remaining grouping columns after the current one
+  const remainingGrouping = currentGrouping.slice(currentIndex + 1);
+  const updatedGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
+  return updatedGroupingExpression;
+}
+
 export async function onGroupExpand(
   rowId: string,
   groupingColumnId: string,
   groupingValue: string,
   parentId: string | null,
+  tileId: string,
+  tabId: string,
   project: string,
   context: string | null,
   columnContext: string | null,
@@ -345,116 +457,133 @@ export async function onGroupExpand(
   groupSortingExpression: string | null,
   limit: number,
   offset: number,
+  group_limit: number,
+  group_offset: number,
   logsActions: LogsActions,
   setExpandingRowId: (id: string | null) => void,
   updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
-  item: TileProps,
   dataTypes: { [key: string]: string },
   fields: LogFieldsResponseProps,
   logs: LogProps[] | GroupedLogProps[],
-  columns: string[]
+  queryClient: QueryClient,
+  columns: string[],
+  metric: string
 ): Promise<void> {
   try {
-    const { currentId, updatedFilterExpression, columnFilters } = getGroupingFilters(
+    const { currentId, columnFilters } = getGroupingFilters(
       filterExpression, groupingColumnId, groupingValue, parentId, dataTypes, fields
     );
-    
-    // Get the current grouping expression
-    const currentGrouping = groupingExpression?.split(",") || [];
-    
-    // Find the index of the current grouping column
-    const currentIndex = currentGrouping.indexOf(groupingColumnId);
-    
-    // Get the remaining grouping columns after the current one
-    const remainingGrouping = currentGrouping.slice(currentIndex + 1);
-    const updatedGroupingExpression = remainingGrouping.length > 0 ? remainingGrouping.join(",") : null;
 
     setExpandingRowId(currentId);
 
-    // Fetch fresh logs with the updated filter and remaining grouping
-    const freshLogsData = await logsActions.get(
-      project,
+    // Use the consolidated core function for fetching
+    const { fetchLogsCore } = await import("./logsCore");
+    
+    const coreParams = {
+      projectId: project,
       context,
       columnContext,
-      updatedFilterExpression,
+      filterExpression,
       sortingExpression,
-      updatedGroupingExpression,
+      groupingExpression,
       groupSortingExpression,
-      null,
-      null,
-      null,
       limit,
       offset,
-      0,
-      null,
-      null,
-      Date.now().toString()
-    );
+      group_limit,
+      group_offset,
+      logsActions,
+      groupId: currentId,
+      groupingColumnId,
+      groupingValue,
+      parentId,
+      dataTypes,
+      fields
+    };
 
-    let groupedMetrics: { [key: string]: { [key: string]: { [key: string]: { [key: string]: number | string } } } } = {};
-    if (updatedGroupingExpression) {
-      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
-      const groupingColumnId = updatedGroupingExpression.split(",")[0];
-      const metric = item.metric ?? "mean";
-      const metricsData = await getColumnMetrics(
-        project,
-        context,
-        columnContext,
-        numericColumns,
-        updatedFilterExpression,
-        groupingColumnId,
-        metric,
-        logsActions
-      ) as { [key: string]: { [key: string]: { [key: string]: number | string } } };
-      const metrics = Object.fromEntries(
-        Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
-          ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingVal, results]) => [groupingVal, results[metric]]
-          ))]
-      ));
-      const sharedValues = Object.fromEntries(
-        Object.entries(metricsData).map(
-          ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingVal, results]) => [groupingVal, results["shared_value"]]
-          ))]
-      ));
-      groupedMetrics[rowId] = {
-        [metric]: metrics,
-        shared_value: sharedValues
-      };
+    const coreResult = await fetchLogsCore(coreParams);
+    const freshLogsData = coreResult.response;
+
+    // Fetch sub-group metrics if there's remaining grouping
+    if (coreResult.updatedGroupingExpression && queryClient && tileId && tabId && columns?.length) {
+      try {
+        const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+        const effectiveMetric = metric || "mean";
+        const subGroupingColumnId = coreResult.updatedGroupingExpression!.split(",")[0];
+        
+        // Fetch sub-group metrics
+        const metricsData = await getColumnMetrics(
+          project,
+          context,
+          columnContext,
+          numericColumns,
+          coreResult.updatedFilterExpression || null,
+          subGroupingColumnId,
+          effectiveMetric,
+          logsActions
+        ) as { [key: string]: { [key: string]: { [key: string]: number | string } } };
+        
+        const metrics = Object.fromEntries(
+          Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
+            ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+              ([groupingVal, results]) => [groupingVal, results[effectiveMetric]]
+            ))]
+        ));
+        const sharedValues = Object.fromEntries(
+          Object.entries(metricsData).map(
+            ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
+              ([groupingVal, results]) => [groupingVal, results["shared_value"]]
+            ))]
+        ));
+
+        // Get the existing table grouped metrics from cache
+        const tableGroupedMetricsQueryKey = [
+          "tableGroupedMetrics", 
+          tileId, 
+          tabId, 
+          project, 
+          context, 
+          columnContext, 
+          columns, 
+          filterExpression, 
+          groupingExpression,
+          metric
+        ];
+        
+        const existingMetrics = queryClient.getQueryData(tableGroupedMetricsQueryKey) as any || {};
+        
+        // Create the sub-group metrics indexed by rowId
+        const subGroupMetrics = {
+          [rowId]: {
+            [effectiveMetric]: metrics,
+            shared_value: sharedValues,
+          }
+        };
+        
+        // Merge existing metrics with new sub-group metrics
+        const mergedMetrics = {
+          ...existingMetrics,
+          ...subGroupMetrics
+        };
+        
+        // Set the merged metrics back to the cache
+        queryClient.setQueryData(tableGroupedMetricsQueryKey, mergedMetrics);
+        
+      } catch (error) {
+        console.warn("Failed to fetch sub-group metrics:", error);
+        // Continue with log expansion even if metrics fetch fails
+      }
     }
-
-    // Convert and update logs
-    const convertedFreshLogs = maybeConvertRawToGroupedLogs(
-      freshLogsData.params,
-      freshLogsData.logs,
-      currentId
-    );
 
     // Update the logs based on whether we have LogProps[] or GroupedLogProps[]
     let updatedLogs: GroupedLogProps[];
 
     // If we have GroupedLogProps[], use updateGroupedSubRows
+    // This will handle both subRows update and totalChildren update
     updatedLogs = updateGroupedSubRows(
       logs as GroupedLogProps[],
-      convertedFreshLogs,
-      Object.entries(columnFilters).map(([cKey, filter]) => {
-        const [fn, value] = Object.entries(filter)[0];
-        let effectiveValue = value;
-
-        // Remove "&&" or "||" with surrounding spaces
-        effectiveValue = effectiveValue?.replace(/\s*(&&|\|\|)\s*/g, '').trim();
-
-        // Trim the outer quotes if they exist
-        if (effectiveValue.startsWith('"') && effectiveValue.endsWith('"')) {
-          effectiveValue = effectiveValue.slice(1, -1);
-        }
-        // Convert null values to "null"
-        if (fn === "exists") {
-          effectiveValue = "null";
-        }
-        return [cKey, effectiveValue] as [string, string];
-      })
+      freshLogsData, // Pass the full response data instead of converted logs
+      coreResult.targetGroupFilters || [],
+      currentId
     );
 
     // Update the table data with the processed logs.
@@ -463,21 +592,10 @@ export async function onGroupExpand(
         const newState = {
           ...prev,
           logs: updatedLogs,
-          updatedFilterExpression: updatedFilterExpression
         }
         resolve();
         return newState;
       });
-    });
-
-    // Merge the groupedMetrics with the previous groupedMetrics
-    await new Promise<void>(resolve => {
-      updateTableDataItem(
-        undefined,
-        { groupedMetrics },
-        true
-      );
-      resolve();
     });
   } catch (error) {
     showErrorToast(error, "Error fetching grouped logs");
@@ -485,4 +603,160 @@ export async function onGroupExpand(
   } finally {
     setExpandingRowId(null);
   }
+}
+
+/*
+  Appends new logs to existing grouped logs structure, used for infinite scroll.
+  This function is used when loading more data at the same level.
+*/
+export function appendToGroupedLogs(
+  existingLogs: GroupedLogProps[],
+  newLogs: GroupedLogProps[] | LogProps[]
+): GroupedLogProps[] {
+  if (!Array.isArray(newLogs) || newLogs.length === 0) {
+    return existingLogs;
+  }
+
+  // If new logs are ungrouped LogProps, we need to convert them or handle differently
+  if (newLogs.length > 0 && newLogs[0].type === "ungrouped") {
+    // This case should not happen at the top level for grouped logs
+    // Return existing logs unchanged
+    return existingLogs;
+  }
+
+  // For grouped logs, merge by grouping keys to avoid duplicates
+  const newGroupedLogs = newLogs as GroupedLogProps[];
+  const existingGroupMap = new Map<string, GroupedLogProps>();
+  
+  // Index existing groups by their grouping key
+  existingLogs.forEach(log => {
+    if (log.type === "grouped") {
+      const key = `${log.groupingColumnId}:${log[log.groupingColumnId]}`;
+      existingGroupMap.set(key, log);
+    }
+  });
+
+  // Process new groups
+  const resultLogs = [...existingLogs];
+  
+  newGroupedLogs.forEach(newLog => {
+    if (newLog.type === "grouped") {
+      const key = `${newLog.groupingColumnId}:${newLog[newLog.groupingColumnId]}`;
+      const existingGroup = existingGroupMap.get(key);
+      
+      if (existingGroup) {
+        // Update group count if it's larger
+        if (newLog.groupCount && (!existingGroup.groupCount || newLog.groupCount > existingGroup.groupCount)) {
+          existingGroup.groupCount = newLog.groupCount;
+        }
+      } else {
+        // Add new group
+        resultLogs.push(newLog);
+      }
+    }
+  });
+
+  return resultLogs;
+}
+
+/*
+  Appends new subRows to a specific group in the nested structure.
+  Used for infinite scroll within expanded groups.
+*/
+export function appendToGroupedSubRows(
+  existingLogs: GroupedLogProps[],
+  newSubRows: GroupedLogProps[] | LogProps[],
+  targetGroupFilters: [string, string][]
+): GroupedLogProps[] {
+  function findAndAppendSubRows(
+    logs: GroupedLogProps[],
+    filters: [string, string][]
+  ): GroupedLogProps[] {
+    if (filters.length === 0) return logs;
+
+    const [currentColumn, currentValue] = filters[0];
+
+    return logs.map((log) => {
+      if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
+        if (filters.length === 1) {
+          // Target group found - append to existing subRows
+          const existingSubRows = Array.isArray(log.subRows) ? log.subRows : [];
+          
+          // Determine if we're appending LogProps or GroupedLogProps
+          if (newSubRows.length > 0 && newSubRows[0].type === "ungrouped") {
+            // Appending LogProps to existing subRows
+            const newLogProps = newSubRows as LogProps[];
+            return {
+              ...log,
+              subRows: [...existingSubRows, ...newLogProps] as LogProps[],
+              isPopulated: true
+            };
+          } else {
+            // Appending GroupedLogProps to existing subRows
+            const newGroupedLogProps = newSubRows as GroupedLogProps[];
+            return {
+              ...log,
+              subRows: [...existingSubRows, ...newGroupedLogProps] as GroupedLogProps[],
+              isPopulated: true
+            };
+          }
+        } else if (Array.isArray(log.subRows)) {
+          // Recursively append to deeper levels
+          return {
+            ...log,
+            subRows: findAndAppendSubRows(log.subRows as GroupedLogProps[], filters.slice(1))
+          };
+        }
+      }
+      return log;
+    });
+  }
+
+  return findAndAppendSubRows(existingLogs, targetGroupFilters);
+}
+
+/*
+  Gets the current count of items at a specific group level.
+  Useful for infinite scroll position tracking.
+*/
+export function getGroupItemCount(
+  logs: GroupedLogProps[],
+  groupFilters: [string, string][]
+): number {
+  function findGroupAndCount(
+    currentLogs: GroupedLogProps[],
+    filters: [string, string][]
+  ): number {
+    if (filters.length === 0) {
+      return Array.isArray(currentLogs) ? currentLogs.length : 0;
+    }
+
+    const [currentColumn, currentValue] = filters[0];
+    
+    for (const log of currentLogs) {
+      if (log.type === "grouped" && 
+          sanitizeId(log.groupingColumnId) === currentColumn && 
+          log[log.groupingColumnId] === currentValue) {
+        
+        if (filters.length === 1) {
+          // Target group found
+          return Array.isArray(log.subRows) ? log.subRows.length : 0;
+        } else if (Array.isArray(log.subRows)) {
+          // Recursively search deeper
+          return findGroupAndCount(log.subRows as GroupedLogProps[], filters.slice(1));
+        }
+      }
+    }
+    
+    return 0;
+  }
+
+  return findGroupAndCount(logs, groupFilters);
+}
+
+/*
+  Helper to get flattened count for display purposes
+*/
+export function getFlattenedCount(logs: LogProps[] | GroupedLogProps[]): number {
+  return maybeFlattenGroupedLogs(logs).length;
 }
