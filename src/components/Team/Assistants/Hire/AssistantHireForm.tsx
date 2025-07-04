@@ -197,6 +197,7 @@ export function HireForm({
         platform: platform,
         identifier: userPhone || '',
         isVerified: false,
+        isInitial: false,
         isVerifying: false,
         verificationCodeSent: null,
         verificationSentAt: null,

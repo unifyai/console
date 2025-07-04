@@ -177,10 +177,11 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                 )}
 
                 {/* Trash Button */}
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-destructive" onClick={() => onRemove(index)}>
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-
+                {!account.isInitial && (
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-destructive" onClick={() => onRemove(index)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
             {socialAccountErrors ? (
                 <p className="text-sm font-medium text-destructive mt-1 pl-7">{socialAccountErrors.message}</p>

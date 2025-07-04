@@ -63,6 +63,7 @@ export interface SocialAccount {
   verificationSentAt: Date | null;
   verificationAttempts: number;
   verificationError: string | null;
+  isInitial?: boolean;
 }
 
 export type AssistantFormData =

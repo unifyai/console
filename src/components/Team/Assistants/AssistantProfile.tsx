@@ -172,7 +172,7 @@ export function AssistantProfilePanel({
     const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
     
     const formMethods = useForm<AssistantFormData>({ mode: 'onChange' });
-    const { control, handleSubmit, reset, formState: { isDirty, dirtyFields } } = formMethods;
+    const { control, handleSubmit, reset, formState: { isDirty } } = formMethods;
     const { fields, append, remove } = useFieldArray({ control, name: "social_accounts" });
 
     React.useEffect(() => {
@@ -183,6 +183,7 @@ export function AssistantProfilePanel({
                     platform: 'whatsapp',
                     identifier: assistant.user_whatsapp_number,
                     isVerified: true,
+                    isInitial: true,
                     isVerifying: false,
                     verificationCodeSent: null,
                     verificationSentAt: null,
@@ -210,7 +211,7 @@ export function AssistantProfilePanel({
 
     const handleSaveAll = handleSubmit(async (formData) => {
         if (isSaving) return;
-
+    
         // --- Pre-submission validation ---
         const isPhoneChanged = formData.user_phone !== assistant.user_phone;
         const isPhoneSet = formData.user_phone && formData.user_phone.length > 0;
@@ -218,27 +219,27 @@ export function AssistantProfilePanel({
             toast.error("Please verify your new phone number before saving.");
             return;
         }
-
-        if (formData.social_accounts?.some(acc => !acc.isVerified)) {
-            toast.error("Please verify all added social accounts before saving.");
+    
+        if (formData.social_accounts?.some(acc => !acc.isVerified && acc.identifier.length > 0)) {
+            toast.error("Please verify all social accounts with a number entered before saving.");
             return;
         }
-
+    
         setIsSaving(true);
         
         // --- Payload construction based on comparison ---
         const payload: Partial<AssistantUpdatePayload> = {};
-
+    
         if (formData.about !== assistant.about) {
             payload.about = formData.about;
         }
-
+    
         if (isPhoneChanged) {
             payload.user_phone = formData.user_phone || null;
         }
-
+    
         const currentWhatsappAccount = formData.social_accounts?.find(acc => acc.platform === 'whatsapp');
-        const currentWhatsappIdentifier = currentWhatsappAccount?.identifier || null;
+        const currentWhatsappIdentifier = (currentWhatsappAccount && currentWhatsappAccount.identifier) ? currentWhatsappAccount.identifier : null;
         if (currentWhatsappIdentifier !== assistant.user_whatsapp_number) {
             payload.user_whatsapp_number = currentWhatsappIdentifier;
         }
@@ -261,7 +262,17 @@ export function AssistantProfilePanel({
         if (assistant) {
             const socialAccounts: SocialAccount[] = [];
             if (assistant.user_whatsapp_number) {
-                socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+                socialAccounts.push({ 
+                    platform: 'whatsapp', 
+                    identifier: assistant.user_whatsapp_number, 
+                    isVerified: true, 
+                    isInitial: true, 
+                    isVerifying: false, 
+                    verificationCodeSent: null, 
+                    verificationSentAt: null, 
+                    verificationAttempts: 0, 
+                    verificationError: null 
+                });
             }
             const userPhone = assistant.user_phone || '';
             reset({
@@ -298,7 +309,17 @@ export function AssistantProfilePanel({
             toast.info(`You have already added an account for ${platform}.`);
             return;
         }
-        append({ platform: platform, identifier: '', isVerified: false, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+        append({ 
+            platform: platform, 
+            identifier: '', 
+            isVerified: false, 
+            isInitial: false, 
+            isVerifying: false, 
+            verificationCodeSent: null, 
+            verificationSentAt: null, 
+            verificationAttempts: 0, 
+            verificationError: null 
+        });
         setJustAddedPlatform(platform);
     };
 
