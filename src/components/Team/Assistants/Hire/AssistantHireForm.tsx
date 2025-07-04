@@ -446,7 +446,7 @@ export function HireForm({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                     <div className="col-span-2 sm:col-span-1">
-                        <div className="flex flex-row justify-between gap-2 items-center pb-1">
+                        <div className="flex flex-row gap-2 items-center pb-1">
                             <Label htmlFor="country">Assistant Phone Number Country</Label>
                             <TooltipProvider delayDuration={100}>
                             <Tooltip>
@@ -528,14 +528,14 @@ export function HireForm({
                 </div>
                 <div className="space-y-3 pt-1">
                     <div className="flex flex-col">
-                        <div className="flex flex-row justify-between gap-2 items-center pb-1">
+                        <div className="flex flex-row gap-2 items-center pb-1">
                             <Label htmlFor="user_phone">Your Phone Number</Label>
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                                     </TooltipTrigger>
-                                    <TooltipContent side="left" align="end" className="max-w-xs text-sm">
+                                    <TooltipContent side="right" align="end" className="max-w-xs text-sm">
                                         <p>{"This is the phone number you will contact the assistant with."}</p>
                                     </TooltipContent>
                                 </Tooltip>

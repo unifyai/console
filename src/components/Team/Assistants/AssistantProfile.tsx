@@ -366,6 +366,7 @@ export function AssistantProfilePanel({
                                     {...formMethods.register("about")}
                                     placeholder="Enter details about the assistant..."
                                     disabled={isSaving}
+                                    style={{"scrollbarWidth" : "none"}}
                                     className="text-sm min-h-[100px] resize-none peer"
                                     rows={4}
                                 />
