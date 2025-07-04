@@ -40,7 +40,7 @@ function renderMenuItem(item: NavItem, isActive: boolean, isSubItem: boolean = f
   const hideIconWhenSidebarCollapsed = item.title === "Usage" && sidebarState === "collapsed";
 
   return (
-    <SidebarMenuItem key={item.title} className={`px-2 py-1 transition-colors ${isSubItem ? "group-data-[collapsible=icon]:py-0.5 group-data-[collapsible=icon]:px-1.5" : ""}`}>
+    <SidebarMenuItem key={item.title} className={`px-3 py-1 transition-colors ${isSubItem ? "group-data-[collapsible=icon]:py-0.5 group-data-[collapsible=icon]:px-1.5" : ""}`}>
       <SidebarMenuButton asChild isActive={isActive}>
         <Link
           href={item.href}
@@ -153,7 +153,7 @@ export default function NavMenu() {
         setProfileName(userName);
         const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2);
         setAvatarJSX(
-          <Avatar className="h-5 w-5">
+          <Avatar className="h-4 w-4">
             <AvatarImage src={imageUrl} alt="User Avatar"/>
             <AvatarFallback>{getInitials(userName)}</AvatarFallback>
           </Avatar>
@@ -392,22 +392,22 @@ export default function NavMenu() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="relative h-12 w-full flex items-center justify-center overflow-hidden">
+      <SidebarHeader className="relative h-14 w-full flex items-center justify-center overflow-hidden">
         <Image
           src={ivyLogoOnly}
           alt="Logo (collapsed)"
           priority
-          className={`absolute h-5 w-5 object-contain transition-opacity duration-300 ${state === "collapsed" ? "opacity-100" : "opacity-0"}`}
+          className={`absolute h-5 w-5 object-contain transition-opacity ml-2 duration-300 ${state === "collapsed" ? "opacity-100" : "opacity-0"}`}
         />
-        <div className={`transition-opacity duration-300 ${state === "collapsed" ? "opacity-0" : "opacity-100"}`}>
+        <div className={`transition-opacity duration-300 mr-8 ${state === "collapsed" ? "opacity-0" : "opacity-100"}`}>
           <UnifyLogo theme={resolvedTheme} />
         </div>
       </SidebarHeader>
 
       <SidebarSeparator />
 
-      <SidebarContent className="list-none flex flex-col h-full mt-5">
-        <div className="flex-grow space-y-1">
+      <SidebarContent className="list-none flex flex-col h-full mt-2">
+        <div className="flex-grow px-0.5">
           {teamItem && renderMenuItem(teamItem, isActive(teamItem))}
           
           {interfacesMainItem && (
@@ -456,7 +456,7 @@ export default function NavMenu() {
 
       <SidebarSeparator />
 
-      <SidebarFooter className="flex flex-row items-center px-2 py-2 gap-2">
+      <SidebarFooter className="flex flex-row items-center px-3 py-2.5 gap-2">
         <SidebarTrigger className="h-8 w-8 opacity-80 hover:opacity-100">
           <Menu className="h-4 w-4" />
         </SidebarTrigger>
