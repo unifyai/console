@@ -260,7 +260,7 @@ const PlotRefresh = ({
   );
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-1">
       {manualRefreshButton}
       {autoRefresh}
     </div>

@@ -169,7 +169,7 @@ function renderFixedTooltipContent(
                 addItem(data.y.name, data.y.value, contentWrapper); 
             }
         } else { // --- Array of items ---
-            const scrollableDiv = contentWrapper.append('div').attr('class', 'max-h-[200px] overflow-y-auto pr-1'); // Removed space-y-2 from here
+            const scrollableDiv = contentWrapper.append('div').attr('class', 'max-h-[200px] overflow-y-auto pr-1 command-scrollbar');
 
             data.forEach((item, index) => {
                 // Create a dedicated container for each point's data

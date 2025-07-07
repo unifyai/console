@@ -91,7 +91,7 @@ const LogsPlot = ({
     let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = useMemo(() => ({ top: 10, right: 15, bottom: 45, left: 55 }), []); // Optimized margins
+    const margins = useMemo(() => ({ top: 0, right: 15, bottom: 90, left: 55 }), []); // Optimized margins
     const axisPadding = 15; // Extra padding between axes borders and plot borders
 
     // Plot settings
@@ -135,7 +135,7 @@ const LogsPlot = ({
             (settingsRef.current as any).__isTooltipMinimized = isTooltipMinimized;
             (settingsRef.current as any).__setIsTooltipMinimized = setIsTooltipMinimized;
         }
-    }, [isTooltipMinimized, setIsTooltipMinimized, settingsRef]);
+    }, [isTooltipMinimized, setIsTooltipMinimized]);
 
 
     // Set up containers
@@ -150,7 +150,7 @@ const LogsPlot = ({
     useEffect(() => {
         zoomRef.current = d3.zoomIdentity;
         clearFixedTooltip(settings, setIsTooltipMinimized);
-    }, [selectedXAxisProperty, selectedYAxisProperty, plotType, settings, setIsTooltipMinimized])
+    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
  
     // Draw plot
     useEffect(() => {
@@ -223,7 +223,7 @@ return (
   
       {/* Chart Container */}
       <div
-        className="flex flex-1 h-full bg-background relative overflow-hidden"
+        className="flex flex-1 h-full bg-background relative overflow-hidden my-[45px] border-t border-border"
         ref={containerRef}
       >
         {/* SVG content*/}

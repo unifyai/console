@@ -82,7 +82,7 @@ export function renderGroupingKey(
     // --- Key Items (Only add if NOT minimized) ---
     if (!isMinimized) {
         const itemsWrapper = container.append('div')
-             .attr('class', 'grouping-key-items mt-1 flex flex-col gap-1 max-h-48 overflow-y-auto'); // Add scrolling with max height
+            .attr('class', 'grouping-key-items command-scrollbar mt-1 flex flex-col gap-1 max-h-48 overflow-y-auto');
         itemsWrapper.html(keyTemplate(colors));
     }
 }
