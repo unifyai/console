@@ -13,7 +13,7 @@ import { AssistantActions } from "@/types/team/assistant";
 import { ActivityLogActions } from "@/types/team/activity";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { getMessages } from "@/lib/team/activity";
+import { getActivitySummary } from "@/lib/team/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/team/approval";
 
 const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
@@ -70,7 +70,7 @@ const TeamPage = async ({ searchParams }: { searchParams: { token?: string } }) 
     }
 
     const activityLogActions: ActivityLogActions = {
-        get: await getMessages(apiKey),
+        get: await getActivitySummary(apiKey),
     }
 
     return (

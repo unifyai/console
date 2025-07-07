@@ -5,7 +5,7 @@ import { AssistantList } from "@/components/Team/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Team/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
 import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform } from "@/types/team/assistant";
-import { ActivityLogActions, MessageLog } from "@/types/team/activity";
+import { ActivityLogActions } from "@/types/team/activity";
 import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
@@ -89,13 +89,10 @@ export default function Main({
 
     // --- Activity Log Data ---
     const {
-        messages: assistantMessages,
-        fetchMoreMessages: fetchMoreAssistantMessages,
-        hasMoreMessages: hasMoreAssistantMessages,
-        isLoadingInitial: isLoadingInitialMessages,
-        isLoadingMore: isLoadingMoreMessages,
-        logError: messageLogError,
-    } = useActivityLogs(activityLogActions, activityLogAssistantId, assistants, "user");
+        summary: activitySummary,
+        isLoading: isLoadingActivity,
+        error: activityError,
+    } = useActivityLogs(activityLogActions);
 
 
     const availableTaskStatuses = React.useMemo(() => {
@@ -310,12 +307,9 @@ export default function Main({
                         >
                             <AssistantActivityLogPanel
                                 assistant={activityLogPanelAssistant}
-                                messages={assistantMessages}
-                                fetchMoreMessages={fetchMoreAssistantMessages}
-                                hasMoreMessages={hasMoreAssistantMessages}
-                                isLoadingInitial={isLoadingInitialMessages}
-                                isLoadingMore={isLoadingMoreMessages}
-                                logError={messageLogError}
+                                summary={activitySummary}
+                                isLoading={isLoadingActivity}
+                                error={activityError}
                                 onClose={handleActivityLogClose}
                             />
                         </motion.div>

@@ -1,21 +1,13 @@
 import { ResponseProps } from "@/types/common";
-import { LogsResponseProps } from "@/types/evals/logs";
+import { LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { ActivitySummary } from "@/types/team/activity";
 
-export const getMessages = async (apiKey: string) => {
-    return async (filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {
+export const getActivitySummary = async (apiKey: string) => {
+    return async (): Promise<ActivitySummary | ResponseProps> => {
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Unity&context=Events/Messages`;
-            if (filterExpression) {
-                url += `&filter_expr=${encodeURIComponent(filterExpression)}`;
-            }
-            if (limit !== null) {
-                url += `&limit=${limit}`;
-            }
-            if (offset !== null) {
-                url += `&offset=${offset}`;
-            }
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=RollingActivity`;
             
             const response = await fetch(
                 url,
@@ -28,24 +20,35 @@ export const getMessages = async (apiKey: string) => {
                 if (contentType && contentType.includes("application/json")) {
                     data = await response.json();
                 } else {
-                    console.error(`[activity.ts getMessages] Received non-JSON response with status ${response.status}`);
-                    return { detail: "Received an invalid response from the server (activity logs)." };
+                    console.error(`[activity.ts getActivitySummary] Received non-JSON response with status ${response.status}`);
+                    return { detail: "Received an invalid response from the server (activity summary)." };
                 }
             } catch (parseError) {
-                console.error(`[activity.ts getMessages] Failed to parse JSON response ${parseError}`);
-                return { detail: "Received an invalid response from the server (activity logs parsing)." };
+                console.error(`[activity.ts getActivitySummary] Failed to parse JSON response ${parseError}`);
+                return { detail: "Received an invalid response from the server (activity summary parsing)." };
             }
 
             if (!response.ok) {
-                const errorMessage = data.detail || `Failed to get messages: ${response.statusText}`;
+                const errorMessage = data.detail || `Failed to get activity summary: ${response.statusText}`;
                 return { detail: errorMessage };
             }
 
-            return data as LogsResponseProps;
+            const logsResponse = data as LogsResponseProps;
+            const logs = logsResponse.logs as LogProps[];
+            const latestLog = logs?.[0];
+
+            if (latestLog && latestLog.entries && typeof latestLog.entries.time_based_activity === 'string') {
+                return {
+                    summary: latestLog.entries.time_based_activity,
+                };
+            }
+            
+            // If no log is found, it's not an error. Return a default message.
+            return { summary: "No recent activity recorded." };
 
         } catch (error) {
-            console.error(`[activity.ts getMessages] Error fetching messages:`, error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred while fetching messages.";
+            console.error(`[activity.ts getActivitySummary] Error fetching summary:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred while fetching activity summary.";
             return { detail: errorMessage };
         }
     };
