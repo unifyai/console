@@ -154,50 +154,52 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     });
 
     return (
-        <TableRow key={`${parentRow.id}-subrows-container`}>
-            <TableCell colSpan={parentRow.getVisibleCells().length} className="p-0">
-                {/* Custom scrollable container with native scrollbar styled to match shadcn */}
-                <div 
-                    className={`relative w-full overflow-y-auto overflow-x-hidden max-h-[calc(100vh-350px)] ${styles.customScrollbar}`}
-                    style={{
-                        // CSS Custom Properties for scrollbar styling
-                        '--scrollbar-width': '10px',
-                        '--scrollbar-track': 'transparent',
-                        '--scrollbar-thumb': 'hsl(var(--border))',
-                        '--scrollbar-thumb-hover': 'hsl(var(--border))',
-                    } as React.CSSProperties}
-                >
-                    <div className="min-w-max w-full">
-                        <div className="min-w-fit w-max">
-                            <TableUI 
-                                className={`relative LogsTable-${parentRow.id} w-full caption-bottom text-sm border-separate border-spacing-0`}
-                                style={{ width: table.getTotalSize(), tableLayout: 'fixed'}}
-                            >
-                                {/* Column group to match parent table's column widths */}
-                                <colgroup>
-                                    {columnWidths.map((width, index) => (
-                                        <col key={index} style={{ width: `${width}px` }} />
-                                    ))}
-                                </colgroup>
-                                <TableBody className="contents">
-                                    {/* Render direct children and their nested subRows */}
-                                    {directChildren.map(renderSubRow)}
-                                    
-                                    {/* GroupLoadMore for this parent group */}
-                                    {GroupLoadMore && (
-                                        <GroupLoadMore
-                                            groupId={parentRow.id}
-                                            colSpan={columnCount}
-                                            interactive={interactive}
-                                            hasNextPage={groupHasNextPage}
-                                        />
-                                    )}
-                                </TableBody>
-                            </TableUI>
+        <>
+            <TableRow key={`${parentRow.id}-subrows-container`}>
+                <TableCell colSpan={parentRow.getVisibleCells().length} className="p-0">
+                    {/* Custom scrollable container with native scrollbar styled to match shadcn */}
+                    <div 
+                        className={`relative w-full overflow-y-auto overflow-x-hidden max-h-[calc(100vh-350px)] ${styles.customScrollbar}`}
+                        style={{
+                            // CSS Custom Properties for scrollbar styling
+                            '--scrollbar-width': '10px',
+                            '--scrollbar-track': 'transparent',
+                            '--scrollbar-thumb': 'hsl(var(--border))',
+                            '--scrollbar-thumb-hover': 'hsl(var(--border))',
+                        } as React.CSSProperties}
+                    >
+                        <div className="min-w-max w-full">
+                            <div className="min-w-fit w-max">
+                                <TableUI 
+                                    className={`relative LogsTable-${parentRow.id} w-full caption-bottom text-sm border-separate border-spacing-0`}
+                                    style={{ width: table.getTotalSize(), tableLayout: 'fixed'}}
+                                >
+                                    {/* Column group to match parent table's column widths */}
+                                    <colgroup>
+                                        {columnWidths.map((width, index) => (
+                                            <col key={index} style={{ width: `${width}px` }} />
+                                        ))}
+                                    </colgroup>
+                                    <TableBody className="contents">
+                                        {/* Render direct children and their nested subRows */}
+                                        {directChildren.map(renderSubRow)}
+                                    </TableBody>
+                                </TableUI>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </TableCell>
-        </TableRow>
+                </TableCell>
+            </TableRow>
+
+            {/* GroupLoadMore for this parent group */}
+            {GroupLoadMore && (
+                <GroupLoadMore
+                    groupId={parentRow.id}
+                    colSpan={columnCount}
+                    interactive={interactive}
+                    hasNextPage={groupHasNextPage}
+                />
+            )}
+        </>
     );
 } 

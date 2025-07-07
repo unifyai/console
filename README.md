@@ -93,6 +93,12 @@ This application includes several debug environment variables that enable detail
   - Includes logging for load more operations, query invalidation, and data merging
   - Useful for debugging data fetching workflows and infinite scroll behaviors
 
+- **`NEXT_PUBLIC_DEBUG_QUERY_KEYS=true`**
+  - Enables detailed logging for query key registration and cleanup operations
+  - Shows when infinite query keys are added to and removed from tiles
+  - Includes logging for both main table queries and group-specific queries
+  - Useful for debugging query lifecycle management and tile cleanup issues
+
 ### Usage Example
 
 To enable all debug features during development, add these to your `.env.local` file:
@@ -105,6 +111,7 @@ NEXT_PUBLIC_DEBUG_PERFORMANCE=true
 NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
 NEXT_PUBLIC_DEBUG_COMMANDS=true
 NEXT_PUBLIC_DEBUG_INFINITE_QUERIES=true
+NEXT_PUBLIC_DEBUG_QUERY_KEYS=true
 ```
 
 **Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.

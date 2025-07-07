@@ -30,7 +30,7 @@ import InfiniteScrollController from "@/components/Common/Tables/Data/Buttons/In
 import { extractBaseAndComparisonLogs } from "@/utils/evals/selection";
 import FreezeLogs from "./Buttons/FreezeLogs";
 import RefreshLogs from "./Buttons/RefreshLogs";
-import { searchParamToFilters } from "@/utils/evals/filters";
+import { buildFilterExpression, searchParamToFilters } from "@/utils/evals/filters";
 import { FiltersByColumn } from "@/types/evals/columns";
 import CellPopover from "./Content/CellPopover";
 import { TableDataItem, TileProps, GranularTileActions, ProjectsActions } from "@/types/evals/grid";
@@ -99,6 +99,7 @@ const LogsTable = ({
   const {
     meta: tileMetaState,
     ui: tileUIState,
+    data: tileDataState,
     tableTile: tableTileState,
     uiActions: tileUIActions,
   } = useTile(tileId, tabId);
@@ -106,19 +107,40 @@ const LogsTable = ({
   // Use the existing hook structure for metadata and mutations
   const { 
     tableData: tableDataItem, 
-    isLoading: isTableDataLoading,
     isError: isTableDataError,
     error: tableDataError,
     updateTableDataItemWithUpdater,
     updateLogs,
   } = useTableDataQueryWithTracking(tileId || null, tabId || null);
 
+  // Use the existing table data item as single source of truth
+  const {
+    fields,
+    logs,
+    params,
+    entriesProperties,
+    paramsProperties,
+    totalCount,
+    error,
+    isLoading: isTableDataLoading,
+  } = tableDataItem;
+
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const tileName = tileMetaState?.name || "";
-  const filterExpression = tableArguments?.[tileName]?.getLogs_parameters?.filter_expr || null;
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
-  const groupingExpression = tableArguments?.[tileName]?.getLogs_parameters?.grouping || null;
   const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
+  
+  // TODO: See if we can directly wait for the table arguments to be updated,
+  // rather than hacking this to manually get the correct get logs expressions
+  // for the infinite scrolls
+  const groupingExpression = tileDataState?.grouping || null;
+  const filterExpression = buildFilterExpression(
+    tileDataState?.filters || undefined,
+    tileDataState?.common_filter || undefined,
+    tileDataState?.column_context || undefined,
+    tileDataState?.freeze || undefined,
+    fields
+  );
 
   // Get item data for context and column context
   const { itemActions } = useTileItem(tileId, tabId);
@@ -139,23 +161,12 @@ const LogsTable = ({
     group_limit: tableTileState?.group_limit || 20,
     logsActions,
     updateLogs,
-    enabled: !!projectId && !!tileId && !!tabId,
+    enabled: !!projectId && !!tileId && !!tabId && !isTableDataLoading,
   });
 
-  // Use the existing table data item as single source of truth
-  const {
-    fields,
-    logs,
-    params,
-    entriesProperties,
-    paramsProperties,
-    totalCount,
-    error,
-  } = tableDataItem;
-
-  // Calculate hasNextPage from initial tableDataItem if infinite query hasn't loaded yet
+  // Calculate hasNextPage from infinite query if available, otherwise from initial tableDataItem
   const initialHasNextPage = useMemo(() => {
-    if (infiniteLogsQuery.logs.length > 0) {
+    if (!isTableDataLoading && !infiniteLogsQuery.isPending && !infiniteLogsQuery.isLoading) {
       // Use infinite query data once it's available
       return infiniteLogsQuery.hasNextPage;
     }
@@ -170,7 +181,9 @@ const LogsTable = ({
       groupLimit: tableTileState?.group_limit || 20,
     });
   }, [
-    infiniteLogsQuery.logs.length, 
+    isTableDataLoading,
+    infiniteLogsQuery.isLoading, 
+    infiniteLogsQuery.isPending,
     infiniteLogsQuery.hasNextPage, 
     logs.length, 
     tableTileState?.limit, 
@@ -181,18 +194,14 @@ const LogsTable = ({
     totalCount
   ]);
 
-  // Calculate total count from initial tableDataItem if infinite query hasn't loaded yet
-  const effectiveTotalCount = useMemo(() => {
-    if (infiniteLogsQuery.logs.length > 0) {
-      return infiniteLogsQuery.totalCount;
+  const effectiveHasNextPage = useMemo(() => {
+    if (!infiniteLogsQuery.isLoading) {
+      return infiniteLogsQuery.hasNextPage;
     }
-    
-    // Use totalCount from tableDataItem
-    return totalCount;
-  }, [infiniteLogsQuery.logs.length, infiniteLogsQuery.totalCount, totalCount]);
+    return initialHasNextPage;
+  }, [infiniteLogsQuery.isLoading, infiniteLogsQuery.hasNextPage, initialHasNextPage]);
 
-  // Calculate effective loaded count
-  const effectiveLoadedCount = infiniteLogsQuery.logs.length > 0 ? infiniteLogsQuery.totalLoadedCount : logs.length;
+  const effectiveLoadedCount = logs.length;
 
   // Helper function to calculate hasNextPage for individual groups
   const calculateGroupHasNextPage = useCallback((groupId: string): boolean => {
@@ -234,7 +243,6 @@ const LogsTable = ({
 
     // Check if the group has more items to load using pagination utilities
     if (targetGroup.totalChildren !== undefined && targetGroup.subRows) {
-      const currentSubRowsCount = targetGroup.subRows.length;
       return checkHasNextPage({
         currentLogs: targetGroup.subRows,
         totalCount: targetGroup.totalChildren,
@@ -816,9 +824,9 @@ const LogsTable = ({
         <div className="flex items-center gap-2">
           <InfiniteScrollController
             loadedCount={effectiveLoadedCount}
-            estimatedTotal={effectiveTotalCount}
-            totalCount={effectiveTotalCount}
-            hasNextPage={initialHasNextPage}
+            estimatedTotal={totalCount}
+            totalCount={totalCount}
+            hasNextPage={effectiveHasNextPage}
             isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
             onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
             onRefresh={() => infiniteLogsQuery.refetch()}
@@ -890,7 +898,7 @@ const LogsTable = ({
                         enableVirtualization={useVirtualization}
                         virtualRowHeight={60}
                         virtualContainerHeight={600}
-                        hasNextPage={infiniteLogsQuery.hasNextPage || initialHasNextPage}
+                        hasNextPage={effectiveHasNextPage}
                         isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
                         fetchNextPage={infiniteLogsQuery.fetchNextPage}
                         isItemLoaded={(index: number) => !!logs[index]}

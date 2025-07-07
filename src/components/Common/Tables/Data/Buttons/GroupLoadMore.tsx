@@ -3,6 +3,7 @@ import { useInfiniteGroupSpecificLogsQuery } from '@/hooks/Query/useInfiniteLogs
 import { LogsActions } from '@/types/evals/grid';
 import { LogFieldsResponseProps, LogsResponseProps } from '@/types/evals/logs';
 import LoadMore, { LoadMoreProps } from './LoadMore';
+import { useTableDataQueryWithTracking } from '@/hooks/Query/useTableDataQuery';
 
 interface GroupLoadMoreProps {
   // Query parameters
@@ -67,7 +68,8 @@ export default function GroupLoadMore({
   hasNextPage: externalHasNextPage,
   LoadMoreComponent = LoadMore,
 }: GroupLoadMoreProps) {
-  // Each GroupLoadMore component manages its own infinite query
+  const { tableData: tableDataItem } = useTableDataQueryWithTracking(tileId || null, tabId || null);
+  const isTableDataLoading = tableDataItem?.isLoading;
   const {
     hasNextPage: queryHasNextPage,
     isFetchingNextPage,
@@ -90,7 +92,7 @@ export default function GroupLoadMore({
     groupId,
     dataTypes,
     fields,
-    enabled: true, // Always enabled since component is only rendered when needed
+    enabled: !isTableDataLoading,
   });
 
   // Combine external and query hasNextPage

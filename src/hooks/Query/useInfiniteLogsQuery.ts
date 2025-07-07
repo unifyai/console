@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import { LogsActions, TableDataItem } from '@/types/evals/grid';
-import { LogFieldsResponseProps, LogProps, GroupedLogProps, LogItemProps, LogsResponseProps, GroupedLogPropsRaw } from '@/types/evals/logs';
-import { appendToGroupedLogs } from '@/utils/evals/grouping';
-import { fetchLogsCore, buildLogQueryKey, CoreLogFetchParams, checkHasPreviousPage } from '@/utils/evals/logsCore';
-import { useTableTileSync } from '@/contexts/hooks/tile/sync';
+import { LogFieldsResponseProps, LogProps, GroupedLogProps, LogsResponseProps } from '@/types/evals/logs';
+import { findGroupSubRows, getGroupingFilters, getTargetGroupFilters } from '@/utils/evals/grouping';
+import { fetchLogsCore, buildLogQueryKey, CoreLogFetchParams } from '@/utils/evals/logsCore';
+import { useTableTile } from '@/contexts/hooks/tile/useTableTile';
 
 /**
  * Debug flag for infinite query performance logging
@@ -12,10 +13,25 @@ import { useTableTileSync } from '@/contexts/hooks/tile/sync';
 const DEBUG_INFINITE_QUERIES = process.env.NEXT_PUBLIC_DEBUG_INFINITE_QUERIES === 'true';
 
 /**
+ * Debug flag for infinite query key tracking
+ * Set NEXT_PUBLIC_DEBUG_QUERY_KEYS=true to enable detailed query key registration/removal logs
+ */
+const DEBUG_QUERY_KEYS = process.env.NEXT_PUBLIC_DEBUG_QUERY_KEYS === 'true';
+
+/**
  * Conditional debug logger for infinite query performance metrics
  */
 const perfLog = (...args: any[]) => {
   if (DEBUG_INFINITE_QUERIES) {
+    console.log(...args);
+  }
+};
+
+/**
+ * Conditional debug logger for query key tracking
+ */
+const keyLog = (...args: any[]) => {
+  if (DEBUG_QUERY_KEYS) {
     console.log(...args);
   }
 };
@@ -44,8 +60,13 @@ interface InfiniteLogsParams {
 }
 
 export interface InfiniteLogsPage {
-  logs: LogProps[] | GroupedLogProps[];
-  params: LogItemProps;
+  hasMore: boolean;
+  totalCount: number;
+  currentCount: number;
+  pageIndex: number;
+}
+
+export interface InfiniteGroupSpecificPage {
   hasMore: boolean;
   totalCount: number;
   currentCount: number;
@@ -72,10 +93,10 @@ export function useInfiniteLogsQuery({
   const queryClient = useQueryClient();
   
   // Get table tile actions for offset management
-  const { tableTileActions } = useTableTileSync(tileId, tabId);
+  const { tableTileActions } = useTableTile(tileId, tabId);
   const useGroupPagination = !!groupingExpression;
   
-  const queryKey = buildLogQueryKey('infinite', {
+  const queryKey = useMemo(() => buildLogQueryKey('infinite', {
     tileId,
     tabId,
     projectId,
@@ -87,18 +108,21 @@ export function useInfiniteLogsQuery({
     groupSortingExpression,
     limit,
     group_limit
-  });
+  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, group_limit]);
 
-  const infiniteQuery = useInfiniteQuery<InfiniteLogsPage, Error, {
-    pages: InfiniteLogsPage[];
-    pageParams: number[];
-    logs: LogProps[] | GroupedLogProps[];
-    totalLoadedCount: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-    totalCount: number;
-    params: LogItemProps;
-  }, typeof queryKey, number>({
+  // Register this query key with the table tile for cleanup
+  const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey]);
+
+  useEffect(() => {
+    if (tableTileActions?.addInfiniteQueryKey && enabled) {
+      keyLog(`[queryKey] useInfiniteLogsQuery(${tileId}) – ADDING infinite query key:`, queryKeyString);
+      tableTileActions.addInfiniteQueryKey(queryKeyString);
+    } else {
+      keyLog(`[queryKey] useInfiniteLogsQuery(${tileId}) – NOT adding query key (actions: ${!!tableTileActions?.addInfiniteQueryKey}, enabled: ${enabled})`);
+    }
+  }, [tableTileActions, queryKeyString, enabled, tileId]);
+
+  const infiniteQuery = useInfiniteQuery<InfiniteLogsPage, Error, InfiniteLogsPage[], typeof queryKey, number>({
     queryKey,
     initialPageParam: 0,
     queryFn: async ({ pageParam }: { pageParam: number }): Promise<InfiniteLogsPage> => {
@@ -121,10 +145,8 @@ export function useInfiniteLogsQuery({
         if (existingTableData?.logs && existingTableData.logs.length > 0) {
           // Transform existing tableDataItem to infinite query result format
           const result = {
-            logs: existingTableData.logs,
-            params: existingTableData.params || {},
             hasMore: existingTableData.totalCount > existingTableData.logs.length,
-            totalCount: existingTableData.totalCount || 0,
+            totalCount: existingTableData.totalCount,
             currentCount: existingTableData.logs.length,
             pageIndex: pageParam
           };
@@ -137,14 +159,14 @@ export function useInfiniteLogsQuery({
       const offset = pageParam * limit;
       const groupOffset = pageParam * group_limit;
       
-      // Update the tile offsets to keep them in sync
-      if (tableTileActions) {
-        if (useGroupPagination) {
-          tableTileActions.setGroupOffset(groupOffset);
-        } else {
-          tableTileActions.setOffset(offset);
-        }
-      }
+      // // Update the tile offsets to keep them in sync
+      // if (tableTileActions) {
+      //   if (useGroupPagination) {
+      //     tableTileActions.setGroupOffset(groupOffset);
+      //   } else {
+      //     tableTileActions.setOffset(offset);
+      //   }
+      // }
 
       // Use the consolidated core function
       const tCoreFetch = performance.now();
@@ -175,8 +197,6 @@ export function useInfiniteLogsQuery({
       const updateTime = performance.now() - tUpdateStart;
 
       const finalResult = {
-        logs: result.convertedLogs,
-        params: result.response.params,
         hasMore: result.hasMore,
         totalCount: result.totalCount,
         currentCount: result.currentCount,
@@ -184,7 +204,7 @@ export function useInfiniteLogsQuery({
       };
       
       const totalTime = performance.now() - tQueryFnStart;
-      perfLog(`[perf] useInfiniteLogsQuery(${tileId}) – page ${pageParam} fetched (${result.convertedLogs.length} logs, ${useGroupPagination ? 'grouped' : 'ungrouped'}) – fetch: ${fetchTime.toFixed(1)}ms, update: ${updateTime.toFixed(1)}ms, total: ${totalTime.toFixed(1)}ms`);
+      perfLog(`[perf] useInfiniteLogsQuery(${tileId}) – page ${pageParam} fetched (${result.convertedLogs.length} logs processed, ${useGroupPagination ? 'grouped' : 'ungrouped'}) – fetch: ${fetchTime.toFixed(1)}ms, update: ${updateTime.toFixed(1)}ms, total: ${totalTime.toFixed(1)}ms`);
       return finalResult;
     },
     getNextPageParam: (lastPage) => {
@@ -196,74 +216,12 @@ export function useInfiniteLogsQuery({
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
-    select: (data) => {
-      const tSelectStart = performance.now();
-      
-      // Process and merge all pages into a single array
-      const allLogs: LogProps[] | GroupedLogProps[] = data.pages.reduce<LogProps[] | GroupedLogProps[]>((acc, page) => {
-        if (useGroupPagination) {
-          // For grouped logs, merge properly to avoid duplicates
-          return appendToGroupedLogs(acc as GroupedLogProps[], page.logs) as GroupedLogProps[];
-        } else {
-          // For regular logs, just concatenate
-          return [...(acc as LogProps[]), ...(page.logs as LogProps[])] as LogProps[];
-        }
-      }, []);
 
-      const lastPage = data.pages[data.pages.length - 1];
-      const firstPage = data.pages[0];
-      const totalCount = firstPage?.totalCount || 0;
-      
-      // Calculate pagination states
-      const currentOffset = useGroupPagination ? 
-        (data.pageParams[data.pageParams.length - 1] || 0) * group_limit : 
-        (data.pageParams[data.pageParams.length - 1] || 0) * limit;
-      
-      const hasPreviousPage = checkHasPreviousPage({
-        offset: useGroupPagination ? 0 : currentOffset,
-        groupOffset: useGroupPagination ? currentOffset : 0,
-      });
-      
-      const result = {
-        pages: data.pages,
-        pageParams: data.pageParams,
-        // Consolidated data for easy access
-        logs: allLogs,
-        totalLoadedCount: allLogs.length,
-        hasNextPage: lastPage?.hasMore || false,
-        hasPreviousPage,
-        totalCount,
-        params: firstPage?.params || {},
-      };
-      
-      const selectTime = performance.now() - tSelectStart;
-      if (selectTime > 10) { // Only log if significant processing time
-        perfLog(`[perf] useInfiniteLogsQuery(${tileId}) – merged ${data.pages.length} pages into ${allLogs.length} logs – ${selectTime.toFixed(1)}ms`);
-      }
-      return result;
-    }
   });
-
-  // Fallback to tableDataItem when infinite query has no data yet
-  const fallbackTableData = queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]);
-  const hasInfiniteData = infiniteQuery.data?.logs && infiniteQuery.data.logs.length > 0;
-  const hasFallbackData = fallbackTableData?.logs && fallbackTableData.logs.length > 0;
-
-  const result = {
-    ...infiniteQuery,
-    // Expose the consolidated data directly with fallback support
-    logs: hasInfiniteData ? infiniteQuery.data!.logs : (hasFallbackData ? fallbackTableData.logs : []),
-    totalLoadedCount: hasInfiniteData ? infiniteQuery.data!.totalLoadedCount : (hasFallbackData ? fallbackTableData.logs.length : 0),
-    hasNextPage: hasInfiniteData ? infiniteQuery.data!.hasNextPage : (hasFallbackData ? fallbackTableData.totalCount > fallbackTableData.logs.length : false),
-    hasPreviousPage: hasInfiniteData ? infiniteQuery.data!.hasPreviousPage : false, // Fallback doesn't support previous page
-    totalCount: hasInfiniteData ? infiniteQuery.data!.totalCount : (hasFallbackData ? fallbackTableData.totalCount : 0),
-    params: hasInfiniteData ? infiniteQuery.data!.params : (hasFallbackData ? fallbackTableData.params : {}),
-  };
   
   const hookTime = performance.now() - tHookStart;
-  const dataSource = hasInfiniteData ? 'infinite' : (hasFallbackData ? 'fallback' : 'empty');
-  perfLog(`[perf] useInfiniteLogsQuery(${tileId}) – completed (${result.logs.length} logs from ${dataSource}, next: ${result.hasNextPage}, prev: ${result.hasPreviousPage}) – ${hookTime.toFixed(1)}ms`);
-  return result;
+  perfLog(`[perf] useInfiniteLogsQuery(${tileId}) – completed (next: ${infiniteQuery.hasNextPage}, prev: ${infiniteQuery.hasPreviousPage}) – ${hookTime.toFixed(1)}ms`);
+  return infiniteQuery;
 }
 
 /**
@@ -317,11 +275,12 @@ export function useInfiniteGroupSpecificLogsQuery({
   const queryClient = useQueryClient();
   
   // Get table tile actions for offset management
-  const { tableTileActions } = useTableTileSync(tileId, tabId);
+  const { tableTileActions } = useTableTile(tileId, tabId);
+
   // For group-specific queries, we always use group pagination
   const useGroupPagination = true;
   
-  const queryKey = buildLogQueryKey('group-specific', {
+  const queryKey = useMemo(() => buildLogQueryKey('group-specific', {
     tileId,
     tabId,
     projectId,
@@ -337,21 +296,25 @@ export function useInfiniteGroupSpecificLogsQuery({
     groupId,
     dataTypes,
     fields
-  });
+  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, group_limit, groupId, dataTypes, fields]);
 
-  const groupInfiniteQuery = useInfiniteQuery<InfiniteLogsPage, Error, {
-    pages: InfiniteLogsPage[];
-    pageParams: number[];
-    logs: LogProps[] | GroupedLogProps[];
-    totalLoadedCount: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-    totalCount: number;
-    params: LogItemProps;
-  }, typeof queryKey, number>({
+  // Register this query key with the table tile for cleanup
+  const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey]);
+
+  useEffect(() => {
+    if (tableTileActions?.addInfiniteQueryKey && enabled) {
+      keyLog(`[queryKey] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – ADDING infinite query key:`, queryKeyString);
+      tableTileActions.addInfiniteQueryKey(queryKeyString);
+    } else {
+      keyLog(`[queryKey] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – NOT adding query key (actions: ${!!tableTileActions?.addInfiniteQueryKey}, enabled: ${enabled})`);
+    }
+    
+  }, [tableTileActions, queryKeyString, enabled, tileId, groupId]);
+
+  const groupInfiniteQuery = useInfiniteQuery<InfiniteGroupSpecificPage, Error, InfiniteGroupSpecificPage[], typeof queryKey, number>({
     queryKey,
     initialPageParam: 0,
-    queryFn: async ({ pageParam }: { pageParam: number }): Promise<InfiniteLogsPage> => {
+    queryFn: async ({ pageParam }: { pageParam: number }): Promise<InfiniteGroupSpecificPage> => {
       const tGroupQueryFnStart = performance.now();
       
       if (!projectId) {
@@ -359,22 +322,10 @@ export function useInfiniteGroupSpecificLogsQuery({
       }
 
       // Smart skip logic: Only skip page 0 on initial load, not on bidirectional scroll
-      const existingInfiniteData = queryClient.getQueryData(queryKey) as { pages?: InfiniteLogsPage[] } | undefined;
+      const existingInfiniteData = queryClient.getQueryData(queryKey) as { pages?: InfiniteGroupSpecificPage[] } | undefined;
       const hasExistingPages = existingInfiniteData?.pages && existingInfiniteData.pages.length > 0;
       const isBidirectionalScroll = hasExistingPages && pageParam === 0;
       const isInitialPageZero = pageParam === 0 && !isBidirectionalScroll;
-
-      if (isInitialPageZero) {
-        // Check if we have tableDataItem data to use (from onGroupExpand calls)
-        const existingTableData = queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]);
-        
-        if (existingTableData?.logs && existingTableData.logs.length > 0) {
-          // For group-specific queries, we need to extract the relevant subRows
-          // This is more complex, so for now we'll let it fetch, but this could be optimized
-          // by traversing the grouped structure to find the specific group's data
-          perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – could optimize cache extraction for group data`);
-        }
-      }
 
       // Parse groupId to get the last group info
       const groupParts = groupId.split('>');
@@ -382,14 +333,54 @@ export function useInfiniteGroupSpecificLogsQuery({
       const [groupingColumnId, groupingValue] = lastGroup.split(':');
       const parentId = groupParts.length > 1 ? groupParts.slice(0, -1).join('>') : null;
 
+      if (isInitialPageZero) {
+        // Check if we have tableDataItem data to use (from onGroupExpand calls)
+        const existingTableData = queryClient.getQueryData<TableDataItem>(['tableDataItem', tileId]);
+        if (existingTableData?.logs && existingTableData.logs.length > 0) {
+          // Build the target group filters
+          const groupingFilters = getGroupingFilters(
+            filterExpression,
+            groupingColumnId,
+            groupingValue,
+            parentId || null,
+            dataTypes,
+            fields
+          );
+          const targetGroupFilters = getTargetGroupFilters(groupingFilters.columnFilters);
+
+          // Use utility to find the specific group's subrows
+          const groupData = findGroupSubRows(existingTableData.logs, targetGroupFilters);
+          if (groupData) {
+            const result = {
+              hasMore: groupData.currentCount < groupData.totalCount,
+              totalCount: groupData.totalCount,
+              currentCount: groupData.currentCount,
+              pageIndex: pageParam
+            };
+            perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – page ${pageParam} served from cache (${groupData.currentCount} subrows, hasMore: ${result.hasMore}) – ${(performance.now() - tGroupQueryFnStart).toFixed(2)}ms`);
+            return result;
+          }
+          else {
+            // If no group data is found, return an empty result
+            perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – page ${pageParam} served from cache (no group data found) – ${(performance.now() - tGroupQueryFnStart).toFixed(2)}ms`);
+            return {
+              hasMore: false,
+              totalCount: 0,
+              currentCount: 0,
+              pageIndex: pageParam
+            };
+          }
+        }
+      }
+
       // Calculate offsets for group-specific queries
       const offset = pageParam * limit;
       const groupOffset = pageParam * group_limit;
       
-      // Update the tile group offset to keep it in sync
-      if (tableTileActions) {
-        tableTileActions.setGroupOffset(groupOffset);
-      }
+      // // Update the tile group offset to keep it in sync
+      // if (tableTileActions) {
+      //   tableTileActions.setGroupOffset(groupOffset);
+      // }
 
       // Use the consolidated core function
       const tGroupCoreFetch = performance.now();
@@ -426,8 +417,6 @@ export function useInfiniteGroupSpecificLogsQuery({
       const updateTime = performance.now() - tGroupUpdateStart;
 
       const finalResult = {
-        logs: result.convertedLogs,
-        params: result.response.params,
         hasMore: result.hasMore,
         totalCount: result.totalCount,
         currentCount: result.currentCount,
@@ -436,7 +425,7 @@ export function useInfiniteGroupSpecificLogsQuery({
       
       const totalTime = performance.now() - tGroupQueryFnStart;
       const groupPath = groupId.split('>').length;
-      perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – page ${pageParam} fetched (${result.convertedLogs.length} logs, depth ${groupPath}) – fetch: ${fetchTime.toFixed(1)}ms, update: ${updateTime.toFixed(1)}ms, total: ${totalTime.toFixed(1)}ms`);
+      perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – page ${pageParam} fetched (${result.convertedLogs.length} logs processed, depth ${groupPath}) – fetch: ${fetchTime.toFixed(1)}ms, update: ${updateTime.toFixed(1)}ms, total: ${totalTime.toFixed(1)}ms`);
       return finalResult;
     },
     getNextPageParam: (lastPage) => {
@@ -448,67 +437,13 @@ export function useInfiniteGroupSpecificLogsQuery({
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
-    select: (data) => {
-      const tGroupSelectStart = performance.now();
-      
-      // Process and merge all pages into a single array
-      const allLogs: LogProps[] | GroupedLogProps[] = data.pages.reduce<LogProps[] | GroupedLogProps[]>((acc, page) => {
-        if (useGroupPagination) {
-          // For grouped logs, merge properly to avoid duplicates
-          return appendToGroupedLogs(acc as GroupedLogProps[], page.logs) as GroupedLogProps[];
-        } else {
-          // For regular logs, just concatenate
-          return [...(acc as LogProps[]), ...(page.logs as LogProps[])] as LogProps[];
-        }
-      }, []);
 
-      const lastPage = data.pages[data.pages.length - 1];
-      const firstPage = data.pages[0];
-      const totalCount = firstPage?.totalCount || 0;
-      
-      // Calculate pagination states for group-specific query
-      const currentGroupOffset = (data.pageParams[data.pageParams.length - 1] || 0) * group_limit;
-      
-      const hasPreviousPage = checkHasPreviousPage({
-        groupOffset: currentGroupOffset,
-      });
-      
-      const result = {
-        pages: data.pages,
-        pageParams: data.pageParams,
-        // Consolidated data for easy access
-        logs: allLogs,
-        totalLoadedCount: allLogs.length,
-        hasNextPage: lastPage?.hasMore || false,
-        hasPreviousPage,
-        totalCount,
-        params: firstPage?.params || {},
-      };
-      
-      const selectTime = performance.now() - tGroupSelectStart;
-      if (selectTime > 10) { // Only log if significant processing time
-        perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – merged ${data.pages.length} pages into ${allLogs.length} logs – ${selectTime.toFixed(1)}ms`);
-      }
-      return result;
-    }
   });
-  
-  // Enhanced return with fallback support similar to main query
-  const result = {
-    ...groupInfiniteQuery,
-    // Expose the consolidated data directly
-    logs: groupInfiniteQuery.data?.logs || [],
-    totalLoadedCount: groupInfiniteQuery.data?.totalLoadedCount || 0,
-    hasNextPage: groupInfiniteQuery.data?.hasNextPage || false,
-    hasPreviousPage: groupInfiniteQuery.data?.hasPreviousPage || false,
-    totalCount: groupInfiniteQuery.data?.totalCount || 0,
-    params: groupInfiniteQuery.data?.params || {},
-  };
   
   const groupHookTime = performance.now() - tGroupHookStart;
   const groupDepth = groupId.split('>').length;
-  perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – completed (${result.logs.length} logs, depth ${groupDepth}, next: ${result.hasNextPage}, prev: ${result.hasPreviousPage}) – ${groupHookTime.toFixed(1)}ms`);
-  return result;
+  perfLog(`[perf] useInfiniteGroupSpecificLogsQuery(${tileId}|${groupId}) – completed (depth ${groupDepth}, next: ${groupInfiniteQuery.hasNextPage}, prev: ${groupInfiniteQuery.hasPreviousPage}) – ${groupHookTime.toFixed(1)}ms`);
+  return groupInfiniteQuery;
 }
 
  
