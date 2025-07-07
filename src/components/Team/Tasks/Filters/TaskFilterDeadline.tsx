@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CalendarDays, ListFilter } from "lucide-react";
+import { CalendarDays, Filter } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -16,7 +16,7 @@ interface TaskDeadlineFilterProps {
 }
 
 const deadlineOptions = [
-    { value: 'all', label: "All Deadlines", icon: ListFilter },
+    { value: 'all', label: "All Deadlines", icon: Filter },
     { value: 'overdue', label: "Overdue", icon: CalendarDays, iconClassName: "text-red-500" },
     { value: 'today', label: "Today", icon: CalendarDays, iconClassName: "text-blue-500" },
     { value: 'tomorrow', label: "Tomorrow", icon: CalendarDays, iconClassName: "text-green-500" },
@@ -30,7 +30,7 @@ export function TaskDeadlineFilter({
     disableFilters,
 }: TaskDeadlineFilterProps) {
 
-    const SelectedIcon = deadlineOptions.find(opt => opt.value === deadlineFilter)?.icon || ListFilter;
+    const SelectedIcon = deadlineOptions.find(opt => opt.value === deadlineFilter)?.icon || Filter;
     const selectedIconClassName = deadlineOptions.find(opt => opt.value === deadlineFilter)?.iconClassName || "";
 
     return (

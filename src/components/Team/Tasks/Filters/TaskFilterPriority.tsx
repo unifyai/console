@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Zap, AlertTriangle, Minus, ListFilter } from "lucide-react";
+import { Zap, AlertTriangle, Minus, Filter } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -22,7 +22,7 @@ const getPriorityDetails = (priority: Priority | 'all') => {
         case Priority.high: return { icon: AlertTriangle, label: "High", iconClassName: "text-orange-500" };
         case Priority.normal: return { icon: Minus, label: "Normal", iconClassName: "text-blue-500" };
         case Priority.low: return { icon: Minus, label: "Low", iconClassName: "text-green-500" };
-        default: return { icon: ListFilter, label: "All Priorities", iconClassName: "" };
+        default: return { icon: Filter, label: "All Priorities", iconClassName: "" };
     }
 };
 
