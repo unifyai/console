@@ -470,9 +470,11 @@ export async function onGroupExpand(
   metric: string
 ): Promise<void> {
   try {
-    const { currentId, columnFilters } = getGroupingFilters(
-      filterExpression, groupingColumnId, groupingValue, parentId, dataTypes, fields
-    );
+    // Generate the current ID for the expanding row
+    let currentId = `${groupingColumnId}:${groupingValue}`;
+    if (parentId) {
+      currentId = `${parentId}>${currentId}`;
+    }
 
     setExpandingRowId(currentId);
 
@@ -759,4 +761,57 @@ export function getGroupItemCount(
 */
 export function getFlattenedCount(logs: LogProps[] | GroupedLogProps[]): number {
   return maybeFlattenGroupedLogs(logs).length;
+}
+
+/*
+  Finds the specific group's subrows from a nested logs structure using target group filters.
+  Used for extracting subrows to calculate hasMore, currentCount etc. for infinite scroll.
+*/
+export function findGroupSubRows(
+  logs: LogProps[] | GroupedLogProps[], 
+  targetGroupFilters: [string, string][]
+): { 
+  subRows: LogProps[] | GroupedLogProps[], 
+  totalCount: number, 
+  currentCount: number 
+} | null {
+  if (!Array.isArray(logs) || targetGroupFilters.length === 0) return null;
+  
+  function searchInLogs(
+    currentLogs: LogProps[] | GroupedLogProps[],
+    filters: [string, string][]
+  ): { subRows: LogProps[] | GroupedLogProps[], totalCount: number, currentCount: number } | null {
+    if (filters.length === 0) return null;
+    
+    const [currentColumn, currentValue] = filters[0];
+    
+    for (const log of currentLogs) {
+      // Check if this is a GroupedLogProps
+      if (isGroupedLogProps(log)) {
+        const groupedLog = log as GroupedLogProps;
+        
+        // Check if this matches the current filter
+        if (sanitizeId(groupedLog.groupingColumnId) === currentColumn && 
+            groupedLog[groupedLog.groupingColumnId] === currentValue) {
+          
+          if (filters.length === 1) {
+            // Target group found - return its subRows info
+            return {
+              subRows: groupedLog.subRows || [],
+              totalCount: groupedLog.totalChildren || groupedLog.groupCount || 0,
+              currentCount: (groupedLog.subRows || []).length
+            };
+          } else if (Array.isArray(groupedLog.subRows) && groupedLog.subRows.length > 0) {
+            // Recursively search deeper levels
+            const found = searchInLogs(groupedLog.subRows, filters.slice(1));
+            if (found) return found;
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  return searchInLogs(logs, targetGroupFilters);
 }

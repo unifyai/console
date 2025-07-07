@@ -31,6 +31,7 @@ export interface TableTileUI {
   group_limit?: number;
   group_offset?: number;
   page_number?: string | null;    // Current page for pagination
+  infiniteQueryKeys?: string[];   // Track all infinite query keys for cleanup
 }
 
 // Combined Table tile type
@@ -47,7 +48,7 @@ export const TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS: (keyof TableTile)[] = [
 // tableTileKeys: all fields for TableTile
 export const TABLE_TILE_KEYS: (keyof TableTile)[] = [
   ...TABLE_TILE_PROPS_KEYS_AS_TABLE_TILE_KEYS,
-  "limit","offset","group_limit","group_offset",
+  "limit","offset","group_limit","group_offset","infiniteQueryKeys",
 ];
 
 /**
@@ -61,6 +62,7 @@ export function initTableTile(initialState: Partial<TableTile> = {}): TableTile 
     group_limit: initialState.group_limit !== undefined ? initialState.group_limit : 20,
     group_offset: initialState.group_offset !== undefined ? initialState.group_offset : 0,
     page_number: initialState.page_number !== undefined ? initialState.page_number : null,
+    infiniteQueryKeys: initialState.infiniteQueryKeys !== undefined ? initialState.infiniteQueryKeys : [],
 
     // Data
     table_type: initialState.table_type !== undefined ? initialState.table_type : null,

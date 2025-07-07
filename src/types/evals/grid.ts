@@ -74,7 +74,8 @@ export interface TableDataItem {
     logs: LogProps[] | GroupedLogProps[],
     params: LogItemProps,
     error: string | undefined,
-    newCells?: string[]
+    isLoading: boolean,  // Flag to indicate the table data is loading/being built. Might remove this later.
+    newCells?: string[],
 }
 
 export interface PlotDataItem {

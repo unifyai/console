@@ -62,7 +62,7 @@ export type ProjectContextFieldsResult = {
  */
 export async function fetchProjectsContextsFields(
   dependencies: OptimisticUpdateDependencies,
-  tableTiles: TileData[],
+  tableTilesData: TileData[],
   options: OptimisticUpdateOptions
 ): Promise<ProjectContextFieldsResult> {
   const { queryClient, projectId, projectsActions, contextActions, fieldsActions } = dependencies;
@@ -81,7 +81,7 @@ export async function fetchProjectsContextsFields(
   // Build or fetch fields for all table tiles
   const fieldsArray: LogFieldsResponseProps[] = await fetchOrBuildFields(
     queryClient,
-    tableTiles,
+    tableTilesData,
     projectId,
     refetchFields,
     fieldsActions
@@ -100,7 +100,7 @@ export async function fetchProjectsContextsFields(
  */
 export async function updateTabArguments(
   dependencies: OptimisticUpdateDependencies,
-  tiles: TileData[],
+  tilesData: TileData[],
   fieldsArray: LogFieldsResponseProps[],
   options: OptimisticUpdateOptions
 ): Promise<{ tableArguments: TableArguments; plotArguments: PlotArguments }> {
@@ -111,8 +111,8 @@ export async function updateTabArguments(
   const existingTableArgs = queryClient.getQueryData(["tableArguments", tabId]) as TableArguments || {};
   const existingPlotArgs = queryClient.getQueryData(["plotArguments", tabId]) as PlotArguments || {};
 
-  const tableTiles = tiles.filter(tile => tile.type === "Table");
-  const plotTiles = tiles.filter(tile => tile.type === "Plot");
+  const tableTiles = tilesData.filter(tile => tile.type === "Table");
+  const plotTiles = tilesData.filter(tile => tile.type === "Plot");
 
   // Build arguments for all tiles
   let tableArguments: TableArguments = existingTableArgs;
@@ -120,7 +120,7 @@ export async function updateTabArguments(
 
   if (tableTiles.length > 0 || plotTiles.length > 0) {
     const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
-      buildTabArguments(tiles, fieldsArray, existingTableArgs, existingPlotArgs);
+      buildTabArguments(tilesData, fieldsArray, existingTableArgs, existingPlotArgs);
 
     tableArguments = newTableArguments;
     plotArguments = newPlotArguments;
@@ -145,8 +145,8 @@ export async function updateTabArguments(
  */
 export async function buildOptimisticTableDataItem(
   dependencies: OptimisticUpdateDependencies,
-  tile: TileData,
-  fieldsArray: LogFieldsResponseProps[],
+  tileData: TileData,
+  fields: LogFieldsResponseProps,
   tableArguments?: TableArguments,
   options: OptimisticUpdateOptions = {}
 ): Promise<TableDataItem> {
@@ -154,29 +154,30 @@ export async function buildOptimisticTableDataItem(
   const { updateCache = true } = options;
 
   // Check cache first
-  const cachedTableDataItem = queryClient.getQueryData(["tableDataItem", tile.id]) as TableDataItem | undefined;
+  const cachedTableDataItem = queryClient.getQueryData(["tableDataItem", tileData.id]) as TableDataItem | undefined;
   if (cachedTableDataItem && !updateCache) {
     return cachedTableDataItem;
   }
 
-  // Get fields for this specific tile's context
-  const fields = fieldsArray.find(f => 
-    // Match the context used to fetch this field
-    true // For now, use the first field. This logic might need refinement
-  ) || fieldsArray[0] || {} as LogFieldsResponseProps;
+  // At this point, there should be no infinite query keys for this tile
+  const infiniteQueryKeys: string[] = [];
 
   // Build table data item using existing utility
   const tableDataItem = await fetchAndBuildTableDataItem(
-    tile,
+    tileData,
     fields,
     projectId,
-    logsActions
+    logsActions,
+    queryClient,
+    infiniteQueryKeys,
+    undefined, // previousLogs
+    undefined, // signal
   );
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)
-  if (tableArguments && tableArguments[tile.name!]) {
-    tableArguments[tile.name!].available_fields = buildAvailableFieldsForTile(
-      tile.column_context ?? "",
+  if (tableArguments && tableArguments[tileData.name!]) {
+    tableArguments[tileData.name!].available_fields = buildAvailableFieldsForTile(
+      tileData.column_context ?? "",
       fields,
       tableDataItem.entriesProperties,
       tableDataItem.paramsProperties
@@ -190,7 +191,7 @@ export async function buildOptimisticTableDataItem(
 
   // Update cache
   if (updateCache) {
-    queryClient.setQueryData(["tableDataItem", tile.id], tableDataItem);
+    queryClient.setQueryData(["tableDataItem", tileData.id], tableDataItem);
   }
 
   return tableDataItem;
@@ -202,7 +203,7 @@ export async function buildOptimisticTableDataItem(
  */
 export async function buildOptimisticPlotDataItem(
   dependencies: OptimisticUpdateDependencies,
-  tile: TileData,
+  tileData: TileData,
   tableTiles: TileData[],
   plotArguments: PlotArguments,
   fieldsArray: LogFieldsResponseProps[],
@@ -212,14 +213,14 @@ export async function buildOptimisticPlotDataItem(
   const { updateCache = true } = options;
 
   // Check cache first
-  const cachedPlotDataItem = queryClient.getQueryData(["plotDataItem", tile.id]) as PlotDataItem | undefined;
+  const cachedPlotDataItem = queryClient.getQueryData(["plotDataItem", tileData.id]) as PlotDataItem | undefined;
   if (cachedPlotDataItem && !updateCache) {
     return cachedPlotDataItem;
   }
 
   // Build plot data item using existing utility
   const plotDataItem = await buildPlotDataItem(
-    tile,
+    tileData,
     tableTiles,
     plotArguments,
     fieldsArray,
@@ -229,7 +230,7 @@ export async function buildOptimisticPlotDataItem(
 
   // Update cache
   if (updateCache) {
-    queryClient.setQueryData(["plotDataItem", tile.id], plotDataItem);
+    queryClient.setQueryData(["plotDataItem", tileData.id], plotDataItem);
   }
 
   return plotDataItem;

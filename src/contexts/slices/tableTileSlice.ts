@@ -11,6 +11,9 @@ export interface TableTileActions {
   // Actions
   initTableTile: (tileId: string, initialState?: Partial<tableTileLogic.TableTile>) => void;
   updateTableTile: (tileId: string, updates: Partial<tableTileLogic.TableTile>) => void;
+  addInfiniteQueryKey: (tileId: string, queryKey: string) => void;
+  removeInfiniteQueryKey: (tileId: string, queryKey: string) => void;
+  clearAllInfiniteQueryKeys: (tileId: string) => void;
 }
 
 export type TableTileSlice = TableTileState & TableTileActions;
@@ -74,6 +77,106 @@ export const createTableTileSlice: StateCreator<
     if (updatedTile.tabId && state.tabsById[updatedTile.tabId] && !state.tabsById[updatedTile.tabId].itemsNeedRecompute) {
       state.tabsById[updatedTile.tabId].itemsNeedRecompute = true;
     }
+
+    // Apply the updated tile if needed
+    if (tileUpdated) {
+      state.tilesById[tileId] = updatedTile;
+    }
+  }),
+
+  addInfiniteQueryKey: (tileId, queryKey) => set(state => {
+    // Get the tile
+    const tile = state.tilesById[tileId];
+    if (!tile || !tile.tableTile) return;
+    
+    // Get current keys and check if it already exists
+    const currentKeys = tile.tableTile.infiniteQueryKeys || [];
+    if (currentKeys.includes(queryKey)) return;
+    
+    // Add the new key
+    const updatedKeys = [...currentKeys, queryKey];
+    const update: Partial<tableTileLogic.TableTile> = { 
+      infiniteQueryKeys: updatedKeys
+    };
+    
+    // Use the existing updateTableTile logic
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.tableTile, update);
+    if (Object.keys(filteredUpdates).length === 0) return;
+
+    let updatedTile = tile;
+    let tileUpdated = false;
+
+    if (!updatedTile.tableTile) {
+      updatedTile.tableTile = tableTileLogic.initTableTile();
+      tileUpdated = true;
+    }
+
+    updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredUpdates);
+    tileUpdated = true;
+
+    // Apply the updated tile if needed
+    if (tileUpdated) {
+      state.tilesById[tileId] = updatedTile;
+    }
+  }),
+
+  removeInfiniteQueryKey: (tileId, queryKey) => set(state => {
+    // Get the tile
+    const tile = state.tilesById[tileId];
+    if (!tile || !tile.tableTile) return;
+    
+    // Get current keys and filter out the specified key
+    const currentKeys = tile.tableTile.infiniteQueryKeys || [];
+    const updatedKeys = currentKeys.filter(key => key !== queryKey);
+    const update: Partial<tableTileLogic.TableTile> = { 
+      infiniteQueryKeys: updatedKeys
+    };
+    
+    // Use the existing updateTableTile logic
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.tableTile, update);
+    if (Object.keys(filteredUpdates).length === 0) return;
+
+    let updatedTile = tile;
+    let tileUpdated = false;
+
+    if (!updatedTile.tableTile) {
+      updatedTile.tableTile = tableTileLogic.initTableTile();
+      tileUpdated = true;
+    }
+
+    updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredUpdates);
+    tileUpdated = true;
+
+    // Apply the updated tile if needed
+    if (tileUpdated) {
+      state.tilesById[tileId] = updatedTile;
+    }
+  }),
+
+  clearAllInfiniteQueryKeys: (tileId) => set(state => {
+    // Get the tile
+    const tile = state.tilesById[tileId];
+    if (!tile || !tile.tableTile) return;
+    
+    // Clear all keys
+    const update: Partial<tableTileLogic.TableTile> = { 
+      infiniteQueryKeys: []
+    };
+    
+    // Use the existing updateTableTile logic
+    const filteredUpdates = sliceUtils.filterUnchangedUpdates(tile.tableTile, update);
+    if (Object.keys(filteredUpdates).length === 0) return;
+
+    let updatedTile = tile;
+    let tileUpdated = false;
+
+    if (!updatedTile.tableTile) {
+      updatedTile.tableTile = tableTileLogic.initTableTile();
+      tileUpdated = true;
+    }
+
+    updatedTile.tableTile = tableTileLogic.updateTableTile(updatedTile.tableTile, filteredUpdates);
+    tileUpdated = true;
 
     // Apply the updated tile if needed
     if (tileUpdated) {

@@ -27,6 +27,7 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { selectProjectById } from '@/contexts/selectors/project';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
+import { Tile } from '@/contexts/slices/selectors/tile';
 
 /**
  * Debug flag for performance logging
@@ -163,18 +164,23 @@ export function usePatchTileQueryOptimistic() {
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
       const projectData = selectProjectById(state, projectId);
-      const tilesInTabData = selectTilesForTab(state, tab_id).map(tile => convertTileToTileData(tile));
+      const tilesInTab = selectTilesForTab(state, tab_id);
+      const tilesInTabData = tilesInTab.map(tile => convertTileToTileData(tile));
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
 
-      let optimisticTile: TileData | null = null;
+      let optimisticTile: Tile | null = null;
+      let optimisticTileData: TileData | null = null;
+
       if (id) {
-        optimisticTile = tilesInTabData.find(tile => tile.id === id) as TileData;
+        optimisticTile = tilesInTab.find(tile => tile.id === id) as Tile;
+        optimisticTileData = tilesInTabData.find(tileData => tileData.id === id) as TileData;
       } else if (tab_id && name) {
-        optimisticTile = tilesInTabData.find(tile => tile.tab_id === tab_id && tile.name === name) as TileData;
+        optimisticTile = tilesInTab.find(tile => tile.tabId === tab_id && tile.name === name) as Tile;
+        optimisticTileData = tilesInTabData.find(tileData => tileData.tab_id === tab_id && tileData.name === name) as TileData;
       }
 
-      const tileType = optimisticTile?.type;
+      const tileType = optimisticTileData?.type;
       
       // Update the tiles list in the cache
       queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
@@ -269,16 +275,23 @@ export function usePatchTileQueryOptimistic() {
         try {
 
           // Get fields from cache
-          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTile?.context]) || {} as LogFieldsResponseProps;
+          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]) || {} as LogFieldsResponseProps;
           
           // Build the new TableDataItem
-          if (optimisticTile) {
+          if (optimisticTileData && optimisticTile) {
+            // Get infinite query keys from the store
+            const infiniteQueryKeys = optimisticTile?.tableTile?.infiniteQueryKeys || [];
+
             const tTableDataItem = performance.now();
             const tableDataItem = await fetchAndBuildTableDataItem(
-              optimisticTile,
+              optimisticTileData,
               fields,
               projectId,
-              logsActions
+              logsActions,
+              queryClient,
+              infiniteQueryKeys,
+              undefined, // previousLogs
+              undefined // signal
             );
             perfLog(
               `[perf] onMutate(${name}) – fetchAndBuildTableDataItem: ${(
@@ -288,9 +301,9 @@ export function usePatchTileQueryOptimistic() {
 
             // Update available fields in the tableArguments (if we have tableArguments for this tile)
             const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
-            if (tableArguments[optimisticTile.name]) {
-              tableArguments[optimisticTile.name].available_fields = buildAvailableFieldsForTile(
-                optimisticTile.column_context ?? "",
+            if (tableArguments[optimisticTileData.name]) {
+              tableArguments[optimisticTileData.name].available_fields = buildAvailableFieldsForTile(
+                optimisticTileData.column_context ?? "",
                 fields,
                 tableDataItem.entriesProperties,
                 tableDataItem.paramsProperties
@@ -301,7 +314,7 @@ export function usePatchTileQueryOptimistic() {
             }
           
             // Update the TableDataItem in the cache
-            queryClient.setQueryData(['tableDataItem', optimisticTile.id], tableDataItem);
+            queryClient.setQueryData(['tableDataItem', optimisticTileData.id], tableDataItem);
           }
         } catch (error) {
           console.error("Error building optimistic TableDataItem:", error);
@@ -316,15 +329,15 @@ export function usePatchTileQueryOptimistic() {
           
           if (tileType === 'Table') {
             // If we're updating a table, look for plots that use this table
-            const tileName = optimisticTile?.name;
+            const tileName = optimisticTileData?.name;
             plotTilesToUpdate = plotTilesData.filter(plotTile => {
               const usedTables = getUsedTableNames(plotTile);
               return usedTables.includes(tileName as string);
             });
           } else if (tileType === 'Plot') {
             // If we're updating a plot that affects plot data, just update that plot
-            if (optimisticTile) {
-              plotTilesToUpdate = [optimisticTile as TileData];
+            if (optimisticTileData) {
+              plotTilesToUpdate = [optimisticTileData as TileData];
             }
           }
           

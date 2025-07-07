@@ -131,17 +131,17 @@ export function useTabDataOptimistic() {
       const finalTabId = targetTab.id!;
 
       // Get or fetch tiles for the target tab
-      let tiles = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
-      if (!tiles || (typeof tiles === "object" && Object.keys(tiles).includes("error"))) {
-        tiles = await actions.tileActions.list(finalTabId, undefined, false);
+      let tilesData = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
+      if (!tilesData || (typeof tilesData === "object" && Object.keys(tilesData).includes("error"))) {
+        tilesData = await actions.tileActions.list(finalTabId, undefined, false);
         if (updateCache) {
-          queryClient.setQueryData(["tiles", finalTabId], tiles);
+          queryClient.setQueryData(["tiles", finalTabId], tilesData);
         }
       }
 
       // Filter tiles by type (matching TabWrapper.server.tsx)
-      const tableTiles = tiles.filter(t => t.type === "Table");
-      const plotTiles = tiles.filter(t => t.type === "Plot");
+      const tableTilesData = tilesData.filter(t => t.type === "Table");
+      const plotTilesData = tilesData.filter(t => t.type === "Plot");
 
       /* ------------------------------------------------------------------
        * FAST-PATH: lightweight mode – just populate store & cache basics
@@ -151,9 +151,9 @@ export function useTabDataOptimistic() {
         return {
           // Tab level data
           tabData: targetTab,
-          tiles,
-          tableTiles,
-          plotTiles,
+          tiles: tilesData,
+          tableTiles: tableTilesData,
+          plotTiles: plotTilesData,
           // Light-weight placeholders – will be filled progressively by individual tiles
           fields: [],
           tableArguments: {} as TableArguments,
@@ -185,7 +185,7 @@ export function useTabDataOptimistic() {
       // Fetch projects, contexts, and fields using shared utility
       const { projects, contexts, fieldsArray } = await fetchProjectsContextsFields(
         dependencies,
-        tableTiles,
+        tableTilesData,
         optimisticOptions
       );
 
@@ -195,7 +195,7 @@ export function useTabDataOptimistic() {
       // Update tab arguments using shared utility
       const { tableArguments, plotArguments } = await updateTabArguments(
         dependencies,
-        tiles,
+        tilesData,
         fieldsArray,
         optimisticOptions
       );
@@ -205,16 +205,22 @@ export function useTabDataOptimistic() {
       const tileDataItems: Record<string, TableDataItem | PlotDataItem> = {};
 
       // Process each tile based on its type
-      for (const tile of tiles) {
-        const tileId = tile.id!;
+      for (const tileData of tilesData) {
+        const tileId = tileData.id!;
         
         try {
-          switch (tile.type) {
+          switch (tileData.type) {
             case "Table":
+              // Find index of the tileData in the tableTilesData array
+              const tableTileIndex = tableTilesData.findIndex(t => t.id === tileId);
+              if (tableTileIndex === -1) {
+                throw new Error(`Table tile not found: ${tileId}`);
+              }
+              const fields = fieldsArray[tableTileIndex];
               const tableDataItem = await buildOptimisticTableDataItem(
                 dependencies,
-                tile,
-                fieldsArray,
+                tileData,
+                fields,
                 tableArguments,
                 optimisticOptions
               );
@@ -224,8 +230,8 @@ export function useTabDataOptimistic() {
             case "Plot":
               const plotDataItem = await buildOptimisticPlotDataItem(
                 dependencies,
-                tile,
-                tableTiles,
+                tileData,
+                tableTilesData,
                 plotArguments,
                 fieldsArray,
                 optimisticOptions
@@ -239,7 +245,7 @@ export function useTabDataOptimistic() {
               break;
           }
         } catch (error) {
-          showErrorToast(error, `Error processing tile ${tile.name}`);
+          showErrorToast(error, `Error processing tile ${tileData.name}`);
           // Continue processing other tiles
         }
       }
@@ -247,9 +253,9 @@ export function useTabDataOptimistic() {
       return {
         // Tab level data
         tabData: targetTab,
-        tiles,
-        tableTiles,
-        plotTiles,
+        tiles: tilesData,
+        tableTiles: tableTilesData,
+        plotTiles: plotTilesData,
         fields: fieldsArray,
         tableArguments,
         plotArguments,

@@ -3,7 +3,7 @@ import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import LogsTable from "../../Table/Table";
-import { buildTableDataItem, getGroupSortingObject, getSortingObject } from "@/utils/data/buildTableDataItem";
+import { getGroupSortingObject, getSortingObject } from "@/utils/data/buildTableDataItem";
 
 import type {
   LogsActions,
@@ -105,7 +105,7 @@ export default async function TableWrapper({
   const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
 
   // Build table data item
-  const tableDataItem = await buildTableDataItem(tile, fields, logsData);
+  const tableDataItem = {}; // await buildTableDataItem(tile, fields, logsData);
 
   // Prefetch the table data item
   await qc.prefetchQuery({

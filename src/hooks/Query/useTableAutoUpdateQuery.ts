@@ -110,14 +110,19 @@ export function useTableAutoUpdateQuery(
       ).toFixed(2)} ms`
     );
 
+    // Get infinite query keys from the current tile
+    const infiniteQueryKeys = tile?.tableTile?.infiniteQueryKeys || [];
+
     // Build table data item using the same logic as optimistic updates
     const tableDataItem = await fetchAndBuildTableDataItem(
       tileData,
       fields,
       projectId,
       logsActions,
-      prevLogs
-      // Temporarily removed abort signal to fix connection issues
+      queryClient,
+      infiniteQueryKeys,
+      prevLogs,
+      undefined, // signal - temporarily removed to fix connection issues
     );
 
     // Update the TableDataItem in the cache

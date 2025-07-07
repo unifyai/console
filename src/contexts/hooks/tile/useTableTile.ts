@@ -52,6 +52,9 @@ export interface TableTileUIActions {
   setPageNumber: (pageNumber: string | undefined) => void;
   setGroupLimit: (groupLimit: number) => void;
   setGroupOffset: (groupOffset: number) => void;
+  addInfiniteQueryKey: (queryKey: string) => void;
+  removeInfiniteQueryKey: (queryKey: string) => void;
+  clearAllInfiniteQueryKeys: () => void;
 }
 
 /**
@@ -135,7 +138,8 @@ export function useTableTile(
       offset: tableTile.offset,
       group_limit: tableTile.group_limit,
       group_offset: tableTile.group_offset,
-      page_number: tableTile.page_number
+      page_number: tableTile.page_number,
+      infiniteQueryKeys: tableTile.infiniteQueryKeys
     } as TableTileUI;
   }, [
     isTableTile,
@@ -145,10 +149,14 @@ export function useTableTile(
     tableTile?.group_limit,
     tableTile?.group_offset,
     tableTile?.page_number,
+    tableTile?.infiniteQueryKeys,
   ]);
 
   // Get store update functions
   const storeUpdateTableTile = useStoreContext(state => state.updateTableTile);
+  const storeAddInfiniteQueryKey = useStoreContext(state => state.addInfiniteQueryKey);
+  const storeRemoveInfiniteQueryKey = useStoreContext(state => state.removeInfiniteQueryKey);
+  const storeClearAllInfiniteQueryKeys = useStoreContext(state => state.clearAllInfiniteQueryKeys);
 
   // Create memoized meta actions
   const tableMetaActions = useMemo<TableTileMetaActions | null>(() => {
@@ -266,9 +274,21 @@ export function useTableTile(
           page_number: pageNumber
         };
         storeUpdateTableTile(tileId, update);
+      },
+
+      addInfiniteQueryKey: (queryKey) => {
+        storeAddInfiniteQueryKey(tileId, queryKey);
+      },
+
+      removeInfiniteQueryKey: (queryKey) => {
+        storeRemoveInfiniteQueryKey(tileId, queryKey);
+      },
+
+      clearAllInfiniteQueryKeys: () => {
+        storeClearAllInfiniteQueryKeys(tileId);
       }
     };
-  }, [isTableTile, tileId, storeUpdateTableTile]);
+  }, [isTableTile, tileId, storeUpdateTableTile, storeAddInfiniteQueryKey, storeRemoveInfiniteQueryKey, storeClearAllInfiniteQueryKeys]);
 
   // Build a final `tableTile` object from the separate meta, data, and UI objects
   const combinedTableTile = useMemo(() => {

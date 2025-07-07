@@ -36,7 +36,8 @@ export const EMPTY_TABLEDATAITEM: TableDataItem = {
   entriesProperties: [],
   paramsProperties: [],
   logs: [],
-  params: []
+  params: [],
+  isLoading: true
 };
 
 /**
@@ -148,8 +149,8 @@ export function useTableDataQueryWithTracking(
       }
     });
     
-    updateWithTracking(result as TableDataItem);
-  }, [updateWithTracking]);
+    updateTableDataItem(result as TableDataItem);
+  }, [updateTableDataItem]);
 
   // Function for deep updating specific logs by row IDs
   const updateLogsByRowIds = useCallback((

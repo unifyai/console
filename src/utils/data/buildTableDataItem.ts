@@ -5,6 +5,7 @@ import { extractLogsData } from "@/utils/evals/common";
 import { LogsActions } from "@/types/evals/grid";
 import { processContext } from "@/utils/evals/columnOperations";
 import { isGroupedLogs, maybeFlattenGroupedLogs } from "../evals/grouping";
+import { QueryClient } from "@tanstack/react-query";
 
 /**
  * Debug flag for performance logging
@@ -55,7 +56,7 @@ export function getTotalCountFromLogsResponse(logsData: LogsResponseProps): numb
  * Can be used directly in client components instead of passing through a server component
  * Now optimized to load main table data fast while triggering metrics/boundaries in background
  */
-export async function buildTableDataItem(
+async function buildTableDataItem(
   tile: TileData,
   fields: LogFieldsResponseProps,
   logsData: LogsResponseProps,
@@ -108,6 +109,7 @@ export async function buildTableDataItem(
     paramsProperties,
     logs,
     params,
+    isLoading: false,
     newCells: newCells,
     error: error
   };
@@ -124,9 +126,29 @@ export async function fetchAndBuildTableDataItem(
   fields: LogFieldsResponseProps,
   projectId: string,
   logsActions: LogsActions,
+  queryClient?: QueryClient,
+  infiniteQueryKeys?: string[],
   previousLogs?: LogProps[] | GroupedLogProps[],
   signal?: AbortSignal
 ): Promise<TableDataItem> {
+  // Remove all infinite logs queries for this tile before fetching fresh data
+  if (queryClient && tile.id && tile.tab_id && infiniteQueryKeys) {
+    removeInfiniteLogsQueries(tile.id, tile.tab_id, queryClient, infiniteQueryKeys);
+  }
+
+  // If the tableDataItem for this tile is already in the cache, first mark it as loading
+  if (queryClient && tile.id) {
+    // Check if the tableDataItem for this tile is already in the cache meaning this isn't the 
+    // initial render. If it is, mark it as loading.
+    const existingTableDataItem = queryClient.getQueryData(["tableDataItem", tile.id]);
+    if (existingTableDataItem) {
+      queryClient.setQueryData(["tableDataItem", tile.id], {
+        ...existingTableDataItem,
+        isLoading: true
+      });
+    }
+  }
+
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
@@ -189,6 +211,46 @@ export async function fetchAndBuildTableDataItem(
   perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
 
   return tableDataItem;
+}
+
+/*
+ * Remove all of the infinite logs queries for the current table. This is called
+ * from `fetchAndBuildTableDataItem` to ensure that the infinite logs queries
+ * are removed before the new logs data is fetched.
+ * 
+ * This is necessary because the infinite logs queries are not invalidated
+ * when the logs data is fetched. This is a bug in the infinite logs queries
+ * and will be fixed in the future.
+ */
+export function removeInfiniteLogsQueries(tileId: string, tabId: string, queryClient: QueryClient, queryKeys?: string[]) {
+  // Remove all infinite logs queries for the current table
+  if (queryKeys && queryKeys.length > 0) {
+    // Remove specific tracked query keys
+    queryKeys.forEach(queryKey => {
+      try {
+        const parsedKey = JSON.parse(queryKey);
+        queryClient.removeQueries({ queryKey: parsedKey });
+      } catch (error) {
+        console.warn(`[removeInfiniteLogsQueries] Failed to parse query key: ${queryKey}`, error);
+      }
+    });
+    return;
+  }
+  
+  // Also remove queries by pattern as a fallback to match buildLogQueryKey structure
+  queryClient.removeQueries({ 
+    predicate: (query) => {
+      const queryKey = query.queryKey;
+      return (
+        Array.isArray(queryKey) &&
+        queryKey.length >= 4 &&
+        queryKey[0] === 'logs' &&  // First element is always 'logs'
+        (queryKey[1] === 'infinite' || queryKey[1] === 'group-specific') &&  // Second element is type
+        queryKey[2] === tileId &&  // Third element is tileId
+        queryKey[3] === tabId      // Fourth element is tabId
+      );
+    }
+  });
 }
 
 /**

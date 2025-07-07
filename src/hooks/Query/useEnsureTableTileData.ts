@@ -110,7 +110,7 @@ export function useEnsureTableTileData(params: {
       const tableDataItem = await buildOptimisticTableDataItem(
         dependencies,
         tile,
-        fieldsArray,
+        fieldsArray[0],
         tableArguments,
         { updateCache: true }
       );

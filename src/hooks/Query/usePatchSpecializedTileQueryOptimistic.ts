@@ -24,7 +24,7 @@ import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
 import { selectProjectById } from '@/contexts/selectors/project';
 import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
-import { TileType } from '@/contexts/slices/selectors/tile';
+import { Tile, TileType } from '@/contexts/slices/selectors/tile';
 import { showErrorToast } from '@/components/notifications';
 
 
@@ -115,32 +115,38 @@ T extends TileType
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
       const projectData = selectProjectById(state, projectId);
-      const tilesInTabData = selectTilesForTab(state, tab_id).map(tile => convertTileToTileData(tile));
+      const tilesInTab = selectTilesForTab(state, tab_id);
+      const tilesInTabData = tilesInTab.map(tile => convertTileToTileData(tile));
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
     
       // Find the tile we're updating
-      let optimisticTile: TileData | null = null;
-      optimisticTile = tilesInTabData.find(tile => 
-        tile.tab_id === tab_id && tile.name === name
+      let optimisticTile: Tile | null = null;
+      let optimisticTileData: TileData | null = null;
+      
+      optimisticTile = tilesInTab.find(tile => 
+        tile.tabId === tab_id && tile.name === name
+      ) as Tile;
+      optimisticTileData = tilesInTabData.find(tileData => 
+        tileData.tab_id === tab_id && tileData.name === name
       ) as TileData;
 
-      if (!optimisticTile) {
+      if (!optimisticTileData) {
         throw new Error(`Tile ${name} not found in tab ${tab_id}`);
       }
       
       // Update the tiles list in the cache
       queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
-      queryClient.setQueryData(tileKey, optimisticTile);
+      queryClient.setQueryData(tileKey, optimisticTileData);
       
       // Update specialized data too
       const specializedData = (() => {
         switch(tileType) {
-          case 'Table': return optimisticTile.table_tile;
-          case 'Plot': return optimisticTile.plot_tile;
-          case 'View': return optimisticTile.view_tile;
-          case 'Editor': return optimisticTile.editor_tile;
-          case 'Terminal': return optimisticTile.terminal_tile;
+          case 'Table': return optimisticTileData.table_tile;
+          case 'Plot': return optimisticTileData.plot_tile;
+          case 'View': return optimisticTileData.view_tile;
+          case 'Editor': return optimisticTileData.editor_tile;
+          case 'Terminal': return optimisticTileData.terminal_tile;
           default: return null;
         }
       })();
@@ -216,21 +222,28 @@ T extends TileType
       if (tileType === "Table" && rebuildTableData) {
         try {
           // Get fields from cache
-          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTile?.context]) || {} as LogFieldsResponseProps;
+          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]) || {} as LogFieldsResponseProps;
           
+          // Get infinite query keys from the store tile
+          const infiniteQueryKeys = optimisticTile?.tableTile?.infiniteQueryKeys || [];
+
           // Build the new TableDataItem
           const tableDataItem = await fetchAndBuildTableDataItem(
-            optimisticTile,
+            optimisticTileData,
             fields,
             projectId,
-            logsActions
+            logsActions,
+            queryClient,
+            infiniteQueryKeys,
+            undefined, // previousLogs
+            undefined, // signal
           );
 
           // Update available fields in the tableArguments (if we have tableArguments for this tile)
           const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
-          if (tableArguments[optimisticTile.name]) {
-            tableArguments[optimisticTile.name].available_fields = buildAvailableFieldsForTile(
-              optimisticTile.column_context ?? "",
+          if (tableArguments[optimisticTileData.name]) {
+            tableArguments[optimisticTileData.name].available_fields = buildAvailableFieldsForTile(
+              optimisticTileData.column_context ?? "",
               fields,
               tableDataItem.entriesProperties,
               tableDataItem.paramsProperties
@@ -241,9 +254,9 @@ T extends TileType
           }
         
           // Update the TableDataItem in the cache
-          queryClient.setQueryData(['tableDataItem', optimisticTile.id], tableDataItem);
+          queryClient.setQueryData(['tableDataItem', optimisticTileData.id], tableDataItem);
         } catch (error) {
-          showErrorToast(error, `Error building optimistic TableDataItem for ${optimisticTile.name}`);
+          showErrorToast(error, `Error building optimistic TableDataItem for ${optimisticTileData.name}`);
           throw error;
         }
       }
@@ -256,14 +269,14 @@ T extends TileType
           
           if (tileType === 'Table') {
             // If we're updating a table, look for plots that use this table
-            const tileName = optimisticTile?.name;
+            const tileName = optimisticTileData?.name;
             plotTilesToUpdate = plotTilesData.filter(plotTile => {
               const usedTables = getUsedTableNames(plotTile);
               return usedTables.includes(tileName as string);
             });
           } else if (tileType === 'Plot') {
             // If we're updating a plot that affects plot data, just update that plot
-            plotTilesToUpdate = [optimisticTile];
+            plotTilesToUpdate = [optimisticTileData];
           }
           
           // Update each plot that needs updating
