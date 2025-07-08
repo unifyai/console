@@ -645,6 +645,7 @@ const Interface = ({
                   interfaceId={interfaceId}
                   projectId={projectQueryParam || ""}
                   tileActions={tileActions}
+                  tabActions={tabActions}
                   logsActions={logsActions}
                   fieldsActions={fieldsActions}
                   derivedEntryActions={derivedEntryActions}

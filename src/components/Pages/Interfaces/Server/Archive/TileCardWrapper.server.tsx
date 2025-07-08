@@ -14,7 +14,8 @@ import type {
   FileActions,
   GranularTileActions,
   TileData,
-  ProjectsActions
+  ProjectsActions,
+  GranularTabActions
 } from "@/types/interfaces/grid";
 
 type TileCardWrapperActions = {
@@ -25,6 +26,7 @@ type TileCardWrapperActions = {
   codeActions: CodeActions;
   fileActions: FileActions;
   tileActions: GranularTileActions;
+  tabActions: GranularTabActions;
   projectsActions: ProjectsActions;
 };
 
@@ -58,6 +60,7 @@ export default async function TileCardWrapper({
             interfaceId={interfaceId}
             projectId={projectId}
             tileActions={actions.tileActions}
+            tabActions={actions.tabActions}
             logsActions={actions.logsActions}
             fieldsActions={actions.fieldsActions}
             derivedEntryActions={actions.derivedEntryActions}

@@ -7,7 +7,7 @@ import ActionButton from "../../../../Common/Buttons/Action";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
 import { Badge } from "../../../../UI/badge";
 import { DropdownMenuItem } from "../../../../UI/dropdown-menu";
-import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
+import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
 import { Plus, X } from "lucide-react";
 import { icons } from "@/constants/logs";
 import TileCard from "../../Tile/TileCard";
@@ -21,6 +21,7 @@ const FocusDialog = ({
     interfaceId,
     projectId,
     tileActions,
+    tabActions,
     logsActions,
     fieldsActions,
     derivedEntryActions,
@@ -33,6 +34,7 @@ const FocusDialog = ({
     interfaceId: string;
     projectId: string;
     tileActions: GranularTileActions,
+    tabActions: GranularTabActions,
     logsActions: LogsActions,
     fieldsActions: FieldsActions,
     derivedEntryActions: DerivedEntryActions,
@@ -75,6 +77,7 @@ const FocusDialog = ({
                         interfaceId={interfaceId}
                         projectId={projectId}
                         tileActions={tileActions}
+                        tabActions={tabActions}
                         logsActions={logsActions}
                         fieldsActions={fieldsActions}
                         derivedEntryActions={derivedEntryActions}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, lazy, useEffect } from "react";
+import React, { ReactNode, Suspense, lazy, useEffect } from "react";
 import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
 import { LogsActions } from "@/types/interfaces/grid";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -31,6 +31,7 @@ interface TileCardProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
+  children?: ReactNode;
 }
 
 const TileCard = ({
@@ -47,6 +48,7 @@ const TileCard = ({
   contextActions,
   codeActions,
   fileActions,
+  children,
 }: TileCardProps) => {
 
   // Get refs from the registry instead of creating or receiving them via props
