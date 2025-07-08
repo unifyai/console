@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
+import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette, Loader2, Check } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -70,6 +70,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     // Track popover state to keep tile name visible
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     
+    const [isCopied, setIsCopied] = useState(false);
+    
     // Dialog state for tile deletion
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     
@@ -80,6 +82,16 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
             return { info: "Tile deleted successfully" };
         }
         throw new Error("Failed to delete tile");
+    };
+
+    const handleCopy = () => {
+        if (tileName) {
+            tabUIActions?.setCopied(tileName);
+            setIsCopied(true);
+            setTimeout(() => {
+                setIsCopied(false);
+            }, 2000);
+        }
     };
 
     return (
@@ -184,8 +196,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                         />
                         <ActionButton
                             className="cursor-pointer"
-                            onClick={() => tabUIActions?.setCopied(tileName)}
-                            icon={<Copy />}
+                            onClick={handleCopy}
+                            icon={isCopied ? <Check/> : <Copy />}
                             tooltip={"Copy"}
                             variant="ghost"
                             size="icon"
