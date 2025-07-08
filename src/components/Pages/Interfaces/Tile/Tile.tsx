@@ -2,15 +2,14 @@
 
 import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
 import { useEffect, Suspense, lazy } from "react";
-import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
 import { useTabUI } from '@/contexts/hooks/tab';
 import { ExpandProvider } from "@/contexts/ExpandContext";
-import { getTileButtonsRef, getTileCardRef } from '@/utils/refRegistry';
+import { getTileHeaderRef, getTileCardRef } from '@/utils/interfaces/refRegistry';
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
-import { ScrollArea } from '../../../UI/scroll-area';
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Pages/Interfaces/Blocks/Table/Table"));
@@ -55,7 +54,7 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   const { ui: tabUIState } = useTabUI(tabId);
 
   // Get refs from registry
-  const tileButtonsRef = getTileButtonsRef(tileId);
+  const tileHeaderRef = getTileHeaderRef(tileId);
   const tileCardRef = getTileCardRef(tileId);
 
   // Extract required data
@@ -69,13 +68,13 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // instead of the common parent div because ResponsiveReactGridLayout
   // interferes with ref manipulation
   useEffect(() => {
-      if (tileButtonsRef && tileButtonsRef.current) {
+      if (tileHeaderRef && tileHeaderRef.current) {
           if (resolvedColor) {
-              tileButtonsRef.current.style.setProperty("--primary", resolvedColor);
-              tileButtonsRef.current.style.setProperty("--accent", resolvedColor);
+              tileHeaderRef.current.style.setProperty("--primary", resolvedColor);
+              tileHeaderRef.current.style.setProperty("--accent", resolvedColor);
           } else {
-              tileButtonsRef.current.style.removeProperty("--primary");
-              tileButtonsRef.current.style.removeProperty("--accent");
+              tileHeaderRef.current.style.removeProperty("--primary");
+              tileHeaderRef.current.style.removeProperty("--accent");
           }
       }
       if (tileCardRef && tileCardRef.current) {
@@ -87,7 +86,7 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
               tileCardRef.current.style.removeProperty("--accent");
           }
       }
-  }, [resolvedColor, tileButtonsRef, tileCardRef]);
+  }, [resolvedColor, tileHeaderRef, tileCardRef]);
 
   switch (tileType) {
     case "Table":

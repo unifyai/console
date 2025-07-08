@@ -5,9 +5,9 @@ import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions, FileActions } from "@/types/interfaces/grid";
-import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
-import { cleanupTileRefs } from '@/utils/refRegistry';
+import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { Tile } from "@/contexts/slices/selectors/tile";
 
@@ -16,7 +16,7 @@ import { useDependencyAwareSortedTilesForTab } from "@/utils/interfaces/tileDepe
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
-const TileButtons = lazy(() => import('../Tile/TileButtons'));
+const TileHeader = lazy(() => import('../Tile/TileHeader'));
 const TileCard = lazy(() => import('../Tile/TileCard'));
 
 interface TabComponentProps {
@@ -142,6 +142,7 @@ const Tab = ({
               interfaceId={interfaceId}
               projectId={projectId}
               tileActions={tileActions}
+              tabActions={tabActions}
               projectsActions={projectsActions}
               logsActions={logsActions}
               fieldsActions={fieldsActions}
@@ -216,20 +217,6 @@ const Tab = ({
             {/* Dependency-aware tile renderer */}
             {element}
 
-            {/* Client-side controls */}
-            <TileButtons
-              tileId={tile.id}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              tabActions={tabActions}
-              tileActions={tileActions}
-              logsActions={logsActions}
-              contextActions={contextActions}
-              codeActions={codeActions}
-              projectsActions={projectsActions}
-              fieldsActions={fieldsActions}
-            />
           </div>
         );
       })}

@@ -6,15 +6,15 @@ import { createRef, MutableRefObject } from 'react';
  */
 
 // Maps for storing refs by their IDs
-const tileButtonsRefMap = new Map<string, MutableRefObject<HTMLDivElement | null>>();
+const tileHeaderRefMap = new Map<string, MutableRefObject<HTMLElement | null>>();
 const tileCardRefMap = new Map<string, MutableRefObject<HTMLDivElement | null>>();
 
-// Create and get tile buttons ref
-export function getTileButtonsRef(tileId: string): MutableRefObject<HTMLDivElement | null> {
-  if (!tileButtonsRefMap.has(tileId)) {
-    tileButtonsRefMap.set(tileId, createRef<HTMLDivElement>());
+// Create and get tile header ref
+export function getTileHeaderRef(tileId: string): MutableRefObject<HTMLElement | null> {
+  if (!tileHeaderRefMap.has(tileId)) {
+    tileHeaderRefMap.set(tileId, createRef<HTMLElement>());
   }
-  return tileButtonsRefMap.get(tileId)!;
+  return tileHeaderRefMap.get(tileId)!;
 }
 
 // Create and get tile card ref
@@ -27,6 +27,6 @@ export function getTileCardRef(tileId: string): MutableRefObject<HTMLDivElement 
 
 // Clean up refs when they're no longer needed
 export function cleanupTileRefs(tileId: string): void {
-  tileButtonsRefMap.delete(tileId);
+  tileHeaderRefMap.delete(tileId);
   tileCardRefMap.delete(tileId);
-} 
+}

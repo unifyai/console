@@ -1,23 +1,20 @@
 "use client";
 
 import React, { Suspense, lazy, useEffect } from "react";
-import { Plus } from "lucide-react";
-import ActionButton from "../../../Common/Buttons/Action";
-import BaseDropdown from "../../../Common/Dropdowns/Base";
-import { DropdownMenuItem } from "../../../UI/dropdown-menu";
-import { icons, tabTypes } from "@/constants/logs";
-import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
+import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
 import { LogsActions } from "@/types/interfaces/grid";
-import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
-import { useTile } from '@/contexts/hooks/tile';
-import { useStoreContext } from '@/contexts/providers/StoreProvider';
-import { getTileCardRef } from '@/utils/refRegistry';
-import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useTile, useTileUI } from '@/contexts/hooks/tile';
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
+import { getTileCardRef } from '@/utils/interfaces/refRegistry';
+import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 
+const TileHeader = lazy(() => import('./TileHeader'));
+const TileFooter = lazy(() => import('./TileFooter'));
 const TileRenderer = lazy(() => import('./TileRenderer'));
 
 interface TileCardProps {
@@ -25,6 +22,7 @@ interface TileCardProps {
   tabId: string;
   interfaceId: string;
   projectId: string;
+  tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   projectsActions: ProjectsActions;
   logsActions: LogsActions;
@@ -33,7 +31,6 @@ interface TileCardProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
-  children?: React.ReactNode;
 }
 
 const TileCard = ({
@@ -41,6 +38,7 @@ const TileCard = ({
   tabId,
   interfaceId,
   projectId,
+  tabActions,
   tileActions,
   projectsActions,
   logsActions,
@@ -49,19 +47,18 @@ const TileCard = ({
   contextActions,
   codeActions,
   fileActions,
-  children
 }: TileCardProps) => {
 
   // Get refs from the registry instead of creating or receiving them via props
   const tileCardRef = getTileCardRef(tileId);
-  
+
   // Register that this tile has initialized its refs via Zustand
   const registerTileRefs = useStoreContext(state => state.registerTileRefs);
-  
+
   // Register refs on mount
   useEffect(() => {
     registerTileRefs(tileId);
-    // Clean up is handled by the parent component 
+    // Clean up is handled by the parent component
   }, [tileId, registerTileRefs]);
 
   // Use tab hooks for tab-level state
@@ -70,20 +67,20 @@ const TileCard = ({
 
   // Use granular tile hooks for tile-specific state
   const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
-  
+
   // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTileActions } = useTileSync(
-    tileId, tabId, tileActions,
+    tileId,
+    tabId,
+    tileActions,
     projectsActions,
     contextActions,
     logsActions,
     fieldsActions
   );
   const syncedTileDataActions = syncedTileActions?.data ?? null;
-  const syncedTileMetaActions = syncedTileActions?.meta ?? null;
-  const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
 
-  const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[];
+  const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[] || [];
 
   const tileType = tileMetaState?.type ?? undefined;
   const tileName = tileMetaState?.name;
@@ -93,50 +90,65 @@ const TileCard = ({
   const resolvedColor = tileUIState?.color || tabUIState?.color || null;
 
   return (
-  <TileColorContext.Provider value={resolvedColor}>
-    <div ref={tileCardRef} className="relative flex w-full h-full border">
-      <div className={"w-full flex-1 flex flex-col items-center " + ((!tabUIState?.edit && tileType && tileType !== "Plot") ? "mt-4" : (tileType && tileType !== "Plot") ? "mt-8" : tileType === "Plot" ? "" : "justify-center")}>
-        {/* Show overlay for unlinked View tiles that need linking */}
-        {tileType === "View" && !tableName && tabUIState?.edit && (
-          <UnlinkedTileOverlay
-            tileType={tileType}
-            tileName={tileName}
-            tableNames={tableNames}
-            onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
-            isEditMode={tabUIState?.edit || false}
-          />
-        )}
+    <TileColorContext.Provider value={resolvedColor}>
+      <div ref={tileCardRef} className="relative flex w-full h-full border">
+        <div className={"w-full flex-1 flex flex-col items-center"}>
 
-        {/* Tile content */}
-        {!!tileType && <Suspense
-            key={tileId}
-            fallback={
-              <div className="w-full h-full flex-1 flex items-center justify-center">
-                <SkeletonLoader />
-              </div>
-            }
-          >
-            <TileRenderer
-              tileId={tileId}
-              tabId={tabId}
-              interfaceId={interfaceId}
-              projectId={projectId}
-              actions={{
-                tileActions,
-                projectsActions,
-                logsActions,
-                fieldsActions,
-                derivedEntryActions,
-                contextActions,
-                codeActions,
-                fileActions,
-              }}
+          {tileType === "View" && !tableName && tabUIState?.edit && (
+            <UnlinkedTileOverlay
+              tileType={tileType}
+              tileName={tileName}
+              tableNames={tableNames}
+              onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
+              isEditMode={tabUIState?.edit || false}
             />
-          </Suspense>}
+          )}
 
+          {/* Tile header */}
+          <TileHeader
+            tileId={tileId}
+            tabId={tabId}
+            interfaceId={interfaceId}
+            projectId={projectId}
+            tabActions={tabActions}
+            tileActions={tileActions}
+            logsActions={logsActions}
+            contextActions={contextActions}
+            codeActions={codeActions}
+            projectsActions={projectsActions}
+            fieldsActions={fieldsActions}
+          />
+
+          {/* Tile content */}
+          {!!tileType && <Suspense
+              key={tileId}
+              fallback={
+                <div className="w-full h-full flex-1 flex items-center justify-center">
+                  <SkeletonLoader />
+                </div>
+              }
+            >
+              <TileRenderer
+                tileId={tileId}
+                tabId={tabId}
+                interfaceId={interfaceId}
+                projectId={projectId}
+                actions={{
+                  tileActions,
+                  projectsActions,
+                  logsActions,
+                  fieldsActions,
+                  derivedEntryActions,
+                  contextActions,
+                  codeActions,
+                  fileActions,
+                }}
+              />
+            </Suspense>
+          }
+        </div>
       </div>
-    </div>
-  </TileColorContext.Provider>
+    </TileColorContext.Provider>
   );
 };
 

@@ -189,7 +189,7 @@ const PlotSettings = ({
   return (
     <div 
       ref={settingsRef}
-      className={`relative flex flex-col bg-background border-l mt-[45px] border-t border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'}`}
+      className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'}`}
     >
       {/* Settings Content Area */}
       <div className={`flex-1 flex flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 delay-100`}>

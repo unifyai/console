@@ -91,7 +91,7 @@ const LogsPlot = ({
     let settingsRef = useRef<HTMLDivElement>(null);
     const clipId = useId();
     const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = useMemo(() => ({ top: 0, right: 15, bottom: 90, left: 55 }), []); // Optimized margins
+    const margins = useMemo(() => ({ top: 0, right: 15, bottom: 45, left: 55 }), []); // Optimized margins
     const axisPadding = 15; // Extra padding between axes borders and plot borders
 
     // Plot settings
@@ -223,7 +223,7 @@ return (
   
       {/* Chart Container */}
       <div
-        className="flex flex-1 h-full bg-background relative overflow-hidden my-[45px] border-t border-border"
+        className="flex flex-1 h-full bg-background relative overflow-hidden"
         ref={containerRef}
       >
         {/* SVG content*/}
