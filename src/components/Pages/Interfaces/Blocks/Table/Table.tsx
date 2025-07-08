@@ -47,7 +47,7 @@ import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { deselectFromClickOutside } from "@/hooks/Interfaces/useCellSelection";
 import { isHiddenByDefault } from "@/utils/interfaces/table/table";
-import EmptyTableWithContextsOverlay from "./EmptyTableWithContextOverlay";
+import EmptyTableOverlay from "./EmptyTableOverlay";
 import LoadMore from "@/components/Common/Tables/Data/Buttons/LoadMore";
 
 // Import new hooks
@@ -731,12 +731,11 @@ const LogsTable = ({
     }
   };
 
-  const showContextOverlay =
+  const showOverlay =
     !showSpinner &&
     logs.length === 0 &&
-    !listContextsQuery.isLoading &&
-    availableContexts.length > 0 &&
-    !context;
+    !listContextsQuery.isLoading;
+  const overlayMode = availableContexts.length > 0 && !context ? "context" : "new";
 
   const showActions =
     (grouping.length > 0) ||
@@ -1208,8 +1207,8 @@ const LogsTable = ({
               <ScrollBar orientation="vertical" className="z-50" />
               <ScrollBar orientation="horizontal" className="z-50" />
             </ScrollArea>
-            {showContextOverlay && (
-              <EmptyTableWithContextsOverlay tileName={tileName} />
+            {showOverlay && (
+              <EmptyTableOverlay tileName={tileName} mode={overlayMode}/>
             )}
           </div>
           {tableFooter}
