@@ -32,7 +32,7 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the base Tile that will be synced with the server
  */
-export type SyncedTileProperties = 'type' | 'table' | 'filters' | 'context' | 'column_context' | 
+export type SyncedTileProperties = 'name' | 'type' | 'table' | 'filters' | 'context' | 'column_context' | 
   'common_filter' | 'grouping' | 'metric' | 'freeze' | 'color' | 'auto_update';
 
 /**
@@ -125,6 +125,7 @@ export function useTileSync(
   const storeApi = useStoreApiContext();
 
   // Create individual mutation hooks for each property
+  const nameMutation = usePatchTileQueryOptimistic();
   const typeMutation = usePatchTileQueryOptimistic();
   const tableMutation = usePatchTileQueryOptimistic();
   const filtersMutation = usePatchTileQueryOptimistic();
@@ -148,6 +149,7 @@ export function useTileSync(
 
   // Create a mapping for the mutations to use in the loading and error states
   const mutations = {
+    name: nameMutation,
     type: typeMutation,
     table: tableMutation,
     filters: filtersMutation,
@@ -170,6 +172,49 @@ export function useTileSync(
   };
 
   // Individual wrapper functions for each property
+  const wrapName = async (name: string) => {
+    if (!metaActions || !tileName || !tabId || !granularTileActions) return;
+    
+    // Set UI states immediately before any operations
+    if (uiActions) {
+      uiActions.setLoading(true);
+      uiActions.setPending(true);
+    }
+
+    const oldName = tileName;
+    
+    // 1) Update local state immediately
+    metaActions.setName(name);
+
+    // Get fresh data from Zustand using the pure selectors
+    const state = storeApi.getState();
+    const tile = selectTileByTabIdAndName(state, tabId, oldName);
+
+    // 2) Optimistic server update
+    await nameMutation.mutateAsync({
+      id: tile?.id || "",
+      tab_id: tabId,
+      name: oldName, // for lookup by name if id is not primary
+      projectId: state.activeProjectId || "",
+      updateData: { name: name } as Partial<TileData>,
+      refetchProjects: false,
+      refetchContexts: false,
+      refetchFields: false,
+      rebuildTableData: false,
+      rebuildPlotData: false,
+      actions: granularTileActions,
+      projectsActions: projectsActions as ProjectsActions,
+      contextActions: contextActions as ContextActions,
+      logsActions: logsActions as LogsActions,
+      fieldsActions: fieldsActions as FieldsActions,
+    }).then(() => {
+      // 3. Refresh the router without setting states again
+      debugLog("[wrapName] onSettled:", name);
+      uiActions.setLoading(false);
+      uiActions.setPending(false);
+    });
+  };
+
   const wrapType = async (type?: string) => {
     if (!metaActions || !tileName || !tabId || !granularTileActions) return;
     
@@ -622,6 +667,7 @@ export function useTileSync(
     return {
       ...metaActions,
       // Use the specialized wrapper functions for each property
+      setName: wrapName,
       setType: wrapType,
     } as TileMetaActions;
   }, [
@@ -712,6 +758,7 @@ export function useTileSync(
       actions: null,
       exists: false,
       loading: {
+        name: false,
         type: false,
         table: false,
         filters: false,
@@ -726,6 +773,7 @@ export function useTileSync(
         any: false
       },
       error: {
+        name: null,
         type: null,
         table: null,
         filters: null,
@@ -746,6 +794,7 @@ export function useTileSync(
 
   // Prepare loading states
   const loading: TileLoadingStates = {
+    name: mutations.name.isPending,
     type: mutations.type.isPending,
     table: mutations.table.isPending,
     filters: mutations.filters.isPending,
@@ -767,6 +816,7 @@ export function useTileSync(
 
   // Prepare error states
   const error: TileErrorStates = {
+    name: mutations.name.error,
     type: mutations.type.error,
     table: mutations.table.error,
     filters: mutations.filters.error,
@@ -794,4 +844,4 @@ export function useTileSync(
     plotTile: plotTileSync.exists ? plotTileSync : null,
     tableTile: tableTileSync.exists ? tableTileSync : null
   };
-} 
+}

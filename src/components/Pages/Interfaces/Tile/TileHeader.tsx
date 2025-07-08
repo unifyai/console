@@ -95,6 +95,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     tileType={tileType}
                     linkedTable={tableName || undefined}
                     tableNames={tableNames}
+                    syncedTabDataActions={syncedTabDataActions}
                     syncedTileDataActions={syncedTileActions?.data}
                     syncedTileMetaActions={syncedTileActions?.meta}
                     syncedTableTileActions={syncedTileActions?.tableTileActions}

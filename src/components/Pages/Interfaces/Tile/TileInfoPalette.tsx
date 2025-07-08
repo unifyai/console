@@ -20,6 +20,7 @@ interface TileInfoPaletteProps {
     tileType?: string;
     linkedTable?: string;
     tableNames: string[];
+    syncedTabDataActions: any;
     syncedTileDataActions: any;
     syncedTileMetaActions: any;
     syncedTableTileActions: any;
@@ -38,6 +39,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
     tileType,
     linkedTable,
     tableNames,
+    syncedTabDataActions,
     syncedTileDataActions,
     syncedTileMetaActions,
     syncedTableTileActions,
@@ -73,25 +75,22 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
 
     const handleSaveName = () => {
         const newName = editName.trim();
-        if (newName && newName !== tileName && syncedTileDataActions) {
+        if (newName && newName !== tileName && syncedTabDataActions && syncedTileMetaActions) {
             // Check for duplicates (case-insensitive)
-            const existingNames = syncedTileDataActions.getTileNames?.() || [];
+            const existingNames = syncedTabDataActions.getTileNames?.() || [];
             const duplicate = existingNames
                 .filter((n: string) => n !== tileName) // allow keeping the same name
                 .some((n: string) => n.toLowerCase() === newName.toLowerCase());
 
             if (duplicate) {
-                // Could add error handling here, but for now just don't rename
+                // Revert on duplicate name
                 setEditName(tileName || "");
                 setIsEditing(false);
                 return;
             }
 
-            // Get the tileId and rename directly
-            const currentTileId = syncedTileDataActions.getTileId?.(tileName);
-            if (currentTileId) {
-                syncedTileDataActions.renameTile(currentTileId, newName);
-            }
+            // Use the synced meta action to rename the tile
+            syncedTileMetaActions.setName(newName);
         }
         setIsEditing(false);
     };
@@ -243,4 +242,4 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
     );
 };
 
-export default TileInfoPalette; 
+export default TileInfoPalette;
