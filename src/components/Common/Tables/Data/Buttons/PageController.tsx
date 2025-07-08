@@ -12,7 +12,7 @@ import {
 import { LoaderCircle } from "lucide-react";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEffect, useState } from "react";
-import { GroupedLogProps, LogProps } from "@/types/evals/logs";
+import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
 
 const PageController = ({ interactive, totalPages, pageNumber, setPageNumber, pageLogs, totalLogs, logs, limit }: {
     interactive?: boolean,

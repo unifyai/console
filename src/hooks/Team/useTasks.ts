@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task';
-import { LogProps, LogsResponseProps } from '@/types/evals/logs';
+import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { toast } from 'sonner';
 
 const TASK_PAGE_LIMIT = 20;

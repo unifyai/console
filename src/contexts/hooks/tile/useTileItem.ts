@@ -4,7 +4,7 @@ import { useTileMeta } from './useTileMeta';
 import { useTileUI } from './useTileUI';
 import { useTileData } from './useTileData';
 import { Tile } from '../../slices/selectors/tile';
-import { TileProps } from '@/types/evals/grid';
+import { TileProps } from '@/types/interfaces/grid';
 import { convertTileToTileItem, convertTileItemToTile } from './tileItemUtils';
 import { useTableTile } from './useTableTile';
 import { usePlotTile } from './usePlotTile';

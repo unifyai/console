@@ -1,7 +1,7 @@
 import React, { Suspense } from "react";
 import type { Metadata } from "next";
-import BaseLayout from "@/components/Providers/Base";
-import Scaffold from "@/components/LandingNav/Scaffold";
+import BaseLayout from "@/components/Pages/Providers/Base";
+import Scaffold from "@/components/Layout/LandingNav/Scaffold";
 
 export const metadata: Metadata = {
   title: "Login",

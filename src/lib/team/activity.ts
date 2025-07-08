@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { LogProps, LogsResponseProps } from "@/types/evals/logs";
+import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
 import { ActivitySummary } from "@/types/team/activity";
 
 export const getActivitySummary = async (apiKey: string) => {

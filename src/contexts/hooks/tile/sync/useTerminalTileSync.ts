@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
+import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
 import {
   ContextActions,
   FieldsActions,
   LogsActions,
   ProjectsActions,
   GranularTileActions,
-} from "@/types/evals/grid";
+} from "@/types/interfaces/grid";
 import {
   useTerminalTile,
   TerminalActions,

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { ProjectData } from '../../slices/selectors/project';
 import { useShallow } from 'zustand/react/shallow';
-import { Context } from '@/types/evals/grid';
+import { Context } from '@/types/interfaces/grid';
 import { useProjectMeta } from './useProjectMeta';
 
 // Define stable fallback references

@@ -1,4 +1,4 @@
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/interfaces/grid";
 
 /*
  Utility function to sanitize keys.

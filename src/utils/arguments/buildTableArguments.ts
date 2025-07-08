@@ -1,7 +1,7 @@
-import { TileData } from "@/types/evals/grid";
-import { TableArguments, LogFieldsResponseProps } from "@/types/evals/logs";
-import { buildFilterExpression } from "@/utils/evals/filters";
-import { processContext } from "@/utils/evals/columnOperations";
+import { TileData } from "@/types/interfaces/grid";
+import { TableArguments, LogFieldsResponseProps } from "@/types/interfaces/logs";
+import { buildFilterExpression } from "@/utils/interfaces/table/filters";
+import { processContext } from "@/utils/interfaces/table/columnOperations";
 
 /*
  * Builds the available_fields for tableArgument for a tile

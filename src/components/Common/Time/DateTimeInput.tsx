@@ -2,8 +2,8 @@ import { Input } from "@/components/UI/input";
 import { cn } from "@/lib/utils";
 import React from "react";
 import { KeyboardEventHandler } from "react";
-import { rebaseDate } from "@/utils/evals/filters";
-import { AbsoluteDateString, RelativeDateString } from "@/types/evals/filters";
+import { rebaseDate } from "@/utils/interfaces/table/filters";
+import { AbsoluteDateString, RelativeDateString } from "@/types/interfaces/filters";
 
 export type TimeType = "year" | "month" | "day" | "minutes" | "seconds" | "hours" | "milliseconds"; 
 export type Attributes = {[key in TimeType]: { symbol: string, padding: number, min: number, max: number, format: RegExp }}

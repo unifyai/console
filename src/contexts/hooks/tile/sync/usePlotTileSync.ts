@@ -1,15 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
+import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
 import { usePlotTile, PlotActions } from "../usePlotTile";
 import { useTileUI } from "../useTileUI";
 import { useTileMeta } from "../useTileMeta";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
+import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
-import { showErrorToast } from "@/components/notifications";
-import { withLoadingToast } from "@/components/notifications";
+import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
+import { showErrorToast } from "@/components/Common/Toasts/notifications";
+import { withLoadingToast } from "@/components/Common/Toasts/notifications";
 
 /**
  * Debug flag for state syncing logging

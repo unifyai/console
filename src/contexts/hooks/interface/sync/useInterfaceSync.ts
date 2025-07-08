@@ -1,19 +1,19 @@
 "use client";
 
 import { useMemo } from "react";
-import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/evals/grid";
-import { useCreateTabQuery, useUpdateTabQuery,  useDeleteTabQuery } from "@/hooks/Query/useTabsQuery";
+import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/interfaces/grid";
+import { useCreateTabQuery, useUpdateTabQuery,  useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
 import { useInterface } from "../useInterface";
 import { InterfaceDataActions } from "../useInterfaceData";
 import { InterfaceUIActions } from "../useInterfaceUI";
 import { v4 as uuidv4 } from 'uuid';
 import { Tab } from "@/contexts/slices/selectors/tab";
-import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Query/useInterfacesQuery";
+import { useUpdateInterfaceUnifiedQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
 import { getTabId } from "@/contexts/selectors/tab";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { selectTabsForInterface } from "@/contexts/selectors/tab";
 import { useQueryClient } from "@tanstack/react-query";
-import { CompleteTabData } from "@/hooks/Query/useTabDataOptimistic";
+import { CompleteTabData } from "@/hooks/Interfaces/Query/useTabDataOptimistic";
 
 /**
  * Debug flag for state syncing logging

@@ -1,4 +1,4 @@
-import { TableDataItem } from "@/types/evals/grid";
+import { TableDataItem } from "@/types/interfaces/grid";
 
 // ( IMPORTANT )
 // NOTE: When adding new fields here,

@@ -4,7 +4,7 @@ import { useEffect, useState, forwardRef } from "react";
 import { FolderTree, Group, LoaderCircle } from "lucide-react";
 import { Column } from "@tanstack/react-table";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { sanitizeId } from "@/utils/evals/columnOperations";
+import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 type ColumnContextProps = {

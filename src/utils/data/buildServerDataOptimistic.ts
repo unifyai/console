@@ -10,12 +10,12 @@ import {
   ProjectsActions,
   ContextActions,
   Context
-} from "@/types/evals/grid";
+} from "@/types/interfaces/grid";
 import { 
   LogFieldsResponseProps, 
   TableArguments, 
   PlotArguments 
-} from "@/types/evals/logs";
+} from "@/types/interfaces/logs";
 import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 import { fetchAndBuildTableDataItem } from '@/utils/data/buildTableDataItem';
 import { buildPlotDataItem } from '@/utils/data/buildPlotDataItem';

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import LoadingScreen from "@/components/LoadingScreen";
+import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { getCurrentUser } from "@/lib/user/user";
 import { User } from "@/types/user";
 

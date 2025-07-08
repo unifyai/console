@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { getCurrentUser } from "@/lib/user/user";
-import { getProjects } from "@/app/(home)/interfaces/actions";
+import { getProjects } from "@/lib/interfaces/projects";
 import { getFavourites } from "@/app/(home)/favourites/actions";
-import FavouritesClient from "@/components/favourites/FavouritesClient";
+import FavouritesClient from "@/components/Pages/Favourites/FavouritesClient";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

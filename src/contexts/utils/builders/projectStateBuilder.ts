@@ -1,5 +1,5 @@
 import { Project, ProjectMeta, ProjectData, ProjectUI } from "@/contexts/slices/selectors/project";
-import { Context } from "@/types/evals/grid";
+import { Context } from "@/types/interfaces/grid";
 
 /**
  * Build project state from project data

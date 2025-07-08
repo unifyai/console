@@ -1,5 +1,5 @@
 import { Tab, TabMeta, TabData as TabSliceData, TabUI } from "@/contexts/slices/selectors/tab";
-import { TabData } from "@/types/evals/grid";
+import { TabData } from "@/types/interfaces/grid";
 
 /**
  * Build tab state from API-returned tab data

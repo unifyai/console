@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/evals/logs";
+import { GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/interfaces/logs";
 
 export const getTasks = async (apiKey: string) => {
     return async (filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {

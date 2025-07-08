@@ -1,8 +1,8 @@
-import { PlotDataItem, TileData } from "@/types/evals/grid";
-import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/evals/logs";
-import { LogsActions } from "@/types/evals/grid";
-import { processContext } from "@/utils/evals/columnOperations";
-import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/evals/common";
+import { PlotDataItem, TileData } from "@/types/interfaces/grid";
+import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, GroupedMetrics } from "@/types/interfaces/logs";
+import { LogsActions } from "@/types/interfaces/grid";
+import { processContext } from "@/utils/interfaces/table/columnOperations";
+import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/interfaces/common";
 
 /**
  * Debug flag for performance logging

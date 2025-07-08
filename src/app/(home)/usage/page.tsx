@@ -1,5 +1,5 @@
-import OnPrem from '@/components/OnPrem';
-import Usage from '@/components/Usage/Usage';
+import OnPrem from '@/components/Shared/OnPrem';
+import Usage from '@/components/Pages/Usage/Usage';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';

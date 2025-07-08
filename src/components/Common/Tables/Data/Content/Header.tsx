@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, CSSProperties, ReactNode, useRef, SetStateAction, Dispatch, useEffect, useCallback } from "react";
-import { sanitizeId } from "@/utils/evals/columnOperations";
+import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { useMemo } from "react";
 
 import { flexRender, Header, Column, Table, Cell } from "@tanstack/react-table";
@@ -9,10 +9,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableHead } from "@/components/UI/table";
-import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { DraggingColumnPinnerState, DraggingColumnsState } from "@/types/evals/columns";
-import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Logs/useCellSelection";
-import { getColumnGroupIDs } from "@/utils/evals/table";
+import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/interfaces/table/columnOperations";
+import { DraggingColumnPinnerState, DraggingColumnsState } from "@/types/interfaces/columns";
+import { getCellsFromHeader, getSelectableTableCells } from "@/hooks/Interfaces/useCellSelection";
+import { getColumnGroupIDs } from "@/utils/interfaces/table/table";
 
 // Column action components
 import ColumnSort from "../Buttons/ColumnSort";
@@ -20,7 +20,7 @@ import ColumnHide from "../Buttons/ColumnHide";
 import ColumnShow from "../Buttons/ColumnShow";
 import ColumnContext from "../Buttons/ColumnContext";
 import ColumnPinner from "../Buttons/ColumnPinner";
-import ColumnRename from "@/components/Interfaces/Table/Buttons/ColumnRename";
+import ColumnRename from "@/components/Pages/Interfaces/Blocks/Table/Buttons/ColumnRename";
 import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize";
 
 // Shadcn UI dropdown
@@ -35,7 +35,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
-import { shouldRenderHeader, calculateRowSpan } from "@/utils/evals/table";
+import { shouldRenderHeader, calculateRowSpan } from "@/utils/interfaces/table/table";
 import BaseDialog from "@/components/Common/Dialogs/Base";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";

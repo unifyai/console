@@ -2,7 +2,7 @@ import { useMemo, useRef, useCallback, useEffect } from 'react';
 import { useStoreContext } from '../../providers/StoreProvider';
 import { TabData } from '../../slices/selectors/tab';
 import { Tile } from '../../slices/selectors/tile';
-import { TileLayout, TilePosition, TileProps } from '@/types/evals/grid';
+import { TileLayout, TilePosition, TileProps } from '@/types/interfaces/grid';
 import { useTabMeta } from './useTabMeta';
 import { useShallow } from 'zustand/react/shallow';
 import { useTileItemActions } from '../tile/useTileItem';

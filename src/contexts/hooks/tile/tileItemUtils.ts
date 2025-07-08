@@ -4,7 +4,7 @@ import { PlotTile } from '../../slices/selectors/plotTile';
 import { ViewTile } from '../../slices/selectors/viewTile';
 import { EditorTile } from '../../slices/selectors/editorTile';
 import { TerminalTile } from '../../slices/selectors/terminalTile';
-import { TileProps } from '@/types/evals/grid';
+import { TileProps } from '@/types/interfaces/grid';
 import { constructHierarchicalId, getParentId } from '@/contexts/utils/sliceUtils';
 
 /**

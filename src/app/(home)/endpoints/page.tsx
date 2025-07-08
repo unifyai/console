@@ -1,7 +1,7 @@
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
-import Main from "@/components/Endpoints/Main";
+import Main from "@/components/Pages/Endpoints/Main";
 import { deleteCustomEndpoint, renameCustomEndpoint, listCustomEndpoints, createCustomEndpoint } from "./actions";
 import { listCustomKeys } from "../keys/actions";
 import { FileProps } from "@/types/common";

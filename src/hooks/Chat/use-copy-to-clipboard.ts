@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react"
-import { showSuccessToast, showErrorToast } from "@/components/notifications"
+import { showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications"
 
 type UseCopyToClipboardProps = {
   text: string

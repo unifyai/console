@@ -1,10 +1,10 @@
-import { TableDataItem, TileData } from "@/types/evals/grid";
-import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/evals/logs";
-import { buildFilterExpression } from "@/utils/evals/filters";
-import { extractLogsData } from "@/utils/evals/common";
-import { LogsActions } from "@/types/evals/grid";
-import { processContext } from "@/utils/evals/columnOperations";
-import { isGroupedLogs, maybeFlattenGroupedLogs } from "../evals/grouping";
+import { TableDataItem, TileData } from "@/types/interfaces/grid";
+import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogPropsRaw } from "@/types/interfaces/logs";
+import { buildFilterExpression } from "@/utils/interfaces/table/filters";
+import { extractLogsData } from "@/utils/interfaces/common";
+import { LogsActions } from "@/types/interfaces/grid";
+import { processContext } from "@/utils/interfaces/table/columnOperations";
+import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
 import { QueryClient } from "@tanstack/react-query";
 
 /**

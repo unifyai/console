@@ -1,112 +1,19 @@
 import { getCurrentUser } from "@/lib/user/user";
 
-import {
-    getLogFields,
-    deleteLogs,
-    updateLogs,
-    deleteProject,
-    getLogMetrics,
-    getLogs,
-    getLatestTimestamp,
-    getProjects,
-    createProject,
-    renameProject,
-    createDerivedEntry,
-    updateDerivedEntry,
-    createContext,
-    deleteContext,
-    getContexts,
-    createLogs,
-    runCode,
-    getDevbox,
-    createDevbox,
-    // Interface actions
-    listInterfaces,
-    getInterfaceByName,
-    getInterfaceById,
-    getInterfaceUnified,
-    createNewInterface,
-    updateInterfaceByName,
-    updateInterfaceById,
-    updateInterfaceUnified,
-    deleteInterfaceByName,
-    deleteInterfaceById,
-    deleteInterfaceUnified,
-    createInterfaceCheckpoint,
-    createInterfaceCheckpointById,
-    createInterfaceCheckpointUnified,
-    // Tab actions
-    listTabs,
-    getTabByName,
-    getTabById,
-    getTabUnified,
-    createTab,
-    updateTabByName,
-    updateTabById,
-    updateTabUnified,
-    deleteTabByName,
-    deleteTabById,
-    deleteTabUnified,
-    createTabCheckpointByName,
-    createTabCheckpointById,
-    createTabCheckpointUnified,
-    // Tile actions
-    listTiles,
-    getTileByName,
-    getTileById,
-    getTileUnified,
-    createTile,
-    updateTileByName,
-    updateTileById,
-    updateTileUnified,
-    patchTileByName,
-    patchTileById,
-    patchTileUnified,
-    patchSpecializedTileByName,
-    patchSpecializedTileById,
-    patchSpecializedTileUnified,
-    deleteTileByName,
-    deleteTileById,
-    deleteTileUnified,
-    createTileCheckpointByName,
-    createTileCheckpointById,
-    createTileCheckpointUnified,
-    getInterfaceCheckpointUnified,
-    getTabCheckpointById,
-    getTabCheckpointUnified,
-    getTileCheckpointUnified,
-    getInterfaceCheckpointByName,
-    getTabCheckpointByName,
-    getTileCheckpointByName,
-    getInterfaceCheckpointById,
-    getTileCheckpointById,
-    // Template actions
-    exportProjectAsTemplate,
-    importProjectFromTemplate,
-    exportInterfaceAsTemplate,
-    importInterfaceFromTemplate,
-    exportTabAsTemplate,
-    importTabFromTemplate,
-    exportTileAsTemplate,
-    importTileFromTemplate,
-    // file helpers
-    listFiles,
-    readFile,
-    writeFiles,
-    deleteFile,
-    stopTerminalSession,
-    createTerminalSession,
-    runTerminalCommand,
-    getTerminalOutput,
-    renameFile,
-    renameLogFields,
-    getCodeOutput,
-} from "./actions";
+import * as files from "@/lib/interfaces/files";
+import * as terminal from "@/lib/interfaces/terminal";
+import * as projects from "@/lib/interfaces/projects";
+import * as interfaces from "@/lib/interfaces/interfaces";
+import * as tabs from "@/lib/interfaces/tabs";
+import * as tiles from "@/lib/interfaces/tiles";
+import * as logs from "@/lib/interfaces/logs";
+import * as contexts from "@/lib/interfaces/contexts";
+
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/evals/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/interfaces/grid";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
-import Main from "@/components/Interfaces/Server/Main.server";
+import Main from "@/components/Pages/Interfaces/Server/Main.server";
 import { SearchParams } from "nuqs";
 
 /**
@@ -145,135 +52,135 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
 
     // get server actions - Legacy actions for backward compatibility
     const projectsActions = {
-        get: await getProjects(apiKey),
-        create: await createProject(apiKey),
-        rename: await renameProject(apiKey),
-        delete: await deleteProject(apiKey),
-        exportTemplate: await exportProjectAsTemplate(apiKey),
-        importTemplate: await importProjectFromTemplate(apiKey)
+        get:            await projects.getProjects(apiKey),
+        create:         await projects.createProject(apiKey),
+        rename:         await projects.renameProject(apiKey),
+        delete:         await projects.deleteProject(apiKey),
+        exportTemplate: await projects.exportProjectAsTemplate(apiKey),
+        importTemplate: await projects.importProjectFromTemplate(apiKey)
     };
 
     const logsActions = {
-        create: await createLogs(apiKey),
-        get: await getLogs(apiKey),
-        getMetrics: await getLogMetrics(apiKey),
-        delete: await deleteLogs(apiKey),
-        getLatest: await getLatestTimestamp(apiKey),
-        update: await updateLogs(apiKey)
+        create:     await logs.createLogs(apiKey),
+        get:        await logs.getLogs(apiKey),
+        getMetrics: await logs.getLogMetrics(apiKey),
+        delete:     await logs.deleteLogs(apiKey),
+        getLatest:  await logs.getLatestTimestamp(apiKey),
+        update:     await logs.updateLogs(apiKey)
     };
 
     const derivedEntryActions = {
-        create: await createDerivedEntry(apiKey),
-        update: await updateDerivedEntry(apiKey)
+        create: await logs.createDerivedEntry(apiKey),
+        update: await logs.updateDerivedEntry(apiKey)
     };
 
     const fieldsActions = {
-        get: await getLogFields(apiKey),
-        rename: await renameLogFields(apiKey)
+        get:    await logs.getLogFields(apiKey),
+        rename: await logs.renameLogFields(apiKey)
     };
 
     const contextActions = {
-        get: await getContexts(apiKey),
-        create: await createContext(apiKey),
-        delete: await deleteContext(apiKey)
+        get:    await contexts.getContexts(apiKey),
+        create: await contexts.createContext(apiKey),
+        delete: await contexts.deleteContext(apiKey)
     };
 
     const codeActions = {
-        run: await runCode(apiKey, userId),
-        get: await getCodeOutput(apiKey),
-        createTerminal: await createTerminalSession(apiKey, userId),
-        runTerminal: await runTerminalCommand(apiKey),
-        getTerminalOutput: await getTerminalOutput(apiKey),
-        stopTerminal: await stopTerminalSession(apiKey),
+        run:               await terminal.runCode(apiKey, userId),
+        get:               await terminal.getCodeOutput(apiKey),
+        createTerminal:    await terminal.createTerminalSession(apiKey, userId),
+        runTerminal:       await terminal.runTerminalCommand(apiKey),
+        getTerminalOutput: await terminal.getTerminalOutput(apiKey),
+        stopTerminal:      await terminal.stopTerminalSession(apiKey),
     };
 
     const devboxActions = {
-        get: await getDevbox(apiKey, userId),
-        create: await createDevbox(apiKey, userId),
+        get:    await terminal.getDevbox(apiKey, userId),
+        create: await terminal.createDevbox(apiKey, userId),
     };
 
     // File actions
     const fileActions = {
-        list: await listFiles(apiKey, userId),
-        write: await writeFiles(apiKey, userId),
-        read: await readFile(apiKey, userId),
-        delete: await deleteFile(apiKey, userId),
-        rename: await renameFile(apiKey, userId),
+        list:   await files.listFiles(apiKey, userId),
+        write:  await files.writeFiles(apiKey, userId),
+        read:   await files.readFile(apiKey, userId),
+        delete: await files.deleteFile(apiKey, userId),
+        rename: await files.renameFile(apiKey, userId),
     };
 
     // Create the granular actions using the factory functions
     const interfaceActions: GranularInterfaceActions = await createInterfaceActions(
-        listInterfaces,
-        getInterfaceByName, 
-        getInterfaceById, 
-        createNewInterface, 
-        updateInterfaceByName, 
-        updateInterfaceById, 
-        deleteInterfaceByName, 
-        deleteInterfaceById, 
-        createInterfaceCheckpoint,
-        createInterfaceCheckpointById,
-        getInterfaceUnified,
-        updateInterfaceUnified,
-        deleteInterfaceUnified,
-        createInterfaceCheckpointUnified,
-        getInterfaceCheckpointByName,
-        getInterfaceCheckpointById,
-        getInterfaceCheckpointUnified,
-        exportInterfaceAsTemplate,
-        importInterfaceFromTemplate,
+        interfaces.listInterfaces,
+        interfaces.getInterfaceByName, 
+        interfaces.getInterfaceById, 
+        interfaces.createNewInterface, 
+        interfaces.updateInterfaceByName, 
+        interfaces.updateInterfaceById, 
+        interfaces.deleteInterfaceByName, 
+        interfaces.deleteInterfaceById, 
+        interfaces.createInterfaceCheckpoint,
+        interfaces.createInterfaceCheckpointById,
+        interfaces.getInterfaceUnified,
+        interfaces.updateInterfaceUnified,
+        interfaces.deleteInterfaceUnified,
+        interfaces.createInterfaceCheckpointUnified,
+        interfaces.getInterfaceCheckpointByName,
+        interfaces.getInterfaceCheckpointById,
+        interfaces.getInterfaceCheckpointUnified,
+        interfaces.exportInterfaceAsTemplate,
+        interfaces.importInterfaceFromTemplate,
         apiKey
     );
 
     const tabActions: GranularTabActions = await createTabActions(
-        listTabs,
-        getTabByName,
-        getTabById,
-        getTabUnified,
-        createTab,
-        updateTabByName,
-        updateTabById,
-        updateTabUnified,
-        deleteTabByName,
-        deleteTabById,
-        deleteTabUnified,
-        createTabCheckpointByName,
-        createTabCheckpointById,
-        createTabCheckpointUnified,
-        getTabCheckpointByName,
-        getTabCheckpointById,
-        getTabCheckpointUnified,
-        exportTabAsTemplate,
-        importTabFromTemplate,
+        tabs.listTabs,
+        tabs.getTabByName,
+        tabs.getTabById,
+        tabs.getTabUnified,
+        tabs.createTab,
+        tabs.updateTabByName,
+        tabs.updateTabById,
+        tabs.updateTabUnified,
+        tabs.deleteTabByName,
+        tabs.deleteTabById,
+        tabs.deleteTabUnified,
+        tabs.createTabCheckpointByName,
+        tabs.createTabCheckpointById,
+        tabs.createTabCheckpointUnified,
+        tabs.getTabCheckpointByName,
+        tabs.getTabCheckpointById,
+        tabs.getTabCheckpointUnified,
+        tabs.exportTabAsTemplate,
+        tabs.importTabFromTemplate,
         apiKey
     );
 
     const tileActions: GranularTileActions = await createTileActions(
-        listTiles,
-        getTileByName,
-        getTileById,
-        getTileUnified,
-        createTile,
-        updateTileByName,
-        updateTileById, 
-        updateTileUnified,
-        patchTileByName,
-        patchTileById,
-        patchTileUnified,
-        patchSpecializedTileByName,
-        patchSpecializedTileById,
-        patchSpecializedTileUnified,
-        deleteTileByName,
-        deleteTileById,
-        deleteTileUnified,
-        createTileCheckpointByName,
-        createTileCheckpointById,
-        createTileCheckpointUnified,
-        getTileCheckpointByName,
-        getTileCheckpointById,
-        getTileCheckpointUnified,
-        exportTileAsTemplate,
-        importTileFromTemplate,
+        tiles.listTiles,
+        tiles.getTileByName,
+        tiles.getTileById,
+        tiles.getTileUnified,
+        tiles.createTile,
+        tiles.updateTileByName,
+        tiles.updateTileById, 
+        tiles.updateTileUnified,
+        tiles.patchTileByName,
+        tiles.patchTileById,
+        tiles.patchTileUnified,
+        tiles.patchSpecializedTileByName,
+        tiles.patchSpecializedTileById,
+        tiles.patchSpecializedTileUnified,
+        tiles.deleteTileByName,
+        tiles.deleteTileById,
+        tiles.deleteTileUnified,
+        tiles.createTileCheckpointByName,
+        tiles.createTileCheckpointById,
+        tiles.createTileCheckpointUnified,
+        tiles.getTileCheckpointByName,
+        tiles.getTileCheckpointById,
+        tiles.getTileCheckpointUnified,
+        tiles.exportTileAsTemplate,
+        tiles.importTileFromTemplate,
         apiKey
     );
 

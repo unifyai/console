@@ -1,9 +1,9 @@
 import React from 'react';
-import { useInfiniteGroupSpecificLogsQuery } from '@/hooks/Query/useInfiniteLogsQuery';
-import { LogsActions } from '@/types/evals/grid';
-import { LogFieldsResponseProps, LogsResponseProps } from '@/types/evals/logs';
+import { useInfiniteGroupSpecificLogsQuery } from '@/hooks/Interfaces/Query/useInfiniteLogsQuery';
+import { LogsActions } from '@/types/interfaces/grid';
+import { LogFieldsResponseProps, LogsResponseProps } from '@/types/interfaces/logs';
 import LoadMore, { LoadMoreProps } from './LoadMore';
-import { useTableDataQueryWithTracking } from '@/hooks/Query/useTableDataQuery';
+import { useTableDataQueryWithTracking } from '@/hooks/Interfaces/Query/useTableDataQuery';
 
 interface GroupLoadMoreProps {
   // Query parameters

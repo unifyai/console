@@ -1,8 +1,8 @@
 import { Column, Table } from "@tanstack/react-table";
 import { CSSProperties, useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/evals/columnOperations";
-import { DraggingColumnPinnerState } from "@/types/evals/columns";
+import { getNextLeafColumn, getPreviousLeafColumn } from "@/utils/interfaces/table/columnOperations";
+import { DraggingColumnPinnerState } from "@/types/interfaces/columns";
 import { Transform } from "@dnd-kit/utilities";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { createPortal } from 'react-dom';

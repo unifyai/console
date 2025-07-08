@@ -1,8 +1,8 @@
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import React from "react";
 import { headers } from "next/headers";
-import NavMenu from "@/components/Navigation/NavBar/NavMenu";
-import Providers from "@/components/Providers/Base";
+import NavMenu from "@/components/Layout/NavBar/NavMenu";
+import Providers from "@/components/Pages/Providers/Base";
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from "react";
 import "@fortawesome/fontawesome-svg-core/styles.css";
@@ -11,8 +11,8 @@ import "react-resizable/css/styles.css";
 import "@/styles/globals.css";
 
 import { SidebarInset } from "@/components/UI/sidebar";
-import ThemeLoader from "@/components/ThemeLoader";
-import LoadingScreen from "@/components/LoadingScreen";
+import ThemeLoader from "@/components/Layout/ThemeLoader";
+import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

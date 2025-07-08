@@ -1,6 +1,6 @@
 // src/app/(home)/admin/page.tsx
 import * as React from 'react';
-import Main from '@/components/Admin/Main';
+import Main from '@/components/Pages/Admin/Main';
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/user/user";

@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePatchSpecializedTileQuery } from "@/hooks/Query/useTilesQuery";
-import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/evals/grid";
+import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
+import { ContextActions, FieldsActions, LogsActions, ProjectsActions, GranularTileActions } from "@/types/interfaces/grid";
 import { useEditorTile, EditorActions } from "../useEditorTile";
 import { useTileUI } from "../useTileUI";
 import { useTileMeta } from "../useTileMeta";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Query/usePatchSpecializedTileQueryOptimistic";
+import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
 
 /**
  * Debug flag for state syncing logging

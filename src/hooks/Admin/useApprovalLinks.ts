@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AdminApprovalActions, OneTimeLinkResponse, OneTimeLinkEntry, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { ResponseProps } from '@/types/common';
-import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications';
 
 export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
     // --- State and logic for generating a single link ---

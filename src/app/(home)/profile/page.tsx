@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/user/user";
 
-import Main from "@/components/Profile/Main";
+import Main from "@/components/Pages/Profile/Main";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";

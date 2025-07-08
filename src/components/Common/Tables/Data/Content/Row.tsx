@@ -4,7 +4,7 @@ import { StateProps } from "@/types/dataTable";
 import { TableRow } from "@/components/UI/table";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import DataTableCell from "./Cell";
-import { LogProps, GroupedLogProps } from "@/types/evals/logs";
+import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 
 interface DataTableRowProps<TData extends LogProps | GroupedLogProps> {

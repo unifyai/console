@@ -1,5 +1,5 @@
-import { TileData } from "@/types/evals/grid";
-import { PlotArguments, TableArguments } from "@/types/evals/logs";
+import { TileData } from "@/types/interfaces/grid";
+import { PlotArguments, TableArguments } from "@/types/interfaces/logs";
 
 /**
  * Builds plot arguments based on table arguments

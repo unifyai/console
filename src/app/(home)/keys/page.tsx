@@ -1,7 +1,7 @@
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { getCurrentUser } from "@/lib/user/user";
 import { Suspense } from "react";
-import Main from "@/components/Keys/Main";
+import Main from "@/components/Pages/Keys/Main";
 import { listProviders, createCustomKey, deleteCustomKey, renameCustomKey, listCustomKeys } from "./actions";
 import { FileProps } from "@/types/common";
 import { signOut } from "next-auth/react";

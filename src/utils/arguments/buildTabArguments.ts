@@ -1,5 +1,5 @@
-import { TileData } from "@/types/evals/grid";
-import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/evals/logs";
+import { TileData } from "@/types/interfaces/grid";
+import { TableArguments, PlotArguments, LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { buildTableArguments } from "./buildTableArguments";
 import { buildPlotArguments, updatePlotArgumentsForUsedTables } from "./buildPlotArguments";
 

@@ -5,8 +5,8 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
 import { CirclePlus } from "lucide-react";
-import { getImmediateRightNeighbors, getImmediateHiddenSiblings, updateColumnVisibility, sanitizeId, isLastSameParentColumnInColumnOrder } from "@/utils/evals/columnOperations";
-import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/evals/table";
+import { getImmediateRightNeighbors, getImmediateHiddenSiblings, updateColumnVisibility, sanitizeId, isLastSameParentColumnInColumnOrder } from "@/utils/interfaces/table/columnOperations";
+import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/interfaces/table/table";
 import { ReactNode, useState } from "react";
 
 const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, columnOrder, setColumnOrder, ColumnCreate }: {

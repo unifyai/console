@@ -1,4 +1,4 @@
-import { PlotDataItem } from "@/types/evals/grid";
+import { PlotDataItem } from "@/types/interfaces/grid";
 
 // ( IMPORTANT )
 // NOTE: When adding new fields here,

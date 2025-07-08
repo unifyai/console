@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePatchTileQuery } from "@/hooks/Query/useTilesQuery";
-import { GranularTileActions, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/evals/grid";
+import { usePatchTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
+import { GranularTileActions, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
 import { useTile, TileActions } from "../useTile";
 import { usePlotTileSync, PlotTileSyncResult } from "./usePlotTileSync";
 import { useTableTileSync, TableTileSyncResult } from "./useTableTileSync";
 import { TileDataActions } from "../useTileData";
-import { TileData } from "@/types/evals/grid";
+import { TileData } from "@/types/interfaces/grid";
 import { TileUIActions } from "../useTileUI";
 import { TileMetaActions } from "../useTileMeta";
-import { usePatchTileQueryOptimistic } from "@/hooks/Query/usePatchTileQueryOptimistic";
+import { usePatchTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchTileQueryOptimistic";
 import { selectTileByTabIdAndName } from "@/contexts/selectors/tile";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 

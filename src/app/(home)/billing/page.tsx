@@ -1,7 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
-import OnPrem from "@/components/OnPrem";
-import Main from "@/components/Billing/Main";
+import OnPrem from "@/components/Shared/OnPrem";
+import Main from "@/components/Pages/Billing/Main";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import { Suspense } from "react";
 

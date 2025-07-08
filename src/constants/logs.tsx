@@ -1,6 +1,6 @@
 import { ChartLine, Code, Eye, Focus, Folder, FolderTree, ListRestart, Plus, Save, Table, Trash, Upload, X, Terminal as TerminalIcon } from "lucide-react";
-import { InterfaceData, TabData, TileData } from "@/types/evals/grid";
-import { getLogsParameters } from "@/types/evals/logs";
+import { InterfaceData, TabData, TileData } from "@/types/interfaces/grid";
+import { getLogsParameters } from "@/types/interfaces/logs";
 import mathsAssistant from "./demos/maths_assistant";
 import contextDemo from "./demos/context-demo";
 import derivedColumnsDemo from "./demos/derived-columns-demo";

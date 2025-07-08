@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useTabRouterRefresh } from "./useTabRouterRefresh";
-import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/evals/grid";
-import { useUpdateTabUnifiedQuery } from "@/hooks/Query/useTabsQuery";
-import { usePatchTileQuery, useDeleteTileQuery, useUpdateTileQuery, useCreateTileQuery } from "@/hooks/Query/useTilesQuery";
+import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/interfaces/grid";
+import { useUpdateTabUnifiedQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
+import { usePatchTileQuery, useDeleteTileQuery, useUpdateTileQuery, useCreateTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
 import { useTab } from "../useTab";
 import { TabDataActions } from "../useTabData";
 import { TabUIActions } from "../useTabUI";

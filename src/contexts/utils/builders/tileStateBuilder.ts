@@ -4,7 +4,7 @@ import { PlotTile, PlotTileData as PlotTileSliceData } from '@/contexts/slices/s
 import { ViewTile, ViewTileMeta, ViewTileData as ViewTileSliceData, ViewTileUI } from '@/contexts/slices/selectors/viewTile';
 import { EditorTile, EditorTileData as EditorTileSliceData } from '@/contexts/slices/selectors/editorTile';
 import { TerminalTile, TerminalTileData as TerminalTileSliceData } from '@/contexts/slices/selectors/terminalTile';
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from '@/types/evals/grid';
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData } from '@/types/interfaces/grid';
 
 /**
  * Build tile state from API-returned tile data

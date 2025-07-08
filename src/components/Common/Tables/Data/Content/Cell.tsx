@@ -7,13 +7,13 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS, Transform } from "@dnd-kit/utilities";
 
 import { TableCell } from "@/components/UI/table";
-import { DraggingColumnsState } from "@/types/evals/columns";
+import { DraggingColumnsState } from "@/types/interfaces/columns";
 
 import { CornerDownLeft } from "lucide-react";
 import ColumnResizer from "../Buttons/ColumnResize";
 import ColumnPinner from "../Buttons/ColumnPinner";
 import { Skeleton } from "@/components/UI/skeleton";
-import { sanitizeId } from "@/utils/evals/columnOperations";
+import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 import { StateProps } from "@/types/dataTable";
 

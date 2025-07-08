@@ -1,10 +1,10 @@
-import { InterfaceData } from "@/types/evals/grid";
+import { InterfaceData } from "@/types/interfaces/grid";
 import { 
   GranularInterfaceActions, 
   GranularTabActions, 
   GranularTileActions,
   TabData 
-} from "@/types/evals/grid";
+} from "@/types/interfaces/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { QueryClient } from "@tanstack/react-query";
 

@@ -3,7 +3,7 @@
 import { Column, Table } from "@tanstack/react-table";
 import { CircleMinus, EyeOff } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
-import { updateColumnVisibility } from "@/utils/evals/columnOperations";
+import { updateColumnVisibility } from "@/utils/interfaces/table/columnOperations";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 type ColumnHideProps = {
     column: Column<any, unknown>,

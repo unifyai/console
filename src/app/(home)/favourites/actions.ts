@@ -1,6 +1,6 @@
 "use server";
 
-import { getProjects } from "@/app/(home)/interfaces/actions";
+import { getProjects } from "@/lib/interfaces/projects";
 import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;

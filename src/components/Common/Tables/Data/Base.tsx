@@ -5,15 +5,15 @@ import { useRef, ReactNode, Dispatch, SetStateAction, useState, useEffect } from
 import { ColumnFiltersState, ColumnPinningState, Header, SortingState, Updater, useReactTable } from "@tanstack/react-table";
 import { getFilteredRowModel, getExpandedRowModel } from "@tanstack/react-table";
 import { ColumnDef, Table as TanstackTable, Column as TanstackColumn, Cell as TanstackCell, Row as TanstackRow } from "@tanstack/react-table";
-import { DraggingColumnPinnerState } from "@/types/evals/columns";
+import { DraggingColumnPinnerState } from "@/types/interfaces/columns";
 
 import { useSensors, useSensor, MouseSensor, TouchSensor, KeyboardSensor, DragStartEvent, DragMoveEvent, DragOverEvent, DragEndEvent, DragCancelEvent } from "@dnd-kit/core";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart, mergeHeadersHorizontally } from "@/utils/evals/table";
-import { getParentID } from "@/utils/evals/columnOperations";
+import { getCoreRowModel, handleDragCancel, handleDragEnd, handleDragMove, handleDragOver, handleDragStart, mergeHeadersHorizontally } from "@/utils/interfaces/table/table";
+import { getParentID } from "@/utils/interfaces/table/columnOperations";
 import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from "@/components/UI/table";
 
 import DataTableHeader from "./Content/Header";
@@ -21,9 +21,9 @@ import DataTableRow from "./Content/Row";
 import SubRowsContainer from "./Content/SubRowsContainer";
 
 import { StateProps, SetStateProps } from "@/types/dataTable";
-import { GroupedLogProps, LogProps } from "@/types/evals/logs";
-import { useCellSelection } from "@/hooks/Logs/useCellSelection";
-import { useTableGrouping } from "@/hooks/useTableGrouping";
+import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
+import { useCellSelection } from "@/hooks/Interfaces/useCellSelection";
+import { useTableGrouping } from "@/hooks/Interfaces/useTableGrouping";
 import { RowExpandingProps } from "./Buttons/RowExpanding";
 import { LoadMoreProps } from "./Buttons/LoadMore";
 

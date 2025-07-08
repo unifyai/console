@@ -1,5 +1,5 @@
 import { ResponseProps } from "../common";
-import { LogItemProps, LogsResponseProps } from "../evals/logs";
+import { LogItemProps, LogsResponseProps } from "../interfaces/logs";
 
 // Corresponds to unity.task_list_manager.types.priority.Priority
 export enum Priority {

@@ -1,5 +1,5 @@
 import { Interface, InterfaceMeta, InterfaceData as InterfaceSliceData, InterfaceUI } from "@/contexts/slices/selectors/interface";
-import { InterfaceData } from "@/types/evals/grid";
+import { InterfaceData } from "@/types/interfaces/grid";
 
 /**
  * Build interface state from API-returned interface data

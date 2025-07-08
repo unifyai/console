@@ -1,5 +1,5 @@
-import { Context, ContextActions, FieldsActions, ProjectsActions, TileData } from "@/types/evals/grid";
-import { LogFieldsResponseProps } from "@/types/evals/logs";
+import { Context, ContextActions, FieldsActions, ProjectsActions, TileData } from "@/types/interfaces/grid";
+import { LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { QueryClient } from "@tanstack/react-query";
 
 /**

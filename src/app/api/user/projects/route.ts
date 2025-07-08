@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user/user";
-import { getProjects } from "@/app/(home)/interfaces/actions";
+import { getProjects } from "@/lib/interfaces/projects";
 
 export async function GET(_req: NextRequest) {
   try {

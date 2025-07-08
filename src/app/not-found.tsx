@@ -1,7 +1,7 @@
 import React from "react";
 import Image from "next/image";
 import ErrorImage from "@/public/images/404.png";
-import Scaffold from "@/components/LandingNav/Scaffold";
+import Scaffold from "@/components/Layout/LandingNav/Scaffold";
 
 export default function Error() {
   return (

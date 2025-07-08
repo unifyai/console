@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/user/user";
-import Main from "@/components/Team/Main";
+import Main from "@/components/Pages/Team/Main";
 import { getTasks, updateTask } from "@/lib/team/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus } from "@/lib/team/assistant";
 import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/team/photo";

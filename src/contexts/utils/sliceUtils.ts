@@ -9,7 +9,7 @@ import { TERMINAL_TILE_KEYS, TerminalTile } from "../slices/selectors/terminalTi
 import { useRef } from "react";
 import { useEffect } from "react";
 import { StoreSlice, Tab } from "../slices/slice";
-import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData, TabData } from "@/types/evals/grid";
+import { TileData, TableTileData, PlotTileData, ViewTileData, EditorTileData, TerminalTileData, TabData } from "@/types/interfaces/grid";
 
 // Import the domain logic from selector files
 import * as interfaceLogic from "../slices/selectors/interface";

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { UserApprovalEntry, AssistantHiringApprovalAction, AdminApprovalActions, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { ResponseProps } from '@/types/common';
-import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/notifications';
+import { showLoadingToast, showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications';
 
 export function useUserApprovals (adminApprovalActions: AdminApprovalActions) {
     const [users, setUsers] = React.useState<UserApprovalEntry[]>([]);

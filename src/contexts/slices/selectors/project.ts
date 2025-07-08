@@ -1,5 +1,5 @@
 import { Interface } from "./interface";
-import { Context } from "@/types/evals/grid";
+import { Context } from "@/types/interfaces/grid";
 
 // Project metadata - core identifying information
 export interface ProjectMeta {

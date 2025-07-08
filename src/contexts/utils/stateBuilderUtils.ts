@@ -1,10 +1,10 @@
 import { IStoreState } from "../store";
-import { InterfaceData, TabData, TileData } from "@/types/evals/grid";
+import { InterfaceData, TabData, TileData } from "@/types/interfaces/grid";
 import { buildInterfaceState as buildInterfaceObject, addTabToInterface } from "./builders/interfaceStateBuilder";
 import { buildTabState as buildTabObject, addTileToTab, updateTabParentReferences } from "./builders/tabStateBuilder";
 import { buildTileState as buildTileObject, updateTileParentReferences } from "./builders/tileStateBuilder";
 import { buildProjectState } from "./builders/projectStateBuilder";
-import { Context } from "@/types/evals/grid";
+import { Context } from "@/types/interfaces/grid";
 
 // Add a new interface that extends IStoreState to include stateSource
 export interface IServerStateData extends Partial<IStoreState> {

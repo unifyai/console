@@ -8,7 +8,7 @@ import { useState } from "react";
 import CheckElement from "./check";
 import Back from "@/public/icons/back.svg";
 import UnifyLogo from "@/components/Common/Misc/UnifyLogo";
-import AnimatedTabs from "@/components/Navigation/AnimatedTabs";
+import AnimatedTabs from "@/components/Common/Tabs/AnimatedTabs";
 import LoadingElement from "@/components/Common/Loaders/LoadingElement";
 import { useTheme } from "next-themes";
 

@@ -14,14 +14,14 @@
 import { useCallback, useMemo, useEffect } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { Command, CommandCategory, CommandIcon } from "@/contexts/slices/selectors/commands";
-import { useCreateProjectQuery } from "@/hooks/Query/useCreateProjectQuery";
-import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Query/useProjectsQuery";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions } from "@/types/evals/grid";
+import { useCreateProjectQuery } from "@/hooks/Interfaces/Query/useCreateProjectQuery";
+import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Interfaces/Query/useProjectsQuery";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions } from "@/types/interfaces/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { ResponseProps, FileProps } from "@/types/common";
 import { useTab } from "@/contexts/hooks/tab";
 import { useInterface } from "@/contexts/hooks/interface";
-import { useRestoreLastSavedTabWithTilesQuery } from "@/hooks/Query/useRestoreLastSavedTabWithTilesQuery";
+import { useRestoreLastSavedTabWithTilesQuery } from "@/hooks/Interfaces/Query/useRestoreLastSavedTabWithTilesQuery";
 import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 

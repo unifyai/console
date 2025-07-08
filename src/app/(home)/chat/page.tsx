@@ -1,4 +1,4 @@
-import Main from "@/components/Chat/Main";
+import Main from "@/components/Pages/Chat/Main";
 import { getCurrentUser } from "@/lib/user/user";
 import { providers } from "@/constants/endpoints";
 import { listEndpoints } from "@/lib/endpoints/endpoints";
