@@ -1177,6 +1177,7 @@ const LogsTable = ({
                                       tabId={tabId}
                                       projectId={projectId}
                                       column={column}
+                                      metric={metric}
                                       pending={summaryPending}
                                       draggingColumns={state.draggingColumns}
                                       entriesProperties={entriesProperties}

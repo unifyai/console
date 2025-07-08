@@ -22,6 +22,7 @@ const SummaryCell = ({
 	tabId,
 	projectId,
 	column,
+	metric,
 	pending,
 	draggingColumns,
 	entriesProperties,
@@ -33,6 +34,7 @@ const SummaryCell = ({
 	tileId?: string;
 	tabId?: string;
 	projectId: string | undefined;
+    metric: string, 
 	column: Column<any | unknown>,
 	pending: boolean,
 	draggingColumns: DraggingColumnsState;
@@ -111,7 +113,7 @@ const SummaryCell = ({
 		width: `calc(var(--header-${column.id}-size) * 1px)`,
 		zIndex: isColumnDragging || isPinned ? 1 : 0,
 	};
-    const metricTooltip = `${tileDataState?.metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
+    const metricTooltip = `${tileDataState?.metric || metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
 	// Show loading if:
 	// 1. We're in the process of changing metrics (local state)
