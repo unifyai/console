@@ -744,7 +744,7 @@ const LogsTable = ({
     (logsFilters != undefined || commonFilter != undefined);
 
   const tableMenu = (
-    <div className="mb-2 mx-1 flex flex-nowrap items-start border-b py-2 gap-x-4 overflow-x-auto">
+    <div className="mb-2 mx-1 flex flex-nowrap items-start border-b py-2 gap-x-4 overflow-x-auto command-scrollbar">
         {/* Data Section */}
         <div className="flex flex-col gap-1 border-r pr-4">
             <span className="text-xs text-muted-foreground">Data</span>
