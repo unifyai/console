@@ -20,7 +20,7 @@ const EmptyTableWithContextsOverlay: React.FC<EmptyTableWithContextsOverlayProps
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Contexts Available</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                    The "{tileName}" table is empty.
+                    The {tileName} table is empty.
                 </p>
                 <p className="text-xs text-muted-foreground">
                     Select a context from the header to view your logs.
