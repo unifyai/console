@@ -73,13 +73,13 @@ const InfiniteScrollController: React.FC<InfiniteScrollControllerProps> = ({
   return (
     <div className={`flex items-center justify-between gap-3 ${className}`}>
       {/* Count and Progress Indicator */}
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className="text-sm">
+      <div className="flex flex-1 items-center gap-2">
+        <Badge variant="outline" className="text-sm flex-shrink-0">
           {getCountText()}
         </Badge>
         
         {progressPercentage !== undefined && (
-          <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div 
               className="h-full bg-primary transition-all duration-300 ease-out"
               style={{ width: `${progressPercentage}%` }}
@@ -128,4 +128,4 @@ const InfiniteScrollController: React.FC<InfiniteScrollControllerProps> = ({
   );
 };
 
-export default InfiniteScrollController; 
+export default InfiniteScrollController;

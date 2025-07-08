@@ -57,6 +57,7 @@ import { useTableDataQueryWithTracking, useTableGroupedMetricsQuery, useTableArg
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { useRouter } from "next/navigation"; // Import useRouter
 import ActionButton from "@/components/Common/Buttons/Action";
+import SettingButton from "@/components/Common/Buttons/Setting";
 import { useInfiniteLogsQuery } from "@/hooks/Interfaces/Query/useInfiniteLogsQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore";
@@ -725,104 +726,109 @@ const LogsTable = ({
     }
   };
 
-  // Top area: filters, infinite scroll controller, etc.
-  const tableTop = (
-    <div className="mb-2 mx-1 flex flex-wrap justify-between gap-2 items-center">
-      {/* Leftmost: toggle/search */}
-      <div className="flex items-center gap-2">
-        <GlobalFilter
-          interactive={interactive}
-          logsFilters={logsFilters}
-          commonFilter={commonFilter}
-          setCommonFilter={syncedTileDataActions?.setCommonFilter!}
-          logs={logs}
-          currentTable={item?.name || ""}
-          tableArguments={tableArguments}
-        />
-      </div>
+  const showActions =
+    (grouping.length > 0) ||
+    (sorting.length > 0 || groupSorting.length > 0) ||
+    (logsFilters != undefined || commonFilter != undefined);
 
-      {/* Middle: action buttons */}
-      {projectId && (
-        <div className="flex flex-wrap items-center gap-2 LogsTablePreferences">
-          <ContextSelector
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            context={item?.context || context_}
-            logsActions={logsActions}
-            contextActions={contextActions}
-            setPending={setPending}
-            tileActions={tileActions}
-            projectsActions={projectsActions}
-            fieldsActions={fieldsActions}
-          />
-          <VisibilityFilter
-            fields={fields}
-            columnVisibility={columnVisibility}
-            setColumnVisibility={setColumnVisibility}
-            context={item?.context ?? null}
-            defaultHidden={defaultHidden ?? true}
-            setDefaultHidden={setDefaultHidden}
-          />
-
-          <CreateEmptyLogRow
-            projectId={projectId}
-            globalContext={item?.context || context_}
-            fields={tableDataItem.fields}
-            interactive={interactive}
-            createLogsAction={logsActions.create}
-            onSuccess={() => { router.refresh(); setPending(true); }}
-            onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
-          />
-
-          <FreezeLogs 
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-          />
-
-          <RefreshLogs
-            tileId={tileId}
-            tabId={tabId}
-            projectId={projectId}
-            pending={showSpinner}
-            filterExpression={filterExpression}
-            sortingExpression={sortingExpression}
-            groupingExpression={groupingExpression}
-            groupSortingExpression={groupSortingExpression}
-            tileActions={tileActions}
-            logsActions={logsActions}
-            projectsActions={projectsActions}
-            contextActions={contextActions}
-            fieldsActions={fieldsActions}
-          />
-
-          <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-          <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
-          <ActionButton
-            tooltip={`Cycle split view (${panelCount})`}
-            icon={<SquareSplitHorizontal className="h-4 w-4" />}
-            onClick={() => setPanelCount(c => (c === 2 ? 1 : c + 1))}
-            variant="ghost"
-            size="icon"
-          />
-          <ActionButton
-            tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
-            icon={<Layers className="h-4 w-4" />}
-            onClick={() => setUseVirtualization(!useVirtualization)}
-            variant={useVirtualization ? "primary" : "ghost"}
-            size="icon"
-          />
+  const tableMenu = (
+    <div className="mb-2 mx-1 flex flex-nowrap items-start border-b py-2 gap-x-4 overflow-x-auto">
+        {/* Data Section */}
+        <div className="flex flex-col gap-1 border-r pr-4">
+            <span className="text-xs text-muted-foreground">Data</span>
+            <div className="flex items-center gap-2">
+                <GlobalFilter
+                    interactive={interactive}
+                    logsFilters={logsFilters}
+                    commonFilter={commonFilter}
+                    setCommonFilter={syncedTileDataActions?.setCommonFilter!}
+                    logs={logs}
+                    currentTable={item?.name || ""}
+                    tableArguments={tableArguments}
+                />
+                {projectId && (
+                  <>
+                    <ContextSelector
+                        tileId={tileId}
+                        tabId={tabId}
+                        interfaceId={interfaceId}
+                        projectId={projectId}
+                        context={item?.context || context_}
+                        logsActions={logsActions}
+                        contextActions={contextActions}
+                        setPending={setPending}
+                        tileActions={tileActions}
+                        projectsActions={projectsActions}
+                        fieldsActions={fieldsActions}
+                    />
+                    <CreateEmptyLogRow
+                        projectId={projectId}
+                        globalContext={item?.context || context_}
+                        fields={tableDataItem.fields}
+                        interactive={interactive}
+                        createLogsAction={logsActions.create}
+                        onSuccess={() => { router.refresh(); setPending(true); }}
+                        onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
+                    />
+                  </>
+                )}
+            </div>
         </div>
-      )}
+        
+        {/* Actions Section */}
+        {showActions && projectId && (
+            <div className="flex flex-col gap-1 border-r pr-4">
+                <span className="text-xs text-muted-foreground">Actions</span>
+                <div className="flex items-center gap-2">
+                    <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
+                    <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
+                    <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
+                </div>
+            </div>
+        )}
+        
+        {/* Display Section */}
+        <div className="flex flex-col gap-1 border-r pr-4">
+            <span className="text-xs text-muted-foreground">Display</span>
+            <div className="flex items-center gap-2">
+                {projectId && <VisibilityFilter
+                    fields={fields}
+                    columnVisibility={columnVisibility}
+                    setColumnVisibility={setColumnVisibility}
+                    context={item?.context ?? null}
+                    defaultHidden={defaultHidden ?? true}
+                    setDefaultHidden={setDefaultHidden}
+                />}
+                <SettingButton
+                    tooltip={`Cycle split view (${panelCount})`}
+                    icon={<SquareSplitHorizontal className="h-4 w-4" />}
+                    onClick={() => setPanelCount(c => (c % 2) + 1)}
+                />
+                <SettingButton
+                    tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
+                    icon={<Layers className="h-4 w-4" />}
+                    onClick={() => setUseVirtualization(!useVirtualization)}
+                    variant={useVirtualization ? "primary" : "outline"}
+                />
+            </div>
+        </div>
+        
+        {/* Monitoring Section */}
+        {projectId && (
+            <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">Monitoring</span>
+                <div className="flex items-center gap-2">
+                    <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
+                    <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />
+                </div>
+            </div>
+        )}
+    </div>
+  );
 
-      {/* Right: infinite scroll controller instead of pagination */}
-      {projectId && (
-        <div className="flex items-center gap-2">
-          <InfiniteScrollController
+  const tableFooter = projectId && (
+    <div className="pt-2 px-1 border-border border-t">
+        <InfiniteScrollController
             loadedCount={effectiveLoadedCount}
             estimatedTotal={totalCount}
             totalCount={totalCount}
@@ -833,9 +839,8 @@ const LogsTable = ({
             interactive={interactive}
             itemName={grouping.length > 0 ? "groups" : "logs"}
             showRefresh={false}
-          />
-        </div>
-      )}
+            className="w-full"
+        />
     </div>
   );
 
@@ -862,7 +867,7 @@ const LogsTable = ({
   return (
     <div
       ref={containerRef} 
-      className="flex-1 flex flex-col gap-4 w-full h-[80%] p-2 bg-background rounded-md"
+      className="flex-1 flex flex-col gap-2 w-full h-[80%] p-2 bg-background rounded-md"
       onClick={onContainerClick}
     >
       {/* If truly pending or logs not present, show a spinner */}
@@ -871,9 +876,9 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col min-h-0">
-          {tableTop && tableTop}
-          <ScrollArea className="w-full h-fit tutorial-logs-table pb-3 overflow-x-auto">
+        <div className="w-full h-full flex flex-col">
+          {tableMenu}
+          <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3">
             <div className="min-w-max w-full">
               <div className="min-w-fit w-max">
               {projectId ? (
@@ -1190,6 +1195,7 @@ const LogsTable = ({
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>
+          {tableFooter}
         </div>
       )}
     </div>
@@ -1197,4 +1203,3 @@ const LogsTable = ({
 };
 
 export default LogsTable;
-

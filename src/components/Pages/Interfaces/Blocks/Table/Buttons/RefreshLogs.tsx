@@ -199,7 +199,7 @@ const RefreshLogs = ({
   const manualRefreshButton = (
     <ActionButton 
       variant="outline"
-      className="rounded-none rounded-tl-lg rounded-bl-lg h-8"
+      className="rounded-lg h-8"
       icon={icon}
       tooltip={isRefreshing ? "Refreshing logs.." : "Refresh logs"}
       onClick={onManualClick}
@@ -210,7 +210,7 @@ const RefreshLogs = ({
   const autoRefresh = (
     <ActionButton 
       variant={tileDataState?.auto_update === "true" ? "primary" : "outline"} 
-      className="rounded-none rounded-tr-lg rounded-br-lg" 
+      className="rounded-lg" 
       icon={<Timer />} 
       tooltip={"Auto refresh every 5s"} 
       onClick={onAutoClick} 
@@ -218,7 +218,7 @@ const RefreshLogs = ({
   );
 
   return (
-    <div className="flex flex-row">
+    <div className="flex flex-row gap-2">
       {manualRefreshButton}
       {autoRefresh}
     </div>
