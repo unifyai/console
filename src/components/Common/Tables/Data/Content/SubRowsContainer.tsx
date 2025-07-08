@@ -1,8 +1,7 @@
 import React, { ReactNode, Dispatch, SetStateAction } from "react";
-import { Row, Cell, Table } from "@tanstack/react-table";
+import { Row, Cell, Table, useReactTable } from "@tanstack/react-table";
 import { StateProps } from "@/types/dataTable";
 import { TableRow, TableCell, TableBody, Table as TableUI } from "@/components/UI/table";
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import DataTableRow from "./Row";
 import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
@@ -69,19 +68,13 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     interactive = true,
     groupHasNextPage = false,
 }: SubRowsContainerProps<TData>) {
+    // Remove scroll-related refs and state since we're not creating a scrolling context
     
-    // Don't render if no subRows
-    if (!subRows.length) {
-        return null;
-    }
-
-    // Get column widths from parent table to ensure alignment
-    const getColumnWidths = () => {
-        const columns = table.getVisibleLeafColumns();
-        return columns.map(column => column.getSize());
-    };
-
-    const columnWidths = getColumnWidths();
+    // Create a nested table instance that inherits column pinning from parent
+    const nestedTable = useReactTable({
+        ...table.options,
+        data: subRows.map(row => row.original),
+    });
 
     // Recursively render subRows and their own subRows as regular table rows
     const renderSubRow = (row: Row<TData>): ReactNode => {
@@ -96,7 +89,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                 {/* Render the subRow itself as a regular DataTableRow */}
                 <DataTableRow
                     row={row}
-                    table={table}
+                    table={nestedTable}
                     state={state}
                     setExpandingRowId={setExpandingRowId}
                     expandingRowId={expandingRowId}
@@ -120,7 +113,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                     <SubRowsContainer
                         parentRow={row}
                         subRows={rowSubRows}
-                        table={table}
+                        table={nestedTable}
                         state={state}
                         setExpandingRowId={setExpandingRowId}
                         expandingRowId={expandingRowId}
@@ -153,6 +146,11 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
         return subRowParentId === parentRow.id;
     });
 
+    // Don't render if no subRows
+    if (!subRows.length) {
+        return null;
+    }
+
     return (
         <>
             <TableRow key={`${parentRow.id}-subrows-container`}>
@@ -168,38 +166,33 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                             '--scrollbar-thumb-hover': 'hsl(var(--border))',
                         } as React.CSSProperties}
                     >
-                        <div className="min-w-max w-full">
-                            <div className="min-w-fit w-max">
-                                <TableUI 
-                                    className={`relative LogsTable-${parentRow.id} w-full caption-bottom text-sm border-separate border-spacing-0`}
-                                    style={{ width: table.getTotalSize(), tableLayout: 'fixed'}}
-                                >
-                                    {/* Column group to match parent table's column widths */}
-                                    <colgroup>
-                                        {columnWidths.map((width, index) => (
-                                            <col key={index} style={{ width: `${width}px` }} />
-                                        ))}
-                                    </colgroup>
-                                    <TableBody className="contents">
-                                        {/* Render direct children and their nested subRows */}
-                                        {directChildren.map(renderSubRow)}
-                                    </TableBody>
-                                </TableUI>
-                            </div>
-                        </div>
+                        <TableUI 
+                            className={`LogsTable-${parentRow.id} w-full caption-bottom text-sm border-separate border-spacing-0`}
+                            style={{ 
+                                width: nestedTable.getTotalSize(),
+                                minWidth: nestedTable.getTotalSize(),
+                                tableLayout: 'fixed',
+                                overflowX: 'visible'
+                            }}
+                        >
+                            <TableBody className="contents">
+                                {/* Render direct children and their nested subRows */}
+                                {directChildren.map(renderSubRow)}
+                                
+                                {/* GroupLoadMore for this parent group */}
+                                {GroupLoadMore && (
+                                    <GroupLoadMore
+                                        groupId={parentRow.id}
+                                        colSpan={columnCount}
+                                        interactive={interactive}
+                                        hasNextPage={groupHasNextPage}
+                                    />
+                                )}
+                            </TableBody>
+                        </TableUI>
                     </div>
                 </TableCell>
             </TableRow>
-
-            {/* GroupLoadMore for this parent group */}
-            {GroupLoadMore && (
-                <GroupLoadMore
-                    groupId={parentRow.id}
-                    colSpan={columnCount}
-                    interactive={interactive}
-                    hasNextPage={groupHasNextPage}
-                />
-            )}
         </>
     );
 } 

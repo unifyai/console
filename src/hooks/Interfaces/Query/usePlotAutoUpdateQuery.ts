@@ -30,7 +30,8 @@ const perfLog = (...args: any[]) => {
 /**
  * Auto-updating plot data query hook that:
  * • Automatically polls every 5s when auto_update === "true"
- * • Uses the same query key as usePatchTileQueryOptimistic for cache consistency
+ * • Uses a separate query key to avoid conflicts with manual cache updates
+ * • Syncs data with the main plotDataItem cache
  * • Exposes a manualRefresh() helper for manual refresh buttons
  * • Exposes a stop() helper to cancel polling and in-flight requests
  * • Handles dependencies on multiple table tiles
@@ -54,8 +55,10 @@ export function usePlotAutoUpdateQuery(
   const { data: tileDataState } = useTileData(tileId, tabId);
   const autoUpdate = tileDataState?.auto_update === "true";
   
-  // Use the same query key as the optimistic update hook for cache consistency
-  const queryKey = ["plotDataItem", tileId];
+  // Use a separate query key to avoid conflicts with manual cache updates
+  const autoUpdateQueryKey = ["plotDataItem", "autoUpdate", tileId];
+  // Main cache key for syncing
+  const mainQueryKey = ["plotDataItem", tileId];
   
   const queryFn = async (): Promise<PlotDataItem> => {
     if (!tileId || !tabId) throw new Error("Tile ID and Tab ID are required");
@@ -117,22 +120,23 @@ export function usePlotAutoUpdateQuery(
       // Temporarily removed abort signal to fix connection issues
     );
 
-    // Update the PlotDataItem in the cache
-    queryClient.setQueryData(['plotDataItem', tileId], plotDataItem);
+    // Update BOTH the auto-update cache AND the main cache to keep them in sync
+    queryClient.setQueryData(autoUpdateQueryKey, plotDataItem);
+    queryClient.setQueryData(mainQueryKey, plotDataItem);
 
     return plotDataItem;
   };
   
   const query = useQuery<PlotDataItem>({
-    queryKey,
+    queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && !pending,
+    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,
     refetchOnReconnect: autoUpdate,
-    refetchOnMount: false,
-    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: autoUpdate,
+    staleTime: 0, // Always fetch fresh data when auto-update is enabled
   });
 
   // Manual refresh function
@@ -148,11 +152,11 @@ export function usePlotAutoUpdateQuery(
   
   const stop = useCallback(() => {
     // Disable auto-refresh by updating query defaults
-    queryClient.setQueryDefaults(queryKey, {
-      ...queryClient.getQueryDefaults(queryKey),
+    queryClient.setQueryDefaults(autoUpdateQueryKey, {
+      ...queryClient.getQueryDefaults(autoUpdateQueryKey),
       refetchInterval: false,
     });
-  }, [queryClient, queryKey]);
+  }, [queryClient, autoUpdateQueryKey]);
   
   return {
     ...query,

@@ -10,7 +10,7 @@ import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { fetchOrBuildProjectsContextsFields } from "@/utils/data/buildServerData";
 import { selectProjectById } from "@/contexts/selectors/project";
-import { useRef, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Debug flag for performance logging
@@ -30,7 +30,8 @@ const perfLog = (...args: any[]) => {
 /**
  * Auto-updating table data query hook that:
  * • Automatically polls every 5s when auto_update === "true"
- * • Uses the same query key as usePatchTileQueryOptimistic for cache consistency
+ * • Uses a separate query key to avoid conflicts with manual cache updates
+ * • Syncs data with the main tableDataItem cache
  * • Exposes a manualRefresh() helper for manual refresh buttons
  * • Exposes a stop() helper to cancel polling and in-flight requests
  * • Fetches fresh data using current tile state (filters, context, etc.)
@@ -53,8 +54,10 @@ export function useTableAutoUpdateQuery(
   const { data: tileDataState } = useTileData(tileId, tabId);
   const autoUpdate = tileDataState?.auto_update === "true";
   
-  // Use the same query key as the optimistic update hook for cache consistency
-  const queryKey = ["tableDataItem", tileId];
+  // Use a separate query key to avoid conflicts with manual cache updates
+  const autoUpdateQueryKey = ["tableDataItem", "autoUpdate", tileId];
+  // Main cache key for syncing
+  const mainQueryKey = ["tableDataItem", tileId];
 
   const queryFn = async (): Promise<TableDataItem> => {
     if (!tileId) throw new Error("Tile ID is required");
@@ -100,9 +103,9 @@ export function useTableAutoUpdateQuery(
         }
     });
 
-    // Also fetch the logs before building the table data item
+    // Get previous data from the main cache, not the auto-update cache
     const tLogs = performance.now();
-    const prevTableDataItem = queryClient.getQueryData<TableDataItem>(queryKey);
+    const prevTableDataItem = queryClient.getQueryData<TableDataItem>(mainQueryKey);
     const prevLogs = prevTableDataItem?.logs ?? [];
     perfLog(
       `[perf] useTableAutoUpdateQuery – getLogs: ${(
@@ -125,22 +128,23 @@ export function useTableAutoUpdateQuery(
       undefined, // signal - temporarily removed to fix connection issues
     );
 
-    // Update the TableDataItem in the cache
-    queryClient.setQueryData(['tableDataItem', tileId], tableDataItem);
+    // Update BOTH the auto-update cache AND the main cache to keep them in sync
+    queryClient.setQueryData(autoUpdateQueryKey, tableDataItem);
+    queryClient.setQueryData(mainQueryKey, tableDataItem);
 
     return tableDataItem;
   };
   
   const query = useQuery<TableDataItem>({
-    queryKey,
+    queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && !pending,
+    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,
     refetchOnReconnect: autoUpdate,
-    refetchOnMount: false,
-    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: autoUpdate,
+    staleTime: 0, // Always fetch fresh data when auto-update is enabled
   });
   
   // Manual refresh function
@@ -156,11 +160,11 @@ export function useTableAutoUpdateQuery(
   
   const stop = useCallback(() => {
     // Disable auto-refresh by updating query defaults
-    queryClient.setQueryDefaults(queryKey, {
-      ...queryClient.getQueryDefaults(queryKey),
+    queryClient.setQueryDefaults(autoUpdateQueryKey, {
+      ...queryClient.getQueryDefaults(autoUpdateQueryKey),
       refetchInterval: false,
     });
-  }, [queryClient, queryKey]);
+  }, [queryClient, autoUpdateQueryKey]);
 
   return {
     ...query,

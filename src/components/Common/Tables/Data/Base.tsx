@@ -257,7 +257,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
       if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
         setState.setColumnOrder(newOrder);
       }
-    }, [state.grouping]);
+    }, [state.columnOrder, state.grouping, setState.setColumnOrder]);
 
     // Set up drag-and-drop
     const sensors = useSensors(
@@ -293,7 +293,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     const resizeMap = table.getFlatHeaders().map(
         (header: Header<TData, unknown>) => ({[header.column.id]: header.getResizeHandler()})
     ).reduce((acc: { [key: string]: (event: unknown) => void }, curr: { [key: string]: (event: unknown) => void }) => ({...acc, ...curr}), {});
-
+    
     const { isCellSelected, isRowSelected, isCellExpanded, setExpandedCells, ...cellSelection } = useCellSelection({
         table,
         selectedCells: state.selectedCells,
@@ -512,9 +512,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         return elements;
     };
 
-
-
-    return (<div className="relative flex h-fit w-full gap-2">
+    return (<div className="relative flex h-fit w-full gap-2 min-w-max">
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -525,7 +523,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragEnd={(event) => handleDragEndWrapper(event)}
                     onDragCancel={(event) => handleDragCancelWrapper(event)}
                 >
-                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed', minWidth: table.getTotalSize() }}>
                         <TableHeader ref={tableHeaderRef} className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                                 <TableRow key={headerGroup.id}>
@@ -631,6 +629,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 colSpan={finalColumns.length}
                                                 asTableRow={true}
                                                 interactive={interactive}
+                                                position="relative"
                                             />
                                         )}
                                     </>

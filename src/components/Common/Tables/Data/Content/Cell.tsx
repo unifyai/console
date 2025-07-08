@@ -69,7 +69,7 @@ const DataTableCell = ({
 
   const columnID = cell.column.columnDef.id!;
   const cellID = `${cell.row.id}_${sanitizeId(columnID)}`
-  const isNewCell = state.tableDataItem.newCells ? state.tableDataItem.newCells.includes(cellID) : undefined;
+  const isNewCell = state.newCells ? state.newCells.includes(cellID) : undefined;
 
   // Pre-calculate checks for active and over states
   const isInActiveGroup = draggingColumns.active.ids?.includes(columnID);

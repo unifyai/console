@@ -33,7 +33,7 @@ import RefreshLogs from "./Buttons/RefreshLogs";
 import { buildFilterExpression, searchParamToFilters } from "@/utils/interfaces/table/filters";
 import { FiltersByColumn } from "@/types/interfaces/columns";
 import CellPopover from "./Content/CellPopover";
-import { TableDataItem, TileProps, GranularTileActions, ProjectsActions } from "@/types/interfaces/grid";
+import { GranularTileActions, ProjectsActions } from "@/types/interfaces/grid";
 import { flattenColumnIDs, sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/interfaces/columns";
 import ColumnCreate from "@/components/Pages/Interfaces/Blocks/Table/Buttons/ColumnCreate";
@@ -127,6 +127,7 @@ const LogsTable = ({
     entriesProperties,
     paramsProperties,
     totalCount,
+    newCells,
     error,
     isLoading: isTableDataLoading,
   } = tableDataItem;
@@ -309,26 +310,26 @@ const LogsTable = ({
     maybeFlattenGroupedLogs(logs)
   );
 
-    // Various table states from the item
-    const metric = item?.metric || "mean";
-    const logsFilters = item?.filters;
-    const commonFilter = item?.common_filter;
-  
-    const pageNumber = item?.page_number;
-    const sortingStr = item?.sorting;
-    const columnOrderStr = item?.column_order;
-    const hiddenColumns = item?.hidden_columns;
-    // Derive defaultHidden from store (tableTileState) so toggles persist
-    const defaultHidden = tableTileState?.default_hidden_columns;
-    const setDefaultHidden = useCallback((val: boolean) => {
-      tableTileActions?.setDefaultHiddenColumns(val);
-    }, [tableTileActions]);
-    const groupingStr = item?.grouping;
-    const groupSortingStr = item?.group_sorting;
-    const columnsPinLeft = item?.columns_pin_left;
-    const columnsPinRight = item?.columns_pin_right;
-    const context = item?.context;
-    const columnContext = item?.column_context;
+  // Various table states from the item
+  const metric = item?.metric || "mean";
+  const logsFilters = item?.filters;
+  const commonFilter = item?.common_filter;
+
+  const pageNumber = item?.page_number;
+  const sortingStr = item?.sorting;
+  const columnOrderStr = item?.column_order;
+  const hiddenColumns = item?.hidden_columns;
+  // Derive defaultHidden from store (tableTileState) so toggles persist
+  const defaultHidden = tableTileState?.default_hidden_columns;
+  const setDefaultHidden = useCallback((val: boolean) => {
+    tableTileActions?.setDefaultHiddenColumns(val);
+  }, [tableTileActions]);
+  const groupingStr = item?.grouping;
+  const groupSortingStr = item?.group_sorting;
+  const columnsPinLeft = item?.columns_pin_left;
+  const columnsPinRight = item?.columns_pin_right;
+  const context = item?.context;
+  const columnContext = item?.column_context;
 
   // Column definitions
   const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
@@ -418,7 +419,7 @@ const LogsTable = ({
           )),
     ];
   }, [entriesTree, paramsTree, dataTypes, fieldTypes, params, columnContext, fields, paramsProperties.length]);
-
+ 
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
   // Always assign depth = 0 for the meta column types as passed here
@@ -431,7 +432,7 @@ const LogsTable = ({
   // by calling the setColumnOrder function
   // e.g. post drag and drop or create/delete columns on the UI etc.
   const [manualColumnOrderOverride, setManualColumnOrderOverride] = useState(false);
-  const columnOrder = columnOrderStr ? columnOrderStr.split(",") : columnIDs;
+  const columnOrder = useMemo(() => columnOrderStr ? columnOrderStr.split(",") : columnIDs, [columnOrderStr, columnIDs]);
   const setColumnOrder = useCallback((order: string[], manual = true) => {
     // Whenever the user does a "manual" column reorder or adds a column
     // we set the manualColumnOrderOverride flag to true. In all other cases,
@@ -461,7 +462,7 @@ const LogsTable = ({
   const hiddenList = hiddenColumns != null
     ? hiddenColumns.split(",").filter(x => x)
     : undefined;
-  const columnVisibility = Object.fromEntries(
+  const columnVisibility = useMemo(() => Object.fromEntries(
     columnIDs.map(id => [
       id,
       hiddenList !== undefined
@@ -470,7 +471,7 @@ const LogsTable = ({
           ? !isHiddenByDefault(id)
           : true
     ])
-  );
+  ), [columnIDs, hiddenList, defaultHidden]);
   
   // Toggle handler for updating hiddenColumns from visibility map
   const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => {
@@ -499,36 +500,36 @@ const LogsTable = ({
     );
   }, [syncedTileDataActions]);
 
-  const sorting: ColumnSort[] = sortingStr
+  const sorting: ColumnSort[] = useMemo(() => sortingStr
     ? sortingStr.split(",").map((c) => {
       const [key, order] = c.split("@");
       const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
       const desc = order === "true";
       return { id, desc };
     })
-    : [];
+    : [], [sortingStr, entriesProperties]);
   const setSorting = useCallback((s: ColumnSort[]) =>
     tableTileActions?.setSorting(s.map((item) => `${sanitizeId(item?.id)}@${item?.desc}`).join(",")), [tableTileActions]);
 
-  const grouping: GroupingState = groupingStr ? groupingStr.split(",") : [];
+  const grouping: GroupingState = useMemo(() => groupingStr ? groupingStr.split(",") : [], [groupingStr]);
   const setGrouping = useCallback((g: GroupingState) =>
     syncedTileDataActions?.setGrouping(g.length ? g.join(",") : undefined), [syncedTileDataActions]);
 
-  const groupSorting: ColumnSort[] = groupSortingStr
+  const groupSorting: ColumnSort[] = useMemo(() => groupSortingStr
     ? groupSortingStr.split(",").map((c) => {
       const [key, order] = c.split("@");
       const id = entriesProperties.includes(key) ? `Entries/${key}` : `Parameters/${key}`;
       const desc = order === "true";
       return { id, desc };
     })
-    : [];
+    : [], [groupSortingStr, entriesProperties]);
   const setGroupSorting = useCallback((s: ColumnSort[]) =>
     tableTileActions?.setGroupSorting(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(",")), [tableTileActions]);
 
-  const columnPinning: ColumnPinningState = {
+  const columnPinning: ColumnPinningState = useMemo(() => ({
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
-  };
+  }), [columnsPinLeft, columnsPinRight, indicesTitle]);
   const setColumnPinning = useCallback((pin: ColumnPinningState) => {
     tableTileActions?.setColumnsPinLeft(pin.left ? pin.left.join(",") : undefined);
     tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
@@ -560,7 +561,6 @@ const LogsTable = ({
 
   // Replace the broken state binding for columnVisibility
   const state = {
-    tableDataItem,
     selectedCells,
     metric,
     sorting,
@@ -574,6 +574,7 @@ const LogsTable = ({
     context,
     draggingColumns,
     draggingColumnPinner,
+    newCells
   };
 
   // Replace the broken setColumnVisibility in setState
@@ -889,11 +890,11 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableMenu}
-          <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3 relative">
+          <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
             {showOverlay && (
               <EmptyTableOverlay tileName={tileName} mode={overlayMode}/>
             )}
-            <div className="min-w-max w-full">
+            {/* <div className="min-w-max w-full"> */}
               <div className="min-w-fit w-max">
               {projectId ? (
                 <div className="flex h-full gap-2">
@@ -901,7 +902,12 @@ const LogsTable = ({
                     <div
                       key={idx}
                       ref={panelScrollRefs[idx]}
-                      className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                      className="relative flex-1 flex-col gap-2 overflow-y-auto border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                      style={{
+                        minWidth: "100%",
+                        overflowX: "visible",
+                        overflowY: "visible",
+                      }}
                     >
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
@@ -943,6 +949,7 @@ const LogsTable = ({
                             groupId={groupId}
                             dataTypes={dataTypes}
                             fields={fields}
+                            isTableDataLoading={isTableDataLoading}
                             updateLogs={updateLogs}
                             colSpan={colSpan}
                             interactive={interactive}
@@ -1206,7 +1213,7 @@ const LogsTable = ({
                 <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
               )}
               </div>
-            </div>
+            {/* </div> */}
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>

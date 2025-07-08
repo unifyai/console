@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTileData, useTileMeta } from "@/contexts/hooks/tile";
 import { LogFieldsResponseProps, TableArguments, LogsResponseProps } from "@/types/interfaces/logs";
 import { useTabMeta } from "@/contexts/hooks/tab";
-import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import { setDeep } from "@/utils/objectPath";
 import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
 import { getColumnMetrics, getGroupedMetrics } from "@/utils/interfaces/common";
@@ -54,15 +54,11 @@ export function useTableDataQuery(
   return useQuery<TableDataItem>({
     queryKey: ["tableDataItem", tileId],
     placeholderData: EMPTY_TABLEDATAITEM,
-    // The data is prefetched by the server component
+    // The data is prefetched manually on the client
     // so we don't need to provide a queryFn
-    // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
+    // Configure staleness to allow re-renders while preventing unnecessary refetches:
+    staleTime: 0,
+    gcTime: 0,
     enabled: !!(tileId),
   });
 }
@@ -86,54 +82,23 @@ export function useTableDataQueryWithTracking(
     isLoading,
     isError,
     error
-  } = useQuery<TableDataItem>({
-    queryKey: ["tableDataItem", tileId],
-    placeholderData: EMPTY_TABLEDATAITEM,
-    // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
-    enabled: !!(tileId),
-  });
-
-  // Create a ref to track the latest data including pending mutations
-  const tableDataItemRef = useRef<TableDataItem>(tableDataItem);
-  
-  // Keep the ref updated with the latest data from the query
-  useEffect(() => {
-    tableDataItemRef.current = tableDataItem;
-  }, [tableDataItem]);
+  } = useTableDataQuery(tileIdOrName, tabIdOrName);
 
   // Use the update mutation hook
-  const { mutate: updateTableData } = useUpdateTableDataItem(tileId || "");
-  
-  // Enhanced wrapper around updateTableData that also updates our local ref
-  const updateWithTracking = useCallback((newData: Partial<TableDataItem>) => {
-    // Update our local reference first
-    tableDataItemRef.current = { ...tableDataItemRef.current, ...newData };
-    // Then call the actual mutation
-    updateTableData(newData);
-  }, [updateTableData]);
-
-  // Function for full table data item replacement
-  const updateTableDataItem = useCallback((newTableDataItem: TableDataItem) => {
-    updateWithTracking(newTableDataItem);
-  }, [updateWithTracking]);
+  const { mutate: updateTableDataItem } = useUpdateTableDataItem(tileId || "");
 
   // Function for field-by-field merging (more efficient)
   const mergeUpdatesIntoTableDataItem = useCallback((
     partialUpdates: Partial<TableDataItem>
   ) => {
-    const result: any = { ...tableDataItemRef.current };
+    // Use the reactive data which should be fresh with staleTime: 0
+    const result: any = { ...tableDataItem };
 
     // Use the field-by-field merge approach from the original code
     Object.keys(partialUpdates).forEach(key => {
       const updateKey = key as keyof TableDataItem;
       const updateValue = (partialUpdates as any)[updateKey];
-      const currentValue = (tableDataItemRef.current as any)[updateKey];
+      const currentValue = (tableDataItem as any)[updateKey];
       
       // If both values exist and are objects, merge them
       if (
@@ -150,7 +115,7 @@ export function useTableDataQueryWithTracking(
     });
     
     updateTableDataItem(result as TableDataItem);
-  }, [updateTableDataItem]);
+  }, [updateTableDataItem, tableDataItem]);
 
   // Function for deep updating specific logs by row IDs
   const updateLogsByRowIds = useCallback((
@@ -166,8 +131,8 @@ export function useTableDataQueryWithTracking(
       return;
     }
 
-    // Work with our locally tracked current logs
-    const currentLogs = tableDataItemRef.current?.logs;
+    // Use the reactive data which should be fresh with staleTime: 0
+    const currentLogs = tableDataItem.logs;
 
     if (!currentLogs) {
       console.log("[DEBUG] No currentLogs found – aborting");
@@ -206,10 +171,10 @@ export function useTableDataQueryWithTracking(
 
     // Update the entire logs array using our existing updateTableDataItem function
     updateTableDataItem({
-      ...tableDataItemRef.current,
+      ...tableDataItem,
       logs: nextLogs,
     });
-  }, [tileId, updateTableDataItem]);
+  }, [tileId, updateTableDataItem, tableDataItem]);
 
   // Function for updating logs from logsActions.get response
   // Supports both top-level and targeted group updates with replace/append modes:
@@ -228,7 +193,8 @@ export function useTableDataQueryWithTracking(
       return;
     }
 
-    const currentTableDataItem = tableDataItemRef.current;
+    // Use the reactive data which should be fresh with staleTime: 0
+    const currentTableDataItem = tableDataItem;
 
     // Convert raw logs using the same logic as onGroupExpand
     const newLogs = preConvertedLogs || maybeConvertRawToGroupedLogs(logsData.params, logsData.logs, targetGroupId);
@@ -330,7 +296,7 @@ export function useTableDataQueryWithTracking(
       newCells,
       error
     });
-  }, [tileId, updateTableDataItem]);
+  }, [tileId, updateTableDataItem, tableDataItem]);
 
   // Adapter that accepts an updater function as well as partial updates
   const updateTableDataItemWithUpdater = useCallback((
@@ -344,16 +310,17 @@ export function useTableDataQueryWithTracking(
       if (partialUpdates) {
         deferringFn(partialUpdates as TableDataItem);
       } else {
-        deferringFn(updater(tableDataItemRef.current));
+        // Use the reactive data which should be fresh with staleTime: 0
+        deferringFn(updater(tableDataItem));
       }
     } else if (partialUpdates) {
       deferringFn(partialUpdates as TableDataItem);
     }
-  }, [mergeUpdatesIntoTableDataItem, updateTableDataItem]);
+  }, [mergeUpdatesIntoTableDataItem, updateTableDataItem, tableDataItem]);
 
-  tableDataItemRef.current = tableDataItem;
+  // Return the actual query data for reactivity
   return {
-    tableData: tableDataItemRef.current,
+    tableData: tableDataItem,
     isLoading,
     isError,
     error,
@@ -379,12 +346,9 @@ export function useTableArgumentsQuery(
 
   return useQuery<TableArguments>({
     queryKey: ["tableArguments", tabId],
-    // Disable all auto-refreshing:
+    // No stale time or gc time for table arguments
     staleTime: 0,
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
+    gcTime: 0,
     enabled: !!tabId, // Only run the query if we have a valid tabId
   });
 }
@@ -446,7 +410,7 @@ export function useUpdateTableDataItem(tileId: string) {
   
   return useMutation<TableDataItem, Error, Partial<TableDataItem>, { previousData?: TableDataItem }>({
     mutationFn: async (newData) => {
-      // Simulating API response
+      // Simulating API response - in real app this would make an API call
       return {
         ...(queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]) || {}),
         ...newData
@@ -477,9 +441,19 @@ export function useUpdateTableDataItem(tileId: string) {
       queryClient.setQueryData(["tableDataItem", tileId], context?.previousData);
     },
     
-    // Always refetch after error or success to ensure cache is correct
+    // Always invalidate to ensure cache consistency and trigger re-renders
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tableDataItem", tileId], refetchType: 'none' });
+      // Invalidate the main query to ensure it's marked as stale
+      queryClient.invalidateQueries({ 
+        queryKey: ["tableDataItem", tileId], 
+        refetchType: 'none' // Don't refetch, just mark as stale
+      });
+      
+      // Also invalidate the auto-update query if it exists
+      queryClient.invalidateQueries({ 
+        queryKey: ["tableDataItem", "autoUpdate", tileId], 
+        refetchType: 'none' 
+      });
     },
   });
 }

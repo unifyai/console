@@ -18,6 +18,7 @@ export function useListContextsQuery(
       return actions.get(projectId);
     },
     enabled: !!projectId,
+    refetchOnWindowFocus: false,
   });
 }
 

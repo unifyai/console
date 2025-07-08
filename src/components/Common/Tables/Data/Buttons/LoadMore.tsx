@@ -13,6 +13,8 @@ export interface LoadMoreProps {
   asTableRow?: boolean;
   colSpan?: number;
   hasNextPage?: boolean;
+  // CSS class props
+  position?: "sticky" | "relative";
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -24,16 +26,17 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   asTableRow = false,
   colSpan = 1,
   hasNextPage = true,
+  position = "sticky",
 }) => {
   // If not used as table row, render as regular button
   if (!asTableRow) {
     return (
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         onClick={onLoadMore}
         disabled={!interactive || isLoading || disabled}
-        className={`h-6 px-2 text-xs ${className}`}
+        className={`h-6 px-2 text-xs backdrop-blur-sm bg-background/90 border border-border/50 shadow-md ${className}`}
       >
         {isLoading ? (
           <>
@@ -66,12 +69,12 @@ const LoadMore: React.FC<LoadMoreProps> = ({
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             <div
-              className="sticky left-1/2 transform -translate-x-1/2 inline-block"
+              className={`${position} left-1/2 transform -translate-x-1/2 inline-block`}
               style={{ width: 'fit-content' }}
             >
               <button
                 onClick={onLoadMore}
-                className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                className="px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 text-foreground"
                 disabled={!interactive || disabled}
               >
                 Load More
@@ -90,10 +93,10 @@ const LoadMore: React.FC<LoadMoreProps> = ({
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             <div
-              className="sticky left-1/2 transform -translate-x-1/2 inline-block"
+              className={`${position} left-1/2 transform -translate-x-1/2 inline-block`}
               style={{ width: 'fit-content' }}
             >
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 <span className="text-muted-foreground">Loading more...</span>
               </div>

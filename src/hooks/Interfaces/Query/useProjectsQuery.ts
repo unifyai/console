@@ -13,6 +13,7 @@ export function useListProjectsQuery(actions: ProjectsActions) {
     queryFn: async () => {
       return actions.get();
     },
+    refetchOnWindowFocus: false,
   });
 }
 

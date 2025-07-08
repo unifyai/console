@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useInfiniteGroupSpecificLogsQuery } from '@/hooks/Interfaces/Query/useInfiniteLogsQuery';
 import { LogsActions } from '@/types/interfaces/grid';
 import { LogFieldsResponseProps, LogsResponseProps } from '@/types/interfaces/logs';
 import LoadMore, { LoadMoreProps } from './LoadMore';
-import { useTableDataQueryWithTracking } from '@/hooks/Interfaces/Query/useTableDataQuery';
 
 interface GroupLoadMoreProps {
   // Query parameters
@@ -24,6 +23,9 @@ interface GroupLoadMoreProps {
   groupId: string; // Full group path like "column1:value1>column2:value2"
   dataTypes: { [key: string]: string };
   fields: LogFieldsResponseProps;
+
+  // isLoading flag from tableDataItem
+  isTableDataLoading: boolean;
   
   // Update function
   updateLogs?: (
@@ -40,6 +42,9 @@ interface GroupLoadMoreProps {
   
   // LoadMore component override
   LoadMoreComponent?: React.ComponentType<LoadMoreProps>;
+  
+  // Callback for reporting isFetchingNextPage state changes
+  onFetchingStateChange?: (isFetchingNextPage: boolean) => void;
 }
 
 /**
@@ -62,14 +67,14 @@ export default function GroupLoadMore({
   groupId,
   dataTypes,
   fields,
+  isTableDataLoading,
   updateLogs,
   colSpan,
   interactive = true,
   hasNextPage: externalHasNextPage,
   LoadMoreComponent = LoadMore,
+  onFetchingStateChange,
 }: GroupLoadMoreProps) {
-  const { tableData: tableDataItem } = useTableDataQueryWithTracking(tileId || null, tabId || null);
-  const isTableDataLoading = tableDataItem?.isLoading;
   const {
     hasNextPage: queryHasNextPage,
     isFetchingNextPage,
@@ -94,6 +99,13 @@ export default function GroupLoadMore({
     fields,
     enabled: !isTableDataLoading,
   });
+
+  // Report isFetchingNextPage state changes to parent
+  useEffect(() => {
+    if (onFetchingStateChange) {
+      onFetchingStateChange(isFetchingNextPage);
+    }
+  }, [isFetchingNextPage, onFetchingStateChange]);
 
   // Combine external and query hasNextPage
   const hasNextPage = externalHasNextPage || queryHasNextPage;

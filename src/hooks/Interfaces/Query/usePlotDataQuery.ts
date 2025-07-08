@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { PlotDataItem } from "@/types/interfaces/grid";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlotArguments } from "@/types/interfaces/logs";
-import { useMemo, useRef, useEffect, useCallback } from "react";
+import { useMemo, useCallback } from "react";
 
 // Default empty plot data item
 export const EMPTY_PLOTDATAITEM: PlotDataItem = {
@@ -20,15 +20,11 @@ export function usePlotDataQuery(tileId: string) {
   return useQuery<PlotDataItem>({
     queryKey: ["plotDataItem", tileId],
     placeholderData: emptyPlotDataItem,
-    // The data is prefetched by the server component
+    // The data is prefetched manually on the client
     // so we don't need to provide a queryFn
-    // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
+    // Configure staleness to allow re-renders while preventing unnecessary refetches:
+    staleTime: 0,
+    gcTime: 0,
     enabled: !!tileId, // Only run the query if we have a valid tileId
   });
 }
@@ -45,60 +41,29 @@ export function usePlotDataQueryWithTracking(tileId: string) {
     isLoading,
     isError,
     error
-  } = useQuery<PlotDataItem>({
-    queryKey: ["plotDataItem", tileId],
-    placeholderData: EMPTY_PLOTDATAITEM,
-    // Disable all auto-refreshing:
-    staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
-    enabled: !!tileId,
-  });
-
-  // Create a ref to track the latest data including pending mutations
-  const plotDataItemRef = useRef<PlotDataItem>(plotDataItem);
-  
-  // Keep the ref updated with the latest data from the query
-  useEffect(() => {
-    plotDataItemRef.current = plotDataItem;
-  }, [plotDataItem]);
+  } = usePlotDataQuery(tileId);
 
   // Use the update mutation hook
-  const { mutate: updatePlotData } = useUpdatePlotDataItem(tileId || "");
-  
-  // Enhanced wrapper around updatePlotData that also updates our local ref
-  const updateWithTracking = useCallback((newData: Partial<PlotDataItem>) => {
-    // Update our local reference first
-    plotDataItemRef.current = { ...plotDataItemRef.current, ...newData };
-    // Then call the actual mutation
-    updatePlotData(newData);
-  }, [updatePlotData]);
-
-  // Function for full plot data item replacement
-  const updatePlotDataItem = useCallback((newPlotDataItem: PlotDataItem) => {
-    updateWithTracking(newPlotDataItem);
-  }, [updateWithTracking]);
+  const { mutate: updatePlotDataItem } = useUpdatePlotDataItem(tileId || "");
 
   // Function for partial updates with updater function
   const updatePlotDataItemWithUpdater = useCallback((
     updaterOrData: PlotDataItem | ((prev: PlotDataItem) => PlotDataItem)
   ) => {
     if (typeof updaterOrData === 'function') {
-      // If it's a function updater, pass it the latest data
+      // If it's a function updater, use the reactive data which should be fresh with staleTime: 0
       const updater = updaterOrData as (prev: PlotDataItem) => PlotDataItem;
-      const updatedData = updater(plotDataItemRef.current);
-      updateWithTracking(updatedData);
+      const updatedData = updater(plotDataItem);
+      updatePlotDataItem(updatedData);
     } else {
       // If it's direct data, just update with it
-      updateWithTracking(updaterOrData);
+      updatePlotDataItem(updaterOrData);
     }
-  }, [updateWithTracking]);
+  }, [updatePlotDataItem, plotDataItem]);
 
+  // Return the actual query data for reactivity
   return {
-    plotDataItem: plotDataItemRef.current,
+    plotDataItem: plotDataItem,
     isLoading,
     isError,
     error,
@@ -115,12 +80,9 @@ export function usePlotArgumentsQuery(tabId: string | null) {
   return useQuery<PlotArguments>({
     queryKey: ["plotArguments", tabId],
     // The data is prefetched by the server component
-    // Disable all auto-refreshing:
+    // No stale time or gc time for plot arguments
     staleTime: 0,
-    refetchOnMount: false,      // Don't refetch when component mounts
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
-    refetchOnReconnect: false,  // Don't refetch when network reconnects
-    refetchInterval: false,     // No periodic refetching
+    gcTime: 0,
     enabled: !!tabId, // Only run the query if we have a valid tabId
   });
 }
@@ -137,8 +99,7 @@ export function useUpdatePlotDataItem(tileId: string) {
   
   return useMutation<PlotDataItem, Error, Partial<PlotDataItem>, { previousData?: PlotDataItem }>({
     mutationFn: async (newData) => {
-      // In a real application, you would make an API call here
-      // For now, we're just simulating a successful update
+      // Simulating API response - in real app this would make an API call
       console.log(`Updating plot data for tile ${tileId}:`, newData);
       
       // Simulating API response
@@ -172,9 +133,19 @@ export function useUpdatePlotDataItem(tileId: string) {
       queryClient.setQueryData(["plotDataItem", tileId], context?.previousData);
     },
     
-    // Always refetch after error or success to ensure cache is correct
+    // Always invalidate to ensure cache consistency and trigger re-renders
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["plotDataItem", tileId], refetchType: 'none' });
+      // Invalidate the main query to ensure it's marked as stale
+      queryClient.invalidateQueries({ 
+        queryKey: ["plotDataItem", tileId], 
+        refetchType: 'none' // Don't refetch, just mark as stale
+      });
+      
+      // Also invalidate the auto-update query if it exists
+      queryClient.invalidateQueries({ 
+        queryKey: ["plotDataItem", "autoUpdate", tileId], 
+        refetchType: 'none' 
+      });
     },
   });
 }
