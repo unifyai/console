@@ -3,7 +3,7 @@
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Braces, CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/interfaces/common";
@@ -14,6 +14,7 @@ import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useTableDataQuery } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
+import { Input } from "@/components/UI/input";
 
 const ContextContent = ({
     projectId,
@@ -46,6 +47,8 @@ const ContextContent = ({
     fieldsActions?: FieldsActions,
     loading?: boolean
 }) => {
+    const [searchQuery, setSearchQuery] = useState("");
+
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(
         tabId || null, 
@@ -88,15 +91,26 @@ const ContextContent = ({
     const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
     const contexts = listContextsQuery.data || [];
 
-    const empty = contexts.length == 0 && tableDataItem?.columnContexts?.length == 0;
+    const contextNames = useMemo(() => contexts.map(context => context.name).sort(), [contexts]);
+    
+    const filteredGlobalContexts = useMemo(() => {
+        if (!searchQuery) return contextNames;
+        return contextNames.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [contextNames, searchQuery]);
+
+    const filteredColumnContexts = useMemo(() => {
+        const columnContexts = tableDataItem?.columnContexts || [];
+        if (!searchQuery) return columnContexts;
+        return columnContexts.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [tableDataItem?.columnContexts, searchQuery]);
+
+    const empty = filteredGlobalContexts.length === 0 && filteredColumnContexts.length === 0;
 
     // Build and render the tree
-    const contextNames = contexts.map(context => context.name).sort();
-
     // filter contexts based on the prefixes and construct the tree
     const contextTree = (item == undefined || context == undefined)
-        ? buildNestedDropdownTree(contextNames) : buildNestedDropdownTree(
-            contextNames.filter(
+        ? buildNestedDropdownTree(filteredGlobalContexts) : buildNestedDropdownTree(
+            filteredGlobalContexts.filter(
                 name => name.startsWith(context)
             ).map(name => {
                 const slicedName = name.slice(context.length)
@@ -107,7 +121,7 @@ const ContextContent = ({
                 return a.localeCompare(b);
             })
         );
-    const columnContextTree = buildNestedDropdownTree(tableDataItem?.columnContexts || []);
+    const columnContextTree = buildNestedDropdownTree(filteredColumnContexts);
     const contextHeader = (item != undefined && context != undefined) ? (
         context == "" ? (context || "Context") : context
     ) : "Context";
@@ -119,10 +133,24 @@ const ContextContent = ({
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            {empty && <div className="text-center text-sm">No contexts found.</div>}
-            {contexts.length > 0 ? <div className="pt-2">
-                <div className="font-bold text-sm px-2 pb-2 mb-2 border-b flex justify-between items-center">
+        <div className="flex flex-col gap-2">
+            <div className="p-2 border-b border-border">
+                <Input
+                    placeholder="Search contexts..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-8"
+                />
+            </div>
+
+            {empty && (
+                <div className="text-center text-sm py-2 px-2">
+                    {searchQuery ? "No contexts match your search." : "No contexts found."}
+                </div>
+            )}
+            
+            {filteredGlobalContexts.length > 0 ? <div>
+                <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                     <div className="flex gap-2 items-center">
                         <Braces size={18} />
                         {contextHeader == "Context"
@@ -171,7 +199,7 @@ const ContextContent = ({
                     />
                 ))}
             </div> : <></>}
-            {item && syncedTileDataActions && (tableDataItem?.columnContexts) && tableDataItem.columnContexts.length > 0 && <div className="pt-2">
+            {item && syncedTileDataActions && filteredColumnContexts.length > 0 && <div className="pt-2">
                 <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
                     <div className="flex gap-2 items-center">
                         <Grid2x2 size={18} /> Column Context
