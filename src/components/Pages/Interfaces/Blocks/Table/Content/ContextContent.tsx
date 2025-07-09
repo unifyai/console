@@ -47,6 +47,7 @@ const ContextContent = ({
     fieldsActions?: FieldsActions,
     loading?: boolean
 }) => {
+
     const [searchQuery, setSearchQuery] = useState("");
 
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
@@ -108,19 +109,7 @@ const ContextContent = ({
 
     // Build and render the tree
     // filter contexts based on the prefixes and construct the tree
-    const contextTree = (item == undefined || context == undefined)
-        ? buildNestedDropdownTree(filteredGlobalContexts) : buildNestedDropdownTree(
-            filteredGlobalContexts.filter(
-                name => name.startsWith(context)
-            ).map(name => {
-                const slicedName = name.slice(context.length)
-                return slicedName == "" ? "<root>" : slicedName
-            }).sort((a, b) => {
-                if (a === "<root>") return -1;
-                if (b === "<root>") return 1;
-                return a.localeCompare(b);
-            })
-        );
+    const contextTree = buildNestedDropdownTree(filteredGlobalContexts);
     const columnContextTree = buildNestedDropdownTree(filteredColumnContexts);
     const contextHeader = (item != undefined && context != undefined) ? (
         context == "" ? (context || "Context") : context
@@ -178,8 +167,8 @@ const ContextContent = ({
                         node={node}
                         nodeName={name}
                         isTopLevel={true}
-                        showRoot={item == undefined}
-                        prefix={item == undefined ? "" : context}
+                        showRoot={true}
+                        prefix={""}
                         attr={item != undefined ? item.context : context}
                         setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                         isColumnContext={false}
@@ -200,7 +189,7 @@ const ContextContent = ({
                 ))}
             </div> : <></>}
             {item && syncedTileDataActions && filteredColumnContexts.length > 0 && <div className="pt-2">
-                <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
+                <div className="font-bold text-sm px-2 pb-2 border-t border-b flex justify-between items-center">
                     <div className="flex gap-2 items-center">
                         <Grid2x2 size={18} /> Column Context
                     </div>

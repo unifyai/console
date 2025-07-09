@@ -16,7 +16,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
     loading?: boolean
 }) => {
     const hasChildren = Object.keys(node.children).length > 0;
-    const nodePath = prefix ? `${prefix}/${node.path}` : node.path;
+    const nodePath = node.path;
     const nonRootNodePath = nodePath.slice(0, -1).replace("/<root>", "");
 
     const getDisplayText = () => {
@@ -70,9 +70,10 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
     }
 
     // If this is a parent node with children
+    const isParentOfSelected = !!(attr && nonRootNodePath && attr.startsWith(nonRootNodePath + '/') && attr !== nonRootNodePath);
     return (
         <DropdownMenuGroup>
-            <DropdownMenuSub>
+            <DropdownMenuSub defaultOpen={isParentOfSelected}>
                 <DropdownMenuSubTrigger
                     className="flex w-full justify-between items-center cursor-pointer gap-2 hover:text-white data-[state=open]:text-white"
                     disabled={loading}
@@ -103,7 +104,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
                                 isTopLevel={false}
                                 showRoot={showRoot}
                                 attr={attr}
-                                prefix={prefix}
+                                prefix={nonRootNodePath}
                                 setter={setter}
                                 isColumnContext={isColumnContext}
                                 loading={loading}
