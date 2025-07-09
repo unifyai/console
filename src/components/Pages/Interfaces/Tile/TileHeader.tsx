@@ -94,6 +94,16 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
         }
     };
 
+    // Helper to truncate nested paths for display
+    const truncatePath = (path: string | undefined): string => {
+        if (!path) return "";
+        const parts = path.split('/');
+        if (parts.length > 2) {
+            return `${parts[0]}/.../${parts[parts.length - 1]}`;
+        }
+        return path;
+    };
+
     return (
         <header ref={headerRef} className={"group/header relative flex w-full h-12 min-h-[3rem] items-center justify-between border-b bg-card p-2"}>
             {/* Left part: Name, context, etc. */}
@@ -130,10 +140,10 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     logsActions={logsActions}
                     contextActions={contextActions}
                     button={
-                        <Tooltip content="Context">
+                        <Tooltip content={`Context: ${context}`}>
                             <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                                 <Braces size={16} />
-                                <span className="truncate">{context}</span>
+                                <span className="truncate">{truncatePath(context)}</span>
                             </Badge>
                         </Tooltip>
                     }
@@ -150,10 +160,10 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     context={tabDataState?.globalContext}
                     logsActions={logsActions}
                     contextActions={contextActions}
-                    button={<Tooltip content="Column context">
+                    button={<Tooltip content={`Column context: ${columnContext}`}>
                         <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={16} />
-                            <span className="truncate">{columnContext}</span>
+                            <span className="truncate">{truncatePath(columnContext)}</span>
                         </Badge>
                     </Tooltip>}
                     setPending={tabUIActions.setPending}
