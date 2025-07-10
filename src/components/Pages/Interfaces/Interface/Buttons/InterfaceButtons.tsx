@@ -2,7 +2,7 @@
 
 import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
 import { Eye, Hammer, SquareMousePointer, Info, Settings, Trash, Pen } from "lucide-react";
-import { Check, Clipboard, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette, Plus } from "lucide-react";
+import { Check, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette, Plus } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import BaseDialog from "@/components/Common/Dialogs/Base";
@@ -143,16 +143,6 @@ const InterfaceButtons = ({
                 }
             });
 
-        }
-    };
-
-    // Handler for pasting tile
-    const handlePaste = () => {
-        if (tabUIState?.copied && syncedTabDataActions) {
-            const newCounter = tileIds.length + 1;
-            const newName = "Tile_" + newCounter;
-            syncedTabDataActions.pasteCopiedTile(newName, tabUIState.copied);
-            tabUIActions?.setCopied(undefined);
         }
     };
 
@@ -388,16 +378,6 @@ const InterfaceButtons = ({
                         }}
                     />
                     
-                    {/* Paste */}
-                    <ActionButton
-                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
-                        icon={<Clipboard />}
-                        variant="outline"
-                        tooltip="Paste"
-                        disabled={!tabUIState?.copied || isDisabled}
-                        onClick={handlePaste}
-                    />
-                    
                     {/* Change Tab Color */}
                     <ColorPicker
                         value={resolveColorHierarchy(null, tabUIState?.color)}
@@ -617,20 +597,6 @@ const InterfaceButtons = ({
                             ))}
                         </BaseDropdown>
                     </div>
-
-                    {/* Paste button - only show in non-edit mode */}
-                    {!tabUIState?.edit && (
-                    <div className="w-full border-b py-1">
-                        <ActionButton
-                            variant="ghost"
-                            icon={<Clipboard />}
-                            text="Paste"
-                            tooltip="Paste"
-                            disabled={!tabUIState?.copied || isDisabled}
-                            onClick={handlePaste}
-                        />
-                    </div>
-                    )}
 
                     {/* Color selector - only show in non-edit mode */}
                     {!tabUIState?.edit && (

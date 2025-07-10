@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, Copy, Grip, X, Braces, Grid2x2, Palette, Loader2, Check } from "lucide-react";
+import { Maximize2, EyeOff, CopyPlus, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -70,8 +70,6 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     // Track popover state to keep tile name visible
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     
-    const [isCopied, setIsCopied] = useState(false);
-    
     // Dialog state for tile deletion
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     
@@ -84,13 +82,20 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
         throw new Error("Failed to delete tile");
     };
 
-    const handleCopy = () => {
-        if (tileName) {
-            tabUIActions?.setCopied(tileName);
-            setIsCopied(true);
-            setTimeout(() => {
-                setIsCopied(false);
-            }, 2000);
+    const handleClone = () => {
+        if (tileName && syncedTabDataActions) {
+            const allItems = syncedTabDataActions.getItems();
+            let cloneIndex = 1;
+            let newTileName: string;
+            
+            // Find a unique name for the clone
+            do {
+                newTileName = `${tileName}_copy_${cloneIndex}`;
+                cloneIndex++;
+            } while (allItems.some((item: any) => item.name === newTileName));
+
+            // Use the pasteCopiedTile action which copies a tile's data to a new tile
+            syncedTabDataActions.pasteCopiedTile(newTileName, tileName);
         }
     };
 
@@ -206,8 +211,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                         />
                         <ActionButton
                             className="cursor-pointer"
-                            onClick={handleCopy}
-                            icon={isCopied ? <Check/> : <Copy />}
+                            onClick={handleClone}
+                            icon={<CopyPlus />}
                             tooltip={"Copy"}
                             variant="ghost"
                             size="icon"
