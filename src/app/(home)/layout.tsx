@@ -14,6 +14,7 @@ import { SidebarInset } from "@/components/UI/sidebar";
 import ThemeLoader from "@/components/Layout/ThemeLoader";
 import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
+import OnboardingGuard from "@/components/TaxClassification/OnboardingGuard";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,15 +23,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             <ThemeLoader>
-              <NavMenu/>
-              <SidebarInset>
-                <Suspense fallback={<LoadingScreen/>}>
-                  <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
-                    <NuqsAdapter>{children}</NuqsAdapter>
-                  </main>
-                </Suspense>
-              </SidebarInset>
-              <Toaster />
+              <OnboardingGuard>
+                <NavMenu/>
+                <SidebarInset>
+                  <Suspense fallback={<LoadingScreen/>}>
+                    <main className="overflow-hidden relative container min-h-full h-full max-w-full w-full flex flex-row bg-background">
+                      <NuqsAdapter>{children}</NuqsAdapter>
+                    </main>
+                  </Suspense>
+                </SidebarInset>
+                <Toaster />
+              </OnboardingGuard>
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

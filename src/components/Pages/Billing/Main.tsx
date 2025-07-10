@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Balance from "./Balance";
 import AutomaticRefill from "./Refill";
+import TaxClassification from "./TaxClassification";
 import { Separator } from "../../UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -190,6 +191,9 @@ const Main = () => {
           ) : null}
 
           <Balance hasPaymentMethod={hasPaymentMethod} billingEligibility={billingEligibility} autoRechargeEnabled={autoRechargeEnabled} />
+          
+          <Separator />
+          <TaxClassification />
           
           {billingEligibility?.can_enable_monthly_billing && (
             <>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User } from "@/types/user";
 import UserInfo from "@/components/Pages/Profile/Info";
 import NewsletterPreferences from "./Newsletter";
@@ -36,24 +36,31 @@ const ProfileForm = ({user, onPrem}: {
   // State for newsletter subscriptions
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [initialSubscriptions, setInitialSubscriptions] = useState<string[]>([]);
-  const [preferencesChanged, setPreferencesChanged] = useState(false);
   
   // Alert state
   const [alert, setAlert] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
 
   useEffect(() => {
-    // Fetch user's current subscriptions
     const fetchSubscriptions = async () => {
-      const response = await fetch(`/api/user/emailPreferences/currentSubscriptions?email=${user.email}`);
-      const data = await response.json();
-      const subs = Object.entries(data.subscriptions)
-        .filter(([key, value]) => value)
-        .map(([key]) => key);
-      setSubscriptions(subs);
-      setInitialSubscriptions(subs);
+      try {
+        const response = await fetch('/api/loops/subscribe?getSubscriptions=true');
+        if (response.ok) {
+          const subs = await response.json();
+          setSubscriptions(subs);
+          setInitialSubscriptions(subs);
+        }
+      } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+      }
     };
     fetchSubscriptions();
-  }, [user]);
+  }, []);
+
+  const preferencesChanged = useMemo(() => {
+    if (subscriptions.length !== initialSubscriptions.length) return true;
+    const initialSubsSet = new Set(initialSubscriptions);
+    return !subscriptions.every(sub => initialSubsSet.has(sub));
+  }, [subscriptions, initialSubscriptions]);
 
   useEffect(() => {
     if (alert.type) {
@@ -68,14 +75,6 @@ const ProfileForm = ({user, onPrem}: {
   // Handle subscription changes
   const handleSubscriptionChange = (value: string[]) => {
     setSubscriptions(value);
-    setChangeMade(true);
-
-    // Determine if there are any changes compared to the initial subscriptions
-    const hasChanges =
-      value.length !== initialSubscriptions.length ||
-      value.some((subscription) => !initialSubscriptions.includes(subscription));
-
-    setPreferencesChanged(hasChanges);
   };
 
   useEffect(() => {
@@ -95,75 +94,48 @@ const ProfileForm = ({user, onPrem}: {
     setFormState(initialFormState);
     setChangeMade(false);
     setSubscriptions(initialSubscriptions);
-    setPreferencesChanged(false);
   };
 
-  // Handle save
-  // Handle save
-const handleSaveClick = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // Prepare form data
-  const formData = new FormData();
-  formData.append("name", formState.name);
-  formData.append("lastName", formState.lastName);
-  formData.append("jobTitle", formState.jobTitle);
-  formData.append("email", user.email);
+    // Update profile info
+    const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {
+      method: "POST",
+      body: new FormData(e.currentTarget as HTMLFormElement)
+    });
 
-  // Post form data to API
-  const userResponse = fetch(`/api/profile/updateUser?userID=${user.id}`, {
-    method: "POST",
-    body: formData,
-  });
+    // Update newsletter preferences
+    const newsletterPromise = fetch('/api/loops/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mailingLists: subscriptions })
+    });
 
-  formData.append("subscriptions", JSON.stringify(subscriptions));
+    const [profileResponse, newsletterResponse] = await Promise.all([
+      profilePromise,
+      newsletterPromise
+    ]);
 
-  const mailchimpResponse = fetch("/api/user/emailPreferences/updateMailchimp", {
-    method: "POST",
-    body: formData
-  });
-
-  const [userUpdateResponse, mailchimpUpdateResponse] = await Promise.all([
-    userResponse,
-    mailchimpResponse
-  ]);
-
-  let profileUpdated = false;
-  let preferencesUpdated = false;
-
-  // Success message
-  if (userUpdateResponse.ok && mailchimpUpdateResponse.ok) {
-    setAlert({ type: 'success', message: 'Profile and email preferences updated successfully!' });
-    profileUpdated = true;
-    preferencesUpdated = true;
-  }
-  // Partial success or error handling
-  else {
-    if (userUpdateResponse.ok) {
-      setAlert({ type: 'success', message: 'Profile information updated successfully, but there was an error updating email preferences.' });
-      profileUpdated = true;
-    } else if (mailchimpUpdateResponse.ok) {
-      setAlert({ type: 'success', message: 'Email preferences updated successfully, but there was an error updating profile information.' });
-      preferencesUpdated = true;
+    if (profileResponse.ok && newsletterResponse.ok) {
+      setAlert({ type: 'success', message: 'Profile updated successfully!' });
+      setInitialFormState({ ...formState });
+      setInitialSubscriptions([...subscriptions]);
+      setChangeMade(false);
     } else {
-      setAlert({ type: 'error', message: 'Error updating profile and email preferences. Please try again.' });
+      let errorMessage = 'An error occurred. Please try again.';
+      if (!profileResponse.ok) {
+        errorMessage = 'Error updating profile.';
+      } else if (!newsletterResponse.ok) {
+        errorMessage = 'Error updating newsletter preferences.';
+      }
+      setAlert({ type: 'error', message: errorMessage });
     }
-  }
-
-  // Update initial states only for successful updates
-  if (profileUpdated) {
-    setInitialFormState({ ...formState });
-    setChangeMade(false);
-  }
-  if (preferencesUpdated) {
-    setInitialSubscriptions([...subscriptions]);
-    setPreferencesChanged(false);
-  }
-};
+  };
 
   return (
     <div className="mt-10 sm:mt-0 w-fit">
-      <form onSubmit={handleSaveClick}>
+      <form onSubmit={handleSave}>
         <UserInfo
           formState={formState}
           handleInputChange={handleInputChange}
@@ -175,7 +147,7 @@ const handleSaveClick = async (e: React.FormEvent) => {
           handleSubscriptionChange={handleSubscriptionChange}
         />
         <div className="flex justify-between items-center gap-5 mt-5">
-        {changeMade ? 
+        {(changeMade || preferencesChanged) ? 
             <div className="w-fit flex gap-2">
               <SecondaryButton
                 onClick={handleCancel}

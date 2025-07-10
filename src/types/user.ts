@@ -32,7 +32,7 @@ export interface User {
 export interface UserUpdateRequest {
 	email: string;
 	user_id: string;
-	image: string;
+	image: string | null;
 	name: string;
 	last_name: string;
 	job_title: string;
@@ -55,4 +55,107 @@ export interface HiringProfileData {
 export interface AssistantHiringApprovalResponse extends ResponseProps {
 	message: string;
 	assistant_hiring_approval?: string | null;
+}
+
+// Business classification types
+export type AccountType = "individual" | "business";
+
+export interface BusinessAddress {
+	address_line1: string;
+	address_line2?: string;
+	city: string;
+	state?: string;
+	country: string;
+	postal_code?: string;
+}
+
+export interface BusinessInfo {
+	business_name: string;
+	tax_id: string;
+	business_type: string;
+	business_address: BusinessAddress;
+	tax_exempt: boolean;
+}
+
+export interface UserBusinessStatusResponse {
+	account_type: AccountType;
+	business_name?: string;
+	tax_id?: string;
+	business_type?: string;
+	business_verified: boolean;
+	tax_exempt: boolean;
+	tax_jurisdiction?: string;
+	business_address?: BusinessAddress;
+}
+
+export interface OnboardingStatusResponse {
+  onboarded: boolean;
+}
+
+export interface TaxIdValidationRequest {
+	tax_id: string;
+	country: string;
+}
+
+export interface TaxIdValidationResponse {
+	valid: boolean;
+	formatted_tax_id?: string;
+	error_message?: string;
+}
+
+export interface SupportedTaxCountriesResponse {
+  supported_countries: Record<string, string>;
+  total_countries: number;
+}
+
+export interface ValidateTaxIdRequest {
+  tax_id: string;
+  country: string;
+}
+
+export interface TaxCountry {
+  code: string;
+  name: string;
+  tax_id_name: string;
+  tax_id_format: string;
+}
+
+export interface CreateUserWithBusinessInfoRequest {
+	email: string;
+	name: string;
+	last_name: string;
+	job_title?: string;
+	account_type: AccountType;
+	business_info?: BusinessInfo;
+}
+
+export interface UpdateAccountTypeRequest {
+	account_type: AccountType;
+	business_info?: BusinessInfo;
+}
+
+export interface UpdateBusinessInfoRequest {
+	business_name?: string;
+	tax_id?: string;
+	business_type?: string;
+	business_address?: BusinessAddress;
+	tax_exempt?: boolean;
+}
+
+export interface UpdateOnboardingStatusRequest {
+  onboarded: boolean;
+}
+
+export interface UpdateOnboardingStatusResponse {
+  message: string;
+}
+
+export interface TaxClassificationFormData {
+	account_type: AccountType;
+	business_name: string;
+	tax_id: string;
+	business_type: string;
+	business_address: BusinessAddress;
+	tax_exempt: boolean;
+	tax_country: string;
 }

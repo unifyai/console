@@ -1,47 +1,67 @@
-import { LabeledCheckbox } from "../../Common/Checkbox/Labeled"
-import { CheckedState } from "@radix-ui/react-checkbox"
+import { Checkbox } from "../../UI/checkbox";
+import { Label } from "../../UI/label";
+import { useEffect, useState } from "react";
+import { MailingList } from "@/lib/loops";
+import { Loader2 } from "lucide-react";
 
-const NewsletterPreferences = ({subscriptions, handleSubscriptionChange}: {
-    subscriptions: string[],
-    handleSubscriptionChange: (value: string[]) => void
+const newsletters: Omit<MailingList, 'isPublic'>[] = [
+  {
+    id: "cmbyni4qq1tio0ivlfdfo3qj2",
+    name: "Unify Updates",
+    description: "Get updated on our quarterly launches and new features."
+  },
+  {
+    id: "cmbyno89p018e0jxsd5698x12",
+    name: "Unify Launches",
+    description: "Be the first to know about new product launches."
+  }
+];
+
+const NewsletterPreferences = ({ subscriptions, handleSubscriptionChange }: {
+  subscriptions: string[],
+  handleSubscriptionChange: (value: string[]) => void
 }) => {
-    const updateCheckedItems = (subscriptions: string[], id: string, checked: CheckedState) => {
-        let newSubscriptions: string[];
-        if (checked) 
-            newSubscriptions = [...subscriptions, id]
-        else 
-            newSubscriptions = subscriptions.filter(sub => sub != id)
-        handleSubscriptionChange(newSubscriptions)
-    }
-    const newsletters = [
-        {id: "5557d764ba", label: "Product Launches", description: `Get updated on our quarterly launches.`},
-        {id: "19d7b96a24", label: "Paper Reading Group", description: `Get updated on our weekly reading groups.`},
-        {id: "c13433a863", label: "Weekly Webinars", description: `Get updated on our weekly webinars.`},
-        {id: "aeb897777c", label: "New Features", description: `Get updated on our weekly feature releases.`}
-    ];
-    const subscription = (index:number, newsletter: {id: string, label: string, description: string}) => 
-        <LabeledCheckbox 
-            key={index}
-            id={newsletter.label} 
-            checked={subscriptions.includes(newsletter.id)} 
-            onCheckedChange={(checked) => updateCheckedItems(subscriptions, newsletter.id, checked)}
-            label={newsletter.label}
-            description={newsletter.description}
-            descriptionOnHover={true}
-        />;
-    
-    return (
-        <div className="tutorial-newsletter-preferences mt-4">
-            <p className="font-bold mt-4">Edit your newsletter subscriptions</p>
-            <div className="flex flex-col gap-4 mt-4">
-            {newsletters.map((newsletter, index) => (
-                <div key={index} className="transition-all duration-300">
-                    {subscription(index, newsletter)}
-                </div>
-            ))}
+
+  const handleCheckboxChange = (id: string, checked: boolean) => {
+    const newSubscriptions = checked 
+      ? [...subscriptions, id] 
+      : subscriptions.filter((sub) => sub !== id);
+    handleSubscriptionChange(newSubscriptions);
+  };
+
+  return (
+    <div className="mt-4">
+      <p className="font-bold">Newsletter Preferences</p>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-4">
+          {newsletters.map((newsletter) => (
+            <div 
+              key={newsletter.id} 
+              className="flex items-start space-x-4 p-6 border rounded-xl transition-colors
+                           bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800
+                           border-gray-200 dark:border-gray-700"
+            >
+              <Checkbox
+                id={newsletter.id}
+                checked={subscriptions.includes(newsletter.id)}
+                onCheckedChange={(checked) => handleCheckboxChange(newsletter.id, !!checked)}
+                className="mt-1 h-5 w-5"
+              />
+              <div className="flex-1 min-w-0">
+                <Label 
+                  htmlFor={newsletter.id} 
+                  className="font-semibold cursor-pointer text-lg text-gray-900 dark:text-gray-100"
+                >
+                  {newsletter.name}
+                </Label>
+                <p className="text-base text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">
+                  {newsletter.description}
+                </p>
+              </div>
             </div>
+          ))}
         </div>
-    )
-}
+    </div>
+  );
+};
 
 export default NewsletterPreferences;
