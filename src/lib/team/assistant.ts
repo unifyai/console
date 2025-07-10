@@ -194,7 +194,8 @@ export const createAssistant = async (apiKey: string) => {
                         country,
                         user_whatsapp_number,
                         max_parallel: 10,
-                        weekly_limit: 40
+                        weekly_limit: 40,
+                        create_infra: true
                     })
                 }
             );
