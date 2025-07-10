@@ -161,14 +161,23 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                                 <DropdownMenuItem
                                     key={idx}
                                     onSelect={() => {
-                                        if (tileName) {
-                                            if ((tabType === "Table" || tabType === "Plot") && linkedTable) {
-                                                syncedTileDataActions?.setTable(undefined);
-                                            }
-                                            if (!tileType && tabType === "Table") {
-                                                syncedTableTileActions?.setTableType("Data Table");
-                                            }
-                                            syncedTileMetaActions?.setType(tabType);
+                                        if (!tileName) return;
+
+                                        const isReverting = tabType === tileType;
+                                        const newType = isReverting ? undefined : tabType;
+                                        const oldType = tileType;
+
+                                        // Set the new type. This is the primary action.
+                                        syncedTileMetaActions?.setType(newType);
+
+                                        // Perform cleanup: if we are moving away from a 'View' type, clear its linked table.
+                                        if (oldType === "View" && newType !== "View" && linkedTable) {
+                                            syncedTileDataActions?.setTable(undefined);
+                                        }
+
+                                        // Perform setup: if creating a 'Table' from a typeless tile, set a default.
+                                        if (!oldType && newType === "Table") {
+                                            syncedTableTileActions?.setTableType("Data Table");
                                         }
                                     }}
                                     className="flex justify-between items-center"
