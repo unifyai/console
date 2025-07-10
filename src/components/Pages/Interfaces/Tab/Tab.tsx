@@ -48,6 +48,9 @@ const Tab = ({
   codeActions,
   fileActions,
 }: TabComponentProps) => {
+  const widthFactor = 4;
+  const heightFactor = 105;
+
   // Use granular hooks instead of a general hook
   const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
 
@@ -102,12 +105,12 @@ const Tab = ({
 
         // Update the tile layout
         const tileLayout: TileLayout = {
-          x: newLayout.x,
-          y: newLayout.y,
-          w: newLayout.w,
-          h: newLayout.h,
-          minW: newLayout.minW,
-          minH: newLayout.minH,
+          x: Math.round(newLayout.x / widthFactor),
+          y: Math.round(newLayout.y / heightFactor),
+          w: Math.round(newLayout.w / widthFactor),
+          h: Math.round(newLayout.h / heightFactor),
+          minW: typeof newLayout.minW === 'number' ? Math.round(newLayout.minW / widthFactor) : undefined,
+          minH: typeof newLayout.minH === 'number' ? Math.round(newLayout.minH / heightFactor) : undefined,
           moved: newLayout.moved,
           static: newLayout.static,
         };
@@ -181,18 +184,22 @@ const Tab = ({
     );
   }
 
+  const newCols = { lg: 12 * widthFactor, md: 12 * widthFactor, sm: 12 * widthFactor, xs: 12 * widthFactor, xxs: 12 * widthFactor };
+
   return (
     <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
         className="layout interactive-grid flex-1 mx-1"
-        cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
-        rowHeight={105}
+        cols={newCols}
+        rowHeight={105 / heightFactor}
         margin={[0, 0]}
         containerPadding={[0, 0]}
         isDraggable={tabUIState?.edit && !dragResizeDisabled}
         isResizable={tabUIState?.edit && !dragResizeDisabled}
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
+        compactType={null}
+        preventCollision={true}
     >
       {tilesToRender.map(({ tileId, tile, element }) => {
         if (!tile.visible) return null;
@@ -202,12 +209,12 @@ const Tab = ({
             key={tile.id}
             data-grid={{
               i: tile.id,
-              x: tile.position.x,
-              y: tile.position.y,
-              w: tile.position.width,
-              h: tile.position.height,
-              minW: tile.minW,
-              minH: tile.minH,
+              x: tile.position.x * widthFactor,
+              y: tile.position.y * heightFactor,
+              w: tile.position.width * widthFactor,
+              h: tile.position.height * heightFactor,
+              minW: typeof tile.minW === 'number' ? tile.minW * widthFactor : undefined,
+              minH: typeof tile.minH === 'number' ? tile.minH * heightFactor : undefined,
               moved: tile.moved,
               static: tile.static,
             }}
@@ -224,4 +231,4 @@ const Tab = ({
   );
 };
 
-export default Tab; 
+export default Tab;
