@@ -16,7 +16,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { Command, CommandCategory, CommandIcon } from "@/contexts/slices/selectors/commands";
 import { useCreateProjectQuery } from "@/hooks/Interfaces/Query/useCreateProjectQuery";
 import { useDeleteProjectQuery, useListProjectsQuery, useCreateOnlyProjectQuery } from "@/hooks/Interfaces/Query/useProjectsQuery";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions } from "@/types/interfaces/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, TabProps, TileProps, FileActions, CodeActions, ContextActions, LogsActions } from "@/types/interfaces/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { ResponseProps, FileProps } from "@/types/common";
 import { useTab } from "@/contexts/hooks/tab";
@@ -58,6 +58,8 @@ export interface UseCommandArgs {
    tabActions: GranularTabActions;
    tileActions: GranularTileActions;
    fileActions: FileActions;
+   logsActions: LogsActions;
+   contextActions: ContextActions;
    codeActions: CodeActions;
    /* Overlay state setter for save/reset operations */
    setOverlayState?: (state: {
@@ -84,6 +86,8 @@ export function useCommand(args: UseCommandArgs) {
     tabActions,
     tileActions,
     fileActions,
+    logsActions,
+    contextActions,
     codeActions,
     setOverlayState,
   } = args;
@@ -361,6 +365,45 @@ export function useCommand(args: UseCommandArgs) {
     fileActions
   ]);
 
+  const deleteProjectLogs = useCallback(async (name: string): Promise<ResponseProps> => {
+    if (!logsActions) return { error: "Logs actions not configured." } as unknown as ResponseProps;
+
+    debugLog("[deleteProjectLogs] Starting logs deletion for project:", name);
+    try {
+      // Passing null for context and empty array for ids_and_fields to delete all logs in project.
+      const result = await logsActions.delete(name, null, [], null);
+      debugLog("[deleteProjectLogs] Logs deletion completed for project:", name);
+      return result as ResponseProps;
+    } catch (error) {
+      console.error("Failed to delete project logs", error);
+      return { error: "Failed to delete project logs" } as unknown as ResponseProps;
+    }
+  }, [logsActions]);
+
+  const deleteProjectLogsAndContexts = useCallback(async (name: string): Promise<ResponseProps> => {
+    if (!logsActions || !contextActions) return { error: "Logs or Context actions not configured." } as unknown as ResponseProps;
+
+    debugLog("[deleteProjectLogsAndContexts] Starting logs and contexts deletion for project:", name);
+    try {
+      // 1. Delete all logs
+      await logsActions.delete(name, null, [], null);
+      debugLog("[deleteProjectLogsAndContexts] Logs deleted for project:", name);
+
+      // 2. Get all contexts
+      const contexts = await contextActions.get(name);
+      debugLog("[deleteProjectLogsAndContexts] Found contexts to delete:", contexts.length);
+
+      // 3. Delete all contexts in parallel
+      await Promise.all(contexts.map(context => contextActions.delete(name, context.name)));
+      debugLog("[deleteProjectLogsAndContexts] Contexts deleted for project:", name);
+      
+      return { info: "Logs and contexts deleted successfully" } as unknown as ResponseProps;
+    } catch (error) {
+      console.error("Failed to delete project logs and contexts", error);
+      return { error: "Failed to delete project logs and contexts" } as unknown as ResponseProps;
+    }
+  }, [logsActions, contextActions]);
+
   const resetTabCommand = useCallback(async () => {
     if (!tabUIActions || !projectId || !interfaceId) {
       console.error("Cannot reset tab: missing required parameters");
@@ -623,6 +666,8 @@ export function useCommand(args: UseCommandArgs) {
     createProject,
     closeProject,
     deleteProject,
+    deleteProjectLogs,
+    deleteProjectLogsAndContexts,
     resetTab: resetTabCommand,
     setFileUpload,
     setFocusPane,

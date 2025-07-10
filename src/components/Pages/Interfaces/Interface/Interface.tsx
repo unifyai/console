@@ -159,6 +159,8 @@ const Interface = ({
     tabActions,
     tileActions,
     fileActions,
+    logsActions,
+    contextActions,
     codeActions,
     setOverlayState,
   });
@@ -451,6 +453,8 @@ const Interface = ({
                   tabActions={tabActions}
                   tileActions={tileActions}
                   fileActions={fileActions}
+                  logsActions={logsActions}
+                  contextActions={contextActions}
                   codeActions={codeActions}
                   setOverlayState={setOverlayState}
                 />

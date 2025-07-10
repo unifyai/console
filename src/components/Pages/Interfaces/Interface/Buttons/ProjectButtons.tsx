@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import CreateProject from "../../Blocks/Table/Buttons/CreateProject";
 import CloseProject from "../../Blocks/Table/Buttons/CloseProject";
 import FileDirectory from "../../../../Shared/Tree/Directory/FileDirectory";
-import DeleteDialog from "../../../../Common/Dialogs/Delete";
 import { ResponseProps } from "@/types/common";
-import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, CodeActions } from "@/types/interfaces/grid";
+import { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, CodeActions, LogsActions, ContextActions } from "@/types/interfaces/grid";
 import ActionButton from "../../../../Common/Buttons/Action";
 import { useEffect, useState } from "react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
@@ -16,6 +15,7 @@ import { useTabUI } from "@/contexts/hooks/tab";
 import AutoComplete from "../../../../Common/Misc/AutoComplete";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
 import { useCommand } from "@/contexts/hooks/commands/useCommand";
+import DeleteProjectDialog from "./DeleteProject";
 import { useListProjectsQuery } from "@/hooks/Interfaces/Query/useProjectsQuery";
 
 
@@ -32,6 +32,8 @@ const ProjectButtons = ({
     tabActions,
     tileActions,
     fileActions,
+    logsActions,
+    contextActions,
     codeActions,
     setOverlayState,
 }: {
@@ -47,6 +49,8 @@ const ProjectButtons = ({
     tabActions: GranularTabActions;
     tileActions: GranularTileActions;
     fileActions: FileActions;
+    logsActions: LogsActions;
+    contextActions: ContextActions;
     codeActions: CodeActions;
     setOverlayState: React.Dispatch<React.SetStateAction<{
         isVisible: boolean;
@@ -90,6 +94,8 @@ const ProjectButtons = ({
         tabActions,
         tileActions,
         fileActions,
+        logsActions,
+        contextActions,
         codeActions,
     });
     
@@ -97,7 +103,9 @@ const ProjectButtons = ({
         selectProject: selectProjectCommand, 
         createProject: createProjectCommand, 
         closeProject: closeProjectCommand, 
-        deleteProject: deleteProjectCommand
+        deleteProject: deleteProjectCommand,
+        deleteProjectLogs: deleteProjectLogsCommand,
+        deleteProjectLogsAndContexts: deleteProjectLogsAndContextsCommand
     } = commandHooks;
 
     // Use React Query to load projects
@@ -182,22 +190,23 @@ const ProjectButtons = ({
                         />
                     </div>}
                     {project && <div className="w-full border-b py-1">
-                        <DeleteDialog
-                            type="project"
-                            args={[project]}
-                            deletingFunction={async () => {
-                                if (!project) {
-                                    return Promise.resolve({
-                                        detail: "No project selected"
-                                    } as unknown as ResponseProps);
-                                }
-                                return await deleteProjectCommand(project);
+                        <DeleteProjectDialog
+                            project={project}
+                            deletingFunctions={{
+                                project: deleteProjectCommand,
+                                logs: deleteProjectLogsCommand,
+                                logsAndContexts: deleteProjectLogsAndContextsCommand,
                             }}
-                            variant="ghost"
-                            text="Delete Project"
-                            onDelete={() => {}}
-                            customOpen={deleteProjectOpen}
-                            setCustomOpen={setDeleteProjectOpen}
+                            showDialog={deleteProjectOpen}
+                            setShowDialog={setDeleteProjectOpen}
+                            onDelete={(option) => {
+                                if (option === 'logs' || option === 'logs_and_contexts') {
+                                    // For these options, a page refresh is needed to reflect the changes.
+                                    window.location.reload();
+                                }
+                                // For the 'project' option, the useCommand hook handles navigation
+                                // by clearing query parameters, which effectively reloads the view.
+                            }}
                         />
                     </div>}
                 </div>
