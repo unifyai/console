@@ -230,7 +230,7 @@ export interface AssistantActions {
     },
     "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>; 
-    register: (voice_id: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;

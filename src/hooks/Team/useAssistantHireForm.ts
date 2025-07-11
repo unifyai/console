@@ -404,8 +404,9 @@ export function useAssistantHireForm(
                 finalImageUrlToSend = data.imagePreview;
             }
             if (!data.voice_exists && data.voice_id) {
+                const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
                 const voiceCreationResponse = await assistantActions.voice.register(
-                    data.voice_id, data.voice_name, data.voice_description || data.voice_name,
+                    data.voice_id, provider, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
                 );
                 if ('detail' in voiceCreationResponse) {

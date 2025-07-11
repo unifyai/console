@@ -23,12 +23,12 @@ export const listVoices = async (apiKey: string) => {
 };
 
 export const registerVoice = async (apiKey: string) => {
-    return async (voice_id: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage, is_preset: boolean): Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps> => {
+    return async (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender | 'other', language: SupportedLanguage, is_preset: boolean): Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
                 method: "POST", headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ voice_id, name, description, gender, language, is_preset })
+                body: JSON.stringify({ voice_id, provider, name, description, gender, language, is_preset })
             });
             const data = await response.json();
             if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
