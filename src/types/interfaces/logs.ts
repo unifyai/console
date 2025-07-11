@@ -134,5 +134,13 @@ declare module "@tanstack/react-table" {
         groupingIndex: number,
         groupingColumnId: string,
         groupingValue: any
+        effectiveIndex?: number,
+    }
+    interface TableMeta<TData extends RowData> {
+        createColumn?: () => void,
+        offsetInfo?: {
+            globalOffset: number;
+            groupOffsets: Map<string, number>;
+      };
     }
 }
