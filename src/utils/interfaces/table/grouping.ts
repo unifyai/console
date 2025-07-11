@@ -1,11 +1,13 @@
 import { LogProps, GroupedLogProps, LogFieldsResponseProps, GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/interfaces/logs";
-import { TileProps, LogsActions, TableDataItem } from "@/types/interfaces/grid";
+import { LogsActions, TableDataItem } from "@/types/interfaces/grid";
 import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { FiltersByColumn } from "@/types/interfaces/columns";
 import { combineFilters, filtersToExpression } from "./filters";
 import { getColumnMetrics } from "../common";
 import { showErrorToast } from "@/components/Common/Toasts/notifications";
 import { QueryClient } from "@tanstack/react-query";
+import { checkHasNextPage } from "@/utils/interfaces/logsCore";
+import { filterNewLogsById, filterNewSubRowsById } from "@/utils/data/buildTableDataItem";
 
 /*
   Utility functions to check grouping types
@@ -608,6 +610,63 @@ export async function onGroupExpand(
 }
 
 /*
+  Finds the specific group's subrows from a nested logs structure using target group filters.
+  Used for extracting subrows to calculate hasMore, currentCount etc. for infinite scroll.
+*/
+export function findGroupSubRows(
+  logs: LogProps[] | GroupedLogProps[], 
+  targetGroupFilters: [string, string][]
+): { 
+  subRows: LogProps[] | GroupedLogProps[], 
+  totalCount: number, 
+  currentCount: number 
+} | null {
+  if (!Array.isArray(logs) || targetGroupFilters.length === 0) return null;
+  
+  function searchInLogs(
+    currentLogs: LogProps[] | GroupedLogProps[],
+    filters: [string, string][]
+  ): { subRows: LogProps[] | GroupedLogProps[], totalCount: number, currentCount: number } | null {
+    if (filters.length === 0) return null;
+    
+    const [currentColumn, currentValue] = filters[0];
+    
+    for (const log of currentLogs) {
+      // Check if this is a GroupedLogProps
+      if (isGroupedLogProps(log)) {
+        const groupedLog = log as GroupedLogProps;
+        
+        // Check if this matches the current filter
+        if (sanitizeId(groupedLog.groupingColumnId) === currentColumn && 
+            groupedLog[groupedLog.groupingColumnId] === currentValue) {
+          
+          if (filters.length === 1) {
+            // Target group found - return its subRows info
+            return {
+              subRows: groupedLog.subRows || [],
+              totalCount: groupedLog.totalChildren || groupedLog.groupCount || 0,
+              currentCount: (groupedLog.subRows || []).length
+            };
+          } else if (Array.isArray(groupedLog.subRows) && groupedLog.subRows.length > 0) {
+            // Recursively search deeper levels
+            const found = searchInLogs(groupedLog.subRows, filters.slice(1));
+            if (found) return found;
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  return searchInLogs(logs, targetGroupFilters);
+}
+
+/*
+  Windowing utility functions for managing sliding windows in different contexts
+*/
+
+/*
   Appends new logs to existing grouped logs structure, used for infinite scroll.
   This function is used when loading more data at the same level.
 */
@@ -661,52 +720,163 @@ export function appendToGroupedLogs(
   return resultLogs;
 }
 
-/*
-  Appends new subRows to a specific group in the nested structure.
-  Used for infinite scroll within expanded groups.
-*/
-export function appendToGroupedSubRows(
+/**
+ * Consolidated append operation for ungrouped logs that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Appending
+ * 3. Windowing
+ * 4. Offset calculation
+ */
+export function appendLogsWithWindowing(
+  existingLogs: LogProps[],
+  newLogs: LogProps[],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentOffset: number = 0,
+  totalCount: number = 0
+): { logs: LogProps[], offset: number, actualAppendedCount: number } {
+  // Step 1: Filter out logs that already exist based on unique ID comparison
+  const logsToAdd = filterNewLogsById(existingLogs, newLogs);
+  const actualAppendedCount = logsToAdd.length;
+   
+  // Step 2: Append the filtered logs
+  const combinedLogs = [...existingLogs, ...logsToAdd];
+   
+  // Step 3: Apply windowing if needed (only if windowConfig is provided)
+  let finalLogs = combinedLogs;
+  let newOffset = currentOffset;
+   
+  if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+    const targetItemCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+    const startIndex = Math.max(0, combinedLogs.length - targetItemCount);
+    finalLogs = combinedLogs.slice(startIndex);
+    
+    // For append operations, offset increases by the number of removed items
+    newOffset = currentOffset + startIndex;
+  }
+   
+  // Step 4: Apply boundary checks (only if windowConfig is provided)
+  if (windowConfig) {
+    newOffset = Math.max(0, newOffset);
+    if (totalCount > 0 && finalLogs.length > 0) {
+      newOffset = Math.min(newOffset, Math.max(0, totalCount - finalLogs.length));
+    }
+  }
+   
+  return { logs: finalLogs, offset: newOffset, actualAppendedCount };
+}
+
+/**
+ * Consolidated append operation for grouped logs that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Appending using existing appendToGroupedLogs utility
+ * 3. Windowing
+ * 4. Offset calculation
+ */
+export function appendGroupedLogsWithWindowing(
+  existingLogs: GroupedLogProps[],
+  newLogs: GroupedLogProps[],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentOffset: number = 0,
+  totalCount: number = 0
+): { logs: GroupedLogProps[], offset: number, actualAppendedCount: number } {
+  // Step 1: Filter out logs that already exist based on unique ID comparison
+  const logsToAdd = filterNewLogsById(existingLogs, newLogs);
+  const actualAppendedCount = logsToAdd.length;
+   
+  // Step 2: Append the filtered logs using existing utility
+  const combinedLogs = appendToGroupedLogs(existingLogs, logsToAdd);
+   
+  // Step 3: Apply windowing if needed (only if windowConfig is provided)
+  let finalLogs = combinedLogs;
+  let newOffset = currentOffset;
+   
+  if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+    const targetGroupCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+    const startIndex = Math.max(0, combinedLogs.length - targetGroupCount);
+    finalLogs = combinedLogs.slice(startIndex);
+  }
+   
+  // Step 4: Apply boundary checks (only if windowConfig is provided)
+  if (windowConfig) {
+    newOffset = Math.max(0, newOffset);
+    if (totalCount > 0 && finalLogs.length > 0) {
+      newOffset = Math.min(newOffset, Math.max(0, totalCount - finalLogs.length));
+    }
+  }
+   
+  return { logs: finalLogs, offset: newOffset, actualAppendedCount };
+}
+
+/**
+ * Consolidated append operation for group subRows that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Appending to target group using existing appendToGroupedSubRows utility
+ * 3. Windowing within the group
+ * 4. Group offset calculation
+ */
+export function appendGroupSubRowsWithWindowing(
   existingLogs: GroupedLogProps[],
   newSubRows: GroupedLogProps[] | LogProps[],
-  targetGroupFilters: [string, string][]
-): GroupedLogProps[] {
-  function findAndAppendSubRows(
-    logs: GroupedLogProps[],
+  targetGroupFilters: [string, string][],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentGroupOffset: number = 0,
+  totalCount: number = 0
+): { logs: GroupedLogProps[], groupOffset: number, actualAppendedCount: number } {
+  let actualAppendedCount = 0;
+  let calculatedGroupOffset = currentGroupOffset;
+
+  function findAndAppendWithWindowing(
+    currentLogs: GroupedLogProps[],
     filters: [string, string][]
   ): GroupedLogProps[] {
-    if (filters.length === 0) return logs;
+    if (filters.length === 0) return currentLogs;
 
     const [currentColumn, currentValue] = filters[0];
 
-    return logs.map((log) => {
+    return currentLogs.map((log) => {
       if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
         if (filters.length === 1) {
-          // Target group found - append to existing subRows
+          // Target group found - do consolidated append operation
           const existingSubRows = Array.isArray(log.subRows) ? log.subRows : [];
           
-          // Determine if we're appending LogProps or GroupedLogProps
-          if (newSubRows.length > 0 && newSubRows[0].type === "ungrouped") {
-            // Appending LogProps to existing subRows
-            const newLogProps = newSubRows as LogProps[];
-            return {
-              ...log,
-              subRows: [...existingSubRows, ...newLogProps] as LogProps[],
-              isPopulated: true
-            };
-          } else {
-            // Appending GroupedLogProps to existing subRows
-            const newGroupedLogProps = newSubRows as GroupedLogProps[];
-            return {
-              ...log,
-              subRows: [...existingSubRows, ...newGroupedLogProps] as GroupedLogProps[],
-              isPopulated: true
-            };
+          // Step 1: Filter out subRows that already exist based on unique ID comparison
+          const logsToAdd = filterNewSubRowsById(existingSubRows as any, newSubRows as any);
+          actualAppendedCount = logsToAdd.length;
+           
+          // Step 2: Append the filtered logs
+          const combinedSubRows = [...existingSubRows, ...logsToAdd];
+           
+          // Step 3: Apply windowing if needed (only if windowConfig is provided)
+          let finalSubRows = combinedSubRows;
+          calculatedGroupOffset = currentGroupOffset;
+           
+          if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+            const targetSubRowCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+            const startIndex = Math.max(0, combinedSubRows.length - targetSubRowCount);
+            finalSubRows = combinedSubRows.slice(startIndex);
+            
+            // For append operations, group offset increases by the number of removed items
+            calculatedGroupOffset = currentGroupOffset + startIndex;
           }
-        } else if (Array.isArray(log.subRows)) {
-          // Recursively append to deeper levels
+           
+          // Step 4: Apply boundary checks (only if windowConfig is provided)
+          if (windowConfig) {
+            calculatedGroupOffset = Math.max(0, calculatedGroupOffset);
+            if (totalCount > 0 && finalSubRows.length > 0) {
+              calculatedGroupOffset = Math.min(calculatedGroupOffset, Math.max(0, totalCount - finalSubRows.length));
+            }
+          }
+           
           return {
             ...log,
-            subRows: findAndAppendSubRows(log.subRows as GroupedLogProps[], filters.slice(1))
+            subRows: finalSubRows as typeof log.subRows,
+            isPopulated: true
+          };
+        } else if (Array.isArray(log.subRows)) {
+          // Recursively handle deeper levels
+          return {
+            ...log,
+            subRows: findAndAppendWithWindowing(log.subRows as GroupedLogProps[], filters.slice(1))
           };
         }
       }
@@ -714,104 +884,224 @@ export function appendToGroupedSubRows(
     });
   }
 
-  return findAndAppendSubRows(existingLogs, targetGroupFilters);
+  const processedLogs = findAndAppendWithWindowing(existingLogs, targetGroupFilters);
+  return { logs: processedLogs, groupOffset: calculatedGroupOffset, actualAppendedCount };
 }
 
-/*
-  Gets the current count of items at a specific group level.
-  Useful for infinite scroll position tracking.
-*/
-export function getGroupItemCount(
-  logs: GroupedLogProps[],
-  groupFilters: [string, string][]
-): number {
-  function findGroupAndCount(
+/**
+ * Consolidated prepend operation for ungrouped logs that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Prepending
+ * 3. Windowing
+ * 4. Offset calculation
+ */
+export function prependLogsWithWindowing(
+  existingLogs: LogProps[],
+  newLogs: LogProps[],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentOffset: number = 0,
+  totalCount: number = 0
+): { logs: LogProps[], offset: number, actualPrependedCount: number } {
+  // Step 1: Filter out logs that already exist based on unique ID comparison
+  const logsToAdd = filterNewLogsById(existingLogs, newLogs);
+  const actualPrependedCount = logsToAdd.length;
+   
+  // Step 2: Prepend the filtered logs
+  const combinedLogs = [...logsToAdd, ...existingLogs];
+   
+  // Step 3: Apply windowing if needed (only if windowConfig is provided)
+  let finalLogs = combinedLogs;
+  let newOffset = currentOffset - actualPrependedCount;
+   
+  if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+    const targetItemCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+    finalLogs = combinedLogs.slice(0, Math.min(targetItemCount, combinedLogs.length));
+     
+     // Offset calculation for windowing (keeping from beginning, so offset stays the same)
+     // The offset represents where our window starts in the global dataset
+  }
+   
+  // Step 4: Apply boundary checks (only if windowConfig is provided)
+  if (windowConfig) {
+    newOffset = Math.max(0, newOffset);
+    if (totalCount > 0 && finalLogs.length > 0) {
+      newOffset = Math.min(newOffset, Math.max(0, totalCount - finalLogs.length));
+    }
+  }
+   
+  return { logs: finalLogs, offset: newOffset, actualPrependedCount };
+}
+
+/**
+ * Consolidated prepend operation for grouped logs that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Prepending  
+ * 3. Windowing
+ * 4. Offset calculation
+ */
+export function prependGroupedLogsWithWindowing(
+  existingLogs: GroupedLogProps[],
+  newLogs: GroupedLogProps[],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentOffset: number = 0,
+  totalCount: number = 0
+): { logs: GroupedLogProps[], offset: number, actualPrependedCount: number } {
+  // Step 1: Filter out logs that already exist based on unique ID comparison
+  const logsToAdd = filterNewLogsById(existingLogs, newLogs);
+  const actualPrependedCount = logsToAdd.length;
+   
+  // Step 2: Prepend the filtered logs using existing utility
+  const combinedLogs = appendToGroupedLogs(logsToAdd, existingLogs);
+   
+  // Step 3: Apply windowing if needed (only if windowConfig is provided)
+  let finalLogs = combinedLogs;
+  let newOffset = currentOffset - actualPrependedCount;
+   
+  if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+    const targetGroupCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+    finalLogs = combinedLogs.slice(0, Math.min(targetGroupCount, combinedLogs.length));
+  }
+   
+  // Step 4: Apply boundary checks (only if windowConfig is provided)
+  if (windowConfig) {
+    newOffset = Math.max(0, newOffset);
+    if (totalCount > 0 && finalLogs.length > 0) {
+      newOffset = Math.min(newOffset, Math.max(0, totalCount - finalLogs.length));
+    }
+  }
+   
+  return { logs: finalLogs, offset: newOffset, actualPrependedCount };
+}
+
+/**
+ * Consolidated prepend operation for group subRows that handles:
+ * 1. Overlap detection and log slicing
+ * 2. Prepending to target group
+ * 3. Windowing within the group
+ * 4. Group offset calculation
+ */
+export function prependGroupSubRowsWithWindowing(
+  existingLogs: GroupedLogProps[],
+  newSubRows: GroupedLogProps[] | LogProps[],
+  targetGroupFilters: [string, string][],
+  windowConfig?: { maxPagesInMemory: number; pageSize: number; currentPageCount: number },
+  currentGroupOffset: number = 0,
+  totalCount: number = 0
+): { logs: GroupedLogProps[], groupOffset: number, actualPrependedCount: number } {
+  let actualPrependedCount = 0;
+  let calculatedGroupOffset = currentGroupOffset;
+
+  function findAndPrependWithWindowing(
     currentLogs: GroupedLogProps[],
     filters: [string, string][]
-  ): number {
-    if (filters.length === 0) {
-      return Array.isArray(currentLogs) ? currentLogs.length : 0;
-    }
+  ): GroupedLogProps[] {
+    if (filters.length === 0) return currentLogs;
 
     const [currentColumn, currentValue] = filters[0];
-    
-    for (const log of currentLogs) {
-      if (log.type === "grouped" && 
-          sanitizeId(log.groupingColumnId) === currentColumn && 
-          log[log.groupingColumnId] === currentValue) {
-        
+
+    return currentLogs.map((log) => {
+      if (sanitizeId(log.groupingColumnId) === currentColumn && log[log.groupingColumnId] === currentValue) {
         if (filters.length === 1) {
-          // Target group found
-          return Array.isArray(log.subRows) ? log.subRows.length : 0;
-        } else if (Array.isArray(log.subRows)) {
-          // Recursively search deeper
-          return findGroupAndCount(log.subRows as GroupedLogProps[], filters.slice(1));
-        }
-      }
-    }
-    
-    return 0;
-  }
-
-  return findGroupAndCount(logs, groupFilters);
-}
-
-/*
-  Helper to get flattened count for display purposes
-*/
-export function getFlattenedCount(logs: LogProps[] | GroupedLogProps[]): number {
-  return maybeFlattenGroupedLogs(logs).length;
-}
-
-/*
-  Finds the specific group's subrows from a nested logs structure using target group filters.
-  Used for extracting subrows to calculate hasMore, currentCount etc. for infinite scroll.
-*/
-export function findGroupSubRows(
-  logs: LogProps[] | GroupedLogProps[], 
-  targetGroupFilters: [string, string][]
-): { 
-  subRows: LogProps[] | GroupedLogProps[], 
-  totalCount: number, 
-  currentCount: number 
-} | null {
-  if (!Array.isArray(logs) || targetGroupFilters.length === 0) return null;
-  
-  function searchInLogs(
-    currentLogs: LogProps[] | GroupedLogProps[],
-    filters: [string, string][]
-  ): { subRows: LogProps[] | GroupedLogProps[], totalCount: number, currentCount: number } | null {
-    if (filters.length === 0) return null;
-    
-    const [currentColumn, currentValue] = filters[0];
-    
-    for (const log of currentLogs) {
-      // Check if this is a GroupedLogProps
-      if (isGroupedLogProps(log)) {
-        const groupedLog = log as GroupedLogProps;
-        
-        // Check if this matches the current filter
-        if (sanitizeId(groupedLog.groupingColumnId) === currentColumn && 
-            groupedLog[groupedLog.groupingColumnId] === currentValue) {
+          // Target group found - do consolidated prepend operation
+          const existingSubRows = Array.isArray(log.subRows) ? log.subRows : [];
           
-          if (filters.length === 1) {
-            // Target group found - return its subRows info
-            return {
-              subRows: groupedLog.subRows || [],
-              totalCount: groupedLog.totalChildren || groupedLog.groupCount || 0,
-              currentCount: (groupedLog.subRows || []).length
-            };
-          } else if (Array.isArray(groupedLog.subRows) && groupedLog.subRows.length > 0) {
-            // Recursively search deeper levels
-            const found = searchInLogs(groupedLog.subRows, filters.slice(1));
-            if (found) return found;
+          // Step 1: Filter out subRows that already exist based on unique ID comparison
+          const logsToAdd = filterNewSubRowsById(existingSubRows as any, newSubRows as any);
+          actualPrependedCount = logsToAdd.length;
+           
+          // Step 2: Prepend the filtered logs
+          const combinedSubRows = [...logsToAdd, ...existingSubRows];
+           
+          // Step 3: Apply windowing if needed (only if windowConfig is provided)
+          let finalSubRows = combinedSubRows;
+          calculatedGroupOffset = currentGroupOffset - actualPrependedCount;
+           
+          if (windowConfig && windowConfig.maxPagesInMemory && windowConfig.currentPageCount > windowConfig.maxPagesInMemory) {
+            const targetSubRowCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
+            finalSubRows = combinedSubRows.slice(0, Math.min(targetSubRowCount, combinedSubRows.length));
           }
+           
+          // Step 4: Apply boundary checks (only if windowConfig is provided)
+          if (windowConfig) {
+            calculatedGroupOffset = Math.max(0, calculatedGroupOffset);
+            if (totalCount > 0 && finalSubRows.length > 0) {
+              calculatedGroupOffset = Math.min(calculatedGroupOffset, Math.max(0, totalCount - finalSubRows.length));
+            }
+          }
+           
+          return {
+            ...log,
+            subRows: finalSubRows as typeof log.subRows,
+            isPopulated: true
+          };
+        } else if (Array.isArray(log.subRows)) {
+          // Recursively handle deeper levels
+          return {
+            ...log,
+            subRows: findAndPrependWithWindowing(log.subRows as GroupedLogProps[], filters.slice(1))
+          };
         }
       }
-    }
-    
-    return null;
+      return log;
+    });
   }
-  
-  return searchInLogs(logs, targetGroupFilters);
+
+  const processedLogs = findAndPrependWithWindowing(existingLogs, targetGroupFilters);
+  return { logs: processedLogs, groupOffset: calculatedGroupOffset, actualPrependedCount };
+}
+
+export function decomposeGroupId(groupId: string): { groupingColumnId: string, groupingValue: string, parentId: string | null } {
+  const groupParts = groupId.split('>');
+  const lastGroup = groupParts[groupParts.length - 1];
+  const [groupingColumnId, groupingValue] = lastGroup.split(':');
+  const parentId = groupParts.length > 1 ? groupParts.slice(0, -1).join('>') : null;
+  return { groupingColumnId, groupingValue, parentId };
+}
+
+// ---------------------------------------------
+// New utility helpers for paging within a group
+// ---------------------------------------------
+
+/**
+ * Determines if there is a NEXT page within a particular group.
+ * This mirrors the inline logic previously found in Table.tsx.
+ */
+export function calculateGroupHasNextPage(
+  logs: LogProps[] | GroupedLogProps[],
+  groupingExpression: string | null,
+  filterExpression: string | null,
+  groupId: string,
+  dataTypes: { [key: string]: string },
+  fields: LogFieldsResponseProps,
+  groupLimit: number,
+  groupOffset: number,
+): boolean {
+  if (!groupingExpression || !logs.length) return false;
+
+  const { groupingColumnId, groupingValue, parentId } = decomposeGroupId(groupId);
+
+  // Build target filters from groupId ("col1:val1>col2:val2")
+  // Build the target group filters
+  const groupingFilters = getGroupingFilters(
+    filterExpression,
+    groupingColumnId,
+    groupingValue,
+    parentId || null,
+    dataTypes,
+    fields
+  );
+  const targetGroupFilters = getTargetGroupFilters(groupingFilters.columnFilters);
+
+  const targetGroup = findGroupSubRows(logs, targetGroupFilters);
+  if (!targetGroup) return false;
+
+  if (targetGroup.totalCount !== undefined && targetGroup.subRows) { 
+    return checkHasNextPage({
+      currentLogs: targetGroup.subRows,
+      totalCount: targetGroup.totalCount,
+      effectiveOffset: groupOffset,
+      effectiveLimit: groupLimit,
+    });
+  }
+  return false;
 }

@@ -8,8 +8,19 @@ import { useMemo, useEffect, useCallback } from "react";
 import { setDeep } from "@/utils/objectPath";
 import { buildAvailableFieldsForTile } from "@/utils/arguments/buildTableArguments";
 import { getColumnMetrics, getGroupedMetrics } from "@/utils/interfaces/common";
-import { getNewCells } from "@/utils/data/buildTableDataItem";
-import { appendToGroupedLogs, maybeConvertRawToGroupedLogs, updateGroupedSubRows, appendToGroupedSubRows, isGroupedLogs, isUngroupedLogs } from "@/utils/interfaces/table/grouping";
+import { getNewCells, getTotalCountFromLogsResponse } from "@/utils/data/buildTableDataItem";
+import { 
+  maybeConvertRawToGroupedLogs, 
+  updateGroupedSubRows, 
+  appendLogsWithWindowing,
+  appendGroupedLogsWithWindowing,
+  appendGroupSubRowsWithWindowing,
+  prependLogsWithWindowing,
+  prependGroupedLogsWithWindowing,
+  prependGroupSubRowsWithWindowing,
+  isGroupedLogs,
+  isUngroupedLogs
+} from "@/utils/interfaces/table/grouping";
 import { LogsActions } from "@/types/interfaces/grid";
 import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 
@@ -177,21 +188,32 @@ export function useTableDataQueryWithTracking(
   }, [tileId, updateTableDataItem, tableDataItem]);
 
   // Function for updating logs from logsActions.get response
-  // Supports both top-level and targeted group updates with replace/append modes:
+  // Supports both top-level and targeted group updates with replace/append/prepend modes:
   // - When targetGroupId and groupFilters are provided, updates/appends at specific group location
-  // - When no targeting provided, handles simple top-level replace/append scenarios
-  // - Uses updateGroupedSubRows for targeted replace, appendToGroupSubRows for targeted append
+  // - When no targeting provided, handles simple top-level replace/append/prepend scenarios
+  // - Uses updateGroupedSubRows for targeted replace, appendToGroupSubRows for targeted append/prepend
+  // - Supports sliding window management for bidirectional infinite loading
   const updateLogs = useCallback((
     logsData: LogsResponseProps,
-    mode: "replace" | "append" = "replace",
+    mode: "replace" | "append" | "prepend" = "replace",
     targetGroupId?: string | null, // For grouped Load More scenarios
     targetGroupFilters?: [string, string][], // For targeting specific subrows
-    preConvertedLogs?: GroupedLogProps[] | LogProps[] // Optional pre-converted logs to avoid double conversion
-  ) => {
+    preConvertedLogs?: GroupedLogProps[] | LogProps[], // Optional pre-converted logs to avoid double conversion
+    windowConfig?: {
+      maxPagesInMemory: number;
+      pageSize: number;
+      currentPageCount: number; // Current number of pages in memory
+    },
+    currentOffsets?: { globalOffset: number; groupOffset: number } // Previous offsets to build upon
+  ): { globalOffset: number; groupOffset: number } => {
     if (!tileId) {
       console.log("[DEBUG] Aborting updateLogs – missing tileId");
-      return;
+      return { globalOffset: 0, groupOffset: 0 };
     }
+
+    // Initialize offsets - use previous offsets if provided, otherwise start at 0
+    let globalOffset = currentOffsets?.globalOffset || 0;
+    let groupOffset = currentOffsets?.groupOffset || 0;
 
     // Use the reactive data which should be fresh with staleTime: 0
     const currentTableDataItem = tableDataItem;
@@ -214,7 +236,7 @@ export function useTableDataQueryWithTracking(
     const isNewUngrouped = isUngroupedLogs(newLogs);
 
     // Determine final logs based on mode and scenario
-    let finalLogs: LogProps[] | GroupedLogProps[];
+    let finalLogs: LogProps[] | GroupedLogProps[] = newLogs; // Default to newLogs
     
     // Branch 1: If we have targeting information (targetGroupId and groupFilters)
     if (targetGroupId && targetGroupFilters && targetGroupFilters.length > 0) {
@@ -230,24 +252,78 @@ export function useTableDataQueryWithTracking(
             targetGroupId,
             newLogs // Pass pre-converted logs to avoid double conversion
           );
-        } else {
-          // Append mode with targeting - append at specific location using appendToGroupedSubRows
-          finalLogs = appendToGroupedSubRows(
-            currentLogs,
+        } else if (mode === "append") {
+          // Append mode with targeting - use consolidated append utility
+          const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+          const result = appendGroupSubRowsWithWindowing(
+            currentLogs as GroupedLogProps[],
             newLogs as GroupedLogProps[] | LogProps[],
-            targetGroupFilters
+            targetGroupFilters,
+            windowConfig,
+            groupOffset,
+            totalCount
           );
+          finalLogs = result.logs;
+          groupOffset = result.groupOffset;
+        } else if (mode === "prepend") {
+          // Prepend mode with targeting - prepend at specific location using prependToGroupedSubRows
+          // Use consolidated prepend utility that handles everything in one go
+          const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+          const result = prependGroupSubRowsWithWindowing(
+            currentLogs as GroupedLogProps[],
+            newLogs as GroupedLogProps[] | LogProps[],
+            targetGroupFilters,
+            windowConfig,
+            groupOffset,
+            totalCount
+          );
+          finalLogs = result.logs;
+          groupOffset = result.groupOffset;
+        } else {
+          // Unknown mode fallback
+          finalLogs = newLogs;
         }
       } else {
         // Targeting requested but logs are ungrouped - warn and fallback
         console.warn("[DEBUG] updateLogs: targeting requested but existing logs are ungrouped, falling back to simple operation");
         if (mode === "replace") {
           finalLogs = newLogs;
+        } else if (mode === "append") {
+          // For ungrouped logs, use consolidated append utility
+          if (isCurrentUngrouped && isNewUngrouped) {
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = appendLogsWithWindowing(
+              currentLogs as LogProps[],
+              newLogs as LogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
+          } else {
+            finalLogs = newLogs; // If new logs are grouped, replace instead
+          }
+        } else if (mode === "prepend") {
+          // For ungrouped logs, just prepend if both are ungrouped
+          if (isNewUngrouped) {
+            // Use consolidated prepend utility that handles everything in one go
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = prependLogsWithWindowing(
+              currentLogs as LogProps[],
+              newLogs as LogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
+          } else {
+            finalLogs = newLogs; // If new logs are grouped, replace instead
+          }
         } else {
-          // For ungrouped logs, just append if both are ungrouped
-          finalLogs = isCurrentUngrouped && isNewUngrouped 
-            ? [...currentLogs, ...newLogs]
-            : newLogs;
+          // Unknown mode fallback
+          finalLogs = newLogs;
         }
       }
     } 
@@ -258,11 +334,42 @@ export function useTableDataQueryWithTracking(
         if (mode === "replace") {
           // Replace mode: simply use new logs
           finalLogs = newLogs;
+        } else if (mode === "append") {
+          // Append mode: use consolidated append utility if new logs are also ungrouped
+          if (isNewUngrouped) {
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = appendLogsWithWindowing(
+              currentLogs as LogProps[],
+              newLogs as LogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
+          } else {
+            finalLogs = newLogs; // If new logs are grouped, replace instead
+          }
+        } else if (mode === "prepend") {
+          // Prepend mode: prepend if new logs are also ungrouped
+          if (isNewUngrouped) {
+            // Use consolidated prepend utility that handles everything in one go
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = prependLogsWithWindowing(
+              currentLogs as LogProps[],
+              newLogs as LogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
+          } else {
+            finalLogs = newLogs; // If new logs are grouped, replace instead
+          }
         } else {
-          // Append mode: append if new logs are also ungrouped
-          finalLogs = isNewUngrouped 
-            ? [...currentLogs, ...newLogs]
-            : newLogs; // If new logs are grouped, replace instead
+          // Unknown mode fallback
+          finalLogs = newLogs;
         }
       }
       // Handle grouped current logs
@@ -270,15 +377,47 @@ export function useTableDataQueryWithTracking(
         if (mode === "replace") {
           // Replace mode: simply use new logs
           finalLogs = newLogs;
-        } else {
+        } else if (mode === "append") {
           // Append mode: merge at top level if new logs are also grouped
           if (isNewGrouped) {
-            finalLogs = appendToGroupedLogs(currentLogs as any, newLogs as any);
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = appendGroupedLogsWithWindowing(
+              currentLogs as GroupedLogProps[],
+              newLogs as GroupedLogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
           } else {
             // If new logs are ungrouped but current are grouped, can't meaningfully append
             console.warn("[DEBUG] updateLogs: append mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs");
             finalLogs = currentLogs;
           }
+        } else if (mode === "prepend") {
+          // Prepend mode: for grouped logs, prepend at top level if new logs are also grouped
+          if (isNewGrouped) {
+            // For prepend, we reverse the order compared to append
+            // Use consolidated prepend utility that handles everything in one go
+            const totalCount = getTotalCountFromLogsResponse(logsData) || 0;
+            const result = prependGroupedLogsWithWindowing(
+              currentLogs as GroupedLogProps[],
+              newLogs as GroupedLogProps[],
+              windowConfig,
+              globalOffset,
+              totalCount
+            );
+            finalLogs = result.logs;
+            globalOffset = result.offset;
+          } else {
+            // If new logs are ungrouped but current are grouped, can't meaningfully prepend
+            console.warn("[DEBUG] updateLogs: prepend mode but cannot merge ungrouped newLogs with grouped currentLogs, keeping currentLogs");
+            finalLogs = currentLogs;
+          }
+        } else {
+          // Unknown mode fallback
+          finalLogs = newLogs;
         }
       } 
       // Fallback for edge cases (neither grouped nor ungrouped)
@@ -296,6 +435,9 @@ export function useTableDataQueryWithTracking(
       newCells,
       error
     });
+
+    // Return the calculated offsets (boundary guards are applied within utility functions)
+    return { globalOffset, groupOffset };
   }, [tileId, updateTableDataItem, tableDataItem]);
 
   // Adapter that accepts an updater function as well as partial updates
