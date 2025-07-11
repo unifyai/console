@@ -4,7 +4,7 @@ import { LogsActions } from '@/types/interfaces/grid';
 import { LogFieldsResponseProps, LogsResponseProps } from '@/types/interfaces/logs';
 import LoadMore, { LoadMoreProps } from './LoadMore';
 
-interface GroupLoadMoreProps {
+export interface GroupLoadMoreProps {
   // Query parameters
   tileId: string;
   tabId: string;
@@ -20,7 +20,7 @@ interface GroupLoadMoreProps {
   logsActions: LogsActions;
   
   // Group-specific parameters
-  groupId: string; // Full group path like "column1:value1>column2:value2"
+  groupId: string | undefined; // Full group path like "column1:value1>column2:value2"
   dataTypes: { [key: string]: string };
   fields: LogFieldsResponseProps;
 
@@ -30,21 +30,44 @@ interface GroupLoadMoreProps {
   // Update function
   updateLogs?: (
     logsData: LogsResponseProps,
-    mode?: "replace" | "append",
+    mode: "replace" | "append" | "prepend",
     targetGroupId?: string | null,
-    targetGroupFilters?: [string, string][]
-  ) => void;
+    targetGroupFilters?: [string, string][],
+    preConvertedLogs?: any[],
+    windowConfig?: {
+      maxPagesInMemory: number;
+      pageSize: number;
+      currentPageCount: number;
+    },
+    currentOffsets?: { globalOffset: number; groupOffset: number }
+  ) => { globalOffset: number; groupOffset: number };
   
   // UI parameters
-  colSpan: number;
+  colSpan: number | undefined;
   interactive?: boolean;
-  hasNextPage?: boolean; // External hasNextPage calculation
   
   // LoadMore component override
   LoadMoreComponent?: React.ComponentType<LoadMoreProps>;
+
+  // Group-specific hasNextPage and hasPreviousPage calculation
+  calculateGroupHasNextPage: (groupId: string | undefined) => boolean;
   
   // Callback for reporting isFetchingNextPage state changes
   onFetchingStateChange?: (isFetchingNextPage: boolean) => void;
+  
+  // Callback for reporting group offset changes
+  onGroupOffsetChange?: (groupId: string | undefined, offset: number) => void;
+  
+  // Bidirectional loading configuration
+  bidirectionalEnabled?: boolean;
+  bidirectionalConfig?: {
+    maxPagesInMemory: number;
+    enableBackwardLoading: boolean;
+    enableForwardLoading: boolean;
+  };
+  
+  // Position indicator to determine what to render
+  position?: "before" | "after";
 }
 
 /**
@@ -71,16 +94,19 @@ export default function GroupLoadMore({
   updateLogs,
   colSpan,
   interactive = true,
-  hasNextPage: externalHasNextPage,
+  calculateGroupHasNextPage,
   LoadMoreComponent = LoadMore,
   onFetchingStateChange,
+  onGroupOffsetChange,
+  bidirectionalEnabled = false,
+  bidirectionalConfig = {
+    maxPagesInMemory: 5,
+    enableBackwardLoading: true,
+    enableForwardLoading: true,
+  },
+  position = "after", // Default to "after" for backward compatibility
 }: GroupLoadMoreProps) {
-  const {
-    hasNextPage: queryHasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
-    isError,
-  } = useInfiniteGroupSpecificLogsQuery({
+  const infiniteGroupQuery = useInfiniteGroupSpecificLogsQuery({
     tileId,
     tabId,
     projectId,
@@ -94,36 +120,63 @@ export default function GroupLoadMore({
     group_limit,
     logsActions,
     updateLogs,
-    groupId,
+    onGroupOffsetChange,
+    groupId: groupId || "",
     dataTypes,
     fields,
-    enabled: !isTableDataLoading,
+    enabled: !!groupId && !isTableDataLoading,
+    bidirectional: {
+      enabled: bidirectionalEnabled,
+      maxPagesInMemory: bidirectionalConfig.maxPagesInMemory,
+      enableBackwardLoading: bidirectionalConfig.enableBackwardLoading,
+      enableForwardLoading: bidirectionalConfig.enableForwardLoading,
+    },
   });
 
   // Report isFetchingNextPage state changes to parent
   useEffect(() => {
     if (onFetchingStateChange) {
-      onFetchingStateChange(isFetchingNextPage);
+      onFetchingStateChange(infiniteGroupQuery.isFetchingNextPage);
     }
-  }, [isFetchingNextPage, onFetchingStateChange]);
+  }, [infiniteGroupQuery.isFetchingNextPage, onFetchingStateChange]);
 
-  // Combine external and query hasNextPage
-  const hasNextPage = externalHasNextPage || queryHasNextPage;
+  // Handle Load Previous rendering
+  if (position === "before") {
+    const hasPrevPage = infiniteGroupQuery.hasPreviousPage;
+    if (!hasPrevPage && !infiniteGroupQuery.isFetchingPreviousPage) {
+      return null;
+    }
+    
+    return (
+      <LoadMoreComponent
+        onLoadMore={infiniteGroupQuery.fetchPreviousPage}
+        isLoading={infiniteGroupQuery.isFetchingPreviousPage}
+        hasNextPage={hasPrevPage}
+        colSpan={colSpan}
+        asTableRow={true}
+        interactive={interactive}
+        buttonText="Load Previous"
+        loadingText="Loading previous..."
+      />
+    );
+  }
 
-  // Only render if there are more pages to load or currently fetching
-  if (!hasNextPage && !isFetchingNextPage) {
+  // Handle Load More rendering (default, backward compatible)
+  const hasNextPage = calculateGroupHasNextPage(groupId) || infiniteGroupQuery.hasNextPage;
+  if (!hasNextPage && !infiniteGroupQuery.isFetchingNextPage) {
     return null;
   }
 
-  // Render the LoadMore component with group-specific infinite query
   return (
     <LoadMoreComponent
-      onLoadMore={() => fetchNextPage()}
-      isLoading={isFetchingNextPage}
+      onLoadMore={infiniteGroupQuery.fetchNextPage}
+      isLoading={infiniteGroupQuery.isFetchingNextPage}
       hasNextPage={hasNextPage}
       colSpan={colSpan}
       asTableRow={true}
       interactive={interactive}
+      buttonText="Load More"
+      loadingText="Loading more..."
     />
   );
 } 

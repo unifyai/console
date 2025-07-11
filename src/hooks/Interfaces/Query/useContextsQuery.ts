@@ -19,6 +19,10 @@ export function useListContextsQuery(
     },
     enabled: !!projectId,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
   });
 }
 

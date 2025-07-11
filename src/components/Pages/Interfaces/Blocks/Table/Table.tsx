@@ -58,12 +58,12 @@ import { useTableDataQueryWithTracking, useTableGroupedMetricsQuery, useTableArg
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useRouter } from "next/navigation"; // Import useRouter
-import ActionButton from "@/components/Common/Buttons/Action";
 import SettingButton from "@/components/Common/Buttons/Setting";
 import { useInfiniteLogsQuery } from "@/hooks/Interfaces/Query/useInfiniteLogsQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore";
-import { checkHasNextPage, checkHasPreviousPage } from "@/utils/interfaces/logsCore";
+import { checkHasNextPage } from "@/utils/interfaces/logsCore";
+import { calculateGroupHasNextPage as calcGroupHasNextPageUtil } from "@/utils/interfaces/table/grouping";
 
 const LogsTable = ({
   tileId,
@@ -92,7 +92,15 @@ const LogsTable = ({
   const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
   const [useVirtualization, setUseVirtualization] = useState(false); // Enable virtualization by default
+  const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(true); // Enable bidirectional loading
+  const [bidirectionalConfig, setBidirectionalConfig] = useState({
+    maxPagesInMemory: 5,
+    enableBackwardLoading: true,
+    enableForwardLoading: true,
+  });
 
+  // Track group-specific offsets for row indexing
+  const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
 
   // Get access to the tab data and actions with granular access
   const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
@@ -169,97 +177,13 @@ const LogsTable = ({
     logsActions,
     updateLogs,
     enabled: !!projectId && !!tileId && !!tabId && !isTableDataLoading,
+    bidirectional: {
+      enabled: useBidirectionalLoading,
+      maxPagesInMemory: bidirectionalConfig.maxPagesInMemory,
+      enableBackwardLoading: bidirectionalConfig.enableBackwardLoading,
+      enableForwardLoading: bidirectionalConfig.enableForwardLoading,
+    },
   });
-
-  // Calculate hasNextPage from infinite query if available, otherwise from initial tableDataItem
-  const initialHasNextPage = useMemo(() => {
-    if (!isTableDataLoading && !infiniteLogsQuery.isPending && !infiniteLogsQuery.isLoading) {
-      // Use infinite query data once it's available
-      return infiniteLogsQuery.hasNextPage;
-    }
-    
-    // Calculate from initial tableDataItem using pagination utility
-    return checkHasNextPage({
-      currentLogs: logs,
-      totalCount,
-      offset: tableTileState?.offset || 0,
-      limit: tableTileState?.limit || 20,
-      groupOffset: tableTileState?.group_offset || 0,
-      groupLimit: tableTileState?.group_limit || 20,
-    });
-  }, [
-    isTableDataLoading,
-    infiniteLogsQuery.isLoading, 
-    infiniteLogsQuery.isPending,
-    infiniteLogsQuery.hasNextPage, 
-    logs.length, 
-    tableTileState?.limit, 
-    tableTileState?.group_limit,
-    tableTileState?.group_offset, 
-    tableTileState?.offset,
-    groupingExpression, 
-    totalCount
-  ]);
-
-  const effectiveHasNextPage = useMemo(() => {
-    if (!infiniteLogsQuery.isLoading) {
-      return infiniteLogsQuery.hasNextPage;
-    }
-    return initialHasNextPage;
-  }, [infiniteLogsQuery.isLoading, infiniteLogsQuery.hasNextPage, initialHasNextPage]);
-
-  const effectiveLoadedCount = logs.length;
-
-  // Helper function to calculate hasNextPage for individual groups
-  const calculateGroupHasNextPage = useCallback((groupId: string): boolean => {
-    if (!groupingExpression || !logs.length) return false;
-
-    // For individual group LoadMore, we need to look at the group data
-    // groupId format: "column1:value1>column2:value2>..."
-    const groupParts = groupId.split('>');
-    
-    // Find the group in the current logs data
-    const findGroupData = (currentLogs: any[], parts: string[], partIndex: number = 0): any => {
-      if (partIndex >= parts.length) return null;
-      
-      const [column, value] = parts[partIndex].split(':');
-      const cleanColumn = column.replace(/^(Entries|Parameters)\//, '');
-      
-      // Look for this group in current logs
-      for (const log of currentLogs) {
-        if (log.type === "grouped") {
-          // Check if this log matches the current part
-          const logValue = log[column] || log[`Entries/${cleanColumn}`] || log[`Parameters/${cleanColumn}`];
-          if (logValue === value) {
-            // If this is the last part, we found our target group
-            if (partIndex === parts.length - 1) {
-              return log;
-            }
-            // Otherwise, continue searching in subRows
-            if (log.subRows && log.subRows.length > 0) {
-              return findGroupData(log.subRows, parts, partIndex + 1);
-            }
-          }
-        }
-      }
-      return null;
-    };
-
-    const targetGroup = findGroupData(logs, groupParts);
-    if (!targetGroup) return false;
-
-    // Check if the group has more items to load using pagination utilities
-    if (targetGroup.totalChildren !== undefined && targetGroup.subRows) {
-      return checkHasNextPage({
-        currentLogs: targetGroup.subRows,
-        totalCount: targetGroup.totalChildren,
-        groupOffset: 0, // Groups start at 0
-        groupLimit: tableTileState?.group_limit || 20,
-      });
-    }
-
-    return false;
-  }, [logs, groupingExpression, tableTileState?.group_limit]);
 
   // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTileActions, tableTile } = useTileSync(
@@ -350,7 +274,7 @@ const LogsTable = ({
     return [
       {
         id: indicesTitle,
-        cell: ({ row }) => <Badge>{row.index + 1}</Badge>,
+        cell: ({ row }) => <Badge>{(row.effectiveIndex !== undefined ? row.effectiveIndex : row.index) + 1}</Badge>,
         meta: {
           dataType: null,
           columnType: "util",
@@ -719,6 +643,72 @@ const LogsTable = ({
     }
   }, [logs.length, groupingExpression, isGroupedMetricsLoading]);
 
+  // Calculate hasNextPage from infinite query if available, otherwise from initial tableDataItem
+  const initialHasNextPage = useMemo(() => {
+    if (!isTableDataLoading && !infiniteLogsQuery.isPending && !infiniteLogsQuery.isLoading) {
+      // Use infinite query data once it's available
+      return infiniteLogsQuery.hasNextPage;
+    }
+    
+    // Calculate from initial tableDataItem using pagination utility
+    return checkHasNextPage({
+      currentLogs: logs,
+      totalCount,
+      effectiveOffset: tableTileState?.offset || 0,
+      effectiveLimit: tableTileState?.limit || 20,
+    });
+  }, [
+    isTableDataLoading,
+    infiniteLogsQuery.isLoading, 
+    infiniteLogsQuery.isPending,
+    infiniteLogsQuery.hasNextPage, 
+    logs.length, 
+    tableTileState?.limit, 
+    tableTileState?.group_limit,
+    tableTileState?.group_offset, 
+    tableTileState?.offset,
+    groupingExpression, 
+    totalCount
+  ]);
+
+  const effectiveHasNextPage = useMemo(() => {
+    if (!infiniteLogsQuery.isLoading) {
+      return infiniteLogsQuery.hasNextPage;
+    }
+    return initialHasNextPage;
+  }, [infiniteLogsQuery.isLoading, infiniteLogsQuery.hasNextPage, initialHasNextPage]);
+
+  const effectiveLoadedCount = logs.length;
+
+  // Helper function to calculate hasNextPage for individual groups
+  const calculateGroupHasNextPage = useCallback((groupId: string | undefined): boolean => {
+    if (!groupId) return false;
+
+    // Retrieve the group offset for this groupId
+    const groupOffset = groupOffsets.get(groupId) || 0;
+
+    return calcGroupHasNextPageUtil(
+      logs,
+      groupingExpression,
+      filterExpression,
+      groupId,
+      dataTypes,
+      fields,
+      tableTileState?.group_limit || 20,
+      groupOffset,
+    );
+  }, [
+    logs,
+    groupingExpression,
+    filterExpression,
+    dataTypes,
+    fields,
+    tableTileState?.group_limit,
+    groupOffsets,
+  ]);
+
+  // --- end group pagination helpers ---
+
   // Rename column handler
   const renameColumn = async (oldName: string, newName: string) => {
     if (!projectId) return;
@@ -822,6 +812,30 @@ const LogsTable = ({
                     onClick={() => setUseVirtualization(!useVirtualization)}
                     variant={useVirtualization ? "primary" : "outline"}
                 />
+                <SettingButton
+                    tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
+                    icon={<div className="h-4 w-4 flex items-center justify-center text-xs font-bold">↕</div>}
+                    onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
+                    variant={useBidirectionalLoading ? "primary" : "outline"}
+                />
+                {useBidirectionalLoading && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">Pages:</span>
+                    <select
+                      value={bidirectionalConfig.maxPagesInMemory}
+                      onChange={(e) => setBidirectionalConfig(prev => ({ 
+                        ...prev, 
+                        maxPagesInMemory: Number(e.target.value) 
+                      }))}
+                      className="text-xs border rounded px-1 py-0.5"
+                    >
+                      <option value={3}>3</option>
+                      <option value={5}>5</option>
+                      <option value={7}>7</option>
+                      <option value={10}>10</option>
+                    </select>
+                  </div>
+                )}
             </div>
         </div>
         
@@ -840,19 +854,50 @@ const LogsTable = ({
 
   const tableFooter = projectId && (
     <div className="pt-2 px-1 border-border border-t">
-        <InfiniteScrollController
-            loadedCount={effectiveLoadedCount}
-            estimatedTotal={totalCount}
-            totalCount={totalCount}
-            hasNextPage={effectiveHasNextPage}
-            isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
-            onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
-            onRefresh={() => infiniteLogsQuery.refetch()}
-            interactive={interactive}
-            itemName={grouping.length > 0 ? "groups" : "logs"}
-            showRefresh={false}
-            className="w-full"
-        />
+        {useBidirectionalLoading ? (
+          // Custom bidirectional controls
+          <div className="flex items-center justify-center p-2">
+            <div className="text-center">
+              <div className="text-sm">
+                {(() => {
+                  const globalOffset = infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0;
+                  const rangeStart = globalOffset + 1;
+                  const rangeEnd = globalOffset + effectiveLoadedCount;
+                  const itemType = grouping.length > 0 ? "groups" : "logs";
+                  
+                  if (effectiveLoadedCount === 0) {
+                    return `0 of ${totalCount} ${itemType}`;
+                  }
+                  
+                  return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} (${effectiveLoadedCount} loaded)`;
+                })()}
+              </div>
+              {infiniteLogsQuery.bidirectionalInfo && (
+                <div className="text-xs text-muted-foreground">
+                  Pages: {infiniteLogsQuery.bidirectionalInfo.pagesInMemory}/{infiniteLogsQuery.bidirectionalInfo.maxPagesInMemory}
+                  {infiniteLogsQuery.bidirectionalInfo.windowStart !== infiniteLogsQuery.bidirectionalInfo.windowEnd && (
+                    <span> | Window: {infiniteLogsQuery.bidirectionalInfo.windowStart}-{infiniteLogsQuery.bidirectionalInfo.windowEnd}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Standard unidirectional controller
+          <InfiniteScrollController
+              loadedCount={effectiveLoadedCount}
+              estimatedTotal={totalCount}
+              totalCount={totalCount}
+              hasNextPage={effectiveHasNextPage}
+              isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
+              onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
+              onRefresh={() => infiniteLogsQuery.refetch()}
+              interactive={interactive}
+              itemName={grouping.length > 0 ? "groups" : "logs"}
+              showRefresh={false}
+              className="w-full"
+          />
+        )}
     </div>
   );
 
@@ -919,21 +964,40 @@ const LogsTable = ({
                         setState={setState}
                         scrollContainerRef={panelScrollRefs[idx]}
                         
+                        // Row indexing offset information
+                        offsetInfo={{
+                          globalOffset: infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0,
+                          groupOffsets: groupOffsets,
+                        }}
+                        
                         // Virtualization props - only enabled when useVirtualization is true
                         enableVirtualization={useVirtualization}
                         virtualRowHeight={60}
                         virtualContainerHeight={600}
+
+                        // Forward loading
                         hasNextPage={effectiveHasNextPage}
                         isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
                         fetchNextPage={infiniteLogsQuery.fetchNextPage}
+
+                        // Backward loading
+                        hasPreviousPage={infiniteLogsQuery.hasPreviousPage}
+                        isFetchingPreviousPage={infiniteLogsQuery.isFetchingPreviousPage}
+                        fetchPreviousPage={infiniteLogsQuery.fetchPreviousPage}
+
+                        // Bidirectional loading
+                        bidirectionalEnabled={useBidirectionalLoading}
+                        bidirectionalInfo={infiniteLogsQuery.bidirectionalInfo}
+
                         isItemLoaded={(index: number) => !!logs[index]}
                         
                         // Component props
                         LoadMore={LoadMore}
                         
                         // Multi-level LoadMore props
-                        GroupLoadMore={({groupId, colSpan, interactive}) => (
+                        GroupLoadMore={({groupId, colSpan, interactive, position}) => (
                           <GroupLoadMore
+                            key={`${groupId}-${position || 'after'}`}
                             tileId={tileId}
                             tabId={tabId}
                             projectId={projectId!}
@@ -953,8 +1017,20 @@ const LogsTable = ({
                             updateLogs={updateLogs}
                             colSpan={colSpan}
                             interactive={interactive}
-                            hasNextPage={calculateGroupHasNextPage(groupId)}
                             LoadMoreComponent={LoadMore}
+                            calculateGroupHasNextPage={calculateGroupHasNextPage}
+                            bidirectionalEnabled={useBidirectionalLoading}
+                            bidirectionalConfig={bidirectionalConfig}
+                            position={position}
+                            onGroupOffsetChange={(groupId, offset) => {
+                                setGroupOffsets(prev => {
+                                  const current = prev.get(groupId || "");
+                                  if (current === offset) return prev; // no change, keep same reference
+                                  const next = new Map(prev);
+                                  next.set(groupId || "", offset);
+                                  return next;
+                                });
+                              }}
                           />
                         )}
                         
@@ -1095,7 +1171,15 @@ const LogsTable = ({
                                 next.add(props.row.id);
                                 return next;
                               });
-                              
+
+                              // Initialise group offset to 0 for this expanded group
+                              setGroupOffsets(prev => {
+                                if (prev.get(props.row.id) === 0) return prev;
+                                const next = new Map(prev);
+                                next.set(props.row.id, 0);
+                                return next;
+                              });
+
                               await onGroupExpand(
                                 props.row.id,
                                 groupingColumnId,

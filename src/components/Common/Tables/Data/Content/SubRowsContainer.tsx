@@ -6,6 +6,7 @@ import DataTableRow from "./Row";
 import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 import styles from "./SubRowsContainer.module.css";
+import { GroupLoadMoreProps } from "../Buttons/GroupLoadMore";
 
 interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
     parentRow: Row<TData>;
@@ -28,15 +29,21 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
     isAnimating: boolean;
     setDraggingColumnPinner: (state: any) => void;
     columnCount: number;
+
     // GroupLoadMore component and props
-    GroupLoadMore?: React.ComponentType<{
-        groupId: string;
-        colSpan: number;
-        interactive?: boolean;
-        hasNextPage?: boolean;
-    }> | null;
+    GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps>> | null;
     interactive?: boolean;
-    groupHasNextPage?: boolean; // External hasNextPage calculation for this group
+    
+    // Bidirectional loading support
+    bidirectionalEnabled?: boolean;
+    bidirectionalInfo?: {
+        windowStart: number;
+        windowEnd: number;
+        isAtStart: boolean;
+        isAtEnd: boolean;
+        pagesInMemory: number;
+        maxPagesInMemory: number;
+    };
 }
 
 /**
@@ -66,7 +73,8 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     columnCount,
     GroupLoadMore,
     interactive = true,
-    groupHasNextPage = false,
+    bidirectionalEnabled = false,
+    bidirectionalInfo,
 }: SubRowsContainerProps<TData>) {
     // Remove scroll-related refs and state since we're not creating a scrolling context
     
@@ -133,7 +141,8 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                         columnCount={columnCount}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
-                        groupHasNextPage={groupHasNextPage}
+                        bidirectionalEnabled={bidirectionalEnabled}
+                        bidirectionalInfo={bidirectionalInfo}
                     />
                 )}
             </React.Fragment>
@@ -176,16 +185,28 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                             }}
                         >
                             <TableBody className="contents">
-                                {/* Render direct children and their nested subRows */}
-                                {directChildren.map(renderSubRow)}
-                                
-                                {/* GroupLoadMore for this parent group */}
-                                {GroupLoadMore && (
+                                {/* GroupLoadMore for Load Previous - render BEFORE subrows */}
+                                {GroupLoadMore && bidirectionalEnabled && (
                                     <GroupLoadMore
+                                        key={`${parentRow.id}-before`}
                                         groupId={parentRow.id}
                                         colSpan={columnCount}
                                         interactive={interactive}
-                                        hasNextPage={groupHasNextPage}
+                                        position="before"
+                                    />
+                                )}
+                                
+                                {/* Render direct children and their nested subRows */}
+                                {directChildren.map(renderSubRow)}
+                                
+                                {/* GroupLoadMore for Load More - render AFTER subrows */}
+                                {GroupLoadMore && (
+                                    <GroupLoadMore
+                                        key={`${parentRow.id}-after`}
+                                        groupId={parentRow.id}
+                                        colSpan={columnCount}
+                                        interactive={interactive}
+                                        position="after"
                                     />
                                 )}
                             </TableBody>

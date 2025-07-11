@@ -43,7 +43,9 @@ export interface CoreLogFetchResult {
   currentCount: number;
   hasMore: boolean;
   useGroupPagination: boolean;
-  
+  effectiveLimit: number;
+  effectiveOffset: number;
+
   // Filter expressions (for group expansion scenarios)
   updatedFilterExpression?: string | null;
   updatedGroupingExpression?: string | null;
@@ -147,7 +149,9 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     useGroupPagination,
     updatedFilterExpression: effectiveFilterExpression,
     updatedGroupingExpression: effectiveGroupingExpression,
-    targetGroupFilters
+    targetGroupFilters,
+    effectiveLimit: useGroupPagination ? group_limit : limit,
+    effectiveOffset: useGroupPagination ? group_offset : offset
   };
 }
 
@@ -251,38 +255,20 @@ export function getCurrentGroupCount(
 export function checkHasNextPage(params: {
   currentLogs: LogProps[] | GroupedLogProps[];
   totalCount: number;
-  offset?: number;
-  limit?: number;
-  groupOffset?: number;
-  groupLimit?: number;
+  effectiveOffset?: number;
+  effectiveLimit?: number;
 }): boolean {
-  const { currentLogs, totalCount, offset = 0, limit = 20, groupOffset = 0, groupLimit = 20 } = params;
+  const { currentLogs, totalCount, effectiveOffset = 0, effectiveLimit = 20 } = params;
   const isGrouped = isGroupedLogs(currentLogs);
 
   if (!currentLogs.length) return false;
   
   if (isGrouped) {
-    const currentCount = getCurrentGroupCount(groupOffset, groupLimit, currentLogs.length);
+
+    const currentCount = getCurrentGroupCount(effectiveOffset, effectiveLimit, currentLogs.length);
     return hasNextPage(currentCount, totalCount);
   } else {
-    const currentCount = getCurrentCount(offset, limit, currentLogs.length);
+    const currentCount = getCurrentCount(effectiveOffset, effectiveLimit, currentLogs.length);
     return hasNextPage(currentCount, totalCount);
   }
 }
-
-/**
- * Unified utility to check if there are previous pages for any pagination scenario
- */
-export function checkHasPreviousPage(params: {
-  offset?: number;
-  groupOffset?: number;
-}): boolean {
-  const { offset = 0, groupOffset = 0 } = params;
-  
-  // Check group offset first (if provided), then regular offset
-  if (groupOffset > 0) {
-    return hasPreviousPage(groupOffset);
-  } else {
-    return hasPreviousPage(offset);
-  }
-} 

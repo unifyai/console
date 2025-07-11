@@ -321,3 +321,47 @@ export function getNewCells(previousLogs: LogProps[] | GroupedLogProps[], logs: 
     }
     return newCells;
 }
+
+/**
+ * Filters out logs that already exist in the existing logs based on unique ID comparison.
+ * Works for both LogProps[] and GroupedLogProps[] arrays.
+ * 
+ * @param existingLogs - The current logs in the table
+ * @param newLogs - The newly fetched logs that might contain duplicates
+ * @returns Array of logs from newLogs that don't exist in existingLogs
+ */
+export function filterNewLogsById<T extends LogProps | GroupedLogProps>(
+  existingLogs: T[],
+  newLogs: T[]
+): T[] {
+  if (!existingLogs.length) {
+    // No existing logs, all new logs are actually new
+    return newLogs;
+  }
+  
+  if (!newLogs.length) {
+    // No new logs to filter
+    return [];
+  }
+  
+  // Create a Set of existing log IDs for fast lookup
+  const existingIds = new Set(existingLogs.map(log => log.id));
+  
+  // Filter new logs to only include those not already present
+  return newLogs.filter(log => !existingIds.has(log.id));
+}
+
+/**
+ * Filters out logs that already exist in nested subRows based on unique ID comparison.
+ * This is specifically for grouped logs where we need to check subRows within a specific group.
+ * 
+ * @param existingSubRows - The current subRows in a specific group
+ * @param newSubRows - The newly fetched subRows that might contain duplicates
+ * @returns Array of subRows from newSubRows that don't exist in existingSubRows
+ */
+export function filterNewSubRowsById<T extends LogProps | GroupedLogProps>(
+  existingSubRows: T[],
+  newSubRows: T[]
+): T[] {
+  return filterNewLogsById(existingSubRows, newSubRows);
+}

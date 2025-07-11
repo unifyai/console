@@ -839,6 +839,45 @@ export function getCoreRowModel<TData extends RowData>(): (
             row.groupingValue = (originalRows[i] as any)[row.groupingColumnId]
 			row.groupingIndex = (originalRows[i] as any).groupingIndex
 
+            // Calculate effective index based on offset information
+            const offsetInfo = table.options.meta?.offsetInfo;
+            if (offsetInfo) {
+              if (depth === 0) {
+                // Top-level row: use global offset
+                row.effectiveIndex = offsetInfo.globalOffset + i;
+              } else if (parentRow) {
+                // SubRow: try to find group-specific offset
+                let groupOffset = 0;
+                
+                // Try to find offset for this specific group
+                // We need to build the groupId path from the row hierarchy
+                const buildGroupId = (currentRow: any): string => {
+                  if (!currentRow.groupingColumnId || !currentRow.groupingValue) {
+                    return '';
+                  }
+                  const currentGroup = `${currentRow.groupingColumnId}:${currentRow.groupingValue}`;
+                  if (currentRow.parent) {
+                    const parentGroupId = buildGroupId(currentRow.parent);
+                    return parentGroupId ? `${parentGroupId}>${currentGroup}` : currentGroup;
+                  }
+                  return currentGroup;
+                };
+                
+                const groupId = buildGroupId(parentRow);
+                if (groupId && offsetInfo.groupOffsets.has(groupId)) {
+                  groupOffset = offsetInfo.groupOffsets.get(groupId) || 0;
+                }
+                
+                row.effectiveIndex = groupOffset + i;
+              } else {
+                // Fallback to array index
+                row.effectiveIndex = i;
+              }
+            } else {
+              // No offset info, use array index
+              row.effectiveIndex = i;
+            }
+
             // Keep track of every row in a flat array
             rowModel.flatRows.push(row)
             // Also keep track of every row by its ID

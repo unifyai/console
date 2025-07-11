@@ -29,6 +29,7 @@ import { LoadMoreProps } from "./Buttons/LoadMore";
 
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
+import { GroupLoadMoreProps } from "./Buttons/GroupLoadMore";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -42,24 +43,45 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
     
+    // Row indexing offset information
+    offsetInfo?: {
+        globalOffset: number;
+        groupOffsets: Map<string, number>;
+    };
+    
     // Virtualization props with defaults
     enableVirtualization?: boolean;
     virtualRowHeight?: number;
     virtualContainerHeight?: number;
+    
+    // Forward loading (existing)
     hasNextPage?: boolean;
     isFetchingNextPage?: boolean;
     fetchNextPage?: () => Promise<any>;
+    
+    // Backward loading (new)
+    hasPreviousPage?: boolean;
+    isFetchingPreviousPage?: boolean;
+    fetchPreviousPage?: () => Promise<any>;
+    
+    // Bidirectional configuration
+    bidirectionalEnabled?: boolean;
+    bidirectionalInfo?: {
+        windowStart: number;
+        windowEnd: number;
+        isAtStart: boolean;
+        isAtEnd: boolean;
+        pagesInMemory: number;
+        maxPagesInMemory: number;
+    };
+    
     isItemLoaded?: (index: number) => boolean;
     
     // Component props
     LoadMore?: React.ComponentType<LoadMoreProps>;
     
     // Multi-level LoadMore props
-    GroupLoadMore?: React.ComponentType<{
-        groupId: string;
-        colSpan: number;
-        interactive?: boolean;
-    }> | null;
+    GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps> & { position?: "before" | "after" }> | null;
     
     FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[]) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
@@ -85,14 +107,27 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     error,
     scrollContainerRef,
     onRenameColumn,
+    offsetInfo,
     
     // Virtualization props with defaults
     enableVirtualization = false,
     virtualRowHeight = 60,
     virtualContainerHeight = 600,
+    
+    // Forward loading
     hasNextPage = false,
     isFetchingNextPage = false,
     fetchNextPage,
+    
+    // Backward loading
+    hasPreviousPage = false,
+    isFetchingPreviousPage = false,
+    fetchPreviousPage,
+    
+    // Bidirectional configuration
+    bidirectionalEnabled = false,
+    bidirectionalInfo,
+    
     isItemLoaded,
     
     // Component props
@@ -199,7 +234,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
             createColumn: () => {
                 // updateLogs(...).then(...)
                 // window.location.reload();
-        },
+            },
+            offsetInfo: offsetInfo || { globalOffset: 0, groupOffsets: new Map() },
         }
     });
 
@@ -406,29 +442,6 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         return { topLevelRows, subRows };
     };
 
-    // Helper function to check if a parent row has more pages to load for its subRows
-    const getGroupHasNextPage = (parentRow: TanstackRow<TData>, subRows: TanstackRow<TData>[]): boolean => {
-        // Find subRows that belong to this parent
-        const parentSubRows = subRows.filter(subRow => {
-            const subRowParentId = (subRow as any).parentId;
-            return subRowParentId === parentRow.id;
-        });
-
-        // For grouped logs, check if we have more items to load
-        if (parentRow.original.type === "grouped") {
-            const groupedRow = parentRow.original as any;
-            if ('groupCount' in groupedRow && 
-                typeof groupedRow.groupCount === 'number' &&
-                !!groupedRow.groupCount && parentSubRows.length) {
-                return parentSubRows.length < groupedRow.groupCount;
-            }
-        }
-
-        return false;
-    };
-
-
-
     // Hierarchical row renderer that handles parent rows and subRows separately
     const renderHierarchicalRow = (row: TanstackRow<TData>, allSubRows: TanstackRow<TData>[]): ReactNode[] => {
         const elements: ReactNode[] = [];
@@ -475,9 +488,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 return subRowParentId === row.id;
             });
 
-            if (rowSubRows.length > 0) {
-                const groupHasNextPage = getGroupHasNextPage(row, allSubRows);
-                
+            if (rowSubRows.length > 0) {                
                 elements.push(
                     <SubRowsContainer
                         key={`${row.id}-subrows`}
@@ -503,7 +514,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         columnCount={finalColumns.length}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
-                        groupHasNextPage={groupHasNextPage}
+                        bidirectionalEnabled={bidirectionalEnabled}
+                        bidirectionalInfo={bidirectionalInfo}
                     />
                 );
             }
@@ -610,29 +622,46 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                         </td>
                                                     </tr>
                                                 ) : (
-                                                                                        // Hierarchical rendering with SubRowsContainer for proper nesting
-                                    <>
-                                        {(() => {
-                                            const { topLevelRows, subRows } = processRowsHierarchy(table.getRowModel().rows);
-                                            
-                                            return topLevelRows.map((row) => 
-                                                renderHierarchicalRow(row, subRows)
-                                            );
-                                        })()}
-                                        
-                                        {/* Top-level Load More Component - only render if provided and fetchNextPage is available */}
-                                        {LoadMore && fetchNextPage && (
-                                            <LoadMore
-                                                onLoadMore={fetchNextPage}
-                                                isLoading={isFetchingNextPage}
-                                                hasNextPage={hasNextPage}
-                                                colSpan={finalColumns.length}
-                                                asTableRow={true}
-                                                interactive={interactive}
-                                                position="relative"
-                                            />
-                                        )}
-                                    </>
+                                                    // Hierarchical rendering with SubRowsContainer for proper nesting
+                                                    <>
+                                                        {/* Load Previous Component - render BEFORE all rows */}
+                                                        {LoadMore && fetchPreviousPage && (
+                                                            <LoadMore
+                                                                onLoadMore={fetchPreviousPage}
+                                                                isLoading={isFetchingPreviousPage}
+                                                                hasNextPage={hasPreviousPage}
+                                                                colSpan={finalColumns.length}
+                                                                asTableRow={true}
+                                                                interactive={interactive}
+                                                                position="relative"
+                                                                buttonText="Load Previous"
+                                                                loadingText="Loading previous..."
+                                                            />
+                                                        )}
+                                                        
+                                                        {(() => {
+                                                            const { topLevelRows, subRows } = processRowsHierarchy(table.getRowModel().rows);
+                                                            
+                                                            return topLevelRows.map((row) => 
+                                                                renderHierarchicalRow(row, subRows)
+                                                            );
+                                                        })()}
+                                                        
+                                                        {/* Load More Component - render AFTER all rows */}
+                                                        {LoadMore && fetchNextPage && (
+                                                            <LoadMore
+                                                                onLoadMore={fetchNextPage}
+                                                                isLoading={isFetchingNextPage}
+                                                                hasNextPage={hasNextPage}
+                                                                colSpan={finalColumns.length}
+                                                                asTableRow={true}
+                                                                interactive={interactive}
+                                                                position="relative"
+                                                                buttonText="Load More"
+                                                                loadingText="Loading more..."
+                                                            />
+                                                        )}
+                                                    </>
                                                 )
                                             ) 
                                             :   (

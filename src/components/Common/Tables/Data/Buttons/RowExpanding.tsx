@@ -47,8 +47,6 @@ const RowExpanding = ({
     }, [handleInitialExpand]);
 
     const handleClick = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
         if (!isExpanded) {
             // Expanding
             setIsAnimating(true);
@@ -75,7 +73,11 @@ const RowExpanding = ({
             className={`transition-transform duration-200 ease-in-out cursor-pointer ${
                 isAnimating ? 'rotate-90' : isExpanded ? 'rotate-90' : 'rotate-0'
             }`}
-            onClick={handleClick}
+            onClick={e => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleClick(e);
+            }}
             disabled={isLoading}
         >
             <ChevronRight />

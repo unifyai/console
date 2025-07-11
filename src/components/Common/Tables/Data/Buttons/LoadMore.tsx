@@ -9,12 +9,18 @@ export interface LoadMoreProps {
   disabled?: boolean;
   interactive?: boolean;
   className?: string;
+  
   // Table-specific props for when used in table context
   asTableRow?: boolean;
   colSpan?: number;
   hasNextPage?: boolean;
+  
   // CSS class props
   position?: "sticky" | "relative";
+  
+  // Button text customization
+  buttonText?: string;
+  loadingText?: string;
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -27,6 +33,8 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   colSpan = 1,
   hasNextPage = true,
   position = "sticky",
+  buttonText = "Load More",
+  loadingText = "Loading...",
 }) => {
   // If not used as table row, render as regular button
   if (!asTableRow) {
@@ -41,12 +49,10 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         {isLoading ? (
           <>
             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            Loading...
+            {loadingText}
           </>
         ) : (
-          <>
-            Load More
-          </>
+          buttonText
         )}
       </Button>
     );
@@ -72,13 +78,15 @@ const LoadMore: React.FC<LoadMoreProps> = ({
               className={`${position} left-1/2 transform -translate-x-1/2 inline-block`}
               style={{ width: 'fit-content' }}
             >
-              <button
-                onClick={onLoadMore}
-                className="px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 text-foreground"
-                disabled={!interactive || disabled}
-              >
-                Load More
-              </button>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={onLoadMore}
+                  className="px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md hover:bg-accent hover:text-accent-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 text-foreground"
+                  disabled={!interactive || disabled}
+                >
+                  {buttonText}
+                </button>
+              </div>
             </div>
           </TableCell>
         </TableRow>
@@ -98,7 +106,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
             >
               <div className="flex items-center justify-center gap-2 px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <span className="text-muted-foreground">Loading more...</span>
+                <span className="text-muted-foreground">{loadingText}</span>
               </div>
             </div>
           </TableCell>
