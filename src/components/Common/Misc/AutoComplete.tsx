@@ -9,7 +9,7 @@ import { Button } from "@/components/UI/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/UI/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover"
 
-export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, loading, onOpen, className}: {
+export default function AutoComplete ({items, type, defaultValue, onSelect, isOpen, disabled, loading, onOpen, className, onOpenChange, displayMode = 'button', triggerIcon}: {
     items: {value:string, label: string, icon?: React.ReactNode, disabled?: boolean}[],
     type: string,
     defaultValue?: string,
@@ -18,32 +18,52 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
     disabled?: boolean,
     loading?: boolean,
     onOpen?: () => void,
-    className?: string
+    className?: string,
+    onOpenChange?: (open: boolean) => void;
+    displayMode?: 'button' | 'icon';
+    triggerIcon?: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false)
   const [value, setValue] = React.useState(defaultValue || "")
   const [icon, setIcon] = React.useState<React.ReactNode | undefined>(undefined);
-  useEffect(() => {setValue(defaultValue || "")}, [defaultValue])
-  const onOpenChange = (o: boolean) => {
+  
+  useEffect(() => { setValue(defaultValue || "") }, [defaultValue]);
+
+  const handleOpenChange = (o: boolean) => {
     if (onOpen && o) onOpen();
-    setOpen(o);
+    if(onOpenChange) {
+        onOpenChange(o);
+    } else {
+        setOpen(o);
+    }
   }
+
+  const effectiveOpen = isOpen !== undefined ? isOpen : open;
   const label = items.find((item) => item.value === value)?.label;
+
   return (
-    <Popover open={isOpen != undefined ? isOpen : open} onOpenChange={(o) => onOpenChange(o)}>
+    <Popover open={effectiveOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           role="combobox"
-          aria-expanded={isOpen != undefined ? isOpen : open}
-          className={`h-8 px-3 w-[200px] justify-between truncate backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200 ${className}`}
+          aria-expanded={effectiveOpen}
+          className={cn(
+            `h-8 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200`,
+            displayMode === 'icon' ? 'w-8 px-2 justify-center' : 'w-[200px] px-3 justify-between',
+            className
+          )}
           disabled={disabled}
         >
-          {icon && icon}
-          {value && label
-            ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
-            : type == "Actions" ? "Search Actions..." : `Select ${type}...`}
-          <ChevronsUpDown className="opacity-50" />
+          {displayMode === 'icon' ? triggerIcon : (
+            <>
+              {icon && icon}
+              {value && label
+                ? (type.includes("axis") ? label?.slice(0, 15) + (label?.length > 15 ? "..." : "") : label)
+                : `Select ${type}...`}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </>
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
@@ -63,17 +83,17 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
                     onSelect={(currentValue) => {
                       setValue(currentValue === value ? "" : currentValue);
                       setIcon(currentValue === value ? undefined : item?.icon);
-                      onSelect(currentValue === value ? "" : currentValue);
-                      setOpen(false)
+                      onSelect(item.label);
+                      handleOpenChange(false)
                     }}
                     className="h-10 cursor-pointer"
                   >
-                    {item.icon && item.icon}
+                    {item.icon && <div className="mr-2">{item.icon}</div>}
                     {item.label}
                     <Check
                       className={cn(
-                        "ml-auto",
-                        value === item.value ? "opacity-100" : "opacity-0"
+                        "ml-auto h-4 w-4",
+                        value === item.label ? "opacity-100" : "opacity-0"
                       )}
                     />
                   </CommandItem>

@@ -21,7 +21,9 @@ import type {
   InterfaceData,
   Context,
   TabData,
-  TileData
+  TileData,
+  FavouritesActions,
+  Favourite
 } from "@/types/interfaces/grid";
 import { redirect } from "next/navigation";
 
@@ -52,16 +54,19 @@ type InterfaceWrapperActions = {
   tabActions: GranularTabActions;
   tileActions: GranularTileActions;
   fileActions: FileActions;
+  favouritesActions: FavouritesActions;
 };
 
 export default async function Main({
   project,
   interface_,
   actions,
+  initialFavourites,
 }: {
   project: string | null;
   interface_: string | null;  // This is the interface name from query param
   actions: InterfaceWrapperActions;
+  initialFavourites: Favourite[];
 }) {
 
   debugLog("[Main.server] === PARAMETER DEBUG ===");
@@ -354,7 +359,6 @@ export default async function Main({
             interfaceActions={actions.interfaceActions}
             tabActions={actions.tabActions}
             tileActions={actions.tileActions}
-            projectActions={actions.projectsActions}
           />
         ) : (
           <Interface
@@ -369,6 +373,8 @@ export default async function Main({
             contextActions={actions.contextActions}
             codeActions={actions.codeActions}
             fileActions={actions.fileActions}
+            favouritesActions={actions.favouritesActions}
+            initialFavourites={initialFavourites}
           />
         )}
       </HydrationBoundary>

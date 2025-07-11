@@ -17,7 +17,7 @@ import {
   createFavourite,
   updateFavourite,
   deleteFavourite
-} from "@/app/(home)/favourites/actions";
+} from "@/lib/interfaces/favourites";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -229,12 +229,14 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         try {
           if (!initialFavouritesSet.has(fav.project) || fav.id === -1) {
             // create new
-            const ret = await createFavourite(apiKey, fav.project, sanitizedIcon, position);
+            const createFav = await createFavourite(apiKey);
+            const ret = await createFav(fav.project, sanitizedIcon, position)
             console.log(`Created new favourite for ${fav.project}:`, ret);
           } else {
             const initialFav = uniqueInitialFavourites.find(f => f.project === fav.project);
             if (initialFav && (initialFav.icon !== sanitizedIcon || initialFav.position !== position)) {
-              const ret = await updateFavourite(apiKey, initialFav.id, { icon: sanitizedIcon, position });
+              const updateFav = await updateFavourite(apiKey)
+              const ret = await updateFav(initialFav.id, { icon: sanitizedIcon, position });
               console.log(`Updated favourite for ${fav.project}:`, ret);
             }
           }
@@ -248,7 +250,9 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
       /* ---------- Handle deletions ---------- */
       for (const fav of uniqueInitialFavourites.filter(fav => !currentFavouritesSet.has(fav.project))) {
         try {
-          const ret = await deleteFavourite(apiKey, fav.id);
+          const deleteFav = await deleteFavourite(apiKey)
+          const ret = await deleteFav(fav.id);
+
           console.log(`Deleted favourite for ${fav.project}:`, ret);
         } catch (err) {
           errorsOccurred = true;

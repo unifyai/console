@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
@@ -10,9 +10,9 @@ import InterfaceButtons from "./Buttons/InterfaceButtons";
 import InterfaceTabs from "./InterfaceTabs";
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
-import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions } from '@/types/interfaces/grid';
+import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
 import { debounce } from 'lodash';
-
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
@@ -54,6 +54,8 @@ interface InterfaceComponentProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
+  favouritesActions: FavouritesActions;
+  initialFavourites: Favourite[];
 }
 
 const Interface = ({ 
@@ -68,6 +70,8 @@ const Interface = ({
   contextActions,
   codeActions,
   fileActions,
+  favouritesActions,
+  initialFavourites,
 }: InterfaceComponentProps) => {
 
   // Query params - no more tab param needed
@@ -132,8 +136,9 @@ const Interface = ({
   );
 
   // Sidebar state for proper positioning
+  const isMobile = useIsMobile();
   const { state: sidebarState } = useSidebar();
-  const sidebarWidth = sidebarState === 'collapsed' ? '3rem' : '14rem';
+  const sidebarWidth = isMobile ? '0rem' : sidebarState === 'collapsed' ? '3rem' : '14rem';
 
   // Overlay state for save/reset operations
   const [overlayState, setOverlayState] = useState<{
@@ -164,6 +169,7 @@ const Interface = ({
     codeActions,
     setOverlayState,
   });
+  const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
 
   // Reference for the grid container
   const gridRef = useRef<HTMLDivElement>(null);
@@ -439,7 +445,7 @@ const Interface = ({
                 right: 0,
               }}
             >
-              <div className="flex justify-between w-full p-4 pointer-events-auto">
+              <div className="flex justify-between gap-5 w-full p-4 pointer-events-auto overflow-x-auto command-scrollbar">
                 <ProjectButtons
                   tabIdOrName={activeTabId}
                   interfaceId={interfaceId}
@@ -456,24 +462,11 @@ const Interface = ({
                   logsActions={logsActions}
                   contextActions={contextActions}
                   codeActions={codeActions}
-                  setOverlayState={setOverlayState}
+                  favouritesActions={favouritesActions}
+                  initialFavourites={initialFavourites}
                 />
 
                 <div className="flex flex-row gap-2 items-center">
-                  <AutoComplete
-                    type={"Actions"}
-                    items={storeCommands.map((cmd: Command) => ({
-                      label: cmd.label,
-                      value: cmd.id,
-                      icon: cmd.icon ? iconMap[cmd.icon] : undefined,
-                      disabled: cmd.disabled
-                    }))}
-                    defaultValue={undefined}
-                    isOpen={undefined}
-                    onSelect={(commandId: string) => handleCommand(commandId)}
-                    onOpen={() => {}}
-                    loading={false}
-                  />
                   {tabUIState?.resetting && (
                     <div className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
                       <Loader2 className="animate-spin" />
@@ -484,14 +477,13 @@ const Interface = ({
                 <InterfaceButtons
                   tabIdOrName={activeTabId}
                   interfaceId={interfaceId}
-                  logsActions={logsActions}
-                  contextActions={contextActions}
                   interfaceActions={interfaceActions}
                   tabActions={tabActions}
                   tileActions={tileActions}
-                  projectsActions={projectsActions}
-                  fieldsActions={fieldsActions}
+                  favouritesActions={favouritesActions}
+                  initialFavourites={initialFavourites}
                   disabled={saveTabWithTilesMutation.isPending}
+                  setOverlayState={setOverlayState}
                 />
               </div>
             </div>
@@ -611,7 +603,7 @@ const Interface = ({
                   right: 0,
                 }}
               >
-                <div className="p-4 w-full flex justify-center pointer-events-auto">
+                <div className="p-4 w-full flex justify-start pointer-events-auto">
                   <InterfaceTabs
                     tabIdOrName={activeTabId}
                     interfaceId={interfaceId}
@@ -624,6 +616,8 @@ const Interface = ({
                     logsActions={logsActions}
                     setTabQueryParam={setTabQueryParamFromSync}
                     pendingTabChange={pendingTabChange}
+                    setSaveInterfaceOpen={setSaveInterfaceOpen}
+                    resetInterfaceCommand={resetInterfaceCommand}
                   />
                 </div>
               </div>
@@ -713,6 +707,27 @@ const Interface = ({
             </DialogContent>
           </Dialog>
         )}
+        
+        {/* Floating Action Search Button */}
+        {/* 
+        <div className="fixed bottom-5 right-5 z-50">
+            <AutoComplete
+                type={"Actions"}
+                displayMode="icon"
+                triggerIcon={<Search />}
+                items={storeCommands.map((cmd: Command) => ({
+                    label: cmd.label,
+                    value: cmd.id,
+                    icon: cmd.icon ? iconMap[cmd.icon] : undefined,
+                    disabled: cmd.disabled
+                }))}
+                onSelect={(commandId: string) => {
+                    handleCommand(commandId);
+                }}
+                loading={false}
+            />
+        </div> 
+        */}
         </div>
       </ScrollArea>
     </div>

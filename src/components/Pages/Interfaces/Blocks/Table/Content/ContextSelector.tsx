@@ -30,6 +30,7 @@ const ContextSelector = ({
     projectsActions,
     fieldsActions,
     setPending,
+    text = "Edit global context"
 }: {
     tileId?: string,
     tabId?: string,
@@ -47,6 +48,7 @@ const ContextSelector = ({
     projectsActions: ProjectsActions,
     fieldsActions: FieldsActions,
     setPending: (pending: boolean) => void,
+    text?: string
 }) => {
     const [open_, setOpen_] = useState(false);
     const [start, setStart] = useState(true);
@@ -104,16 +106,16 @@ const ContextSelector = ({
     };
 
     return (
-        <div className="w-fit">
+        <div className="w-full">
             {item === undefined ? (
                 <BaseDialog
                     context="tile"
                     button={button || <ActionButton
-                        text="Edit Global Context"
-                        tooltip="Edit Global Context"
-                        icon={<FolderTree />}
+                        text={text}
+                        tooltip={text}
+                        icon={<FolderTree className="h-4 w-4 mr-2"/>}
                         variant={context ? "primary" : "ghost"}
-                        size="sm"
+                        className="w-full justify-start"
                         disabled={!projectId}
                     />}
                     open={!projectId ? false : open ? true : undefined}

@@ -17,6 +17,8 @@ const DeleteProjectDialog = ({
     showDialog,
     setShowDialog,
     onDelete,
+    text,
+    className,
 }: {
     project: string;
     deletingFunctions: {
@@ -27,6 +29,8 @@ const DeleteProjectDialog = ({
     showDialog: boolean;
     setShowDialog: (open: boolean) => void;
     onDelete: (option: DeleteOption) => void;
+    text?: string;
+    className?: string;
 }) => {
     const [selectedOption, setSelectedOption] = useState<DeleteOption>("project");
     const [error, setError] = useState<boolean>(false);
@@ -124,9 +128,9 @@ const DeleteProjectDialog = ({
     <ActionButton
         tooltip="Delete Project"
         variant="ghost"
-        text="Delete Project"
+        text={text || "Delete Project"}
         onClick={() => setShowDialog(true)}
-        className="w-full justify-start"
+        className={className || "w-full justify-start"}
         icon={<Trash className="h-4 w-4 mr-2" />}
     />
     

@@ -24,6 +24,8 @@ interface FileUploadProps {
     logsActions: LogsActions;
     customOpen?: boolean;
     setCustomOpen?: (open: boolean) => void;
+    text?: string;
+    className?: string;
 }
 
 type ParsedData = {
@@ -37,7 +39,7 @@ type ColumnType = 'param' | 'entry';
 const MAX_PREVIEW_ROWS = 20;
 const ALLOWED_EXTENSIONS = ['.csv', '.jsonl', '.json'];
 
-export function FileUpload({ project, logsActions, contexts, customOpen, setCustomOpen }: FileUploadProps) {
+export function FileUpload({ project, logsActions, contexts, customOpen, setCustomOpen, text, className }: FileUploadProps) {
     const [open_, setOpen_] = useState(false);
     const open = customOpen !== undefined ? customOpen : open_;
     const setOpen = setCustomOpen || setOpen_;
@@ -452,12 +454,13 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
             className="sm:max-w-[75vw] max-h-[90vh] flex flex-col" // Increased width slightly
             button={
                 <ActionButton
-                    text="Upload Logs"
-                    icon={<Upload />}
+                    text={text || "Upload Logs"}
+                    icon={<Upload className="mr-2 h-4 w-4" />}
                     onClick={() => setOpen(true)}
                     tooltip="Upload logs from file (.csv, .jsonl, .json)"
                     variant="ghost"
                     disabled={!project}
+                    className={className}
                 />
             }
             body={

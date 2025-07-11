@@ -8,6 +8,7 @@ import * as tabs from "@/lib/interfaces/tabs";
 import * as tiles from "@/lib/interfaces/tiles";
 import * as logs from "@/lib/interfaces/logs";
 import * as contexts from "@/lib/interfaces/contexts";
+import * as favourites from "@/lib/interfaces/favourites";
 
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -108,6 +109,13 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         rename: await files.renameFile(apiKey, userId),
     };
 
+    // Favourites actions
+    const initialFavourites = await favourites.getFavourites(apiKey);
+    const favouritesActions = {
+        create: await favourites.createFavourite(apiKey),
+        delete: await favourites.deleteFavourite(apiKey),
+    };
+
     // Create the granular actions using the factory functions
     const interfaceActions: GranularInterfaceActions = await createInterfaceActions(
         interfaces.listInterfaces,
@@ -200,9 +208,11 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
                     devboxActions,
                     interfaceActions,
                     tabActions,
-                    tileActions
+                    tileActions,
+                    favouritesActions,
                 }
             }
+            initialFavourites={initialFavourites}
         />
     );
 };

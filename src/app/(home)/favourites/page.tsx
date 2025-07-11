@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { getCurrentUser } from "@/lib/user/user";
 import { getProjects } from "@/lib/interfaces/projects";
-import { getFavourites } from "@/app/(home)/favourites/actions";
+import { getFavourites } from "@/lib/interfaces/favourites";
 import FavouritesClient from "@/components/Pages/Favourites/FavouritesClient";
 import { Metadata } from "next";
 

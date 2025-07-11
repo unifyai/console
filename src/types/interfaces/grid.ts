@@ -857,3 +857,15 @@ export interface FileActions {
     // Rename file or directory
     rename: (project: string, oldPath: string, newPath: string) => Promise<any>;
 }
+
+export interface Favourite {
+  id: number;
+  project: string;
+  icon: string;
+  position: number;
+}
+
+export interface FavouritesActions {
+    create: (project: string, icon: string, position: number) => Promise<Favourite>;
+    delete: (id: number) => Promise<boolean>;
+}

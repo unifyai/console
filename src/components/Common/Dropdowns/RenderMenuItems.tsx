@@ -3,17 +3,18 @@ import { TreeNode } from "@/types/common";
 import { Check, Folder, Loader2 } from "lucide-react";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
-const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, deleteDialog, loading }: {
+const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, setter, isColumnContext, deleteDialog, loading, rootDisplayName }: {
     node: TreeNode,
     nodeName: string,
     isTopLevel: boolean,
     showRoot: boolean,
-    attr: string | undefined,
+    attr: string | undefined | null,
     prefix?: string,
     isColumnContext?: boolean,
     setter: (context: string) => void,
     deleteDialog?: React.ReactNode,
-    loading?: boolean
+    loading?: boolean,
+    rootDisplayName?: string;
 }) => {
     const hasChildren = Object.keys(node.children).length > 0;
     const nodePath = node.path;
@@ -23,7 +24,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, showRoot, attr, prefix, s
         if (nodeName !== "<root>") {
             return nodeName;
         }
-        return nonRootNodePath || prefix || (isColumnContext ? "All Columns" : "Root Context");
+        return nonRootNodePath || prefix || rootDisplayName || (isColumnContext ? "All Columns" : "Root Context");
     };
     
     const displayText = getDisplayText();

@@ -110,9 +110,9 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     };
 
     return (
-        <header ref={headerRef} className={"group/header relative flex w-full h-12 min-h-[3rem] items-center justify-between border-b bg-card p-2"}>
+        <header ref={headerRef} className={"group/header relative flex w-full h-12 min-h-[3rem] items-center border-b bg-card py-1 px-2 overflow-x-auto command-scrollbar"}>
             {/* Left part: Name, context, etc. */}
-            <div className="flex flex-1 flex-shrink items-center gap-2 overflow-hidden">
+            <div className="flex items-center gap-2 flex-shrink-0">
                 <TileInfoPalette
                     tileId={tileId}
                     tabId={tabId}
@@ -131,7 +131,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     onOpenChange={setIsPopoverOpen}
                 >
                     <div
-                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-sm font-medium text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground"
+                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-sm font-medium text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
                     >
                         {tileName}{tileUIState?.loading && <Loader2 className="animate-spin ml-2 inline-block" size={16} />}
                     </div>
@@ -180,7 +180,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
 
             {/* Right part: Action buttons */}
             <div 
-                className={`flex items-center gap-1 transition-opacity duration-200 ${tabUIState?.edit ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
+                className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${tabUIState?.edit ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
             >
                 {!tabUIState?.edit && (
                 <ActionButton

@@ -1,679 +1,423 @@
 "use client";
 
-import { ContextActions, LogsActions, GranularTabActions, GranularTileActions, GranularInterfaceActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
-import { Eye, Hammer, SquareMousePointer, Info, Settings, Trash, Pen } from "lucide-react";
-import { Check, ListRestart, Loader2, TriangleAlert, Save, FocusIcon, Palette, Plus } from "lucide-react";
-import ActionButton from "@/components/Common/Buttons/Action";
-import BaseDropdown from "@/components/Common/Dropdowns/Base";
-import BaseDialog from "@/components/Common/Dialogs/Base";
-import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { useRouter } from "next/navigation";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceTemplateSchema, TemplateExportResponse, TemplateImportResponse, Favourite, FavouritesActions } from "@/types/interfaces/grid";
+import { Hammer, SquareMousePointer, Settings, Plus, Pen, Trash2, Upload, Download, Loader2, FileUp, X, Check, CheckCircle, AlertCircle, RefreshCw, Star } from "lucide-react";
 import { Switch } from "@/components/UI/switch";
 import { Label } from "@/components/UI/label";
-import { Input } from "@/components/UI/input";
-import SubmitButton from "@/components/Common/Buttons/Submit";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import ColorPicker from "@/components/Common/Misc/ColorPicker";
-import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import { FileUpload } from "./FileUpload";
 import AddTile from "./AddTile";
-import ContextSelector from "../../Blocks/Table/Content/ContextSelector";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useEffect, useMemo, useState } from "react";
-
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTab } from "@/contexts/hooks/tab";
-import { useTiles } from "@/contexts/hooks/useStore";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
-import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Interfaces/Query/useRestoreLastSavedTabWithTilesQuery';
-import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
-import { useInterfaceSync } from "@/contexts/hooks/interface/sync/useInterfaceSync";
-import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
 import { showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
-import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
+import { useListInterfacesQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
+import BaseDropdown from "../../../../Common/Dropdowns/Base";
+import ActionButton from "../../../../Common/Buttons/Action";
+import BaseDialog from "../../../../Common/Dialogs/Base";
+import { Input } from "../../../../UI/input";
+import SubmitButton from "../../../../Common/Buttons/Submit";
+import { Alert, AlertDescription } from "@/components/UI/alert";
+import { createCompleteDefaultInterface } from "@/utils/interfaces/interfaceSelector";
+import { Button } from "@/components/UI/button";
+import { Checkbox } from "@/components/UI/checkbox";
+import { useDropzone } from "react-dropzone";
+import { cn } from "@/lib/utils";
+import SelectionCommand from "@/components/Common/Commands/SelectionCommand";
 
 const InterfaceButtons = ({
     tabIdOrName,
     interfaceId,
-    logsActions,
-    contextActions,
+    interfaceActions,
     tabActions,
     tileActions,
-    interfaceActions,
-    projectsActions,
-    fieldsActions,
+    favouritesActions,
+    initialFavourites,
     disabled,
+    setOverlayState,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
-    logsActions: LogsActions,
-    contextActions: ContextActions,
+    interfaceActions: GranularInterfaceActions,
     tabActions: GranularTabActions,
     tileActions: GranularTileActions,
-    interfaceActions: GranularInterfaceActions,
-    projectsActions: ProjectsActions,
-    fieldsActions: FieldsActions,
+    favouritesActions: FavouritesActions;
+    initialFavourites: Favourite[];
     disabled?: boolean,
+    setOverlayState: React.Dispatch<React.SetStateAction<{
+        isVisible: boolean;
+        operation: 'saving' | 'resetting' | 'refreshing' | null;
+        status: 'loading' | 'success' | 'error' | null;
+    }>>;
 }) => {
     const router = useRouter();
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    
-    // Use hooks for tab operations
-    const restoreTabMutation = useRestoreLastSavedTabWithTilesQuery();
-    
+    const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
+
     // Get the project data and the contexts with granular access
-    const storeCommands = useStoreContext((s) => s.commands);
     const project = useStoreContext((state) => state.activeProjectId);
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-
-    // Use React Query to fetch contexts
-    const listContextsQuery = useListContextsQuery(project || null, contextActions);
-    const contexts = listContextsQuery.data || [];
 
     // Tab states and actions with granular access
     const {
         meta: tabMetaState,
-        data: tabDataState,
         ui: tabUIState,
-        dataActions: tabDataActions,
         uiActions: tabUIActions,
     } = useTab(tabIdOrName || "", interfaceId);
     const tabId = tabMetaState?.id || null;
-    const tabName = tabMetaState?.name || null;
 
-    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
-    const syncedTabDataActions = syncedTabActions?.data ?? null;
-    const syncedTabUIActions = syncedTabActions?.ui ?? null;
+    // Fetch interfaces for the current project
+    const { data: interfacesData, isLoading: isLoadingInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
+        project,
+        interfaceActions
+    );
 
-    // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, project, interfaceActions, tabActions);
-    const syncedInterfaceDataActions = syncedInterfaceActions?.data ?? null;
-    const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
+    const interfaces = useMemo(() => interfacesData || [], [interfacesData]);
+    const currentInterface = useMemo(() => interfaces.find(iface => iface.id === interfaceId), [interfaces, interfaceId]);
+    const interfaceNames = useMemo(() => interfaces.map(iface => iface.name), [interfaces]);
 
-    // Get tileIds from tab data properly
-    const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
+    // Dialog and dropdown states
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [renameOpen, setRenameOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
 
-    // Only subscribe to a subset of the tiles objects to incl. name, type and tableTile only
-    const tiles = useTiles(tileIds, ["name", "type", "tableTile"]);
+    // State for create dialog
+    const [isCreating, setIsCreating] = useState(false);
+    const [createName, setCreateName] = useState("");
+    const [createError, setCreateError] = useState("");
 
-    // Calculate derived state
-    const items = useMemo(() => {
-        return !tabDataActions ? [] : tabDataActions.getItems();
-    }, [tabDataActions]);
-
-    // Get hidden items
-    const hiddenItems = items.filter(item => !item.visible);
-
-    const saveIcon = tabUIState?.saveSuccess ? <Check /> : tabUIState?.saveSuccess === false ? <TriangleAlert /> : <Save />;
-    const resetIcon = tabUIState?.resetting ? <Loader2 className="animate-spin" /> : <ListRestart />;
-    const variant = tabUIState?.saveSuccess === false ? "destructive" : "ghost";
-
-    // Use combined disabled state from prop and other sources
-    const isDisabled = disabled || !project || tabUIState?.pending;
-
-    // Handle context change 
-    const handleContextChange = (ctx: string) => {
-        if (syncedTabDataActions && tabUIActions && project && tabName) {
-            // First update the tab's context using synchronized action
-            syncedTabDataActions.setGlobalContext(ctx, (pending) => tabUIActions.setDataPending(pending));
-            
-            // Then update each tile's context-related properties if needed
-            tiles.forEach(tile => {
-                // Get the corresponding item to check current context
-                const item = items.find(i => i.id === tile.id);
-                if (item) {
-                    const validContext = contexts.some(c => c.name === ctx);
-                    const validItemContext = item.context?.startsWith(ctx);
-                    const prefixContexts = contexts.filter(c => c.name.startsWith(ctx));
-
-                    // Determine the new context value based on conditions
-                    const newContext = validContext
-                        ? ctx
-                        : validItemContext
-                            ? item.context
-                            : prefixContexts.length === 1
-                                ? prefixContexts[0].name
-                                : undefined;
-
-                    // Update the tile's context
-                    syncedTabDataActions?.updateTile(tile.id || "", {
-                        context: newContext,
-                        column_context: validItemContext ? item.column_context : undefined
-                    });
-                }
-            });
-
-        }
-    };
-
-    // action tab states
-    const fileUploadOpen = useStoreContext((s) => s.fileUploadOpen);
-    const globalContextOpen = useStoreContext((s) => s.globalContextOpen);
-    const setFileUploadOpen = useStoreContext((s) => s.setFileUploadOpen);
-    const setFocusPaneOpen = useStoreContext((s) => s.setFocusPaneOpen);
-    const setGlobalContextOpen = useStoreContext((s) => s.setGlobalContextOpen);
-    const setSaveInterfaceOpen = useStoreContext((s) => s.setSaveInterfaceOpen);
-    const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
-
-    // Delete tab state
-    const [deleteTabOpen, setDeleteTabOpen] = useState(false);
-
-    // Handle tab deletion
-    const handleDeleteTab = async () => {
-        if (!tabName || !interfaceId) {
-            return { error: "No tab selected for deletion" };
-        }
-        
-        try {
-            // If this is the only tab, prevent deletion
-            const interfaceData = syncedInterfaceDataActions?.getTabNames() || [];
-            if (interfaceData.length <= 1) {
-                return { error: "Cannot delete the last remaining tab" };
-            }
-
-            // Switch to another tab first
-            const tabIdx = interfaceData.indexOf(tabName);
-            const nextTabIdx = tabIdx > 0 ? tabIdx - 1 : interfaceData.length > 1 ? 1 : -1;
-            const nextTabName = nextTabIdx !== -1 ? interfaceData[nextTabIdx] : null;
-            
-            // Update active tab before deletion
-            if (nextTabName && syncedInterfaceUIActions) {
-                syncedInterfaceUIActions.setActiveTab(nextTabName);
-            }
-            
-            // Use synchronized action to remove the tab
-            await syncedInterfaceDataActions?.removeTab(tabName);
-            
-            return { info: `Tab "${tabName}" was successfully deleted.` };
-        } catch (error) {
-            return { error: "Failed to delete tab. Please try again." };
-        }
-    };
-
-    // Rename tab state
-    const [renameTabOpen, setRenameTabOpen] = useState(false);
-    const [newTabName, setNewTabName] = useState("");
+    // State for rename dialog
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [renameName, setRenameName] = useState("");
     const [renameError, setRenameError] = useState("");
 
-    // Handle tab rename
-    const handleRenameTab = async () => {
-        if (!tabName || !interfaceId) {
-            setRenameError("No tab selected for renaming");
-            return;
-        }
-        
-        const trimmedName = newTabName.trim();
-        
-        // Validation
-        if (!trimmedName) {
-            setRenameError("Tab name cannot be empty");
-            return;
-        }
-        
-        if (trimmedName === tabName) {
-            setRenameTabOpen(false);
-            setNewTabName("");
-            setRenameError("");
-            return;
-        }
-        
-        // Check for duplicates (case insensitive)
-        const interfaceData = syncedInterfaceDataActions?.getTabNames() || [];
-        const duplicate = interfaceData.some(name => 
-            name.toLowerCase() === trimmedName.toLowerCase() && 
-            name !== tabName
-        );
-        
-        if (duplicate) {
-            setRenameError(`A tab called "${trimmedName}" already exists`);
-            return;
-        }
+    // State for delete dialog
+    const [isDeleting, setIsDeleting] = useState(false);
 
+    // State for import dialog
+    const [isImporting, setIsImporting] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [dragActive, setDragActive] = useState(false);
+    const [importInterfaceName, setImportInterfaceName] = useState("");
+    const [useTemplateName, setUseTemplateName] = useState(false);
+    const [templateData, setTemplateData] = useState<TemplateExportResponse<InterfaceTemplateSchema> | null>(null);
+    const [nameError, setNameError] = useState("");
+    const [fileError, setFileError] = useState("");
+    const [importResult, setImportResult] = useState<TemplateImportResponse | null>(null);
+    const [showImportSuccess, setShowImportSuccess] = useState(false);
+
+    // Favourites state
+    const [favourites, setFavourites] = useState<Favourite[]>(initialFavourites);
+    const [isFavouriting, setIsFavouriting] = useState(false);
+
+    useEffect(() => {
+        setFavourites(initialFavourites);
+    }, [initialFavourites]);
+
+    const currentFavourite = useMemo(() => {
+        if (!currentInterface?.name || !favourites) return null;
+        return favourites.find(fav => fav.project === currentInterface.name) || null;
+    }, [currentInterface, favourites]);
+
+    const handleToggleFavourite = async () => {
+        if (!currentInterface?.name || isFavouriting || !project) return;
+
+        setIsFavouriting(true);
         try {
-            // Use synchronized action to rename the tab
-            await syncedInterfaceDataActions?.renameTab(tabName, trimmedName);
-            
-            showSuccessToast("Tab Renamed", `Tab successfully renamed to "${trimmedName}"`);
-            setRenameTabOpen(false);
-            setNewTabName("");
-            setRenameError("");
+            if (currentFavourite) {
+                const success = await favouritesActions.delete(currentFavourite.id);
+                if (success) {
+                    setFavourites(prev => prev.filter(f => f.id !== currentFavourite.id));
+                    showSuccessToast("Removed from Favourites");
+                } else {
+                    showErrorToast("Failed to remove from Favourites");
+                }
+            } else {
+                const newPosition = favourites.length;
+                const newFavourite = await favouritesActions.create(currentInterface.name, 'layout-dashboard', newPosition);
+                if (newFavourite) {
+                    setFavourites(prev => [...prev, newFavourite]);
+                    showSuccessToast("Added to Favourites");
+                } else {
+                    showErrorToast("Failed to add to Favourites");
+                }
+            }
         } catch (error) {
-            setRenameError("Failed to rename tab. Please try again.");
+            console.error("Error toggling favourite:", error);
+            showErrorToast("An error occurred while managing Favourites.");
+        } finally {
+            setIsFavouriting(false);
         }
     };
 
-    // Reset rename dialog when it opens
-    useEffect(() => {
-        if (renameTabOpen) {
-            setNewTabName(tabName || "");
-            setRenameError("");
+    const handleInterfaceSelect = (selectedName: string) => {
+        if (!selectedName || currentInterface?.name === selectedName) return;
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.set('interface', selectedName);
+        router.push(`?${newParams.toString()}`);
+    };
+
+    const handleCreateInterface = async () => {
+        if (!createName.trim()) { setCreateError("Interface name is required."); return; }
+        if (interfaces.some(iface => iface.name.toLowerCase() === createName.trim().toLowerCase())) {
+            setCreateError("An interface with this name already exists."); return;
         }
-    }, [renameTabOpen, tabName]);
+        setIsCreating(true);
+        setCreateError("");
+        try {
+            const newInterface = await createCompleteDefaultInterface({
+                queryClient, project: project!, interfaceActions, tabActions, tileActions, baseName: createName.trim()
+            });
+            if (newInterface?.name) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('interface', newInterface.name);
+                router.push(url.toString());
+                setCreateOpen(false);
+            } else { throw new Error("Failed to create interface."); }
+        } catch (error) {
+            setCreateError((error as Error).message);
+        } finally { setIsCreating(false); }
+    };
+    
+    useEffect(() => {
+        if(createOpen) {
+            setCreateName("");
+            setCreateError("");
+        }
+    }, [createOpen]);
+
+    const handleRenameInterface = async () => {
+        if (!currentInterface || !renameName.trim()) { setRenameError("Interface name is required."); return; }
+        if (renameName.trim() === currentInterface.name) { setRenameOpen(false); return; }
+        if (interfaces.some(iface => iface.name.toLowerCase() === renameName.trim().toLowerCase() && iface.id !== interfaceId)) {
+            setRenameError("An interface with this name already exists."); return;
+        }
+        setIsRenaming(true); setRenameError("");
+        try {
+            await interfaceActions.update({ interface_id: interfaceId, data: { name: renameName.trim() }});
+            const url = new URL(window.location.href);
+            url.searchParams.set('interface', renameName.trim());
+            router.push(url.toString());
+            setRenameOpen(false);
+            refetchInterfaces();
+        } catch (error) {
+            setRenameError((error as Error).message);
+        } finally { setIsRenaming(false); }
+    };
 
     useEffect(() => {
-        if (fileUploadOpen || globalContextOpen || deleteTabOpen || renameTabOpen)
-            setDropdownOpen(true);
-        else
-            setDropdownOpen(false);
-    }, [fileUploadOpen, globalContextOpen, deleteTabOpen, renameTabOpen]);
+        if(renameOpen) {
+            setRenameName(currentInterface?.name || "");
+            setRenameError("");
+        }
+    }, [renameOpen, currentInterface]);
+
+    const handleDeleteInterface = async () => {
+        setIsDeleting(true);
+        try {
+            await interfaceActions.delete({ interface_id: interfaceId });
+            router.push(`/interfaces?project=${project}`);
+        } catch (error) {
+            console.error("Failed to delete interface", error);
+        } finally {
+            setIsDeleting(false);
+            setDeleteOpen(false);
+        }
+    };
+
+    const handleExportTemplate = useCallback(async () => {
+        if (!currentInterface) return;
+        try {
+            const result = await interfaceActions.exportTemplate(
+                { interface_id: currentInterface.id!, project: project!, interface_name: currentInterface.name },
+                { include_metadata: true, template_name: currentInterface.name }
+            );
+            if ('error' in result) throw new Error(result.error);
+            const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentInterface.name}-template.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Failed to export template", error);
+        }
+    }, [currentInterface, interfaceActions, project]);
+
+    const handleFileSelect = useCallback((file: File) => {
+        setFileError("");
+        if (file.type !== 'application/json') { setFileError("Please select a valid JSON template file."); return; }
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target?.result as string);
+                if (!parsed.template?.name) throw new Error("Invalid template file.");
+                setTemplateData(parsed);
+                if (useTemplateName) setImportInterfaceName(parsed.template.name);
+            } catch (error) { setFileError("Invalid JSON in template file."); }
+        };
+        reader.readAsText(file);
+    }, [useTemplateName]);
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop: (files) => handleFileSelect(files[0]), multiple: false, accept: { 'application/json': ['.json'] } });
+    
+    const validateImportName = useCallback((name: string) => {
+        if (!name.trim()) { setNameError("Interface name is required."); return false; }
+        if (interfaces.some(iface => iface.name.toLowerCase() === name.toLowerCase())) {
+            setNameError("An interface with this name already exists."); return false;
+        }
+        setNameError(""); return true;
+    }, [interfaces]);
+
+    const executeImport = useCallback(async () => {
+        if (!selectedFile || !templateData || !validateImportName(importInterfaceName)) return;
+        setIsImporting(true);
+        try {
+            const result = await interfaceActions.importTemplate(templateData.template, { project: project!, new_interface_name: importInterfaceName.trim(), validate_first: true, auto_sanitize: true });
+            if ('error' in result) { throw new Error(result.error); }
+            setImportResult(result as TemplateImportResponse);
+            setShowImportSuccess(true);
+            setTimeout(async () => {
+                setImportOpen(false);
+                await refetchInterfaces();
+                const newInterface = (await interfaceActions.list(project!)).find(i => i.name === importInterfaceName.trim());
+                if (newInterface) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('interface', newInterface.name);
+                    router.push(url.toString());
+                }
+            }, 2000);
+        } catch (error) { setFileError((error as Error).message);
+        } finally { setIsImporting(false); }
+    }, [selectedFile, templateData, importInterfaceName, validateImportName, interfaceActions, project, refetchInterfaces, router]);
+
 
     return (
         <div className="flex items-center gap-2">
-            {/* Edit mode buttons - individual buttons when in edit mode */}
-            {tabUIState?.edit && (
-                <>
-                    {/* Save Tab */}
-                    <ActionButton
-                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
-                        tooltip={!project ? "Select a project first" : "Save Tab"}
-                        icon={saveIcon}
-                        variant={variant}
-                        disabled={isDisabled}
-                        onClick={() => setSaveInterfaceOpen(true)}
-                    />
-                    
-                    {/* Reset Tab */}
-                    <ActionButton
-                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
-                        tooltip={!project ? "Select a project first" : "Reset Tab"}
-                        icon={resetIcon}
-                        variant="outline"
-                        disabled={isDisabled || tabUIState?.resetting}
-                        onClick={() => {
-                            if (resetInterfaceCommand) {
-                                resetInterfaceCommand.action?.();
-                            }
-                        }}
-                    />
-                    
-                    {/* Add Tile */}
-                    <ActionButton
-                        className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
-                        tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
-                        icon={<Plus />}
-                        variant="outline"
-                        disabled={!tabUIState?.edit || !project || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
-                        onClick={() => {
-                            // Use the same logic as AddTile but inline
-                            const items = syncedTabDataActions?.getItems() || [];
-                            const visibleItems = items.filter(item => item.visible);
-                            
-                            let initialIndex = items.length;
-                            while (items.some(item => item.name == "Tile_" + initialIndex))
-                                initialIndex++;
-                            const newTileName = "Tile_" + initialIndex;
-
-                            // Calculate the best position for the new tile
-                            const position = {
-                                x: (() => {
-                                    // Group items by row
-                                    const rowGroups = visibleItems.reduce((acc, item) => {
-                                        const row = Math.floor(item.y);
-                                        if (!acc[row]) acc[row] = [];
-                                        acc[row].push(item);
-                                        return acc;
-                                    }, {} as Record<number, any[]>);
-
-                                    // Try to find space in existing rows first
-                                    const rows = Object.keys(rowGroups).map(Number).sort();
-                                    for (const row of rows) {
-                                        const rowItems = rowGroups[row];
-                                        rowItems.sort((a, b) => a.x - b.x);
-                                        
-                                        let x = 0;
-                                        for (const item of rowItems) {
-                                            if (item.x - x >= 4) {
-                                                return x;
-                                            }
-                                            x = item.x + item.w;
-                                        }
-                                        
-                                        if (x <= 8) {
-                                            return x;
-                                        }
-                                    }
-                                    return 0;
-                                })(),
-                                y: (() => {
-                                    const rowGroups = visibleItems.reduce((acc, item) => {
-                                        const row = Math.floor(item.y);
-                                        if (!acc[row]) acc[row] = [];
-                                        acc[row].push(item);
-                                        return acc;
-                                    }, {} as Record<number, any[]>);
-
-                                    const rows = Object.keys(rowGroups).map(Number).sort();
-                                    
-                                    for (const row of rows) {
-                                        const rowItems = rowGroups[row];
-                                        const rowSpace = rowItems.reduce((occupied, item) => {
-                                            occupied.push({start: item.x, end: item.x + item.w});
-                                            return occupied;
-                                        }, [] as {start: number, end: number}[]);
-
-                                        let x = 0;
-                                        for (const space of rowSpace) {
-                                            if (space.start - x >= 4) {
-                                                return row;
-                                            }
-                                            x = space.end;
-                                        }
-                                        if (x <= 8) {
-                                            return row;
-                                        }
-                                    }
-                                    return rows.length ? Math.max(...rows) + 4 : 0;
-                                })(),
-                                width: 4,
-                                height: 4,
-                            };
-
-                            syncedTabDataActions?.initTile(newTileName, {
-                                position,
-                                minW: null,
-                                minH: null,
-                                type: null,
-                                visible: true,
-                            });
-                        }}
-                    />
-                    
-                    {/* Change Tab Color */}
-                    <ColorPicker
-                        value={resolveColorHierarchy(null, tabUIState?.color)}
-                        onChange={(color) => syncedTabUIActions?.setColor(color)}
-                        useDialog={true}
-                        showReset={true}
-                        onReset={() => syncedTabUIActions?.setColor(undefined)}
-                    >
-                        <ActionButton
-                            className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md animate-in slide-in-from-bottom-2 duration-200"
-                            icon={<Palette />}
-                            variant="outline"
-                            tooltip="Change Tab Color"
-                            disabled={!project}
-                        />
-                    </ColorPicker>
-                </>
-            )}
             
-            <BaseDropdown
-                context="tab"
-                button={<ActionButton
-                    className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
-                    tooltip="Tab Settings"
-                    icon={<Settings />}
-                    variant="outline"
-                />}
-                className="min-w-0 w-fit"
-                open={dropdownOpen}
-                setOpen={setDropdownOpen}
-            >
-                <div className="w-fit flex flex-col items-center p-2">
+            {/* Interface Selector */}
+            {project && (
+                <SelectionCommand
+                    type="Interfaces"
+                    items={interfaceNames}
+                    value={currentInterface?.name}
+                    onSelect={handleInterfaceSelect}
+                    loading={isLoadingInterfaces}
+                    onOpenChange={refetchInterfaces}
+                />
+            )}
 
-                    {/* File upload */}
-                    <div className="w-full border-b pb-1">
-                        <FileUpload
-                            contexts={contexts}
-                            logsActions={logsActions}
-                            project={project}
-                            customOpen={fileUploadOpen}
-                            setCustomOpen={setFileUploadOpen}
-                        />
-                    </div>
+            {/* Add Tile Button */}
+            {tabId && <AddTile
+                tabId={tabId}
+                interfaceId={interfaceId}
+                project={project}
+                anyTileLoading={anyTileLoading}
+                tabActions={tabActions} 
+                tileActions={tileActions}
+            />}
 
+            {/* Refresh Button */}
+            {tabId && <ActionButton
+                className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
+                variant="outline"
+                icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
+                tooltip={"Refresh Interface"}
+                disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
+                onClick={async () => {
+                    tabUIActions?.setRefreshing(true);
+                    setOverlayState({ isVisible: true, operation: 'refreshing', status: 'loading' });
+                    try {
+                        await Promise.all([
+                            router.refresh(),
+                            new Promise(resolve => setTimeout(resolve, 1000))
+                        ]);
+                        setOverlayState({ isVisible: true, operation: 'refreshing', status: 'success' });
+                    } catch (error) {
+                        console.error("Failed to refresh interface:", error);
+                        setOverlayState({ isVisible: true, operation: 'refreshing', status: 'error' });
+                    } finally {
+                        tabUIActions?.setRefreshing(false);
+                    }
+                }}
+            />}
+            
+            {/* Edit and Interactive mode switches */}
+            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
+                <Switch id="edit" checked={tabUIState?.edit || false} onCheckedChange={() => { const newEditState = !tabUIState?.edit; tabUIActions?.setEdit(newEditState); showSuccessToast("Edit Mode", newEditState ? "You can now edit your interface." : "Edit mode disabled."); }} disabled={!project}/>
+                <Label htmlFor="edit" className="cursor-pointer"><Tooltip content="Edit"><Hammer name="edit" size={18} color={tabUIState?.edit ? "var(--primary)" : undefined} /></Tooltip></Label>
+            </div>
 
+            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
+                <Switch id="interactive" checked={tabUIState?.interactive || false} onCheckedChange={() => { const newInteractiveState = !tabUIState?.interactive; tabUIActions?.setInteractive(newInteractiveState); showSuccessToast("Interactive Mode", newInteractiveState ? "Interactive mode enabled." : "Interactive mode disabled."); }} disabled={!project} />
+                <Label htmlFor="interactive" className="cursor-pointer"><Tooltip content="Interactive"><SquareMousePointer name="interactive" size={18} color={tabUIState?.interactive ? "var(--primary)" : undefined} /></Tooltip></Label>
+            </div>
 
-                    {/* Context selector */}
-                    <div className="w-full border-b py-1">
-                        <ContextSelector
-                            tabId={tabId || undefined}
-                            interfaceId={interfaceId}
-                            projectId={project || undefined}
-                            context={tabDataState?.globalContext}
-                            setContext={handleContextChange}
-                            customOpen={globalContextOpen}
-                            setCustomOpen={setGlobalContextOpen}
-                            logsActions={logsActions}
-                            contextActions={contextActions}
-                            projectsActions={projectsActions}
-                            fieldsActions={fieldsActions}
-                            setPending={tabUIActions?.setPending!}
-                        />
-                    </div>
-
-                    {/* Save button - only show in non-edit mode */}
-                    {!tabUIState?.edit && (
-                    <div className="w-full border-b py-1">
-                        <ActionButton
-                            className="transition-all"
-                            text="Save Tab"
-                            tooltip={!project ? "Select a project first" : "Save Tab"}
-                            icon={saveIcon}
-                            variant={variant}
-                            disabled={isDisabled}
-                            onClick={() => setSaveInterfaceOpen(true)}
-                        />
-                    </div>
-                    )}
-
-                    {/* Reset button - only show in non-edit mode */}
-                    {!tabUIState?.edit && (
-                    <div className="w-full border-b py-1">
-                        <ActionButton
-                            className="transition-all"
-                            text="Reset Tab"
-                            tooltip={!project ? "Select a project first" : "Reset Tab"}
-                            icon={resetIcon}
-                            variant="ghost"
-                            disabled={isDisabled || tabUIState?.resetting}
-                            onClick={() => {
-                                if (resetInterfaceCommand) {
-                                    resetInterfaceCommand.action?.();
-                                }
-                            }}
-                        />
-                    </div>
-                    )}
-
-                    {/* Rename button */}
-                    <div className="w-full border-b py-1">
-                        <BaseDialog
-                            button={
-                                <ActionButton
-                                    className="transition-all"
-                                    text="Rename Tab"
-                                    tooltip={!project ? "Select a project first" : "Rename Tab"}
-                                    icon={<Pen />}
-                                    variant="ghost"
-                                    disabled={isDisabled}
-                                    onClick={() => setRenameTabOpen(true)}
-                                />
-                            }
-                            title="Rename Tab"
-                            body={
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="tab-name">Tab Name</Label>
-                                        <Input
-                                            id="tab-name"
-                                            value={newTabName}
-                                            onChange={(e) => {
-                                                setNewTabName(e.target.value);
-                                                if (renameError) setRenameError("");
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    handleRenameTab();
-                                                }
-                                            }}
-                                            placeholder="Enter tab name"
-                                            autoFocus
-                                        />
-                                        {renameError && (
-                                            <p className="text-xs text-destructive mt-1">{renameError}</p>
+            {/* Interface Settings Dropdown */}
+            {project && (
+                <BaseDropdown
+                    context="interface"
+                    button={<ActionButton tooltip="Interface Settings" icon={<Settings />} variant="outline" className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"/>}
+                    open={settingsOpen}
+                    setOpen={setSettingsOpen}
+                >
+                    <div className="w-56 flex flex-col items-center p-2">
+                        <div className="w-full border-b pb-1">
+                             <BaseDialog
+                                open={createOpen} setOpen={setCreateOpen} title="Create New Interface"
+                                button={<ActionButton tooltip="Create new interface" text="Create new interface" icon={<Plus className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
+                                body={<div className="space-y-2 pt-4"><Label htmlFor="iface-name">Interface Name</Label><Input id="iface-name" value={createName} onChange={e => { setCreateName(e.target.value); setCreateError(""); }} onKeyDown={e => e.key === 'Enter' && handleCreateInterface()} autoFocus /><p className="text-xs text-destructive">{createError}</p></div>}
+                                footer={<SubmitButton text="Create" onClick={handleCreateInterface} loading={isCreating} />}
+                            />
+                        </div>
+                        <div className="w-full border-b py-1">
+                            <BaseDialog open={renameOpen} setOpen={setRenameOpen} title="Rename Interface"
+                                button={<ActionButton tooltip="Rename current interface" text="Rename interface" icon={<Pen className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
+                                body={<div className="space-y-2 pt-4"><Label htmlFor="iface-rename">New Name</Label><Input id="iface-rename" value={renameName} onChange={e => { setRenameName(e.target.value); setRenameError(""); }} onKeyDown={e => e.key === 'Enter' && handleRenameInterface()} autoFocus /><p className="text-xs text-destructive">{renameError}</p></div>}
+                                footer={<SubmitButton text="Rename" onClick={handleRenameInterface} loading={isRenaming} />}
+                            />
+                        </div>
+                        <div className="w-full border-b py-1">
+                            <BaseDialog open={deleteOpen} setOpen={setDeleteOpen} title="Delete Interface"
+                                button={<ActionButton tooltip="Delete current interface" text="Delete interface" icon={<Trash2 className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
+                                body={<p className="pt-4">Are you sure you want to delete the interface {currentInterface?.name}? This action cannot be undone.</p>}
+                                footer={<Button variant="destructive" onClick={handleDeleteInterface} disabled={isDeleting}>{isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Delete</Button>}
+                            />
+                        </div>
+                        <div className="w-full border-b py-1">
+                            <ActionButton tooltip="Export current interface as template" text="Export as template" icon={<Download className="mr-2 h-4 w-4" />} variant="ghost" onClick={handleExportTemplate} className="w-full justify-start" />
+                        </div>
+                        <div className="w-full pt-1">
+                            <BaseDialog open={importOpen} setOpen={setImportOpen} title="Import Interface from Template"
+                                button={<ActionButton tooltip="Setup a new interface from a template" text="Import from template" icon={<Upload className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
+                                body={
+                                    <div className="space-y-4 pt-4">
+                                        {showImportSuccess && importResult ? (
+                                            <Alert className="border-green-200 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><div className="ml-2"><div className="font-medium text-green-800">Template imported!</div><div className="text-sm text-green-700 mt-1">Created: {importResult.import_stats?.interfaces} interface, {importResult.import_stats?.tabs} tabs, {importResult.import_stats?.tiles} tiles</div></div></Alert>
+                                        ) : (
+                                            <>
+                                                <div {...getRootProps()} className={cn("border-2 border-dashed rounded-lg p-6 text-center transition-colors", dragActive ? 'border-primary bg-primary/5' : 'border-gray-300', selectedFile ? 'border-green-500 bg-green-50' : '')}><input {...getInputProps()} />{selectedFile ? (<div className="flex items-center justify-center gap-2 text-green-600"><Check className="h-5 w-5" /><span>{selectedFile.name}</span><Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setTemplateData(null); setFileError(""); }}><X className="h-4 w-4" /></Button></div>) : (<div className="space-y-2"><FileUp className="h-8 w-8 mx-auto text-gray-400" /><p className="text-sm font-medium">Drag & drop or <Button variant="link" className="p-0 h-auto" onClick={(e) => e.stopPropagation()}>browse</Button></p></div>)}</div>
+                                                {fileError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{fileError}</AlertDescription></Alert>}
+                                                <div className="space-y-2"><Label htmlFor="import-name">New Interface Name</Label><Input id="import-name" value={importInterfaceName} onChange={e => { setImportInterfaceName(e.target.value); validateImportName(e.target.value); }} className={nameError ? "border-red-500" : ""} />{nameError && <p className="text-xs text-red-500">{nameError}</p>}</div>
+                                                {templateData?.template?.name && <div className="flex items-center space-x-2"><Checkbox id="use-template-name" checked={useTemplateName} onCheckedChange={(c) => { setUseTemplateName(!!c); if (c) setImportInterfaceName(templateData.template.name); }} /><Label htmlFor="use-template-name" className="text-sm">Use name from template ({templateData.template.name})</Label></div>}
+                                            </>
                                         )}
                                     </div>
-                                </div>
-                            }
-                            footer={
-                                <SubmitButton
-                                    text="Rename"
-                                    onClick={handleRenameTab}
-                                    disabled={!newTabName.trim() || newTabName.trim() === tabName}
-                                />
-                            }
-                            open={renameTabOpen}
-                            setOpen={setRenameTabOpen}
-                        />
-                    </div>
-
-                    {/* Delete button */}
-                    <div className="w-full border-b py-1">
-                        <DeleteDialog
-                            type="tab"
-                            args={[]}
-                            deletingFunction={handleDeleteTab}
-                            variant="ghost"
-                            text="Delete Tab"
-                            customOpen={deleteTabOpen}
-                            setCustomOpen={setDeleteTabOpen}
-                            onDelete={() => {}}
-                            icon={<Trash />}
-                        />
-                    </div>
-
-                    {/* Add tile button - only show in non-edit mode */}
-                    {!tabUIState?.edit && (
-                    <div className="w-full border-b py-1">
-                        <AddTile
-                            project={project || ""}
-                            interfaceId={interfaceId}
-                            tabId={tabId || ""}
-                            anyTileLoading={anyTileLoading}
-                            tabActions={tabActions}
-                            tileActions={tileActions}
-                        />
-                    </div>
-                    )}
-
-                    {/* Show hidden items dropdown */}
-                    <div className="w-full border-b py-1">
-                        <BaseDropdown
-                            button={
-                                <ActionButton
-                                    variant="ghost"
-                                    icon={<Eye />}
-                                    text="Show Hidden"
-                                    tooltip="Show Hidden"
-                                    size="sm"
-                                    disabled={hiddenItems.length === 0 || isDisabled}
-                                />
-                            }
-                        >
-                            {hiddenItems.map((item, idx) => (
-                                <DropdownMenuItem
-                                    key={idx}
-                                    onSelect={() => {
-                                        if (syncedTabDataActions && item.id) {
-                                            syncedTabDataActions?.updateTile(item.id, {
-                                                position: {
-                                                    x: (tileIds.length * 2) % 12,
-                                                    y: (tileIds.length * 2) / 12,
-                                                    width: 4,
-                                                    height: 4,
-                                                },
-                                                minW: null,
-                                                minH: null,
-                                                visible: true
-                                            });
-                                        }
-                                    }}
-                                    disabled={hiddenItems.length === 0}
-                                    className="w-64"
-                                >
-                                    {item.name}
-                                </DropdownMenuItem>
-                            ))}
-                        </BaseDropdown>
-                    </div>
-
-                    {/* Color selector - only show in non-edit mode */}
-                    {!tabUIState?.edit && (
-                    <div className="w-full pt-1">
-                        <ColorPicker
-                            value={resolveColorHierarchy(null, tabUIState?.color)}
-                            onChange={(color) => syncedTabUIActions?.setColor(color)}
-                            useDialog={true}
-                            showReset={true}
-                            onReset={() => syncedTabUIActions?.setColor(undefined)}
-                        >
-                            <ActionButton
-                                className="cursor-pointer hover:z-10"
-                                icon={<Palette />}
-                                variant="ghost"
-                                text="Change Tab Color"
-                                tooltip="Change Tab Color"
-                                disabled={!project}
+                                }
+                                footer={!showImportSuccess ? <div className="flex justify-end gap-2 pt-4"><Button variant="outline" onClick={() => setImportOpen(false)} disabled={isImporting}>Cancel</Button><Button onClick={executeImport} disabled={!selectedFile || !importInterfaceName.trim() || !!nameError || isImporting}>{isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Import</Button></div> : <></>}
                             />
-                        </ColorPicker>
+                        </div>
                     </div>
-                    )}
-                </div>
-            </BaseDropdown>
-
-
-            {/* Right side - Edit and Interactive mode switches */}
-            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
-                <Switch
-                    id="edit"
-                    checked={tabUIState?.edit || false}
-                    onCheckedChange={() => {
-                        const newEditState = !tabUIState?.edit;
-                        tabUIActions?.setEdit(newEditState);
-                        
-                        // Show helpful notification
-                        showSuccessToast(
-                            "Edit Mode",
-                            newEditState 
-                                ? "You can now edit your interface! Drag tiles, resize, and modify layouts." 
-                                : "Edit mode disabled. Your interface layout is now locked."
-                        );
-                    }}
-                    disabled={!project}
-                />
-                <Label htmlFor="edit" className="cursor-pointer">
-                    <Tooltip content="Edit">
-                        <Hammer name="edit" size={18} color={tabUIState?.edit ? "var(--primary)" : undefined} />
-                    </Tooltip>
-                </Label>
-            </div>
-
-            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
-                <Switch
-                    id="interactive"
-                    checked={tabUIState?.interactive || false}
-                    onCheckedChange={() => {
-                        const newInteractiveState = !tabUIState?.interactive;
-                        tabUIActions?.setInteractive(newInteractiveState);
-                        
-                        // Show helpful notification
-                        showSuccessToast(
-                            "Interactive Mode",
-                            newInteractiveState 
-                                ? "Interactive mode enabled! You can now sort, filter, and manipulate data controls." 
-                                : "Interactive mode disabled. Sorting, filtering, and data controls are now locked."
-                        );
-                    }}
-                    disabled={!project}
-                />
-                <Label htmlFor="interactive" className="cursor-pointer">
-                    <Tooltip content="Interactive">
-                        <SquareMousePointer name="interactive" size={18} color={tabUIState?.interactive ? "var(--primary)" : undefined} />
-                    </Tooltip>
-                </Label>
-            </div>
-
+                </BaseDropdown>
+            )}
 
         </div>
     );

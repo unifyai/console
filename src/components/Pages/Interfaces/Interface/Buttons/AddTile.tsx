@@ -38,11 +38,10 @@ const AddTile = ({
 
     return (
         <ActionButton
-            className="transition-all"
+            className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md transition-all"
             tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
-            text="Add Tile"
-            variant="ghost"
+            variant="outline"
             disabled={!tabUIState?.edit || !project || !exists || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
                 let initialIndex = items.length;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user/user";
-import { getFavourites } from "@/app/(home)/favourites/actions";
+import { getFavourites } from "@/lib/interfaces/favourites";
 
 export async function GET(_req: NextRequest) {
   try {
