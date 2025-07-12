@@ -794,6 +794,9 @@ export function appendGroupedLogsWithWindowing(
     const targetGroupCount = windowConfig.maxPagesInMemory * windowConfig.pageSize;
     const startIndex = Math.max(0, combinedLogs.length - targetGroupCount);
     finalLogs = combinedLogs.slice(startIndex);
+
+    // For append operations, offset increases by the number of removed items
+    newOffset = currentOffset + startIndex;
   }
    
   // Step 4: Apply boundary checks (only if windowConfig is provided)

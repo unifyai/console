@@ -636,6 +636,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 position="relative"
                                                                 buttonText="Load Previous"
                                                                 loadingText="Loading previous..."
+                                                                disabled={auto_update}
                                                             />
                                                         )}
                                                         
@@ -659,6 +660,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 position="relative"
                                                                 buttonText="Load More"
                                                                 loadingText="Loading more..."
+                                                                disabled={auto_update}
                                                             />
                                                         )}
                                                     </>

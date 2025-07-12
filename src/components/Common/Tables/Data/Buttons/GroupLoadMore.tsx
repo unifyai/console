@@ -3,6 +3,7 @@ import { useInfiniteGroupSpecificLogsQuery } from '@/hooks/Interfaces/Query/useI
 import { LogsActions } from '@/types/interfaces/grid';
 import { LogFieldsResponseProps, LogsResponseProps } from '@/types/interfaces/logs';
 import LoadMore, { LoadMoreProps } from './LoadMore';
+import { useTileData } from '@/contexts/hooks/tile/useTileData';
 
 export interface GroupLoadMoreProps {
   // Query parameters
@@ -106,6 +107,9 @@ export default function GroupLoadMore({
   },
   position = "after", // Default to "after" for backward compatibility
 }: GroupLoadMoreProps) {
+  const { data: tileDataState } = useTileData(tileId, tabId);
+  const autoUpdate = tileDataState?.auto_update === "true";
+
   const infiniteGroupQuery = useInfiniteGroupSpecificLogsQuery({
     tileId,
     tabId,
@@ -124,7 +128,7 @@ export default function GroupLoadMore({
     groupId: groupId || "",
     dataTypes,
     fields,
-    enabled: !!groupId && !isTableDataLoading,
+    enabled: !!groupId && !isTableDataLoading && !autoUpdate,
     bidirectional: {
       enabled: bidirectionalEnabled,
       maxPagesInMemory: bidirectionalConfig.maxPagesInMemory,
@@ -157,6 +161,7 @@ export default function GroupLoadMore({
         interactive={interactive}
         buttonText="Load Previous"
         loadingText="Loading previous..."
+        disabled={autoUpdate}
       />
     );
   }
@@ -177,6 +182,7 @@ export default function GroupLoadMore({
       interactive={interactive}
       buttonText="Load More"
       loadingText="Loading more..."
+      disabled={autoUpdate}
     />
   );
 } 

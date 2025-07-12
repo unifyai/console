@@ -176,7 +176,7 @@ const LogsTable = ({
     group_limit: tableTileState?.group_limit || 20,
     logsActions,
     updateLogs,
-    enabled: !!projectId && !!tileId && !!tabId && !isTableDataLoading,
+    enabled: !!projectId && !!tileId && !!tabId && item?.auto_update !== "true" && !isTableDataLoading,
     bidirectional: {
       enabled: useBidirectionalLoading,
       maxPagesInMemory: bidirectionalConfig.maxPagesInMemory,
