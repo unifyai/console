@@ -8,10 +8,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../..
 import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle } from "lucide-react";
 
-interface AutomaticRefillProps {
-  hasPaymentMethod: boolean;
-}
-
 interface BillingEligibility {
   user_id: string;
   total_spending: number;
@@ -20,7 +16,7 @@ interface BillingEligibility {
   remaining_spend_needed: number;
 }
 
-const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
+const AutomaticRefill = () => {
   const [isAutoRechargeEnabled, setIsAutoRechargeEnabled] = useState(false);
   const [minBalance, setMinBalance] = useState("");
   const [rechargeAmount, setRechargeAmount] = useState("");
@@ -59,13 +55,10 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
       }
     };
 
-    if (hasPaymentMethod) {
-      fetchBillingEligibility();
-      fetchAutoRechargeSettings();
-    } else {
-      setIsAutoRechargeEnabled(false);
-    }
-  }, [hasPaymentMethod]);
+    // Always fetch settings
+    fetchBillingEligibility();
+    fetchAutoRechargeSettings();
+  }, []);
 
   const handleToggleAutoRecharge = async () => {
     // Only check eligibility when trying to ENABLE auto-recharge (not disable)
@@ -163,7 +156,7 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
           <Switch
             checked={isAutoRechargeEnabled}
             onCheckedChange={handleToggleAutoRecharge}
-            disabled={!hasPaymentMethod}
+            disabled={false}
           />
         </div>
       </CardHeader>
@@ -221,14 +214,6 @@ const AutomaticRefill = ({ hasPaymentMethod }: AutomaticRefillProps) => {
           >
             Save Changes
           </Button>
-          {!hasPaymentMethod && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="whitespace-normal break-words">
-                Add a payment method to enable automatic refills.
-              </AlertDescription>
-            </Alert>
-          )}
           {alertMessage && (
             <Alert variant={alertType === "success" ? "default" : "destructive"}>
               <AlertCircle className="h-4 w-4" />

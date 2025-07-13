@@ -14,6 +14,10 @@ import {
   SupportedTaxCountriesResponse,
   TaxCountry
 } from '@/types/user';
+import countries from 'i18n-iso-countries';
+import enLocale from 'i18n-iso-countries/langs/en.json';
+
+countries.registerLocale(enLocale);
 
 interface TaxClassificationFormProps {
   onSubmit: (data: TaxClassificationFormData) => void;
@@ -210,24 +214,43 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
     // Validate tax ID when it changes
     useEffect(() => {
       if (formData.account_type === "business" && formData.tax_id && formData.tax_country) {
+        // Immediately clear previous validation so the form can be resubmitted while we re-validate
+        setTaxIdValidation(null);
+
         const validateTaxId = async () => {
           setValidatingTaxId(true);
           try {
+            const sanitizedId = formData.tax_id.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
             const response = await fetch('/api/user/validate-tax-id', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                tax_id: formData.tax_id,
+                tax_id: sanitizedId,
                 country: formData.tax_country
               })
             });
             
             if (response.ok) {
-              const validation: TaxIdValidationResponse = await response.json();
-              setTaxIdValidation(validation);
+              const validationRaw: any = await response.json();
+              const mapped: TaxIdValidationResponse = {
+                valid: validationRaw.valid ?? validationRaw.is_valid ?? false,
+                error_message: validationRaw.error_message || validationRaw.error || null,
+              } as any;
+              setTaxIdValidation(mapped);
+            } else {
+              // Attempt to read error details from response body
+              try {
+                const errorData = await response.json();
+                const message = errorData?.detail?.[0]?.msg || errorData?.detail || 'Invalid tax ID';
+                setTaxIdValidation({ valid: false, error_message: message });
+              } catch (_) {
+                setTaxIdValidation({ valid: false, error_message: 'Invalid tax ID' });
+              }
             }
           } catch (error) {
             console.error('Error validating tax ID:', error);
+            setTaxIdValidation({ valid: false, error_message: 'Unable to validate tax ID. Please check the format.' });
           } finally {
             setValidatingTaxId(false);
           }
@@ -287,6 +310,35 @@ const TaxClassificationForm = forwardRef<TaxClassificationFormHandle, TaxClassif
         setFormData(prev => ({ ...prev, ...initialData }));
       }
     }, [initialData]);
+
+    // Auto-fill address country name when tax_country (ISO) selected
+    useEffect(() => {
+      if (
+        formData.account_type === 'business' &&
+        formData.tax_country &&
+        formData.business_address.country !== formData.tax_country
+      ) {
+        // Keep ISO code in both fields to ensure backend consistency
+        handleAddressChange('country', formData.tax_country);
+      }
+    }, [formData.tax_country]);
+
+    // Back-fill ISO code when user types country name first
+    useEffect(() => {
+      if (
+        formData.account_type === 'business' &&
+        !formData.tax_country &&
+        formData.business_address.country
+      ) {
+        const code = countries.getAlpha2Code(
+          formData.business_address.country,
+          'en'
+        );
+        if (code) {
+          handleInputChange('tax_country', code);
+        }
+      }
+    }, [formData.business_address.country]);
 
     const selectedCountry = supportedCountries.find((c: TaxCountry) => c.code === formData.tax_country);
 

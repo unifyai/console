@@ -3,7 +3,7 @@ import { ValidateTaxIdRequest, TaxIdValidationResponse, SupportedTaxCountriesRes
 
 export async function validateTaxId(apiKey: string, data: ValidateTaxIdRequest): Promise<TaxIdValidationResponse> {
   const orchestraClient = await getOrchestraUserClient(apiKey);
-  const response = await orchestraClient.post('/user/validate-tax-id', data);
+  const response = await orchestraClient.post('/user/validate-tax-id', null, { params: data });
   return response.data;
 }
 

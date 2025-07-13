@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../UI/card";
 import { Button } from "../../UI/button";
 import { Badge } from "../../UI/badge";
@@ -17,7 +17,7 @@ const TaxClassification = () => {
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isFormValid, setIsFormValid] = useState(false);
-  const [currentFormData] = useState<TaxClassificationFormData | null>(null);
+  const formRef = useRef<{ submit: () => void } | null>(null);
 
   const fetchBusinessStatus = async () => {
     try {
@@ -61,10 +61,31 @@ const TaxClassification = () => {
     setAlert(null);
 
     try {
+      const accountTypePayload: any = { account_type: data.account_type };
+      if (data.account_type === 'business') {
+        accountTypePayload.business_info = {
+          business_name: data.business_name,
+          tax_id: data.tax_id || null,
+          business_type: data.business_type,
+          business_address: {
+            address_line1: data.business_address.address_line1,
+            address_line2: data.business_address.address_line2 || null,
+            city: data.business_address.city,
+            state: data.business_address.state || null,
+            country:
+              data.business_address.country.length === 2
+                ? data.business_address.country
+                : data.tax_country,
+            postal_code: data.business_address.postal_code || ''
+          },
+          tax_exempt: data.tax_exempt,
+        };
+      }
+
       const accountTypeResponse = await fetch('/api/user/account-type', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_type: data.account_type }),
+        body: JSON.stringify(accountTypePayload),
       });
 
       if (!accountTypeResponse.ok) {
@@ -147,6 +168,7 @@ const TaxClassification = () => {
             isLoading={saving}
             error={alert?.type === 'error' ? alert.message : undefined}
             initialData={initialData}
+            ref={formRef as any}
           />
           
           {/* Save/Cancel Buttons */}
@@ -159,11 +181,7 @@ const TaxClassification = () => {
               Cancel
             </Button>
             <Button 
-              onClick={() => {
-                if (currentFormData) {
-                  handleSave(currentFormData);
-                }
-              }}
+              onClick={() => formRef.current?.submit()}
               disabled={!isFormValid || saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}

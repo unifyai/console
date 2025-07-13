@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   if (!stripe) {
     return NextResponse.json({ error: 'Stripe is not initialized' }, { status: 500 });
   }
+  const stripeClient = stripe as NonNullable<typeof stripe>;
 
   try {
     const billingDetails = await getUserBillingDetails(user.id);
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User has no Stripe customer ID' }, { status: 404 });
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await stripeClient.checkout.sessions.retrieve(sessionId);
 
     // Security check: Make sure the session belongs to the logged-in user.
     if (session.customer !== customerID) {

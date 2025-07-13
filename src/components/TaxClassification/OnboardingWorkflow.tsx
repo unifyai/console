@@ -227,22 +227,21 @@ export default function OnboardingWorkflow() {
     setIsSubmitting(true);
     
     try {
-      // Update user account type
-      const updateResponse = await fetch('/api/user/account-type', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_type: data.account_type })
-      });
+      if (data.account_type === 'individual') {
+        // simple update for personal accounts
+        const res = await fetch('/api/user/account-type', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account_type: 'individual' })
+        });
 
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || `Account type update failed with status ${updateResponse.status}`);
-      }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Account type update failed with status ${res.status}`);
+        }
 
-      console.log('✅ Account type updated successfully');
-
-      // If business account, save business info
-      if (data.account_type === 'business') {
+        console.log('✅ Account type updated to individual');
+      } else {
         const businessResponse = await fetch('/api/user/business-info', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },

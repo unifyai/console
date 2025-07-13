@@ -24,7 +24,6 @@ interface CheckoutStatus {
 }
 
 const Main = () => {
-  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [billingSetupChecked, setBillingSetupChecked] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [billingEligibility, setBillingEligibility] = useState<BillingEligibility | null>(null);
@@ -77,13 +76,14 @@ const Main = () => {
       const response = await fetch("/api/billing/hasCustomerId");
       if (response.ok) {
         const hasCustomerId = await response.json();
-        if (hasCustomerId.hasCustomerId == false) {
-          const createCustomerResponse = await fetch(
-            "/api/stripe/createCustomer"
-          );
-          if (createCustomerResponse.ok) {
-            setIsNewUser(true);
-          }
+        if (!hasCustomerId.hasCustomerId) {
+          // Ensure Stripe customer by hitting account-type endpoint (keeps individual)
+          await fetch("/api/user/account-type", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ account_type: "individual" }),
+          });
+          setIsNewUser(true);
         }
       }
     };
@@ -114,33 +114,15 @@ const Main = () => {
       }
     };
   
-    // Check if the user has a payment method set up
-    const checkPaymentMethod = async () => {
-      const response = await fetch("/api/stripe/hasCardSetup");
-      if (response.ok) {
-        const hasCardSetup = await response.json();
-        setHasPaymentMethod(hasCardSetup.hasCardSetup);
-      }
-    };
-
-    // Sync Cards
-    const syncCards = async () => {
-      await fetch("/api/billing/syncCards");
-    };
-
     const checkBillingSetup = async () => {
       await checkCustomerId();
       await checkBillingEligibility();
       await checkAutoRechargeStatus();
-      await checkPaymentMethod();
-      if (hasPaymentMethod) {
-        await syncCards();
-      }
       setBillingSetupChecked(true);
     };
 
     checkBillingSetup();
-  }, [hasPaymentMethod]);
+  }, []);
 
   return (
     <div className="space-y-6 p-8 w-fit">
@@ -180,17 +162,9 @@ const Main = () => {
                 You&#39;ve spent ${billingEligibility.total_spending.toFixed(2)}, spend ${billingEligibility.remaining_spend_needed.toFixed(2)} more to unlock automatic refills. You can still purchase credits manually.
               </AlertDescription>
             </Alert>
-          ) : !hasPaymentMethod ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Payment Method Required</AlertTitle>
-              <AlertDescription className="whitespace-normal break-words">
-                Please set up your payment method to enable purchasing credits and automatic refills.
-              </AlertDescription>
-            </Alert>
           ) : null}
 
-          <Balance hasPaymentMethod={hasPaymentMethod} billingEligibility={billingEligibility} autoRechargeEnabled={autoRechargeEnabled} />
+          <Balance billingEligibility={billingEligibility} autoRechargeEnabled={autoRechargeEnabled} />
           
           <Separator />
           <TaxClassification />
@@ -198,7 +172,7 @@ const Main = () => {
           {billingEligibility?.can_enable_monthly_billing && (
             <>
               <Separator />
-              <AutomaticRefill hasPaymentMethod={hasPaymentMethod} />
+              <AutomaticRefill />
             </>
           )}
         </>

@@ -7,7 +7,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { RefreshCw } from "lucide-react";
 
 interface BalanceProps {
-  hasPaymentMethod: boolean;
   billingEligibility: {
     user_id: string;
     total_spending: number;
@@ -18,7 +17,7 @@ interface BalanceProps {
   autoRechargeEnabled: boolean;
 }
 
-const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: BalanceProps) => {
+const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [fullBalance, setFullBalance] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -52,7 +51,7 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
     };
 
     loadBalance();
-  }, [hasPaymentMethod, fetchBalance]);
+  }, [fetchBalance]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -137,8 +136,7 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
             <Button 
               className="w-fit"
               variant="link"
-              onClick={handleBuyCredits} 
-              disabled={!hasPaymentMethod}
+              onClick={handleBuyCredits}
             >
               Buy Credits
             </Button>
@@ -158,7 +156,6 @@ const Balance = ({ hasPaymentMethod, billingEligibility, autoRechargeEnabled }: 
                 variant="primary" 
                 onClick={handleOpenPortal}
                 className="w-fit"
-                disabled={!hasPaymentMethod}
               >
                 Manage Billing Account
               </Button>

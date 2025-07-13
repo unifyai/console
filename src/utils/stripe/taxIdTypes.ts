@@ -1,0 +1,157 @@
+import type Stripe from 'stripe';
+import countries from 'i18n-iso-countries';
+import enLocale from 'i18n-iso-countries/langs/en.json';
+
+// Comprehensive mapping of ISO 3166-1 alpha-2 country codes to Stripe Tax-ID types
+// Source: https://stripe.com/docs/api/tax_ids/object#tax_id_object-type (2025-06)
+export const countryToStripeTaxIdType: Record<string, string> = {
+    AD: 'ad_nrt',
+    AE: 'ae_trn',
+    AL: 'al_tin',
+    AM: 'am_tin',
+    AO: 'ao_tin',
+    AR: 'ar_cuit',
+    AT: 'eu_vat',
+    AU: 'au_abn',
+    AW: 'aw_tin',
+    AZ: 'az_tin',
+    BA: 'ba_tin',
+    BB: 'bb_tin',
+    BD: 'bd_bin',
+    BE: 'eu_vat',
+    BF: 'bf_ifu',
+    BG: 'eu_vat',
+    BH: 'bh_vat',
+    BJ: 'bj_ifu',
+    BO: 'bo_tin',
+    BR: 'br_cnpj',
+    BS: 'bs_tin',
+    BY: 'by_tin',
+    CA: 'ca_bn',
+    CD: 'cd_nif',
+    CH: 'ch_vat',
+    CI: 'ci_nif',
+    CL: 'cl_tin',
+    CM: 'cm_niu',
+    CN: 'cn_tin',
+    CO: 'co_nit',
+    CR: 'cr_tin',
+    CV: 'cv_nif',
+    CY: 'eu_vat',
+    CZ: 'eu_vat',
+    DE: 'eu_vat',
+    DK: 'eu_vat',
+    DO: 'do_rcn',
+    EC: 'ec_ruc',
+    EE: 'eu_vat',
+    EG: 'eg_tin',
+    ES: 'eu_vat',
+    ET: 'et_tin',
+    FI: 'eu_vat',
+    FR: 'eu_vat',
+    GB: 'gb_vat',
+    GE: 'ge_vat',
+    GH: 'gh_tin',
+    GI: 'gi_tin',
+    GN: 'gn_nif',
+    GR: 'eu_vat',
+    GT: 'gt_nit',
+    HK: 'hk_br',
+    HR: 'eu_vat',
+    HU: 'eu_vat',
+    ID: 'id_npwp',
+    IE: 'eu_vat',
+    IL: 'il_vat',
+    IN: 'in_gst',
+    IS: 'is_vat',
+    IT: 'eu_vat',
+    JE: 'je_tin',
+    JP: 'jp_cn',
+    KE: 'ke_pin',
+    KG: 'kg_tin',
+    KH: 'kh_tin',
+    KR: 'kr_brn',
+    KZ: 'kz_bin',
+    LA: 'la_tin',
+    LI: 'li_uid',
+    LK: 'lk_tin',
+    LT: 'eu_vat',
+    LU: 'eu_vat',
+    LV: 'eu_vat',
+    MA: 'ma_vat',
+    MC: 'mc_tin',
+    MD: 'md_vat',
+    ME: 'me_pib',
+    MG: 'mg_nif',
+    MK: 'mk_vat',
+    ML: 'ml_nif',
+    MR: 'mr_nif',
+    MT: 'eu_vat',
+    MU: 'mu_vat',
+    MX: 'mx_rfc',
+    MY: 'my_frp',
+    NE: 'ne_nif',
+    NG: 'ng_tin',
+    NL: 'eu_vat',
+    NO: 'no_vat',
+    NP: 'np_pan',
+    NZ: 'nz_gst',
+    OM: 'om_vat',
+    PE: 'pe_ruc',
+    PH: 'ph_tin',
+    PK: 'pk_cnic',
+    PL: 'eu_vat',
+    PT: 'eu_vat',
+    PY: 'py_ruc',
+    RO: 'eu_vat',
+    RS: 'rs_pib',
+    RU: 'ru_inn',
+    RW: 'rw_tin',
+    SA: 'sa_vat',
+    SC: 'sc_vat',
+    SE: 'eu_vat',
+    SG: 'sg_uen',
+    SI: 'eu_vat',
+    SK: 'eu_vat',
+    SL: 'sl_tin',
+    SN: 'sn_ninea',
+    SR: 'sr_fin',
+    SV: 'sv_nit',
+    TH: 'th_vat',
+    TJ: 'tj_tin',
+    TN: 'tn_mat',
+    TR: 'tr_tin',
+    TW: 'tw_vat',
+    TZ: 'tz_vat',
+    UA: 'ua_vat',
+    UG: 'ug_tin',
+    US: 'us_ein',
+    UY: 'uy_ruc',
+    UZ: 'uz_tin',
+    VE: 've_rif',
+    VN: 'vn_tin',
+    ZA: 'za_vat',
+    ZM: 'zm_tin',
+    ZW: 'zw_tin'
+  };
+
+/**
+ * Maps a country code to the appropriate Stripe Tax-ID type.
+ * If the country is unknown or not supported explicitly, defaults to 'eu_vat'.
+ */
+export function mapCountryToTaxIdType(country?: string): Stripe.TaxId.Type {
+  const raw = country ? countryToStripeTaxIdType[country.toUpperCase()] : undefined;
+  return (raw ?? 'eu_vat') as Stripe.TaxId.Type;
+}
+
+// ensure locale registered once
+if (!countries.getNames('en')) {
+  countries.registerLocale(enLocale);
+}
+
+export function toIsoCountryCode(input?: string): string | undefined {
+  if (!input) return undefined;
+  if (input.length === 2) return input.toUpperCase();
+  const code = countries.getAlpha2Code(input, 'en');
+  return code ? code.toUpperCase() : undefined;
+} 
