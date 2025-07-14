@@ -15,9 +15,6 @@ export async function POST(request: NextRequest) {
         console.error("Failed to parse JSON body in POST /api/assistant/voice/generate:", error);
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
-    
-    // Log the exact payload being sent to Orchestra for debugging
-    console.log("[API PROXY /api/assistant/voice/generate] Sending to Orchestra:", JSON.stringify(requestBody, null, 2));
 
     try {
         const orchestraResponse = await fetch(
