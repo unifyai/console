@@ -37,6 +37,7 @@ const InterfaceButtons = ({
     initialFavourites,
     disabled,
     setOverlayState,
+    setIsSwitchingInterface,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
@@ -51,6 +52,7 @@ const InterfaceButtons = ({
         operation: 'saving' | 'resetting' | 'refreshing' | null;
         status: 'loading' | 'success' | 'error' | null;
     }>>;
+    setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -156,6 +158,7 @@ const InterfaceButtons = ({
 
     const handleInterfaceSelect = (selectedName: string) => {
         if (!selectedName || currentInterface?.name === selectedName) return;
+        setIsSwitchingInterface(true);
         const newParams = new URLSearchParams(searchParams.toString());
         newParams.set('interface', selectedName);
         router.push(`?${newParams.toString()}`);
@@ -173,6 +176,7 @@ const InterfaceButtons = ({
                 queryClient, project: project!, interfaceActions, tabActions, tileActions, baseName: createName.trim()
             });
             if (newInterface?.name) {
+                setIsSwitchingInterface(true);
                 const url = new URL(window.location.href);
                 url.searchParams.set('interface', newInterface.name);
                 router.push(url.toString());

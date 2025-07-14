@@ -77,6 +77,13 @@ const Interface = ({
   // Query params - no more tab param needed
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
+  const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
+
+  useEffect(() => {
+    // When the interface param changes (navigation completes), hide the loader.
+    setIsSwitchingInterface(false);
+  }, [interfaceQueryParam]);
+
 
   // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, projectQueryParam, interfaceActions, tabActions);
@@ -416,6 +423,15 @@ const Interface = ({
     }
   };
 
+  if (isSwitchingInterface) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Setting up your workspace...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full">
       <ScrollArea className="w-full h-full">
@@ -484,6 +500,7 @@ const Interface = ({
                   initialFavourites={initialFavourites}
                   disabled={saveTabWithTilesMutation.isPending}
                   setOverlayState={setOverlayState}
+                  setIsSwitchingInterface={setIsSwitchingInterface}
                 />
               </div>
             </div>
