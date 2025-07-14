@@ -99,6 +99,15 @@ This application includes several debug environment variables that enable detail
   - Includes logging for both main table queries and group-specific queries
   - Useful for debugging query lifecycle management and tile cleanup issues
 
+### Table Advanced Features
+
+- **`NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES=true`**
+  - Enables advanced table features in the UI for development and debugging
+  - Shows virtualization toggle, bidirectional loading toggle, and window size dropdown
+  - Displays detailed pagination information including pages in memory and window range
+  - Useful for testing table performance optimization features and debugging data loading behaviors
+  - Should be disabled in production to keep the UI clean for end users
+
 ### Usage Example
 
 To enable all debug features during development, add these to your `.env.local` file:
@@ -112,6 +121,7 @@ NEXT_PUBLIC_DEBUG_STATE_SYNCING=true
 NEXT_PUBLIC_DEBUG_COMMANDS=true
 NEXT_PUBLIC_DEBUG_INFINITE_QUERIES=true
 NEXT_PUBLIC_DEBUG_QUERY_KEYS=true
+NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES=true
 ```
 
 **Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.

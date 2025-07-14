@@ -65,6 +65,9 @@ import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore
 import { checkHasNextPage } from "@/utils/interfaces/logsCore";
 import { calculateGroupHasNextPage as calcGroupHasNextPageUtil } from "@/utils/interfaces/table/grouping";
 
+// Check if advanced table features should be shown
+const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
+
 const LogsTable = ({
   tileId,
   tabId,
@@ -806,35 +809,39 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
-                <SettingButton
-                    tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
-                    icon={<Layers className="h-4 w-4" />}
-                    onClick={() => setUseVirtualization(!useVirtualization)}
-                    variant={useVirtualization ? "primary" : "outline"}
-                />
-                <SettingButton
-                    tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
-                    icon={<div className="h-4 w-4 flex items-center justify-center text-xs font-bold">↕</div>}
-                    onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
-                    variant={useBidirectionalLoading ? "primary" : "outline"}
-                />
-                {useBidirectionalLoading && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">Pages:</span>
-                    <select
-                      value={bidirectionalConfig.maxPagesInMemory}
-                      onChange={(e) => setBidirectionalConfig(prev => ({ 
-                        ...prev, 
-                        maxPagesInMemory: Number(e.target.value) 
-                      }))}
-                      className="text-xs border rounded px-1 py-0.5"
-                    >
-                      <option value={3}>3</option>
-                      <option value={5}>5</option>
-                      <option value={7}>7</option>
-                      <option value={10}>10</option>
-                    </select>
-                  </div>
+                {showAdvancedFeatures && (
+                  <>
+                    <SettingButton
+                        tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
+                        icon={<Layers className="h-4 w-4" />}
+                        onClick={() => setUseVirtualization(!useVirtualization)}
+                        variant={useVirtualization ? "primary" : "outline"}
+                    />
+                    <SettingButton
+                        tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
+                        icon={<div className="h-4 w-4 flex items-center justify-center text-xs font-bold">↕</div>}
+                        onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
+                        variant={useBidirectionalLoading ? "primary" : "outline"}
+                    />
+                    {useBidirectionalLoading && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Pages:</span>
+                        <select
+                          value={bidirectionalConfig.maxPagesInMemory}
+                          onChange={(e) => setBidirectionalConfig(prev => ({ 
+                            ...prev, 
+                            maxPagesInMemory: Number(e.target.value) 
+                          }))}
+                          className="text-xs border rounded px-1 py-0.5"
+                        >
+                          <option value={3}>3</option>
+                          <option value={5}>5</option>
+                          <option value={7}>7</option>
+                          <option value={10}>10</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
                 )}
             </div>
         </div>
@@ -869,10 +876,10 @@ const LogsTable = ({
                     return `0 of ${totalCount} ${itemType}`;
                   }
                   
-                  return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} (${effectiveLoadedCount} loaded)`;
+                  return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} ${showAdvancedFeatures ? `(${effectiveLoadedCount} loaded)` : ""}`;
                 })()}
               </div>
-              {infiniteLogsQuery.bidirectionalInfo && (
+              {infiniteLogsQuery.bidirectionalInfo && showAdvancedFeatures && (
                 <div className="text-xs text-muted-foreground">
                   Pages: {infiniteLogsQuery.bidirectionalInfo.pagesInMemory}/{infiniteLogsQuery.bidirectionalInfo.maxPagesInMemory}
                   {infiniteLogsQuery.bidirectionalInfo.windowStart !== infiniteLogsQuery.bidirectionalInfo.windowEnd && (
