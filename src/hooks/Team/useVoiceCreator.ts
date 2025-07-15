@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant';
+import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesignGeneratePreviewsRequest } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { SupportedLanguage } from "@cartesia/cartesia-js/api";
@@ -60,10 +60,17 @@ export function useVoiceCreator(
         setSelectedPreviewId(null);
         const toastId = toast.loading("Generating voice design previews...");
         try {
-            const result = await assistantVoiceActions.preview({
+            const payload: VoiceDesignGeneratePreviewsRequest = {
                 voice_description: trimmedVoiceDesc,
-                text: trimmedSampleText.length > 0 ? trimmedSampleText : undefined,
-            });
+            };
+
+            if (trimmedSampleText.length > 0) {
+                payload.text = trimmedSampleText;
+            } else {
+                payload.auto_generate_text = true;
+            }
+
+            const result = await assistantVoiceActions.preview(payload);
 
             if ('detail' in result) {
                 console.error(`[useVoiceCreator] ${(result as ResponseProps).detail || "Failed to generate previews."}`)
