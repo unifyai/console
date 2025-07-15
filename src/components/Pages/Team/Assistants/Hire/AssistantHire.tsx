@@ -175,29 +175,41 @@ export function AssistantHire ({
                 ) : !isUserApproved ? (
                     renderAccessMessage()
                 ) : (
-                    <div className="flex flex-1 min-h-0 overflow-hidden"> 
+                    <div className="flex flex-1 min-h-0 overflow-hidden">
                         {/* Hire Form Section */}
                         <div className={cn(
-                            "flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out", 
-                            "pl-6 pr-14 py-4 overflow-y-auto"
+                            "flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out",
+                            "flex flex-col"
                         )}>
-                            <div className="absolute top-4 right-4 z-10 flex flex-col space-y-2">
-                                <TooltipProvider delayDuration={100}>
-                                    <Tooltip><TooltipTrigger asChild>
-                                        <Button variant="outline" size="icon" className="w-8 h-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isOverallDialogBusy}>
-                                            <LayoutList className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent></Tooltip>
-                                </TooltipProvider>
-                                <TooltipProvider delayDuration={100}>
-                                    <Tooltip><TooltipTrigger asChild>
-                                        <Button variant="outline" size="icon" className="w-8 h-8" onClick={handleRandomizePreset} disabled={isOverallDialogBusy || currentFilteredPresets.length === 0}>
-                                            <Shuffle className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{"Randomize from Presets"}</p></TooltipContent></Tooltip>
-                                </TooltipProvider>
+                            {/* New Header for "Your Assistant" and buttons */}
+                            <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
+                                <h3 className="text-lg font-semibold">Your Assistant</h3>
+                                <div className="flex items-center gap-1">
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
+                                                    <Shuffle className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>Randomize</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isPrimaryActionDisabled}>
+                                                    <LayoutList className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             </div>
-                            {hireForm}
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                                {hireForm}
+                            </div>
                         </div>
 
                         {/* Presets Panel Section */}

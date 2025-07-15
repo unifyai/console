@@ -314,7 +314,7 @@ export function HireForm({
     <FormProvider {...formMethods}>
         <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
         <ScrollArea className="flex-1 min-h-0">
-            <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails || isLoadingSocialPlatforms} className="group space-y-6 pr-4"> 
+            <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails || isLoadingSocialPlatforms} className="group space-y-6 px-6 py-4"> 
                 <div className="space-y-2">
                 <div className='flex gap-2 items-center text-muted-foreground'>
                     <User className="h-4 w-4"/>
