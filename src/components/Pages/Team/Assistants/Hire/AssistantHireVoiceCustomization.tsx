@@ -10,7 +10,7 @@ import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle } from 'lucide-react'; 
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
@@ -45,6 +45,14 @@ export function VoiceCustomization({
     const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
     const [isDesignDescTooltipOpen, setIsDesignDescTooltipOpen] = React.useState(false);
+
+    // Microphone recording state
+    const [recordingStatus, setRecordingStatus] = React.useState<'idle' | 'recording'>('idle');
+    const [recordTime, setRecordTime] = React.useState(0);
+    const recordTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const audioChunksRef = React.useRef<Blob[]>([]);
+    const audioStreamRef = React.useRef<MediaStream | null>(null);
 
     const handleVoiceDeletedFromHook = React.useCallback((deletedVoiceId: string) => {
         if (selectedVoiceId === deletedVoiceId) {
@@ -144,6 +152,87 @@ export function VoiceCustomization({
         setSelectedVoiceId(voice.voice_id);
         onVoiceSelected(voice); 
     };
+
+    const cleanupRecording = React.useCallback(() => {
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(track => track.stop());
+            audioStreamRef.current = null;
+        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        mediaRecorderRef.current = null;
+        audioChunksRef.current = [];
+        if (recordTimerRef.current) {
+            clearInterval(recordTimerRef.current);
+            recordTimerRef.current = null;
+        }
+        setRecordTime(0);
+        setRecordingStatus('idle');
+    }, []);
+
+    const handleStartRecording = async () => {
+        if (recordingStatus === 'recording' || disabled || isProcessingCreate || isGeneratingPreviews) return;
+
+        if (cloneFile) {
+            handleClearCloneFile();
+        }
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioStreamRef.current = stream;
+                mediaRecorderRef.current = new MediaRecorder(stream);
+                audioChunksRef.current = [];
+
+                mediaRecorderRef.current.ondataavailable = event => {
+                    audioChunksRef.current.push(event.data);
+                };
+
+                mediaRecorderRef.current.onstop = () => {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    if (audioBlob.size > 0) {
+                        const audioFile = new File([audioBlob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
+                        setCloneFile(audioFile);
+                        setCloneFileName(audioFile.name);
+                    }
+                    cleanupRecording();
+                };
+
+                mediaRecorderRef.current.start();
+                setRecordingStatus('recording');
+                setRecordTime(0);
+                recordTimerRef.current = setInterval(() => {
+                    setRecordTime(prev => prev + 1);
+                }, 1000);
+
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                toast.error("Microphone access denied or not available.");
+                cleanupRecording();
+            }
+        } else {
+            toast.error("Microphone recording is not supported by your browser.");
+        }
+    };
+
+    const handleStopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+    };
+    
+    const handleClearCloneFile = React.useCallback(() => {
+        setCloneFile(null);
+        setCloneFileName(null);
+        cleanupRecording();
+    }, [setCloneFile, setCloneFileName, cleanupRecording]);
+
+    React.useEffect(() => {
+        return () => {
+            cleanupRecording();
+        };
+    }, [cleanupRecording]);
 
     const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
         const isSelected = selectedVoiceId === voice.voice_id;
@@ -353,10 +442,6 @@ export function VoiceCustomization({
                 });
         }
     };    
-    const handleClearCloneFile = () => {
-        setCloneFile(null); // This will trigger the useEffect for cloneFile to cleanup
-        setCloneFileName(null);
-    };
 
     return (
         <div className={cn("", (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-70 cursor-not-allowed")}>
@@ -409,91 +494,80 @@ export function VoiceCustomization({
                                 <Label htmlFor="clone-name" className="text-xs">Voice Name</Label>
                                 <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
                             </div>
-                            <div className="pt-2">
-                                <Label htmlFor="clone-file" className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
-                                {!cloneFileName ? (
-                                    <label 
-                                        htmlFor="clone-file-input"
-                                        className={cn(
-                                            "mt-0.5 flex justify-center w-full h-16 px-4 transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-gray-400 items-center",
-                                            (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-50 cursor-not-allowed",
-                                            isDraggingOverClone && "border-primary ring-2 ring-primary ring-offset-2"
-                                        )}
-                                        onDragEnter={handleDragEnterClone}
-                                        onDragLeave={handleDragLeaveClone}
-                                        onDragOver={handleDragOverClone}
-                                        onDrop={handleDropClone}
-                                        aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-                                    >
-                                        <span className="flex items-center space-x-2"> 
-                                            <UploadCloud className="w-5 h-5 text-gray-600" /> 
-                                            <span className="font-medium text-gray-600 text-sm">
-                                                {isDraggingOverClone ? "Drop file here" : "Drop or "}
-                                                {!isDraggingOverClone && <span className="text-blue-600 underline">browse</span>}
-                                            </span>
-                                        </span>
-                                        <input 
-                                            type="file" 
-                                            id="clone-file-input"
-                                            accept=".wav,.mp3" 
-                                            className="hidden" 
-                                            onChange={(e) => { 
-                                                const f = e.target.files?.[0]; 
-                                                if (f) { 
-                                                    if (f.type.startsWith("audio/")) {
-                                                        setCloneFile(f); 
-                                                        setCloneFileName(f.name); 
-                                                    } else {
-                                                        toast.error("Invalid file type. Please select an audio file (.wav, .mp3).");
-                                                        e.target.value = '';
-                                                    }
-                                                } 
-                                            }} 
-                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
-                                        />
-                                    </label>
+                             <div className="pt-2">
+                                <Label className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
+                                {!cloneFile ? (
+                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                        <label 
+                                            htmlFor="clone-file-input"
+                                            className={cn(
+                                                "flex flex-col items-center justify-center w-full h-24 p-2 text-center transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-primary",
+                                                (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-50 cursor-not-allowed",
+                                                isDraggingOverClone && "border-primary ring-2 ring-primary ring-offset-2"
+                                            )}
+                                            onDragEnter={handleDragEnterClone} onDragLeave={handleDragLeaveClone} onDragOver={handleDragOverClone} onDrop={handleDropClone}
+                                            aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                        >
+                                            <UploadCloud className="w-6 h-6 text-muted-foreground" /> 
+                                            <span className="font-medium text-muted-foreground text-sm mt-1">Drop or <span className="text-primary underline">browse</span></span>
+                                            <input type="file" id="clone-file-input" accept=".wav,.mp3" className="hidden" 
+                                                onChange={(e) => { 
+                                                    const f = e.target.files?.[0]; 
+                                                    if (f) { 
+                                                        if (f.type.startsWith("audio/")) { setCloneFile(f); setCloneFileName(f.name); } 
+                                                        else { toast.error("Invalid file type. Please select an audio file."); e.target.value = ''; }
+                                                    } 
+                                                }} 
+                                                disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
+                                            />
+                                        </label>
+                                        <div
+                                            className={cn(
+                                                "flex flex-col items-center justify-center w-full h-24 p-2 text-center transition bg-background border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer",
+                                                recordingStatus === 'idle' && "hover:border-primary",
+                                                recordingStatus === 'recording' && "border-destructive text-destructive",
+                                                (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-50 cursor-not-allowed"
+                                            )}
+                                            onClick={recordingStatus === 'recording' ? handleStopRecording : handleStartRecording}
+                                            aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                        >
+                                            {recordingStatus === 'recording' ? (
+                                                <>
+                                                    <Square className="w-6 h-6 text-destructive mb-1" />
+                                                    <span className="font-medium text-sm">Stop Recording</span>
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <div className="h-2 w-2 rounded-full bg-destructive animate-pulse"></div>
+                                                        <span className="text-xs font-mono text-destructive/80">{new Date(recordTime * 1000).toISOString().substr(14, 5)}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Mic className="w-6 h-6 text-muted-foreground" />
+                                                    <span className="font-medium text-muted-foreground text-sm mt-1">Record Audio</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <div className="mt-0.5 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-sm h-9">
-                                        <span className="truncate mr-2 flex-1" title={cloneFileName}>{cloneFileName}</span>
+                                    <div className="mt-2 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-sm h-9">
+                                        <span className="truncate mr-2 flex-1" title={cloneFileName ?? undefined}>{cloneFileName}</span>
                                         <div className="flex items-center gap-1">
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-transparent pt-0.5"
-                                                            onClick={handleTogglePlayClonePreview}
-                                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneAudioObjectURL}
-                                                        >
-                                                            {isPlayingClonePreview ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        <p>{isPlayingClonePreview ? "Pause preview" : "Play preview"}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button 
-                                                            type="button" 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent pt-0.5" 
-                                                            onClick={handleClearCloneFile} 
-                                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="top">
-                                                        <p>Remove file</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                            <TooltipProvider delayDuration={100}><Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-transparent pt-0.5"
+                                                        onClick={handleTogglePlayClonePreview} disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneAudioObjectURL}>
+                                                        {isPlayingClonePreview ? <PauseCircle className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                                                    </Button>
+                                                </TooltipTrigger><TooltipContent side="top"><p>{isPlayingClonePreview ? "Pause preview" : "Play preview"}</p></TooltipContent>
+                                            </Tooltip></TooltipProvider>
+                                            <TooltipProvider delayDuration={100}><Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-transparent pt-0.5" 
+                                                        onClick={handleClearCloneFile} disabled={disabled || isProcessingCreate || isGeneratingPreviews}>
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </TooltipTrigger><TooltipContent side="top"><p>Remove file</p></TooltipContent>
+                                            </Tooltip></TooltipProvider>
                                         </div>
                                     </div>
                                 )}
