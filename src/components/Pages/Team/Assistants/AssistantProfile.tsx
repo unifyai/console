@@ -5,7 +5,7 @@ import { Textarea } from "@/components/UI/textarea";
 import { Input } from "@/components/UI/input";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle, PlusCircle, PenLine, Check, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Mail, Phone, Save, Undo2, X, Trash2, Loader2, AlertTriangle, PlusCircle, PenLine, Check, RefreshCw, CheckCircle2, AlertCircle, Send } from "lucide-react";
 import { WhatsApp } from '@mui/icons-material';
 import type { Assistant, AssistantActions, AssistantUpdatePayload, SocialAccount, AvailableSocialPlatform, AssistantFormData } from '@/types/team/assistant';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,6 @@ interface AssistantProfilePanelProps {
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({ assistantActions }) => {
     const { control, getValues, setValue, formState: { errors } } = useFormContext<AssistantFormData>();
-    const [isCancelPhoneHovered, setIsCancelPhoneHovered] = React.useState(false);
     
     const phoneFieldNames = React.useMemo(() => ({
         identifier: 'user_phone' as 'user_phone',
@@ -90,67 +89,57 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     };
 
     return (
-        <div className="space-y-1">
-             <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                    {isVerificationFlowActive ? (
-                        <Input
-                            id="user_phone_verification_code"
-                            placeholder="Enter verification code..."
-                            value={verificationInput}
-                            onChange={(e) => setVerificationInput(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitCode(); } }}
-                            className={cn("h-9 pr-[5.5rem]", verificationError && "border-destructive")}
-                        />
-                    ) : (
-                        <Input id="user_phone" type="tel" value={phoneValue || ''} placeholder="e.g., +15551234567" className="h-9" disabled={isVerifying} onChange={handlePhoneInputChange} />
-                    )}
-                     {isVerificationFlowActive && (
-                         <div className="absolute inset-y-0 right-0 flex items-center pr-1">
-                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary" onClick={handleSubmitCode}><span className="text-xl mt-1">↳</span></Button>
-                             </TooltipTrigger><TooltipContent><p>Submit Code</p></TooltipContent></Tooltip></TooltipProvider>
-                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
-                                     <RefreshCw className={cn("h-4 w-4 mt-0.5", cooldown > 0 && "opacity-50")} />
-                                 </Button>
-                             </TooltipTrigger><TooltipContent><p>{cooldown > 0 ? `Retry in ${cooldown}s` : "Resend Code"}</p></TooltipContent></Tooltip></TooltipProvider>
-                         </div>
-                    )}
-                </div>
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Input
+                    id="user_phone"
+                    type="tel"
+                    value={phoneValue || ''}
+                    placeholder="e.g., +15551234567"
+                    className="h-9 flex-1"
+                    disabled={isVerifying || isPhoneVerified}
+                    onChange={handlePhoneInputChange}
+                />
                 {isPhoneVerified ? (
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span className="flex items-center justify-center h-8 w-8 cursor-help">
-                                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Number Verified</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Button type="button" variant="default" className="h-9" disabled>
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> Verified
+                    </Button>
                 ) : (
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-transparent hover:text-primary"
-                                    onMouseEnter={() => setIsCancelPhoneHovered(true)} onMouseLeave={() => setIsCancelPhoneHovered(false)}
-                                    onClick={isVerifying ? handleCancelVerification : () => handleVerifyClick(false)}>
-                                    {isVerifying ? (isCancelPhoneHovered ? <X className="h-4 w-4 text-destructive" /> : <Loader2 className="h-4 w-4 animate-spin" />) : <Check className="h-4 w-4 hover:text-primary" />}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                <p>{isVerifying ? "Cancel" : "Verify Number"}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <Button type="button" variant="outline" className="h-9" onClick={() => handleVerifyClick(false)} disabled={isVerifying || !phoneValue}>
+                        {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isVerifying ? 'Verifying...' : 'Verify'}
+                    </Button>
                 )}
             </div>
-            {errors.user_phone ? (<p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>
-            ) : verificationError ? (<p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>
-            ) : null}
+            {isVerificationFlowActive && (
+                <div className="pl-4 flex items-start gap-3 border-l-2 border-muted">
+                    <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="user_phone_verification_code"
+                                placeholder="Enter verification code..."
+                                value={verificationInput}
+                                onChange={(e) => setVerificationInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitCode(); } }}
+                                className={cn("h-9", verificationError && "border-destructive")}
+                            />
+                            <Button type="button" variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={handleSubmitCode}>
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        {verificationError && <p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 pt-0">
+                         <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
+                            {cooldown > 0 ? `Resend (${cooldown}s)` : 'Resend'}
+                        </Button>
+                        <Button type="button" variant="warning" size="sm" className="h-9" onClick={handleCancelVerification}>
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            )}
+            {errors.user_phone && !isVerificationFlowActive && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
         </div>
     );
 };
