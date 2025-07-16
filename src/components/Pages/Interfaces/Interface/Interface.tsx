@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
 import { Loader2, Search } from "lucide-react";
+import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
@@ -29,6 +31,7 @@ import { useInterfaceData } from '@/contexts/hooks/interface/useInterfaceData';
 import SaveResetOverlay from './SaveResetOverlay';
 import { useSidebar } from '@/components/UI/sidebar';
 import { ScrollArea } from '../../../UI/scroll-area';
+import InterfaceNav from './InterfaceNav';
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
@@ -74,10 +77,12 @@ const Interface = ({
   initialFavourites,
 }: InterfaceComponentProps) => {
 
+  const router = useRouter();
   // Query params - no more tab param needed
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
+  const [isNavCollapsed, setIsNavCollapsed] = useState(false);
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
@@ -157,6 +162,9 @@ const Interface = ({
     operation: null,
     status: null,
   });
+
+  // Track refresh status for navbar icon
+  const [refreshStatus, setRefreshStatus] = useState<'idle' | 'loading' | 'success'>('idle');
 
   // Initialize command hooks
   const commandHooks = useCommand({
@@ -278,6 +286,25 @@ const Interface = ({
     }
   }, [tabStreamingQuery?.activeTab.data, tabUIState?.pending, tabUIActions]);
 
+  // Full refresh handler used by sidebar refresh button
+  const handleInterfaceRefresh = async () => {
+    if (!tabUIActions || refreshStatus === 'loading') return;
+    setRefreshStatus('loading');
+    tabUIActions.setRefreshing(true);
+    try {
+      await router.refresh();
+      setRefreshStatus('success');
+      showSuccessToast('Interface refreshed');
+    } catch (err) {
+      console.error('Failed to refresh interface:', err);
+      showErrorToast(err, 'Failed to refresh interface');
+      setRefreshStatus('idle');
+    } finally {
+      tabUIActions.setRefreshing(false);
+      setTimeout(() => setRefreshStatus('idle'), 2000);
+    }
+  };
+
   // Add a useEffect to reset the error state and refresh data
   useEffect(() => {
     // Reset any error states when tab changes
@@ -300,26 +327,28 @@ const Interface = ({
     }
 
     return (
-      <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center">
-          <SkeletonLoader />
-        </div>
-      }>
-        <Tab
-          tabId={activeTabId}
-          interfaceId={interfaceId}
-          projectId={projectQueryParam}
-          projectsActions={projectsActions}
-          tabActions={tabActions}
-          tileActions={tileActions}
-          logsActions={logsActions}
-          fieldsActions={fieldsActions}
-          derivedEntryActions={derivedEntryActions}
-          contextActions={contextActions}
-          codeActions={codeActions}
-          fileActions={fileActions}
-        />
-      </Suspense>
+      <div className="w-full h-full">
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <SkeletonLoader />
+          </div>
+        }>
+          <Tab
+            tabId={activeTabId}
+            interfaceId={interfaceId}
+            projectId={projectQueryParam}
+            projectsActions={projectsActions}
+            tabActions={tabActions}
+            tileActions={tileActions}
+            logsActions={logsActions}
+            fieldsActions={fieldsActions}
+            derivedEntryActions={derivedEntryActions}
+            contextActions={contextActions}
+            codeActions={codeActions}
+            fileActions={fileActions}
+          />
+        </Suspense>
+      </div>
     );
   };
 
@@ -423,64 +452,83 @@ const Interface = ({
     }
   };
 
-  if (isSwitchingInterface) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Setting up your workspace...</p>
-      </div>
-    );
-  }
+  // No early return – we render a local overlay in the workspace area instead
 
   return (
-    <div className="w-full h-full">
-      <ScrollArea className="w-full h-full">
-        <div className="relative bg-background" ref={gridRef}>
-        <Toaster richColors position="bottom-right" closeButton />
-        {/* ---------------------------------------------------------
-            Top-level Suspense: covers the whole Tabs area so that
-            the user sees a Skeleton while the tabs are being loaded
-          --------------------------------------------------------- */}
-        <Suspense
-          fallback={
-            <div className="w-full h-full flex items-center justify-center">
-              <SkeletonLoader />
+    <div className="w-full h-full relative">
+      {/* New Interface Navigation Sidebar */}
+      <InterfaceNav
+        interfaceId={interfaceId}
+        projectId={projectQueryParam || ''}
+        isEditMode={tabUIState?.edit || false}
+        isCommandMode={tabUIState?.interactive || false}
+        onEditModeToggle={() => {
+          tabUIActions?.setEdit(!tabUIState?.edit);
+        }}
+        onCommandModeToggle={() => {
+          tabUIActions?.setInteractive(!tabUIState?.interactive);
+        }}
+        onNavCollapseChange={setIsNavCollapsed}
+        onRefresh={handleInterfaceRefresh}
+        refreshStatus={refreshStatus}
+        projectActions={projectsActions}
+        interfaceActions={interfaceActions}
+        tabActions={tabActions}
+        tileActions={tileActions}
+        fileActions={fileActions}
+        logsActions={logsActions}
+        contextActions={contextActions}
+        codeActions={codeActions}
+        favouritesActions={favouritesActions}
+        initialFavourites={initialFavourites}
+        setIsSwitchingInterface={setIsSwitchingInterface}
+      />
+      
+      {/* Main Content Area */}
+      <div 
+        className="h-full transition-all duration-300"
+        style={{
+          marginLeft: isNavCollapsed ? '48px' : '256px'
+        }}
+      >
+        <div className="relative flex-1 min-w-0 h-full">
+          {isSwitchingInterface && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center backdrop-blur-sm bg-background/70">
+              <div className="flex flex-col items-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground text-center">Setting up your workspace...</p>
+              </div>
             </div>
-          }
-        >
-          <Tabs
-            value={activeTabName || undefined}
-            onValueChange={handleTabChange}
-            className="w-full h-full flex flex-col tutorial-details-panel"
+          )}
+          <ScrollArea className="flex-1 min-w-0 h-full">
+          <div className="relative bg-background" ref={gridRef}>
+          <Toaster richColors position="bottom-right" closeButton />
+          {/* ---------------------------------------------------------
+              Top-level Suspense: covers the whole Tabs area so that
+              the user sees a Skeleton while the tabs are being loaded
+            --------------------------------------------------------- */}
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center">
+                <SkeletonLoader />
+              </div>
+            }
           >
-            {/* Floating Top Menu Elements */}
+            <Tabs
+              value={activeTabName || undefined}
+              onValueChange={handleTabChange}
+              className="w-full h-full flex flex-col tutorial-details-panel"
+            >
+              {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
             <div 
-              className="fixed top-0 z-50 transition-all duration-200 ease-linear pointer-events-none"
+              className="fixed top-14 z-50 transition-all duration-300 ease-linear pointer-events-none"
               style={{ 
-                left: sidebarWidth,
+                left: isNavCollapsed ? '48px' : '256px', // Adjust based on sidebar state
                 right: 0,
               }}
             >
               <div className="flex justify-between gap-5 w-full p-4 pointer-events-auto overflow-x-auto command-scrollbar">
-                <ProjectButtons
-                  tabIdOrName={activeTabId}
-                  interfaceId={interfaceId}
-                  projectQueryParam={projectQueryParam}
-                  defaultProject={false}
-                  setTabQueryParam={setTabQueryParamFromSync}
-                  setInterfaceQueryParam={setInterfaceQueryParam}
-                  setProjectQueryParam={setProjectQueryParam}
-                  projectActions={projectsActions}
-                  interfaceActions={interfaceActions}
-                  tabActions={tabActions}
-                  tileActions={tileActions}
-                  fileActions={fileActions}
-                  logsActions={logsActions}
-                  contextActions={contextActions}
-                  codeActions={codeActions}
-                  favouritesActions={favouritesActions}
-                  initialFavourites={initialFavourites}
-                />
+                {/* ProjectButtons removed as per UI simplification */}
 
                 <div className="flex flex-row gap-2 items-center">
                   {tabUIState?.resetting && (
@@ -509,7 +557,7 @@ const Interface = ({
             <div 
               className="transition-all duration-200 ease-linear"
               style={{ 
-                paddingTop: '6rem',     // Space for top floating menu
+                paddingTop: tabUIState?.edit ? '5rem' : '1rem',
                 paddingLeft: '1rem',    // Content padding
                 paddingRight: '1rem',   // Content padding
                 minHeight: 'calc(100vh - 6rem)', // Ensure full height minus top padding
@@ -542,7 +590,7 @@ const Interface = ({
                   <TabsContent
                     key={idx}
                     value={tabName}
-                    className="mb-auto tutorial-selection-pane relative"
+                    className="mb-auto tutorial-selection-pane relative w-full h-full"
                   >
                     {/* Check if we're in loading states */}
                     {(tabUIState?.pending || createTabMutation.isPending || updateTabMutation.isPending) ? (
@@ -616,7 +664,7 @@ const Interface = ({
               <div 
                 className="fixed bottom-0 z-50 transition-all duration-200 ease-linear pointer-events-none"
                 style={{ 
-                  left: sidebarWidth,
+                  left: isNavCollapsed ? '48px' : '256px',
                   right: 0,
                 }}
               >
@@ -745,8 +793,10 @@ const Interface = ({
             />
         </div> 
         */}
-        </div>
-      </ScrollArea>
+         </div>
+            </ScrollArea>
+         </div>
+    </div>
     </div>
   );
 };

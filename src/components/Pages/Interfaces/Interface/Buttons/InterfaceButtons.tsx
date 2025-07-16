@@ -1,7 +1,7 @@
 "use client";
 
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions, InterfaceTemplateSchema, TemplateExportResponse, TemplateImportResponse, Favourite, FavouritesActions } from "@/types/interfaces/grid";
-import { Hammer, SquareMousePointer, Settings, Plus, Pen, Trash2, Upload, Download, Loader2, FileUp, X, Check, CheckCircle, AlertCircle, RefreshCw, Star } from "lucide-react";
+import { Hammer, SquareMousePointer, Settings, Plus, Pen, Trash2, Upload, Download, Loader2, FileUp, X, Check, CheckCircle, AlertCircle, Star } from "lucide-react";
 import { Switch } from "@/components/UI/switch";
 import { Label } from "@/components/UI/label";
 import Tooltip from "@/components/Common/Misc/Tooltip";
@@ -307,20 +307,8 @@ const InterfaceButtons = ({
     return (
         <div className="flex items-center gap-2">
             
-            {/* Interface Selector */}
-            {project && (
-                <SelectionCommand
-                    type="Interfaces"
-                    items={interfaceNames}
-                    value={currentInterface?.name}
-                    onSelect={handleInterfaceSelect}
-                    loading={isLoadingInterfaces}
-                    onOpenChange={refetchInterfaces}
-                />
-            )}
-
-            {/* Add Tile Button */}
-            {tabId && <AddTile
+            {/* Add Tile Button (edit mode only) */}
+            {tabId && tabUIState?.edit && <AddTile
                 tabId={tabId}
                 interfaceId={interfaceId}
                 project={project}
@@ -328,100 +316,6 @@ const InterfaceButtons = ({
                 tabActions={tabActions} 
                 tileActions={tileActions}
             />}
-
-            {/* Refresh Button */}
-            {tabId && <ActionButton
-                className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"
-                variant="outline"
-                icon={tabUIState?.refreshing ? <RefreshCw className="animate-spin" /> : <RefreshCw />}
-                tooltip={"Refresh Interface"}
-                disabled={!project || tabUIState?.pending || tabUIState?.dataPending}
-                onClick={async () => {
-                    tabUIActions?.setRefreshing(true);
-                    setOverlayState({ isVisible: true, operation: 'refreshing', status: 'loading' });
-                    try {
-                        await Promise.all([
-                            router.refresh(),
-                            new Promise(resolve => setTimeout(resolve, 1000))
-                        ]);
-                        setOverlayState({ isVisible: true, operation: 'refreshing', status: 'success' });
-                    } catch (error) {
-                        console.error("Failed to refresh interface:", error);
-                        setOverlayState({ isVisible: true, operation: 'refreshing', status: 'error' });
-                    } finally {
-                        tabUIActions?.setRefreshing(false);
-                    }
-                }}
-            />}
-            
-            {/* Edit and Interactive mode switches */}
-            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
-                <Switch id="edit" checked={tabUIState?.edit || false} onCheckedChange={() => { const newEditState = !tabUIState?.edit; tabUIActions?.setEdit(newEditState); showSuccessToast("Edit Mode", newEditState ? "You can now edit your interface." : "Edit mode disabled."); }} disabled={!project}/>
-                <Label htmlFor="edit" className="cursor-pointer"><Tooltip content="Edit"><Hammer name="edit" size={18} color={tabUIState?.edit ? "var(--primary)" : undefined} /></Tooltip></Label>
-            </div>
-
-            <div className="flex items-center gap-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg px-3 py-1 h-8">
-                <Switch id="interactive" checked={tabUIState?.interactive || false} onCheckedChange={() => { const newInteractiveState = !tabUIState?.interactive; tabUIActions?.setInteractive(newInteractiveState); showSuccessToast("Interactive Mode", newInteractiveState ? "Interactive mode enabled." : "Interactive mode disabled."); }} disabled={!project} />
-                <Label htmlFor="interactive" className="cursor-pointer"><Tooltip content="Interactive"><SquareMousePointer name="interactive" size={18} color={tabUIState?.interactive ? "var(--primary)" : undefined} /></Tooltip></Label>
-            </div>
-
-            {/* Interface Settings Dropdown */}
-            {project && (
-                <BaseDropdown
-                    context="interface"
-                    button={<ActionButton tooltip="Interface Settings" icon={<Settings />} variant="outline" className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md"/>}
-                    open={settingsOpen}
-                    setOpen={setSettingsOpen}
-                >
-                    <div className="w-56 flex flex-col items-center p-2">
-                        <div className="w-full border-b pb-1">
-                             <BaseDialog
-                                open={createOpen} setOpen={setCreateOpen} title="Create New Interface"
-                                button={<ActionButton tooltip="Create new interface" text="Create new interface" icon={<Plus className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
-                                body={<div className="space-y-2 pt-4"><Label htmlFor="iface-name">Interface Name</Label><Input id="iface-name" value={createName} onChange={e => { setCreateName(e.target.value); setCreateError(""); }} onKeyDown={e => e.key === 'Enter' && handleCreateInterface()} autoFocus /><p className="text-xs text-destructive">{createError}</p></div>}
-                                footer={<SubmitButton text="Create" onClick={handleCreateInterface} loading={isCreating} />}
-                            />
-                        </div>
-                        <div className="w-full border-b py-1">
-                            <BaseDialog open={renameOpen} setOpen={setRenameOpen} title="Rename Interface"
-                                button={<ActionButton tooltip="Rename current interface" text="Rename interface" icon={<Pen className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
-                                body={<div className="space-y-2 pt-4"><Label htmlFor="iface-rename">New Name</Label><Input id="iface-rename" value={renameName} onChange={e => { setRenameName(e.target.value); setRenameError(""); }} onKeyDown={e => e.key === 'Enter' && handleRenameInterface()} autoFocus /><p className="text-xs text-destructive">{renameError}</p></div>}
-                                footer={<SubmitButton text="Rename" onClick={handleRenameInterface} loading={isRenaming} />}
-                            />
-                        </div>
-                        <div className="w-full border-b py-1">
-                            <BaseDialog open={deleteOpen} setOpen={setDeleteOpen} title="Delete Interface"
-                                button={<ActionButton tooltip="Delete current interface" text="Delete interface" icon={<Trash2 className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
-                                body={<p className="pt-4">Are you sure you want to delete the interface {currentInterface?.name}? This action cannot be undone.</p>}
-                                footer={<Button variant="destructive" onClick={handleDeleteInterface} disabled={isDeleting}>{isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Delete</Button>}
-                            />
-                        </div>
-                        <div className="w-full border-b py-1">
-                            <ActionButton tooltip="Export current interface as template" text="Export as template" icon={<Download className="mr-2 h-4 w-4" />} variant="ghost" onClick={handleExportTemplate} className="w-full justify-start" />
-                        </div>
-                        <div className="w-full pt-1">
-                            <BaseDialog open={importOpen} setOpen={setImportOpen} title="Import Interface from Template"
-                                button={<ActionButton tooltip="Setup a new interface from a template" text="Import from template" icon={<Upload className="mr-2 h-4 w-4" />} variant="ghost" className="w-full justify-start" />}
-                                body={
-                                    <div className="space-y-4 pt-4">
-                                        {showImportSuccess && importResult ? (
-                                            <Alert className="border-green-200 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><div className="ml-2"><div className="font-medium text-green-800">Template imported!</div><div className="text-sm text-green-700 mt-1">Created: {importResult.import_stats?.interfaces} interface, {importResult.import_stats?.tabs} tabs, {importResult.import_stats?.tiles} tiles</div></div></Alert>
-                                        ) : (
-                                            <>
-                                                <div {...getRootProps()} className={cn("border-2 border-dashed rounded-lg p-6 text-center transition-colors", dragActive ? 'border-primary bg-primary/5' : 'border-gray-300', selectedFile ? 'border-green-500 bg-green-50' : '')}><input {...getInputProps()} />{selectedFile ? (<div className="flex items-center justify-center gap-2 text-green-600"><Check className="h-5 w-5" /><span>{selectedFile.name}</span><Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setTemplateData(null); setFileError(""); }}><X className="h-4 w-4" /></Button></div>) : (<div className="space-y-2"><FileUp className="h-8 w-8 mx-auto text-gray-400" /><p className="text-sm font-medium">Drag & drop or <Button variant="link" className="p-0 h-auto" onClick={(e) => e.stopPropagation()}>browse</Button></p></div>)}</div>
-                                                {fileError && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{fileError}</AlertDescription></Alert>}
-                                                <div className="space-y-2"><Label htmlFor="import-name">New Interface Name</Label><Input id="import-name" value={importInterfaceName} onChange={e => { setImportInterfaceName(e.target.value); validateImportName(e.target.value); }} className={nameError ? "border-red-500" : ""} />{nameError && <p className="text-xs text-red-500">{nameError}</p>}</div>
-                                                {templateData?.template?.name && <div className="flex items-center space-x-2"><Checkbox id="use-template-name" checked={useTemplateName} onCheckedChange={(c) => { setUseTemplateName(!!c); if (c) setImportInterfaceName(templateData.template.name); }} /><Label htmlFor="use-template-name" className="text-sm">Use name from template ({templateData.template.name})</Label></div>}
-                                            </>
-                                        )}
-                                    </div>
-                                }
-                                footer={!showImportSuccess ? <div className="flex justify-end gap-2 pt-4"><Button variant="outline" onClick={() => setImportOpen(false)} disabled={isImporting}>Cancel</Button><Button onClick={executeImport} disabled={!selectedFile || !importInterfaceName.trim() || !!nameError || isImporting}>{isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Import</Button></div> : <></>}
-                            />
-                        </div>
-                    </div>
-                </BaseDropdown>
-            )}
 
         </div>
     );

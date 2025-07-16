@@ -8,7 +8,7 @@ import { SidebarProvider } from "@/components/UI/sidebar"
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <NextUIProvider className="flex flex-col h-full">
+      <NextUIProvider className="flex flex-col h-full flex-1">
         <SidebarProvider>
           <SessionProvider>
             <QueryProvider>
