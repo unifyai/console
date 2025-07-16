@@ -94,6 +94,7 @@ export type AssistantFormData =
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
       social_accounts?: SocialAccount[];
+      design_include_bio?: boolean;
     };
 
 export interface PhotoUploadResponse {
@@ -180,7 +181,8 @@ export interface AvailableSocialPlatform {
 }
 
 export interface VoiceDesignGeneratePreviewsRequest {
-    voice_description: string;
+    voice_description?: string | null;
+    bio?: string | null;
     text?: string;
     auto_generate_text?: boolean;
     model_id?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";

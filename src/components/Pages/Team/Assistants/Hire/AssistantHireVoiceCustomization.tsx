@@ -9,12 +9,14 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { AssistantActions, VoiceOption, VoiceDesignPreviewItem } from '@/types/team/assistant';
+import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/team/assistant';
 import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
 import { VoiceListItemSkeleton } from './AssistantHireVoiceItemSkeleton';
+import { Checkbox } from "@/components/UI/checkbox";
+import { useFormContext, Controller } from 'react-hook-form';
 
 // Import Hooks
 import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
@@ -44,7 +46,10 @@ export function VoiceCustomization({
 }: VoiceCustomizationProps) {
     const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
-    const [isDesignDescTooltipOpen, setIsDesignDescTooltipOpen] = React.useState(false);
+
+    const { control, watch } = useFormContext<AssistantFormData>();
+    const designIncludeBio = watch("design_include_bio");
+    const bioText = watch("about");
 
     // Microphone recording state
     const [recordingStatus, setRecordingStatus] = React.useState<'idle' | 'recording'>('idle');
@@ -129,24 +134,6 @@ export function VoiceCustomization({
             setCreateMode('design');
         }
     }, [activeMainTab, setCreateMode]);
-
-    // Effect to show the design description tooltip automatically
-    React.useEffect(() => {
-        let showTimer: NodeJS.Timeout;
-        let hideTimer: NodeJS.Timeout;
-        if (activeMainTab === 'design') {
-            // Use a short timeout to let the UI transition finish
-            showTimer = setTimeout(() => {
-                setIsDesignDescTooltipOpen(true);
-            }, 500);
-
-            // And a timeout to close it automatically after a few seconds
-            hideTimer = setTimeout(() => {
-                setIsDesignDescTooltipOpen(false);
-            }, 5000);
-        }
-        return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
-    }, [activeMainTab]);
 
     const handleSelectVoiceDisplay = (voice: VoiceOption) => {
         setSelectedVoiceId(voice.voice_id);
@@ -593,16 +580,6 @@ export function VoiceCustomization({
                                     <div className="space-y-1">
                                         <div className="flex flex-row justify-between gap-2 items-center pb-1">
                                             <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip open={isDesignDescTooltipOpen} onOpenChange={setIsDesignDescTooltipOpen}>
-                                                    <TooltipTrigger asChild>
-                                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="left" align="end" className="max-w-xs text-sm">
-                                                        <p>{"Voice description language will be used to determine the voice's primary language."}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
                                         </div>
                                         <Textarea 
                                             id="design-desc" 
@@ -614,9 +591,44 @@ export function VoiceCustomization({
                                             disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
                                             maxLength={DESIGN_VOICE_DESC_MAX_LENGTH}
                                         />
-                                        <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH))}>
-                                            {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH} (min {DESIGN_VOICE_DESC_MIN_LENGTH})
-                                        </p>
+                                        <div className="flex justify-between items-center gap-5">
+                                            <div className="flex items-center space-x-2 pt-1">
+                                                <Controller
+                                                    name="design_include_bio"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <Checkbox
+                                                            id="design-include-bio"
+                                                            checked={field.value}
+                                                            onCheckedChange={field.onChange}
+                                                            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                                                        />
+                                                    )}
+                                                />
+                                                <div className="grid gap-1.5 leading-none">
+                                                    <label
+                                                        htmlFor="design-include-bio"
+                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5"
+                                                    >
+                                                        Include profile bio
+                                                        <TooltipProvider delayDuration={100}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger type="button" asChild>
+                                                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top" className="max-w-xs text-sm">
+                                                                    <p>If checked, the profile bio provided above will be taken into account to refine the voice description.</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, designIncludeBio))}>
+                                                {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH}
+                                                {!designIncludeBio && ` (min ${DESIGN_VOICE_DESC_MIN_LENGTH})`}
+                                            </p>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
@@ -634,7 +646,7 @@ export function VoiceCustomization({
                                             {designSampleText.length > 0 && ` (min ${DESIGN_SAMPLE_TEXT_MIN_LENGTH})`}
                                         </p>
                                     </div>
-                                    <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !designVoiceDescription.trim()}>
+                                    <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (!designVoiceDescription.trim() && !designIncludeBio) || (!!designIncludeBio && !bioText?.trim())}>
                                         {isGeneratingPreviews ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Generate Previews
                                     </Button>
 
@@ -667,7 +679,7 @@ export function VoiceCustomization({
                             </div>
                         </ScrollArea>
                     </TabsContent>
-                )}
+                )}            
             </Tabs>
         </div>
     );

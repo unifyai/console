@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesignGeneratePreviewsRequest } from '@/types/team/assistant';
+import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesignGeneratePreviewsRequest, AssistantFormData } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { SupportedLanguage } from "@cartesia/cartesia-js/api";
 import { VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
+import { useFormContext } from 'react-hook-form';
 
 type CreateMode = 'clone' | 'design';
 
@@ -13,6 +14,7 @@ export function useVoiceCreator(
     fetchUserVoices?: () => void
 ) {
     const [createMode, setCreateMode] = React.useState<CreateMode>('clone');
+    const { getValues } = useFormContext<AssistantFormData>();
 
     // Clone state
     const [cloneFile, setCloneFile] = React.useState<File | null>(null);
@@ -42,14 +44,22 @@ export function useVoiceCreator(
             toast.error("Voice design is only available for the ElevenLabs provider.");
             return;
         }
-
+        
+        const includeBio = getValues("design_include_bio");
+        const bioText = getValues("about");
         const trimmedVoiceDesc = designVoiceDescription.trim();
         const trimmedSampleText = designSampleText.trim();
-
-        if (trimmedVoiceDesc.length < DESIGN_VOICE_DESC_MIN_LENGTH || trimmedVoiceDesc.length > DESIGN_VOICE_DESC_MAX_LENGTH) {
+        
+        if (!includeBio && (trimmedVoiceDesc.length < DESIGN_VOICE_DESC_MIN_LENGTH || trimmedVoiceDesc.length > DESIGN_VOICE_DESC_MAX_LENGTH)) {
             toast.error(`Voice description must be between ${DESIGN_VOICE_DESC_MIN_LENGTH} and ${DESIGN_VOICE_DESC_MAX_LENGTH} characters.`);
             return;
         }
+        
+        if (includeBio && !bioText?.trim()) {
+            toast.error("Profile bio cannot be empty when 'Include profile bio' is checked.");
+            return;
+        }
+
         if (trimmedSampleText.length > 0 && (trimmedSampleText.length < DESIGN_SAMPLE_TEXT_MIN_LENGTH || trimmedSampleText.length > DESIGN_SAMPLE_TEXT_MAX_LENGTH)) {
             toast.error(`If sample text is provided, it must be between ${DESIGN_SAMPLE_TEXT_MIN_LENGTH} and ${DESIGN_SAMPLE_TEXT_MAX_LENGTH} characters.`);
             return;
@@ -60,9 +70,16 @@ export function useVoiceCreator(
         setSelectedPreviewId(null);
         const toastId = toast.loading("Generating voice design previews...");
         try {
-            const payload: VoiceDesignGeneratePreviewsRequest = {
-                voice_description: trimmedVoiceDesc,
-            };
+            const payload: VoiceDesignGeneratePreviewsRequest = {};
+
+            if (includeBio) {
+                payload.bio = bioText;
+                if (trimmedVoiceDesc) {
+                    payload.voice_description = trimmedVoiceDesc;
+                }
+            } else {
+                payload.voice_description = trimmedVoiceDesc;
+            }
 
             if (trimmedSampleText.length > 0) {
                 payload.text = trimmedSampleText;
@@ -166,7 +183,7 @@ export function useVoiceCreator(
             setIsProcessingCreate(false);
         }
     };
-    
+
     return {
         createMode, setCreateMode,
         // Clone

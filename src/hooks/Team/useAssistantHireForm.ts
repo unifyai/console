@@ -63,6 +63,7 @@ export function useAssistantHireForm(
             videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
+            design_include_bio: false,
         },
     });
 
@@ -324,6 +325,7 @@ export function useAssistantHireForm(
             videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
+            design_include_bio: false,
         });
         setShowInsufficientFundsHint(false);
     }, [reset, defaultVoice, availablePhoneCountries]);
