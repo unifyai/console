@@ -19,12 +19,11 @@ import { Checkbox } from "@/components/UI/checkbox";
 import { useFormContext, Controller } from 'react-hook-form';
 
 // Import Hooks
-import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
 import { useVoiceCreator } from '@/hooks/Team/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Team/useTTSPreview';
 
 // Import Utils/Constants
-import { languageOptions, getLanguageFlag } from '@/utils/team/voice-utils'; 
+import { getLanguageFlag, getLanguageLabel } from '@/utils/team/voice-utils'; 
 import { VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 
 interface VoiceCustomizationProps {
@@ -33,6 +32,10 @@ interface VoiceCustomizationProps {
     initialVoiceId?: string | null;
     disabled?: boolean;
     onProcessingStateChange?: (isProcessing: boolean) => void;
+    allDisplayableVoices: VoiceOption[];
+    isLoadingUserVoices: boolean;
+    fetchUserVoices: () => void;
+    deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
 }
 
 type ActiveCreatorTab = "select" | "clone" | "design";
@@ -43,6 +46,10 @@ export function VoiceCustomization({
     initialVoiceId = null,
     disabled = false,
     onProcessingStateChange,
+    allDisplayableVoices,
+    isLoadingUserVoices,
+    fetchUserVoices,
+    deleteUserVoice,
 }: VoiceCustomizationProps) {
     const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
@@ -58,20 +65,6 @@ export function VoiceCustomization({
     const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
     const audioChunksRef = React.useRef<Blob[]>([]);
     const audioStreamRef = React.useRef<MediaStream | null>(null);
-
-    const handleVoiceDeletedFromHook = React.useCallback((deletedVoiceId: string) => {
-        if (selectedVoiceId === deletedVoiceId) {
-            setSelectedVoiceId(null);
-            onVoiceSelected(null);
-        }
-    }, [selectedVoiceId, onVoiceSelected]);
-
-    const {
-        allDisplayableVoices,
-        isLoadingUserVoices,
-        fetchUserVoices,
-        deleteUserVoice,
-    } = useVoiceOptions(assistantActions.voice, handleVoiceDeletedFromHook);
 
     const selectedVoice = React.useMemo(
         () => allDisplayableVoices.find(v => v.voice_id === selectedVoiceId),
@@ -90,7 +83,7 @@ export function VoiceCustomization({
     }, [onVoiceSelected]);
 
     const {
-        createMode, setCreateMode, // Keep createMode, set it based on activeMainTab
+        createMode, setCreateMode,
         cloneFile, setCloneFile, cloneFileName, setCloneFileName,
         cloneName, setCloneName, cloneDescription, setCloneDescription,
         designVoiceDescription, setDesignVoiceDescription,

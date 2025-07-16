@@ -8,7 +8,8 @@ import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useVoiceOptions(
     assistantVoiceActions: AssistantActions['voice'],
-    onVoiceDeleted?: (voiceId: string) => void
+    onVoiceDeleted?: (voiceId: string) => void,
+    preferredLanguage?: SupportedLanguage | null
 ) {
     const [presetVoices] = React.useState<VoiceOption[]>(() => {
         const allPresets = voicePresetsConstant as Voice[];
@@ -66,14 +67,10 @@ export function useVoiceOptions(
     }, [fetchUserVoicesFromOrchestra]);
 
     const allDisplayableVoices = React.useMemo(() => {
-        // User voices from Orchestra are already potentially filtered or should be shown regardless of current preset provider setting.
-        // Preset voices are now filtered at initialization.
         const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map(uv => uv.voice_id));
         
-        // Add user voices first
         const combined = [...userVoicesFromOrchestra];
 
-        // Add filtered preset voices that are not already present as user voices (e.g., user registered a preset)
         presetVoices.forEach(pv => {
             if (!orchestraVoiceIds.has(pv.voice_id)) {
                 combined.push(pv);
@@ -85,7 +82,6 @@ export function useVoiceOptions(
             if (!finalMap.has(voice.voice_id)) {
                 finalMap.set(voice.voice_id, voice);
             } else {
-                // Prioritize DB entries if somehow a duplicate ID exists
                 const existing = finalMap.get(voice.voice_id)!;
                 if (voice.isUserVoiceInOrchestra && !existing.isUserVoiceInOrchestra) {
                     finalMap.set(voice.voice_id, voice);
@@ -94,16 +90,25 @@ export function useVoiceOptions(
         });
 
         const finalCombined = Array.from(finalMap.values());
+        
         finalCombined.sort((a, b) => {
+            const isAPreferred = preferredLanguage && a.language === preferredLanguage;
+            const isBPreferred = preferredLanguage && b.language === preferredLanguage;
+
+            if (isAPreferred && !isBPreferred) return -1;
+            if (!isAPreferred && isBPreferred) return 1;
+
+            // If both are preferred or neither are, apply original sorting logic
             // Primary sort: Non-presets first
-            if (!a.is_preset && b.is_preset) return -1; // a (non-preset) comes before b (preset)
-            if (a.is_preset && !b.is_preset) return 1;  // b (non-preset) comes before a (preset)
+            if (!a.is_preset && b.is_preset) return -1;
+            if (a.is_preset && !b.is_preset) return 1;
 
             // Secondary sort: Alphabetical by name
             return (a.name || '').localeCompare(b.name || '');
         });
+
         return finalCombined;
-    }, [presetVoices, userVoicesFromOrchestra]);
+    }, [presetVoices, userVoicesFromOrchestra, preferredLanguage]);
 
     const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<boolean> => {
         if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -30,6 +31,7 @@ import { SocialAccountInput } from './SocialAccountInput';
 import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
 import { useAccountVerification } from '@/hooks/Team/useAccountVerification';
+import { getLangCodeForRegion } from '@/utils/team/voice-utils';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -144,6 +146,10 @@ export interface HireFormProps {
   isLoadingCountries: boolean;
   availableSocialPlatforms: AvailableSocialPlatform[];
   isLoadingSocialPlatforms: boolean;
+  allDisplayableVoices: VoiceOption[];
+  isLoadingUserVoices: boolean;
+  fetchUserVoices: () => void;
+  deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
 }
 
 export function HireForm({
@@ -158,6 +164,10 @@ export function HireForm({
     isLoadingCountries,
     availableSocialPlatforms,
     isLoadingSocialPlatforms,
+    allDisplayableVoices,
+    isLoadingUserVoices,
+    fetchUserVoices,
+    deleteUserVoice,
 }: HireFormProps) {
   const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
   const { fields, append, remove } = useFieldArray({
@@ -198,6 +208,44 @@ export function HireForm({
   const rhfEmail = watch("email");
   const rhfCountry = watch("country");
   const rhfRegion = watch("region");
+
+  const regionRef = React.useRef(rhfRegion);
+
+  React.useEffect(() => {
+    const isPristine = getValues("isPresetPristine");
+    // Only trigger auto-selection if the region was changed manually, not by a preset.
+    if (isPristine || regionRef.current === rhfRegion) {
+        regionRef.current = rhfRegion;
+        return;
+    }
+    regionRef.current = rhfRegion;
+
+    if (allDisplayableVoices.length === 0) return;
+
+    const preferredLanguage = getLangCodeForRegion(rhfRegion);
+    if (!preferredLanguage) return; // No specific language for this region
+
+    const currentVoiceId = getValues("voice_id");
+    const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
+
+    // If current voice already matches the new region's language, do nothing
+    if (currentVoice && currentVoice.language === preferredLanguage) return;
+
+    // Find the best new voice: a non-preset one is preferred
+    const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset) 
+                      || allDisplayableVoices.find(v => v.language === preferredLanguage);
+
+    if (bestNewVoice) {
+        setValue("voice_id", bestNewVoice.voice_id, { shouldValidate: true });
+        setValue("voice_name", bestNewVoice.name, { shouldValidate: true });
+        setValue("voice_description", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
+        setValue("voice_gender", bestNewVoice.gender, { shouldValidate: true });
+        setValue("voice_language", bestNewVoice.language, { shouldValidate: true });
+        setValue("voice_provider", bestNewVoice.provider || VOICE_PROVIDER, { shouldValidate: true });
+        setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
+    }
+  }, [rhfRegion, allDisplayableVoices, getValues, setValue]);
+
 
   const [emailLocalPart, setEmailLocalPart] = React.useState('');
 
@@ -413,6 +461,10 @@ export function HireForm({
                         initialVoiceId={getValues("voice_id")}
                         disabled={isSubmitting}
                         onProcessingStateChange={onVoiceProcessingStateChange}
+                        allDisplayableVoices={allDisplayableVoices}
+                        isLoadingUserVoices={isLoadingUserVoices}
+                        fetchUserVoices={fetchUserVoices}
+                        deleteUserVoice={deleteUserVoice}
                     />
                     {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
                     {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}

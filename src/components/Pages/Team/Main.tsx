@@ -1,10 +1,11 @@
+
 'use client';
 
 import * as React from 'react';
 import { AssistantList } from "@/components/Pages/Team/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Pages/Team/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform } from "@/types/team/assistant";
+import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform, VoiceOption } from "@/types/team/assistant";
 import { ActivityLogActions } from "@/types/team/activity";
 import { TaskActions, Status as TaskStatusEnum } from "@/types/team/task";
 import { toast } from "sonner";
@@ -28,6 +29,9 @@ import { useAssistantHiringApproval } from '@/hooks/Team/useAssistantHiringAppro
 import { useAssistantStatus } from '@/hooks/Team/useAssistantStatus';
 import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
+import { useVoiceOptions } from '@/hooks/Team/useVoiceOptions';
+import { getLangCodeForRegion } from '@/utils/team/voice-utils';
+import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 
 interface MainProps {
@@ -172,6 +176,31 @@ export default function Main({
         isLoadingCountries,
     } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen, availableSocialPlatforms);
     
+    // --- Voice Options Management ---
+    const hireFormRegion = hireFormMethods.watch("region");
+    const preferredLanguage = React.useMemo(() => getLangCodeForRegion(hireFormRegion), [hireFormRegion]);
+
+    const handleVoiceDeleted = React.useCallback((deletedVoiceId: string) => {
+        const { getValues, setValue } = hireFormMethods;
+        if (getValues("voice_id") === deletedVoiceId) {
+            setValue("voice_id", null as any); // RHF Typing with null can be tricky
+            setValue("voice_name", "");
+            setValue("voice_description", "");
+            setValue("voice_gender", "female"); // Reset to a default
+            setValue("voice_language", "en"); // Reset to a default
+            setValue("voice_provider", VOICE_PROVIDER);
+            setValue("voice_exists", false);
+        }
+    }, [hireFormMethods]);
+    
+    const {
+        allDisplayableVoices,
+        isLoadingUserVoices,
+        fetchUserVoices,
+        deleteUserVoice
+    } = useVoiceOptions(assistantActions.voice, handleVoiceDeleted, preferredLanguage);
+
+
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
         refreshHiringProfile().then(() => {
@@ -373,6 +402,10 @@ export default function Main({
                         isLoadingCountries={isLoadingCountries}
                         availableSocialPlatforms={availableSocialPlatforms}
                         isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                        allDisplayableVoices={allDisplayableVoices}
+                        isLoadingUserVoices={isLoadingUserVoices}
+                        fetchUserVoices={fetchUserVoices}
+                        deleteUserVoice={deleteUserVoice}
                     />
                     <PresetsPanel                                    
                         displayedPresets={displayedPresets}

@@ -1,3 +1,4 @@
+import { regionToLangMap } from "@/constants/assistants/countries";
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
 export const languageOptions: { value: SupportedLanguage; label: string; flag: string }[] = [
     { value: "en", label: "English", flag: "🇬🇧" }, { value: "es", label: "Spanish", flag: "🇪🇸" },
@@ -100,6 +101,13 @@ export const sampleTTSLinesByLanguage: Record<SupportedLanguage | string, string
 export const getRandomSampleLine = (language: SupportedLanguage): string => {
     const lines = sampleTTSLinesByLanguage[language] || sampleTTSLinesByLanguage.default;
     return lines[Math.floor(Math.random() * lines.length)];
+};
+
+
+
+export const getLangCodeForRegion = (region: string | null | undefined): SupportedLanguage | null => {
+    if (!region) return null;
+    return regionToLangMap[region] || null;
 };
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {

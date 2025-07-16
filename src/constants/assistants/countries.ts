@@ -1,3 +1,5 @@
+import { SupportedLanguage } from "@cartesia/cartesia-js/api";
+
 export const allCountryNames: string[] = [
     'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan',
     'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi',
@@ -24,3 +26,82 @@ export const allCountryNames: string[] = [
     'Yemen',
     'Zambia', 'Zimbabwe'
 ].sort((a, b) => a.localeCompare(b));
+
+export const regionToLangMap: Record<string, SupportedLanguage> = {
+    // English-speaking countries
+    "Antigua and Barbuda": "en", "Australia": "en", "Bahamas": "en", "Barbados": "en", "Belize": "en", 
+    "Botswana": "en", "Canada": "en", "Dominica": "en", "Eswatini": "en", "Fiji": "en", "Gambia": "en", 
+    "Ghana": "en", "Grenada": "en", "Guyana": "en", "Ireland": "en", "Jamaica": "en", "Kenya": "en", 
+    "Kiribati": "en", "Lesotho": "en", "Liberia": "en", "Malawi": "en", "Malta": "en", "Marshall Islands": "en", 
+    "Mauritius": "en", "Micronesia": "en", "Namibia": "en", "Nauru": "en", "New Zealand": "en", "Nigeria": "en", 
+    "Palau": "en", "Papua New Guinea": "en", "Philippines": "en", "Saint Kitts and Nevis": "en", "Saint Lucia": "en", 
+    "Saint Vincent and the Grenadines": "en", "Samoa": "en", "Seychelles": "en", "Sierra Leone": "en", 
+    "Singapore": "en", "Solomon Islands": "en", "South Africa": "en", "South Sudan": "en", "Sudan": "en", 
+    "Tanzania": "en", "Tonga": "en", "Trinidad and Tobago": "en", "Tuvalu": "en", "Uganda": "en", 
+    "United Kingdom": "en", "United States": "en", "Vanuatu": "en", "Zambia": "en", "Zimbabwe": "en",
+    "Malaysia": "en",
+
+    // Spanish-speaking countries
+    "Argentina": "es", "Bolivia": "es", "Chile": "es", "Colombia": "es", "Costa Rica": "es", "Cuba": "es", 
+    "Dominican Republic": "es", "Ecuador": "es", "El Salvador": "es", "Equatorial Guinea": "es", "Guatemala": "es", 
+    "Honduras": "es", "Mexico": "es", "Nicaragua": "es", "Panama": "es", "Paraguay": "es", "Peru": "es", 
+    "Spain": "es", "Uruguay": "es", "Venezuela": "es",
+
+    // French-speaking countries
+    "Algeria": "fr", "Benin": "fr", "Burkina Faso": "fr", "Burundi": "fr", "Cameroon": "fr", 
+    "Central African Republic": "fr", "Chad": "fr", "Comoros": "fr", "Congo, Democratic Republic of the": "fr", 
+    "Congo, Republic of the": "fr", "Cote d'Ivoire": "fr", "Djibouti": "fr", "France": "fr", "Gabon": "fr", 
+    "Guinea": "fr", "Haiti": "fr", "Lebanon": "fr", "Luxembourg": "fr", "Madagascar": "fr", "Mali": "fr", 
+    "Mauritania": "fr", "Monaco": "fr", "Morocco": "fr", "Niger": "fr", "Rwanda": "fr", "Senegal": "fr", 
+    "Togo": "fr", "Tunisia": "fr",
+
+    // German-speaking countries
+    "Austria": "de", "Germany": "de", "Liechtenstein": "de", "Switzerland": "de",
+
+    // Portuguese-speaking countries
+    "Angola": "pt", "Brazil": "pt", "Cabo Verde": "pt", "Guinea-Bissau": "pt", "Mozambique": "pt", 
+    "Portugal": "pt", "Sao Tome and Principe": "pt", "Timor-Leste": "pt",
+
+    // Italian-speaking countries
+    "Italy": "it", "San Marino": "it", "Vatican City": "it",
+    
+    // Polish
+    "Poland": "pl",
+
+    // Japanese
+    "Japan": "ja",
+
+    // Hindi
+    "India": "hi",
+
+    // Chinese
+    "China": "zh", "Taiwan": "zh",
+
+    // Korean
+    "North Korea": "ko", "South Korea": "ko",
+
+    // Dutch
+    "Belgium": "nl", "Netherlands": "nl", "Suriname": "nl",
+
+    // Russian
+    "Armenia": "ru", "Belarus": "ru", "Kazakhstan": "ru", "Kyrgyzstan": "ru", "Moldova": "ru", 
+    "Russia": "ru", "Serbia": "ru", "Tajikistan": "ru", "Turkmenistan": "ru", "Ukraine": "ru", "Uzbekistan": "ru",
+
+    // Swedish
+    "Finland": "sv", "Sweden": "sv", "Norway": "sv", "Denmark": "sv", "Iceland": "sv",
+
+    // Turkish
+    "Azerbaijan": "tr", "Cyprus": "tr", "Turkey": "tr",
+
+    // Fallbacks to most relevant or regional language
+    "Afghanistan": "en", "Albania": "it", "Andorra": "es", "Bahrain": "en", "Bangladesh": "hi", 
+    "Bosnia and Herzegovina": "de", "Brunei": "en", "Bulgaria": "ru", "Cambodia": "fr", "Croatia": "de", 
+    "Czech Republic": "de", "Egypt": "en", "Eritrea": "it", "Estonia": "ru", "Ethiopia": "en", 
+    "Georgia": "ru", "Greece": "it", "Hungary": "de", "Indonesia": "nl", "Iran": "en", "Iraq": "en", 
+    "Israel": "en", "Jordan": "en", "Kuwait": "en", "Laos": "fr", "Latvia": "ru", "Libya": "it", 
+    "Lithuania": "pl", "Mongolia": "zh", "Montenegro": "it", "Myanmar": "en", "Nepal": "hi", 
+    "North Macedonia": "it", "Oman": "en", "Pakistan": "hi", "Palestine State": "en", "Qatar": "en", 
+    "Romania": "it", "Saudi Arabia": "en", "Slovakia": "de", "Slovenia": "de", "Somalia": "it", 
+    "Sri Lanka": "hi", "Syria": "fr", "Thailand": "en", "United Arab Emirates": "en", "Vietnam": "fr", 
+    "Yemen": "en",
+};
