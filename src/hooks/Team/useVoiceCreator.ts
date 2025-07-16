@@ -117,10 +117,16 @@ export function useVoiceCreator(
                     toast.error("A preview must be selected and a final voice name is required.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
+                
+                // Find the selected preview to get its audio data
+                const selectedPreview = designPreviews.find(p => p.generated_voice_id === selectedPreviewId);
+
                 backendResponse = await assistantVoiceActions.design({
                     generated_voice_id: selectedPreviewId,
                     voice_name: designFinalVoiceName,
                     voice_description: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
+                    audio_base_64: selectedPreview?.audio_base_64 || null,
+                    media_type: selectedPreview?.media_type || null
                     // labels: {} // Optional labels
                 });
             } else {
@@ -160,7 +166,7 @@ export function useVoiceCreator(
             setIsProcessingCreate(false);
         }
     };
-
+    
     return {
         createMode, setCreateMode,
         // Clone

@@ -205,6 +205,8 @@ export interface VoiceDesignCreateFromPreviewRequest {
     labels?: { [key: string]: string };
     language?: SupportedLanguage;
     gender?: CartesiaGender | 'other';
+    audio_base_64?: string | null;
+    media_type?: string | null;
 }
 
 export interface AssistantActions {
