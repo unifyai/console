@@ -32,6 +32,9 @@ import SaveResetOverlay from './SaveResetOverlay';
 import { useSidebar } from '@/components/UI/sidebar';
 import { ScrollArea } from '../../../UI/scroll-area';
 import InterfaceNav from './InterfaceNav';
+import { withLoadingToast } from '@/components/Common/Toasts/notifications'
+import { useQueryClient } from '@tanstack/react-query';
+import { TileProps } from '@/types/interfaces/grid';
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
@@ -249,6 +252,30 @@ const Interface = ({
     };
   }, [debouncedTabSwitch]);
 
+  const queryClient = useQueryClient();
+
+  // Safety timeout: hide switching overlay and cancel queries if navigation stalls
+  useEffect(() => {
+    if (!isSwitchingInterface) return;
+
+    const timer = setTimeout(() => {
+      // Abort any long-running queries
+      queryClient.cancelQueries({ predicate: (q: any) => {
+        const key0 = q.queryKey?.[0] as string;
+        return [
+          'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
+          'tabs', 'tiles', 'tab', 'tile'
+        ].includes(key0);
+      }});
+      
+      // Hide the overlay and show an error
+      setIsSwitchingInterface(false);
+      showErrorToast('Navigation timed out. Please try again.', 'Failed to load the selected interface.');
+    }, 30000); // 30 seconds
+
+    return () => clearTimeout(timer);
+  }, [isSwitchingInterface, queryClient]);
+
   // Function to hide overlay
   const hideOverlay = () => {
     setOverlayState({
@@ -288,20 +315,42 @@ const Interface = ({
 
   // Full refresh handler used by sidebar refresh button
   const handleInterfaceRefresh = async () => {
-    if (!tabUIActions || refreshStatus === 'loading') return;
+    if (refreshStatus === 'loading') return;
+
     setRefreshStatus('loading');
-    tabUIActions.setRefreshing(true);
+    
+    // Invalidate relevant React Query caches so subsequent queries hit backend
     try {
-      await router.refresh();
-      setRefreshStatus('success');
-      showSuccessToast('Interface refreshed');
+      await queryClient.invalidateQueries({ predicate: (q: any) => {
+        const key0 = q.queryKey?.[0] as string;
+        // Common keys used in hooks
+        return [
+          'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
+          'tabs', 'tiles', 'tab', 'tile'
+        ].includes(key0);
+      }});
     } catch (err) {
-      console.error('Failed to refresh interface:', err);
-      showErrorToast(err, 'Failed to refresh interface');
+      console.warn('Cache invalidation failed:', err);
+    }
+
+    try {
+        await withLoadingToast(
+            async () => {
+                await router.refresh();
+            },
+            {
+                loading: 'Refreshing interface...',
+                success: 'Interface refreshed!',
+                error: 'Failed to refresh interface.'
+            },
+            2000 // Only show loading toast if refresh takes > 2 seconds
+        );
+        setRefreshStatus('success');
+    } catch (err) {
       setRefreshStatus('idle');
+      // Error is already handled by withLoadingToast
     } finally {
-      tabUIActions.setRefreshing(false);
-      setTimeout(() => setRefreshStatus('idle'), 2000);
+        setTimeout(() => setRefreshStatus('idle'), 2000);
     }
   };
 
@@ -454,6 +503,16 @@ const Interface = ({
 
   // No early return – we render a local overlay in the workspace area instead
 
+  const handleSidebarAddTile = () => {
+    if (!activeTabId || !tabDataActions) return;
+    const items = tabDataActions.getItems() as TileProps[] || [];
+    let idx = items.length;
+    while (items.some(it => it.name === `Tile_${idx}`)) idx++;
+    const newTileName = `Tile_${idx}`;
+    const position = { x: 0, y: 0, width: 4, height: 4 } as any;
+    tabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
+  };
+
   return (
     <div className="w-full h-full relative">
       {/* New Interface Navigation Sidebar */}
@@ -482,6 +541,7 @@ const Interface = ({
         favouritesActions={favouritesActions}
         initialFavourites={initialFavourites}
         setIsSwitchingInterface={setIsSwitchingInterface}
+        onAddTile={handleSidebarAddTile}
       />
       
       {/* Main Content Area */}
@@ -493,10 +553,10 @@ const Interface = ({
       >
         <div className="relative flex-1 min-w-0 h-full">
           {isSwitchingInterface && (
-            <div className="absolute inset-0 z-40 flex items-center justify-center backdrop-blur-sm bg-background/70">
-              <div className="flex flex-col items-center">
+            <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-background/70">
+              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground text-center">Setting up your workspace...</p>
+                <p className="text-muted-foreground text-center whitespace-nowrap">Switching project...</p>
               </div>
             </div>
           )}
@@ -521,7 +581,7 @@ const Interface = ({
             >
               {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
             <div 
-              className="fixed top-14 z-50 transition-all duration-300 ease-linear pointer-events-none"
+              className="fixed top-14 z-40 transition-all duration-300 ease-linear pointer-events-none"
               style={{ 
                 left: isNavCollapsed ? '48px' : '256px', // Adjust based on sidebar state
                 right: 0,
@@ -549,6 +609,7 @@ const Interface = ({
                   disabled={saveTabWithTilesMutation.isPending}
                   setOverlayState={setOverlayState}
                   setIsSwitchingInterface={setIsSwitchingInterface}
+                  hideAddTileButton={true}
                 />
               </div>
             </div>
@@ -557,7 +618,7 @@ const Interface = ({
             <div 
               className="transition-all duration-200 ease-linear"
               style={{ 
-                paddingTop: tabUIState?.edit ? '5rem' : '1rem',
+                paddingTop: '1rem', // Removed conditional edit-mode deadspace
                 paddingLeft: '1rem',    // Content padding
                 paddingRight: '1rem',   // Content padding
                 minHeight: 'calc(100vh - 6rem)', // Ensure full height minus top padding

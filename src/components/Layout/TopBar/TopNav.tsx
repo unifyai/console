@@ -240,7 +240,8 @@ export default function TopNav() {
 
         {/* Right side */}
         <div className="flex items-center space-x-2">
-          {/* Search */}
+          {/* Search - temporarily hidden */}
+          {/*
           <div className={cn(
             "flex items-center transition-all duration-200",
             isSearchExpanded ? "w-64" : "w-auto"
@@ -279,6 +280,7 @@ export default function TopNav() {
               </Button>
             )}
           </div>
+          */}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />

@@ -38,6 +38,7 @@ const InterfaceButtons = ({
     disabled,
     setOverlayState,
     setIsSwitchingInterface,
+    hideAddTileButton = false,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
@@ -53,6 +54,7 @@ const InterfaceButtons = ({
         status: 'loading' | 'success' | 'error' | null;
     }>>;
     setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>;
+    hideAddTileButton?: boolean;
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -308,7 +310,7 @@ const InterfaceButtons = ({
         <div className="flex items-center gap-2">
             
             {/* Add Tile Button (edit mode only) */}
-            {tabId && tabUIState?.edit && <AddTile
+            {!hideAddTileButton && tabId && tabUIState?.edit && <AddTile
                 tabId={tabId}
                 interfaceId={interfaceId}
                 project={project}

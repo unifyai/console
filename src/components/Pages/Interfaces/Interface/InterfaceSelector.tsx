@@ -72,7 +72,7 @@ export default function InterfaceSelector({
           } else {
              throw new Error("Could not determine the latest interface.");
           }
-        } else {
+        } else if (projectId !== 'Usage') {
           // If no interfaces exist, create a default one and then redirect.
           const newInterface = await createCompleteDefaultInterface({
             queryClient,
@@ -89,6 +89,9 @@ export default function InterfaceSelector({
           } else {
             throw new Error("Failed to create the default interface.");
           }
+        } else {
+          // For the special "Usage" project we simply stay on the project view with no interfaces.
+          router.push(`/interfaces?project=${encodeURIComponent(projectId)}`);
         }
       } catch (err) {
         console.error("Error in interface selection/creation:", err);

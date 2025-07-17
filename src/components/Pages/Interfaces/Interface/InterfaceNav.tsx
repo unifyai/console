@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/utils/misc/cn'
 import { 
@@ -22,6 +22,7 @@ import {
   Download,
   RefreshCw,
   CheckCircle,
+  Palette,
   ToggleLeft,
   ToggleRight,
   Terminal
@@ -42,6 +43,7 @@ import { Input } from '@/components/UI/input'
 import { Label } from '@/components/UI/label'
 import SubmitButton from '@/components/Common/Buttons/Submit'
 import { Alert, AlertDescription } from '@/components/UI/alert'
+import { HexColorPicker } from "react-colorful"
 import { AlertCircle, Check, FileUp, X } from 'lucide-react'
 import { showLoadingToast, showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications'
 import { useDropzone } from 'react-dropzone'
@@ -75,6 +77,7 @@ import DeleteProjectDialog from './Buttons/DeleteProject'
 import { FileUpload } from './Buttons/FileUpload'
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { useCommand } from '@/contexts/hooks/commands/useCommand'
+import { withLoadingToast } from '@/components/Common/Toasts/notifications'
 
 interface InterfaceNavProps {
   interfaceId: string
@@ -99,6 +102,8 @@ interface InterfaceNavProps {
   favouritesActions: FavouritesActions
   initialFavourites: Favourite[]
   setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>
+  onAddTile: () => void
+  // (theme dialog callback is internal to InterfaceNav)
 }
 
 interface ProjectItemProps {
@@ -113,6 +118,7 @@ interface ProjectItemProps {
   favourites: Favourite[]
   queryClient: QueryClient
   onProjectAction: (project: string, action: 'rename' | 'delete' | 'upload' | 'import' | 'create-interface') => void
+  onOpenThemeDialog: (interfaceId: string, color?: string) => void
   onNavigate: (url: string) => void
   onRefresh: () => void
   refreshStatus: 'idle' | 'loading' | 'success'
@@ -132,6 +138,7 @@ interface InterfaceItemProps {
   onNavigate: (url: string) => void
   onRefresh: () => void
   refreshStatus: 'idle' | 'loading' | 'success'
+  onOpenThemeDialog: (interfaceId: string, color?: string) => void
 }
 
 const InterfaceItem: React.FC<InterfaceItemProps> = ({
@@ -146,7 +153,8 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
   refetchInterfaces,
   onNavigate,
   onRefresh,
-  refreshStatus
+  refreshStatus,
+  onOpenThemeDialog
 }) => {
   // Dialog states
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
@@ -157,11 +165,13 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
   const [isDeleting, setIsDeleting] = useState(false)
   
   const handleInterfaceClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    const newParams = new URLSearchParams(searchParams.toString())
-    newParams.set('project', project)
-    newParams.set('interface', iface.name)
-    onNavigate(`?${newParams.toString()}`)
+    e.preventDefault();
+    // Avoid redundant navigation if this interface is already active
+    if (isActive) return;
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('project', project);
+    newParams.set('interface', iface.name);
+    onNavigate(`?${newParams.toString()}`);
   }
   
   const handleRenameInterface = async () => {
@@ -286,6 +296,14 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
                   <Download className="h-4 w-4" />
                   <span>Export as Template</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => {
+                  if (iface.id) {
+                    onOpenThemeDialog(iface.id as string, (iface as any).color ?? '#4f46e5')
+                  }
+                }} className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  <span>Set Theme</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="text-[color:var(--destructive)] flex items-center gap-2" 
@@ -336,6 +354,7 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   favourites,
   queryClient,
   onProjectAction,
+  onOpenThemeDialog,
   onNavigate,
   onRefresh,
   refreshStatus,
@@ -344,11 +363,46 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { data: interfaces = [], isLoading, refetch: refetchInterfaces } = useListInterfacesQuery(project, interfaceActions)
-  
+  const { data: interfaces = [], isLoading, refetch: refetchInterfaces, isError, error } = useListInterfacesQuery(project, interfaceActions)
+
+  const [loadTimeout, setLoadTimeout] = useState(false)
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isLoading) {
+      timer = setTimeout(() => {
+        setLoadTimeout(true);
+      }, 8000);
+    } else {
+        setLoadTimeout(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  const handleManualRefetch = async () => {
+    try {
+        await withLoadingToast(
+            async () => {
+                await refetchInterfaces();
+            },
+            {
+                loading: 'Fetching interfaces...',
+                success: 'Interfaces loaded!',
+                error: 'Failed to fetch interfaces.'
+            },
+            1500 // Slightly longer delay for manual refresh to allow toast visibility
+        );
+    } catch (err) {
+        console.error("Manual interface refetch failed:", err);
+    }
+  };
+
   const isExpanded = expandedProjects.has(project)
   const hasInterfaces = interfaces.length > 0
   const hasSingleInterface = interfaces.length === 1
+  const singleIsDefault = hasSingleInterface && interfaces[0].name === 'Default'
+  const hasExpandableInterfaces = interfaces.length > 1 || (hasSingleInterface && !singleIsDefault)
+  const isDefaultActive = singleIsDefault && interfaces[0].id === currentInterfaceId && pathname === '/interfaces'
   const hasActiveInterface = interfaces.some((iface: any) => iface.id === currentInterfaceId)
   
   // Favourite state
@@ -359,15 +413,21 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   )
 
   const handleProjectClick = () => {
-    if (isLoading) return
+    if (isLoading) return;
+    if (isDefaultActive) return; // Already on this interface
     
-    if (hasSingleInterface && interfaces[0].id) {
+    if (hasSingleInterface && singleIsDefault && interfaces[0].id) {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.set('project', project)
       newParams.set('interface', interfaces[0].name)
       onNavigate(`?${newParams.toString()}`)
-    } else if (interfaces.length > 1) {
+    } else if (hasExpandableInterfaces) {
       toggleProject(project)
+    } else {
+       // No interfaces yet – just navigate to the project base so the user can create one or view info
+       const newParams = new URLSearchParams(searchParams.toString())
+       newParams.set('project', project)
+       onNavigate(`?${newParams.toString()}`)
     }
   }
 
@@ -393,7 +453,23 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
           )}
         >
           <span className="truncate flex-1">{project}</span>
-          {projectsRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          {isDefaultActive && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRefresh();
+              }}
+            >
+              {refreshStatus === 'success' ? (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              ) : (
+                <RefreshCw className={cn('h-4 w-4', refreshStatus === 'loading' && 'animate-spin')} />
+              )}
+            </Button>
+          )}
           
           {/* Ellipsis dropdown (visible on hover) */}
           <DropdownMenu>
@@ -425,35 +501,52 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                 )}
                 <span>{currentFavourite ? 'Remove from Favourites' : 'Add to Favourites'}</span>
                           </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onProjectAction(project, 'rename')} className="flex items-center gap-2">
-                            <Edit3 className="h-4 w-4" />
-                            <span>Rename Project</span>
+              {project !== 'Usage' && (
+                <DropdownMenuItem onSelect={() => onProjectAction(project, 'rename')} className="flex items-center gap-2">
+                  <Edit3 className="h-4 w-4" />
+                  <span>Rename Project</span>
+                </DropdownMenuItem>
+              )}
+              {interfaces.length === 1 && interfaces[0].id && (
+              <DropdownMenuItem onSelect={() => {
+                                onOpenThemeDialog(interfaces[0].id as string, (interfaces[0] as any).color ?? '#4f46e5')
+                            }} className="flex items-center gap-2">
+                            <Palette className="h-4 w-4" />
+                            <span>Set Theme</span>
                           </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  // For now, we'll show an alert that this feature needs to be implemented
-                  // You can replace this with proper file upload dialog implementation
-                  alert('Upload Logs feature - to be implemented')
-                }} 
-                className="flex items-center gap-2"
-              >
-                <FileInput className="h-4 w-4" />
-                <span>Upload Logs</span>
-              </DropdownMenuItem>
+               )}
+              {project !== 'Usage' && (
+                <DropdownMenuItem 
+                  onSelect={() => {
+                    // For now, we'll show an alert that this feature needs to be implemented
+                    alert('Upload Logs feature - to be implemented');
+                  }} 
+                  className="flex items-center gap-2"
+                >
+                  <FileInput className="h-4 w-4" />
+                  <span>Upload Logs</span>
+                </DropdownMenuItem>
+              )}
                             <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-[color:var(--destructive)] flex items-center gap-2" 
-                onSelect={() => onProjectAction(project, 'delete')}
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete Project</span>
-              </DropdownMenuItem>
+              {project !== 'Usage' && (
+                <DropdownMenuItem 
+                  className="text-[color:var(--destructive)] flex items-center gap-2" 
+                  onSelect={() => onProjectAction(project, 'delete')}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete Project</span>
+                </DropdownMenuItem>
+              )}
                         </DropdownMenuContent>
           </DropdownMenu>
 
-          {isLoading ? (
+          {isLoading && !loadTimeout ? (
             <Loader2 className="h-4 w-4 animate-spin" />
-          ) : interfaces.length > 1 ? (
+          ) : (!projectsRefreshing && (loadTimeout || isError)) ? (
+            <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e)=>{e.stopPropagation(); handleManualRefetch()}}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          ) : hasExpandableInterfaces ? (
             <ChevronRight className={cn(
               "h-4 w-4 transition-transform duration-300",
               isExpanded && "rotate-90"
@@ -467,10 +560,10 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
       <div 
         className={cn(
           "ml-3 relative overflow-hidden transition-all duration-300 ease-in-out",
-          isExpanded && (isLoading || interfaces.length > 1) ? "opacity-100" : "max-h-0 opacity-0"
+          isExpanded && (isLoading || hasExpandableInterfaces) ? "opacity-100" : "max-h-0 opacity-0"
         )}
         style={{
-          maxHeight: isExpanded && (isLoading || interfaces.length > 1) ? `${isLoading ? 50 : interfaces.length * 40 + 20}px` : '0px'
+          maxHeight: isExpanded && (isLoading || hasExpandableInterfaces) ? `${isLoading ? 50 : interfaces.length * 40 + 20}px` : '0px'
         }}
       >
         {/* Tree line */}
@@ -480,10 +573,15 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
         )} />
         
         <div className="space-y-0">
-          {isLoading ? (
+          {(isLoading && !loadTimeout) ? (
             <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <RefreshCw className="h-3 w-3 animate-spin" />
               <span>Loading interfaces...</span>
+            </div>
+          ) : (!projectsRefreshing && (loadTimeout || (isError && interfaces.length === 0))) ? (
+            <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
+                <RefreshCw className="h-4 w-4" />
+                <span>Failed to load</span>
             </div>
           ) : (
             interfaces.map((iface: any, index: number) => (
@@ -501,6 +599,7 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                 onNavigate={onNavigate}
                 onRefresh={onRefresh}
                 refreshStatus={refreshStatus}
+                onOpenThemeDialog={onOpenThemeDialog}
               />
             ))
             )}
@@ -530,6 +629,7 @@ export default function InterfaceNav({
   favouritesActions,
   initialFavourites,
   setIsSwitchingInterface,
+  onAddTile,
   onRefresh,
   refreshStatus
 }: InterfaceNavProps) {
@@ -552,6 +652,12 @@ export default function InterfaceNav({
   // State for project-specific dialogs
   const [activeProject, setActiveProject] = useState<string | null>(null)
   const [projectDialogOpen, setProjectDialogOpen] = useState<'rename' | 'delete' | 'upload' | 'import' | 'create-interface' | null>(null)
+
+  // Theme dialog state
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false)
+  const [themeColor, setThemeColor] = useState<string>("#4f46e5")
+  const [themeInterfaceId, setThemeInterfaceId] = useState<string | null>(null)
+  const [isSavingTheme, setIsSavingTheme] = useState(false)
   const [renameProjectName, setRenameProjectName] = useState('')
   const [renameProjectError, setRenameProjectError] = useState('')
   const [isRenamingProject, setIsRenamingProject] = useState(false)
@@ -592,10 +698,10 @@ export default function InterfaceNav({
     const result = await createProject(newProjectName, projectActions, projects)
     
     if (result.success && result.projectName) {
-      // Immediately create a default interface with same name
+      // Immediately create a default interface named "Default"
       const existingIfaces: any[] = []
       const ifaceRes = await createInterface(
-        result.projectName,
+        'Default',
         result.projectName,
         queryClient,
         { interfaces: interfaceActions, tabs: tabActions, tiles: tileActions },
@@ -699,6 +805,20 @@ export default function InterfaceNav({
     routerRoot.push(url)
   }
 
+  const handleSaveTheme = async () => {
+    if (!themeInterfaceId) return;
+    setIsSavingTheme(true);
+    try {
+      await interfaceActions.update({ interface_id: themeInterfaceId, data: { color: themeColor } });
+      await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'interfaces' });
+      setThemeDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingTheme(false);
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className={cn(
@@ -729,13 +849,22 @@ export default function InterfaceNav({
                     onSelect={async () => {
                       if (projectsRefreshing) return;
                       setProjectsRefreshing(true);
-                      const toastId = showLoadingToast('Refreshing project list');
                       try {
-                        await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'projects' });
-                        await queryClient.refetchQueries({ queryKey: ['projects'] });
-                        showSuccessToast('Project list refreshed', undefined, toastId);
+                        await withLoadingToast(
+                          async () => {
+                            await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'projects' });
+                            await queryClient.refetchQueries({ queryKey: ['projects'] });
+                          },
+                          {
+                            loading: 'Refreshing project list...',
+                            success: 'Project list refreshed!',
+                            error: 'Failed to refresh projects.'
+                          },
+                          3000 // 3-second delay before showing loading toast
+                        );
                       } catch (err) {
-                        showErrorToast(err, 'Failed to refresh projects', toastId);
+                        // error is already handled by the toast wrapper, but we catch to prevent unhandled promise rejections
+                        console.error("Project refresh failed:", err)
                       } finally {
                         setProjectsRefreshing(false);
                       }
@@ -801,6 +930,11 @@ export default function InterfaceNav({
                     }
                     setProjectDialogOpen(action)
                   }}
+                  onOpenThemeDialog={(ifaceId, color) => {
+                    setThemeInterfaceId(ifaceId);
+                    setThemeColor(color ?? '#4f46e5');
+                    setThemeDialogOpen(true);
+                  }}
                   onNavigate={navigateSoft}
                   onRefresh={onRefresh}
                   refreshStatus={refreshStatus}
@@ -851,14 +985,39 @@ export default function InterfaceNav({
         {/* Expanded sidebar */}
         {!isCollapsed && (
           <div className="border-t border-[color:var(--border)] p-2 space-y-2 bg-[color:var(--background)] flex-shrink-0">
-            {/* Edit Mode Row */}
-            <div className="flex items-center justify-between w-full px-2 py-1 rounded-md hover:bg-accent/30">
-              <div className="flex items-center gap-2">
-                <Hammer className={cn('h-4 w-4', isEditMode && 'text-primary')} />
-                <span className="text-sm whitespace-nowrap transition-opacity duration-300">Edit Mode</span>
+            <div> {/* Wrapper to group Edit and Add Tile */}
+              {/* Edit Mode Row */}
+              <div className="flex items-center justify-between w-full px-2 py-1 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Hammer className={cn('h-4 w-4', isEditMode && 'text-primary')} />
+                  <span className="text-sm whitespace-nowrap">Edit Mode</span>
+                </div>
+                <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} />
               </div>
-              <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} />
+              {/* Add Tile Row - Animated with proper tree branch */}
+              <div className={cn(
+                "transition-all duration-300 ease-in-out overflow-hidden",
+                isEditMode ? "max-h-12" : "max-h-0"
+              )}>
+                <div className={cn(
+                  "transition-opacity duration-300",
+                  isEditMode ? "opacity-100" : "opacity-0"
+                )}>
+                  <div className="relative ml-2 pr-2 cursor-pointer group" onClick={onAddTile}>
+                    {/* L-shaped branch - copied from InterfaceItem */}
+                    <div className="absolute left-2 top-[18px] w-4 h-px bg-[color:var(--muted)]" />
+                    <div className="absolute left-2 top-0 h-[19px] w-px bg-[color:var(--muted)]" />
+ 
+                    {/* Content - styled like InterfaceItem's button */}
+                    <div className="pl-6 pr-2 py-2 text-sm rounded-md transition-colors flex items-center gap-1 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--foreground)] group-hover:bg-accent/30">
+                      <Plus className="h-4 w-4 text-primary" />
+                      <span>Add Tile</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+
             {/* Interactive Mode Row */}
             <div className="flex items-center justify-between w-full px-2 py-1 rounded-md hover:bg-accent/30">
               <div className="flex items-center gap-2">
@@ -872,7 +1031,9 @@ export default function InterfaceNav({
 
         {/* Collapsed sidebar: icons inline at bottom */}
         {isCollapsed && (
-          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-4 pointer-events-auto">
+          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center pointer-events-auto">
+            {/* Divider */}
+            <Separator orientation="horizontal" className="w-8 mb-2" />
             {/* Edit Icon */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -880,7 +1041,7 @@ export default function InterfaceNav({
                   size="icon"
                   variant="ghost"
                   onClick={onEditModeToggle}
-                  className={cn(
+                  className={cn('h-8 w-8',
                     isEditMode
                       ? 'text-primary hover:text-primary-foreground'
                       : 'text-muted-foreground hover:text-primary'
@@ -893,26 +1054,42 @@ export default function InterfaceNav({
                 {isEditMode ? "Disable Edit Mode" : "Enable Edit Mode"}
               </TooltipContent>
             </Tooltip>
+            {/* Add Tile Icon (only visible when edit mode) */}
+            <div className={cn(
+              "transition-all duration-300 ease-in-out overflow-hidden flex items-center justify-center",
+              isEditMode ? "max-h-8 mt-4" : "max-h-0 mt-0 opacity-0"
+            )}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" onClick={onAddTile} className="h-8 w-8 text-muted-foreground hover:text-primary-foreground" tabIndex={isEditMode ? 0 : -1}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Add Tile</TooltipContent>
+              </Tooltip>
+            </div>
             {/* Interactive Icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onCommandModeToggle}
-                  className={cn(
-                    isCommandMode
-                      ? 'text-primary hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:text-primary'
-                  )}
-                >
-                  <SquareMousePointer className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {isCommandMode ? "Disable Interactive Mode" : "Enable Interactive Mode"}
-              </TooltipContent>
-            </Tooltip>
+            <div className="mt-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={onCommandModeToggle}
+                    className={cn('h-8 w-8',
+                      isCommandMode
+                        ? 'text-primary hover:text-primary-foreground'
+                        : 'text-muted-foreground hover:text-primary'
+                    )}
+                  >
+                    <SquareMousePointer className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {isCommandMode ? "Disable Interactive Mode" : "Enable Interactive Mode"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         )}
       </div>
@@ -942,6 +1119,15 @@ export default function InterfaceNav({
           title={`Rename Project "${activeProject}"`}
           body={<div className="space-y-2 pt-4"><Label htmlFor="rp-name">New Project Name</Label><Input id="rp-name" value={renameProjectName} onChange={e=>{setRenameProjectName(e.target.value); setRenameProjectError('')}} onKeyDown={e=> e.key==='Enter' && handleConfirmRenameProject()} autoFocus />{renameProjectError && <p className="text-xs text-destructive">{renameProjectError}</p>}</div>}
           footer={<div className="flex gap-2"><Button variant="outline" onClick={()=>setProjectDialogOpen(null)}>Cancel</Button><Button onClick={handleConfirmRenameProject} disabled={isRenamingProject}>{isRenamingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Rename</Button></div>}
+        />, document.body)}
+      {typeof window!=='undefined' && themeDialogOpen && createPortal(
+        <BaseDialog
+          button={null as any}
+          open={true}
+          setOpen={(o:boolean)=>{ if(!o) setThemeDialogOpen(false)}}
+          title="Set Interface Theme"
+          body={<div className="pt-4"><HexColorPicker color={themeColor} onChange={setThemeColor} /></div>}
+          footer={<div className="flex gap-2"><Button variant="outline" onClick={()=>setThemeDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveTheme} disabled={isSavingTheme}>{isSavingTheme && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save</Button></div>}
         />, document.body)}
     </TooltipProvider>
   )
