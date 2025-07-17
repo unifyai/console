@@ -212,7 +212,7 @@ export default function ImageView({
         path: path
       });
       
-      const res = await fetch(`/api/image/get?${queryParams}`);
+      const res = await fetch(`/api/media/get?${queryParams}`);
       
       if (!res.ok) {
         throw new Error(`Failed to fetch signed URL: ${res.statusText}`);

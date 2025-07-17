@@ -16,7 +16,7 @@ import { toComputableValue, computeStatistic } from "../common";
 import { LogProps, LogsResponseProps, LogItemProps, HeaderNode, GroupedLogProps } from "@/types/interfaces/logs";
 import { Table } from "@tanstack/react-table";
 
-import { ImageDisplay, isImage } from "../selection/selection";
+import { AudioPlayer, ImageDisplay, isImage } from "../selection/selection";
 import { formatNumber } from "../formatNumber";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "../format";
 import { processContext, sanitizeId } from "./columnOperations";
@@ -462,6 +462,17 @@ export function formatCellValue(
 		return "Invalid Image";
 	  }
   
+	  case "audio": {
+		if (typeof rawValue === "string") {
+			let value = rawValue.trim();
+			if (value.startsWith('"') && value.endsWith('"')) {
+				value = value.slice(1, -1);
+			}
+			// Use a compact audio player for the table cell
+			return <AudioPlayer value={value} className="h-8" />;
+		}
+		return "Invalid Audio";
+	  }
 	  case "int":
 	  case "float": {
 		// Safely parse to float, if invalid or NaN display fallback
