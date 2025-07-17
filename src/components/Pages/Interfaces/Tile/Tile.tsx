@@ -10,6 +10,7 @@ import { useTabUI } from '@/contexts/hooks/tab';
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { getTileHeaderRef, getTileCardRef } from '@/utils/interfaces/refRegistry';
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
+import { useMemo } from 'react'
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Pages/Interfaces/Blocks/Table/Table"));
@@ -60,8 +61,17 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // Extract required data
   const { type: tileType } = tileMetaState || {};
     
-  // Resolve color using hierarchical precedence
-  const resolvedColor = resolveColorHierarchy(tileUIState?.color, tabUIState?.color);
+  const interfacePrimary = useMemo(() => {
+    if (typeof window === 'undefined') return '#2a862a';
+    const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
+    if (el) {
+      const col = getComputedStyle(el).getPropertyValue('--primary').trim();
+      return col || '#2a862a';
+    }
+    return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+  }, []);
+
+  const resolvedColor = resolveColorHierarchy(tileUIState?.color, tabUIState?.color, interfacePrimary);
 
   // Update tile primary and secondary colors
   // Node: Need to update buttons and tile content separately 

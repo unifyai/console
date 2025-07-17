@@ -2,7 +2,7 @@
 
 import { Plus, Settings, Save, ListRestart, Loader2, TriangleAlert, Check, Pen, Trash, Eye, Palette, Braces } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/UI/tabs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, CSSProperties } from "react";
 import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab, useTabData, useTabUI } from "@/contexts/hooks/tab";
@@ -298,11 +298,32 @@ const InterfaceTabs = ({
             setDropdownOpen(false);
     }, [globalContextOpen, deleteTabOpen, renameTabOpen]);
 
+    // Compute interface (project) primary colour on every render so that updates
+    // made via the sidebar colour picker are immediately reflected in the tabs.
+    const interfacePrimary = typeof window !== 'undefined'
+      ? (() => {
+          const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
+          if (el) {
+            const col = getComputedStyle(el).getPropertyValue('--primary').trim();
+            return col || '#2a862a';
+          }
+          return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+        })()
+      : '#2a862a';
+
+    // Resolve the colour hierarchy (tab → interface → global)
+    const resolvedColor = resolveColorHierarchy(tabUIState?.color, interfacePrimary);
+
+    // Inline style to override --primary/--accent for the tab list scope
+    const tabsListStyle = useMemo<CSSProperties>(() => (
+      resolvedColor ? { '--primary': resolvedColor, '--accent': resolvedColor } as CSSProperties : {}
+    ), [resolvedColor]);
+
 
     return (
         <div className="flex gap-4 items-center">
             {tabNamesToShow.length > 0 ? (
-                <TabsList className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg justify-start p-1">
+                <TabsList style={tabsListStyle} className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg justify-start p-1">
                     <div className="flex flex-row gap-1">
                         {tabNamesToShow.map((tabNameToShow, idx) => {
                             return (
@@ -478,7 +499,7 @@ const InterfaceTabs = ({
                                 {/* Color selector */}
                                 <div className="w-full pt-1">
                                     <ColorPicker
-                                        value={resolveColorHierarchy(null, tabUIState?.color)}
+                                        value={resolvedColor}
                                         onChange={(color) => syncedTabUIActions?.setColor(color)}
                                         useDialog={true}
                                         showReset={true}

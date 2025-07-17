@@ -24,8 +24,20 @@ const CustomToast = ({ id, Icon, title, description, iconClassName }: {
     </div>
 );
 
+// Ensure toast updates happen after the current render to avoid React warnings
+const scheduleToast = <T,>(fn: () => T): T | void => {
+    // React 18 StrictMode double-renders; ensure state updates occur post-render
+    if (typeof queueMicrotask === 'function') {
+        let result: T | undefined;
+        queueMicrotask(() => { result = fn(); });
+        // Return toast id synchronously if needed by caller (fallback)
+        return result as T;
+    }
+    return setTimeout(fn, 0) as unknown as T;
+};
+
 export const showLoadingToast = (message: string) => {
-    return toast.custom(
+    return scheduleToast(() => toast.custom(
         (id) => (
             <CustomToast
                 id={id}
@@ -39,7 +51,7 @@ export const showLoadingToast = (message: string) => {
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
             duration: Infinity, // Don't auto-dismiss loading toasts
         }
-    );
+    )) as string | number;
 };
 
 export const showErrorToast = (
@@ -64,7 +76,7 @@ export const showErrorToast = (
     message = error;
   }
 
-  toast.custom(
+  scheduleToast(() => toast.custom(
     (toastId) => (
         <CustomToast
             id={toastId}
@@ -78,7 +90,7 @@ export const showErrorToast = (
         duration: 4000,
         className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
     }
-  );
+  ));
 };
 
 export const showSuccessToast = (
@@ -86,7 +98,7 @@ export const showSuccessToast = (
     description?: string,
     id?: string | number
 ) => {
-    toast.custom(
+    scheduleToast(() => toast.custom(
         (toastId) => (
             <CustomToast
                 id={toastId}
@@ -100,7 +112,7 @@ export const showSuccessToast = (
             duration: 2500,
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
         }
-    );
+    ));
 };
 
 /**

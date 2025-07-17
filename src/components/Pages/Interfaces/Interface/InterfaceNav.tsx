@@ -78,6 +78,11 @@ import { FileUpload } from './Buttons/FileUpload'
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { useCommand } from '@/contexts/hooks/commands/useCommand'
 import { withLoadingToast } from '@/components/Common/Toasts/notifications'
+import ColorPicker from '@/components/Common/Misc/ColorPicker'
+import ActionButton from '@/components/Common/Buttons/Action'
+import { debounce } from 'lodash'
+import { CSSProperties } from 'react'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover'
 
 interface InterfaceNavProps {
   interfaceId: string
@@ -253,7 +258,7 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
               isActive && "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
             )}
           >
-            <span className="truncate flex-1">{iface.name}</span>
+            <span className="truncate flex-1 min-w-0" title={iface.name}>{iface.name}</span>
             {isActive && (
               <Button
                 size="icon"
@@ -295,14 +300,6 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
                 <DropdownMenuItem onSelect={handleExportTemplate} className="flex items-center gap-2">
                   <Download className="h-4 w-4" />
                   <span>Export as Template</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => {
-                  if (iface.id) {
-                    onOpenThemeDialog(iface.id as string, (iface as any).color ?? '#4f46e5')
-                  }
-                }} className="flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  <span>Set Theme</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
@@ -365,19 +362,18 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   const searchParams = useSearchParams()
   const { data: interfaces = [], isLoading, refetch: refetchInterfaces, isError, error } = useListInterfacesQuery(project, interfaceActions)
 
-  const [loadTimeout, setLoadTimeout] = useState(false)
+  // Track whether we've already shown a toast for this fetch error to avoid duplicates
+  const errorToastShown = useRef(false);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isLoading) {
-      timer = setTimeout(() => {
-        setLoadTimeout(true);
-      }, 8000);
-    } else {
-        setLoadTimeout(false);
+    if (isError && !errorToastShown.current) {
+      showErrorToast(`Failed to load interfaces for project "${project}".`);
+      errorToastShown.current = true;
     }
-    return () => clearTimeout(timer);
-  }, [isLoading]);
+    if (!isError) {
+      errorToastShown.current = false;
+    }
+  }, [isError, project]);
 
   const handleManualRefetch = async () => {
     try {
@@ -452,7 +448,7 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
             hasActiveInterface && "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
           )}
         >
-          <span className="truncate flex-1">{project}</span>
+          <span className="truncate flex-1 min-w-0" title={project}>{project}</span>
           {isDefaultActive && (
             <Button
               size="icon"
@@ -507,14 +503,6 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                   <span>Rename Project</span>
                 </DropdownMenuItem>
               )}
-              {interfaces.length === 1 && interfaces[0].id && (
-              <DropdownMenuItem onSelect={() => {
-                                onOpenThemeDialog(interfaces[0].id as string, (interfaces[0] as any).color ?? '#4f46e5')
-                            }} className="flex items-center gap-2">
-                            <Palette className="h-4 w-4" />
-                            <span>Set Theme</span>
-                          </DropdownMenuItem>
-               )}
               {project !== 'Usage' && (
                 <DropdownMenuItem 
                   onSelect={() => {
@@ -540,9 +528,9 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                         </DropdownMenuContent>
           </DropdownMenu>
 
-          {isLoading && !loadTimeout ? (
+          {(isLoading || projectsRefreshing) ? (
             <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (!projectsRefreshing && (loadTimeout || isError)) ? (
+          ) : isError ? (
             <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e)=>{e.stopPropagation(); handleManualRefetch()}}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -573,15 +561,15 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
         )} />
         
         <div className="space-y-0">
-          {(isLoading && !loadTimeout) ? (
+          {(isLoading || projectsRefreshing) ? (
             <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
               <RefreshCw className="h-3 w-3 animate-spin" />
               <span>Loading interfaces...</span>
             </div>
-          ) : (!projectsRefreshing && (loadTimeout || (isError && interfaces.length === 0))) ? (
+          ) : (isError && interfaces.length === 0) ? (
             <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
-                <RefreshCw className="h-4 w-4" />
-                <span>Failed to load</span>
+              <RefreshCw className="h-4 w-4" />
+              <span>Failed to load</span>
             </div>
           ) : (
             interfaces.map((iface: any, index: number) => (
@@ -805,23 +793,47 @@ export default function InterfaceNav({
     routerRoot.push(url)
   }
 
-  const handleSaveTheme = async () => {
-    if (!themeInterfaceId) return;
-    setIsSavingTheme(true);
+  // Debounced updater to limit network calls while dragging around the colour picker
+  const debouncedUpdateTheme = useRef(
+    debounce(async (color: string) => {
+      try {
+        await interfaceActions.update({ interface_id: interfaceId, data: { color } });
+        await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'interfaces' });
+      } catch (err) {
+        console.error('Failed to update interface theme', err);
+      }
+    }, 250)
+  ).current;
+
+  const handleThemeChange = (color: string) => {
+    setThemeColor(color);
+    debouncedUpdateTheme(color);
+  };
+
+  const handleThemeReset = async () => {
     try {
-      await interfaceActions.update({ interface_id: themeInterfaceId, data: { color: themeColor } });
+      // Clear custom colour on backend
+      await interfaceActions.update({ interface_id: interfaceId, data: { color: null as any } });
       await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'interfaces' });
-      setThemeDialogOpen(false);
+
+      // Get the default css var (after removal) as new state value
+      const defaultColor = typeof window !== 'undefined'
+        ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
+        : '#2a862a';
+      setThemeColor(defaultColor);
     } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSavingTheme(false);
+      console.error('Failed to reset theme colour', err);
     }
   };
 
+  // Inline style to override primary/accent only within sidebar scope
+  const sidebarStyle = useMemo<CSSProperties>(() => ({
+    ...(themeColor ? { '--primary': themeColor, '--accent': themeColor } as CSSProperties : {})
+  }), [themeColor]);
+
   return (
     <TooltipProvider>
-      <div className={cn(
+      <div data-interface-color style={sidebarStyle} className={cn(
         "fixed left-0 top-12 h-[calc(100vh-3rem)] bg-[color:var(--background)] border-r border-[color:var(--border)] transition-all duration-300 z-20 flex flex-col",
         isCollapsed ? "w-12" : "w-64"
       )}>
@@ -904,10 +916,10 @@ export default function InterfaceNav({
           "flex-1 min-h-0 transition-all duration-300 flex flex-col relative",
           isCollapsed ? "h-0 opacity-0 overflow-hidden" : "opacity-100"
         )}>
-          {/* Projects list with dynamic scrolling */}
-          <div 
-            className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4 scrollbar-thin scrollbar-thumb-[color:var(--accent)] scrollbar-track-transparent"
-            ref={checkScroll}
+          {/* Projects list with dynamic scrolling using ScrollArea */}
+          <ScrollArea
+            ref={checkScroll as any}
+            className="flex-1 px-2 pb-4"
           >
             <div className="space-y-1">
               {projects.map((project: string) => (
@@ -924,11 +936,11 @@ export default function InterfaceNav({
                   favourites={favourites}
                   queryClient={queryClient}
                   onProjectAction={(proj, action) => {
-                    setActiveProject(proj)
-                    if (action==='rename') {
+                    setActiveProject(proj);
+                    if (action === 'rename') {
                       setRenameProjectName(proj);
                     }
-                    setProjectDialogOpen(action)
+                    setProjectDialogOpen(action);
                   }}
                   onOpenThemeDialog={(ifaceId, color) => {
                     setThemeInterfaceId(ifaceId);
@@ -942,7 +954,7 @@ export default function InterfaceNav({
                 />
               ))}
             </div>
-          </div>
+          </ScrollArea>
           
           {/* Fade effect when scrollable */}
           {hasScroll && !isCollapsed && (
@@ -1016,6 +1028,26 @@ export default function InterfaceNav({
                   </div>
                 </div>
               </div>
+              {/* Set Theme Row - mirrors Add Tile styling */}
+              <div className={cn(
+                'transition-all duration-300 ease-in-out overflow-hidden',
+                isEditMode ? 'max-h-12' : 'max-h-0'
+              )}>
+                <div className={cn('transition-opacity duration-300', isEditMode ? 'opacity-100' : 'opacity-0')}>
+                  <ColorPicker value={themeColor} onChange={handleThemeChange} showReset={true} onReset={handleThemeReset}>
+                    <div className="relative ml-2 pr-2 cursor-pointer group">
+                      {/* Branch */}
+                      <div className="absolute left-2 top-[18px] w-4 h-px bg-[color:var(--muted)]" />
+                      <div className="absolute left-2 top-0 h-[19px] w-px bg-[color:var(--muted)]" />
+                      {/* Content */}
+                      <div className="pl-6 pr-2 py-2 text-sm rounded-md transition-colors flex items-center gap-1 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--foreground)] group-hover:bg-accent/30">
+                        <Palette className="h-4 w-4 text-primary" />
+                        <span>Set Theme</span>
+                      </div>
+                    </div>
+                  </ColorPicker>
+                </div>
+              </div>
             </div>
 
             {/* Interactive Mode Row */}
@@ -1067,6 +1099,29 @@ export default function InterfaceNav({
                 </TooltipTrigger>
                 <TooltipContent side="right">Add Tile</TooltipContent>
               </Tooltip>
+            </div>
+            {/* Set Theme Icon (visible in edit mode) */}
+            <div
+              className={cn(
+                'transition-all duration-300 ease-in-out overflow-hidden flex items-center justify-center',
+                isEditMode ? 'max-h-8 mt-2' : 'max-h-0 mt-0 opacity-0'
+              )}
+            >
+              <ColorPicker value={themeColor} onChange={handleThemeChange} showReset={true} onReset={handleThemeReset}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ActionButton
+                      size="icon"
+                      variant="ghost"
+                      tooltip="Set Theme"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      icon={<Palette className="h-4 w-4" />}
+                      disabled={!isEditMode}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Set Theme</TooltipContent>
+                </Tooltip>
+              </ColorPicker>
             </div>
             {/* Interactive Icon */}
             <div className="mt-4">
@@ -1120,15 +1175,7 @@ export default function InterfaceNav({
           body={<div className="space-y-2 pt-4"><Label htmlFor="rp-name">New Project Name</Label><Input id="rp-name" value={renameProjectName} onChange={e=>{setRenameProjectName(e.target.value); setRenameProjectError('')}} onKeyDown={e=> e.key==='Enter' && handleConfirmRenameProject()} autoFocus />{renameProjectError && <p className="text-xs text-destructive">{renameProjectError}</p>}</div>}
           footer={<div className="flex gap-2"><Button variant="outline" onClick={()=>setProjectDialogOpen(null)}>Cancel</Button><Button onClick={handleConfirmRenameProject} disabled={isRenamingProject}>{isRenamingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Rename</Button></div>}
         />, document.body)}
-      {typeof window!=='undefined' && themeDialogOpen && createPortal(
-        <BaseDialog
-          button={null as any}
-          open={true}
-          setOpen={(o:boolean)=>{ if(!o) setThemeDialogOpen(false)}}
-          title="Set Interface Theme"
-          body={<div className="pt-4"><HexColorPicker color={themeColor} onChange={setThemeColor} /></div>}
-          footer={<div className="flex gap-2"><Button variant="outline" onClick={()=>setThemeDialogOpen(false)}>Cancel</Button><Button onClick={handleSaveTheme} disabled={isSavingTheme}>{isSavingTheme && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save</Button></div>}
-        />, document.body)}
+      {/* Removed legacy theme dialog as ColorPicker handles changes inline */}
     </TooltipProvider>
   )
 } 
