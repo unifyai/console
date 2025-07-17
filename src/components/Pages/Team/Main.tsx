@@ -80,6 +80,7 @@ export default function Main({
         statusFilter, setStatusFilter,
         priorityFilter, setPriorityFilter,
         deadlineFilter, setDeadlineFilter,
+        assistantFilter, setAssistantFilter,
         filterExpression,
     } = useTaskFilters();
 
@@ -89,14 +90,14 @@ export default function Main({
         tasks, fetchMoreTasks, hasMoreTasks, isLoadingMore: isLoadingMoreTasks,
         isLoadingInitial: isLoadingInitialTasks, initialLoadError: taskLoadError,
         updateLocalTask,
-    } = useTasks(taskActions, filterExpression, initialTaskFetchTriggered);
+    } = useTasks(taskActions, assistants, assistantFilter, filterExpression, initialTaskFetchTriggered);
 
     // --- Activity Log Data ---
     const {
         summary: activitySummary,
         isLoading: isLoadingActivity,
         error: activityError,
-    } = useActivityLogs(activityLogActions);
+    } = useActivityLogs(activityLogActions, activityLogAssistantId);
 
 
     const availableTaskStatuses = React.useMemo(() => {
@@ -366,6 +367,9 @@ export default function Main({
                         updateTask={taskActions.update}
                         onTaskUpdate={updateLocalTask}
                         availableStatuses={availableTaskStatuses}
+                        assistants={assistants}
+                        assistantFilter={assistantFilter}
+                        setAssistantFilter={setAssistantFilter}
                     />
                 </div>
             </div>

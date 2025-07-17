@@ -2,11 +2,12 @@ import * as React from 'react';
 import { Task, TaskActions, Status, Priority, Schedule, RepeatPattern } from '@/types/team/task';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { toast } from 'sonner';
+import { Assistant } from '@/types/team/assistant';
 
 const TASK_PAGE_LIMIT = 20;
 
 // Helper function to map backend log entry to frontend Task type
-const mapLogToTask = (log: LogProps): Task | null => {
+const mapLogToTask = (log: LogProps, assistant_id: string): Task | null => {
     const log_id = log?.id;
     const entries = log?.entries || {};
     
@@ -54,102 +55,177 @@ const mapLogToTask = (log: LogProps): Task | null => {
         deadline,
         repeat,
         priority: priority || Priority.normal,
+        assistant_id,
     };
 };
 
+interface PerAssistantData {
+    offset: number;
+    hasMore: boolean;
+    total: number;
+}
+
 export function useTasks(
     taskActions: TaskActions,
+    assistants: Assistant[],
+    assistantFilter: string,
     filterExpression: string | null,
     initialFetchTriggered: boolean 
 ) {
     const [tasks, setTasks] = React.useState<Task[]>([]);
-    const [offset, setOffset] = React.useState(0);
-    const [totalCount, setTotalCount] = React.useState(0);
-    const [hasMoreTasks, setHasMoreTasks] = React.useState(true);
     const [isLoadingInitial, setIsLoadingInitial] = React.useState(false); 
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
     const [taskError, setTaskError] = React.useState<string | null>(null);
-    const [currentFilterExprForFetch, setCurrentFilterExprForFetch] = React.useState<string | null>(null);
+    const [currentFilterState, setCurrentFilterState] = React.useState({
+        expr: filterExpression,
+        assistant: assistantFilter
+    });
     const initialLoadAttemptedRef = React.useRef(false);
 
-    const fetchTasksInternal = React.useCallback(async (expr: string | null, isInitialLoad = true) => {
-        if (!isInitialLoad && isLoadingMore) return;
+    // State for per-assistant pagination
+    const [perAssistantData, setPerAssistantData] = React.useState<Map<string, PerAssistantData>>(new Map());
 
-        const fetchOffset = isInitialLoad ? 0 : offset;
-
+    const fetchTasksInternal = React.useCallback(async (assistantsToFetch: Assistant[], expr: string | null, isInitialLoad: boolean) => {
         if (isInitialLoad) {
             setIsLoadingInitial(true);
             setTasks([]);
-            setOffset(0);
-            setHasMoreTasks(true);
-            setCurrentFilterExprForFetch(expr);
-            setTaskError(null);
+            setPerAssistantData(new Map()); // Reset pagination data on initial load
         } else {
-            if (!hasMoreTasks) return;
+            if (isLoadingMore) return; // Prevent concurrent "load more" fetches
             setIsLoadingMore(true);
-            setTaskError(null);
         }
+        setTaskError(null);
 
         try {
-            const response = await taskActions.get(expr, TASK_PAGE_LIMIT, fetchOffset);
-            if ('detail' in response && response.detail) {
-                throw new Error(response.detail);
+            if (assistantsToFetch.length === 0) {
+                if (isInitialLoad) setIsLoadingInitial(false);
+                setIsLoadingMore(false);
+                return;
             }
-            const logsResponse = response as LogsResponseProps; 
-            const fetchedLogs = Array.isArray(logsResponse.logs) ? logsResponse.logs : [];
-            const mappedTasks: Task[] = fetchedLogs.map(mapLogToTask).filter((task): task is Task => task !== null);
 
-            setTasks(prevTasks => isInitialLoad ? mappedTasks : [...prevTasks, ...mappedTasks]);
+            const promises = assistantsToFetch.map(assistant => {
+                const offset = isInitialLoad ? 0 : (perAssistantData.get(assistant.agent_id)?.offset || 0);
+                // Don't fetch more for an assistant that already has no more tasks
+                if (!isInitialLoad && !perAssistantData.get(assistant.agent_id)?.hasMore) {
+                    return Promise.resolve(null); // Return a resolved promise to not break Promise.all
+                }
+                return taskActions.get(assistant.agent_id, expr, TASK_PAGE_LIMIT, offset);
+            });
 
-            const newTotalCount = logsResponse.count ?? (isInitialLoad ? mappedTasks.length : tasks.length + mappedTasks.length);
-            setTotalCount(newTotalCount);
+            const responses = await Promise.all(promises);
+            const newTasks: Task[] = [];
+            const newPerAssistantData = new Map<string, PerAssistantData>(perAssistantData); // Copy existing data for updates
+            let hadError = false;
 
-            const newLoadedCount = fetchOffset + mappedTasks.length;
-            setOffset(newLoadedCount);
-            setHasMoreTasks(newLoadedCount < newTotalCount && mappedTasks.length > 0);
+            responses.forEach((response, index) => {
+                if (response === null) return; // This was an assistant we skipped fetching
+
+                const assistant = assistantsToFetch[index];
+                const assistantId = assistant.agent_id;
+
+                if ('detail' in response && response.detail) {
+                    console.error(`Error fetching tasks for assistant ${assistantId}:`, response.detail);
+                    hadError = true;
+                    newPerAssistantData.set(assistantId, {
+                        ...(newPerAssistantData.get(assistantId) || { offset: 0, total: 0 }),
+                        hasMore: false, 
+                    });
+                } else {
+                    const logsResponse = response as LogsResponseProps;
+                    const fetchedLogs = Array.isArray(logsResponse.logs) ? logsResponse.logs : [];
+                    const mappedTasks = fetchedLogs.map(log => mapLogToTask(log, assistantId)).filter(Boolean) as Task[];
+                    
+                    newTasks.push(...mappedTasks);
+
+                    const newTotalCount = logsResponse.count ?? 0;
+                    const prevOffset = isInitialLoad ? 0 : (perAssistantData.get(assistantId)?.offset || 0);
+                    const newOffset = prevOffset + mappedTasks.length;
+
+                    newPerAssistantData.set(assistantId, {
+                        offset: newOffset,
+                        hasMore: newOffset < newTotalCount,
+                        total: newTotalCount,
+                    });
+                }
+            });
+            
+            if (hadError) {
+                toast.error("Failed to load tasks for one or more assistants.");
+            }
+
+            const sortTasks = (taskList: Task[]) => taskList.sort((a, b) => (a.deadline && b.deadline) ? new Date(b.deadline).getTime() - new Date(a.deadline).getTime() : a.deadline ? -1 : 1);
+
+            if (isInitialLoad) {
+                setTasks(sortTasks(newTasks));
+            } else {
+                setTasks(prevTasks => sortTasks([...prevTasks, ...newTasks]));
+            }
+            
+            setPerAssistantData(newPerAssistantData);
 
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching tasks.";
             setTaskError(errorMsg);
             console.error("Task fetch error in hook:", errorMsg);
             toast.error(`Failed to load tasks`);
-
-            if (isInitialLoad) {
-                setTasks([]);
-                setHasMoreTasks(false);
-            } else {
-                setHasMoreTasks(false); 
-            }
+            if (isInitialLoad) setTasks([]);
         } finally {
             if (isInitialLoad) setIsLoadingInitial(false);
             setIsLoadingMore(false);
         }
-    }, [taskActions, offset, isLoadingMore, hasMoreTasks, tasks.length]); 
+    }, [taskActions, isLoadingMore, perAssistantData]);
 
     React.useEffect(() => {
         if (initialFetchTriggered) {
-            // Fetch if it's the first time `initialFetchTriggered` is true for this hook instance,
-            // OR if the filter expression has changed since the last fetch.
-            if (!initialLoadAttemptedRef.current || filterExpression !== currentFilterExprForFetch) {
-                fetchTasksInternal(filterExpression, true);
-                initialLoadAttemptedRef.current = true; // Mark that an initial load attempt has been made
+            const filterChanged = filterExpression !== currentFilterState.expr || assistantFilter !== currentFilterState.assistant;
+            if (!initialLoadAttemptedRef.current || filterChanged) {
+                
+                const assistantsToQuery = assistantFilter === 'all' 
+                    ? assistants 
+                    : assistants.filter(a => a.agent_id === assistantFilter);
+
+                if (assistants.length > 0 || assistantFilter !== 'all') { 
+                   fetchTasksInternal(assistantsToQuery, filterExpression, true);
+                }
+                
+                setCurrentFilterState({ expr: filterExpression, assistant: assistantFilter });
+                initialLoadAttemptedRef.current = true;
             }
         } else {
-            // If initialFetchTriggered becomes false (e.g., component re-mount or specific parent logic),
-            // reset the ref to allow a new "initial" fetch when it becomes true again.
             initialLoadAttemptedRef.current = false;
         }
-    }, [filterExpression, initialFetchTriggered, fetchTasksInternal, currentFilterExprForFetch]);
-
+    }, [
+        assistants, 
+        assistantFilter, 
+        filterExpression, 
+        initialFetchTriggered, 
+        fetchTasksInternal, 
+        currentFilterState
+    ]);
+    
     const fetchMoreTasksCallback = React.useCallback(() => {
-        if (!isLoadingInitial && !isLoadingMore && hasMoreTasks && !taskError) { 
-            fetchTasksInternal(currentFilterExprForFetch, false);
-        }
-    }, [isLoadingInitial, isLoadingMore, hasMoreTasks, taskError, fetchTasksInternal, currentFilterExprForFetch]);
+        if (isLoadingInitial || isLoadingMore) return;
 
-    const refreshTasks = React.useCallback(() => {
-        fetchTasksInternal(currentFilterExprForFetch, true);
-    }, [fetchTasksInternal, currentFilterExprForFetch]);
+        const assistantsToQuery = assistantFilter === 'all'
+            ? assistants
+            : assistants.filter(a => a.agent_id === assistantFilter);
+
+        const assistantsWithMore = assistantsToQuery.filter(
+            a => perAssistantData.get(a.agent_id)?.hasMore
+        );
+
+        if (assistantsWithMore.length > 0) {
+            fetchTasksInternal(assistantsWithMore, filterExpression, false);
+        }
+    }, [isLoadingInitial, isLoadingMore, assistantFilter, assistants, perAssistantData, fetchTasksInternal, filterExpression]);
+
+    const hasMoreTasks = React.useMemo(() => {
+        const assistantsToCheck = assistantFilter === 'all'
+            ? assistants
+            : assistants.filter(a => a.agent_id === assistantFilter);
+        
+        return assistantsToCheck.some(a => perAssistantData.get(a.agent_id)?.hasMore);
+    }, [perAssistantData, assistantFilter, assistants]);
 
 
     const updateLocalTask = React.useCallback((taskId: number, updatedFields: Partial<Task>) => {
@@ -167,10 +243,8 @@ export function useTasks(
         fetchMoreTasks: fetchMoreTasksCallback,
         hasMoreTasks,
         isLoadingMore,
-        isLoadingInitial: isLoadingInitial && tasks.length === 0, 
-        initialLoadError: taskError, 
-        refreshTasks,
+        isLoadingInitial,
+        initialLoadError: taskError,
         updateLocalTask,
-        totalCount
     };
 }

@@ -66,9 +66,10 @@ export interface Task {
   deadline?: string; // ISO-8601 format
   repeat?: RepeatPattern;
   priority: Priority;
+  assistant_id: string;
 }
 
 export interface TaskActions {
-  get: (filterExpression: string | null, limit: number | null, offset: number | null) => Promise<LogsResponseProps | ResponseProps>;
-  update: (task_ids: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  get: (assistant_id: string, filterExpression: string | null, limit: number | null, offset: number | null) => Promise<LogsResponseProps | ResponseProps>;
+  update: (assistant_id: string, logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
 }

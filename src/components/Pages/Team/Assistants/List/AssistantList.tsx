@@ -50,7 +50,7 @@ export function AssistantList({
         );
     }, [assistants, searchTerm]);
 
-    const canHireNewAssistant = !assistantError && assistants.length === 0;
+    const canHireNewAssistant = !assistantError && assistants.length < 2;
     const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
     return (
@@ -113,7 +113,7 @@ export function AssistantList({
                                 </TooltipTrigger>
                                 {!canHireNewAssistant && !isLoading && (
                                     <TooltipContent side="bottom" align="end">
-                                        <p>Multi-assistant team available soon</p>
+                                        <p>More assistant hires available soon</p>
                                     </TooltipContent>
                                 )}
                             </Tooltip>

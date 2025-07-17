@@ -3,11 +3,11 @@ import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
 import { ActivitySummary } from "@/types/team/activity";
 
 export const getActivitySummary = async (apiKey: string) => {
-    return async (): Promise<ActivitySummary | ResponseProps> => {
+    return async (assistant_id: string): Promise<ActivitySummary | ResponseProps> => {
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=RollingActivity`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${assistant_id}/RollingActivity`;
             
             const response = await fetch(
                 url,

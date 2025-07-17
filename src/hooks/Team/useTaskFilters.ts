@@ -78,12 +78,14 @@ export function useTaskFilters(
     initialSearchTerm = '', 
     initialStatus = 'all',
     initialPriority = 'all',
-    initialDeadline = 'all'
+    initialDeadline = 'all',
+    initialAssistant = 'all'
 ) {
     const [searchTermInput, setSearchTermInput] = React.useState(initialSearchTerm);
     const [statusFilter, setStatusFilter] = React.useState<string>(initialStatus);
     const [priorityFilter, setPriorityFilter] = React.useState<string>(initialPriority);
     const [deadlineFilter, setDeadlineFilter] = React.useState<string>(initialDeadline);
+    const [assistantFilter, setAssistantFilter] = React.useState<string>(initialAssistant);
     const [debouncedSearchTerm, setDebouncedSearchTerm] = React.useState(initialSearchTerm);
 
     useDebounce(() => setDebouncedSearchTerm(searchTermInput), 300, [searchTermInput]);
@@ -101,6 +103,8 @@ export function useTaskFilters(
         setPriorityFilter,
         deadlineFilter,
         setDeadlineFilter,
+        assistantFilter,
+        setAssistantFilter,
         filterExpression, 
         debouncedSearchTerm 
     };

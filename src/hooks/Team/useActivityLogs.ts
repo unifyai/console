@@ -4,18 +4,25 @@ import { toast } from 'sonner';
 
 export function useActivityLogs(
     activityLogActions: ActivityLogActions,
+    assistantId: string | null
 ) {
     const [summary, setSummary] = React.useState<string | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
     
     React.useEffect(() => {
+        if (!assistantId) {
+            setSummary(null);
+            setIsLoading(false);
+            setError(null);
+            return;
+        }
 
         const fetchSummary = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                const response = await activityLogActions.get();
+                const response = await activityLogActions.get(assistantId);
                 if ('detail' in response) {
                     throw new Error(response.detail);
                 }
@@ -33,7 +40,7 @@ export function useActivityLogs(
 
         fetchSummary();
 
-    }, [activityLogActions]);
+    }, [activityLogActions, assistantId]);
 
     return {
         summary,

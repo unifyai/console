@@ -5,5 +5,5 @@ export interface ActivitySummary {
 }
 
 export interface ActivityLogActions {
-  get: () => Promise<ActivitySummary | ResponseProps>;
+  get: (assistant_id: string) => Promise<ActivitySummary | ResponseProps>;
 }

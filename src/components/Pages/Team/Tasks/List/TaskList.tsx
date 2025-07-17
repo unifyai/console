@@ -18,6 +18,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../
 import { TaskStatusFilter } from '../Filters/TaskFilterStatus';
 import { TaskPriorityFilter } from '../Filters/TaskFilterPriority';
 import { TaskDeadlineFilter } from '../Filters/TaskFilterDeadline';
+import { Assistant } from '@/types/team/assistant';
+import { TaskAssistantFilter } from '../Filters/TaskFilterAssistant';
 
 interface TaskListProps {
     tasks: Task[];
@@ -37,6 +39,9 @@ interface TaskListProps {
     updateTask: TaskActions['update'];
     onTaskUpdate: (taskId: number, updatedFields: Partial<Task>) => void;
     availableStatuses: string[];
+    assistants: Assistant[];
+    assistantFilter: string;
+    setAssistantFilter: (value: string) => void;
 }
 
 const ListFooter = React.memo(({ isLoadingMore }: { isLoadingMore: boolean }) => {
@@ -70,7 +75,9 @@ export function TaskList({
     updateTask,
     onTaskUpdate,
     availableStatuses,
-    // isLoadingStatuses, statusFetchError removed
+    assistants,
+    assistantFilter,
+    setAssistantFilter,
 }: TaskListProps) {
 
     const virtuosoRef = React.useRef(null);
@@ -119,6 +126,13 @@ export function TaskList({
                             disabled={disableFilters}
                          />
                     </div>
+                    {/* Assistant Filter */}
+                    <TaskAssistantFilter
+                        assistants={assistants}
+                        assistantFilter={assistantFilter}
+                        setAssistantFilter={setAssistantFilter}
+                        disableFilters={disableFilters}
+                    />
                     {/* Status Filter */}
                     <TaskStatusFilter
                         statusFilter={statusFilter}
