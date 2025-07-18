@@ -35,6 +35,7 @@ import InterfaceNav from './InterfaceNav';
 import { withLoadingToast } from '@/components/Common/Toasts/notifications'
 import { useQueryClient } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
+import { cn } from '@/lib/utils';
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
@@ -86,12 +87,19 @@ const Interface = ({
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
+  const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
     setIsSwitchingInterface(false);
   }, [interfaceQueryParam]);
+
+  useEffect(() => {
+    // Trigger tab bar entrance animation after mount
+    const t = setTimeout(() => setTabBarReady(true), 100);
+    return () => clearTimeout(t);
+  }, []);
 
 
   // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
@@ -722,7 +730,12 @@ const Interface = ({
             {/* Floating Bottom Tab Bar */}
             {projectQueryParam && interfaceQueryParam && (
               <div 
-                className="fixed bottom-0 z-40 transition-all duration-200 ease-linear pointer-events-none"
+                className={cn(
+                  "fixed bottom-0 z-40 pointer-events-none transform transition-all duration-500 ease-out",
+                  tabBarReady && !isSwitchingInterface && !isRefreshingInterface
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-12 opacity-0"
+                )}
                 style={{ 
                   left: isNavCollapsed ? '48px' : '256px',
                   right: 0,
