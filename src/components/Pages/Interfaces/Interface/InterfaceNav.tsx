@@ -1216,7 +1216,7 @@ export default function InterfaceNav({
                   className={cn('h-8 w-8',
                     isEditMode
                       ? 'text-primary hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:text-primary'
+                      : 'text-muted-foreground hover:text-primary-foreground'
                   )}
                 >
                   <Hammer className="h-4 w-4" />
