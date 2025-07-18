@@ -87,7 +87,6 @@ export function usePhotoCreator(
             const imageFile = new File([blob], filename, { type: blob.type });
 
             onNewFileReady(imageFile);
-            setPrompt('');
             toast.success("Photo generated successfully!", { id: toastId });
 
         } catch (error: any) {
@@ -154,7 +153,6 @@ export function usePhotoCreator(
             const imageFile = new File([blob], filename, { type: blob.type });
 
             onNewFileReady(imageFile);
-            setPrompt('');
             toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
@@ -254,7 +252,6 @@ export function usePhotoCreator(
 
             onNewFileReady(newVideoFile); // This updates imageFile and imagePreview (to a blob URL for the video)
 
-            setTtsPrompt(''); // Clear TTS prompt
             toast.success("Photo animated successfully!", { id: toastId });
 
         } catch (error: any) {
