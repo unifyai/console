@@ -2,7 +2,7 @@
 
 import { Plus, Settings, Save, ListRestart, Loader2, TriangleAlert, Check, Pen, Trash, Eye, Palette, Braces } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/UI/tabs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, CSSProperties } from "react";
 import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useTab, useTabData, useTabUI } from "@/contexts/hooks/tab";
@@ -24,7 +24,6 @@ import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
 import { useTiles } from "@/contexts/hooks/useStore";
-import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
 import { Command } from "@/contexts/slices/selectors/commands";
 
 /**
@@ -298,6 +297,13 @@ const InterfaceTabs = ({
             setDropdownOpen(false);
     }, [globalContextOpen, deleteTabOpen, renameTabOpen]);
 
+    const explicitTabColor = tabUIState?.color ?? "";
+
+    // Only apply a style override when the tab has an explicit colour.
+    const triggerStyle = useMemo<CSSProperties | undefined>(() => (
+      explicitTabColor ? ({ '--primary': explicitTabColor, '--accent': explicitTabColor } as CSSProperties) : undefined
+    ), [explicitTabColor]);
+
 
     return (
         <div className="flex gap-4 items-center">
@@ -307,6 +313,7 @@ const InterfaceTabs = ({
                         {tabNamesToShow.map((tabNameToShow, idx) => {
                             return (
                                 <TabsTrigger
+                                    style={triggerStyle}
                                     key={idx}
                                     value={tabNameToShow}
                                     className="relative flex flex-row gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-primary/10"
@@ -478,7 +485,7 @@ const InterfaceTabs = ({
                                 {/* Color selector */}
                                 <div className="w-full pt-1">
                                     <ColorPicker
-                                        value={resolveColorHierarchy(null, tabUIState?.color)}
+                                        value={explicitTabColor}
                                         onChange={(color) => syncedTabUIActions?.setColor(color)}
                                         useDialog={true}
                                         showReset={true}

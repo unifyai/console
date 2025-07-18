@@ -17,7 +17,7 @@ import { getTileHeaderRef } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
@@ -108,6 +108,17 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
         }
         return path;
     };
+
+    // Grab interface primary to support hierarchy fallback
+    const interfacePrimary = useMemo(() => {
+        if (typeof window === 'undefined') return '#2a862a';
+        const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
+        if (el) {
+            const col = getComputedStyle(el).getPropertyValue('--primary').trim();
+            return col || '#2a862a';
+        }
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    }, []);
 
     return (
         <header ref={headerRef} className={"group/header relative flex w-full h-12 min-h-[3rem] items-center border-b bg-card py-1 px-2 overflow-x-auto command-scrollbar"}>
@@ -218,7 +229,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                             size="icon"
                         />
                         <ColorPicker
-                            value={resolveColorHierarchy(tileUIState?.color, tabUIState?.color)}
+                            value={resolveColorHierarchy(tileUIState?.color, tabUIState?.color, interfacePrimary)}
                             onChange={(color) => syncedTileUIActions?.setColor(color)}
                             useDialog={true}
                             showReset={true}

@@ -24,8 +24,28 @@ const CustomToast = ({ id, Icon, title, description, iconClassName }: {
     </div>
 );
 
+/**
+ * Ensure toast creation happens outside of React render but **still** returns the
+ * toast ID synchronously so callers (e.g. `withLoadingToast`) can update or
+ * dismiss the same toast later. React 18 Strict-Mode double invokes effects
+ * in development which can lead to duplicate toasts – Sonner already de-dupes
+ * by `id`, so the simplest, most reliable approach is to execute the provided
+ * `fn` immediately and just queue a no-op micro-task to keep React happy.
+ */
+const scheduleToast = <T,>(fn: () => T): T => {
+    const id = fn();
+
+    // Queue a no-op so that the actual DOM update still happens after the
+    // current React render cycle (avoids setState warnings in StrictMode)
+    if (typeof queueMicrotask === 'function') {
+        queueMicrotask(() => {});
+    }
+
+    return id;
+};
+
 export const showLoadingToast = (message: string) => {
-    return toast.custom(
+    return scheduleToast(() => toast.custom(
         (id) => (
             <CustomToast
                 id={id}
@@ -39,7 +59,7 @@ export const showLoadingToast = (message: string) => {
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
             duration: Infinity, // Don't auto-dismiss loading toasts
         }
-    );
+    )) as string | number;
 };
 
 export const showErrorToast = (
@@ -64,7 +84,7 @@ export const showErrorToast = (
     message = error;
   }
 
-  toast.custom(
+  scheduleToast(() => toast.custom(
     (toastId) => (
         <CustomToast
             id={toastId}
@@ -78,7 +98,7 @@ export const showErrorToast = (
         duration: 4000,
         className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
     }
-  );
+  ));
 };
 
 export const showSuccessToast = (
@@ -86,7 +106,7 @@ export const showSuccessToast = (
     description?: string,
     id?: string | number
 ) => {
-    toast.custom(
+    scheduleToast(() => toast.custom(
         (toastId) => (
             <CustomToast
                 id={toastId}
@@ -100,7 +120,7 @@ export const showSuccessToast = (
             duration: 2500,
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
         }
-    );
+    ));
 };
 
 /**
