@@ -41,7 +41,7 @@ export async function createProject(
   if (!name.trim()) {
     return { success: false, error: "Project name is required." };
   }
-  
+
   if (existingProjects.includes(name.trim())) {
     return { success: false, error: "A project with this name already exists." };
   }

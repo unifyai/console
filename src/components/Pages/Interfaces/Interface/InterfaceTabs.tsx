@@ -24,7 +24,6 @@ import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
 import { useTiles } from "@/contexts/hooks/useStore";
-import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
 import { Command } from "@/contexts/slices/selectors/commands";
 
 /**
@@ -298,36 +297,23 @@ const InterfaceTabs = ({
             setDropdownOpen(false);
     }, [globalContextOpen, deleteTabOpen, renameTabOpen]);
 
-    // Compute interface (project) primary colour on every render so that updates
-    // made via the sidebar colour picker are immediately reflected in the tabs.
-    const interfacePrimary = typeof window !== 'undefined'
-      ? (() => {
-          const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
-          if (el) {
-            const col = getComputedStyle(el).getPropertyValue('--primary').trim();
-            return col || '#2a862a';
-          }
-          return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-        })()
-      : '#2a862a';
+    const explicitTabColor = tabUIState?.color ?? "";
 
-    // Resolve the colour hierarchy (tab → interface → global)
-    const resolvedColor = resolveColorHierarchy(tabUIState?.color, interfacePrimary);
-
-    // Inline style to override --primary/--accent for the tab list scope
-    const tabsListStyle = useMemo<CSSProperties>(() => (
-      resolvedColor ? { '--primary': resolvedColor, '--accent': resolvedColor } as CSSProperties : {}
-    ), [resolvedColor]);
+    // Only apply a style override when the tab has an explicit colour.
+    const triggerStyle = useMemo<CSSProperties | undefined>(() => (
+      explicitTabColor ? ({ '--primary': explicitTabColor, '--accent': explicitTabColor } as CSSProperties) : undefined
+    ), [explicitTabColor]);
 
 
     return (
         <div className="flex gap-4 items-center">
             {tabNamesToShow.length > 0 ? (
-                <TabsList style={tabsListStyle} className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg justify-start p-1">
+                <TabsList className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg justify-start p-1">
                     <div className="flex flex-row gap-1">
                         {tabNamesToShow.map((tabNameToShow, idx) => {
                             return (
                                 <TabsTrigger
+                                    style={triggerStyle}
                                     key={idx}
                                     value={tabNameToShow}
                                     className="relative flex flex-row gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-primary/10"
@@ -499,7 +485,7 @@ const InterfaceTabs = ({
                                 {/* Color selector */}
                                 <div className="w-full pt-1">
                                     <ColorPicker
-                                        value={resolvedColor}
+                                        value={explicitTabColor}
                                         onChange={(color) => syncedTabUIActions?.setColor(color)}
                                         useDialog={true}
                                         showReset={true}

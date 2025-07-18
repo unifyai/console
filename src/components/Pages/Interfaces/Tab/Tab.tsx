@@ -174,7 +174,13 @@ const Tab = ({
     fileActions,
     projectsActions,
   ]);
-  
+
+  // ------------------------------------------------------------------
+  // Compute tab-level colour override (if any)
+  // ------------------------------------------------------------------
+  const tabColor = tabUIState?.color ?? null;
+  const tabStyle = tabColor ? ({ '--primary': tabColor, '--accent': tabColor } as React.CSSProperties) : undefined;
+
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
     return (
@@ -187,7 +193,8 @@ const Tab = ({
   const newCols = { lg: 12 * widthFactor, md: 12 * widthFactor, sm: 12 * widthFactor, xs: 12 * widthFactor, xxs: 12 * widthFactor };
 
   return (
-    <ResponsiveReactGridLayout
+    <div style={tabStyle} data-tab-color>
+      <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
         className="layout interactive-grid flex-1 mx-1 w-full"
         style={{ width: '100%', minWidth: 0 }}
@@ -201,34 +208,35 @@ const Tab = ({
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
         compactType={null}
         preventCollision={true}
-    >
-      {tilesToRender.map(({ tileId, tile, element }) => {
-        if (!tile.visible) return null;
+      >
+        {tilesToRender.map(({ tileId, tile, element }) => {
+          if (!tile.visible) return null;
 
-        return (
-          <div
-            key={tile.id}
-            data-grid={{
-              i: tile.id,
-              x: tile.position.x * widthFactor,
-              y: tile.position.y * heightFactor,
-              w: tile.position.width * widthFactor,
-              h: tile.position.height * heightFactor,
-              minW: typeof tile.minW === 'number' ? tile.minW * widthFactor : undefined,
-              minH: typeof tile.minH === 'number' ? tile.minH * heightFactor : undefined,
-              moved: tile.moved,
-              static: tile.static,
-            }}
-            className="relative group"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Dependency-aware tile renderer */}
-            {element}
+          return (
+            <div
+              key={tile.id}
+              data-grid={{
+                i: tile.id,
+                x: tile.position.x * widthFactor,
+                y: tile.position.y * heightFactor,
+                w: tile.position.width * widthFactor,
+                h: tile.position.height * heightFactor,
+                minW: typeof tile.minW === 'number' ? tile.minW * widthFactor : undefined,
+                minH: typeof tile.minH === 'number' ? tile.minH * heightFactor : undefined,
+                moved: tile.moved,
+                static: tile.static,
+              }}
+              className="relative group"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Dependency-aware tile renderer */}
+              {element}
 
-          </div>
-        );
-      })}
-    </ResponsiveReactGridLayout>
+            </div>
+          );
+        })}
+      </ResponsiveReactGridLayout>
+    </div>
   );
 };
 

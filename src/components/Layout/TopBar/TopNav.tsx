@@ -302,7 +302,7 @@ export default function TopNav() {
               <DropdownMenuItem asChild className="hover:bg-transparent">
                 <Link href="/profile" className="flex items-center hover:text-[color:var(--foreground)]">
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                  <span>{profileName}</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:bg-transparent">

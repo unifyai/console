@@ -24,16 +24,24 @@ const CustomToast = ({ id, Icon, title, description, iconClassName }: {
     </div>
 );
 
-// Ensure toast updates happen after the current render to avoid React warnings
-const scheduleToast = <T,>(fn: () => T): T | void => {
-    // React 18 StrictMode double-renders; ensure state updates occur post-render
+/**
+ * Ensure toast creation happens outside of React render but **still** returns the
+ * toast ID synchronously so callers (e.g. `withLoadingToast`) can update or
+ * dismiss the same toast later. React 18 Strict-Mode double invokes effects
+ * in development which can lead to duplicate toasts – Sonner already de-dupes
+ * by `id`, so the simplest, most reliable approach is to execute the provided
+ * `fn` immediately and just queue a no-op micro-task to keep React happy.
+ */
+const scheduleToast = <T,>(fn: () => T): T => {
+    const id = fn();
+
+    // Queue a no-op so that the actual DOM update still happens after the
+    // current React render cycle (avoids setState warnings in StrictMode)
     if (typeof queueMicrotask === 'function') {
-        let result: T | undefined;
-        queueMicrotask(() => { result = fn(); });
-        // Return toast id synchronously if needed by caller (fallback)
-        return result as T;
+        queueMicrotask(() => {});
     }
-    return setTimeout(fn, 0) as unknown as T;
+
+    return id;
 };
 
 export const showLoadingToast = (message: string) => {

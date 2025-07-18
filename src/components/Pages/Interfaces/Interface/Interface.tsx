@@ -85,6 +85,7 @@ const Interface = ({
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
+  const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
 
   useEffect(() => {
@@ -293,18 +294,8 @@ const Interface = ({
     });
   }, [tabDataState?.tileIds]);
 
-  // Update tab primary and accent colors
-  useEffect(() => {
-    const root = document.documentElement;
-    const color = tabUIState?.color;
-    if (color) {
-        root.style.setProperty("--primary", color);
-        root.style.setProperty("--accent", color);
-    } else {
-        root.style.removeProperty("--primary");
-        root.style.removeProperty("--accent");
-    }
-  }, [tabUIState?.color]);
+  // Removed: tab-specific colours are now applied within the Tab component scope so
+  // that they do not override the project/global theme for other tabs.
 
   // Reset pending state when tab data loads successfully
   useEffect(() => {
@@ -318,6 +309,7 @@ const Interface = ({
     if (refreshStatus === 'loading') return;
 
     setRefreshStatus('loading');
+    setIsRefreshingInterface(true);
     
     // Invalidate relevant React Query caches so subsequent queries hit backend
     try {
@@ -346,8 +338,10 @@ const Interface = ({
             2000 // Only show loading toast if refresh takes > 2 seconds
         );
         setRefreshStatus('success');
+        setIsRefreshingInterface(false);
     } catch (err) {
       setRefreshStatus('idle');
+      setIsRefreshingInterface(false);
       // Error is already handled by withLoadingToast
     } finally {
         setTimeout(() => setRefreshStatus('idle'), 2000);
@@ -552,14 +546,19 @@ const Interface = ({
         }}
       >
         <div className="relative flex-1 min-w-0 h-full">
-          {isSwitchingInterface && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-background/70">
-              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-muted-foreground text-center whitespace-nowrap">Switching project...</p>
-              </div>
+        {(isSwitchingInterface || isRefreshingInterface) && (
+          <div
+            className="fixed bottom-0 right-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
+            style={{ left: isNavCollapsed ? '48px' : '256px', top: '3rem' }}
+          >
+            <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="text-muted-foreground text-center whitespace-nowrap">
+                {isSwitchingInterface ? 'Switching project...' : 'Refreshing interface...'}
+              </p>
             </div>
-          )}
+          </div>
+        )}
           <ScrollArea className="flex-1 min-w-0 h-full">
           <div className="relative bg-background" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
@@ -723,7 +722,7 @@ const Interface = ({
             {/* Floating Bottom Tab Bar */}
             {projectQueryParam && interfaceQueryParam && (
               <div 
-                className="fixed bottom-0 z-50 transition-all duration-200 ease-linear pointer-events-none"
+                className="fixed bottom-0 z-40 transition-all duration-200 ease-linear pointer-events-none"
                 style={{ 
                   left: isNavCollapsed ? '48px' : '256px',
                   right: 0,
