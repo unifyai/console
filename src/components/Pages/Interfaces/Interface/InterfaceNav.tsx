@@ -843,7 +843,7 @@ export default function InterfaceNav({
       showErrorToast('Navigation timed out. Please try again.', 'Failed to load the selected interface.')
       setIsSwitchingInterface(false)
       routerRoot.replace(previousUrlRef.current)
-    }, 30000)
+    }, 60000)
 
     routerRoot.push(url)
   }
