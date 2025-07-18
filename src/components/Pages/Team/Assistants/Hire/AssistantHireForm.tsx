@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -205,6 +204,7 @@ export function HireForm({
   const isPresetPristine = watch("isPresetPristine");
   const firstName = watch("first_name");
   const surname = watch("surname");
+  const age = watch("age");
   const rhfEmail = watch("email");
   const rhfCountry = watch("country");
   const rhfRegion = watch("region");
@@ -435,6 +435,9 @@ export function HireForm({
                         currentImageFile={imageFile ?? null}
                         disabled={isSubmitting}
                         selectedVoice={selectedVoiceForPhotoCustomization}
+                        firstName={firstName}
+                        surname={surname}
+                        age={age as number | null}
                     />
                     </div>
                 </div>

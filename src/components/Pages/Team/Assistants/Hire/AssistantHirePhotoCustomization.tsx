@@ -27,6 +27,9 @@ interface PhotoCustomizationProps {
     currentImageFile: File | null;
     disabled?: boolean;
     selectedVoice: VoiceOption | null;
+    firstName?: string | null;
+    surname?: string | null;
+    age?: number | null;
 }
 
 export function PhotoCustomization({
@@ -36,6 +39,9 @@ export function PhotoCustomization({
     currentImageFile,
     disabled = false,
     selectedVoice,
+    firstName,
+    surname,
+    age,
 }: PhotoCustomizationProps) {
     const [activeTab, setActiveTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -60,7 +66,10 @@ export function PhotoCustomization({
         onNewFileReady,
         PHOTO_OPERATION_COST,
         VIDEO_ANIMATION_COST,
-        selectedVoice
+        selectedVoice,
+        firstName,
+        surname,
+        age
     );
     
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -37,6 +37,9 @@ export function usePhotoCreator(
     photoOperationCost: number,
     videoAnimationCost: number,
     selectedVoice: VoiceOption | null,
+    firstName?: string | null,
+    surname?: string | null,
+    age?: number | null
 ) {
     const [prompt, setPrompt] = React.useState('');
     const [ttsPrompt, setTtsPrompt] = React.useState('');
@@ -71,8 +74,19 @@ export function usePhotoCreator(
 
         toast.loading("Generating photo...", { id: toastId });
 
+        const description = prompt;
+        const finalPromptParts = [];
+        if (firstName && surname) {
+            finalPromptParts.push(`Name: ${firstName} ${surname}`);
+        }
+        if (age) {
+            finalPromptParts.push(`Age: ${age}`);
+        }
+        finalPromptParts.push(`Description: ${description}`);
+        const finalPrompt = finalPromptParts.join('\n');
+
         try {
-            const result = await photoActions.generate({ prompt });
+            const result = await photoActions.generate({ prompt: finalPrompt });
             if ((result as ResponseProps).detail) {
                 throw new Error((result as ResponseProps).detail);
             }
