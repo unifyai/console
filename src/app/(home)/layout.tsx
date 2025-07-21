@@ -19,14 +19,14 @@ import OnboardingGuard from "@/components/TaxClassification/OnboardingGuard";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen w-full overflow-hidden">
+      <body className="h-screen w-screen">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             <ThemeLoader>
               <OnboardingGuard>
                 <TopNav />
                 <Suspense fallback={<LoadingScreen/>}>
-                  <main className="relative pt-12 h-[calc(100vh-3rem)] overflow-y-auto">
+                  <main className="relative top-12 h-[calc(100vh-3rem)]">
                     <NuqsAdapter>{children}</NuqsAdapter>
                   </main>
                 </Suspense>

@@ -281,7 +281,7 @@ export default function Main({
         <>
             <Toaster richColors position="bottom-right" closeButton />
 
-            <div className="flex h-screen bg-background overflow-hidden">
+            <div className="flex h-full bg-background overflow-hidden">
                 {/* Assistant List */}
                 <div className={cn("h-full transition-all duration-300 ease-in-out relative border-r", assistantListWidth, "flex-shrink-0")}>
                     <AssistantList
