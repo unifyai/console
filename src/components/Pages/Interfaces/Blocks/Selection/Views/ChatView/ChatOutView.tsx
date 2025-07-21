@@ -35,6 +35,8 @@ import {
   isMatrix,
   isNumber,
   isTimestamp,
+  AudioPlayer,
+  isAudio,
 } from "@/utils/interfaces/selection/selection";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
 import { LogsActions } from "@/types/interfaces/grid";
@@ -99,6 +101,9 @@ function pickDataView(
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
+  }
+  if (isAudio(finalValue)) {
+    return <AudioPlayer {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
     return <MatrixView {...commonProps} />;

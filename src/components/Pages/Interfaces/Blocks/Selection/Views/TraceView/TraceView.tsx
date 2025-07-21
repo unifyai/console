@@ -29,7 +29,7 @@ import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
 import ExecutionTimeView from "../ExecutionTimeView";
 
-import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/interfaces/selection/selection";
+import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat, AudioPlayer, isAudio } from "@/utils/interfaces/selection/selection";
 import { gatherAllSubPaths } from "@/utils/interfaces/selection/pathUtils";
 
 import { LogComparisonProps } from "../types";
@@ -193,6 +193,9 @@ function pickView(
   }
   if (isImage(baseVal)) {
     return <ImageView {...commonProps} />;
+  }
+  if (isAudio(baseVal)) {
+    return <AudioPlayer {...commonProps} />;
   }
   if (isMatrix(baseVal)) {
     return <MatrixView {...commonProps} />;

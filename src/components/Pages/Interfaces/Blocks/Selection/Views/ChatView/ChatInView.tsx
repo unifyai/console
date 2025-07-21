@@ -36,6 +36,8 @@ import {
   isMatrix,
   isNumber,
   isTimestamp,
+  isAudio,
+  AudioPlayer,
 } from "@/utils/interfaces/selection/selection";
 import { LogsActions } from "@/types/interfaces/grid";
 import { LogProps } from "@/types/interfaces/logs";
@@ -100,6 +102,9 @@ function pickDataView(
   }
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
+  }
+  if (isAudio(finalValue)) {
+    return <AudioPlayer {...commonProps} />;
   }
   if (isMatrix(finalValue)) {
     return <MatrixView {...commonProps}/>;
