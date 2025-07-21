@@ -325,7 +325,7 @@ export function AssistantProfilePanel({
                     <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
                         <div className='flex items-center justify-between'>
                             <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} disabled={isSaving}>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} disabled={isSaving}>
                                 <X className="h-4 w-4" />
                                 <span className="sr-only">Close Profile</span>
                             </Button>
@@ -384,8 +384,8 @@ export function AssistantProfilePanel({
 
                             <Separator />
 
-                            {/* Contact Section */}
-                            <div className="px-4 sm:px-6 space-y-3 group/contact">
+                            {/* Assistant Contact Section */}
+                            <div className="px-4 sm:px-6 space-y-3 group/assistant-contact">
                                 <h3 className="text-base font-semibold">My Contact</h3>
                                 <div className="space-y-4 text-sm">
                                     {/* Assistant-owned details (display only) */}
@@ -403,9 +403,14 @@ export function AssistantProfilePanel({
                                             <span>{assistant.assistant_whatsapp_number}</span>
                                         </div>
                                     )}
+                                </div>
+                            </div>
 
-                                    <Separator className="my-3"/>
+                            <Separator />
 
+                            {/* User Contact Section */}
+                            <div className="px-4 sm:px-6 space-y-3 group/user-contact">
+                                <div className="space-y-4 text-sm">
                                     {/* User-owned details (editable) */}
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-base font-semibold">Where Can I Reach Out?</h3>
@@ -418,7 +423,7 @@ export function AssistantProfilePanel({
                                                     <p>Editable Section</p>
                                                 </TooltipContent>
                                             </Tooltip>
-                                    </TooltipProvider>
+                                        </TooltipProvider>
                                     </div>
                                     
                                     <div className="space-y-1">

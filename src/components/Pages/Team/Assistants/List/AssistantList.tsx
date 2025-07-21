@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
 import { ScrollArea } from "@/components/UI/scroll-area";
-import { Search, WifiOff, UserPlus, Menu } from "lucide-react";
+import { Search, WifiOff, UserPlus, Menu, PanelLeft, PanelLeftClose } from "lucide-react";
 import type { Assistant, AssistantStatus } from "@/types/team/assistant";
 import { AssistantListItem } from "./AssistantListItem";
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
@@ -161,7 +161,7 @@ export function AssistantList({
 
              {/* Fold/Unfold Button */}
             <div className={cn(
-                "absolute bottom-2.5 z-10",
+                "absolute bottom-4 z-10",
                 isFolded ? "left-1/2 -translate-x-1/2" : "right-2"
             )}>
                  <TooltipProvider delayDuration={100}>
@@ -173,7 +173,11 @@ export function AssistantList({
                                 onClick={onToggleFold}
                                 className="hover:bg-primary hover:text-primary-foreground relative w-8 h-8"
                             >
-                                <Menu className="h-4 w-4"/>
+                                {isFolded ? (
+                                    <PanelLeft className="h-4 w-4" />
+                                ) : (
+                                    <PanelLeftClose className="h-4 w-4" />
+                                )}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent side="top">

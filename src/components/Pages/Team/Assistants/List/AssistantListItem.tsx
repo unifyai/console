@@ -98,10 +98,11 @@ export function AssistantListItem({
     return (
         <div
             className={cn(
-                "flex items-center justify-between p-2 rounded-md group",
+                "flex items-center justify-between p-2 rounded-md group cursor-pointer",
                 !isSelected && "hover:bg-muted",
                 isSelected && "bg-primary text-primary-foreground"
             )}
+            onClick={handleProfileClick}
         >
             <div className="flex items-center gap-3 min-w-0">
                 <HoverCard openDelay={200} closeDelay={100}>
@@ -150,24 +151,6 @@ export function AssistantListItem({
                     </HoverCardContent>
                 </HoverCard>
                 <span className="text-sm font-medium truncate">{displayName}</span>
-            </div>
-
-            {/* Action buttons */}
-            <div className={cn(
-                "flex items-center gap-1 flex-shrink-0 opacity-100"
-            )}>
-                <ActionButton
-                    tooltip="View activity"
-                    icon={<History className="h-4 w-4" />}
-                    onClick={handleActivityLogClick}
-                    size="sm"
-                />
-                <ActionButton
-                    tooltip="View profile"
-                    icon={<Contact className="h-4 w-4" />}
-                    onClick={handleProfileClick}
-                    size="sm"
-                />
             </div>
         </div>
     );
