@@ -327,11 +327,6 @@ export const isMatrix = (value: any) => isList(value) && value.every(row => Arra
 export function isURLImage(value: string): boolean {
   try {
     const url = new URL(value);
-    
-    // Automatically return true for Google Cloud Storage URLs
-    if (url.hostname === 'storage.googleapis.com') {
-      return true;
-    }
 
     // Check for typical image file extensions
     const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
