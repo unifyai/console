@@ -7,12 +7,14 @@ interface EmptyTableOverlayProps {
     tileName?: string;
     mode: "context" | "new";
     onDismiss: () => void;
+    actionButton?: React.ReactNode;
 }
 
 const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
     tileName,
     mode,
     onDismiss,
+    actionButton,
 }) => {
     return (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
@@ -37,8 +39,19 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                                 The {tileName} table is empty.
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Select a context from the header to view your logs.
+                                Select a context to view your logs.
                             </p>
+                            {actionButton && (
+                                <div className="mt-6 flex justify-center">
+                                    <div className="relative inline-block">
+                                        {actionButton}
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )
                     : (
@@ -53,7 +66,7 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                                 It seems you haven't logged any data for this project yet.
                             </p>
                             <p className="text-xs text-muted-foreground">
-                            Create an empty log from the header above. Or start{' '}
+                            Create an empty log. Or start{' '}
                             <a
                                 href="https://docs.unify.ai/basics/quickstart"
                                 className="text-primary underline"
@@ -64,6 +77,17 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                             </a>{' '}
                             with our API.
                             </p>                        
+                            {actionButton && (
+                                <div className="mt-6 flex justify-center">
+                                    <div className="relative inline-block">
+                                        {actionButton}
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )
                 }

@@ -739,6 +739,35 @@ const LogsTable = ({
     }
   };
 
+  // Define buttons to be used in menu and overlay
+  const contextSelectorButton = projectId ? (
+    <ContextSelector
+        tileId={tileId}
+        tabId={tabId}
+        interfaceId={interfaceId}
+        projectId={projectId}
+        context={item?.context || context_}
+        logsActions={logsActions}
+        contextActions={contextActions}
+        setPending={setPending}
+        tileActions={tileActions}
+        projectsActions={projectsActions}
+        fieldsActions={fieldsActions}
+    />
+  ) : null;
+
+  const createLogRowButton = projectId ? (
+    <CreateEmptyLogRow
+        projectId={projectId}
+        globalContext={item?.context || context_}
+        fields={tableDataItem.fields}
+        interactive={interactive}
+        createLogsAction={logsActions.create}
+        onSuccess={() => { router.refresh(); setPending(true); }}
+        onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
+    />
+  ) : null;
+
   // Empty table overlay display and content
   const showOverlay =
     !showSpinner &&
@@ -767,32 +796,8 @@ const LogsTable = ({
                     currentTable={item?.name || ""}
                     tableArguments={tableArguments}
                 />
-                {projectId && (
-                  <>
-                    <ContextSelector
-                        tileId={tileId}
-                        tabId={tabId}
-                        interfaceId={interfaceId}
-                        projectId={projectId}
-                        context={item?.context || context_}
-                        logsActions={logsActions}
-                        contextActions={contextActions}
-                        setPending={setPending}
-                        tileActions={tileActions}
-                        projectsActions={projectsActions}
-                        fieldsActions={fieldsActions}
-                    />
-                    <CreateEmptyLogRow
-                        projectId={projectId}
-                        globalContext={item?.context || context_}
-                        fields={tableDataItem.fields}
-                        interactive={interactive}
-                        createLogsAction={logsActions.create}
-                        onSuccess={() => { router.refresh(); setPending(true); }}
-                        onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
-                    />
-                  </>
-                )}
+                {contextSelectorButton}
+                {createLogRowButton}
             </div>
         </div>
         
@@ -960,7 +965,12 @@ const LogsTable = ({
           {tableMenu}
           <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
             {showOverlay && (
-              <EmptyTableOverlay tileName={tileName} mode={overlayMode} onDismiss={() => setOverlayDismissed(true)}/>
+              <EmptyTableOverlay
+                tileName={tileName}
+                mode={overlayMode}
+                onDismiss={() => setOverlayDismissed(true)}
+                actionButton={overlayMode === "context" ? contextSelectorButton : createLogRowButton}
+              />
             )}
             {/* <div className="min-w-max w-full"> */}
               <div className="min-w-fit w-max">
