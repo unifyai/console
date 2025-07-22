@@ -1,20 +1,29 @@
 "use client";
 
 import React from "react";
-import { FolderTree, FilePlus } from "lucide-react";
+import { FolderTree, FilePlus, X } from "lucide-react";
 
 interface EmptyTableOverlayProps {
     tileName?: string;
     mode: "context" | "new";
+    onDismiss: () => void;
 }
 
 const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
     tileName,
     mode,
+    onDismiss,
 }) => {
     return (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
-            <div className="bg-background border rounded-lg p-6 max-w-sm mx-4 shadow-lg text-center">
+            <div className="bg-background border rounded-lg p-6 max-w-sm mx-4 shadow-lg text-center relative">
+                <button
+                    onClick={onDismiss}
+                    className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground hover:bg-muted"
+                    aria-label="Dismiss"
+                >
+                    <X className="h-4 w-4" />
+                </button>
                 {mode == "context"
                     ? (
                         <>
@@ -41,7 +50,7 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                             </div>
                             <h3 className="font-semibold text-sm mb-2">This Table is Empty</h3>
                             <p className="text-xs text-muted-foreground mb-4">
-                                It seems you haven&apos;t logged any data for this project yet.
+                                It seems you haven't logged any data for this project yet.
                             </p>
                             <p className="text-xs text-muted-foreground">
                             Create an empty log from the header above. Or start{' '}

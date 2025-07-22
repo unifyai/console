@@ -102,6 +102,9 @@ const LogsTable = ({
     enableForwardLoading: true,
   });
 
+  // Empty table overlay state
+  const [overlayDismissed, setOverlayDismissed] = useState(false);
+
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
 
@@ -163,6 +166,17 @@ const LogsTable = ({
   // Get item data for context and column context
   const { itemActions } = useTileItem(tileId, tabId);
   const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+
+  // Reset empty table overlay
+  const prevContextForOverlayRef = useRef(item?.context);
+  const prevProjectIdForOverlayRef = useRef(projectId);
+  useEffect(() => {
+    if (projectId !== prevProjectIdForOverlayRef.current || item?.context !== prevContextForOverlayRef.current) {
+      setOverlayDismissed(false);
+    }
+    prevProjectIdForOverlayRef.current = projectId;
+    prevContextForOverlayRef.current = item?.context;
+  }, [projectId, item?.context]);
 
   // Use infinite scroll query with simplified data handling
   const infiniteLogsQuery = useInfiniteLogsQuery({
@@ -725,10 +739,12 @@ const LogsTable = ({
     }
   };
 
+  // Empty table overlay display and content
   const showOverlay =
     !showSpinner &&
     logs.length === 0 &&
-    !listContextsQuery.isLoading;
+    !listContextsQuery.isLoading &&
+    !overlayDismissed;
   const overlayMode = availableContexts.length > 0 && !context ? "context" : "new";
 
   const showActions =
@@ -944,7 +960,7 @@ const LogsTable = ({
           {tableMenu}
           <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
             {showOverlay && (
-              <EmptyTableOverlay tileName={tileName} mode={overlayMode}/>
+              <EmptyTableOverlay tileName={tileName} mode={overlayMode} onDismiss={() => setOverlayDismissed(true)}/>
             )}
             {/* <div className="min-w-max w-full"> */}
               <div className="min-w-fit w-max">
