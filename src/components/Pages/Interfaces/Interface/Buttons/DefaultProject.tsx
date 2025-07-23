@@ -195,7 +195,7 @@ const DefaultProject = ({
                                                 node={node}
                                                 nodeName={name}
                                                 isTopLevel={true}
-                                                showRoot={false}
+                                                selectableNodes={Object.keys(demos)}
                                                 prefix={undefined}
                                                 attr={demo || undefined}
                                                 setter={(d: string) => setDemo(d)}

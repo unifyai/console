@@ -147,46 +147,42 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                         {tileName}{tileUIState?.loading && <Loader2 className="animate-spin ml-2 inline-block" size={16} />}
                     </div>
                 </TileInfoPalette>
-                {context && tileType == "Table" && <ContextSelector
-                    tileId={tileId}
-                    tabId={tabId}
-                    interfaceId={interfaceId}
-                    projectId={projectId}
-                    context={tabDataState?.globalContext}
-                    logsActions={logsActions}
-                    contextActions={contextActions}
-                    button={
-                        <Tooltip content={`Context: ${context}`}>
-                            <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
-                                <Braces size={16} />
-                                <span className="truncate">{truncatePath(context)}</span>
-                            </Badge>
-                        </Tooltip>
-                    }
-                    setPending={tabUIActions.setPending}
-                    tileActions={tileActions}
-                    projectsActions={projectsActions}
-                    fieldsActions={fieldsActions}
-                />}
-                {(columnContext) && tileType == "Table" && <ContextSelector
-                    tileId={tileId}
-                    tabId={tabId}
-                    interfaceId={interfaceId}
-                    projectId={projectId}
-                    context={tabDataState?.globalContext}
-                    logsActions={logsActions}
-                    contextActions={contextActions}
-                    button={<Tooltip content={`Column context: ${columnContext}`}>
-                        <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+                {context && tileType == "Table" && (
+                    <Tooltip content={`Context: ${context}`}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
+                            <Braces size={16} />
+                            <span className="truncate">{truncatePath(context)}</span>
+                            <ActionButton
+                                icon={<X size={12} />}
+                                onClick={() => {
+                                    if (syncedTileActions?.data) {
+                                        syncedTileActions.data.setContextAndColumnContext("", "");
+                                    }
+                                }}
+                                tooltip="Clear context"
+                                className="h-2 w-2 mt-2"
+                                variant="ghost"
+                            />
+                        </Badge>
+                    </Tooltip>
+                )}
+                {columnContext && tileType == "Table" && (
+                    <Tooltip content={`Column context: ${columnContext}`}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={16} />
                             <span className="truncate">{truncatePath(columnContext)}</span>
+                            <ActionButton
+                                icon={<X size={12} />}
+                                onClick={() => {
+                                    syncedTileActions?.data?.setColumnContext("");
+                                }}
+                                tooltip="Clear column context"
+                                className="h-2 w-2 mt-2"
+                                variant="ghost"
+                            />
                         </Badge>
-                    </Tooltip>}
-                    setPending={tabUIActions.setPending}
-                    tileActions={tileActions}
-                    projectsActions={projectsActions}
-                    fieldsActions={fieldsActions}
-                />}
+                    </Tooltip>
+                )}
             </div>
 
             {/* Right part: Action buttons */}

@@ -89,7 +89,7 @@ const SelectionCommand = ({
                                     node={node}
                                     nodeName={name}
                                     isTopLevel={true}
-                                    showRoot={true}
+                                    selectableNodes={items}
                                     attr={value}
                                     setter={(selectedValue) => {
                                         onSelect(selectedValue);
