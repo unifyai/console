@@ -180,7 +180,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                                             syncedTableTileActions?.setTableType("Data Table");
                                         }
                                     }}
-                                    className="flex justify-between items-center"
+                                    className="flex justify-between items-center cursor-pointer"
                                 >
                                     <span>{tabType}</span>
                                     {icons[tabType as keyof typeof icons]}

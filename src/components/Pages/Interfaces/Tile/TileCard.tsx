@@ -5,6 +5,7 @@ import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, Granul
 import { LogsActions } from "@/types/interfaces/grid";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
+import NewTileOverlay from './NewTileOverlay';
 import { TileColorContext } from '@/contexts/TileColorContext';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { useTile, useTileUI } from '@/contexts/hooks/tile';
@@ -81,12 +82,35 @@ const TileCard = ({
     fieldsActions
   );
   const syncedTileDataActions = syncedTileActions?.data ?? null;
+  const syncedTileMetaActions = syncedTileActions?.meta ?? null;
+  const syncedTableTileActions = syncedTileActions?.tableTileActions ?? null;
 
   const tableNames = tabDataActions?.getTileNamesByType("Table").filter(Boolean) as string[] || [];
 
   const tileType = tileMetaState?.type ?? undefined;
   const tileName = tileMetaState?.name;
   const tableName = tileDataState?.table;
+
+  const handleSelectType = (newType: string) => {
+    if (!tileName || !syncedTileMetaActions) return;
+
+    const isReverting = newType === tileType;
+    const finalType = isReverting ? undefined : newType;
+    const oldType = tileType;
+
+    // Set the new type. This is the primary action.
+    syncedTileMetaActions.setType(finalType);
+
+    // Perform cleanup: if we are moving away from a 'View' type, clear its linked table.
+    if (oldType === "View" && finalType !== "View" && tableName && syncedTileDataActions) {
+        syncedTileDataActions.setTable(undefined);
+    }
+
+    // Perform setup: if creating a 'Table' from a typeless tile, set a default.
+    if (!oldType && finalType === "Table" && syncedTableTileActions) {
+        syncedTableTileActions.setTableType("Data Table");
+    }
+  };
 
   // Resolve color using hierarchical precedence (but keep null if no colors set)
   const resolvedColor = tileUIState?.color || tabUIState?.color || null;
@@ -95,17 +119,7 @@ const TileCard = ({
     <TileColorContext.Provider value={resolvedColor}>
       <div ref={tileCardRef} className="relative flex w-full h-full border">
         <div className={"w-full flex-1 flex flex-col items-center"}>
-
-          {tileType === "View" && !tableName && tabUIState?.edit && (
-            <UnlinkedTileOverlay
-              tileType={tileType}
-              tileName={tileName}
-              tableNames={tableNames}
-              onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
-              isEditMode={tabUIState?.edit || false}
-            />
-          )}
-
+          
           {/* Tile header */}
           <TileHeader
             tileId={tileId}
@@ -120,8 +134,26 @@ const TileCard = ({
             projectsActions={projectsActions}
             fieldsActions={fieldsActions}
           />
+          
+          {/* Tile overlays and content */}
 
-          {/* Tile content */}
+          {!tileType && tabUIState?.edit && (
+            <NewTileOverlay
+              tileName={tileName}
+              onSelectType={handleSelectType}
+            />
+          )}
+
+          {tileType === "View" && !tableName && tabUIState?.edit && (
+            <UnlinkedTileOverlay
+              tileType={tileType}
+              tileName={tileName}
+              tableNames={tableNames}
+              onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
+              isEditMode={tabUIState?.edit || false}
+            />
+          )}
+
           {!!tileType && <Suspense
               key={tileId}
               fallback={
@@ -150,6 +182,7 @@ const TileCard = ({
           }
         </div>
       </div>
+
     </TileColorContext.Provider>
   );
 };
