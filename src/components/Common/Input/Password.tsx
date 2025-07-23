@@ -12,7 +12,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(({ classNam
 	const disabled = props.value === '' || props.value === undefined || props.disabled
     const editable = props.value === '' || props.value === undefined || !props.readOnly
 	return (
-		<div className="relative">
+		<div className="relative w-full">
 			<Input
 				type={showPassword ? 'text' : 'password'}
 				className={cn('hide-password-toggle pr-10', className)}
