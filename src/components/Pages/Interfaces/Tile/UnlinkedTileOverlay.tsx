@@ -24,28 +24,7 @@ const UnlinkedTileOverlay: React.FC<UnlinkedTileOverlayProps> = ({
     
     return (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
-            <div className="bg-background border border-destructive/50 rounded-lg p-6 max-w-sm mx-4 shadow-lg">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 rounded-full bg-destructive/10">
-                        <AlertTriangle className="h-5 w-5 text-destructive" />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-sm">Link Required</h3>
-                        <p className="text-xs text-muted-foreground">This tile needs to be linked to a table</p>
-                    </div>
-                </div>
-                
-                <div className="mb-4">
-                    <p className="text-sm text-muted-foreground mb-3">
-                        <strong>{tileName}</strong> is a View tile that requires a table link to display data.
-                    </p>
-                    
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                        <Database className="h-3 w-3" />
-                        <span>Select a table to link:</span>
-                        <ArrowRight className="h-3 w-3" />
-                    </div>
-                </div>
+            <div className="bg-background border border-destructive/50 rounded-lg p-6 max-w-sm mx-4 shadow-lg text-center">
 
                 {tableNames.length > 0 ? (
                     <BaseDropdown

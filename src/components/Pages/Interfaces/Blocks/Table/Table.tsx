@@ -740,7 +740,7 @@ const LogsTable = ({
   };
 
   // Define buttons to be used in menu and overlay
-  const contextSelectorButton = projectId ? (
+  const contextSelectorButton = (inOverlay: boolean) => projectId ? (
     <ContextSelector
         tileId={tileId}
         tabId={tabId}
@@ -753,10 +753,11 @@ const LogsTable = ({
         tileActions={tileActions}
         projectsActions={projectsActions}
         fieldsActions={fieldsActions}
+        withButtonText={inOverlay}
     />
   ) : null;
 
-  const createLogRowButton = projectId ? (
+  const createLogRowButton = (inOverlay: boolean) => projectId ? (
     <CreateEmptyLogRow
         projectId={projectId}
         globalContext={item?.context || context_}
@@ -765,6 +766,7 @@ const LogsTable = ({
         createLogsAction={logsActions.create}
         onSuccess={() => { router.refresh(); setPending(true); }}
         onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
+        withButtonText={inOverlay}
     />
   ) : null;
 
@@ -796,8 +798,8 @@ const LogsTable = ({
                     currentTable={item?.name || ""}
                     tableArguments={tableArguments}
                 />
-                {contextSelectorButton}
-                {createLogRowButton}
+                {contextSelectorButton(false)}
+                {createLogRowButton(false)}
             </div>
         </div>
         
@@ -969,7 +971,7 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? contextSelectorButton : createLogRowButton}
+                actionButton={overlayMode === "context" ? contextSelectorButton(true) : createLogRowButton(true)}
               />
             )}
             {/* <div className="min-w-max w-full"> */}

@@ -21,11 +21,6 @@ const NewTileOverlay: React.FC<NewTileOverlayProps> = ({
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
             <div className="bg-background border rounded-lg p-6 max-w-sm mx-4 shadow-lg text-center">
                 
-                <h3 className="font-semibold text-lg mb-2">Configure Your New Tile</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                    Select a type for <strong>{tileName}</strong> to get started.
-                </p>
-
                 <BaseDropdown
                     context="tile"
                     button={

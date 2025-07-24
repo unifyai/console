@@ -22,6 +22,7 @@ interface CreateEmptyLogRowProps {
   ) => Promise<ResponseProps>;
   onSuccess: () => void;
   onError: (errorMessage: string) => void;
+  withButtonText?: boolean;
 }
 
 const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
@@ -32,6 +33,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
   createLogsAction,
   onSuccess,
   onError,
+  withButtonText = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -92,6 +94,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
     <ActionButton
       icon={loading ? <LoaderCircle className="animate-spin" /> : <FilePlus />}
       tooltip="Add new empty log"
+      text={withButtonText ? "Create New Log" : undefined}
       disabled={!interactive || loading || !projectId}
       variant="outline"
     />

@@ -30,7 +30,8 @@ const ContextSelector = ({
     projectsActions,
     fieldsActions,
     setPending,
-    text = "Edit global context"
+    withButtonText = false,
+    text = "Select context"
 }: {
     tileId?: string,
     tabId?: string,
@@ -48,6 +49,7 @@ const ContextSelector = ({
     projectsActions: ProjectsActions,
     fieldsActions: FieldsActions,
     setPending: (pending: boolean) => void,
+    withButtonText?: boolean,
     text?: string
 }) => {
     const [open_, setOpen_] = useState(false);
@@ -143,7 +145,8 @@ const ContextSelector = ({
                 <BaseDropdown
                     context="tile"
                     button={button || <ActionButton
-                        tooltip="Edit Context and Column Context"
+                        tooltip="Edit Context"
+                        text={withButtonText ? text : undefined}
                         icon={<FolderTree />}
                         variant={context ? "primary" : "outline"}
                         size="sm"

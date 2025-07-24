@@ -29,18 +29,11 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                 {mode == "context"
                     ? (
                         <>
-                            <h3 className="font-semibold text-lg mb-2">Contexts Available</h3>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                The {tileName} table is empty.
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Select a context to view your logs.
-                            </p>
                             {actionButton && (
-                                <div className="mt-6 flex justify-center">
+                                <div className="flex justify-center">
                                     <div className="relative inline-block">
                                         {actionButton}
-                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                        <span className="absolute -top-1 -left-1 flex h-3 w-3">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
                                         </span>
@@ -50,28 +43,12 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                         </>
                     )
                     : (
-                        <>
-                            <h3 className="font-semibold text-sm mb-2">This Table is Empty</h3>
-                            <p className="text-xs text-muted-foreground mb-4">
-                                It seems like there are no logs in this project yet.
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                            Create an empty log. Or start{' '}
-                            <a
-                                href="https://docs.unify.ai/basics/quickstart"
-                                className="text-primary underline"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                logging data
-                            </a>{' '}
-                            with our API.
-                            </p>                        
+                        <>                    
                             {actionButton && (
-                                <div className="mt-6 flex justify-center">
+                                <div className="flex justify-center">
                                     <div className="relative inline-block">
                                         {actionButton}
-                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                        <span className="absolute -top-1 -left-1 flex h-3 w-3">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
                                         </span>
