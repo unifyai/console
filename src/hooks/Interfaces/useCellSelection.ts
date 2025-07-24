@@ -8,7 +8,6 @@ import { getPartAfterFirstUnderscore } from "@/utils/interfaces/selection/select
 
 export type UseCellSelectionProps = {
   table: Table<any>;
-  scrollToRow?: (index: number) => void;
   selectedCells: string[],
   setSelectedCells: (selectedCells: string[]) => void,
   scrollContainerRef?: React.RefObject<HTMLElement | null>; // The element that actually scrolls
@@ -29,7 +28,6 @@ const isRowIndexCell = (cell: Cell<any, any>) => cell.column.id === "RowNumberin
 
 export const useCellSelection = ({
   table,
-  scrollToRow,
   selectedCells,
   setSelectedCells,
   scrollContainerRef,
@@ -89,6 +87,48 @@ export const useCellSelection = ({
       stopAutoScroll();
     };
   }, [stopAutoScroll]);
+
+  // --- Keyboard scroll logic ---
+  const scrollToRow = useCallback((index: number) => {
+      const rowModel = table.getRowModel();
+      const targetRow = rowModel.rows[index];
+      if (!targetRow) {
+          console.warn(`[DataTable] No row found at index ${index}.`);
+          return;
+      }
+
+      const scrollContainer = scrollContainerRef?.current;
+      if (!scrollContainer) return;
+
+      const targetRowElement = scrollContainer.querySelector(`tr[data-row-id="${targetRow.id}"]`) as HTMLElement;
+      if (!targetRowElement) {
+          console.warn(`[DataTable] Could not find DOM element for row with id ${targetRow.id}.`);
+          return;
+      }
+
+      targetRowElement.scrollIntoView({
+          block: 'nearest',
+          behavior: 'auto'
+      });
+
+  }, [scrollContainerRef, table]);
+  
+  const scrollToColumn = useCallback((columnId: string) => {
+      const scrollContainer = scrollContainerRef?.current;
+      if (!scrollContainer) return;
+  
+      const headerElement = scrollContainer.querySelector(`th[data-column-id="${columnId}"]`) as HTMLElement;
+      if (!headerElement) {
+          console.warn(`[DataTable] Could not find header element for column id ${columnId}.`);
+          return;
+      }
+  
+      headerElement.scrollIntoView({
+          inline: 'nearest',
+          behavior: 'auto'
+      });
+  
+  }, [scrollContainerRef]);
 
   /* Handle keyboard navigation */
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
@@ -165,7 +205,7 @@ export const useCellSelection = ({
       const rowCells = previousRow.getAllCells();
       const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
       setSelectedCells(validCells.map(c => getCellSelectionData(c)));
-      scrollToRow?.(nextRowIndex);
+      scrollToRow?.(nextRowIndex - 2);
       return;
     }
 
@@ -176,7 +216,7 @@ export const useCellSelection = ({
     )
     if (previousRow && isValidAdjacentTarget(getCellFromID(previousCellId))) {
       setSelectedCells([previousCellId]);
-      scrollToRow?.(nextRowIndex);
+      scrollToRow?.(nextRowIndex - 2);
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(previousCellId);
     }
@@ -206,7 +246,7 @@ export const useCellSelection = ({
       const rowCells = nextRow.getAllCells();
       const validCells = rowCells.filter(c => isValidIndexSelectionTarget(c));
       setSelectedCells(validCells.map(c => getCellSelectionData(c)));
-      scrollToRow?.(nextRowIndex);
+      scrollToRow?.(nextRowIndex + 2);
       return;
     }
 
@@ -217,7 +257,7 @@ export const useCellSelection = ({
     );
     if (nextRow && isValidAdjacentTarget(getCellFromID(nextCellId))) {
       setSelectedCells([nextCellId]);
-      scrollToRow?.(nextRowIndex);
+      scrollToRow?.(nextRowIndex + 2);
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(nextCellId);
     }
@@ -251,6 +291,7 @@ export const useCellSelection = ({
     if (previousCell && isValidSelectionTarget(previousCell)) {
       const previousCellId = getCellSelectionData(previousCell)
       setSelectedCells([previousCellId]);
+      scrollToColumn?.(previousCell.column.id);
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(previousCellId);
     }
@@ -279,6 +320,7 @@ export const useCellSelection = ({
       if (firstValidCell) {
         const nextCellId = getCellSelectionData(firstValidCell);
         setSelectedCells([nextCellId]);
+        scrollToColumn?.(firstValidCell.column.id);
       }
       return;
     }
@@ -291,6 +333,7 @@ export const useCellSelection = ({
     if (nextCell && isValidSelectionTarget(nextCell)) {
       const nextCellId = getCellSelectionData(nextCell)
       setSelectedCells([nextCellId]);
+      scrollToColumn?.(nextCell.column.id);
       if (isCellExpanded(getCellFromID(selectedCell)))
         toggleExpansion(nextCellId);
     }
