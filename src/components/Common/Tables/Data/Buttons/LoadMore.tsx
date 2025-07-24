@@ -129,7 +129,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   return (
     <>
       {/* Load More button row - only show if there are more pages, or if it should be visible but disabled (e.g. during auto-update) */}
-      {(hasNextPage || disabled) && !isLoading && (
+      {hasNextPage && !isLoading && (
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
