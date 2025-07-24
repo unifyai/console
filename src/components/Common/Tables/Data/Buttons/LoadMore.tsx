@@ -41,7 +41,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   const disabledTooltip = !interactive 
     ? "Table is not interactive" 
     : disabled 
-      ? "Loading is disabled" 
+      ? "Loading is disabled while streaming" 
       : isLoading 
         ? "Currently loading..." 
         : "";
@@ -76,11 +76,6 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         {button}
       </Tooltip>
     ) : button;
-  }
-
-  // Don't render anything if no more pages available
-  if (!hasNextPage && !isLoading) {
-    return null;
   }
 
   // Helper function to render button content
@@ -133,8 +128,8 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   // Render as table row for table context
   return (
     <>
-      {/* Load More button row - only show if there are more pages and not fetching */}
-      {hasNextPage && !isLoading && (
+      {/* Load More button row - only show if there are more pages, or if it should be visible but disabled (e.g. during auto-update) */}
+      {(hasNextPage || disabled) && !isLoading && (
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
