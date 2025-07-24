@@ -195,6 +195,33 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         setIsUpdatingLogs(false);
     }, [data, setIsGroupingUpdating, setIsUpdatingLogs]);
 
+    // Effect to update CSS variable for centering sticky elements
+    useEffect(() => {
+        const container = scrollContainerRef?.current;
+        if (!container) return;
+
+        const updateCenterPosition = () => {
+            const center = container.scrollLeft + container.clientWidth / 2;
+            container.style.setProperty('--scroll-center-left', `${center}px`);
+        };
+
+        // Initial calculation
+        updateCenterPosition();
+
+        // Update on scroll
+        container.addEventListener('scroll', updateCenterPosition);
+
+        // Update on resize
+        const resizeObserver = new ResizeObserver(updateCenterPosition);
+        resizeObserver.observe(container);
+
+        // Cleanup
+        return () => {
+            container.removeEventListener('scroll', updateCenterPosition);
+            resizeObserver.disconnect();
+        };
+    }, [scrollContainerRef]);
+
     // Init table
     const table = useReactTable({
         data,
@@ -657,7 +684,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 colSpan={finalColumns.length}
                                                                 asTableRow={true}
                                                                 interactive={interactive}
-                                                                position="relative"
+                                                                position="sticky"
                                                                 buttonText="Load More"
                                                                 loadingText="Loading more..."
                                                                 disabled={auto_update}
