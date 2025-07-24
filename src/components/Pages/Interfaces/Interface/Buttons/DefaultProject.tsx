@@ -67,7 +67,7 @@ const DefaultProject = ({
     const {
         code: demoCode,
         gif: demoGif,
-        link: demoLink,
+        link: externalLink,
         description: demoDescription,
         derived_columns: demoDerivedColumns,
         interface: demoInterface,
@@ -230,7 +230,7 @@ const DefaultProject = ({
                         <CodeBlock
                             code={demoCode}
                             language="python"
-                            demoLink={demoLink}
+                            externalLink={externalLink}
                             pending={isPending}
                             create={create}
                             onRun={(_: string) => storeDemo()}

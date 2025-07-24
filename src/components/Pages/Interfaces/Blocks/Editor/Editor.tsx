@@ -12,7 +12,7 @@ import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/interfaces/grid";
 import ActionButton from "@/components/Common/Buttons/Action";
 import FileDirectory from "@/components/Shared/Tree/Directory/FileDirectory";
-import { FilePlus, FolderPlus, Trash2, Plus } from "lucide-react";
+import { FilePlus, FolderPlus, Trash2, Plus, Save } from "lucide-react";
 import { FileEntry } from "@/types/interfaces/grid";
 import EditableSecret from "@/components/Common/Code/EditableSecret";
 
@@ -260,9 +260,24 @@ const Editor = ({
         await handleUpload({ [`.env`]: newContent });
     };
 
+    /* Handle saving */
+    const readOnly = false;
+    const onSave = async (value: string | undefined) => {
+        if (value !== undefined) {
+            const path = `${tempFileName}.${tempFileType}`;
+            if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
+                await handleRename(selectedPath, path, value);
+            }
+            editorTileActions?.setContent(value);
+            await handleUpload({ [path]: value });
+            setSelectedPath(path);
+            setSaved(true);
+        }
+    }
+
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="flex flex-row items-center ml-4 text-sm gap-1">
+            <div className="flex flex-row items-center ml-4 my-2 text-sm gap-1">
                 <Tooltip content="File Name" side="top">
                     <Input
                         value={tempFileName}
@@ -397,6 +412,12 @@ const Editor = ({
                             }
                         }}
                     />
+                    <ActionButton
+                        icon={<Save size={16} />}
+                        variant="ghost"
+                        tooltip="Save To File"
+                        onClick={() => onSave(tempCode)}
+                    />
                 </div>
                 {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
@@ -446,19 +467,7 @@ const Editor = ({
                         setOutput("Failed to run code");
                     }
                 }}
-                readOnly={false}
-                onSave={async (value: string | undefined) => {
-                    if (value !== undefined) {
-                        const path = `${tempFileName}.${tempFileType}`;
-                        if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
-                            await handleRename(selectedPath, path, value);
-                        }
-                        editorTileActions?.setContent(value);
-                        await handleUpload({ [path]: value });
-                        setSelectedPath(path);
-                        setSaved(true);
-                    }
-                }}
+                readOnly={readOnly}
             />
             ) : (
               <div className="flex flex-col p-4 gap-2 overflow-auto">
