@@ -23,7 +23,7 @@ const UnlinkedTileOverlay: React.FC<UnlinkedTileOverlayProps> = ({
 }) => {
     
     return (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30 mt-12">
             <div className="bg-background border border-destructive/50 rounded-lg p-6 max-w-sm mx-4 shadow-lg text-center">
 
                 {tableNames.length > 0 ? (
