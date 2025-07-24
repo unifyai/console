@@ -122,7 +122,7 @@ const Tab = ({
     }
   };
 
-  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
+  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting;
 
   // Build the list of tiles to render using the new dependency-aware system
   const tilesToRender = useMemo(() => {

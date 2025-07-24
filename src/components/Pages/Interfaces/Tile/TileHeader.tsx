@@ -51,7 +51,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     const syncedTileUIActions = syncedTileActions?.ui ?? null;
 
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-    const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
+    const disabled = tabUIState?.pending || tabUIState?.resetting;
 
     const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
 
