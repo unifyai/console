@@ -133,10 +133,12 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
                 }}
             >
                 {/* Toggle for default hide underscore columns */}
+                {/* 
                 <div className="flex justify-between items-center mb-3">
                     <span className="font-bold text-sm">Hide private columns</span>
                     <Switch checked={defaultHidden} onCheckedChange={setDefaultHidden}/>
                 </div>
+                */}
                 {hideAll}
                 {hideParams}
                 {hideEntries}
