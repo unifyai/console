@@ -137,6 +137,7 @@ export interface AssistantUpdatePayload {
     user_whatsapp_number?: string | null;
     voice_id?: string | null;
     country?: string | null;
+    profile_photo?: string | null;
 }
 
 

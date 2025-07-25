@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount } from '@/types/team/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -11,8 +11,9 @@ import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTR
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
-    onSuccess?: (newAssistant: Assistant) => void,
-    isHireDialogInitiallyOpen?: boolean,
+    onHireSuccess?: (newAssistant: Assistant) => void,
+    onUpdateSuccess?: () => void,
+    isDialogOpen?: boolean,
     availableSocialPlatforms: AvailableSocialPlatform[] = []
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
@@ -34,6 +35,7 @@ export function useAssistantHireForm(
     const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
     const [isLoadingCountries, setIsLoadingCountries] = React.useState(true);
+    const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
     const hireFormMethods = useForm<AssistantFormData>({
         defaultValues: {
@@ -69,6 +71,9 @@ export function useAssistantHireForm(
 
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger, watch } = hireFormMethods;
 
+    /* ------------------------- 
+        General form utilities 
+    ------------------------- */
     React.useEffect(() => {
         async function loadCountries() {
             setIsLoadingCountries(true);
@@ -90,10 +95,10 @@ export function useAssistantHireForm(
             }
             setIsLoadingCountries(false);
         }
-        if(isHireDialogInitiallyOpen) { // Only fetch if dialog is to be shown
+        if(isDialogOpen) {
             loadCountries();
         }
-    }, [isHireDialogInitiallyOpen, setValue]);
+    }, [isDialogOpen, setValue]);
 
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
@@ -103,7 +108,7 @@ export function useAssistantHireForm(
     const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
 
     React.useEffect(() => {
-        if (isHireDialogInitiallyOpen) {
+        if (isDialogOpen) {
             setIsLoadingEmails(true);
             assistantActions.contact.listAllAssistantEmails()
                 .then(result => {
@@ -122,7 +127,7 @@ export function useAssistantHireForm(
                     setIsLoadingEmails(false);
                 });
         }
-    }, [assistantActions.contact, isHireDialogInitiallyOpen]);
+    }, [assistantActions.contact, isDialogOpen]);
 
     const watchedFields = watch([
         "first_name", "surname", "age", "region", "about",
@@ -202,7 +207,7 @@ export function useAssistantHireForm(
         setValue("user_phone_verificationAttempts", 0);
         setValue("user_phone_verificationError", null);
         setValue("social_accounts", []);
-        
+
         const presetCountryIsValid = availablePhoneCountries.find(c => c.code === preset.country);
         setValue("country", presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE), { shouldValidate: true });
 
@@ -329,7 +334,115 @@ export function useAssistantHireForm(
         });
         setShowInsufficientFundsHint(false);
     }, [reset, defaultVoice, availablePhoneCountries]);
+    
+    /* ---------------------------- 
+        Editing exsiting assistant 
+       ---------------------------- */
+    const loadAssistantForEdit = React.useCallback((assistant: Assistant) => {
+        setEditingAssistant(assistant);
+        const socialAccounts: SocialAccount[] = [];
+        if (assistant.user_whatsapp_number) {
+            socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isInitial: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+        }
 
+        reset({
+            ...getValues(), // keep any non-assistant fields if necessary
+            first_name: assistant.first_name,
+            surname: assistant.surname,
+            age: assistant.age,
+            region: assistant.region,
+            about: assistant.about || '',
+            imagePreview: assistant.signedProfilePhotoUrl || assistant.profile_photo,
+            profile_photo_url: assistant.profile_photo,
+            imageFile: null,
+            user_phone: assistant.user_phone || '',
+            user_phone_isVerified: !!assistant.user_phone,
+            social_accounts: socialAccounts,
+            // Assuming voice details are fetched and passed with the assistant object
+            // This might need adjustment if voice details need separate fetching
+            voice_id: assistant.voice_id || undefined,
+        });
+        setShowInsufficientFundsHint(false);
+    }, [reset, getValues]);
+
+    const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
+        if (!editingAssistant) {
+            toast.error("No assistant selected for editing.");
+            return;
+        }
+        setIsSubmitting(true);
+        clearErrors();
+        
+        toastIdRef.current = toast.loading("Updating assistant...", { id: toastIdRef.current });
+        
+        try {
+            // Validations
+            if (data.user_phone && !data.user_phone_isVerified) {
+                setError("user_phone", { type: "manual", message: "Your phone number must be verified." });
+                throw new Error("Your phone number must be verified.");
+            }
+            if (data.social_accounts && data.social_accounts.some(acc => acc.identifier && !acc.isVerified)) {
+                toast.error("All added social accounts must be verified before saving.");
+                throw new Error("Unverified social accounts.");
+            }
+
+            // Construct payload with only changed fields
+            const payload: Partial<AssistantUpdatePayload> = {};
+
+            if (data.about !== editingAssistant.about) payload.about = data.about;
+            if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
+            if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
+            
+            const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
+            const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
+            if (user_whatsapp_number !== editingAssistant.user_whatsapp_number) payload.user_whatsapp_number = user_whatsapp_number;
+            
+            // Image upload logic
+            if (data.imageFile) {
+                const formData = new FormData();
+                formData.append('file', data.imageFile);
+                const photoUploadResult = await assistantActions.photo.upload(formData);
+                if ((photoUploadResult as ResponseProps).detail) {
+                    throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
+                }
+                payload.profile_photo = (photoUploadResult as PhotoUploadResponse).gcs_url;
+            }
+
+            // New voice registration logic
+            if (data.voice_id && !data.voice_exists) {
+                 const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
+                 const voiceCreationResponse = await assistantActions.voice.register(data.voice_id, provider, data.voice_name!, data.voice_description!, data.voice_gender!, data.voice_language!, false);
+                 if ('detail' in voiceCreationResponse) throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
+            }
+
+            if (Object.keys(payload).length > 0) {
+                const updateResult = await assistantActions.assistant.update(editingAssistant.agent_id, payload);
+                if ((updateResult as ResponseProps).detail) {
+                    throw new Error((updateResult as ResponseProps).detail);
+                }
+                toast.success(`Assistant ${data.first_name} updated!`, { id: toastIdRef.current });
+            } else {
+                toast.info("No changes to save.", { id: toastIdRef.current });
+            }
+
+            toastIdRef.current = undefined;
+            if (onUpdateSuccess) onUpdateSuccess();
+
+        } catch (error: any) {
+             const isRHFError = !!(hireFormMethods.formState.errors.user_phone || hireFormMethods.formState.errors.social_accounts);
+             if (!isRHFError) toast.error(`${error.message}. Update aborted.`, { id: toastIdRef.current });
+             else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
+             
+             toastIdRef.current = undefined;
+             console.error(`[useAssistantHireForm] Update process failed: ${error.message}`, error);
+        } finally {
+            setIsSubmitting(false);
+        }
+    });
+
+    /* ------------------------- 
+        Hiring new assistant 
+       ------------------------- */
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
         clearErrors();
@@ -431,7 +544,7 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
-                if (onSuccess) onSuccess(assistantCreationResult.assistant);
+                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant);
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);
@@ -553,15 +666,20 @@ export function useAssistantHireForm(
 
     return {
         hireFormMethods,
+        // Hire
         initiateHireSequence,
         isCheckingBalance,
-        isSubmitting,
         showInsufficientFundsHint,
         setShowInsufficientFundsHint,
         handleImageRemove,
         selectPreset,
-        resetForm: resetFormAndHints,
         rhfInternalFormSubmit: RHFSubmitHandler,
+        // Edit
+        loadAssistantForEdit,
+        initiateUpdate: initiateUpdateSequence,
+        // Common
+        isSubmitting,
+        resetForm: resetFormAndHints,
         fetchedAssistantEmails,
         isLoadingEmails,
         availablePhoneCountries,

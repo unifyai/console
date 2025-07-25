@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -14,6 +13,7 @@ import { AssistantProfilePanel } from './Assistants/AssistantProfile';
 import { AssistantActivityLogPanel } from './Assistants/Activity/AssistantActivityLogPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Assistants/Hire/AssistantHire';
+import { AssistantEdit } from './Assistants/Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Team/Assistants/Hire/AssistantHireForm';
 import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
 
@@ -117,8 +117,9 @@ export default function Main({
     });
 
 
-    // --- Hire Assistant Dialog & Form ---
+    // --- Dialogs & Forms ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
+    const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
 
@@ -154,6 +155,7 @@ export default function Main({
         currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
 
+    // --- Callbacks for form success ---
     const handleHireSuccess = React.useCallback((newAssistant: Assistant) => {
         refreshAssistants(false);
         setIsHireDialogOpen(false);
@@ -161,21 +163,28 @@ export default function Main({
         refreshHiringProfile();
     }, [refreshAssistants, handleShowProfile, refreshHiringProfile]);
 
+    const handleUpdateSuccess = React.useCallback(() => {
+        refreshAssistants(false);
+        setAssistantToEdit(null);
+    }, [refreshAssistants]);
+    
+    // --- Combined Hire/Edit Form Hook ---
     const {
         hireFormMethods,
         initiateHireSequence,
         isCheckingBalance,
-        isSubmitting: isHireFormSubmitting,
+        isSubmitting: isFormSubmitting,
         showInsufficientFundsHint,
         setShowInsufficientFundsHint,
         selectPreset: selectPresetForHireForm,
         resetForm: resetHireFormInternal,
-        rhfInternalFormSubmit,
+        loadAssistantForEdit,
+        initiateUpdate,
         fetchedAssistantEmails,
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
-    } = useAssistantHireForm(assistantActions, handleHireSuccess, isHireDialogOpen, availableSocialPlatforms);
+    } = useAssistantHireForm(assistantActions, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
     
     // --- Voice Options Management ---
     const hireFormRegion = hireFormMethods.watch("region");
@@ -184,11 +193,11 @@ export default function Main({
     const handleVoiceDeleted = React.useCallback((deletedVoiceId: string) => {
         const { getValues, setValue } = hireFormMethods;
         if (getValues("voice_id") === deletedVoiceId) {
-            setValue("voice_id", null as any); // RHF Typing with null can be tricky
+            setValue("voice_id", null as any); 
             setValue("voice_name", "");
             setValue("voice_description", "");
-            setValue("voice_gender", "female"); // Reset to a default
-            setValue("voice_language", "en"); // Reset to a default
+            setValue("voice_gender", "female");
+            setValue("voice_language", "en"); 
             setValue("voice_provider", VOICE_PROVIDER);
             setValue("voice_exists", false);
         }
@@ -221,6 +230,11 @@ export default function Main({
         });
     }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, refreshHiringProfile]);
 
+    const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
+        loadAssistantForEdit(assistant);
+        setAssistantToEdit(assistant);
+    }, [loadAssistantForEdit]);
+
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
             toast.info("No presets match filters.");
@@ -231,11 +245,6 @@ export default function Main({
     };
     
     // Profile Panel Actions
-    const onUpdateProfileSubmit = async (id: string, payload: Partial<AssistantUpdatePayload>) => {
-        const success = await updateAssistantProfile(id, payload);
-        if (!success) throw new Error("Update failed in hook.");
-    };
-
     const onDeleteAssistantSubmit = async (assistant: Assistant) => {
         const success = await deleteAssistant(assistant);
         if (success) {
@@ -257,10 +266,7 @@ export default function Main({
                 handleOpenHireDialog();
             }
         }
-    }, [
-        assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails,
-        userHiringApprovalStatus, isHireDialogOpen
-    ]);
+    }, [ assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails, userHiringApprovalStatus, isHireDialogOpen ]);
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
@@ -273,7 +279,6 @@ export default function Main({
                              : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[350px] xl:w-[400px]" 
                              : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
-
     const panelBaseWidth = activeSidePanelCount === 2 ? "20%" : "25%";
 
 
@@ -314,11 +319,8 @@ export default function Main({
                             <AssistantProfilePanel
                                 assistant={profileAssistant}
                                 onClose={handleProfileClose}
-                                onUpdateProfile={onUpdateProfileSubmit}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
-                                assistantActions={assistantActions}
-                                availableSocialPlatforms={availableSocialPlatforms}
-                                isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                                onEdit={handleOpenEditDialog}
                             />
                         </motion.div>
                     )}
@@ -354,7 +356,7 @@ export default function Main({
                         fetchMoreTasks={fetchMoreTasks}
                         hasMoreTasks={hasMoreTasks}
                         isLoadingMore={isLoadingMoreTasks}
-                        isLoadingInitial={isCombinedLoadingInitial} 
+                        isLoadingInitial={isCombinedLoadingInitial}
                         initialLoadError={taskLoadError}
                         searchTerm={searchTermInput}
                         setSearchTerm={setSearchTermInput}
@@ -373,11 +375,13 @@ export default function Main({
                     />
                 </div>
             </div>
+
+            {/* Dialogs */}
             <FormProvider {...hireFormMethods}>
                 <AssistantHire
                     formMethods={hireFormMethods}
                     isHireDialogOpen={isHireDialogOpen}
-                    isHireSubmitting={isHireFormSubmitting}
+                    isHireSubmitting={isFormSubmitting}
                     setIsHireDialogOpen={setIsHireDialogOpen}
                     isAssistantPresetsOpen={isAssistantPresetsOpen}
                     setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
@@ -396,8 +400,8 @@ export default function Main({
                 >
                     <HireForm
                         formMethods={hireFormMethods}
-                        onSubmit={rhfInternalFormSubmit}
-                        isSubmitting={isHireFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
+                        onSubmit={initiateHireSequence}
+                        isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
                         assistantActions={assistantActions}
                         onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                         allAssistantEmails={fetchedAssistantEmails}
@@ -410,22 +414,48 @@ export default function Main({
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
                         deleteUserVoice={deleteUserVoice}
+                        mode="hire"
                     />
                     <PresetsPanel                                    
-                        displayedPresets={displayedPresets}
-                        onPresetSelect={selectPresetForHireForm}
+                        displayedPresets={displayedPresets} onPresetSelect={selectPresetForHireForm}
                         onClose={() => setIsAssistantPresetsOpen(false)}
-                        onLoadMore={loadMorePresets}
-                        canLoadMore={canLoadMorePresets}
-                        isLoadingMore={isLoadingMorePresets}
-                        ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter}
-                        availableAgeBrackets={availableAgeBrackets}
-                        regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter}
-                        availableRegions={availableRegions}
-                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter}
-                        availableGenders={availableGenders} 
+                        onLoadMore={loadMorePresets} canLoadMore={canLoadMorePresets} isLoadingMore={isLoadingMorePresets}
+                        ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter} availableAgeBrackets={availableAgeBrackets}
+                        regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter} availableRegions={availableRegions}
+                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter} availableGenders={availableGenders} 
                     />
                 </AssistantHire>
+
+                {assistantToEdit && (
+                    <AssistantEdit
+                        isOpen={!!assistantToEdit}
+                        onClose={() => setAssistantToEdit(null)}
+                        assistant={assistantToEdit}
+                        formMethods={hireFormMethods}
+                        onSubmit={initiateUpdate}
+                        isSubmitting={isFormSubmitting}
+                        isProcessingVoice={isDialogBusyProcessingVoice}
+                    >
+                         <HireForm
+                            formMethods={hireFormMethods}
+                            onSubmit={initiateUpdate}
+                            isSubmitting={isFormSubmitting}
+                            assistantActions={assistantActions}
+                            onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
+                            allAssistantEmails={fetchedAssistantEmails}
+                            isLoadingEmails={isLoadingEmails}
+                            availablePhoneCountries={availablePhoneCountries}
+                            isLoadingCountries={isLoadingCountries}
+                            availableSocialPlatforms={availableSocialPlatforms}
+                            isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                            allDisplayableVoices={allDisplayableVoices}
+                            isLoadingUserVoices={isLoadingUserVoices}
+                            fetchUserVoices={fetchUserVoices}
+                            deleteUserVoice={deleteUserVoice}
+                            mode="edit"
+                        />
+                    </AssistantEdit>
+                )}
             </FormProvider>
         </>
     );

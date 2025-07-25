@@ -78,16 +78,16 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
 
     const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
-        setValue('user_phone', newValue);
+        setValue('user_phone', newValue, { shouldDirty: true });
         if (getValues('user_phone_isVerified')) {
-            setValue('user_phone_isVerified', false);
+            setValue('user_phone_isVerified', false, { shouldDirty: true });
         }
     };
     
     return (
         <div className="space-y-2">
              <div className="flex items-center gap-2">
-                <Input id="user_phone" type="tel" value={phoneValue || ''} placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting} onChange={handlePhoneInputChange} />
+                <Input id="user_phone" type="tel" value={phoneValue || ''} placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} onChange={handlePhoneInputChange} />
                 {isPhoneVerified ? (
                      <Button type="button" variant="default" className="h-9" disabled>
                         <CheckCircle2 className="mr-2 h-4 w-4" /> Verified
@@ -149,6 +149,7 @@ export interface HireFormProps {
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
   deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
+  mode?: 'hire' | 'edit';
 }
 
 export function HireForm({
@@ -167,6 +168,7 @@ export function HireForm({
     isLoadingUserVoices,
     fetchUserVoices,
     deleteUserVoice,
+    mode = 'hire',
 }: HireFormProps) {
   const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
   const { fields, append, remove } = useFieldArray({
@@ -223,7 +225,7 @@ export function HireForm({
     if (allDisplayableVoices.length === 0) return;
 
     const preferredLanguage = getLangCodeForRegion(rhfRegion);
-    if (!preferredLanguage) return; // No specific language for this region
+    if (!preferredLanguage) return; 
 
     const currentVoiceId = getValues("voice_id");
     const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
@@ -253,14 +255,14 @@ export function HireForm({
   React.useEffect(() => {
     if (rhfEmail && rhfEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
         const local = rhfEmail.substring(0, rhfEmail.length - EMAIL_DOMAIN_WITH_AT.length);
-        if (local !== emailLocalPart) { // Avoid unnecessary state updates
+        if (local !== emailLocalPart) { 
             setEmailLocalPart(local);
         }
-    } else if (rhfEmail) { // If email doesn't have domain (e.g. invalid state), show as is
+    } else if (rhfEmail) { 
          if (rhfEmail !== emailLocalPart) {
             setEmailLocalPart(rhfEmail);
          }
-    } else { // If RHF email is empty
+    } else { 
         if (emailLocalPart !== '') {
             setEmailLocalPart('');
         }
@@ -290,9 +292,9 @@ export function HireForm({
 
 
   const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newLocalPart = event.target.value.replace(/[@\s]/g, ''); // Prevent @ or spaces
-    setEmailLocalPart(newLocalPart); // Update local state for the input
-    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true }); // Update RHF's full email
+    const newLocalPart = event.target.value.replace(/[@\s]/g, ''); 
+    setEmailLocalPart(newLocalPart); 
+    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true }); 
     setValue("emailManuallyEdited", true);
     trigger("email");
   };
@@ -340,6 +342,8 @@ export function HireForm({
     return null;
   }, [rhfVoiceId, rhfVoiceLanguage, rhfVoiceGender, rhfVoiceName, rhfVoiceDescription, rhfIsPresetPristine, getValues]);
 
+  const isEditMode = mode === 'edit';
+
   return (
     <FormProvider {...formMethods}>
         <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
@@ -353,17 +357,17 @@ export function HireForm({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1 pt-1">
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="first_name">First Name</Label>
-                    <Input id="first_name" {...register("first_name", { required: "First name is required" })} />
+                    <Input id="first_name" {...register("first_name", { required: "First name is required" })} disabled={isEditMode} />
                     {errors.first_name && <p className="text-sm font-medium text-destructive mt-1">{errors.first_name.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="surname">Last Name</Label>
-                    <Input id="surname" {...register("surname", { required: "Last name is required" })} />
+                    <Input id="surname" {...register("surname", { required: "Last name is required" })} disabled={isEditMode} />
                     {errors.surname && <p className="text-sm font-medium text-destructive mt-1">{errors.surname.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="age">Age</Label>
-                    <Input id="age" type="number" {...register("age", { valueAsNumber: true, min: { value: 18, message: "Age must be at least 18" }, max: { value: 70, message: "Age must be 70 or less" } })} />
+                    <Input id="age" type="number" {...register("age", { valueAsNumber: true, min: { value: 18, message: "Age must be at least 18" }, max: { value: 70, message: "Age must be 70 or less" } })} disabled={isEditMode} />
                     {errors.age && <p className="text-sm font-medium text-destructive mt-1">{errors.age.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
@@ -371,7 +375,7 @@ export function HireForm({
                         <Select
                             value={rhfRegion || ''}
                             onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isEditMode}
                         >
                             <SelectTrigger id="region" {...register("region", { required: "Region is required." })}>
                                 <SelectValue placeholder="Select a region..." />
@@ -476,93 +480,97 @@ export function HireForm({
 
                 <Separator />
 
-                {/* Assistant Contact Section */}
-                <div className="space-y-2">
-                <div className='flex gap-2 items-center text-muted-foreground'>
-                    <Smartphone className="h-4 w-4"/>
-                    <Label className="text-base font-semibold">Assistant Contact</Label>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
-                    <div className="col-span-2 sm:col-span-1">
-                        <div className="flex flex-row gap-2 items-center pb-1">
-                            <Label htmlFor="country">Assistant Phone Number Country</Label>
-                            <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                    <p>{"Assistant phone number will be provisioned upon hiring."}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                            </TooltipProvider>
+                {/* Assistant Contact Section (Hire Mode Only) */}
+                {mode === 'hire' && (
+                    <div className="space-y-2">
+                        <div className='flex gap-2 items-center text-muted-foreground'>
+                            <Smartphone className="h-4 w-4"/>
+                            <Label className="text-base font-semibold">My Contact</Label>
                         </div>
-                        <Select
-                            value={rhfCountry}
-                            onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
-                            disabled={isSubmitting || isLoadingCountries}
-                        >
-                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
-                            <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {isLoadingCountries ? (
-                                    <SelectItem value="loading" disabled>Loading...</SelectItem>
-                                ) : (
-                                    availablePhoneCountries.map(country => (
-                                        <SelectItem key={country.code} value={country.code}>
-                                            <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
-                                        </SelectItem>
-                                    ))
-                                )}
-                            </SelectContent>
-                        </Select>
-                        {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
+                            <div className="col-span-2 sm:col-span-1">
+                                <div className="flex flex-row gap-2 items-center pb-1">
+                                    <Label htmlFor="country">Assistant Phone Number Country</Label>
+                                    <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                            <p>{"Assistant phone number will be provisioned upon hiring."}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <Select
+                                    value={rhfCountry}
+                                    onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
+                                    disabled={isSubmitting || isLoadingCountries}
+                                >
+                                    <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
+                                    <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {isLoadingCountries ? (
+                                            <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                        ) : (
+                                            availablePhoneCountries.map(country => (
+                                                <SelectItem key={country.code} value={country.code}>
+                                                    <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
+                                                </SelectItem>
+                                            ))
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                            </div>
+                            <div className="flex flex-col pb-1">
+                                <Label htmlFor="email_local_part">Assistant Email</Label>
+                                <div className="flex items-center rounded-md pt-1.5">
+                                    <Input
+                                        id="email_local_part" 
+                                        type="text"
+                                        value={emailLocalPart}
+                                        onChange={handleLocalPartChange}
+                                        placeholder="new-assistant"
+                                        className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
+                                        aria-describedby="email_domain_part"
+                                        disabled={isSubmitting || isLoadingEmails}
+                                    />
+                                    <span
+                                        id="email_domain_part"
+                                        className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
+                                    >
+                                        {EMAIL_DOMAIN_WITH_AT}
+                                    </span>
+                                </div>
+                                <input type="hidden" {...register("email", {
+                                    required: "Email is required",
+                                    pattern: {
+                                        value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
+                                        message: `Valid email must end with ${EMAIL_DOMAIN_WITH_AT}`
+                                    },
+                                    validate: (value) => {
+                                        if (value.startsWith('@')) return `Email local part cannot be empty.`;
+                                        if (allAssistantEmails.includes(value)) {
+                                            return "This email is already in use by another assistant.";
+                                        }
+                                        return true;
+                                    }
+                                })} />
+                                {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
+                            </div>
+                            </div>
+                        <Separator />
                     </div>
-                    <div className="flex flex-col pb-1">
-                        <Label htmlFor="email_local_part">Assistant Email</Label>
-                        <div className="flex items-center rounded-md pt-1.5">
-                            <Input
-                                id="email_local_part" 
-                                type="text"
-                                value={emailLocalPart}
-                                onChange={handleLocalPartChange}
-                                placeholder="new-assistant"
-                                className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
-                                aria-describedby="email_domain_part"
-                                disabled={isSubmitting || isLoadingEmails}
-                            />
-                            <span
-                                id="email_domain_part"
-                                className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
-                            >
-                                {EMAIL_DOMAIN_WITH_AT}
-                            </span>
-                        </div>
-                        <input type="hidden" {...register("email", {
-                            required: "Email is required",
-                            pattern: {
-                                value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
-                                message: `Email must use valid characters and end with ${EMAIL_DOMAIN_WITH_AT}`
-                            },
-                            validate: (value) => {
-                                if (value.startsWith('@')) return `Email local part cannot be empty.`;
-                                if (allAssistantEmails.includes(value)) {
-                                    return "This email is already in use by another assistant.";
-                                }
-                                return true;
-                            }
-                        })} />
-                        {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
-                    </div>
-                    </div>
-                </div>
+                )}
+
 
                 {/* Your Contact Section */}
                 <div className="space-y-2">
                 <div className='flex gap-2 items-center text-muted-foreground'>
                     <User className="h-4 w-4"/>
-                    <Label className="text-base font-semibold">Your Contact</Label>
+                    <Label className="text-base font-semibold">Where Can I Reach Out?</Label>
                 </div>
                 <div className="space-y-3 pt-1">
                     <div className="flex flex-col">
