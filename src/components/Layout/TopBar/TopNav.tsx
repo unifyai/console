@@ -74,10 +74,10 @@ export default function TopNav() {
         <nav className="hidden md:flex items-center space-x-6 absolute left-1/2 -translate-x-1/2">
           {/* Assistants - Direct Link */}
           <Link
-            href="/team"
+            href="/assistants"
             className={cn(
               "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-              pathname === '/team' || pathname.startsWith('/team/')
+              pathname === '/assistants' || pathname.startsWith('/assistants/')
                 ? "text-[color:var(--primary)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}

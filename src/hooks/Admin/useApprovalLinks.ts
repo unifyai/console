@@ -113,7 +113,7 @@ export function useApprovalLinks (adminApprovalActions: AdminApprovalActions) {
             refreshLinksList(); 
 
             if (typeof window !== "undefined") {
-                return `${window.location.origin}/team?token=${linkData.token}`;
+                return `${window.location.origin}/assistants?token=${linkData.token}`;
             }
             return null; // Should not happen if called from button, but good practice
         }

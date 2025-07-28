@@ -203,7 +203,7 @@ export default function NavMenu() {
   }, []); 
 
   const navItemsFromList = NavListSource();
-  const teamItem = navItemsFromList.find(item => item.title === "Team");
+  const assistantsItem = navItemsFromList.find(item => item.title === "Assistants");
   const interfacesMainItem = navItemsFromList.find(item => item.title === "Interfaces");
   const billingItem = navItemsFromList.find(item => item.title === "Billing");
 
@@ -412,7 +412,7 @@ export default function NavMenu() {
 
       <SidebarContent className="list-none flex flex-col h-full mt-2">
         <div className="flex-grow px-0.5">
-          {teamItem && renderMenuItem(teamItem, isActive(teamItem))}
+          {assistantsItem && renderMenuItem(assistantsItem, isActive(assistantsItem))}
           
           {interfacesMainItem && (
             <>

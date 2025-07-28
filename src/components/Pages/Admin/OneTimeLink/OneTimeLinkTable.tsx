@@ -88,7 +88,7 @@ export function OneTimeLinkTable({
 
     const handleCopyToClipboard = (token: string) => {
         if (typeof window !== "undefined") {
-            const fullUrl = `${window.location.origin}/team?token=${token}`;
+            const fullUrl = `${window.location.origin}/assistants?token=${token}`;
             navigator.clipboard.writeText(fullUrl).then(() => {
                 setCopiedToken(token);
                 showSuccessToast("Full link copied to clipboard!");

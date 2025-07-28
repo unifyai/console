@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processPhoneCountryCodes } from "@/utils/team/country-utils";
+import { processPhoneCountryCodes } from "@/utils/assistants/country-utils";
 
 const baseUrl = `${process.env.COMMUNICATION_URL}`;
 
