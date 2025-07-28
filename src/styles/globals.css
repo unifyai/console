@@ -50,6 +50,9 @@
 
     --ring: var(--light-neutral-grey);
 
+    --favourite: #BA8E23
+    ;
+
     --radius: 0.5rem;
 
     --chart-1: #e8623c; 
@@ -100,6 +103,8 @@
     --card-foreground: var(--white-smoke);
 
     --ring: var(--dark-slate-gray);
+
+    --favourite: #FFD600;
 
     --radius: 0.5rem;
 

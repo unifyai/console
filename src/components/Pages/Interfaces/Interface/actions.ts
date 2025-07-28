@@ -36,7 +36,8 @@ export interface InterfacePageActions {
 export async function createProject(
   name: string,
   actions: ProjectsActions,
-  existingProjects: string[]
+  existingProjects: string[],
+  icon?: string
 ): Promise<{ success: boolean; error?: string; projectName?: string }> {
   if (!name.trim()) {
     return { success: false, error: "Project name is required." };
@@ -50,7 +51,8 @@ export async function createProject(
     if (!actions || typeof actions.create !== 'function') {
       throw new Error('Project actions not available');
     }
-    const response = await actions.create(name.trim());
+    // Backend now supports icon field
+    const response = await (actions as any).create(name.trim(), icon); // cast any to support extended signature
     if ("info" in response) {
       showSuccessToast("Project created successfully");
       return { success: true, projectName: name.trim() };

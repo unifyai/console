@@ -41,6 +41,8 @@ import { useQueryClient, QueryClient } from '@tanstack/react-query'
 import BaseDialog from '@/components/Common/Dialogs/Base'
 import { Input } from '@/components/UI/input'
 import { Label } from '@/components/UI/label'
+import { IconPicker, Icon } from '@/components/UI/icon-picker'
+import { IconSelector } from '@/components/UI/icon-selector'
 import SubmitButton from '@/components/Common/Buttons/Submit'
 import { Alert, AlertDescription } from '@/components/UI/alert'
 import { HexColorPicker } from "react-colorful"
@@ -84,6 +86,7 @@ import { debounce } from 'lodash'
 import { CSSProperties } from 'react'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover'
 import { useTheme } from 'next-themes'
+import { createInterface as createInterfaceAction } from './actions';
 
 interface InterfaceNavProps {
   interfaceId: string
@@ -114,6 +117,8 @@ interface InterfaceNavProps {
 
 interface ProjectItemProps {
   project: string
+  icon?: string
+  favourite?: boolean
   currentInterfaceId: string
   expandedProjects: Set<string>
   toggleProject: (projectId: string) => void
@@ -129,6 +134,9 @@ interface ProjectItemProps {
   onRefresh: () => void
   refreshStatus: 'idle' | 'loading' | 'success'
   projectsRefreshing: boolean
+  prefetchedInterfaces: string[]
+  isSidebarCollapsed: boolean
+  onFavouritesUpdate: (favs: Favourite[]) => void
 }
 
 interface InterfaceItemProps {
@@ -282,7 +290,7 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="start" className="w-56">
+                <DropdownMenuContent side="right" align="start" className="w-56" onPointerDown={(e)=>e.stopPropagation()} onClick={(e)=>e.stopPropagation()}>
                   <DropdownMenuItem 
                     onSelect={() => setRenameDialogOpen(true)} 
                     className="flex items-center gap-2"
@@ -355,6 +363,8 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
 
 const ProjectItem: React.FC<ProjectItemProps> = ({ 
   project, 
+  icon,
+  favourite,
   currentInterfaceId, 
   expandedProjects,
   toggleProject,
@@ -369,75 +379,83 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   onNavigate,
   onRefresh,
   refreshStatus,
-  projectsRefreshing
+  projectsRefreshing,
+  prefetchedInterfaces,
+  isSidebarCollapsed,
+  onFavouritesUpdate
 }) => {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { data: interfaces = [], isLoading, refetch: refetchInterfaces, isError, error } = useListInterfacesQuery(project, interfaceActions)
-
-  // Track whether we've already shown a toast for this fetch error to avoid duplicates
-  const errorToastShown = useRef(false);
-
-  useEffect(() => {
-    if (isError && !errorToastShown.current) {
-      showErrorToast(`Failed to load interfaces for project "${project}".`);
-      errorToastShown.current = true;
-    }
-    if (!isError) {
-      errorToastShown.current = false;
-    }
-  }, [isError, project]);
-
-  const handleManualRefetch = async () => {
-    try {
-        await withLoadingToast(
-            async () => {
-                await refetchInterfaces();
-            },
-            {
-                loading: 'Fetching interfaces...',
-                success: 'Interfaces loaded!',
-                error: 'Failed to fetch interfaces.'
-            },
-            1500 // Slightly longer delay for manual refresh to allow toast visibility
-        );
-    } catch (err) {
-        console.error("Manual interface refetch failed:", err);
-    }
-  };
+  const currentProjectActive = searchParams.get('project') === project;
+  const interfaces = (prefetchedInterfaces || []).map((name:string)=>({id:undefined, name}));
+  const refetchInterfaces = () => Promise.resolve();
 
   const isExpanded = expandedProjects.has(project)
-  const hasInterfaces = interfaces.length > 0
-  const hasSingleInterface = interfaces.length === 1
-  const singleIsDefault = hasSingleInterface && interfaces[0].name === 'Default'
-  const hasExpandableInterfaces = interfaces.length > 1 || (hasSingleInterface && !singleIsDefault)
-  const isDefaultActive = singleIsDefault && interfaces[0].id === currentInterfaceId && pathname === '/interfaces'
-  const hasActiveInterface = interfaces.some((iface: any) => iface.id === currentInterfaceId)
+  const ifaceList = interfaces;
+  const hasInterfaces = ifaceList.length > 0
+  const hasSingleInterface = ifaceList.length === 1
+  const singleIsDefault = hasSingleInterface && ifaceList[0].name === 'Default'
+  const hasExpandableInterfaces = ifaceList.length > 1 || (hasSingleInterface && !singleIsDefault)
+  const isDefaultActive = currentProjectActive && singleIsDefault && ifaceList[0].name === 'Default' && pathname === '/interfaces'
+  const hasActiveInterface = ifaceList.some((iface: any) => iface.name === currentInterfaceId || iface.id === currentInterfaceId)
   
   // Favourite state
   const [isFavouriting, setIsFavouriting] = useState(false)
+  const [iconDialogOpen, setIconDialogOpen] = useState(false);
+  const [displayIcon, setDisplayIcon] = useState<string | undefined>(icon);
+  const [newIcon, setNewIcon] = useState<string | undefined>(icon);
+  useEffect(()=>{ setDisplayIcon(icon); }, [icon]);
+  const [isSavingIcon, setIsSavingIcon] = useState(false);
   const currentFavourite = useMemo(() => 
     favourites?.find(fav => fav.project === project) || null,
     [favourites, project]
   )
 
-  const handleProjectClick = () => {
-    if (isLoading || projectsRefreshing) return;
+  const handleProjectClick = async () => {
+    if (projectsRefreshing) return;
     if (isDefaultActive) return; // Already on this interface
-    
-    if (hasSingleInterface && singleIsDefault && interfaces[0].id) {
+
+    if (isSidebarCollapsed) {
+      // Navigate to last interface (take first from list or prefetched)
+      const targetIface = ifaceList.length ? ifaceList[ifaceList.length-1].name : undefined;
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.set('project', project);
+      if (targetIface) newParams.set('interface', targetIface);
+      onNavigate(`?${newParams.toString()}`);
+      return;
+    }
+ 
+    // If there is exactly one interface named "Default", navigate to it directly
+    if (hasSingleInterface && singleIsDefault) {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.set('project', project)
-      newParams.set('interface', interfaces[0].name)
+      newParams.set('interface', ifaceList[0].name)
       onNavigate(`?${newParams.toString()}`)
     } else if (hasExpandableInterfaces) {
       toggleProject(project)
     } else {
-       // No interfaces yet – just navigate to the project base so the user can create one or view info
-       const newParams = new URLSearchParams(searchParams.toString())
-       newParams.set('project', project)
-       onNavigate(`?${newParams.toString()}`)
+       // No interfaces yet – automatically create a Default interface for smoother UX
+       try {
+         const existing: any[] = [];
+         const res = await createInterfaceAction('Default', project, queryClient, { interfaces: interfaceActions, tabs: tabActions, tiles: tileActions }, existing);
+         if(res.success && res.interface?.name){
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.set('project', project);
+            newParams.set('interface', res.interface.name);
+            onNavigate(`?${newParams.toString()}`);
+         } else {
+            // Fallback navigate to project base
+            const newParams = new URLSearchParams(searchParams.toString())
+            newParams.set('project', project)
+            onNavigate(`?${newParams.toString()}`)
+         }
+       } catch(err){
+         console.error('Failed to auto-create Default interface', err);
+         const newParams = new URLSearchParams(searchParams.toString())
+         newParams.set('project', project)
+         onNavigate(`?${newParams.toString()}`)
+       }
     }
   }
 
@@ -445,47 +463,144 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   
   const handleToggleFavourite = async () => {
     setIsFavouriting(true)
-    await toggleFavourite(project, currentFavourite, favouritesActions, favourites)
+    const res = await toggleFavourite(project, currentFavourite, favouritesActions, favourites)
+    if(res.success && res.newFavourites){
+       onFavouritesUpdate(res.newFavourites)
+    }
     setIsFavouriting(false)
   }
 
+  const saveIcon = async (iconName: string) => {
+     if(iconName === icon) return;
+     setNewIcon(iconName);
+     setDisplayIcon(iconName);
+     setIsSavingIcon(true);
+     try {
+        // PATCH project icon via api route
+        const res = await fetch(`/api/project/${encodeURIComponent(project)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ icon: iconName })
+        });
+        if(!res.ok){ throw new Error('Failed to update icon'); }
+        // Refresh cached project list
+        await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'projects' });
+        setIconDialogOpen(false);
+     } catch(err){ console.error('save icon',err); }
+     setIsSavingIcon(false);
+  };
+  // Keep backward compatibility for Save button
+  const handleSaveIcon = async () => {
+     if(!newIcon) { setIconDialogOpen(false); return; }
+     await saveIcon(newIcon);
+  }
+  const handleIconSelect = (iconName: string) => {
+     setNewIcon(iconName);
+     setDisplayIcon(iconName);
+  }
+
+  if (isSidebarCollapsed) {
+    // Compact view – just icon buttons stacked
+    return (
+      <button
+        onClick={handleProjectClick}
+        className={cn(
+          "w-full flex justify-center py-2 hover:text-foreground transition-colors",
+          (currentProjectActive || hasActiveInterface) ? "text-primary" : favourite ? "text-[color:var(--favourite)]" : "text-muted-foreground"
+        )}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {icon && (
+              (() => {
+                const activeFav = favourite && (currentProjectActive || hasActiveInterface);
+                const favOnly = favourite && !activeFav;
+                if (/[^a-zA-Z0-9_-]/.test(displayIcon ?? "")) {
+                  return <span className={cn("text-lg leading-none",
+                    favOnly && "text-[color:var(--favourite)]",
+                    activeFav && "text-[color:var(--primary)]"
+                  )}>{icon}</span>;
+                }
+                return (
+                  <Icon
+                    name={displayIcon as any}
+                    className={cn("h-5 w-5",
+                      favOnly && "text-[color:var(--favourite)]",
+                      activeFav && "text-[color:var(--primary)]"
+                    )}
+                  />
+                );
+              })()
+            )}
+          </TooltipTrigger>
+          <TooltipContent side="right">{project}</TooltipContent>
+        </Tooltip>
+      </button>
+    );
+  }
+
+  // Expanded view
   return (
     <>
       <div className="flex items-center gap-1 group">
-        <button
+        <div
           onClick={handleProjectClick}
+          role="button"
+          tabIndex={0}
           className={cn(
             "flex-1 text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center gap-1",
-            "text-[color:var(--muted-foreground)]",
+            favourite ? "text-[color:var(--favourite)]" : "text-[color:var(--muted-foreground)]",
             "hover:text-[color:var(--foreground)]",
-            (isLoading || projectsRefreshing) ? "cursor-progress" : "cursor-pointer",
-            hasActiveInterface && "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
+            projectsRefreshing ? "cursor-progress" : "cursor-pointer",
+            (currentProjectActive || hasActiveInterface) && "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
           )}
         >
-          <div className="flex items-center gap-1 flex-1 min-w-0">
-            {project.length > 18 ? (
+          <div className="flex items-center gap-1 flex-1 min-w-0"> 
+            {icon && (
+              (() => {
+                const activeFav2 = favourite && (currentProjectActive || hasActiveInterface);
+                const favOnly2 = favourite && !activeFav2;
+                if (/[^a-zA-Z0-9_-]/.test(displayIcon ?? "")) {
+                  return <span className={cn("text-lg leading-none",
+                    favOnly2 && "text-[color:var(--favourite)]",
+                    activeFav2 && "text-[color:var(--primary)]"
+                  )}>{icon}</span>;
+                }
+                return (
+                  <Icon
+                    name={displayIcon as any}
+                    className={cn("h-5 w-5",
+                      favOnly2 && "text-[color:var(--favourite)]",
+                      activeFav2 && "text-[color:var(--primary)]"
+                    )}
+                  />
+                );
+              })()
+            )}
+            {!isSidebarCollapsed && (project.length > 15 ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="truncate min-w-0 max-w-[11rem]" >{project}</span>
+                  <span className="truncate min-w-0 max-w-[8rem]" >{project}</span>
                 </TooltipTrigger>
                 <TooltipContent side="right">{project}</TooltipContent>
               </Tooltip>
             ) : (
-              <span className="truncate min-w-0 max-w-[11rem]" >{project}</span>
-            )}
+              <span className="truncate min-w-0 max-w-[8rem]" >{project}</span>
+            ))}
             {/* Ellipsis dropdown (visible on hover) */}
-            <DropdownMenu>
+            {!isSidebarCollapsed && <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e)=> e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="start" className="w-56">
+              <DropdownMenuContent side="right" align="start" className="w-56" onPointerDown={(e)=>e.stopPropagation()} onClick={(e)=>e.stopPropagation()}>
                 <DropdownMenuItem onSelect={() => onProjectAction(project, 'create-interface')} className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   <span>Create Interface</span>
@@ -495,6 +610,10 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                   <span>Import Interface</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setIconDialogOpen(true); }} className="flex items-center gap-2">
+                  <SquareMousePointer className="h-4 w-4" />
+                  <span>Change Icon</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={handleToggleFavourite} disabled={isFavouriting} className="flex items-center gap-2">
                   {isFavouriting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -532,35 +651,13 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu>}
           </div>
-          {isDefaultActive && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRefresh();
-              }}
-            >
-              {refreshStatus === 'success' ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <RefreshCw className={cn('h-4 w-4', refreshStatus === 'loading' && 'animate-spin')} />
-              )}
-            </Button>
-          )}
-          {(isLoading || projectsRefreshing) ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : isError ? (
-            <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e)=>{e.stopPropagation(); handleManualRefetch()}}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          ) : hasExpandableInterfaces ? (
+          {/* Removed per-project refresh button to declutter UI */}
+          {!isSidebarCollapsed && hasExpandableInterfaces && (
             <ChevronRight className={cn('h-4 w-4 transition-transform duration-300', isExpanded && 'rotate-90')} />
-          ) : null}
-        </button>
+          )}
+        </div>
       </div>
       
 
@@ -568,10 +665,10 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
       <div 
         className={cn(
           "ml-3 relative overflow-hidden transition-all duration-300 ease-in-out",
-          isExpanded && (isLoading || hasExpandableInterfaces) ? "opacity-100" : "max-h-0 opacity-0"
+          isExpanded && (projectsRefreshing || hasExpandableInterfaces) ? "opacity-100" : "max-h-0 opacity-0"
         )}
         style={{
-          maxHeight: isExpanded && (isLoading || hasExpandableInterfaces) ? `${isLoading ? 50 : interfaces.length * 40 + 20}px` : '0px'
+          maxHeight: isExpanded && (projectsRefreshing || hasExpandableInterfaces) ? `${projectsRefreshing ? 50 : interfaces.length * 40 + 20}px` : '0px'
         }}
       >
         {/* Tree line */}
@@ -581,23 +678,18 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
         )} />
         
         <div className="space-y-0">
-          {(isLoading || projectsRefreshing) ? (
+          {projectsRefreshing ? (
             <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
               <RefreshCw className="h-3 w-3 animate-spin" />
               <span>Loading interfaces...</span>
             </div>
-          ) : (isError && interfaces.length === 0) ? (
-            <div className="flex items-center gap-2 pl-6 py-2 text-sm text-[color:var(--muted-foreground)]">
-              <RefreshCw className="h-4 w-4" />
-              <span>Failed to load</span>
-            </div>
           ) : (
-            interfaces.map((iface: any, index: number) => (
+            ifaceList.map((iface: any, index: number) => (
               <InterfaceItem
-                key={iface.id}
+                key={iface.id ?? iface.name}
                 iface={iface}
                 project={project}
-                isActive={pathname === '/interfaces' && currentInterfaceId === iface.id}
+                isActive={pathname === '/interfaces' && currentInterfaceId === iface.name}
                 isLast={index === interfaces.length - 1}
                 searchParams={searchParams}
                 router={router}
@@ -613,6 +705,18 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
             )}
           </div>
         </div>
+
+        {typeof window !== 'undefined' && iconDialogOpen && createPortal(
+          <BaseDialog
+            button={null as any}
+            open={iconDialogOpen}
+            setOpen={setIconDialogOpen}
+            title={`Select Icon for "${project}"`}
+            body={<IconSelector value={newIcon as any} onValueChange={(val: any)=> handleIconSelect(val)} />}
+            footer={<div className="flex gap-2"><Button variant="outline" onClick={()=> setIconDialogOpen(false)} disabled={isSavingIcon}>Cancel</Button><Button onClick={handleSaveIcon} disabled={isSavingIcon || !newIcon || newIcon===icon}>{isSavingIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Save</Button></div>}
+            disableClose={isSavingIcon}
+          />, document.body)}
+
     </>
   )
 }
@@ -645,8 +749,16 @@ export default function InterfaceNav({
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set([projectId]))
   const [hasScroll, setHasScroll] = useState(false)
   const [favourites, setFavourites] = useState<Favourite[]>(initialFavourites || [])
+  const handleFavouritesUpdate = (list: Favourite[]) => {
+    setFavourites(list);
+    // Refresh project tree so pinned section updates
+    queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'projects' });
+    // Also refresh the local project tree state so that the UI updates immediately
+    fetchProjectTree();
+  };
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectIcon, setNewProjectIcon] = useState<string | undefined>(undefined)
   const [createProjectError, setCreateProjectError] = useState('')
   const [isCreatingProject, setIsCreatingProject] = useState(false)
 
@@ -669,6 +781,65 @@ export default function InterfaceNav({
   const [renameProjectName, setRenameProjectName] = useState('')
   const [renameProjectError, setRenameProjectError] = useState('')
   const [isRenamingProject, setIsRenamingProject] = useState(false)
+
+  // New project tree state (icon + interfaces fetched in one call)
+  const [projectTree, setProjectTree] = useState<Array<{project:string; icon:string; interfaces:string[]; favorite:boolean; position:number|null}>>([]);
+
+  const fetchProjectTree = async () => {
+    try {
+      const res = await fetch('/api/projects/tree');
+      if(res.ok){
+        const data = await res.json();
+        setProjectTree(data);
+        setProjects(data.map((p:any)=>p.project));
+      } else {
+        const bodyText = await res.text();
+        console.error('fetchProjectTree failed', res.status, bodyText);
+      }
+    } catch(e){ console.error('Failed to fetch project tree', e); }
+  };
+
+  useEffect(() => { fetchProjectTree(); }, []);
+
+  // ------------------------------------------------------------
+  // Project list refresh watchdog (similar to interface switch)
+  // ------------------------------------------------------------
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Abort project refresh if it hangs for >30 s
+  const handleProjectRefresh = async () => {
+    if (projectsRefreshing) return;
+    setProjectsRefreshing(true);
+
+    // Start watchdog timer
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    refreshTimeoutRef.current = setTimeout(() => {
+      setProjectsRefreshing(false);
+      showErrorToast("Project list refresh timed out.");
+    }, 30000); // 30 s timeout
+
+    try {
+      await withLoadingToast(
+        async () => {
+          await fetchProjectTree();
+        },
+        {
+          loading: 'Refreshing project list...',
+          success: 'Project list refreshed!',
+          error: 'Failed to refresh projects.'
+        },
+        3000
+      );
+    } catch (err) {
+      console.error("Project refresh failed:", err);
+    } finally {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+      setProjectsRefreshing(false);
+    }
+  };
 
   const projects = useStoreContext((s) => s.projects)
 
@@ -730,7 +901,7 @@ export default function InterfaceNav({
     }
     
     setIsCreatingProject(true)
-    const result = await createProject(newProjectName, projectActions, projects)
+    const result = await createProject(newProjectName, projectActions, projects, newProjectIcon)
     
     if (result.success && result.projectName) {
       // Immediately create a default interface named "Default"
@@ -757,6 +928,7 @@ export default function InterfaceNav({
       setExpandedProjects(new Set([result.projectName]))
       setCreateProjectOpen(false)
       setNewProjectName('')
+      setNewProjectIcon(undefined)
     } else {
       setCreateProjectError(result.error || 'Failed to create project')
     }
@@ -987,29 +1159,7 @@ export default function InterfaceNav({
                     <span>Create Project</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onSelect={async () => {
-                      if (projectsRefreshing) return;
-                      setProjectsRefreshing(true);
-                      try {
-                        await withLoadingToast(
-                          async () => {
-                            await queryClient.invalidateQueries({ predicate: (q) => q.queryKey?.[0] === 'projects' });
-                            await queryClient.refetchQueries({ queryKey: ['projects'] });
-                          },
-                          {
-                            loading: 'Refreshing project list...',
-                            success: 'Project list refreshed!',
-                            error: 'Failed to refresh projects.'
-                          },
-                          3000 // 3-second delay before showing loading toast
-                        );
-                      } catch (err) {
-                        // error is already handled by the toast wrapper, but we catch to prevent unhandled promise rejections
-                        console.error("Project refresh failed:", err)
-                      } finally {
-                        setProjectsRefreshing(false);
-                      }
-                    }}
+                    onSelect={handleProjectRefresh}
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className={cn('h-4 w-4', projectsRefreshing && 'animate-spin')} />
@@ -1043,47 +1193,54 @@ export default function InterfaceNav({
         {/* Projects Section - Dynamic Height */}
         <div className={cn(
           "flex-1 min-h-0 transition-all duration-300 flex flex-col relative",
-          isCollapsed ? "h-0 opacity-0 overflow-hidden" : "opacity-100"
+          isCollapsed ? "overflow-x-hidden" : "opacity-100"
         )}>
-          {/* Projects list with dynamic scrolling using ScrollArea */}
-          <ScrollArea
-            ref={checkScroll as any}
-            className="flex-1 px-2 pb-4"
-          >
-            <div className="space-y-1">
-              {projects.map((project: string) => (
-                <ProjectItem
-                  key={project}
-                  project={project}
-                  currentInterfaceId={interfaceId}
-                  expandedProjects={expandedProjects}
-                  toggleProject={toggleProject}
-                  interfaceActions={interfaceActions}
-                  tabActions={tabActions}
-                  tileActions={tileActions}
-                  favouritesActions={favouritesActions}
-                  favourites={favourites}
-                  queryClient={queryClient}
-                  onProjectAction={(proj, action) => {
-                    setActiveProject(proj);
-                    if (action === 'rename') {
-                      setRenameProjectName(proj);
-                    }
-                    setProjectDialogOpen(action);
-                  }}
-                  onOpenThemeDialog={(ifaceId, color) => {
-                    setThemeInterfaceId(ifaceId);
-                    setThemeColor(color ?? '');
-                    setThemeDialogOpen(true);
-                  }}
-                  onNavigate={navigateSoft}
-                  onRefresh={onRefresh}
-                  refreshStatus={refreshStatus}
-                  projectsRefreshing={projectsRefreshing}
-                />
-              ))}
+          {/* Projects list container */}
+          <div className="flex-1 flex flex-col overflow-hidden px-2 pb-4">
+            <div className="space-y-1 flex flex-col flex-1 min-h-0">
+              {(projectTree.length === 0 || projectsRefreshing) ? (
+                <div className={cn("text-muted-foreground py-2", isCollapsed ? "flex justify-center" : "flex items-center gap-2 px-4")}> 
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {!isCollapsed && <span>{projectsRefreshing ? 'Refreshing projects…' : 'Loading projects…'}</span>}
+                </div>
+               ) : (
+                 <>
+                   {/* refresh indicator removed; hidden list during refresh */}
+                   {/* Favourites pinned */}
+                   <div className="space-y-1">
+                     {projectTree.filter((p:any)=>p.favorite).length>0 && !isCollapsed && (
+                       <div className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-muted-foreground">
+                         <Star className="h-3 w-3 text-[color:var(--favourite)]" />
+                         <span>Favourites</span>
+                       </div>
+                     )}
+                     {projectTree.filter((p:any)=>p.favorite).map((projItem:any)=>(
+                       <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={true} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
+                     ))}
+                   </div>
+
+                   {/* separator */}
+                   {projectTree.filter((p:any)=>p.favorite).length>0 && projectTree.filter((p:any)=>!p.favorite).length>0 && (
+                     <Separator className="my-2" />
+                   )}
+
+                   {/* Scrollable other projects */}
+                   <div ref={checkScroll as any} className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden command-scrollbar", !isCollapsed && "pr-2")}> 
+                     <div className="space-y-1">
+                       {projectTree.filter((p:any)=>!p.favorite).map((projItem:any)=>(
+                         <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={false} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
+                       ))}
+                     </div>
+                   </div>
+                 </>
+               )}
             </div>
-          </ScrollArea>
+            
+            {/* Fade effect when scrollable */}
+            {hasScroll && !isCollapsed && (
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[color:var(--background)] to-transparent pointer-events-none" />
+            )}
+          </div>
           
           {/* Fade effect when scrollable */}
           {hasScroll && !isCollapsed && (
@@ -1098,18 +1255,24 @@ export default function InterfaceNav({
           setOpen={setCreateProjectOpen}
           title="Create New Project"
           body={
-            <div className="space-y-2 pt-4">
-              <Label htmlFor="project-name">Project Name</Label>
-              <Input
-                id="project-name"
-                value={newProjectName}
-                onChange={(e) => {
-                  setNewProjectName(e.target.value)
-                  setCreateProjectError('')
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-                autoFocus
-              />
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="project-name">Project Name</Label>
+                <Input
+                  id="project-name"
+                  value={newProjectName}
+                  onChange={(e) => {
+                    setNewProjectName(e.target.value)
+                    setCreateProjectError('')
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Project Icon</Label>
+                <IconPicker value={newProjectIcon as any} onValueChange={(val)=>setNewProjectIcon(val)} triggerPlaceholder="Select icon" />
+              </div>
               {createProjectError && <p className="text-xs text-destructive">{createProjectError}</p>}
             </div>
           }
@@ -1318,7 +1481,6 @@ export default function InterfaceNav({
           footer={<div className="flex gap-2"><Button variant="outline" onClick={()=>setProjectDialogOpen(null)} disabled={isRenamingProject}>Cancel</Button><Button onClick={handleConfirmRenameProject} disabled={isRenamingProject}>{isRenamingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Rename</Button></div>}
           disableClose={isRenamingProject}
         />, document.body)}
-      {/* Removed legacy theme dialog as ColorPicker handles changes inline */}
     </TooltipProvider>
   )
 } 

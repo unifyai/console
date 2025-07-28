@@ -68,6 +68,23 @@ export const deleteProject = async (apiKey: string) => {
     };
 };
 
+// patch project (e.g., update icon or description)
+export const patchProject = (apiKey: string) => {
+    return async (name: string, data: Record<string, any>) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/project/${encodeURIComponent(name)}`,
+            {
+                method: "PATCH",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify(data)
+            }
+        );
+        return await response.json();
+    };
+};
+
 // Export project template
 export const exportProjectAsTemplate = async (apiKey: string) => {
     return async (
