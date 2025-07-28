@@ -57,16 +57,16 @@ export const getAssistantStatus = async (apiKey: string) => {
                 { method: "GET", headers: { apiKey: apiKey } }
             );
 
-            const data = await response.json(); 
+            const data = await response.json();
 
             if (!response.ok) {
                 return { detail: data.detail || `Failed to get status for assistant ${assistantId}: ${response.statusText}` };
             }
-            
+
             if (data.info) {
                 return data.info as AssistantStatus;
             }
-            
+
             if ('running' in data) {
                 return data as AssistantStatus;
             }
@@ -107,7 +107,7 @@ export const deleteAssistant = async (apiKey: string) => {
             }
             const data = await response.json();
             return { info: data.info || `Assistant ${assistantId} deleted successfully.` };
-    
+
         } catch (error) {
             console.error(`[actions.ts deleteAssistant] Error deleting assistant ${assistantId}:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
@@ -129,7 +129,7 @@ export const updateAssistant = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(payload) 
+                    body: JSON.stringify(payload)
                 }
             );
 
@@ -164,9 +164,9 @@ export const updateAssistant = async (apiKey: string) => {
 };
 
 export const createAssistant = async (apiKey: string) => {
-    return async ( 
-        first_name: string, surname: string, age: number | null, region: string | null, 
-        profile_photo: string | null, about: string | null, voice_id: string | null, 
+    return async (
+        first_name: string, surname: string, age: number | null, region: string | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
         email: string, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
@@ -181,14 +181,15 @@ export const createAssistant = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ 
-                        first_name, 
-                        surname, 
-                        age, 
-                        region, 
+                    body: JSON.stringify({
+                        first_name,
+                        surname,
+                        age,
+                        region,
                         profile_photo,
-                        about, 
-                        voice_id, 
+                        profile_video,
+                        about,
+                        voice_id,
                         email,
                         user_phone,
                         country,
@@ -222,7 +223,7 @@ export const createAssistant = async (apiKey: string) => {
             const successMessage = `Assistant created successfully.`;
             const createdAssistant = data.info as Assistant;
             return { info: successMessage, assistant: createdAssistant }
-           
+
         } catch (error) {
             console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";

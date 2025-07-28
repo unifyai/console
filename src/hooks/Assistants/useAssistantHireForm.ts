@@ -17,7 +17,7 @@ export function useAssistantHireForm(
     availableSocialPlatforms: AvailableSocialPlatform[] = []
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
-    
+
     // Find a default voice that matches the current VOICE_PROVIDER
     const getDefaultVoiceForProvider = () => {
         let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === VOICE_PROVIDER);
@@ -52,9 +52,12 @@ export function useAssistantHireForm(
             user_whatsapp_number: null,
             social_accounts: [],
             country: FALLBACK_DEFAULT_COUNTRY_CODE,
-            imageFile: null,
+            photoFile: null,
+            videoFile: null,
             profile_photo_url: null,
-            imagePreview: null,
+            profile_video_url: null,
+            photoPreviewUrl: null,
+            videoPreviewUrl: null,
             voice_id: defaultVoice.voice_id,
             voice_name: defaultVoice.name,
             voice_language: defaultVoice.language as SupportedLanguage,
@@ -62,7 +65,6 @@ export function useAssistantHireForm(
             voice_gender: defaultVoice.gender as Gender,
             voice_provider: defaultVoice.provider || VOICE_PROVIDER,
             voice_exists: false,
-            videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
             design_include_bio: false,
@@ -71,8 +73,8 @@ export function useAssistantHireForm(
 
     const { setValue, getValues, setError, clearErrors, handleSubmit: reactHookFormHandleSubmit, reset, trigger, watch } = hireFormMethods;
 
-    /* ------------------------- 
-        General form utilities 
+    /* -------------------------
+        General form utilities
     ------------------------- */
     React.useEffect(() => {
         async function loadCountries() {
@@ -131,25 +133,22 @@ export function useAssistantHireForm(
 
     const watchedFields = watch([
         "first_name", "surname", "age", "region", "about",
-        "voice_id", "voice_provider", // Ensure voice_provider is watched
-        "imageFile", "profile_photo_url", 
+        "voice_id", "voice_provider",
+        "photoFile", "profile_photo_url",
         "presetOriginalValues", "country"
         // videoUrl is handled more directly for pristine state after preset selection
-    ]); 
+    ]);
     React.useEffect(() => {
         const [
             firstName, surname, age, region, about,
             voiceId, voiceProvider,
-            imageFile, profilePhotoUrl, 
+            photoFile, profilePhotoUrl,
             originalValues, country
         ] = watchedFields;
-    
-        if (imageFile) {
+
+        if (photoFile) {
             if (getValues("isPresetPristine")) {
                 setValue("isPresetPristine", false);
-            }
-            if (getValues("videoUrl") && originalValues) {
-                setValue("videoUrl", null);
             }
             return;
         }
@@ -160,8 +159,8 @@ export function useAssistantHireForm(
             }
             return;
         }
-        
-        let isPristine = 
+
+        let isPristine =
             firstName === originalValues.first_name &&
             surname === originalValues.surname &&
             age === originalValues.age &&
@@ -170,35 +169,59 @@ export function useAssistantHireForm(
             voiceId === originalValues.voice_id &&
             (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url)) &&
             voiceProvider === VOICE_PROVIDER;
-    
+
         if (getValues("isPresetPristine") && !isPristine) {
             setValue("isPresetPristine", false);
         }
     }, [watchedFields, getValues, setValue]);
 
+    const handleMediaRemove = React.useCallback(() => {
+        const photoPreview = getValues("photoPreviewUrl");
+        if (photoPreview?.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+        const videoPreview = getValues("videoPreviewUrl");
+        if (videoPreview?.startsWith('blob:')) URL.revokeObjectURL(videoPreview);
 
-    const handleImageRemove = React.useCallback(() => {
-        const currentPreview = getValues("imagePreview");
-        if (currentPreview && currentPreview.startsWith('blob:')) {
-            URL.revokeObjectURL(currentPreview);
-        }
-        setValue("imageFile", null);
-        setValue("imagePreview", null);
+        setValue("photoFile", null);
+        setValue("videoFile", null);
+        setValue("photoPreviewUrl", null);
+        setValue("videoPreviewUrl", null);
         setValue("profile_photo_url", null);
-        setValue("videoUrl", null);
+        setValue("profile_video_url", null);
+        setValue("isPresetPristine", false);
+    }, [getValues, setValue]);
+
+    const onNewMediaReady = React.useCallback((file: File | null, mediaType: 'photo' | 'video') => {
+        if (mediaType === 'photo') {
+            const currentPhotoPreview = getValues("photoPreviewUrl");
+            if (currentPhotoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentPhotoPreview);
+            const currentVideoPreview = getValues("videoPreviewUrl");
+            if (currentVideoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentVideoPreview);
+
+            setValue("photoFile", file);
+            setValue("photoPreviewUrl", file ? URL.createObjectURL(file) : null);
+            setValue("videoFile", null);
+            setValue("videoPreviewUrl", null);
+            setValue("profile_video_url", null);
+        } else { // video
+            const currentVideoPreview = getValues("videoPreviewUrl");
+            if (currentVideoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentVideoPreview);
+            setValue("videoFile", file);
+            setValue("videoPreviewUrl", file ? URL.createObjectURL(file) : null);
+        }
         setValue("isPresetPristine", false);
     }, [getValues, setValue]);
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
-        handleImageRemove(); // Assuming this utility function exists from previous steps
+        handleMediaRemove();
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
         setValue("region", preset.region ?? 'United States', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
         setValue("profile_photo_url", preset.profile_photo);
-        setValue("imagePreview", preset.profile_photo);
-        setValue("imageFile", null);
+        setValue("photoPreviewUrl", preset.profile_photo);
+        setValue("photoFile", null);
+        setValue("videoFile", null);
         setValue("user_phone", '');
         setValue("user_phone_isVerified", false);
         setValue("user_phone_isVerifying", false);
@@ -222,7 +245,7 @@ export function useAssistantHireForm(
 
         // Determine the voice_id based on VOICE_PROVIDER
         const providerSpecificVoiceId = preset.voice_ids[VOICE_PROVIDER] || null;
-        
+
         // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
         let selectedPresetVoiceDetails: VoiceOption | undefined = (voicePresetsConstant as VoiceOption[]).find(
             vp => vp.voice_id === providerSpecificVoiceId && vp.provider === VOICE_PROVIDER
@@ -259,7 +282,7 @@ export function useAssistantHireForm(
         setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
         setValue("voice_provider", selectedPresetVoiceDetails.provider || VOICE_PROVIDER);
         setValue("voice_exists", false); // Presets are not "user voices in orchestra" initially
-        
+
         setValue("isPresetPristine", true);
         const originalValues = {
             first_name: preset.first_name,
@@ -271,27 +294,24 @@ export function useAssistantHireForm(
             country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
         };
         setValue("presetOriginalValues", originalValues);
-
-        // Fetch provider-specific video
-        setValue("videoUrl", null); // Clear previous video URL
+        setValue("videoPreviewUrl", null);
         assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, VOICE_PROVIDER)
             .then(res => {
                 if (res.signedUrl) {
-                    setValue("videoUrl", res.signedUrl);
+                    setValue("videoPreviewUrl", res.signedUrl);
+                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${VOICE_PROVIDER.toLowerCase()}.mp4`);
                 } else {
-                    setValue("isPresetPristine", false); // If video fails, it's not a "pristine" preset experience
-                    console.warn(res.detail || `Preset video for provider ${VOICE_PROVIDER} could not be loaded for ${preset.first_name} ${preset.surname}.`);
+                    setValue("isPresetPristine", false);
                 }
             })
             .catch(err => {
                 setValue("isPresetPristine", false);
-                setValue("videoUrl", null);
-                console.error(`Error fetching preset video for provider ${VOICE_PROVIDER}:`, err);
+                setValue("videoPreviewUrl", null);
             });
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleImageRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries, getValues]);
+    }, [setValue, handleMediaRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries, getValues]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         const defaultFirstName = values?.first_name || '';
@@ -317,9 +337,12 @@ export function useAssistantHireForm(
             user_whatsapp_number: values?.user_whatsapp_number || null,
             social_accounts: [],
             country: initialCountry,
-            imageFile: null, 
+            photoFile: null,
+            videoFile: null,
             profile_photo_url: null,
-            imagePreview: null,
+            profile_video_url: null,
+            photoPreviewUrl: null,
+            videoPreviewUrl: null,
             voice_id: values?.voice_id || defaultVoice.voice_id,
             voice_name: values?.voice_name || defaultVoice.name,
             voice_language: values?.voice_language || defaultVoice.language as SupportedLanguage,
@@ -327,16 +350,15 @@ export function useAssistantHireForm(
             voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
             voice_exists: values?.voice_exists || false,
             voice_provider: values?.voice_provider || defaultVoice.provider || VOICE_PROVIDER,
-            videoUrl: null,
             isPresetPristine: false,
             presetOriginalValues: null,
             design_include_bio: false,
         });
         setShowInsufficientFundsHint(false);
     }, [reset, defaultVoice, availablePhoneCountries]);
-    
-    /* ---------------------------- 
-        Editing exsiting assistant 
+
+    /* ----------------------------
+        Editing exsiting assistant
        ---------------------------- */
     const loadAssistantForEdit = React.useCallback((assistant: Assistant) => {
         setEditingAssistant(assistant);
@@ -346,15 +368,18 @@ export function useAssistantHireForm(
         }
 
         reset({
-            ...getValues(), // keep any non-assistant fields if necessary
+            ...getValues(),
             first_name: assistant.first_name,
             surname: assistant.surname,
             age: assistant.age,
             region: assistant.region,
             about: assistant.about || '',
-            imagePreview: assistant.signedProfilePhotoUrl || assistant.profile_photo,
+            photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profile_photo,
+            videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profile_video,
             profile_photo_url: assistant.profile_photo,
-            imageFile: null,
+            profile_video_url: assistant.profile_video,
+            photoFile: null,
+            videoFile: null,
             user_phone: assistant.user_phone || '',
             user_phone_isVerified: !!assistant.user_phone,
             social_accounts: socialAccounts,
@@ -372,9 +397,9 @@ export function useAssistantHireForm(
         }
         setIsSubmitting(true);
         clearErrors();
-        
+
         toastIdRef.current = toast.loading("Updating assistant...", { id: toastIdRef.current });
-        
+
         try {
             // Validations
             if (data.user_phone && !data.user_phone_isVerified) {
@@ -392,23 +417,27 @@ export function useAssistantHireForm(
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
             if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
-            
+
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
             if (user_whatsapp_number !== editingAssistant.user_whatsapp_number) payload.user_whatsapp_number = user_whatsapp_number;
-            
-            // Image upload logic
-            if (data.imageFile) {
+
+            // Image/Video upload logic
+            if (data.photoFile) {
                 const formData = new FormData();
-                formData.append('file', data.imageFile);
+                formData.append('file', data.photoFile);
                 const photoUploadResult = await assistantActions.photo.upload(formData);
-                if ((photoUploadResult as ResponseProps).detail) {
-                    throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
-                }
+                if ((photoUploadResult as ResponseProps).detail) throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
                 payload.profile_photo = (photoUploadResult as PhotoUploadResponse).gcs_url;
             }
+            if (data.videoFile) {
+                const formData = new FormData();
+                formData.append('file', data.videoFile);
+                const videoUploadResult = await assistantActions.photo.uploadVideo(formData);
+                if ((videoUploadResult as ResponseProps).detail) throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
+                payload.profile_video = (videoUploadResult as PhotoUploadResponse).gcs_url;
+            }
 
-            // New voice registration logic
             if (data.voice_id && !data.voice_exists) {
                  const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
                  const voiceCreationResponse = await assistantActions.voice.register(data.voice_id, provider, data.voice_name!, data.voice_description!, data.voice_gender!, data.voice_language!, false);
@@ -432,7 +461,7 @@ export function useAssistantHireForm(
              const isRHFError = !!(hireFormMethods.formState.errors.user_phone || hireFormMethods.formState.errors.social_accounts);
              if (!isRHFError) toast.error(`${error.message}. Update aborted.`, { id: toastIdRef.current });
              else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
-             
+
              toastIdRef.current = undefined;
              console.error(`[useAssistantHireForm] Update process failed: ${error.message}`, error);
         } finally {
@@ -440,15 +469,15 @@ export function useAssistantHireForm(
         }
     });
 
-    /* ------------------------- 
-        Hiring new assistant 
+    /* -------------------------
+        Hiring new assistant
        ------------------------- */
     const submitAssistantData = async (data: AssistantFormData) => {
         setIsSubmitting(true);
         clearErrors();
-        
+
         toastIdRef.current = toast.loading("Hiring assistant...", { id: toastIdRef.current });
-                
+
         try {
             // Input validity checks
             if (!data.first_name) {
@@ -500,24 +529,31 @@ export function useAssistantHireForm(
                 throw new Error("Unverified social accounts.");
             }
 
-            // Registering voices / uploading custom photos
-            let finalImageUrlToSend = data.profile_photo_url;
-            if (data.imageFile) {
-                const formData = new FormData();
-                formData.append('file', data.imageFile);
-                const photoUploadResult = await assistantActions.photo.upload(formData);
-                if ((photoUploadResult as ResponseProps).detail) {
-                    throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
-                }
+            // Registering voices / uploading custom photos/videos
+            let finalImageUrlToSend: string | null = data.profile_photo_url || null;
+            let finalVideoUrlToSend: string | null = data.profile_video_url || null;
+
+            if (data.photoFile) {
+                const photoFormData = new FormData();
+                photoFormData.append('file', data.photoFile);
+                const photoUploadResult = await assistantActions.photo.upload(photoFormData);
+                if ((photoUploadResult as ResponseProps).detail) throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
                 finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcs_url;
-                if (!finalImageUrlToSend) {
-                    throw new Error("Photo uploaded, but GCS URL was not returned.");
-                }
-            } else if (data.profile_photo_url) { 
-                finalImageUrlToSend = data.profile_photo_url;
-            } else if (data.imagePreview && !data.imagePreview.startsWith('blob:')) {
-                finalImageUrlToSend = data.imagePreview;
             }
+
+            if (data.videoFile) {
+                const videoFormData = new FormData();
+                videoFormData.append('file', data.videoFile);
+                const videoUploadResult = await assistantActions.photo.uploadVideo(videoFormData);
+                if ((videoUploadResult as ResponseProps).detail) throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
+                finalVideoUrlToSend = (videoUploadResult as PhotoUploadResponse).gcs_url;
+            }
+
+            if (data.isPresetPristine) {
+                 finalImageUrlToSend = data.profile_photo_url ?? null;
+                 finalVideoUrlToSend = data.profile_video_url ?? null;
+            }
+
             if (!data.voice_exists && data.voice_id) {
                 const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
                 const voiceCreationResponse = await assistantActions.voice.register(
@@ -535,8 +571,8 @@ export function useAssistantHireForm(
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
-                finalImageUrlToSend as string | null,
-                data.about, data.voice_id, 
+                finalImageUrlToSend, finalVideoUrlToSend,
+                data.about, data.voice_id,
                 data.email, data.user_phone, data.country,
                 user_whatsapp_number
             );
@@ -587,9 +623,9 @@ export function useAssistantHireForm(
         if (!isValid) {
             return;
         }
-        
+
         const currentEmail = getValues("email");
-        if (!currentEmail || currentEmail.startsWith('@')) { 
+        if (!currentEmail || currentEmail.startsWith('@')) {
             setError("email", { type: "manual", message: "Email local part cannot be empty." });
             toast.error("Email local part cannot be empty.");
             return;
@@ -604,7 +640,7 @@ export function useAssistantHireForm(
             toast.error("Your phone number must be verified before hiring.");
             return;
         }
-        
+
         const socialAccounts = getValues("social_accounts") || [];
         if (socialAccounts.some(acc => !acc.isVerified)) {
             toast.error("All added social accounts must be verified before hiring.");
@@ -638,7 +674,7 @@ export function useAssistantHireForm(
             }
 
             const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
-            
+
             const socialCosts = socialAccounts
                 .filter(acc => acc.isVerified)
                 .reduce((sum, acc) => {
@@ -653,7 +689,7 @@ export function useAssistantHireForm(
                 if(toastIdRef.current) toast.dismiss(toastIdRef.current);
                 toastIdRef.current = undefined;
             } else {
-                await RHFSubmitHandler(event); 
+                await RHFSubmitHandler(event);
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: toastIdRef.current });
@@ -666,18 +702,14 @@ export function useAssistantHireForm(
 
     return {
         hireFormMethods,
-        // Hire
+        onNewMediaReady,
         initiateHireSequence,
         isCheckingBalance,
         showInsufficientFundsHint,
         setShowInsufficientFundsHint,
-        handleImageRemove,
         selectPreset,
-        rhfInternalFormSubmit: RHFSubmitHandler,
-        // Edit
         loadAssistantForEdit,
         initiateUpdate: initiateUpdateSequence,
-        // Common
         isSubmitting,
         resetForm: resetFormAndHints,
         fetchedAssistantEmails,

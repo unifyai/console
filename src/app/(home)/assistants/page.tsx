@@ -2,11 +2,11 @@ import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Pages/Assistants/Main";
 import { getTasks, updateTask } from "@/lib/assistants/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus } from "@/lib/assistants/assistant";
-import { uploadPhoto, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/assistants/photo";
-import { 
+import { uploadPhoto, uploadVideo, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/assistants/photo";
+import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
-} from "@/lib/assistants/voice"; 
+} from "@/lib/assistants/voice";
 import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
@@ -20,7 +20,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     const user = await getCurrentUser();
     if (!user) {
         signOut();
-        redirect('/login'); 
+        redirect('/login');
     }
     const apiKey = user.apiKey;
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
@@ -35,6 +35,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         },
         "photo": {
             upload: await uploadPhoto(apiKey),
+            uploadVideo: await uploadVideo(apiKey),
             download: await downloadPhoto(),
             downloadPresetVideo: await downloadPresetVideo(),
             generate: await generatePhoto(apiKey),
@@ -60,10 +61,10 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             getProfile: await fetchCurrentUserHiringProfile(),
             claimToken: await claimAssistantHiringToken(apiKey),
             requestAccess: await requestAssistantHiringAccess(apiKey)
-            
+
         }
     }
-    
+
     const taskActions: TaskActions = {
         get: await getTasks(apiKey),
         update: await updateTask(apiKey),
@@ -75,9 +76,9 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
 
     return (
         <div className="w-full h-full">
-            <Main 
-                assistantActions={assistantActions} 
-                taskActions={taskActions} 
+            <Main
+                assistantActions={assistantActions}
+                taskActions={taskActions}
                 activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
             />

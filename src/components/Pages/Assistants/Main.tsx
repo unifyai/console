@@ -184,6 +184,7 @@ export default function Main({
         isLoadingEmails,
         availablePhoneCountries,
         isLoadingCountries,
+        onNewMediaReady,
     } = useAssistantHireForm(assistantActions, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
     
     // --- Voice Options Management ---
@@ -415,6 +416,7 @@ export default function Main({
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
                         deleteUserVoice={deleteUserVoice}
+                        onNewMediaReady={onNewMediaReady}
                         mode="hire"
                     />
                     <PresetsPanel                                    
@@ -454,6 +456,7 @@ export default function Main({
                             isLoadingUserVoices={isLoadingUserVoices}
                             fetchUserVoices={fetchUserVoices}
                             deleteUserVoice={deleteUserVoice}
+                            onNewMediaReady={onNewMediaReady}
                             mode="edit"
                         />
                     </AssistantEdit>

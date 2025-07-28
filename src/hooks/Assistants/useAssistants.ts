@@ -14,7 +14,7 @@ export function useAssistants(
     const [error, setError] = React.useState<string | null>(null);
 
     const fetchAssistantsWithDetails = React.useCallback(async (shouldShowLoadingToast = true) => {
-        
+
         setIsLoading(true);
         setError(null);
         // setAssistants([]); // Don't clear immediately if just refreshing
@@ -42,19 +42,36 @@ export function useAssistants(
 
             const assistantsWithSignedUrls = await Promise.all(
                 validAssistants.map(async (assistant) => {
+                    let signedProfilePhotoUrl: string | undefined = undefined;
+                    let signedProfileVideoUrl: string | undefined = undefined;
+
                     if (assistant.profile_photo && isGcsPhoto(assistant.profile_photo)) {
                         try {
                             const photoResult = await photoActions.download(assistant.profile_photo);
                             if (photoResult.signedUrl) {
-                                return { ...assistant, signedProfilePhotoUrl: photoResult.signedUrl };
+                                signedProfilePhotoUrl = photoResult.signedUrl;
                             } else {
-                                console.warn(`[useAssistants] Failed to get signed URL for ${assistant.agent_id} (${assistant.profile_photo}): ${photoResult.detail || 'Unknown error'}`);
+                                console.warn(`[useAssistants] Failed to get signed URL for photo ${assistant.agent_id} (${assistant.profile_photo}): ${photoResult.detail || 'Unknown error'}`);
                             }
                         } catch (fetchError) {
-                            console.error(`[useAssistants] Error fetching signed URL for ${assistant.agent_id} (${assistant.profile_photo}):`, fetchError);
+                            console.error(`[useAssistants] Error fetching signed URL for photo ${assistant.agent_id} (${assistant.profile_photo}):`, fetchError);
                         }
                     }
-                    return assistant;
+
+                    if (assistant.profile_video && isGcsPhoto(assistant.profile_video)) {
+                        try {
+                            const videoResult = await photoActions.download(assistant.profile_video);
+                            if (videoResult.signedUrl) {
+                                signedProfileVideoUrl = videoResult.signedUrl;
+                            } else {
+                                 console.warn(`[useAssistants] Failed to get signed URL for video ${assistant.agent_id} (${assistant.profile_video}): ${videoResult.detail || 'Unknown error'}`);
+                            }
+                        } catch (fetchError) {
+                            console.error(`[useAssistants] Error fetching signed URL for video ${assistant.agent_id} (${assistant.profile_video}):`, fetchError);
+                        }
+                    }
+
+                    return { ...assistant, signedProfilePhotoUrl, signedProfileVideoUrl };
                 })
             );
             setAssistants(assistantsWithSignedUrls);
@@ -82,7 +99,7 @@ export function useAssistants(
     const deleteAssistant = React.useCallback(async (assistantToDelete: Assistant): Promise<boolean> => {
         const assistantId = assistantToDelete.agent_id;
         const displayName = `${assistantToDelete.first_name} ${assistantToDelete.surname}`;
-        
+
         const toastId = toast.loading(`Ending contract for ${displayName}...`);
 
         try {
@@ -141,7 +158,7 @@ export function useAssistants(
 
     return {
         assistants,
-        setAssistants, 
+        setAssistants,
         isLoading,
         error,
         refreshAssistants: fetchAssistantsWithDetails,
