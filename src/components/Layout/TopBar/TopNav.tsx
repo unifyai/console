@@ -4,26 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
-import { 
-  Search,
-  X,
-  User,
-  CreditCard,
-  Key,
-  LogOut,
-  ChevronDown,
-  Users,
-  Activity,
-  Shield,
-  LayoutDashboard,
-  ChartLine,
-  FileText,
-  Database,
-  Star,
-  ExternalLink
-} from 'lucide-react'
+import { User, CreditCard, Key, LogOut, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/UI/button'
-import { Input } from '@/components/UI/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,38 +15,18 @@ import {
 } from '@/components/UI/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
-import UnifyLogo from '@/components/Common/Misc/UnifyLogo'
-import { useTheme } from 'next-themes'
-import { Icon } from '@/components/UI/icon-picker'
 import { Logo } from '@/utils/landingNav/consts'
 import { getSession } from '@/lib/user/user'
 
-interface NavItem {
-  name: string
-  href: string
-}
-
-interface FavouriteProject {
-  id: number
-  project: string
-  icon: string
-  position: number
-}
-
-const navItems: NavItem[] = [
-  { name: 'Team', href: '/team' },
-  { name: 'Interfaces', href: '/interfaces' },
-  { name: 'Usage', href: '/interfaces?project=Usage' },
-  { name: 'Chat', href: '/chat' },
-]
+// Removed favourites handling
 
 export default function TopNav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { theme } = useTheme()
-  const [favouriteProjects, setFavouriteProjects] = useState<FavouriteProject[]>([])
+  // Removed unused theme hook
+  // Removed favourites handling
   const [profileName, setProfileName] = useState("Profile")
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
 
@@ -89,32 +51,13 @@ export default function TopNav() {
     })()
   }, [])
 
-  // Fetch favourite projects
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/user/favourites", { method: "GET", cache: "no-store" })
-        if (!res.ok) {
-          console.warn("Failed to fetch favourites", res.status, res.statusText)
-          return
-        }
-        const favourites = (await res.json()) as FavouriteProject[]
-        setFavouriteProjects(favourites.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)))
-      } catch (err) {
-        console.error("Failed to fetch favourites for TopNav", err)
-      }
-    })()
-  }, [])
+  // Removed favourites fetching effect
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Implement search logic here
     console.log('Searching for:', searchQuery)
   }
-
-  // Check if current path is under a dropdown section
-  const isUnityActive = pathname === '/team' || pathname.startsWith('/team/')
-  const isInterfacesActive = pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
 
   return (
     <div className="fixed top-0 left-0 right-0 h-12 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
@@ -129,98 +72,30 @@ export default function TopNav() {
 
         {/* Navigation - Centered */}
         <nav className="hidden md:flex items-center space-x-6 absolute left-1/2 -translate-x-1/2">
-          {/* Unity Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1 hover:bg-transparent",
-                  isUnityActive
-                    ? "text-[color:var(--primary)]"
-                    : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
-                )}
-              >
-                Unity
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link href="/team" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Team Members
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Interfaces Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className={cn(
-                  "px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1 hover:bg-transparent hover:text-[color:var(--foreground)]",
-                  isInterfacesActive
-                    ? "text-[color:var(--primary)]"
-                    : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
-                )}
-              >
-                Interfaces
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link href="/interfaces" className="flex items-center gap-2">
-                  <LayoutDashboard className="h-4 w-4" />
-                  All Interfaces
-                </Link>
-              </DropdownMenuItem>
-              {favouriteProjects.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs font-semibold uppercase text-[color:var(--muted-foreground)]">
-                    Favourites
-                  </div>
-                  {favouriteProjects.map((fav) => (
-                    <DropdownMenuItem key={fav.id} asChild className="hover:bg-transparent">
-                      <Link href={`/interfaces?project=${encodeURIComponent(fav.project)}`} className="flex items-center gap-2 hover:text-[color:var(--foreground)]">
-                        <Icon name={fav.icon as any} className="h-4 w-4" />
-                        <span className="truncate">{fav.project}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Usage - Direct Link to Usage Interface Project */}
+          {/* Assistants - Direct Link */}
           <Link
-            href="/interfaces?project=Usage"
+            href="/team"
             className={cn(
               "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-              pathname === '/interfaces' && searchParams.get('project') === 'Usage'
+              pathname === '/team' || pathname.startsWith('/team/')
                 ? "text-[color:var(--primary)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
-            Usage
+            Assistants
           </Link>
 
-          {/* Chat - Direct Link */}
+          {/* Interfaces - Direct Link */}
           <Link
-            href="/chat"
+            href="/interfaces"
             className={cn(
               "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-              pathname === '/chat'
+              pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
                 ? "text-[color:var(--primary)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
-            Chat
+            Interfaces
           </Link>
 
           {/* Docs - External Link */}
