@@ -89,15 +89,18 @@ export function TaskList({
     }, [isLoadingMore, hasMoreTasks, fetchMoreTasks]);
 
     const renderTaskItem = React.useCallback((index: number, task: Task) => {
+        const assistant = assistants.find(a => a.agent_id === task.assistant_id);
+        if (!assistant) return null; // Don't render a task if its assistant isn't found
         return (
             <MemoizedTaskListItem
                 key={task.task_id} 
                 task={task}
+                assistant={assistant}
                 updateTask={updateTask}
                 onTaskUpdate={onTaskUpdate}
             />
         );
-    }, [updateTask, onTaskUpdate]); 
+    }, [updateTask, onTaskUpdate, assistants]); 
 
     const sortedStatuses = React.useMemo(() => {
         return [...availableStatuses].sort((a, b) => {

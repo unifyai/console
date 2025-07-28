@@ -2,12 +2,12 @@ import { ResponseProps } from "@/types/common";
 import { GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/interfaces/logs";
 
 export const getTasks = async (apiKey: string) => {
-    return async (assistant_id: string, filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {
+    return async (context: string, filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {
         "use server";
 
         try {
 
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${assistant_id}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${context}/Tasks`;
             if (filterExpression) {
                 url += `&filter_expr=${encodeURIComponent(filterExpression)}`;
             }
@@ -54,11 +54,11 @@ export const getTasks = async (apiKey: string) => {
 };
 
 export const getUniqueFieldValues = async (apiKey: string) => {
-    return async (assistant_id: string, groupByField: string): Promise<string[] | ResponseProps> => {
+    return async (context: string, groupByField: string): Promise<string[] | ResponseProps> => {
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${assistant_id}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${context}/Tasks`;
             url += `&group_by=${encodeURIComponent(groupByField)}`;
             url += `&group_depth=0`;
 
@@ -112,7 +112,7 @@ export const getUniqueFieldValues = async (apiKey: string) => {
 
 
 export const updateTask = async (apiKey: string) => {
-    return async (assistant_id: string, logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
+    return async (context: string, logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -127,7 +127,7 @@ export const updateTask = async (apiKey: string) => {
                     body: JSON.stringify({
                         logs: logs,
                         project: "Assistants",
-                        context: `${assistant_id}/Tasks`,
+                        context: `${context}/Tasks`,
                         params: {},
                         entries: entries,
                         overwrite: true

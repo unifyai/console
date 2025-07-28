@@ -70,6 +70,6 @@ export interface Task {
 }
 
 export interface TaskActions {
-  get: (assistant_id: string, filterExpression: string | null, limit: number | null, offset: number | null) => Promise<LogsResponseProps | ResponseProps>;
-  update: (assistant_id: string, logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
+  get: (context: string, filterExpression: string | null, limit: number | null, offset: number | null) => Promise<LogsResponseProps | ResponseProps>;
+  update: (context: string, logs: number[], entries: LogItemProps) => Promise<ResponseProps>;
 }

@@ -104,12 +104,13 @@ export function useTasks(
             }
 
             const promises = assistantsToFetch.map(assistant => {
+                const context = `${assistant.first_name}${assistant.surname}`;
                 const offset = isInitialLoad ? 0 : (perAssistantData.get(assistant.agent_id)?.offset || 0);
                 // Don't fetch more for an assistant that already has no more tasks
                 if (!isInitialLoad && !perAssistantData.get(assistant.agent_id)?.hasMore) {
                     return Promise.resolve(null); // Return a resolved promise to not break Promise.all
                 }
-                return taskActions.get(assistant.agent_id, expr, TASK_PAGE_LIMIT, offset);
+                return taskActions.get(context, expr, TASK_PAGE_LIMIT, offset);
             });
 
             const responses = await Promise.all(promises);

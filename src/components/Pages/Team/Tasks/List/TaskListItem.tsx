@@ -1,7 +1,9 @@
+// <file_path:/home/nb/Work/Unify/console/src/components/Pages/Team/Tasks/List/TaskListItem.tsx>
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
 import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap } from "lucide-react"; 
 import { Task, TaskActions, Status as TaskStatusEnum, Priority as TaskPriorityEnum } from "@/types/team/task"; 
+import { Assistant } from '@/types/team/assistant';
 import ActionButton from '../../../../Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
@@ -21,11 +23,12 @@ import { toast } from 'sonner';
 
 interface TaskListItemProps {
     task: Task;
+    assistant: Assistant;
     updateTask: TaskActions['update'];
     onTaskUpdate: (taskId: number, updatedFields: Partial<Task>) => void;
 }
 
-export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemProps) {
+export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: TaskListItemProps) {
 
     const [description, setDescription] = React.useState(task.description);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -103,8 +106,9 @@ export function TaskListItem({ task, updateTask, onTaskUpdate }: TaskListItemPro
         const toastId = toast.loading("Saving description...");
 
         try {
+            const context = `${assistant.first_name}${assistant.surname}`;
             const response = await updateTask(
-                task.assistant_id,
+                context,
                 [task.log_id],
                 { description: description } 
             );
