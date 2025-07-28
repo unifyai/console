@@ -262,9 +262,9 @@ const InterfaceItem: React.FC<InterfaceItemProps> = ({
             onClick={handleInterfaceClick}
             className={cn(
               "block flex-1 text-left pl-6 pr-2 py-2 text-sm rounded-md transition-colors flex items-center gap-1",
-              "text-[color:var(--muted-foreground)]",
-              "hover:text-[color:var(--foreground)]",
-              isActive && "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
+              isActive
+                ? "text-[color:var(--primary)] hover:text-[color:var(--primary)]"
+                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
             <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -398,7 +398,8 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   const singleIsDefault = hasSingleInterface && ifaceList[0].name === 'Default'
   const hasExpandableInterfaces = ifaceList.length > 1 || (hasSingleInterface && !singleIsDefault)
   const isDefaultActive = currentProjectActive && singleIsDefault && ifaceList[0].name === 'Default' && pathname === '/interfaces'
-  const hasActiveInterface = ifaceList.some((iface: any) => iface.name === currentInterfaceId || iface.id === currentInterfaceId)
+  const currentInterfaceParam = searchParams.get('interface');
+  const hasActiveInterface = currentProjectActive && ifaceList.some((iface: any) => iface.name === currentInterfaceParam || iface.id === currentInterfaceParam);
   
   // Favourite state
   const [isFavouriting, setIsFavouriting] = useState(false)
@@ -689,7 +690,7 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
                 key={iface.id ?? iface.name}
                 iface={iface}
                 project={project}
-                isActive={pathname === '/interfaces' && currentInterfaceId === iface.name}
+                isActive={pathname === '/interfaces' && currentProjectActive && (currentInterfaceParam === iface.name || currentInterfaceParam === iface.id)}
                 isLast={index === interfaces.length - 1}
                 searchParams={searchParams}
                 router={router}
