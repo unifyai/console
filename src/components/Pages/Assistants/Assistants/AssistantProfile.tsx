@@ -116,7 +116,7 @@ export function AssistantProfilePanel({
                                     avatarClassName="h-20 w-20 sm:h-20 sm:w-20"
                                     fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
                                 />
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">
+                                <div className="grid grid-cols-2 gap-x-4 pt-1 text-sm flex-1">
                                     <Label className="text-muted-foreground">First Name</Label>
                                     <span>{assistant.first_name}</span>
                                     <Label className="text-muted-foreground">Last Name</Label>
