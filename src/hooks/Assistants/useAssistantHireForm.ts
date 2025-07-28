@@ -301,14 +301,12 @@ export function useAssistantHireForm(
                     setValue("videoPreviewUrl", res.signedUrl);
                     setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${VOICE_PROVIDER.toLowerCase()}.mp4`);
                 } else {
-                    setValue("isPresetPristine", false); // If video fails, it's not a "pristine" preset experience
-                    console.warn(res.detail || `Preset video for provider ${VOICE_PROVIDER} could not be loaded for ${preset.first_name} ${preset.surname}.`);
+                    setValue("isPresetPristine", false);
                 }
             })
             .catch(err => {
                 setValue("isPresetPristine", false);
                 setValue("videoPreviewUrl", null);
-                console.error(`Error fetching preset video for provider ${VOICE_PROVIDER}:`, err);
             });
 
         clearErrors();
@@ -370,7 +368,7 @@ export function useAssistantHireForm(
         }
 
         reset({
-            ...getValues(), // keep any non-assistant fields if necessary
+            ...getValues(),
             first_name: assistant.first_name,
             surname: assistant.surname,
             age: assistant.age,
@@ -536,17 +534,17 @@ export function useAssistantHireForm(
             let finalVideoUrlToSend: string | null = data.profile_video_url || null;
 
             if (data.photoFile) {
-                const formData = new FormData();
-                formData.append('file', data.photoFile);
-                const photoUploadResult = await assistantActions.photo.upload(formData);
+                const photoFormData = new FormData();
+                photoFormData.append('file', data.photoFile);
+                const photoUploadResult = await assistantActions.photo.upload(photoFormData);
                 if ((photoUploadResult as ResponseProps).detail) throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
                 finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcs_url;
             }
 
             if (data.videoFile) {
-                const formData = new FormData();
-                formData.append('file', data.videoFile);
-                const videoUploadResult = await assistantActions.photo.uploadVideo(formData);
+                const videoFormData = new FormData();
+                videoFormData.append('file', data.videoFile);
+                const videoUploadResult = await assistantActions.photo.uploadVideo(videoFormData);
                 if ((videoUploadResult as ResponseProps).detail) throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
                 finalVideoUrlToSend = (videoUploadResult as PhotoUploadResponse).gcs_url;
             }
@@ -704,7 +702,7 @@ export function useAssistantHireForm(
 
     return {
         hireFormMethods,
-        onNewMediaReady, // Expose this new handler
+        onNewMediaReady,
         initiateHireSequence,
         isCheckingBalance,
         showInsufficientFundsHint,

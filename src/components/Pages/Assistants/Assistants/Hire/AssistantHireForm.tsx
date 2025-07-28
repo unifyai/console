@@ -443,7 +443,7 @@ export function HireForm({
                 <div className="space-y-3">
                     <div className='flex gap-2 items-center text-muted-foreground'>
                     <ImageIcon className="h-4 w-4"/>
-                    <Label className="text-base font-semibold">Media</Label>
+                    <Label className="text-base font-semibold">Photo</Label>
                     </div>
                     <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
                     <AssistantPhotoViewer

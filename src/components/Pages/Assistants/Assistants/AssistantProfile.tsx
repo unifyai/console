@@ -107,12 +107,13 @@ export function AssistantProfilePanel({
                                 <AssistantPhotoViewer
                                     photoUrl={photoSrc}
                                     videoUrl={videoSrc}
-                                    isPlayable={true}
+                                    isPlayable={false}
+                                    allowHoverPlay={false}
                                     onClick={() => {
                                         if (videoSrc) setIsVideoDialogOpen(true);
                                     }}
                                     className="flex-shrink-0"
-                                    avatarClassName="h-16 w-16 sm:h-20 sm:w-20"
+                                    avatarClassName="h-20 w-20 sm:h-20 sm:w-20"
                                     fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
                                 />
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">

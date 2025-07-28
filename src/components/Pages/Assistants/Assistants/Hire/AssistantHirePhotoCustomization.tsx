@@ -74,12 +74,7 @@ export function PhotoCustomization({
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
-        if (file) {
-            const mediaType = file.type.startsWith('video/') ? 'video' : 'photo';
-            onNewMediaReady(file, mediaType);
-        } else {
-            onNewMediaReady(null, 'photo');
-        }
+        onNewMediaReady(file, 'photo');
     };
 
     const isGenerateDisabled = !prompt.trim() || isProcessing || disabled;
@@ -170,11 +165,11 @@ export function PhotoCustomization({
                         >
                             <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
                             <span className="font-medium text-muted-foreground text-sm">Drop file or <span className="text-primary underline">browse</span></span>
-                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP, MP4 up to 50MB</span>
+                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP to 50MB</span>
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/png, image/jpeg, image/webp, video/mp4"
+                                accept="image/png, image/jpeg, image/webp"
                                 className="hidden"
                                 onChange={handleFileSelect}
                                 disabled={disabled}

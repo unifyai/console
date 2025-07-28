@@ -12,52 +12,46 @@ try {
 
 export const uploadPhoto = async (apiKey: string) => {
     return async (formData: FormData): Promise<PhotoUploadResponse | ResponseProps> => {
-        "use server"
+        "use server";
 
-        try {            
+        try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant/photo/upload`, // New Next.js API route proxy
+                `${process.env.ORCHESTRA_URL}/v0/assistant/photo/upload`, // Call Orchestra directly
                 {
                     method: "POST",
-                    headers: { 
-                        apiKey: apiKey,
-                        // Content-Type is set by browser for FormData
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
                     },
                     body: formData,
                 }
             );
-
             const data = await response.json();
-
             if (!response.ok) {
                 const errorMessage = data.detail || `Failed to upload photo: ${response.statusText}`;
                 return { detail: errorMessage };
             }
-            
-            // Expect backend to return { info: { gcs_url: "..." } }
             if (data.info && data.info.gcs_url) {
                 return data.info as PhotoUploadResponse;
             }
-            return { detail: "Photo uploaded but GCS URL not received in expected format."};
-
+            return { detail: "Photo uploaded but GCS URL not received." };
         } catch (error) {
-            console.error('[photo.ts uploadAssistantPhoto] Error during photo upload to backend:', error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred during photo upload.";
+            console.error('[photo.ts uploadPhoto] Error during photo upload to backend:', error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error during photo upload.";
             return { detail: errorMessage };
         }
     };
-}
+};
 
 export const uploadVideo = async (apiKey: string) => {
     return async (formData: FormData): Promise<PhotoUploadResponse | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant/video/upload`,
+                `${process.env.ORCHESTRA_URL}/v0/assistant/video/upload`, // Call Orchestra directly
                 {
                     method: "POST",
                     headers: {
-                        apiKey: apiKey,
+                        "Authorization": `Bearer ${apiKey}`,
                     },
                     body: formData,
                 }

@@ -9,32 +9,13 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { showErrorToast } from "@/components/Common/Toasts/notifications";
 
-const getFilenameFromUrl = (url: string, defaultFilenameBase: string): string => {
-    try {
-        const newUrl = new URL(url);
-        const pathname = newUrl.pathname;
-        // Extract the last part of the pathname
-        const filenameWithPath = pathname.substring(pathname.lastIndexOf('/') + 1);
-        // Remove query parameters from the extracted filename part
-        const filenameWithoutQuery = filenameWithPath.split('?')[0];
-        if (filenameWithoutQuery && filenameWithoutQuery.includes('.')) {
-            return filenameWithoutQuery;
-        }
-    } catch (e) { /* Fall through if URL parsing fails (e.g. blob) or no filename */ }
-    
-    // Basic extension extraction if path parsing failed or no proper filename
-    const extensionMatch = url.match(/\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm)(\?|$)/i);
-    const extension = extensionMatch ? extensionMatch[0].split('?')[0] : '';
-    return `${defaultFilenameBase}${extension}`;
-};
-
-
 interface AssistantPhotoViewerProps {
   photoUrl?: string | null;
   videoUrl?: string | null;
   photoFile?: File | null;
   videoFile?: File | null;
   isPlayable?: boolean;
+  allowHoverPlay?: boolean;
   fallbackText?: React.ReactNode;
   className?: string;
   avatarClassName?: string;
@@ -48,6 +29,7 @@ export function AssistantPhotoViewer({
   photoFile,
   videoFile,
   isPlayable = false,
+  allowHoverPlay = true,
   fallbackText = <User className="h-1/2 w-1/2" />,
   className,
   avatarClassName,
@@ -94,7 +76,7 @@ export function AssistantPhotoViewer({
 
 
   const handleMouseEnter = () => {
-    if (videoRef.current && shouldRenderVideo && videoRef.current.ended) {
+    if (allowHoverPlay && videoRef.current && shouldRenderVideo && videoRef.current.ended) {
       videoRef.current.play().catch(e => console.warn("Replay on hover failed:", e));
     }
   };
@@ -133,7 +115,7 @@ export function AssistantPhotoViewer({
       <div className="relative group">
         <div
           className={cn(
-              "h-44 w-44 rounded-lg overflow-hidden border-2 border-dashed flex items-center justify-center",
+              "h-44 w-44 rounded-lg overflow-hidden flex items-center justify-center",
               (photoUrl || videoUrl) ? "!border-muted" : "border-muted-foreground/30",
               avatarClassName, "relative"
           )}
@@ -145,9 +127,9 @@ export function AssistantPhotoViewer({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full" 
-                    onClick={handleDownload} 
-                    aria-label={videoFile ? "Download Video" : "Download Image"} 
+                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full"
+                    onClick={handleDownload}
+                    aria-label={videoFile ? "Download Video" : "Download Image"}
                     type="button"
                   >
                     <Download className="h-4 w-4 text-foreground" />
@@ -166,9 +148,9 @@ export function AssistantPhotoViewer({
 
           {shouldRenderVideo ? (
               <video
-                  key={videoUrl}
-                  ref={videoRef}
-                  src={videoUrl || undefined}
+                  key={videoUrl} 
+                  ref={videoRef} 
+                  src={videoUrl || undefined} 
                   playsInline
                   className={cn(
                     "w-full h-full object-cover", 
@@ -202,7 +184,7 @@ export function AssistantPhotoViewer({
                   {!photoUrl && (
                     <> 
                       {fallbackText}
-                      <span className="mt-1 text-xs">No Photo</span> 
+                      <span className="mt-1 text-xs">No Photo</span>
                     </>
                   )}
               </AvatarFallback>
