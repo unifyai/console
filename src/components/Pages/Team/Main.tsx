@@ -399,6 +399,7 @@ export default function Main({
                     isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                 >
                     <HireForm
+                        assistants={assistants}
                         formMethods={hireFormMethods}
                         onSubmit={initiateHireSequence}
                         isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
@@ -437,6 +438,7 @@ export default function Main({
                         isProcessingVoice={isDialogBusyProcessingVoice}
                     >
                          <HireForm
+                            assistants={assistants}
                             formMethods={hireFormMethods}
                             onSubmit={initiateUpdate}
                             isSubmitting={isFormSubmitting}

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
 import { ImageUpload } from './AssistantHirePhotoPreview';
-import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform } from '@/types/team/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant } from '@/types/team/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
 import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send } from 'lucide-react';
@@ -132,7 +132,6 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     );
 };
 
-
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
@@ -149,6 +148,7 @@ export interface HireFormProps {
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
   deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
+  assistants: Assistant[];
   mode?: 'hire' | 'edit';
 }
 
@@ -168,6 +168,7 @@ export function HireForm({
     isLoadingUserVoices,
     fetchUserVoices,
     deleteUserVoice,
+    assistants,
     mode = 'hire',
 }: HireFormProps) {
   const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
@@ -212,6 +213,19 @@ export function HireForm({
   const rhfRegion = watch("region");
 
   const regionRef = React.useRef(rhfRegion);
+
+  // Re-validate the other name field when one changes to give immediate feedback on the duplicate check.
+  React.useEffect(() => {
+    if (getValues("surname")?.length > 0) {
+        trigger("surname");
+    }
+  }, [firstName, trigger, getValues]);
+
+  React.useEffect(() => {
+      if (getValues("first_name")?.length > 0) {
+          trigger("first_name");
+      }
+  }, [surname, trigger, getValues]);
 
   React.useEffect(() => {
     const isPristine = getValues("isPresetPristine");
@@ -357,12 +371,36 @@ export function HireForm({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1 pt-1">
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="first_name">First Name</Label>
-                    <Input id="first_name" {...register("first_name", { required: "First name is required" })} disabled={isEditMode} />
+                    <Input id="first_name" {...register("first_name", { 
+                        required: "First name is required",
+                        validate: (value) => {
+                            if (isEditMode) return true;
+                            const currentSurname = getValues("surname") || '';
+                            const isDuplicate = assistants.some(
+                                (a) =>
+                                    a.first_name?.trim().toLowerCase() === value.trim().toLowerCase() &&
+                                    a.surname?.trim().toLowerCase() === currentSurname.trim().toLowerCase()
+                            );
+                            return isDuplicate ? "An assistant with this full name already exists." : true;
+                        }
+                    })} disabled={isEditMode} />
                     {errors.first_name && <p className="text-sm font-medium text-destructive mt-1">{errors.first_name.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="surname">Last Name</Label>
-                    <Input id="surname" {...register("surname", { required: "Last name is required" })} disabled={isEditMode} />
+                    <Input id="surname" {...register("surname", { 
+                        required: "Last name is required",
+                        validate: (value) => {
+                            if (isEditMode) return true;
+                            const currentFirstName = getValues("first_name") || '';
+                            const isDuplicate = assistants.some(
+                                (a) =>
+                                    a.surname?.trim().toLowerCase() === value.trim().toLowerCase() &&
+                                    a.first_name?.trim().toLowerCase() === currentFirstName.trim().toLowerCase()
+                            );
+                            return isDuplicate ? "An assistant with this full name already exists." : true;
+                        }
+                    })} disabled={isEditMode} />
                     {errors.surname && <p className="text-sm font-medium text-destructive mt-1">{errors.surname.message}</p>}
                     </div>
                     <div className="col-span-2 sm:col-span-1">
