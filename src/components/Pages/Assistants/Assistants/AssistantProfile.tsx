@@ -105,7 +105,7 @@ export function AssistantProfilePanel({
                             {/* Basic Info */}
                             <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
                                 <AssistantPhotoViewer
-                                    previewUrl={photoSrc}
+                                    photoUrl={photoSrc}
                                     videoUrl={videoSrc}
                                     isPlayable={true}
                                     onClick={() => {
