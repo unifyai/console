@@ -22,7 +22,7 @@ import {
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
-    onNewFileReady: (file: File | null) => void;
+    onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video') => void;
     currentImageUrl: string | null;
     currentImageFile: File | null;
     disabled?: boolean;
@@ -34,7 +34,7 @@ interface PhotoCustomizationProps {
 
 export function PhotoCustomization({
     assistantActions,
-    onNewFileReady,
+    onNewMediaReady,
     currentImageUrl,
     currentImageFile,
     disabled = false,
@@ -45,7 +45,7 @@ export function PhotoCustomization({
 }: PhotoCustomizationProps) {
     const [activeTab, setActiveTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const fileInputRef = React.useRef<HTMLInputElement>(null);
-    
+
     // Camera state
     const [isCameraDialogOpen, setIsCameraDialogOpen] = React.useState(false);
     const [cameraStream, setCameraStream] = React.useState<MediaStream | null>(null);
@@ -63,7 +63,7 @@ export function PhotoCustomization({
     } = usePhotoCreator(
         assistantActions.photo,
         assistantActions.voice.generate,
-        onNewFileReady,
+        onNewMediaReady,
         PHOTO_OPERATION_COST,
         VIDEO_ANIMATION_COST,
         selectedVoice,
@@ -71,10 +71,15 @@ export function PhotoCustomization({
         surname,
         age
     );
-    
+
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
-        onNewFileReady(file);
+        if (file) {
+            const mediaType = file.type.startsWith('video/') ? 'video' : 'photo';
+            onNewMediaReady(file, mediaType);
+        } else {
+            onNewMediaReady(null, 'photo');
+        }
     };
 
     const isGenerateDisabled = !prompt.trim() || isProcessing || disabled;
@@ -87,7 +92,7 @@ export function PhotoCustomization({
         setCameraError(null);
         setIsCameraDialogOpen(true);
     };
-    
+
     // Effect to start camera when dialog opens
     React.useEffect(() => {
         if (isCameraDialogOpen) {
@@ -110,7 +115,7 @@ export function PhotoCustomization({
                 setCameraStream(null);
             }
         }
-    
+
         // Cleanup function for when component unmounts
         return () => {
             if (cameraStream) {
@@ -118,27 +123,27 @@ export function PhotoCustomization({
             }
         };
     }, [isCameraDialogOpen]); // Only re-run when dialog open state changes
-    
+
     const handleCloseCamera = () => {
         setIsCameraDialogOpen(false); // This will trigger the useEffect cleanup
     };
-    
+
     const handleCapturePhoto = () => {
         if (!videoRef.current || !canvasRef.current) return;
-        
+
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
+
         const context = canvas.getContext('2d');
         context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        
+
         canvas.toBlob(blob => {
             if (blob) {
                 const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-                onNewFileReady(file);
+                onNewMediaReady(file, 'photo');
                 handleCloseCamera();
             } else {
                 toast.error("Could not capture photo.");
@@ -149,34 +154,34 @@ export function PhotoCustomization({
     return (
         <div className={cn("flex-1 self-stretch", disabled && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex flex-col h-full">
-                <TabsList className="grid w-full grid-cols-3 h-9"> 
+                <TabsList className="grid w-full grid-cols-3 h-9">
                     <TabsTrigger value="upload" disabled={disabled}>Upload</TabsTrigger>
                     <TabsTrigger value="create" disabled={disabled}>Create</TabsTrigger>
-                    <TabsTrigger value="animate" disabled={disabled}>Animate</TabsTrigger> 
+                    <TabsTrigger value="animate" disabled={disabled}>Animate</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="upload" className="mt-2 flex-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
                         {/* File Upload Input */}
-                        <label 
+                        <label
                             className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
                             aria-disabled={disabled}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
                             <span className="font-medium text-muted-foreground text-sm">Drop file or <span className="text-primary underline">browse</span></span>
-                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP up to 5MB</span>
+                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP, MP4 up to 50MB</span>
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept="image/png, image/jpeg, image/webp"
+                                accept="image/png, image/jpeg, image/webp, video/mp4"
                                 className="hidden"
                                 onChange={handleFileSelect}
                                 disabled={disabled}
                             />
                         </label>
                         {/* Camera Input */}
-                        <div 
+                        <div
                             className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
                             onClick={handleOpenCamera}
                             role="button"
@@ -208,9 +213,9 @@ export function PhotoCustomization({
                                 <TooltipProvider delayDuration={100}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button 
-                                                type="button" 
-                                                variant="ghost" 
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8"
                                                 onClick={() => handleEdit(imageSourceForOperations!)}
@@ -228,10 +233,10 @@ export function PhotoCustomization({
                                 <TooltipProvider delayDuration={100}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button 
-                                                type="button" 
-                                                variant="ghost" 
-                                                size="icon" 
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
                                                 className="h-8 w-8"
                                                 onClick={handleGenerate}
                                                 disabled={isGenerateDisabled}
@@ -267,10 +272,10 @@ export function PhotoCustomization({
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button 
-                                            type="button" 
-                                            variant="ghost" 
-                                            size="icon" 
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
                                             className="h-8 w-8"
                                             onClick={() => handleAnimate(imageSourceForOperations!)}
                                             disabled={isAnimateDisabled}

@@ -6,7 +6,7 @@ import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { Separator } from "@/components/UI/separator";
-import { ImageUpload } from './AssistantHirePhotoPreview';
+import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
@@ -36,7 +36,7 @@ const staticSkillsText = `The bio doesn't influence the assistant's abilities. A
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({ assistantActions }) => {
     const { control, getValues, setValue, formState: { errors } } = useFormContext<AssistantFormData>();
-    
+
     const phoneFieldNames = React.useMemo(() => ({
         identifier: 'user_phone' as 'user_phone',
         isVerified: 'user_phone_isVerified' as 'user_phone_isVerified',
@@ -62,7 +62,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
         fieldNames: phoneFieldNames,
         assistantActions
     });
-    
+
     const handleVerifyClick = (isRetry: boolean) => {
         const phoneNumber = getValues('user_phone');
         if (!phoneNumber || phoneNumber.trim() === '') {
@@ -71,7 +71,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
         }
         handleVerify(isRetry);
     };
-    
+
     const isPhoneVerified = useWatch({ control, name: 'user_phone_isVerified' });
     const phoneValue = useWatch({ control, name: 'user_phone' });
     const isSubmitting = useFormContext<AssistantFormData>().formState.isSubmitting;
@@ -83,7 +83,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
             setValue('user_phone_isVerified', false, { shouldDirty: true });
         }
     };
-    
+
     return (
         <div className="space-y-2">
              <div className="flex items-center gap-2">
@@ -138,6 +138,7 @@ export interface HireFormProps {
   isSubmitting: boolean;
   assistantActions: AssistantActions;
   onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
+  onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video') => void;
   allAssistantEmails: string[];
   isLoadingEmails: boolean;
   availablePhoneCountries: AvailablePhoneCountry[];
@@ -158,6 +159,7 @@ export function HireForm({
     isSubmitting,
     assistantActions,
     onVoiceProcessingStateChange,
+    onNewMediaReady,
     allAssistantEmails,
     isLoadingEmails,
     availablePhoneCountries,
@@ -201,9 +203,10 @@ export function HireForm({
     setJustAddedPlatform(platform);
   };
 
-  const imagePreviewUrl = watch("imagePreview");
-  const imageFile = watch("imageFile");
-  const videoUrl = watch("videoUrl");
+  const photoPreviewUrl = watch("photoPreviewUrl");
+  const videoPreviewUrl = watch("videoPreviewUrl");
+  const photoFile = watch("photoFile");
+  const videoFile = watch("videoFile");
   const isPresetPristine = watch("isPresetPristine");
   const firstName = watch("first_name");
   const surname = watch("surname");
@@ -239,7 +242,7 @@ export function HireForm({
     if (allDisplayableVoices.length === 0) return;
 
     const preferredLanguage = getLangCodeForRegion(rhfRegion);
-    if (!preferredLanguage) return; 
+    if (!preferredLanguage) return;
 
     const currentVoiceId = getValues("voice_id");
     const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
@@ -248,7 +251,7 @@ export function HireForm({
     if (currentVoice && currentVoice.language === preferredLanguage) return;
 
     // Find the best new voice: a non-preset one is preferred
-    const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset) 
+    const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset)
                       || allDisplayableVoices.find(v => v.language === preferredLanguage);
 
     if (bestNewVoice) {
@@ -269,14 +272,14 @@ export function HireForm({
   React.useEffect(() => {
     if (rhfEmail && rhfEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
         const local = rhfEmail.substring(0, rhfEmail.length - EMAIL_DOMAIN_WITH_AT.length);
-        if (local !== emailLocalPart) { 
+        if (local !== emailLocalPart) {
             setEmailLocalPart(local);
         }
-    } else if (rhfEmail) { 
+    } else if (rhfEmail) {
          if (rhfEmail !== emailLocalPart) {
             setEmailLocalPart(rhfEmail);
          }
-    } else { 
+    } else {
         if (emailLocalPart !== '') {
             setEmailLocalPart('');
         }
@@ -295,7 +298,7 @@ export function HireForm({
         } else if (cleanSname) {
             return cleanSname;
         }
-        return "new-assistant"; 
+        return "new-assistant";
     };
 
     if (!getValues("emailManuallyEdited") && (firstName || surname)) {
@@ -306,31 +309,12 @@ export function HireForm({
 
 
   const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newLocalPart = event.target.value.replace(/[@\s]/g, ''); 
-    setEmailLocalPart(newLocalPart); 
-    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true }); 
+    const newLocalPart = event.target.value.replace(/[@\s]/g, '');
+    setEmailLocalPart(newLocalPart);
+    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
     setValue("emailManuallyEdited", true);
     trigger("email");
   };
-
-  const setNewImageFile = React.useCallback((file: File | null) => {
-    const currentPreview = getValues("imagePreview");
-    if (currentPreview && currentPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(currentPreview);
-    }
-    
-    setValue("imageFile", file, { shouldValidate: true });
-    
-    if (file) {
-      setValue("imagePreview", URL.createObjectURL(file));
-    } else {
-      setValue("imagePreview", null);
-    }
-    
-    // Clear other image/video sources when a new file is set
-    setValue("profile_photo_url", null);
-    setValue("videoUrl", null);
-  }, [getValues, setValue]);
 
   const rhfVoiceId = watch("voice_id");
   const rhfVoiceLanguage = watch("voice_language");
@@ -349,8 +333,8 @@ export function HireForm({
             name: rhfVoiceName,
             description: rhfVoiceDescription || '',
             provider: getValues("voice_provider") || VOICE_PROVIDER,
-            is_preset: rhfIsPresetPristine, 
-            isUserVoiceInOrchestra: getValues("voice_exists") 
+            is_preset: rhfIsPresetPristine,
+            isUserVoiceInOrchestra: getValues("voice_exists")
         };
     }
     return null;
@@ -362,7 +346,7 @@ export function HireForm({
     <FormProvider {...formMethods}>
         <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
         <ScrollArea className="flex-1 min-h-0">
-            <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails || isLoadingSocialPlatforms} className="group space-y-6 px-6 py-4"> 
+            <fieldset disabled={isSubmitting || isLoadingCountries || isLoadingEmails || isLoadingSocialPlatforms} className="group space-y-6 px-6 py-4">
                 <div className="space-y-2">
                 <div className='flex gap-2 items-center text-muted-foreground'>
                     <User className="h-4 w-4"/>
@@ -371,7 +355,7 @@ export function HireForm({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1 pt-1">
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="first_name">First Name</Label>
-                    <Input id="first_name" {...register("first_name", { 
+                    <Input id="first_name" {...register("first_name", {
                         required: "First name is required",
                         validate: (value) => {
                             if (isEditMode) return true;
@@ -388,7 +372,7 @@ export function HireForm({
                     </div>
                     <div className="col-span-2 sm:col-span-1">
                     <Label htmlFor="surname">Last Name</Label>
-                    <Input id="surname" {...register("surname", { 
+                    <Input id="surname" {...register("surname", {
                         required: "Last name is required",
                         validate: (value) => {
                             if (isEditMode) return true;
@@ -454,27 +438,28 @@ export function HireForm({
                 </div>
 
                 <Separator />
-                
+
                 {/* Photo Section */}
                 <div className="space-y-3">
                     <div className='flex gap-2 items-center text-muted-foreground'>
                     <ImageIcon className="h-4 w-4"/>
-                    <Label className="text-base font-semibold">Photo</Label>
+                    <Label className="text-base font-semibold">Media</Label>
                     </div>
                     <div className="flex flex-col sm:flex-row items-start gap-4 pt-1">
-                    <ImageUpload
-                        previewUrl={imagePreviewUrl}
-                        videoUrl={videoUrl}
+                    <AssistantPhotoViewer
+                        photoUrl={photoPreviewUrl}
+                        videoUrl={videoPreviewUrl}
+                        photoFile={photoFile}
+                        videoFile={videoFile}
                         isPlayable={isPresetPristine}
-                        imageFile={imageFile}
                         className="flex-shrink-0"
                         disabled={isSubmitting}
                     />
                     <PhotoCustomization
                         assistantActions={assistantActions}
-                        onNewFileReady={setNewImageFile}
-                        currentImageUrl={imagePreviewUrl ?? null}
-                        currentImageFile={imageFile ?? null}
+                        onNewMediaReady={onNewMediaReady}
+                        currentImageUrl={photoPreviewUrl ?? null}
+                        currentImageFile={photoFile ?? null}
                         disabled={isSubmitting}
                         selectedVoice={selectedVoiceForPhotoCustomization}
                         firstName={firstName}
@@ -485,7 +470,7 @@ export function HireForm({
                 </div>
 
                 <Separator />
-                
+
                 {/* Voice Section */}
                 <div className="space-y-2">
                     <div className='flex gap-2 items-center text-muted-foreground'>
@@ -566,7 +551,7 @@ export function HireForm({
                                 <Label htmlFor="email_local_part">Assistant Email</Label>
                                 <div className="flex items-center rounded-md pt-1.5">
                                     <Input
-                                        id="email_local_part" 
+                                        id="email_local_part"
                                         type="text"
                                         value={emailLocalPart}
                                         onChange={handleLocalPartChange}

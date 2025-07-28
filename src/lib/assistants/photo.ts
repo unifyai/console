@@ -48,6 +48,37 @@ export const uploadPhoto = async (apiKey: string) => {
     };
 }
 
+export const uploadVideo = async (apiKey: string) => {
+    return async (formData: FormData): Promise<PhotoUploadResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/video/upload`,
+                {
+                    method: "POST",
+                    headers: {
+                        apiKey: apiKey,
+                    },
+                    body: formData,
+                }
+            );
+            const data = await response.json();
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to upload video: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+            if (data.info && data.info.gcs_url) {
+                return data.info as PhotoUploadResponse; // Same response shape as photo
+            }
+            return { detail: "Video uploaded but GCS URL not received." };
+        } catch (error) {
+            console.error('[photo.ts uploadVideo] Error during video upload:', error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error during video upload.";
+            return { detail: errorMessage };
+        }
+    };
+};
+
 export const downloadPhoto = async () => {
     // filePathOrUrl can be a full GCS URL or just the object path
     return async (filePathOrUrl: string): Promise<{ signedUrl?: string; detail?: string }> => {
@@ -178,7 +209,7 @@ export const editPhoto = async (apiKey: string) => {
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/edit`, {
                 method: "POST",
-                headers: { 
+                headers: {
                     apiKey: apiKey,
                     // Content-Type is set by browser for FormData
                 },
@@ -204,7 +235,7 @@ export const animatePhoto = async (apiKey: string) => {
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate`, {
                 method: "POST",
-                headers: { 
+                headers: {
                     apiKey: apiKey,
                     // Content-Type is set by browser for FormData
                 },
@@ -216,7 +247,7 @@ export const animatePhoto = async (apiKey: string) => {
             }
             // Backend returns { info: "video_url_string" }
             if (data.info && typeof data.info === 'string') {
-                return { video_url: data.info }; 
+                return { video_url: data.info };
             }
             return { detail: "Video animation succeeded but response format was unexpected." };
         } catch (error) {

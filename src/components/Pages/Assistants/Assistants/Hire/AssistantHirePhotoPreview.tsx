@@ -24,43 +24,43 @@ const getFilenameFromUrl = (url: string, defaultFilenameBase: string): string =>
     
     // Basic extension extraction if path parsing failed or no proper filename
     const extensionMatch = url.match(/\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm)(\?|$)/i);
-    const extension = extensionMatch ? extensionMatch[0].split('?')[0] : ''; // Get extension including dot
-    return `${defaultFilenameBase}${extension}`; // e.g. downloaded-video.mp4
+    const extension = extensionMatch ? extensionMatch[0].split('?')[0] : '';
+    return `${defaultFilenameBase}${extension}`;
 };
 
 
-interface ImageUploadProps {
-  previewUrl?: string | null; // Can be blob URL for image/video, or remote URL for image
-  videoUrl?: string | null;   // Remote URL for video (e.g., from preset or if animation result is not downloaded)
-  imageFile?: File | null;    // The actual File object (image or video)
+interface AssistantPhotoViewerProps {
+  photoUrl?: string | null;
+  videoUrl?: string | null;
+  photoFile?: File | null;
+  videoFile?: File | null;
   isPlayable?: boolean;
   fallbackText?: React.ReactNode;
   className?: string;
   avatarClassName?: string;
   disabled?: boolean;
+  onClick?: () => void;
 }
 
-export function ImageUpload({
-  previewUrl,
+export function AssistantPhotoViewer({
+  photoUrl,
   videoUrl,
-  imageFile,
+  photoFile,
+  videoFile,
   isPlayable = false,
   fallbackText = <User className="h-1/2 w-1/2" />,
   className,
   avatarClassName,
   disabled = false,
-}: ImageUploadProps) {
+  onClick,
+}: AssistantPhotoViewerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
-  const [isVideoLoading, setIsVideoLoading] = React.useState(!!(videoUrl || (imageFile && imageFile.type.startsWith('video/'))));
+  const [isVideoLoading, setIsVideoLoading] = React.useState(!!videoUrl);
   const [hasPlayedOnce, setHasPlayedOnce] = React.useState(false);
 
-  const isImageFileVideo = imageFile && imageFile.type.startsWith('video/');
-  const videoSource = isImageFileVideo ? previewUrl : videoUrl; // Prioritize local blob video if imageFile is a video
-
-  // Effect to manage loading state when videoSource changes
   React.useEffect(() => {
-    if (videoSource) {
+    if (videoUrl) {
       if (!isVideoLoading) setIsVideoLoading(true);
       setVideoError(false);
       setHasPlayedOnce(false);
@@ -68,12 +68,12 @@ export function ImageUpload({
       setIsVideoLoading(false);
       setVideoError(false);
     }
-  }, [videoSource]);
+  }, [videoUrl]);
 
   // Effect for autoplaying or pausing based on isPlayable
   React.useEffect(() => {
     const videoElement = videoRef.current;
-    if (videoElement && videoSource && !videoError) {
+    if (videoElement && videoUrl && !videoError) {
       if (isPlayable && !hasPlayedOnce && videoElement.paused && !isVideoLoading) {
         videoElement.play()
           .then(() => setHasPlayedOnce(true))
@@ -86,17 +86,16 @@ export function ImageUpload({
     } else if (videoElement && !videoElement.paused) {
         videoElement.pause();
     }
-  }, [videoSource, videoError, isPlayable, hasPlayedOnce, isVideoLoading]);
+  }, [videoUrl, videoError, isPlayable, hasPlayedOnce, isVideoLoading]);
 
-  const shouldRenderVideo = videoSource && !videoError;
-  const showDownloadButton = (imageFile || videoSource) && !isVideoLoading;
+  const shouldRenderVideo = videoUrl && !videoError;
+  const showDownloadButton = photoFile || videoFile;
+  const hasClickAction = !!onClick && shouldRenderVideo;
 
 
   const handleMouseEnter = () => {
     if (videoRef.current && shouldRenderVideo && videoRef.current.ended) {
-      videoRef.current.play().catch(error => {
-        console.warn("Could not replay video on hover:", error);
-      });
+      videoRef.current.play().catch(e => console.warn("Replay on hover failed:", e));
     }
   };
 
@@ -104,124 +103,87 @@ export function ImageUpload({
     e.preventDefault();
     e.stopPropagation();
 
-    let sourceToDownload: File | string | null = null;
-    let filenameForDownload: string = 'download';
-
-    if (imageFile) { // Prioritize local File object (could be an image or a video)
-        sourceToDownload = imageFile;
-        filenameForDownload = imageFile.name;
-    } else if (videoUrl) { // Then remote video URL (if imageFile is not set or not a video)
-        sourceToDownload = videoUrl;
-        filenameForDownload = getFilenameFromUrl(videoUrl, 'downloaded-video');
-    } else if (previewUrl && !previewUrl.startsWith('blob:')) { // Then remote image URL
-        sourceToDownload = previewUrl;
-        filenameForDownload = getFilenameFromUrl(previewUrl, 'downloaded-image');
-    }
-
-    if (!sourceToDownload) {
-        console.warn("Download attempted without a downloadable source.");
-                    showErrorToast("No downloadable content available.");
+    const fileToDownload = videoFile || photoFile;
+    if (!fileToDownload) {
+        showErrorToast("No downloadable file available.");
         return;
     }
 
     try {
-        let blobToDownload: Blob;
-        if (sourceToDownload instanceof File) {
-            blobToDownload = sourceToDownload;
-        } else { // It's a URL string, fetch it
-             const response = await fetch(sourceToDownload);
-             if (!response.ok) {
-                 const errorText = await response.text();
-                 console.error("Failed to fetch media for download:", response.status, errorText);
-                 throw new Error(`Failed to fetch media: ${response.statusText}`);
-             }
-             blobToDownload = await response.blob();
-        }
-
-        const objectUrl = URL.createObjectURL(blobToDownload);
+        const objectUrl = URL.createObjectURL(fileToDownload);
         const link = document.createElement('a');
         link.href = objectUrl;
-        link.download = filenameForDownload;
+        link.download = fileToDownload.name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(objectUrl); // Clean up the object URL
-
+        URL.revokeObjectURL(objectUrl);
     } catch (error) {
         console.error("Error downloading media:", error);
-        // Determine if it was likely a video or image based on original sources
-        const wasVideo = (imageFile && imageFile.type.startsWith('video/')) || videoUrl;
-                    showErrorToast(`Could not download ${wasVideo ? 'video' : 'image'}.`);
+        showErrorToast(`Could not download ${videoFile ? 'video' : 'image'}.`);
     }
   };
-  
-  // Determine poster: if current preview is an image (not a video blob), use it.
-  const posterUrl = (imageFile && !isImageFileVideo && previewUrl) ? previewUrl :
-                    (!imageFile && previewUrl && !videoSource) ? previewUrl : undefined;
-
 
   return (
-    <div 
-      className={cn("flex flex-col items-center gap-2", className)}
+    <div
+      className={cn("flex flex-col items-center gap-2", className, hasClickAction && "cursor-pointer")}
       onMouseEnter={handleMouseEnter}
+      onClick={hasClickAction ? onClick : undefined}
     >
-      <div
-        className="relative group"
-      >
-        <div 
+      <div className="relative group">
+        <div
           className={cn(
               "h-44 w-44 rounded-lg overflow-hidden border-2 border-dashed flex items-center justify-center",
-              (previewUrl || videoSource) ? "!border-muted" : "border-muted-foreground/30",
-              avatarClassName,
-              "relative" 
+              (photoUrl || videoUrl) ? "!border-muted" : "border-muted-foreground/30",
+              avatarClassName, "relative"
           )}
         >
           {showDownloadButton && (
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full"
-                    onClick={handleDownload}
-                    aria-label={(imageFile && isImageFileVideo) || videoUrl ? "Download Video" : "Download Image"}
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full" 
+                    onClick={handleDownload} 
+                    aria-label={videoFile ? "Download Video" : "Download Image"} 
                     type="button"
                   >
                     <Download className="h-4 w-4 text-foreground" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>{(imageFile && isImageFileVideo) || videoUrl ? "Download Video" : "Download Image"}</p>
+                  <p>{videoFile ? "Download Video" : "Download Image"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
 
-          {isVideoLoading && videoSource && (
+          {isVideoLoading && videoUrl && (
             <Skeleton className="absolute inset-0 h-full w-full rounded-lg animate-pulse bg-muted z-10" />
           )}
 
           {shouldRenderVideo ? (
               <video
-                  key={videoSource} 
+                  key={videoUrl}
                   ref={videoRef}
-                  src={videoSource || undefined} // Ensure src is string | undefined
+                  src={videoUrl || undefined}
                   playsInline
                   className={cn(
-                    "w-full h-full object-cover",
-                    (isVideoLoading || !videoSource) && "opacity-0" 
+                    "w-full h-full object-cover", 
+                    (isVideoLoading || !videoUrl) && "opacity-0"
                   )}
-                  poster={posterUrl}
+                  poster={photoUrl || undefined}
                   onCanPlay={() => {
-                    setIsVideoLoading(false); 
+                    setIsVideoLoading(false);
                     if (isPlayable && !hasPlayedOnce && videoRef.current?.paused) {
                         videoRef.current.play()
-                            .then(() => setHasPlayedOnce(true))
-                            .catch(e => console.warn("OnCanPlay play attempt failed", e));
+                          .then(() => setHasPlayedOnce(true))
+                          .catch(e => console.warn("OnCanPlay play attempt failed", e));
                     }
                   }}
-                  onPlaying={() => { 
+                  onPlaying={() => {
                     setIsVideoLoading(false);
                   }}
                   onErrorCapture={(e) => {
@@ -232,16 +194,16 @@ export function ImageUpload({
               />
           ) : (
             <Avatar className={cn("h-full w-full border-0 rounded-lg", avatarClassName)}>
-              {previewUrl && <AvatarImage src={previewUrl} alt="Avatar Preview" className="object-cover" />}
+              {photoUrl && <AvatarImage src={photoUrl} alt="Avatar Preview" className="object-cover" />}
               <AvatarFallback className={cn(
                 "text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs rounded-lg",
-                !previewUrl && "bg-muted" 
+                !photoUrl && "bg-muted"
               )}>
-                  {!previewUrl && ( 
-                      <>
-                          {fallbackText}
-                          <span className="mt-1 text-xs">No Photo</span>
-                      </>
+                  {!photoUrl && (
+                    <> 
+                      {fallbackText}
+                      <span className="mt-1 text-xs">No Photo</span> 
+                    </>
                   )}
               </AvatarFallback>
             </Avatar>

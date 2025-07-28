@@ -33,7 +33,7 @@ const fetchBalance = async (): Promise<number> => {
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
     generateSpeechAction: AssistantActions['voice']['generate'],
-    onNewFileReady: (file: File) => void,
+    onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video') => void,
     photoOperationCost: number,
     videoAnimationCost: number,
     selectedVoice: VoiceOption | null,
@@ -91,16 +91,16 @@ export function usePhotoCreator(
                 throw new Error((result as ResponseProps).detail);
             }
             const newUrl = (result as PhotoCreationResponse).url;
-            
+
             toast.loading("Processing generated image...", { id: toastId });
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the generated image.");
-            
+
             const blob = await imageResponse.blob();
             const filename = newUrl.substring(newUrl.lastIndexOf('/') + 1) || "ai-generated-photo.jpg";
             const imageFile = new File([blob], filename, { type: blob.type });
 
-            onNewFileReady(imageFile);
+            onNewMediaReady(imageFile, 'photo');
             toast.success("Photo generated successfully!", { id: toastId });
 
         } catch (error: any) {
@@ -131,7 +131,7 @@ export function usePhotoCreator(
             setIsProcessing(false);
             return;
         }
-        
+
         toast.loading("Editing photo...", { id: toastId });
 
         try {
@@ -157,7 +157,7 @@ export function usePhotoCreator(
             }
 
             const newUrl = (result as PhotoCreationResponse).url;
-            
+
             toast.loading("Processing edited image...", { id: toastId });
             const imageResponse = await fetch(newUrl);
             if (!imageResponse.ok) throw new Error("Failed to download the edited image.");
@@ -166,7 +166,7 @@ export function usePhotoCreator(
             const filename = newUrl.substring(newUrl.lastIndexOf('/') + 1) || "ai-edited-photo.jpg";
             const imageFile = new File([blob], filename, { type: blob.type });
 
-            onNewFileReady(imageFile);
+            onNewMediaReady(imageFile, 'photo');
             toast.success("Photo edited successfully!", { id: toastId });
 
         } catch (error: any) {
@@ -201,7 +201,7 @@ export function usePhotoCreator(
             setIsProcessing(false);
             return;
         }
-        
+
         toast.loading("Generating audio for animation...", { id: toastId });
 
         try {
@@ -211,12 +211,12 @@ export function usePhotoCreator(
                 voice_id: selectedVoice.voice_id,
                 output_format: "mp3", // Replicate likely prefers mp3 or wav
                 // Add provider specific fields
-                ...(selectedVoice.provider === 'cartesia' && { 
-                    model_id: 'sonic-2', 
-                    cartesia_language: selectedVoice.language as SupportedLanguage 
+                ...(selectedVoice.provider === 'cartesia' && {
+                    model_id: 'sonic-2',
+                    cartesia_language: selectedVoice.language as SupportedLanguage
                 }),
-                ...(selectedVoice.provider === 'elevenlabs' && { 
-                    model_id: 'eleven_multilingual_v2' 
+                ...(selectedVoice.provider === 'elevenlabs' && {
+                    model_id: 'eleven_multilingual_v2'
                 }),
             };
 
@@ -225,7 +225,7 @@ export function usePhotoCreator(
             if (ttsResult.detail || !ttsResult.audioBase64 || !ttsResult.contentType) {
                 throw new Error(ttsResult.detail || "TTS generation failed for animation.");
             }
-            
+
             const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64);
             const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType }); // Use mp3 extension as default
 
@@ -241,7 +241,7 @@ export function usePhotoCreator(
                 }
                 formData.append('image_url', imageSource);
             }
-            
+
             const result = await photoActions.animate(formData);
             if ((result as ResponseProps).detail) {
                 // Check for status code if available in ResponseProps from animate action
@@ -253,18 +253,18 @@ export function usePhotoCreator(
                 }
                 throw new Error((result as ResponseProps).detail);
             }
-            const remoteVideoUrl = (result as VideoAnimationResponse).video_url; 
+            const remoteVideoUrl = (result as VideoAnimationResponse).video_url;
 
             // 4. Download the animated video and pass it as a File object
             // Continue with same loading toast for processing video
             const videoFetchResponse = await fetch(remoteVideoUrl);
             if (!videoFetchResponse.ok) throw new Error(`Failed to download the animated video from ${remoteVideoUrl}. Status: ${videoFetchResponse.status}`);
-            
+
             const videoBlob = await videoFetchResponse.blob();
             const videoFilename = remoteVideoUrl.substring(remoteVideoUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
             const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
 
-            onNewFileReady(newVideoFile); // This updates imageFile and imagePreview (to a blob URL for the video)
+            onNewMediaReady(newVideoFile, 'video'); // This updates imageFile and imagePreview (to a blob URL for the video)
 
             toast.success("Photo animated successfully!", { id: toastId });
 
