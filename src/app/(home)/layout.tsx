@@ -14,7 +14,7 @@ import "@/styles/globals.css";
 import ThemeLoader from "@/components/Layout/ThemeLoader";
 import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
-import OnboardingGuard from "@/components/TaxClassification/OnboardingGuard";
+import OnboardingGuard from "@/components/Pages/TaxClassification/OnboardingGuard";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

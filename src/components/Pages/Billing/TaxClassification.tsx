@@ -7,7 +7,7 @@ import { Badge } from "../../UI/badge";
 import { Alert, AlertDescription } from "../../UI/alert";
 import { Separator } from "../../UI/separator";
 import { Edit, Building, User, MapPin, FileText, CheckCircle, AlertCircle } from "lucide-react";
-import TaxClassificationForm from "../../TaxClassification/TaxClassificationForm";
+import TaxClassificationForm from "../TaxClassification/TaxClassificationForm";
 import { TaxClassificationFormData, UserBusinessStatusResponse } from "@/types/user";
 
 const TaxClassification = () => {
