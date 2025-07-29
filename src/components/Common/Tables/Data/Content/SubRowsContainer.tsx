@@ -42,6 +42,8 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
         pagesInMemory: number;
         maxPagesInMemory: number;
     };
+
+    rightmostColumnId: string
 }
 
 /**
@@ -73,6 +75,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     interactive = true,
     bidirectionalEnabled = false,
     bidirectionalInfo,
+    rightmostColumnId,
 }: SubRowsContainerProps<TData>) {
     
     // Create a nested table instance to pass correct options down, but without rendering a new table element
@@ -135,6 +138,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                         isAnimating={isAnimating}
                         setDraggingColumnPinner={setDraggingColumnPinner}
                         columnCount={columnCount}
+                        rightmostColumnId={rightmostColumnId}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
                         bidirectionalEnabled={bidirectionalEnabled}

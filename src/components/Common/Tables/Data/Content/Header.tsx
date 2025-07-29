@@ -39,6 +39,7 @@ import { shouldRenderHeader, calculateRowSpan } from "@/utils/interfaces/table/t
 import BaseDialog from "@/components/Common/Dialogs/Base";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
+import TableResizer from "../Buttons/TableResize";
 
 const DataTableHeader = ({
   interactive,
@@ -71,7 +72,8 @@ const DataTableHeader = ({
   onRenameColumn,
   children,
   columnActionsApplied,
-  setColumnActionsApplied
+  setColumnActionsApplied,
+  isRightmost
 }: {
   interactive?: boolean,
   auto_update?: boolean,
@@ -109,6 +111,7 @@ const DataTableHeader = ({
   children?: ReactNode,
   columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
   setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
+  isRightmost?: boolean
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -842,10 +845,15 @@ const DataTableHeader = ({
 
       {/* Column resizer – aligned exactly at the border */}
       {(() => {
-        const showResizer = header.column.getCanResize();
-        return showResizer ? (
-          <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
-        ) : null;
+        const canResize = header.column.getCanResize();
+        if (!canResize) return null;
+
+        return (
+          <>
+            <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
+            {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
+          </>
+        )
       })()}
     </TableHead>
   );

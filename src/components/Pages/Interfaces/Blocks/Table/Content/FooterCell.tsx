@@ -9,6 +9,7 @@ import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize"
 import ColumnPinner from "@/components/Common/Tables/Data/Buttons/ColumnPinner";
 
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/interfaces/columns";
+import TableResizer from "@/components/Common/Tables/Data/Buttons/TableResize";
 
 const FooterCell = ({ 
     column, 
@@ -20,6 +21,7 @@ const FooterCell = ({
     columnPinning,
     columnOrder,
     table,
+    isRightmost
 }: { 
     column: Column<any| unknown>,
     resizeMap: { [x: string]: (event: unknown) => void },
@@ -30,6 +32,7 @@ const FooterCell = ({
     columnPinning: { left?: string[]; right?: string[] };
     columnOrder: string[];
     table: TanTable<any>;
+    isRightmost?: boolean
 }) => {
     const { isDragging, setNodeRef, transform } = useSortable({id: column.id,});
 
@@ -62,15 +65,37 @@ const FooterCell = ({
         ? "width transform 0.2s ease-in-out"
         : undefined;
 
+
+    // --- Border Logic (copied from DataTableCell for consistency) ---
+    const leafCols = table.getAllLeafColumns();
+    const maxDepth = Math.max(...leafCols.map(c => c.depth));
+    let ancestor = column;
+    const boundaryDepths: number[] = [];
+    while (ancestor) {
+        if (ancestor.columnDef.meta?.isParent) {
+            const leafs = ancestor.getLeafColumns();
+            if (leafs.length > 0 && leafs[leafs.length - 1].id === column.id) {
+                boundaryDepths.push(ancestor.depth);
+            }
+        }
+        ancestor = ancestor.parent!;
+    }
+    const boundaryDepth = boundaryDepths.length ? Math.min(...boundaryDepths) : column.depth;
+    const borderThickness = column.id === "RowNumbering" ? 1 : Math.max(1, maxDepth - boundaryDepth + 1);
+
+
     const style: CSSProperties = {
         borderTop: "1px solid var(--muted)",
+        borderBottom: "1px solid var(--muted)",
+        borderLeft: "1px solid var(--muted)",
+        borderRight: `${borderThickness}px solid var(--muted)`,
         opacity: isColumnDragging ? 0.8 : 1,
         position: isPinned ? "sticky" : "relative",
         left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
         right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
         transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
         transition: appliedTransition,
-        maxWidth: `${Math.round(column.getSize())}px`,
+        width: `${Math.round(column.getSize())}px`,
         zIndex: isColumnDragging || isPinned ? 1 : 0,
         backgroundColor: isPinned ? "var(--background)" : "",
     };
@@ -87,7 +112,7 @@ const FooterCell = ({
         <TableCell 
             style={style}
             ref={setNodeRef} 
-            className="group/cell relative select-none overflow-visible"
+            className="group/cell relative select-none overflow-visible text-center"
         >
             <div className="font-bold text-nowrap text-ellipsis min-h-[1rem] flex flex-col items-center justify-center">
                 {children}
@@ -105,7 +130,12 @@ const FooterCell = ({
               </div>
             )}
 
-            {showResizer ? <ColumnResizer column={column} resizeHandler={resizeMap[column.id]} /> : null}
+            {showResizer && (
+              <>
+                <ColumnResizer column={column} resizeHandler={resizeMap[column.id]} />
+                {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
+              </>
+            )}
         </TableCell>
     );
 };

@@ -139,7 +139,7 @@ const ColumnMetrics = ({
     }
 
     return (
-        <TableCell style={style} colSpan={colSpan} className="text-left">
+        <TableCell style={style} colSpan={colSpan} className="text-left pb-1">
             <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={(loading || isMetricsLoading || isFetching) ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading || isMetricsLoading || isFetching} />} open={interactive ? undefined : false}>
                 {metrics.map((metric_, index) =>
                     <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>

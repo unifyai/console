@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/UI/skeleton";
 import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 import { StateProps } from "@/types/dataTable";
+import TableResizer from "../Buttons/TableResize";
 
 const DataTableCell = ({
   cell,
@@ -37,6 +38,7 @@ const DataTableCell = ({
   state,
   children,
   setDraggingColumnPinner,
+  isRightmost
 }: {
   cell: Cell<any, unknown>,
   row: Row<any>,
@@ -62,6 +64,7 @@ const DataTableCell = ({
   state: StateProps,
   children?: ReactNode,
   setDraggingColumnPinner: (state: any) => void,
+  isRightmost?: boolean
 }) => {
   const { isDragging, setNodeRef, transform } = useSortable({
     id: cell.column.id,
@@ -226,10 +229,15 @@ const DataTableCell = ({
 
       {(() => {
         const showResizer = cell.column.getCanResize() && !state.draggingColumnPinner.isPinning;
-        return showResizer ? (
-          <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
-        ) : null;
-      })()}
+          if (!showResizer) return null;
+
+        return (
+            <>
+                <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
+                {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
+            </>
+        );
+       })()}
 
       {/* Column pin drag handle on last pinned-left column */}
       {isLastLeftPinnedColumn && (

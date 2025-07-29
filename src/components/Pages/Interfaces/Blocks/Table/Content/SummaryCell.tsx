@@ -110,7 +110,7 @@ const SummaryCell = ({
 		right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
 		transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
 		transition: appliedTransition,
-		width: `calc(var(--header-${column.id}-size) * 1px)`,
+		width: `${Math.round(column.getSize())}px`,
 		zIndex: isColumnDragging || isPinned ? 1 : 0,
 	};
     const metricTooltip = `${tileDataState?.metric || metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;

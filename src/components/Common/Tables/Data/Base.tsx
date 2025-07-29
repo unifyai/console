@@ -19,6 +19,7 @@ import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from 
 import DataTableHeader from "./Content/Header";
 import DataTableRow from "./Content/Row";
 import SubRowsContainer from "./Content/SubRowsContainer";
+import TableResizer from "./Buttons/TableResize";
 
 import { StateProps, SetStateProps } from "@/types/dataTable";
 import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
@@ -83,7 +84,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     // Multi-level LoadMore props
     GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps> & { position?: "before" | "after" }> | null;
     
-    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[]) => ReactNode; 
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[], isRightmost?: boolean) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
@@ -330,6 +331,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     );
 
     const visibleColumns = table.getVisibleLeafColumns();
+    const rightmostColumnId = visibleColumns[visibleColumns.length - 1]?.id;
 
     // Reorder columns: move grouped columns (state.grouping) to the left in grouping order
     const groupingIds = state.grouping as string[];
@@ -492,6 +494,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 setExpandedCells={setExpandedCells}
                 selectedCells={state.selectedCells}
                 resizeMap={resizeMap}
+                rightmostColumnId={rightmostColumnId}
                 draggingColumns={state.draggingColumns}
                 isAnimating={isAnimating}
                 setDraggingColumnPinner={setState.setDraggingColumnPinner}
@@ -539,6 +542,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         isAnimating={isAnimating}
                         setDraggingColumnPinner={setState.setDraggingColumnPinner}
                         columnCount={finalColumns.length}
+                        rightmostColumnId={rightmostColumnId}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
                         bidirectionalEnabled={bidirectionalEnabled}
@@ -600,6 +604,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnActionsApplied={columnActionsApplied}
                                                 setColumnActionsApplied={setColumnActionsApplied}
                                                 onRenameColumn={onRenameColumn}
+                                                isRightmost={header.column.id === rightmostColumnId}
                                             />
                                         ))}
                                     </SortableContext>
@@ -664,6 +669,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 buttonText="Load Previous"
                                                                 loadingText="Loading previous..."
                                                                 disabled={auto_update}
+                                                                table={table}
+                                                                withTableResizer={true}
                                                             />
                                                         )}
                                                         
@@ -688,6 +695,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 buttonText="Load More"
                                                                 loadingText="Loading more..."
                                                                 disabled={auto_update}
+                                                                table={table}
+                                                                withTableResizer={true}
                                                             />
                                                         )}
                                                     </>
@@ -715,7 +724,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                 ) : (
                                     finalColumns.map((column, index) => (
                                         <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder)}
+                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)}
                                         </SortableContext>
                                     ))
                                 )}

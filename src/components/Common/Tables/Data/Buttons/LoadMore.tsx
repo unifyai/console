@@ -3,6 +3,8 @@ import { Button } from '@/components/UI/button';
 import { Loader2 } from 'lucide-react';
 import { TableRow, TableCell } from '@/components/UI/table';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { Table } from '@tanstack/react-table';
+import TableResizer from './TableResize';
 
 export interface LoadMoreProps {
   onLoadMore: () => void;
@@ -22,6 +24,9 @@ export interface LoadMoreProps {
   // Button text customization
   buttonText?: string;
   loadingText?: string;
+
+  table?: Table<any>;
+  withTableResizer?: boolean;
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -36,6 +41,8 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   position = "sticky",
   buttonText = "Load More",
   loadingText = "Loading...",
+  table,
+  withTableResizer = false,
 }) => {
   const isDisabled = !interactive || isLoading || disabled;
   const disabledTooltip = !interactive 
@@ -133,10 +140,16 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
-            className="py-4 border-t"
+            className="py-4 border-t relative"
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderButtonContent()}
+            {withTableResizer && table && (
+              <TableResizer
+                table={table}
+                setColumnSizing={table.options.onColumnSizingChange as any}
+              />
+            )}
           </TableCell>
         </TableRow>
       )}
@@ -146,10 +159,16 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
-            className="py-4 border-t"
+            className="py-4 border-t relative"
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderLoadingContent()}
+            {withTableResizer && table && (
+              <TableResizer
+                table={table}
+                setColumnSizing={table.options.onColumnSizingChange as any}
+              />
+            )}
           </TableCell>
         </TableRow>
       )}
