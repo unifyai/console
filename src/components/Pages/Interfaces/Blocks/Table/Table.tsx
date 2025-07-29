@@ -11,7 +11,7 @@ import {
   GroupingState,
 } from "@tanstack/react-table";
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
-import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef } from "react";
+import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
 import { Loader2, SquareSplitHorizontal, Layers } from "lucide-react";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
@@ -49,6 +49,7 @@ import { deselectFromClickOutside } from "@/hooks/Interfaces/useCellSelection";
 import { isHiddenByDefault } from "@/utils/interfaces/table/table";
 import EmptyTableOverlay from "./EmptyTableOverlay";
 import LoadMore from "@/components/Common/Tables/Data/Buttons/LoadMore";
+import { PageScrollContext } from "../../Interface/Interface";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
@@ -951,6 +952,34 @@ const LogsTable = ({
     });
   }, [panelCount]);
 
+  // Scrolling outside of the table cells should scroll the page
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const pageScrollContainerRef = useContext(PageScrollContext);
+  useEffect(() => {
+    const tableScrollViewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const pageScrollViewport = pageScrollContainerRef?.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const handleWheelScroll = (e: Event) => {
+        const wheelEvent = e as WheelEvent;
+        const target = wheelEvent.target as HTMLElement;
+        // Allow scroll only if the event originates from within the table body.
+        if (!target.closest('tbody')) {
+            wheelEvent.preventDefault();
+            if (pageScrollViewport) {
+                pageScrollViewport.scrollTop += wheelEvent.deltaY;
+            }
+        }
+    };
+    if (tableScrollViewport) {
+        tableScrollViewport.addEventListener('wheel', handleWheelScroll, { passive: false });
+    }
+
+    return () => {
+        if (tableScrollViewport) {
+            tableScrollViewport.removeEventListener('wheel', handleWheelScroll);
+        }
+    };
+  }, [pageScrollContainerRef]);
+
   return (
     <div
       ref={containerRef} 
@@ -965,7 +994,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableMenu}
-          <ScrollArea className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
+          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}
@@ -982,7 +1011,7 @@ const LogsTable = ({
                     <div
                       key={idx}
                       ref={panelScrollRefs[idx]}
-                      className="relative flex-1 flex-col gap-2 overflow-y-auto border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                      className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
                       style={{
                         minWidth: "100%",
                         overflowX: "visible",

@@ -37,6 +37,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
 import { cn } from '@/lib/utils';
 
+export const PageScrollContext = React.createContext<React.RefObject<HTMLDivElement> | null>(null);
+
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
 const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
@@ -101,6 +103,7 @@ const Interface = ({
     return () => clearTimeout(t);
   }, []);
 
+  const pageScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // SYNCHRONISED INTERFACE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedInterfaceActions } = useInterfaceSync(interfaceId, projectQueryParam, interfaceActions, tabActions);
@@ -516,6 +519,8 @@ const Interface = ({
   };
 
   return (
+  <PageScrollContext.Provider value={pageScrollContainerRef}>
+
     <div className="w-full h-full relative">
       {/* New Interface Navigation Sidebar */}
       <InterfaceNav
@@ -567,25 +572,25 @@ const Interface = ({
             </div>
           </div>
         )}
-          <ScrollArea className="flex-1 min-w-0 h-full">
+          <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
           <div className="relative bg-background" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
           {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
               the user sees a Skeleton while the tabs are being loaded
-            --------------------------------------------------------- */}
+              --------------------------------------------------------- */}
           <Suspense
             fallback={
               <div className="w-full h-full flex items-center justify-center">
                 <SkeletonLoader />
               </div>
             }
-          >
+            >
             <Tabs
               value={activeTabName || undefined}
               onValueChange={handleTabChange}
               className="w-full h-full flex flex-col tutorial-details-panel"
-            >
+              >
               {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
             <div 
               className="fixed top-14 z-40 transition-all duration-300 ease-linear pointer-events-none"
@@ -593,7 +598,7 @@ const Interface = ({
                 left: isNavCollapsed ? '48px' : '256px', // Adjust based on sidebar state
                 right: 0,
               }}
-            >
+              >
               <div className="flex justify-between gap-5 w-full p-4 pointer-events-auto overflow-x-auto command-scrollbar">
                 {/* ProjectButtons removed as per UI simplification */}
 
@@ -630,7 +635,7 @@ const Interface = ({
                 paddingRight: '1rem',   // Content padding
                 minHeight: 'calc(100vh - 6rem)', // Ensure full height minus top padding
               }}
-            >
+              >
               {tabNames.length === 0 ? (
                 (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
                   <div className="flex justify-center">
@@ -656,7 +661,7 @@ const Interface = ({
               ) : (
                 tabNames.map((tabName: string, idx: number) => (
                   <TabsContent
-                    key={idx}
+                  key={idx}
                     value={tabName}
                     className="mb-auto tutorial-selection-pane relative w-full h-full"
                   >
@@ -789,7 +794,7 @@ const Interface = ({
                   codeActions={codeActions}
                   fileActions={fileActions}
                   projectsActions={projectsActions}
-                />
+                  />
               </Suspense>
             </DialogContent>
           </Dialog>
@@ -803,7 +808,7 @@ const Interface = ({
               interfaceId={interfaceId}
               tabActions={tabActions}
               tileActions={tileActions}
-            />
+              />
           </Suspense>
         )}
 
@@ -858,19 +863,20 @@ const Interface = ({
                     value: cmd.id,
                     icon: cmd.icon ? iconMap[cmd.icon] : undefined,
                     disabled: cmd.disabled
-                }))}
-                onSelect={(commandId: string) => {
-                    handleCommand(commandId);
-                }}
-                loading={false}
-            />
-        </div> 
-        */}
+                    }))}
+                    onSelect={(commandId: string) => {
+                      handleCommand(commandId);
+                      }}
+                      loading={false}
+                      />
+                      </div> 
+                      */}
          </div>
             </ScrollArea>
          </div>
     </div>
     </div>
+  </PageScrollContext.Provider>
   );
 };
 
