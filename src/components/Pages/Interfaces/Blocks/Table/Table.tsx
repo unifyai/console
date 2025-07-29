@@ -1317,7 +1317,7 @@ const LogsTable = ({
                           </FooterCell>
                         }
                         ExtraComponents={(table) => {
-                          return <DeleteCells project={projectId} selectedCells={selectedCells} logs={logs} deleteLogFields={logsActions.delete} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
+                          return <DeleteCells projectId={projectId} tabId={tabId} tileId={tileId} selectedCells={selectedCells} logs={logs} projectsActions={projectsActions} logsActions={logsActions} contextActions={contextActions} fieldsActions={fieldsActions} columnContext={item?.column_context} context={item?.context} setPending={setPending}/>
                         }}
                         ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                           <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />

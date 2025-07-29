@@ -621,7 +621,7 @@ export interface LogsActions {
         metricName: string,
         keyNames: string[]
     ) => Promise<{ [key: string]: number } | { [key:string]: { [key: string]: { [key: string]: number } } }>;
-    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>;
+    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
     update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
 }
 

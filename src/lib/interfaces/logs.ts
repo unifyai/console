@@ -239,7 +239,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null = "all") => {
+    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -247,7 +247,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, context, ids_and_fields, source_type })
+                body: JSON.stringify({ project, context, ids_and_fields, source_type: "all", delete_empty_logs: true, delete_empty_fields: true })
             }
         );
         return await response.json();
