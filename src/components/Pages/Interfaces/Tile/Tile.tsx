@@ -6,6 +6,7 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
+import { useTabUI } from '@/contexts/hooks/tab';
 // Removed unused tab UI import – tile component no longer needs to know tab colour directly
 // (it inherits via CSS variables from the Tab wrapper).
 import { ExpandProvider } from "@/contexts/ExpandContext";
@@ -52,8 +53,10 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // Use granular hooks for better code organization
   const { meta: tileMetaState } = useTileMeta(tileId, tabId);
   const { ui: tileUIState } = useTileUI(tileId, tabId);
+  const { ui: tabUIState } = useTabUI(tabId);
   // Tab UI no longer required here – colour inheritance handled by CSS cascade.
 
+  // Access focus pane control
   // Get refs from registry
   const tileHeaderRef = getTileHeaderRef(tileId);
   const tileCardRef = getTileCardRef(tileId);

@@ -6,15 +6,18 @@ import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
 import { CodeActions, FileActions } from "@/types/interfaces/grid";
 import { useTabData } from "@/contexts/hooks/tab";
+import { useTileMeta } from "@/contexts/hooks/tile";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/interfaces/grid";
 import ActionButton from "@/components/Common/Buttons/Action";
 import FileDirectory from "@/components/Shared/Tree/Directory/FileDirectory";
-import { FilePlus, FolderPlus, Trash2, Plus, Save } from "lucide-react";
+import { FilePlus, FolderPlus, Trash2, Plus, Save, Maximize2 } from "lucide-react";
 import { FileEntry } from "@/types/interfaces/grid";
 import EditableSecret from "@/components/Common/Code/EditableSecret";
+import { useTab } from "@/contexts/hooks/tab";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const Editor = ({
     tileId,
@@ -52,9 +55,15 @@ const Editor = ({
         fieldsActions
     );
     const { data: tabData } = useTabData(tabId, interfaceId);
+    const { meta: tileMetaState } = useTileMeta(tileId, tabId);
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
+    // Access tab state for focus pane button
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
+    const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+    const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+
     // Maintain list of file entries (name + type). Content is fetched lazily on demand
     const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
     const [loadingFiles, setLoadingFiles] = useState(false);
@@ -418,6 +427,24 @@ const Editor = ({
                         tooltip="Save To File"
                         onClick={() => onSave(tempCode)}
                     />
+                    {!tabUIState?.edit && (
+                        <ActionButton
+                            icon={<Maximize2 size={16} />}
+                            variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileMetaState?.name) ? "primary" : "outline"}
+                            tooltip="Open in focus pane"
+                            onClick={() => {
+                                const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                                const tileName = tileMetaState?.name;
+                                if (tileName && !focusedTileNames.includes(tileName)) {
+                                  tabUIActions?.setFocusedTileNames([
+                                    tileName,
+                                    focusedTileNames[0] || focusedTileNames[1],
+                                  ] as [string | undefined, string | undefined]);
+                                }
+                                setFocusPaneOpen(true);
+                            }}
+                        />
+                    )}
                 </div>
                 {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
                 {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}

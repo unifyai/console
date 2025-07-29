@@ -13,7 +13,8 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2 } from "lucide-react";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
@@ -65,6 +66,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore";
 import { checkHasNextPage } from "@/utils/interfaces/logsCore";
 import { calculateGroupHasNextPage as calcGroupHasNextPageUtil } from "@/utils/interfaces/table/grouping";
+import { cn } from "@/lib/utils";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -110,7 +112,9 @@ const LogsTable = ({
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
 
   // Get access to the tab data and actions with granular access
-  const { ui: tabUIState, data: tabDataState } = useTab(tabId, interfaceId);
+  const { ui: tabUIState, uiActions: tabUIActions, data: tabDataState } = useTab(tabId, interfaceId);
+  const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+  const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
   const context_ = tabDataState?.globalContext;
 
   // Use granular hooks for better performance
@@ -785,7 +789,10 @@ const LogsTable = ({
     (logsFilters != undefined || commonFilter != undefined);
 
   const tableMenu = (
-    <div className="mb-2 mx-1 flex flex-nowrap items-start border-b py-2 gap-x-4 overflow-x-auto command-scrollbar">
+    <div className={cn(
+      "transition-all duration-300 ease-in-out mb-2 mx-1 flex flex-nowrap items-start border-b gap-x-4 overflow-x-auto command-scrollbar",
+      interactive ? "max-h-24 opacity-100 py-2" : "max-h-0 opacity-0 py-0 overflow-hidden"
+    )}>
         {/* Data Section */}
         <div className="flex flex-col gap-1 border-r pr-4">
             <span className="text-xs text-muted-foreground">Data</span>
@@ -833,6 +840,23 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
+                {!tabUIState?.edit && (
+                  <SettingButton
+                    tooltip="Open in focus pane"
+                    icon={<Maximize2 className="h-4 w-4" />}
+                    onClick={() => {
+                      const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                      if (!focusedTileNames.includes(tileName)) {
+                        tabUIActions?.setFocusedTileNames([
+                          tileName,
+                          focusedTileNames[0] || focusedTileNames[1],
+                        ] as [string | undefined, string | undefined]);
+                      }
+                      setFocusPaneOpen(true);
+                    }}
+                    variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName) ? "primary" : "outline"}
+                  />
+                )}
                 {showAdvancedFeatures && (
                   <>
                     <SettingButton

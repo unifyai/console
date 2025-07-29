@@ -1353,7 +1353,7 @@ export default function InterfaceNav({
             <div className="flex items-center justify-between w-full px-2 py-1 rounded-md hover:bg-accent/30">
               <div className="flex items-center gap-2">
                 <SquareMousePointer className={cn('h-4 w-4', isCommandMode && 'text-primary')} />
-                <span className="text-sm whitespace-nowrap transition-opacity duration-300">Interactive Mode</span>
+                <span className="text-sm whitespace-nowrap transition-opacity duration-300">Dashboard Mode</span>
               </div>
               <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} />
             </div>
@@ -1438,14 +1438,14 @@ export default function InterfaceNav({
                     className={cn('h-8 w-8',
                       isCommandMode
                         ? 'text-primary hover:text-primary-foreground'
-                        : 'text-muted-foreground hover:text-primary'
+                        : 'text-muted-foreground hover:text-primary-foreground'
                     )}
                   >
                     <SquareMousePointer className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  {isCommandMode ? "Disable Interactive Mode" : "Enable Interactive Mode"}
+                  {isCommandMode ? "Disable Dashboard Mode" : "Enable Dashboard Mode"}
                 </TooltipContent>
               </Tooltip>
             </div>

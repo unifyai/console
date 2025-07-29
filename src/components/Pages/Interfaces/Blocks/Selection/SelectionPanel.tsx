@@ -30,7 +30,8 @@ import {
   Binary,
   Settings,
   SquareSplitHorizontal,
-  Edit
+  Edit,
+  Maximize2
 } from "lucide-react";
 
 import {
@@ -76,6 +77,8 @@ import {
 import { createContext, useContextSelector } from "use-context-selector";
 import { TableActions } from "@/contexts/hooks/tile/useTableTile";
 import { Span } from "@/types/interfaces/traces";
+import { useTab } from "@/contexts/hooks/tab";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 // Create a custom context for panel-specific state
 type PanelExpandContextType = {
@@ -185,7 +188,10 @@ export default function SelectionPanel({
   onSaveMany,
   logsActions,
   updateLogsByRowIds,
-  context
+  context,
+  tabUIState,
+  tabUIActions,
+  setFocusPaneOpen
 }: {
   panelId: number;
   panelState: PanelState;
@@ -209,7 +215,12 @@ export default function SelectionPanel({
   logsActions: LogsActions;
   updateLogsByRowIds: (rowIds: string[], desc: { source: "entries" | "params"; path: (string|number)[]; newValue: any }) => void; 
   context: string | null
+  tabUIState: any
+  tabUIActions: any
+  setFocusPaneOpen: (open:boolean)=>void
 }) {
+  const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+
   // Extract all values from panelState
   const {
     displayMode,
@@ -1347,6 +1358,26 @@ export default function SelectionPanel({
           </div>
           {/* Right side: Controls */}
           <div className="flex items-center gap-2">
+            {/* Focus pane button */}
+            {!tabUIState?.edit && (
+              <ActionButton
+                tooltip="Open in focus pane"
+                icon={<Maximize2 className="h-4 w-4" />}
+                onClick={() => {
+                  const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                  const tileName = item?.name;
+                  if (tileName && !focusedTileNames.includes(tileName)) {
+                    tabUIActions?.setFocusedTileNames([
+                      tileName,
+                      focusedTileNames[0] || focusedTileNames[1],
+                    ] as [string | undefined, string | undefined]);
+                  }
+                  setFocusPaneOpen(true);
+                }}
+                variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(item?.name) ? "primary" : "ghost"}
+                size="icon"
+              />
+            )}
             {/* Edit Mode Toggle Button */}
             <ActionButton
               tooltip={cellEditMode ? "Switch to View Mode" : "Switch to Edit Mode"}

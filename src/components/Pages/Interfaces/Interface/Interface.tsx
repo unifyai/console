@@ -527,7 +527,7 @@ const Interface = ({
         interfaceId={interfaceId}
         projectId={projectQueryParam || ''}
         isEditMode={tabUIState?.edit || false}
-        isCommandMode={tabUIState?.interactive || false}
+        isCommandMode={!tabUIState?.interactive}
         onEditModeToggle={() => {
           tabUIActions?.setEdit(!tabUIState?.edit);
         }}

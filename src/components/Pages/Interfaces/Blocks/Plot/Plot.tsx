@@ -12,6 +12,7 @@ import { drawPlot } from "@/utils/interfaces/plots/main";
 import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Interfaces/Query/usePlotDataQuery";
 import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
 import { PlotArguments } from "@/types/interfaces/logs";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const LogsPlot = ({ 
     tileId,
@@ -57,6 +58,7 @@ const LogsPlot = ({
     
     // Get access to the tab context and actions with granular access
     const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
+    const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
 
     useEffect(() => {
         if (containerRef.current) {
@@ -226,6 +228,7 @@ return (
         className="flex flex-1 h-full bg-background relative overflow-hidden"
         ref={containerRef}
       >
+        {/* Focus button moved to sidebar toolbar */}
         {/* SVG content*/}
         <svg ref={svgRef} className="w-full h-full absolute top-0 left-0 z-0">
            <defs>
@@ -249,6 +252,11 @@ return (
   
       {/* Settings Panel */}
       <PlotSettings
+            showSettings={interactive}
+            tabUIState={tabUIState}
+            tabUIActions={tabUIActions}
+            setFocusPaneOpen={setFocusPaneOpen}
+            tileName={item?.name}
             interactive={interactive}
             pending={pending}
             svgRef={svgRef}

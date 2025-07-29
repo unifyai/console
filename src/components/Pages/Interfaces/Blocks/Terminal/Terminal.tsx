@@ -21,7 +21,9 @@ import { useTabData } from "@/contexts/hooks/tab/useTabData";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { Play, Square } from "lucide-react";
+import { Play, Square, Maximize2 } from "lucide-react";
+import { useTab } from "@/contexts/hooks/tab";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 interface TerminalProps {
   tileId: string;
@@ -67,6 +69,11 @@ export default function Terminal({
   const tileIds = tabData?.tileIds;
   const tiles = useTiles(tileIds, ["type", "terminalTile.shell_type"]);
   const terminalTiles = tiles.filter((tile) => tile.type == "Terminal");
+
+  // Focus pane button support
+  const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
+  const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+  const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
 
 
   /* -------------------------------------------------- state / refs */
@@ -231,6 +238,24 @@ export default function Terminal({
             tooltip="Stop terminal"
             icon={<Square />}
             onClick={stopTerminal}
+          />
+        )}
+        {!tabUIState?.edit && (
+          <ActionButton
+            icon={<Maximize2 className="h-4 w-4" />}
+            variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tiles.find(t=>t.id===tileId)?.name) ? "primary" : "outline"}
+            tooltip="Open in focus pane"
+            onClick={() => {
+              const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+              const tileName = tiles.find(t=>t.id===tileId)?.name;
+              if (tileName && !focusedTileNames.includes(tileName)) {
+                tabUIActions?.setFocusedTileNames([
+                  tileName,
+                  focusedTileNames[0] || focusedTileNames[1],
+                ] as [string | undefined, string | undefined]);
+              }
+              setFocusPaneOpen(true);
+            }}
           />
         )}
       </div>

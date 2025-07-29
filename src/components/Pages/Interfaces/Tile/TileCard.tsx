@@ -1,6 +1,7 @@
 "use client";
 
 import React, { ReactNode, Suspense, lazy, useEffect } from "react";
+import { cn } from "@/utils/misc/cn";
 import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
 import { LogsActions } from "@/types/interfaces/grid";
 import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
@@ -118,22 +119,31 @@ const TileCard = ({
   return (
     <TileColorContext.Provider value={resolvedColor}>
       <div ref={tileCardRef} className="relative flex w-full h-full border">
+
+        {/* Focus button moved inside tile content (handled in Tile component) */}
         <div className={"w-full flex-1 flex flex-col items-center"}>
           
-          {/* Tile header */}
-          <TileHeader
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            tabActions={tabActions}
-            tileActions={tileActions}
-            logsActions={logsActions}
-            contextActions={contextActions}
-            codeActions={codeActions}
-            projectsActions={projectsActions}
-            fieldsActions={fieldsActions}
-          />
+          {/* Tile header with smooth show/hide animation */}
+          <div
+            className={cn(
+              "w-full overflow-hidden transition-all duration-300 ease-in-out",
+              tabUIState?.edit ? "max-h-12 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+            )}
+          >
+            <TileHeader
+              tileId={tileId}
+              tabId={tabId}
+              interfaceId={interfaceId}
+              projectId={projectId}
+              tabActions={tabActions}
+              tileActions={tileActions}
+              logsActions={logsActions}
+              contextActions={contextActions}
+              codeActions={codeActions}
+              projectsActions={projectsActions}
+              fieldsActions={fieldsActions}
+            />
+          </div>
           
           {/* Tile overlays and content */}
 
