@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
 import { User, CreditCard, Key, LogOut, ExternalLink } from 'lucide-react'
+import { signOut } from 'next-auth/react'
 import { Button } from '@/components/UI/button'
 import {
   DropdownMenu,
@@ -29,6 +30,14 @@ export default function TopNav() {
   // Removed favourites handling
   const [profileName, setProfileName] = useState("Profile")
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
+
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    // Prevent the dropdown from closing before signOut completes
+    await signOut({ redirect: false })
+    router.push('/login')
+  }
 
   // Fetch user session data
   useEffect(() => {
@@ -174,26 +183,32 @@ export default function TopNav() {
                 </div>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="hover:bg-transparent">
+              <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
                 <Link href="/profile" className="flex items-center hover:text-[color:var(--foreground)]">
                   <User className="mr-2 h-4 w-4" />
                   <span>{profileName}</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="hover:bg-transparent">
+              <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
                 <Link href="/billing" className="flex items-center hover:text-[color:var(--foreground)]">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Billing</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="hover:bg-transparent">
+              <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
                 <Link href="/keys" className="flex items-center hover:text-[color:var(--foreground)]">
                   <Key className="mr-2 h-4 w-4" />
                   <span>API Keys</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-[color:var(--destructive)] hover:bg-[color:var(--destructive)] hover:text-[color:var(--destructive-foreground)]">
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault()
+                  handleSignOut()
+                }}
+                className="text-[color:var(--destructive)] hover:bg-[color:var(--destructive)] hover:text-[color:var(--destructive-foreground)] cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign out</span>
               </DropdownMenuItem>
