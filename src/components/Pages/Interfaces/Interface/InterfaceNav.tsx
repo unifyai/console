@@ -777,6 +777,7 @@ export default function InterfaceNav({
   // Theme dialog state
   const [themeDialogOpen, setThemeDialogOpen] = useState(false)
   const [themeColor, setThemeColor] = useState<string>("")
+  const [isThemeDialogForCollapsedOpen, setIsThemeDialogForCollapsedOpen] = useState(false);
   const [themeInterfaceId, setThemeInterfaceId] = useState<string | null>(null)
   const [isSavingTheme, setIsSavingTheme] = useState(false)
   const [renameProjectName, setRenameProjectName] = useState('')
@@ -1333,7 +1334,7 @@ export default function InterfaceNav({
                 isEditMode ? 'max-h-12' : 'max-h-0'
               )}>
                 <div className={cn('transition-opacity duration-300', isEditMode ? 'opacity-100' : 'opacity-0')}>
-                  <ColorPicker value={pickerColor} onChange={handleThemeChange} showReset={true} onReset={handleThemeReset}>
+                  <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
                     <div className="relative ml-2 pr-2 cursor-pointer group">
                       {/* Branch */}
                       <div className="absolute left-2 top-[18px] w-4 h-px bg-[color:var(--muted)]" />
@@ -1411,20 +1412,15 @@ export default function InterfaceNav({
                 isEditMode ? 'max-h-8 mt-2' : 'max-h-0 mt-0 opacity-0'
               )}
             >
-              <ColorPicker value={pickerColor} onChange={handleThemeChange} showReset={true} onReset={handleThemeReset}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <ActionButton
-                      size="icon"
-                      variant="ghost"
-                      tooltip="Set Project Color"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary-foreground"
-                      icon={<Palette className="h-4 w-4" />}
-                      disabled={!isEditMode}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Set Project Color</TooltipContent>
-                </Tooltip>
+              <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                <ActionButton
+                  size="icon"
+                  variant="ghost"
+                  tooltip="Set Project Color"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary-foreground"
+                  icon={<Palette className="h-4 w-4" />}
+                  disabled={!isEditMode}
+                />
               </ColorPicker>
             </div>
             {/* Interactive Icon */}
