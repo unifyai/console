@@ -134,7 +134,6 @@ const DataTableHeader = ({
   const isPinned = header.column.getIsPinned();
   const isLastLeftPinnedColumn = isPinned === "left" && header.column.getIsLastColumn('left');
   const isParentColumn = header.column.columnDef.meta?.isParent;
-
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
   const isImageColumn = header.column.columnDef.meta?.dataType === "image";
@@ -380,7 +379,7 @@ const DataTableHeader = ({
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
-    position: isChildPinned || isParentFullyPinned ? 'sticky' : undefined,
+    position: isChildPinned || isParentFullyPinned ? 'sticky' : 'relative',
     left: isParentFullyPinned
       ? `${pinnedAreaWidth}px`
       : isChildPinned

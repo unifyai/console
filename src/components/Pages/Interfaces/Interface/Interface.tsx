@@ -779,7 +779,7 @@ const Interface = ({
         {/* Focus Dialog */}
         {focusPaneOpen && (
           <Dialog open={true} onOpenChange={() => setFocusPaneOpen(false)}>
-                            <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
+            <DialogContent className="min-w-full h-full overflow-y-auto">
               <Suspense fallback={<SkeletonLoader />}>
                 <FocusDialog
                   tabIdOrName={activeTabId || ""}

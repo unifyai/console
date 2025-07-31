@@ -49,7 +49,7 @@ const FooterCell = ({
     const isPinned = column.getIsPinned();
     const isLastLeftPinnedColumn = isPinned === "left" && column.getIsLastColumn('left');
     const isParentColumn = column.columnDef.meta?.isParent;
-    
+
     // Determine the applied transform for both dragging and pinning
     const appliedTransform: Transform | null = isDragging
         ? transform 
@@ -85,13 +85,12 @@ const FooterCell = ({
 
 
     const style: CSSProperties = {
-        boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
         borderTop: "1px solid var(--muted)",
         borderBottom: "1px solid var(--muted)",
-        borderLeft: column.id === "RowNumbering" ? "1px solid var(--muted)" : undefined,
+        borderLeft: "1px solid var(--muted)",
         borderRight: `${borderThickness}px solid var(--muted)`,
         opacity: isColumnDragging ? 0.8 : 1,
-        position: isPinned ? "sticky" : undefined,
+        position: isPinned ? "sticky" : "relative",
         left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
         right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
         transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
@@ -113,9 +112,9 @@ const FooterCell = ({
         <TableCell 
             style={style}
             ref={setNodeRef} 
-            className={`group/cell relative select-none overflow-visible ${column.id === "RowNumbering" ? "text-left" : "text-center"}`}
+            className="group/cell relative select-none overflow-visible text-center"
         >
-            <div className={`font-bold min-h-[1rem] flex flex-col ${column.id === "RowNumbering" ? "items-start justify-start pl-2" : "text-nowrap text-ellipsis items-center justify-center"}`}>
+            <div className="font-bold text-nowrap text-ellipsis min-h-[1rem] flex flex-col items-center justify-center">
                 {children}
             </div>
             {/* Pin handle */}
