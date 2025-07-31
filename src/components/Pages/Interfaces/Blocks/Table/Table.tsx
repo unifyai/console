@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2 } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, Sigma } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -98,7 +98,7 @@ const LogsTable = ({
   const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
   const [useVirtualization, setUseVirtualization] = useState(false); // Enable virtualization by default
-  const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(true); // Enable bidirectional loading
+  const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(false); // Enable bidirectional loading
   const [bidirectionalConfig, setBidirectionalConfig] = useState({
     maxPagesInMemory: 5,
     enableBackwardLoading: true,
@@ -107,6 +107,9 @@ const LogsTable = ({
 
   // Empty table overlay state
   const [overlayDismissed, setOverlayDismissed] = useState(false);
+
+  // State to handle showing or hiding the summary cells in the footer
+  const [isSummaryRowVisible, setIsSummaryRowVisible] = useState(false);
 
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
@@ -862,6 +865,12 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
+                <SettingButton
+                    tooltip={isSummaryRowVisible ? "Hide summary row" : "Show summary row"}
+                    icon={<Sigma className="h-4 w-4" />}
+                    variant={isSummaryRowVisible ? "primary" : "outline"}
+                    onClick={() => setIsSummaryRowVisible(!isSummaryRowVisible)}
+                 />
                 {!tabUIState?.edit && (
                   <SettingButton
                     tooltip="Open in focus pane"
@@ -1080,6 +1089,9 @@ const LogsTable = ({
                           groupOffsets: groupOffsets,
                         }}
                         
+                        // Display or hide summary cells
+                        showFooter={isSummaryRowVisible}
+
                         // Virtualization props - only enabled when useVirtualization is true
                         enableVirtualization={useVirtualization}
                         virtualRowHeight={60}
