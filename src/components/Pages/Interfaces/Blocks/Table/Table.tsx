@@ -151,6 +151,28 @@ const LogsTable = ({
     isLoading: isTableDataLoading,
   } = tableDataItem;
 
+  // This effect is responsible for clearing the newCells array after the animation plays.
+  // This allows the animation to be re-triggered on subsequent updates.
+  useEffect(() => {
+    // Check if there are any new cells to animate.
+    if (newCells && newCells.length > 0) {
+      // Set a timer that matches the duration of the 'animate-fade-accent' CSS animation.
+      // Let's assume the animation takes 1.5 seconds (1500ms). Adjust if needed.
+      const timer = setTimeout(() => {
+        // After the animation has finished, update the state to clear the newCells array.
+        // This resets the state, making it ready for the next update.
+        updateTableDataItemWithUpdater(prev => ({
+          ...prev,
+          newCells: [],
+        }));
+      }, 1500); // 1.5 seconds
+
+      // IMPORTANT: Return a cleanup function to clear the timer.
+      // This prevents bugs if the component re-renders or unmounts before the timer finishes.
+      return () => clearTimeout(timer);
+    }
+  }, [newCells, updateTableDataItemWithUpdater]);
+
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const tileName = tileMetaState?.name || "";
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
