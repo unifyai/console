@@ -50,6 +50,9 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
         groupOffsets: Map<string, number>;
     };
     
+    // Show or hide footer
+    showFooter?: boolean;
+
     // Virtualization props with defaults
     enableVirtualization?: boolean;
     virtualRowHeight?: number;
@@ -110,6 +113,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     onRenameColumn,
     offsetInfo,
     
+    showFooter = true,
+
     // Virtualization props with defaults
     enableVirtualization = false,
     virtualRowHeight = 60,
@@ -713,23 +718,25 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             }
                         </TableBody>
 
-                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
-                            <TableRow>
-                                {isUpdatingLogs ? (
-                                    finalColumns.map((_, idx) => (
-                                        <TableCell key={idx} className="p-2">
-                                            <div className="h-4 bg-muted rounded animate-pulse" />
-                                        </TableCell>
-                                    ))
-                                ) : (
-                                    finalColumns.map((column, index) => (
-                                        <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)}
-                                        </SortableContext>
-                                    ))
-                                )}
-                            </TableRow>
-                        </TableFooter>
+                        {showFooter && (
+                            <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
+                                <TableRow>
+                                    {isUpdatingLogs ? (
+                                        finalColumns.map((_, idx) => (
+                                            <TableCell key={idx} className="p-2">
+                                                <div className="h-4 bg-muted rounded animate-pulse" />
+                                            </TableCell>
+                                        ))
+                                    ) : (
+                                        finalColumns.map((column, index) => (
+                                            <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
+                                                {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)}
+                                            </SortableContext>
+                                        ))
+                                    )}
+                                </TableRow>
+                            </TableFooter>
+                        )}
                     </Table>
                 </DndContext>
                 {ExtraComponents && ExtraComponents(table)}
