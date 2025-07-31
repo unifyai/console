@@ -54,35 +54,6 @@ export function useCreateContextQuery() {
 }
 
 /**
- * Hook to rename a context
- */
-export function useRenameContextQuery() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ 
-      projectId, 
-      currentName, 
-      newName, 
-      actions 
-    }: { 
-      projectId: string; 
-      currentName: string;
-      newName: string;
-      actions: ContextActions;
-    }) => {
-      return actions.rename(projectId, currentName, newName);
-    },
-    onSuccess: (data, variables) => {
-      // Invalidate contexts query to refetch the list
-      queryClient.invalidateQueries({ 
-        queryKey: ['contexts', variables.projectId] 
-      });
-    },
-  });
-}
-
-/**
  * Hook to delete a context
  */
 export function useDeleteContextQuery() {
@@ -107,4 +78,4 @@ export function useDeleteContextQuery() {
       });
     },
   });
-}
+} 

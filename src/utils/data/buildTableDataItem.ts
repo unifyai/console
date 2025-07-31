@@ -6,7 +6,6 @@ import { LogsActions } from "@/types/interfaces/grid";
 import { processContext } from "@/utils/interfaces/table/columnOperations";
 import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
 import { QueryClient } from "@tanstack/react-query";
-import { isEqual } from 'lodash';
 
 /**
  * Debug flag for performance logging
@@ -301,63 +300,26 @@ export function getGroupSortingObject(tile: TileData) {
 } 
 
 /**
- * Helper function to identify new or updated cells in the table.
- * It compares previous logs with new logs to find:
- * 1. Cells in entirely new rows.
- * 2. Cells in existing rows where the value has changed.
+ * Helper function to identify new cells in the table
  */
-export function getNewCells(
-  previousLogs: LogProps[] | GroupedLogProps[], 
-  logs: LogProps[] | GroupedLogProps[]
-): string[] {
-
-  const newOrUpdatedCellIds: string[] = [];
-
-  const flattenedCurrentLogs = maybeFlattenGroupedLogs(logs);
-  const flattenedPreviousLogs = maybeFlattenGroupedLogs(previousLogs);
-
-  if (!flattenedCurrentLogs.length) {
-    return [];
-  }
-
-  const previousLogsMap = new Map(
-    flattenedPreviousLogs.map(log => [log.id, log])
-  );
-
-  for (const currentLog of flattenedCurrentLogs) {
-    const previousLog = previousLogsMap.get(currentLog.id);
-
-    if (!previousLog) {
-      const entryCells = Object.keys(currentLog.entries || {}).map(key => `${currentLog.id}_${key}`);
-      const paramCells = Object.keys(currentLog.params || {}).map(key => `${currentLog.id}_${key}`);
-      newOrUpdatedCellIds.push(...entryCells, ...paramCells);
-      continue;
+export function getNewCells(previousLogs: LogProps[] | GroupedLogProps[], logs: LogProps[] | GroupedLogProps[]) {
+  let newCells: string[] = [];
+    const flattenedLogs = maybeFlattenGroupedLogs(logs);
+    if (flattenedLogs.length) {
+        const flattenedTableLogs = maybeFlattenGroupedLogs(previousLogs)
+        const previousCells = flattenedTableLogs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+            return entryCells.concat(paramCells);
+        });
+        newCells = flattenedLogs.flatMap(log => {
+            const entryCells = Object.keys(log.entries as LogItemProps).map(key => `${log.id}_${key}`);
+            const paramCells = Object.keys(log.params as LogItemProps).map(key => `${log.id}_${key}`);
+            return entryCells.concat(paramCells);
+        });
+        newCells = newCells.filter(id => !previousCells.includes(id));
     }
-
-    const checkAndUpdate = (
-      currentData: LogItemProps, 
-      previousData: LogItemProps, 
-      logId: string
-    ) => {
-      for (const key in currentData) {
-        const currentValue = currentData[key];
-        const previousValue = previousData[key];
-        const cellId = `${logId}_${key}`;
-        
-        const valuesAreEqual = isEqual(currentValue, previousValue);
-
-        if (!Object.prototype.hasOwnProperty.call(previousData, key)) {
-          newOrUpdatedCellIds.push(cellId);
-        } else if (!valuesAreEqual) {
-          newOrUpdatedCellIds.push(cellId);
-        }
-      }
-    };
-
-    checkAndUpdate(currentLog.entries || {}, previousLog.entries || {}, currentLog.id);
-    checkAndUpdate(currentLog.params || {}, previousLog.params || {}, currentLog.id);
-  }
-  return newOrUpdatedCellIds;
+    return newCells;
 }
 
 /**

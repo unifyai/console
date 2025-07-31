@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, CopyPlus, Grip, X, Braces, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
+import { Maximize2, EyeOff, CopyPlus, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -17,11 +17,7 @@ import { getTileHeaderRef } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
-import { useState, useMemo, useEffect } from "react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
-import { Input } from "@/components/UI/input";
-import { Button } from "@/components/UI/button";
-import { useRenameContextQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
+import { useState, useMemo } from "react";
 
 const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
@@ -36,8 +32,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     projectsActions: ProjectsActions;
     fieldsActions: FieldsActions;
 }) => {
-    const { meta: tileMetaState, data: tileDataState, ui: tileUIState, uiActions: tileUIActions} = useTile(tileId, tabId);
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
+    const { meta: tileMetaState, data: tileDataState, ui: tileUIState} = useTile(tileId, tabId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId);
     const { data: tabDataState} = useTabData(tabId, interfaceId);
     
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
@@ -76,59 +72,6 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     
     // Dialog state for tile deletion
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-    // Context popover states
-    const [isContextPopoverOpen, setIsContextPopoverOpen] = useState(false);
-    const [isContextEditing, setIsContextEditing] = useState(false);
-    const [newContextName, setNewContextName] = useState("");
-    const [showContextDeleteDialog, setShowContextDeleteDialog] = useState(false);
-    const { mutate: renameContext } = useRenameContextQuery();
-    const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
-
-    useEffect(() => {
-        if (!isContextPopoverOpen) {
-            setIsContextEditing(false); // Reset edit mode when popover closes
-        } else if (context) {
-            setNewContextName(context); // Reset name when popover opens
-        }
-    }, [context, isContextPopoverOpen]);
-
-    const handleRenameContext = () => {
-        const newName = newContextName.trim();
-        if (projectId && context && newName && newName !== context) {
-            setPending(true);
-            renameContext({
-                projectId,
-                currentName: context,
-                newName: newName,
-                actions: contextActions
-            }, {
-                onSuccess: () => {
-                    // The optimistic update in the sync hooks should handle the UI change.
-                    setPending(false);
-                },
-                onError: (err) => {
-                    console.error("Failed to rename context:", err);
-                    setNewContextName(context); // Revert on error
-                    setPending(false);
-                }
-            });
-        }
-        setIsContextEditing(false);
-    };
-
-    const handleCancelContextEdit = () => {
-        setNewContextName(context || "");
-        setIsContextEditing(false);
-    };
-    
-    const handleContextDelete = () => {
-        if (context) {
-            syncedTabDataActions?.removeContextFromTab(context);
-        }
-        setShowContextDeleteDialog(false);
-        setIsContextPopoverOpen(false);
-    };
     
     // Function to handle tile deletion
     const handleDeleteTile = async () => {
@@ -205,85 +148,23 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     </div>
                 </TileInfoPalette>
                 {context && tileType == "Table" && (
-                    <Popover open={isContextPopoverOpen} onOpenChange={setIsContextPopoverOpen}>
-                        <PopoverTrigger asChild>
-                             <div role="button">
-                                <Tooltip content={`Context: ${context}`}>
-                                    <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
-                                        <Braces size={16} />
-                                        <span className="truncate">{truncatePath(context)}</span>
-                                    </Badge>
-                                </Tooltip>
-                            </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 z-50">
-                            {/* Renaming section, mimicking TileInfoPalette */}
-                            <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                                <span className="text-sm text-muted-foreground min-w-12">Name</span>
-                                {isContextEditing ? (
-                                    <div className="flex items-center gap-1 flex-1">
-                                        <Input
-                                            value={newContextName}
-                                            onChange={(e) => setNewContextName(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleRenameContext();
-                                                if (e.key === 'Escape') handleCancelContextEdit();
-                                            }}
-                                            className="h-7 text-xs flex-1"
-                                            autoFocus
-                                        />
-                                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleRenameContext}>
-                                            <Check className="h-3 w-3" />
-                                        </Button>
-                                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleCancelContextEdit}>
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 flex-1">
-                                        <span className="text-sm flex-1 truncate" title={context}>{truncatePath(context)}</span>
-                                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setIsContextEditing(true)}>
-                                            Edit
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Actions section */}
-                            <div className="flex flex-row justify-end gap-2">
-                                <ContextSelector
-                                    tileId={tileId}
-                                    tabId={tabId}
-                                    interfaceId={interfaceId}
-                                    projectId={projectId}
-                                    context={context}
-                                    logsActions={logsActions}
-                                    contextActions={contextActions}
-                                    setPending={setPending}
-                                    tileActions={tileActions}
-                                    projectsActions={projectsActions}
-                                    fieldsActions={fieldsActions}
-                                    withButtonText={true}
-                                    button={
-                                        <ActionButton
-                                            text={"Change context"}
-                                            tooltip={"Change context"}
-                                            icon={<FolderTree className="h-4 w-4 mr-2"/>}
-                                            variant={"outline"}
-                                            className="w-full justify-start"
-                                            disabled={!projectId}
-                                        />
+                    <Tooltip content={`Context: ${context}`}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
+                            <Braces size={16} />
+                            <span className="truncate">{truncatePath(context)}</span>
+                            <ActionButton
+                                icon={<X size={12} />}
+                                onClick={() => {
+                                    if (syncedTileActions?.data) {
+                                        syncedTileActions.data.setContextAndColumnContext("", "");
                                     }
-                                />
-                                <ActionButton
-                                    tooltip="Delete context"
-                                    icon={<Trash2/>}
-                                    variant="destructive"
-                                    onClick={() => setShowContextDeleteDialog(true)}
-                                />
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                                }}
+                                tooltip="Clear context"
+                                className="h-2 w-2 mt-2"
+                                variant="ghost"
+                            />
+                        </Badge>
+                    </Tooltip>
                 )}
                 {columnContext && tileType == "Table" && (
                     <Tooltip content={`Column context: ${columnContext}`}>
@@ -386,15 +267,6 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                 showDialog={showDeleteDialog}
                 setShowDialog={setShowDeleteDialog}
                 onDelete={() => {}}
-            />
-            <DeleteDialog
-                variant="destructive"
-                type="context"
-                args={[projectId, context ?? ""]}
-                deletingFunction={contextActions.delete}
-                onDelete={handleContextDelete}
-                showDialog={showContextDeleteDialog}
-                setShowDialog={setShowContextDeleteDialog}
             />
         </header>
     )

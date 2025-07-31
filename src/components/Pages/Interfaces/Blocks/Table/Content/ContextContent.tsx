@@ -10,6 +10,7 @@ import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/inter
 import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
 import RenderMenuItems from "@/components/Common/Dropdowns/RenderMenuItems";
 import { LogFieldsResponseProps } from "@/types/interfaces/logs";
+import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useTableDataQuery } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
@@ -49,6 +50,15 @@ const ContextContent = ({
 
     const [searchQuery, setSearchQuery] = useState("");
 
+    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+    const { actions: syncedTabActions } = useTabSync(
+        tabId || null, 
+        interfaceId || null, 
+        serverTabActions, 
+        serverTileActions,
+    );
+    const syncedTabDataActions = syncedTabActions?.data ?? null;
+
     // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTileActions } = useTileSync(
         tileId || null,
@@ -86,6 +96,12 @@ const ContextContent = ({
     // Build and render the tree
     const contextTree = buildNestedDropdownTree(filteredGlobalContexts);
 
+    const onDelete = (ctx: string) => {
+        if (ctx) {
+            syncedTabDataActions?.removeContextFromTab(ctx);
+        }
+    }
+
     return (
         <div className="flex flex-col gap-2">
             <div className="p-2 border-b border-border">
@@ -120,6 +136,18 @@ const ContextContent = ({
                         isColumnContext={false}
                         loading={loading}
                         selectableNodes={contextNames}
+                        deleteDialog={
+                            projectId ? <div onClick={(e) => e.stopPropagation()}>
+                                <DeleteDialog
+                                    variant="warning"
+                                    type="context"
+                                    args={[projectId, name !== "<root>" ? name : context ?? ""]}
+                                    deletingFunction={contextActions.delete}
+                                    onDelete={() => onDelete(name !== "<root>" ? name : context ?? "")}
+                                    className="h-fit flex items-center"
+                                />
+                            </div> : <></>
+                        }
                     />
                 ))}
             </div> : <></>}
