@@ -83,7 +83,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     const contextActions = {
         get:    await contexts.getContexts(apiKey),
         create: await contexts.createContext(apiKey),
-        delete: await contexts.deleteContext(apiKey)
+        delete: await contexts.deleteContext(apiKey),
+        rename: await contexts.renameContext(apiKey)
     };
 
     const codeActions = {
