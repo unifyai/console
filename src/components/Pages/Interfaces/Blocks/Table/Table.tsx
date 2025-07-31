@@ -473,9 +473,10 @@ const LogsTable = ({
     tableTileActions?.setGroupSorting(s.map((item) => `${sanitizeId(item.id)}@${item.desc}`).join(",")), [tableTileActions]);
 
   const columnPinning: ColumnPinningState = useMemo(() => ({
-    left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
+    left: columnsPinLeft ? columnsPinLeft.split(",").filter(col => col === indicesTitle) : [indicesTitle], // Only keep index column pinned
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   }), [columnsPinLeft, columnsPinRight, indicesTitle]);
+  
   const setColumnPinning = useCallback((pin: ColumnPinningState) => {
     tableTileActions?.setColumnsPinLeft(pin.left ? pin.left.join(",") : undefined);
     tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
@@ -483,7 +484,7 @@ const LogsTable = ({
 
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
     columnIDs
-      .map((id) => ({ [id]: id === indicesTitle ? 50 : 150 }))
+      .map((id) => ({ [id]: id === indicesTitle ? 110 : 150 }))
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
@@ -1007,7 +1008,7 @@ const LogsTable = ({
   return (
     <div
       ref={containerRef} 
-      className="flex-1 flex flex-col gap-2 w-full h-[80%] p-2 bg-background rounded-md"
+      className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md"
       onClick={onContainerClick}
     >
       {/* If truly pending or logs not present, show a spinner */}
@@ -1018,7 +1019,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableMenu}
-          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
+          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}
@@ -1028,7 +1029,7 @@ const LogsTable = ({
               />
             )}
             {/* <div className="min-w-max w-full"> */}
-              <div className="min-w-fit w-max">
+              <div className="min-w-0 w-full">
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
@@ -1037,7 +1038,6 @@ const LogsTable = ({
                       ref={panelScrollRefs[idx]}
                       className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
                       style={{
-                        minWidth: "100%",
                         overflowX: "visible",
                         overflowY: "visible",
                       }}

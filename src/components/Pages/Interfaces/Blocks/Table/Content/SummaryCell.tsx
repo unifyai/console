@@ -105,12 +105,13 @@ const SummaryCell = ({
 	const style: CSSProperties = {
 		cursor: "default",
 		opacity: isColumnDragging ? 0.8 : 1,
-		position: isPinned ? "sticky" : "relative",
+		position: isPinned ? "sticky" : undefined,
 		left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
 		right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
 		transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
 		transition: appliedTransition,
 		width: `${Math.round(column.getSize())}px`,
+		minWidth: 0,
 		zIndex: isColumnDragging || isPinned ? 1 : 0,
 	};
     const metricTooltip = `${tileDataState?.metric || metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
@@ -135,13 +136,15 @@ const SummaryCell = ({
 
 	return (
 		<>
-			<TableCell style={style} ref={setNodeRef}>
+			<TableCell style={style} ref={setNodeRef} className="overflow-hidden">
 				<Tooltip content={metricTooltip}>
-					{shouldShowLoading ? (
-						<div className="h-4 w-16 bg-muted rounded animate-pulse" />
-					) : (
-						logEntryMetric
-					)}
+					<div className="w-full overflow-hidden text-ellipsis whitespace-nowrap">
+						{shouldShowLoading ? (
+							<div className="h-4 w-16 bg-muted rounded animate-pulse" />
+						) : (
+							logEntryMetric
+						)}
+					</div>
 				</Tooltip>
 			</TableCell>
 		</>
