@@ -49,7 +49,7 @@ const FooterCell = ({
     const isPinned = column.getIsPinned();
     const isLastLeftPinnedColumn = isPinned === "left" && column.getIsLastColumn('left');
     const isParentColumn = column.columnDef.meta?.isParent;
-    
+
     // Determine the applied transform for both dragging and pinning
     const appliedTransform: Transform | null = isDragging
         ? transform 

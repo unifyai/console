@@ -5,7 +5,7 @@ import { Loader2, Search } from "lucide-react";
 import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent } from "../../../UI/tabs";
-import { Dialog, DialogContent } from "../../../UI/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
 import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
 import InterfaceButtons from "./Buttons/InterfaceButtons";
@@ -778,8 +778,13 @@ const Interface = ({
 
         {/* Focus Dialog */}
         {focusPaneOpen && (
-          <Dialog open={true} onOpenChange={() => setFocusPaneOpen(false)}>
+          <Dialog open={true} onOpenChange={() => {
+            setFocusPaneOpen(false);
+            tabUIActions?.setFocusedTileNames([undefined, undefined]);
+          }}>
                             <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
+              <DialogTitle className="sr-only">Focus Mode</DialogTitle>
+              <DialogDescription className="sr-only">View and interact with multiple tiles in focus mode</DialogDescription>
               <Suspense fallback={<SkeletonLoader />}>
                 <FocusDialog
                   tabIdOrName={activeTabId || ""}

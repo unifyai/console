@@ -50,9 +50,30 @@ const FocusDialog = ({
     const state = storeApi.getState();
     const tiles = selectTilesForTab(state, tabId);
 
-    const firstFocusedTileName = tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames)[0] : undefined;
-    const initialFocusedTile = tiles.find(t => t.name === firstFocusedTileName);
-    const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTile ? [initialFocusedTile] : []);
+    const focusedTileNames = tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames) : [undefined, undefined];
+    
+    // Initialize focusedTiles based on focusedTileNames
+    const initialFocusedTiles = useMemo(() => {
+        const tiles_: Array<Tile | undefined> = [];
+        for (const tileName of focusedTileNames) {
+            if (tileName) {
+                const tile = tiles.find(t => t.name === tileName);
+                if (tile) {
+                    tiles_.push(tile);
+                }
+            }
+        }
+        // Only set one tile if that's what was requested
+        if (tiles_.length === 0 && focusedTileNames[0]) {
+            const firstTile = tiles.find(t => t.name === focusedTileNames[0]);
+            if (firstTile) {
+                return [firstTile];
+            }
+        }
+        return tiles_.length > 0 ? tiles_ : [];
+    }, [focusedTileNames.join(','), tiles]);
+    
+    const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTiles);
 
     const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
 
@@ -87,28 +108,30 @@ const FocusDialog = ({
 
     const TileSlot = (tile: Tile | undefined, idx: number) => (
         tile ? (
-            <div className="w-full h-full relative p-2 box-border flex flex-col">
-                <TileCard
-                    tileId={tile.id}
-                    tabId={tabMetaState?.id || ""}
-                    interfaceId={interfaceId}
-                    projectId={projectId}
-                    tileActions={tileActions}
-                    tabActions={tabActions}
-                    logsActions={logsActions}
-                    fieldsActions={fieldsActions}
-                    derivedEntryActions={derivedEntryActions}
-                    contextActions={contextActions}
-                    codeActions={codeActions}
-                    fileActions={fileActions}
-                    projectsActions={projectsActions}
-                />
+            <div className="w-full h-full relative flex flex-col overflow-hidden">
                 <div className="absolute top-3 right-3 z-10">
                     <ActionButton
                         tooltip="Remove split"
                         icon={<X />}
                         variant="outline"
                         onClick={() => handleRemoveTile(idx)}
+                    />
+                </div>
+                <div className="w-full h-full p-2 overflow-hidden relative isolate">
+                    <TileCard
+                        tileId={tile.id}
+                        tabId={tabMetaState?.id || ""}
+                        interfaceId={interfaceId}
+                        projectId={projectId}
+                        tileActions={tileActions}
+                        tabActions={tabActions}
+                        logsActions={logsActions}
+                        fieldsActions={fieldsActions}
+                        derivedEntryActions={derivedEntryActions}
+                        contextActions={contextActions}
+                        codeActions={codeActions}
+                        fileActions={fileActions}
+                        projectsActions={projectsActions}
                     />
                 </div>
             </div>

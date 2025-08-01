@@ -1230,7 +1230,7 @@ export default function SelectionPanel({
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
+        <div className="sticky top-2 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
           <p className="font-bold text-lg">Entries</p>
           {!cellEditMode && <ActionButton variant="ghost" size="icon" tooltip={allOpen ? "Collapse all" : "Expand all"} onClick={onEntriesExpandToggle} icon={allOpen ? <FoldVertical /> : <UnfoldVertical />} />}
         </div>
@@ -1304,7 +1304,7 @@ export default function SelectionPanel({
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="sticky top-0 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
+        <div className="sticky top-2 z-10 bg-background py-2 border-b border-muted flex items-center justify-between">
           <p className="font-bold text-lg">Params</p>
           {!cellEditMode && <ActionButton variant="ghost" size="icon" tooltip={allOpen ? "Collapse all" : "Expand all"} onClick={onParamsExpandToggle} icon={allOpen ? <FoldVertical /> : <UnfoldVertical />} />}
         </div>
@@ -1681,7 +1681,7 @@ export default function SelectionPanel({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto command-scrollbar px-5 min-h-0 space-y-6">
+        <div className="flex-1 overflow-y-auto command-scrollbar px-5 pt-2 min-h-0 space-y-6">
           {EntriesSection()}
           {ParamSection()}
         </div>

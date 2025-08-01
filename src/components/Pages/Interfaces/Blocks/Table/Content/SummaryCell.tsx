@@ -139,11 +139,11 @@ const SummaryCell = ({
 			<TableCell style={style} ref={setNodeRef} className="overflow-hidden">
 				<Tooltip content={metricTooltip}>
 					<div className="w-full overflow-hidden text-ellipsis whitespace-nowrap">
-						{shouldShowLoading ? (
-							<div className="h-4 w-16 bg-muted rounded animate-pulse" />
-						) : (
-							logEntryMetric
-						)}
+					{shouldShowLoading ? (
+						<div className="h-4 w-16 bg-muted rounded animate-pulse" />
+					) : (
+						logEntryMetric
+					)}
 					</div>
 				</Tooltip>
 			</TableCell>
