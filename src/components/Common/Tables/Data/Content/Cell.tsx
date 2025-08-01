@@ -85,8 +85,9 @@ const DataTableCell = ({
   const isColumnDragging = isDragging || isPartOfDraggingState;
 
   const isPinned = cell.column.getIsPinned();
-  const isParentColumn = cell.column.columnDef.meta?.isParent;
+  const pinnedPosition = cell.column.getIsPinned();
   const isLastLeftPinnedColumn = isPinned === "left" && cell.column.getIsLastColumn('left');
+  const isParentColumn = cell.column.columnDef.meta?.isParent;
 
   // Determine the applied transform for both dragging and pinning
   const appliedTransform: Transform | null = isDragging
@@ -139,7 +140,7 @@ const DataTableCell = ({
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset'  : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
-    position: isPinned ? "sticky" : "relative",
+    position: isPinned ? "sticky" : undefined,
     left: isPinned === "left" ? `${cell.column.getStart("left")}px` : undefined,
     right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
@@ -152,6 +153,7 @@ const DataTableCell = ({
     borderLeft: columnID === "RowNumbering" ? "1px solid var(--muted)" : undefined,
     borderRight: `${borderThickness}px solid var(--muted)`,
     borderTop: "1px solid var(--muted)",
+    borderBottom: "1px solid var(--muted)",
     outline: "none",
     color: cell.column.id != "RowNumbering"
       ? isCellSelected(cell) ? "var(--primary-foreground)" : ""

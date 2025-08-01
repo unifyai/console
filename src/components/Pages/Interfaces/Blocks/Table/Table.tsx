@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2, Sigma } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2 } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -98,7 +98,7 @@ const LogsTable = ({
   const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
   const [useVirtualization, setUseVirtualization] = useState(false); // Enable virtualization by default
-  const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(false); // Enable bidirectional loading
+  const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(true); // Enable bidirectional loading
   const [bidirectionalConfig, setBidirectionalConfig] = useState({
     maxPagesInMemory: 5,
     enableBackwardLoading: true,
@@ -107,9 +107,6 @@ const LogsTable = ({
 
   // Empty table overlay state
   const [overlayDismissed, setOverlayDismissed] = useState(false);
-
-  // State to handle showing or hiding the summary cells in the footer
-  const [isSummaryRowVisible, setIsSummaryRowVisible] = useState(false);
 
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
@@ -153,28 +150,6 @@ const LogsTable = ({
     error,
     isLoading: isTableDataLoading,
   } = tableDataItem;
-
-  // This effect is responsible for clearing the newCells array after the animation plays.
-  // This allows the animation to be re-triggered on subsequent updates.
-  useEffect(() => {
-    // Check if there are any new cells to animate.
-    if (newCells && newCells.length > 0) {
-      // Set a timer that matches the duration of the 'animate-fade-accent' CSS animation.
-      // Let's assume the animation takes 1.5 seconds (1500ms). Adjust if needed.
-      const timer = setTimeout(() => {
-        // After the animation has finished, update the state to clear the newCells array.
-        // This resets the state, making it ready for the next update.
-        updateTableDataItemWithUpdater(prev => ({
-          ...prev,
-          newCells: [],
-        }));
-      }, 1500); // 1.5 seconds
-
-      // IMPORTANT: Return a cleanup function to clear the timer.
-      // This prevents bugs if the component re-renders or unmounts before the timer finishes.
-      return () => clearTimeout(timer);
-    }
-  }, [newCells, updateTableDataItemWithUpdater]);
 
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const tileName = tileMetaState?.name || "";
@@ -501,6 +476,7 @@ const LogsTable = ({
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   }), [columnsPinLeft, columnsPinRight, indicesTitle]);
+  
   const setColumnPinning = useCallback((pin: ColumnPinningState) => {
     tableTileActions?.setColumnsPinLeft(pin.left ? pin.left.join(",") : undefined);
     tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
@@ -508,7 +484,7 @@ const LogsTable = ({
 
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
     columnIDs
-      .map((id) => ({ [id]: id === indicesTitle ? 50 : 150 }))
+      .map((id) => ({ [id]: id === indicesTitle ? 110 : 150 }))
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
   );
 
@@ -865,12 +841,6 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
-                <SettingButton
-                    tooltip={isSummaryRowVisible ? "Hide summary row" : "Show summary row"}
-                    icon={<Sigma className="h-4 w-4" />}
-                    variant={isSummaryRowVisible ? "primary" : "outline"}
-                    onClick={() => setIsSummaryRowVisible(!isSummaryRowVisible)}
-                 />
                 {!tabUIState?.edit && (
                   <SettingButton
                     tooltip="Open in focus pane"
@@ -1038,7 +1008,7 @@ const LogsTable = ({
   return (
     <div
       ref={containerRef} 
-      className="flex-1 flex flex-col gap-2 w-full h-[80%] p-2 bg-background rounded-md"
+      className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md"
       onClick={onContainerClick}
     >
       {/* If truly pending or logs not present, show a spinner */}
@@ -1049,7 +1019,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col">
           {tableMenu}
-          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto overscroll-y-contain">
+          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}
@@ -1059,7 +1029,7 @@ const LogsTable = ({
               />
             )}
             {/* <div className="min-w-max w-full"> */}
-              <div className="min-w-fit w-max">
+              <div className="min-w-0 w-full">
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
@@ -1068,7 +1038,6 @@ const LogsTable = ({
                       ref={panelScrollRefs[idx]}
                       className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
                       style={{
-                        minWidth: "100%",
                         overflowX: "visible",
                         overflowY: "visible",
                       }}
@@ -1089,9 +1058,6 @@ const LogsTable = ({
                           groupOffsets: groupOffsets,
                         }}
                         
-                        // Display or hide summary cells
-                        showFooter={isSummaryRowVisible}
-
                         // Virtualization props - only enabled when useVirtualization is true
                         enableVirtualization={useVirtualization}
                         virtualRowHeight={60}
@@ -1357,7 +1323,7 @@ const LogsTable = ({
                             isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                           />
                         )}
-                        FooterCell={(column, resizeMap, table, draggingColumnPinner, setDraggingColumnPinner, columnPinning, columnOrder, isRightmost ) =>
+                        FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
                           <FooterCell
                             column={column}
                             resizeMap={resizeMap}
@@ -1367,7 +1333,6 @@ const LogsTable = ({
                             columnPinning={columnPinning}
                             columnOrder={columnOrder}
                             table={table}
-                            isRightmost={isRightmost}
                           >
                             {
                               column.columnDef.id === indicesTitle
