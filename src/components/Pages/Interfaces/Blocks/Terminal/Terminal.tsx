@@ -240,7 +240,7 @@ export default function Terminal({
             onClick={stopTerminal}
           />
         )}
-        {!tabUIState?.edit && (
+        {!tabUIState?.edit && !focusPaneOpen && (
           <ActionButton
             icon={<Maximize2 className="h-4 w-4" />}
             variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tiles.find(t=>t.id===tileId)?.name) ? "primary" : "outline"}

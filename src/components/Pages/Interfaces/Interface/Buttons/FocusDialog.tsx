@@ -78,7 +78,16 @@ const FocusDialog = ({
     const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
 
     const handleAddSplit = () => {
-        if (focusedTiles.length >= 4) return;
+        // Maximum panes = min(total tiles, UI limit of 4)
+        const maxPanes = Math.min(tiles.length, 4);
+
+        // Stop if we already reached the maximum allowed panes.
+        if (focusedTiles.length >= maxPanes) return;
+
+        // Also stop if there are no unselected tiles left.
+        const remainingTiles = tiles.filter(t => !focusedTiles.map(ft => ft?.name).includes(t.name));
+        if (remainingTiles.length === 0) return;
+
         setFocusedTiles([...focusedTiles, undefined]);
     };
 
@@ -136,22 +145,42 @@ const FocusDialog = ({
                 </div>
             </div>
         ) : (
-            <div className="h-full w-full flex items-center justify-center p-2">
-                <BaseDropdown
-                    button={<ActionButton tooltip="Select tile" icon={<Plus />} variant="outline" size="default" />}
-                >
-                    {availableTiles.map((t, i) => (
-                        <DropdownMenuItem key={i} onSelect={() => handleSelectTile(t, idx)} className="w-64 flex justify-between items-center">
-                            <span>{t.name}</span>{t.type ? icons[t.type as keyof typeof icons] : ""}
-                        </DropdownMenuItem>
-                    ))}
-                </BaseDropdown>
+            <div className="h-full w-full flex items-center justify-center p-2 relative">
+                {/* Allow the user to remove an empty split */}
+                <div className="absolute top-3 right-3 z-10">
+                    <ActionButton
+                        tooltip="Remove split"
+                        icon={<X />}
+                        variant="outline"
+                        onClick={() => handleRemoveTile(idx)}
+                    />
+                </div>
+
+                {availableTiles.length > 0 ? (
+                    <BaseDropdown
+                        button={<ActionButton tooltip="Select tile" icon={<Plus />} variant="outline" size="default" />}
+                    >
+                        {availableTiles.map((t, i) => (
+                            <DropdownMenuItem key={i} onSelect={() => handleSelectTile(t, idx)} className="w-64 flex justify-between items-center">
+                                <span>{t.name}</span>{t.type ? icons[t.type as keyof typeof icons] : ""}
+                            </DropdownMenuItem>
+                        ))}
+                    </BaseDropdown>
+                ) : (
+                    <ActionButton
+                        tooltip="No tiles available"
+                        icon={<Plus />}
+                        variant="outline"
+                        size="default"
+                        disabled
+                    />
+                )}
             </div>
         )
     );
 
     const PanelContent = (tile: Tile | undefined, idx: number) => (
-        <div className="w-full h-full overflow-hidden">
+        <div className="w-full h-full overflow-hidden animate-in fade-in-0 zoom-in-95 duration-300">
             {TileSlot(tile, idx)}
         </div>
     );
@@ -215,7 +244,10 @@ const FocusDialog = ({
                     icon={<Plus />}
                     variant="outline"
                     onClick={handleAddSplit}
-                    disabled={focusedTiles.length >= 4}
+                    disabled={
+                        /* Disable when we've reached either the UI max (4) or the number of available tiles */
+                        focusedTiles.length >= Math.min(tiles.length, 4) || availableTiles.length === 0
+                    }
                 />
                 {/* <ActionButton
                     tooltip="Close focus mode"

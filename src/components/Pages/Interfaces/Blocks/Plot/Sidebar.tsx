@@ -362,7 +362,7 @@ const PlotSettings = ({
                 useDialog={true}
               />
             )}
-            {!tabUIState?.edit && (
+            {!tabUIState?.edit && !focusPaneOpen && (
               <ActionButton
                 tooltip="Open in focus pane"
                 side="left"
