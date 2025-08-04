@@ -44,6 +44,9 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
     
+    showFooter?: boolean,
+    setShowFooter?: React.Dispatch<React.SetStateAction<boolean>>,
+
     // Row indexing offset information
     offsetInfo?: {
         globalOffset: number;
@@ -108,6 +111,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     error,
     scrollContainerRef,
     onRenameColumn,
+
+    showFooter,
+    setShowFooter,
+
     offsetInfo,
     
     // Virtualization props with defaults
@@ -713,23 +720,42 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             }
                         </TableBody>
 
-                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
-                            <TableRow>
-                                {isUpdatingLogs ? (
-                                    finalColumns.map((_, idx) => (
+                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background pt-2">
+                            {isUpdatingLogs ? (
+                                <TableRow>
+                                    {finalColumns.map((_, idx) => (
                                         <TableCell key={idx} className="p-2">
                                             <div className="h-4 bg-muted rounded animate-pulse" />
                                         </TableCell>
-                                    ))
-                                ) : (
-                                    finalColumns.map((column, index) => (
-                                        <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)}
-                                        </SortableContext>
-                                    ))
-                                )}
-                            </TableRow>
+                                    ))}
+                                </TableRow>
+                            ) : !showFooter ? (
+                                <TableRow>
+                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t">
+                                        <button
+                                            onClick={() => setShowFooter && setShowFooter(true)}
+                                            className="w-full text-center mt-2 py-2 text-sm text-muted-foreground hover:bg-muted border border-muted"
+                                        >
+                                            Show Metrics
+                                        </button>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                <>
+                                    <TableRow>
+                                        <TableCell colSpan={finalColumns.length} className="p-0 border-t">
+                                            <button onClick={() => setShowFooter && setShowFooter(false)} className="w-full text-center mt-2 py-2 text-sm text-muted-foreground hover:bg-muted border border-muted">
+                                                Hide Metrics
+                                            </button>
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        {finalColumns.map((column, index) => ( <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}> {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)} </SortableContext>))}
+                                    </TableRow>
+                                </>
+                            )}
                         </TableFooter>
+
                     </Table>
                 </DndContext>
                 {ExtraComponents && ExtraComponents(table)}

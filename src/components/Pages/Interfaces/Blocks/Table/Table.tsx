@@ -108,6 +108,9 @@ const LogsTable = ({
   // Empty table overlay state
   const [overlayDismissed, setOverlayDismissed] = useState(false);
 
+  // Show / Hide metrics row
+  const [showMetricsRow, setShowMetricsRow] = useState(false);
+
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
 
@@ -1052,6 +1055,9 @@ const LogsTable = ({
                         setState={setState}
                         scrollContainerRef={panelScrollRefs[idx]}
                         
+                        showFooter={showMetricsRow}
+                        setShowFooter={setShowMetricsRow}
+
                         // Row indexing offset information
                         offsetInfo={{
                           globalOffset: infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0,
