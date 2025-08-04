@@ -58,6 +58,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     const disabled = tabUIState?.pending || tabUIState?.resetting;
 
     const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+    // Global focus pane state to hide button when already in focus mode
+    const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
 
     // Get the header ref from our registry
     const headerRef = getTileHeaderRef(tileId);
@@ -308,7 +310,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
             <div 
                 className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${tabUIState?.edit ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
             >
-                {!tabUIState?.edit && (
+                {!tabUIState?.edit && !focusPaneOpen && (
                 <ActionButton
                     className="cursor-pointer"
                     onClick={() => {

@@ -427,7 +427,7 @@ const Editor = ({
                         tooltip="Save To File"
                         onClick={() => onSave(tempCode)}
                     />
-                    {!tabUIState?.edit && (
+                    {!tabUIState?.edit && !focusPaneOpen && (
                         <ActionButton
                             icon={<Maximize2 size={16} />}
                             variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileMetaState?.name) ? "primary" : "outline"}

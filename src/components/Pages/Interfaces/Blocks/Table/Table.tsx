@@ -841,7 +841,7 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
-                {!tabUIState?.edit && (
+                {!tabUIState?.edit && !focusPaneOpen && (
                   <SettingButton
                     tooltip="Open in focus pane"
                     icon={<Maximize2 className="h-4 w-4" />}
