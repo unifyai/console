@@ -746,7 +746,7 @@ const Interface = ({
                   right: 0,
                 }}
               >
-                <div className="p-4 w-full flex justify-start pointer-events-auto">
+                <div className="px-4 py-1 w-fit flex justify-start pointer-events-auto">
                   <InterfaceTabs
                     tabIdOrName={activeTabId}
                     interfaceId={interfaceId}
