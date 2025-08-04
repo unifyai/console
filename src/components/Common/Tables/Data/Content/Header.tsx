@@ -588,7 +588,7 @@ const DataTableHeader = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className="flex-1 min-w-0 pr-2 whitespace-nowrap overflow-hidden truncate cursor-pointer"
+                            className="flex-1 min-w-0 whitespace-nowrap overflow-hidden truncate cursor-pointer"
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
@@ -608,7 +608,7 @@ const DataTableHeader = ({
 
                     {/* triple-dot for child columns */}
                     {interactive == true && (
-                      <div className="ml-1 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
                         <BaseDropdown
                           context="tile"
                           open={dropdownOpen}
