@@ -22,7 +22,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import Markdown from 'react-markdown';
 import { AssistantPhotoViewer } from './Hire/AssistantHirePhotoPreview';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -61,6 +61,7 @@ export function AssistantProfilePanel({
     const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
+    const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     return (
         <>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
@@ -103,31 +104,32 @@ export function AssistantProfilePanel({
                         <div className="py-4 sm:py-6 space-y-6">
                             {/* Basic Info */}
                             <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
-                                <HoverCard openDelay={100} closeDelay={50}>
-                                    <HoverCardTrigger asChild>
-                                        <div className="relative group cursor-pointer flex-shrink-0">
-                                            <AssistantPhotoViewer
+                                <Popover open={isVideoPopoverOpen} onOpenChange={setIsVideoPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                         <div className="relative group cursor-pointer flex-shrink-0">
+                                             <AssistantPhotoViewer
                                                 photoUrl={photoSrc}
                                                 isPlayable={false}
                                                 allowHoverPlay={false}
                                                 className="flex-shrink-0"
                                                 avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
                                                 fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-                                            />
-                                            {videoSrc && <div className="absolute -z-10 top-0 left-0 h-full w-full rounded-lg bg-muted-foreground/20 transform -translate-x-2 -translate-y-2 transition-transform duration-200 ease-in-out group-hover:translate-x-0 group-hover:translate-y-0" />}
-                                        </div>
-                                    </HoverCardTrigger>
-                                    {videoSrc && (
-                                        <HoverCardContent side="right" align="start" className="p-0 border-none bg-transparent w-[240px] shadow-none">
-                                            <video
+                                             />
+                                            {videoSrc && <div className="absolute -z-10 top-0 left-0 h-full w-full rounded-lg bg-muted-foreground/20 transform -translate-x-2 -translate-y-2 transition-transform duration-200 ease-in-out group-data-[state=open]:translate-x-0 group-data-[state=open]:translate-y-0" />}
+                                         </div>
+                                    </PopoverTrigger>
+                                     {videoSrc && (
+                                        <PopoverContent side="bottom" align="start" sideOffset={-120} alignOffset={-40} className="p-0 border-none bg-transparent w-40 h-40 shadow-none">
+                                             <video
                                                 src={videoSrc}
                                                 autoPlay
                                                 playsInline
-                                                className="w-full h-auto rounded-lg shadow-xl"
-                                            />
-                                        </HoverCardContent>
-                                    )}
-                                </HoverCard>
+                                                onEnded={()=> setIsVideoPopoverOpen(false)}
+                                                className="w-full h-full rounded-lg shadow-xl object-cover"
+                                             />
+                                        </PopoverContent>
+                                     )}
+                                </Popover>
                                 <div className="grid grid-cols-2 gap-x-4 pt-1 text-sm flex-1">
                                     <Label className="text-muted-foreground">First Name</Label>
                                     <span>{assistant.first_name}</span>
