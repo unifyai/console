@@ -6,11 +6,13 @@ import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortabl
 import DataTableCell from "./Cell";
 import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
+import RowResize from "../Buttons/RowResize";
 
 interface DataTableRowProps<TData extends LogProps | GroupedLogProps> {
     row: Row<TData>;
     table: Table<TData>;
     state: StateProps;
+    setRowSizing: (updater: (old: {[key: string]: number}) => {[key: string]: number}) => void;
     setExpandingRowId: (id: string | null) => void;
     expandingRowId: string | null;
     RowExpanding?: (props: RowExpandingProps) => ReactNode;
@@ -33,6 +35,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
     row,
     table,
     state,
+    setRowSizing,
     setExpandingRowId,
     expandingRowId,
     RowExpanding,
@@ -51,11 +54,12 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
     rightmostColumnId
 }: DataTableRowProps<TData>) {
     const isExpanding = expandingRowId === row.original.id;
+    const rowHeight = state.rowSizing?.[row.id];
     const hasSkeletonSubRows = isExpanding && 'groupCount' in row.original && typeof row.original.groupCount === 'number' && row.original.groupCount > 0 && !row.original.isPopulated;
 
     return (
         <>
-            <TableRow key={row.id} data-row-id={row.id} className="snap-start">
+            <TableRow key={row.id} data-row-id={row.id} className="snap-start relative group/row" style={{ height: rowHeight ? `${rowHeight}px` : undefined }}>
                 {row.getVisibleCells().map(cell => (
                     <SortableContext key={cell.id} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
                         <DataTableCell
@@ -81,6 +85,7 @@ export default function DataTableRow<TData extends LogProps | GroupedLogProps>({
                         />
                     </SortableContext>
                 ))}
+                <RowResize row={row} setRowSizing={setRowSizing} />
             </TableRow>
             {hasSkeletonSubRows && renderSkeletonRows(2)}
         </>

@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2 } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -485,11 +485,20 @@ const LogsTable = ({
     tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
   }, [tableTileActions]);
 
-  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(
+  const getDefaultColumnSizing = useCallback(() => (
     columnIDs
       .map((id) => ({ [id]: id === indicesTitle ? 110 : 150 }))
       .reduce((acc, curr) => ({ ...acc, ...curr }), {})
-  );
+  ), [columnIDs, indicesTitle]);
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(getDefaultColumnSizing());
+  const [rowSizing, setRowSizing] = useState<{[key: string]: number}>({});
+  const resetColumnSizing = () => {
+    setColumnSizing(getDefaultColumnSizing());
+  };
+
+  const resetRowSizing = () => {
+      setRowSizing({});
+  };
 
   const [draggingColumns, setDraggingColumns] = useState<DraggingColumnsState>({
     active: {
@@ -521,6 +530,7 @@ const LogsTable = ({
     grouping,
     columnPinning,
     columnSizing,
+    rowSizing,
     context,
     draggingColumns,
     draggingColumnPinner,
@@ -538,6 +548,7 @@ const LogsTable = ({
     setColumnFilters,
     setGrouping,
     setColumnPinning,
+    setRowSizing,
     setColumnSizing,
     setContext: (newContext: string) => syncedTileDataActions?.setColumnContext(newContext),
     setDraggingColumns,
@@ -839,6 +850,16 @@ const LogsTable = ({
                     defaultHidden={defaultHidden ?? true}
                     setDefaultHidden={setDefaultHidden}
                 />}
+                <SettingButton
+                  tooltip="Reset column widths"
+                  icon={<StretchHorizontal className="h-4 w-4" />}
+                  onClick={resetColumnSizing}
+                />
+                <SettingButton
+                    tooltip="Reset row heights"
+                    icon={<StretchVertical className="h-4 w-4" />}
+                    onClick={resetRowSizing}
+                />
                 <SettingButton
                     tooltip={`Cycle split view (${panelCount})`}
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}

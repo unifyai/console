@@ -19,7 +19,7 @@ import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from 
 import DataTableHeader from "./Content/Header";
 import DataTableRow from "./Content/Row";
 import SubRowsContainer from "./Content/SubRowsContainer";
-import TableResizer from "./Buttons/TableResize";
+import ColumnResizeAll from "./Buttons/ColumnResizeAll";
 
 import { StateProps, SetStateProps } from "@/types/dataTable";
 import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
@@ -31,6 +31,7 @@ import { LoadMoreProps } from "./Buttons/LoadMore";
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { GroupLoadMoreProps } from "./Buttons/GroupLoadMore";
+import RowResizeAll from "./Buttons/RowResizeAll";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -488,6 +489,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 key={row.id}
                 row={row}
                 table={table}
+                setRowSizing={setState.setRowSizing}
                 state={state}
                 setExpandingRowId={setExpandingRowId}
                 expandingRowId={expandingRowId}
@@ -532,6 +534,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         parentRow={row}
                         subRows={allSubRows} // Pass all subRows for recursive filtering
                         table={table}
+                        setRowSizing={setState.setRowSizing}
                         state={state}
                         setExpandingRowId={setExpandingRowId}
                         expandingRowId={expandingRowId}
@@ -677,7 +680,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 loadingText="Loading previous..."
                                                                 disabled={auto_update}
                                                                 table={table}
-                                                                withTableResizer={true}
+                                                                withColumnResizeAll={true}
                                                             />
                                                         )}
                                                         
@@ -703,7 +706,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 loadingText="Loading more..."
                                                                 disabled={auto_update}
                                                                 table={table}
-                                                                withTableResizer={true}
+                                                                withColumnResizeAll={true}
                                                             />
                                                         )}
                                                     </>
@@ -721,6 +724,15 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         </TableBody>
 
                         <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background pt-2">
+                            {/* Resizer Row */}
+                            {table.getRowModel().rows?.length > 0 && (
+                                <TableRow className="relative">
+                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t">
+                                        {/* The cell content is empty, the resizer is positioned absolutely within it */}
+                                        <RowResizeAll table={table} setRowSizing={setState.setRowSizing} />
+                                    </TableCell>
+                                </TableRow>
+                            )}
                             {isUpdatingLogs ? (
                                 <TableRow>
                                     {finalColumns.map((_, idx) => (

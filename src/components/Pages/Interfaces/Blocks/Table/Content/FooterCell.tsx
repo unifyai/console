@@ -9,7 +9,7 @@ import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize"
 import ColumnPinner from "@/components/Common/Tables/Data/Buttons/ColumnPinner";
 
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/interfaces/columns";
-import TableResizer from "@/components/Common/Tables/Data/Buttons/TableResize";
+import ColumnResizeAll from "@/components/Common/Tables/Data/Buttons/ColumnResizeAll";
 
 const FooterCell = ({ 
     column, 
@@ -131,11 +131,9 @@ const FooterCell = ({
               </div>
             )}
 
-            {showResizer && (
-              <>
-                <ColumnResizer column={column} resizeHandler={resizeMap[column.id]} />
-                {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
-              </>
+            {/* Shim to cover the column resizer from the row above */}
+            {isRightmost && (
+                <div className="shim absolute top-0 bottom-0 bg-background z-20" style={{ right: '-15px', width: '15px' }} />
             )}
         </TableCell>
     );

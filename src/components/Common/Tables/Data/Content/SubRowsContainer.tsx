@@ -11,6 +11,7 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
     subRows: Row<TData>[];
     table: Table<TData>;
     state: StateProps;
+    setRowSizing: (updater: (old: {[key: string]: number}) => {[key: string]: number}) => void;
     setExpandingRowId: (id: string | null) => void;
     expandingRowId: string | null;
     RowExpanding?: (props: RowExpandingProps) => ReactNode;
@@ -55,6 +56,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     subRows,
     table,
     state,
+    setRowSizing,
     setExpandingRowId,
     expandingRowId,
     RowExpanding,
@@ -98,6 +100,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                     row={row}
                     table={nestedTable}
                     state={state}
+                    setRowSizing={setRowSizing}
                     setExpandingRowId={setExpandingRowId}
                     expandingRowId={expandingRowId}
                     RowExpanding={RowExpanding}
@@ -122,6 +125,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                         subRows={rowSubRows}
                         table={nestedTable}
                         state={state}
+                        setRowSizing={setRowSizing}
                         setExpandingRowId={setExpandingRowId}
                         expandingRowId={expandingRowId}
                         RowExpanding={RowExpanding}

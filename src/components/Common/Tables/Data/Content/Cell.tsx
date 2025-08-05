@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/UI/skeleton";
 import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 import { StateProps } from "@/types/dataTable";
-import TableResizer from "../Buttons/TableResize";
+import ColumnResizeAll from "../Buttons/ColumnResizeAll";
 
 const DataTableCell = ({
   cell,
@@ -145,7 +145,6 @@ const DataTableCell = ({
     right: isPinned === "right" ? `${cell.column.getAfter("right")}px` : undefined,
     transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
     transition: appliedTransition,
-    height: cell.rowSpan > 1 ? undefined : "21px",
     minWidth: 0,
     width: `${Math.round(cell.column.getSize())}px`,
     zIndex: isColumnDragging || isPinned ? 1 : 0,
@@ -236,7 +235,7 @@ const DataTableCell = ({
         return (
             <>
                 <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
-                {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
+                {isRightmost && <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
             </>
         );
        })()}

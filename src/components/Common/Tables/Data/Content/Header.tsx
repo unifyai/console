@@ -39,7 +39,7 @@ import { shouldRenderHeader, calculateRowSpan } from "@/utils/interfaces/table/t
 import BaseDialog from "@/components/Common/Dialogs/Base";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import TableResizer from "../Buttons/TableResize";
+import ColumnResizeAll from "../Buttons/ColumnResizeAll";
 
 const DataTableHeader = ({
   interactive,
@@ -852,7 +852,7 @@ const DataTableHeader = ({
         return (
           <>
             <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
-            {isRightmost && <TableResizer table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
+            {isRightmost && <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
           </>
         )
       })()}

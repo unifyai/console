@@ -3,7 +3,7 @@
 import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import { Table, ColumnSizingState } from "@tanstack/react-table";
 
-const TableResizer = ({
+const ColumnResizeAll = ({
   table,
   setColumnSizing,
 }: {
@@ -114,15 +114,15 @@ const TableResizer = ({
     <div
       onMouseDown={handleMouseDown}
       style={resizerStyle}
-      className="group/tableresizer"
+      className="group/ColumnResizeAll"
     >
-      <div style={dashedSeparatorStyle} className="group-hover/tableresizer:opacity-100" />
+      <div style={dashedSeparatorStyle} className="group-hover/ColumnResizeAll:opacity-100" />
       <div 
         style={visualIndicatorStyle}
-        className="group-hover/tableresizer:opacity-100 group-hover/tableresizer:bg-primary"
+        className="group-hover/ColumnResizeAll:opacity-100 group-hover/ColumnResizeAll:bg-primary"
       />
     </div>
   );
 };
 
-export default TableResizer;
+export default ColumnResizeAll;
