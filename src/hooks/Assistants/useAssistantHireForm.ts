@@ -236,11 +236,19 @@ export function useAssistantHireForm(
 
         const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
         const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        let localPart = "new-assistant";
-        if (cleanFname && cleanSname) localPart = `${cleanFname}-${cleanSname}`;
-        else if (cleanFname) localPart = cleanFname;
-        else if (cleanSname) localPart = cleanSname;
-        setValue("email", `${localPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
+        
+        let baseLocalPart = "new-assistant";
+        if (cleanFname && cleanSname) baseLocalPart = `${cleanFname}-${cleanSname}`;
+        else if (cleanFname) baseLocalPart = cleanFname;
+        else if (cleanSname) baseLocalPart = cleanSname;
+        let finalLocalPart = baseLocalPart;
+        let counter = 1;
+        while (fetchedAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
+            // Ensure the generated email is unique
+            finalLocalPart = `${baseLocalPart}-${counter}`;
+            counter++;
+        }
+        setValue("email", `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
         setValue("emailManuallyEdited", false);
 
         // Determine the voice_id based on VOICE_PROVIDER

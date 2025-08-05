@@ -288,24 +288,29 @@ export function HireForm({
 
   // Auto-generate email based on names if not manually edited
   React.useEffect(() => {
-    const generateEmailLocalPartFromName = (fname: string, sname: string) => {
-        const cleanFname = fname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        const cleanSname = sname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        if (cleanFname && cleanSname) {
-            return `${cleanFname}-${cleanSname}`;
-        } else if (cleanFname) {
-            return cleanFname;
-        } else if (cleanSname) {
-            return cleanSname;
-        }
-        return "new-assistant";
-    };
+    const generateUniqueEmail = (fname: string, sname: string) => {
+         const cleanFname = fname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+         const cleanSname = sname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        let baseLocalPart = "new-assistant";
+        if (cleanFname && cleanSname) baseLocalPart = `${cleanFname}-${cleanSname}`;
+        else if (cleanFname) baseLocalPart = cleanFname;
+        else if (cleanSname) baseLocalPart = cleanSname;
 
-    if (!getValues("emailManuallyEdited") && (firstName || surname)) {
-        const newLocal = generateEmailLocalPartFromName(firstName, surname);
-        setValue("email", `${newLocal}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
-    }
-  }, [firstName, surname, setValue, getValues]);
+        let finalLocalPart = baseLocalPart;
+        let counter = 1;
+        while (allAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
+            finalLocalPart = `${baseLocalPart}-${counter}`;
+            counter++;
+        }
+        return `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
+     };
+ 
+     if (!getValues("emailManuallyEdited") && (firstName || surname)) {
+        const newEmail = generateUniqueEmail(firstName, surname);
+        setValue("email", newEmail, { shouldValidate: true });
+     }
+  }, [firstName, surname, setValue, getValues, allAssistantEmails]);
+
 
 
   const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
