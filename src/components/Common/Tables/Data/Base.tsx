@@ -576,7 +576,12 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragEnd={(event) => handleDragEndWrapper(event)}
                     onDragCancel={(event) => handleDragCancelWrapper(event)}
                 >
-                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed', minWidth: table.getTotalSize() }}>
+                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                        <colgroup>
+                            {table.getFlatHeaders().map(header =>
+                                !header.isPlaceholder && header.subHeaders.length === 0 && <col key={header.id} style={{ width: `${header.getSize()}px`}} />
+                            )}
+                        </colgroup>
                         <TableHeader ref={tableHeaderRef} className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                                 <TableRow key={headerGroup.id}>
