@@ -39,6 +39,7 @@ export function AssistantProfilePanel({
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+    const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
 
     const handleDeleteConfirm = async () => {
         if (!assistant || isDeleting) return;
@@ -61,7 +62,6 @@ export function AssistantProfilePanel({
     const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
-    const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     return (
         <>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
