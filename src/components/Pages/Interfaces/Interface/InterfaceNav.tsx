@@ -88,6 +88,14 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover
 import { useTheme } from 'next-themes'
 import { createInterface as createInterfaceAction } from './actions';
 
+interface ProjectInterface {
+  id: string;
+  name: string;
+  icon?: string;
+  order?: number;
+  tabs?: any[];
+}
+
 interface InterfaceNavProps {
   interfaceId: string
   projectId: string
@@ -785,7 +793,7 @@ export default function InterfaceNav({
   const [isRenamingProject, setIsRenamingProject] = useState(false)
 
   // New project tree state (icon + interfaces fetched in one call)
-  const [projectTree, setProjectTree] = useState<Array<{project:string; icon:string; interfaces:string[]; favorite:boolean; position:number|null}>>([]);
+  const [projectTree, setProjectTree] = useState<Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>>([]);
 
   const fetchProjectTree = async () => {
     try {
@@ -1217,7 +1225,7 @@ export default function InterfaceNav({
                        </div>
                      )}
                      {projectTree.filter((p:any)=>p.favorite).map((projItem:any)=>(
-                       <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={true} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
+                       <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={true} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces.map((iface: ProjectInterface) => iface.name)} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
                      ))}
                    </div>
 
@@ -1230,7 +1238,7 @@ export default function InterfaceNav({
                    <div ref={checkScroll as any} className={cn("flex-1 min-h-0 overflow-y-auto overflow-x-hidden command-scrollbar", !isCollapsed && "pr-2")}> 
                      <div className="space-y-1">
                        {projectTree.filter((p:any)=>!p.favorite).map((projItem:any)=>(
-                         <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={false} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
+                         <ProjectItem key={projItem.project} project={projItem.project} icon={projItem.icon} favourite={false} currentInterfaceId={interfaceId} expandedProjects={expandedProjects} toggleProject={toggleProject} interfaceActions={interfaceActions} tabActions={tabActions} tileActions={tileActions} favouritesActions={favouritesActions} favourites={favourites} queryClient={queryClient} onProjectAction={(proj, action)=>{setActiveProject(proj); if(action==='rename'){setRenameProjectName(proj);} setProjectDialogOpen(action);}} onOpenThemeDialog={(ifaceId,color)=>{setThemeInterfaceId(ifaceId); setThemeColor(color??''); setThemeDialogOpen(true);}} onNavigate={navigateSoft} onRefresh={onRefresh} refreshStatus={refreshStatus} projectsRefreshing={projectsRefreshing} prefetchedInterfaces={projItem.interfaces.map((iface: ProjectInterface) => iface.name)} isSidebarCollapsed={isCollapsed} onFavouritesUpdate={handleFavouritesUpdate} />
                        ))}
                      </div>
                    </div>
