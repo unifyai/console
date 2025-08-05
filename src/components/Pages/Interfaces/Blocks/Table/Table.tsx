@@ -674,7 +674,7 @@ const LogsTable = ({
     } else {
       setLoadingGroups(prev => {
         const next = new Set(prev);
-        next.delete("_all_groups_");
+          next.delete("_all_groups_");
         return next;
       });
     }
@@ -1350,7 +1350,7 @@ const LogsTable = ({
                             isGroupLoading={loadingGroups.has(row.id) || loadingGroups.has("_all_groups_")}
                           />
                         )}
-                        FooterCell={(column, resizeMap, table, draggingColumnPinner) =>
+                        FooterCell={(column, resizeMap, table, draggingColumnPinner, setDraggingColumnPinner, columnPinning, columnOrder, isRightmost) =>
                           <FooterCell
                             column={column}
                             resizeMap={resizeMap}
@@ -1360,6 +1360,7 @@ const LogsTable = ({
                             columnPinning={columnPinning}
                             columnOrder={columnOrder}
                             table={table}
+                            isRightmost={isRightmost}
                           >
                             {
                               column.columnDef.id === indicesTitle
@@ -1382,7 +1383,7 @@ const LogsTable = ({
                                       tileId={tileId}
                                       tabId={tabId}
                                       projectId={projectId}
-                                      column={column}
+                                      column={column}                                      
                                       metric={metric}
                                       pending={summaryPending}
                                       draggingColumns={state.draggingColumns}
