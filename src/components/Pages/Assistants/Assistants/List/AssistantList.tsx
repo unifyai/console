@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 
 interface AssistantListProps {
     assistants: Assistant[];
-    assistantStatuses: Map<string, AssistantStatus | null>;
     assistantError: string | null;
     isLoading: boolean;
     error: string | null;
@@ -26,7 +25,6 @@ interface AssistantListProps {
 
 export function AssistantList({
     assistants,
-    assistantStatuses,
     assistantError,
     isLoading,
     error,
@@ -144,7 +142,6 @@ export function AssistantList({
                             <AssistantListItem
                                 key={assistant.agent_id}
                                 assistant={assistant}
-                                status={assistantStatuses.get(assistant.agent_id)}
                                 isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id} // Highlight if selected for profile OR activity
                                 onShowProfile={onShowProfile}
                                 onShowActivityLog={onShowActivityLog}

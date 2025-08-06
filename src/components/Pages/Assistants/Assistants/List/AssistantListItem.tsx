@@ -9,7 +9,6 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/h
 
 interface AssistantListItemProps {
     assistant: Assistant;
-    status: AssistantStatus | null | undefined;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
@@ -18,7 +17,6 @@ interface AssistantListItemProps {
 
 export function AssistantListItem({
     assistant,
-    status,
     isSelected,
     onShowProfile,
     onShowActivityLog,
@@ -37,7 +35,7 @@ export function AssistantListItem({
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
-    const isOnline = status?.running === true;
+    const isOnline = true;
 
     if (isFolded) {
         return (
