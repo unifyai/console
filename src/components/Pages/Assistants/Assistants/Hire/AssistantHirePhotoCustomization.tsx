@@ -157,6 +157,24 @@ export function PhotoCustomization({
         }, 'image/jpeg');
     };
 
+    const generateTooltipContent = !prompt.trim()
+        ? "Please enter a prompt to generate a photo."
+        : "Generate new photo";
+
+    const editTooltipContent = !currentImageUrl
+        ? "An existing photo is needed to edit."
+        : !prompt.trim()
+        ? "Please enter a prompt to edit the photo."
+        : "Edit current photo";
+
+    const animateTooltipContent = !currentImageUrl
+        ? "An existing photo is needed to animate."
+        : !selectedVoice
+        ? "A voice must be selected to generate audio."
+        : !ttsPrompt.trim()
+        ? "Please enter text for the animation's audio."
+        : "Animate photo";
+
     return (
         <div className={cn("flex-1 self-stretch", disabled && "opacity-70 cursor-not-allowed")}>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full flex flex-col h-full">
@@ -219,39 +237,43 @@ export function PhotoCustomization({
                                 <TooltipProvider delayDuration={100}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => handleEdit(imageSourceForOperations!)}
-                                                disabled={isEditDisabled}
-                                            >
-                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pen className="h-4 w-4" />}
-                                            </Button>
-
+                                            {/* Wrap the disabled button in a span to allow tooltip events */}
+                                            <span tabIndex={0}>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => handleEdit(imageSourceForOperations!)}
+                                                    disabled={isEditDisabled}
+                                                >
+                                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pen className="h-4 w-4" />}
+                                                </Button>
+                                            </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                            <p>{"Edit current photo"}</p>
+                                            <p>{editTooltipContent}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                                 <TooltipProvider delayDuration={100}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={handleGenerate}
-                                                disabled={isGenerateDisabled}
-                                            >
-                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                            </Button>
+                                            <span tabIndex={0}>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={handleGenerate}
+                                                    disabled={isGenerateDisabled}
+                                                >
+                                                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                                </Button>
+                                            </span>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                            <p>{"Generate new photo"}</p>
+                                            <p>{generateTooltipContent}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -278,19 +300,21 @@ export function PhotoCustomization({
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => handleAnimate(imageSourceForOperations!)}
-                                            disabled={isAnimateDisabled}
-                                        >
-                                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                                        </Button>
+                                        <span tabIndex={0}>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => handleAnimate(imageSourceForOperations!)}
+                                                disabled={isAnimateDisabled}
+                                            >
+                                                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                                            </Button>
+                                        </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" align="end" className="max-w-xs text-sm">
-                                        <p>{!currentImageUrl ? "An existing photo is needed to animate" : !selectedVoice ? "A voice must be selected to generate audio" : "Animate photo"}</p>
+                                        <p>{animateTooltipContent}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
