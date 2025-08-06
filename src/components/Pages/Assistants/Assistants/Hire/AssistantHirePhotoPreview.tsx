@@ -15,7 +15,6 @@ interface AssistantPhotoViewerProps {
   photoFile?: File | null;
   videoFile?: File | null;
   isPlayable?: boolean;
-  allowHoverPlay?: boolean;
   fallbackText?: React.ReactNode;
   className?: string;
   avatarClassName?: string;
@@ -28,8 +27,7 @@ export function AssistantPhotoViewer({
   videoUrl,
   photoFile,
   videoFile,
-  isPlayable = false,
-  allowHoverPlay = true,
+  isPlayable = true,
   fallbackText = <User className="h-1/2 w-1/2" />,
   className,
   avatarClassName,
@@ -45,41 +43,41 @@ export function AssistantPhotoViewer({
     if (videoUrl) {
       if (!isVideoLoading) setIsVideoLoading(true);
       setVideoError(false);
-      setHasPlayedOnce(false);
     } else {
       setIsVideoLoading(false);
       setVideoError(false);
     }
   }, [videoUrl]);
 
-  // Effect for autoplaying or pausing based on isPlayable
-  React.useEffect(() => {
-    const videoElement = videoRef.current;
-    if (videoElement && videoUrl && !videoError) {
-      if (isPlayable && !hasPlayedOnce && videoElement.paused && !isVideoLoading) {
-        videoElement.play()
-          .then(() => setHasPlayedOnce(true))
-          .catch(error => {
-            console.warn("Autoplay/Programmatic play failed:", error);
-          });
-      } else if (!isPlayable && !videoElement.paused) {
-        videoElement.pause();
-      }
-    } else if (videoElement && !videoElement.paused) {
-        videoElement.pause();
-    }
-  }, [videoUrl, videoError, isPlayable, hasPlayedOnce, isVideoLoading]);
-
   const shouldRenderVideo = videoUrl && !videoError;
   const showDownloadButton = photoFile || videoFile;
-  const hasClickAction = !!onClick && shouldRenderVideo;
+  const hasClickAction = shouldRenderVideo || !!onClick;
 
-
-  const handleMouseEnter = () => {
-    if (allowHoverPlay && videoRef.current && shouldRenderVideo && videoRef.current.ended) {
-      videoRef.current.play().catch(e => console.warn("Replay on hover failed:", e));
+  const handleClick = (e: React.MouseEvent) => {
+    // If the click is on the download button, let its own handler (with stopPropagation) manage it.
+    if ((e.target as HTMLElement).closest('button[aria-label*="Download"]')) {
+        return;
     }
-  };
+    
+    if (disabled) return;
+
+    // Try to play if possible and playable
+    if (shouldRenderVideo && videoRef.current && isPlayable) {
+        if (videoRef.current.paused) {
+            videoRef.current.play().catch(err => console.warn("Play on click failed:", err));
+        } else {
+            videoRef.current.pause();
+         }
+    } else if (onClick) { // Otherwise, if there's an onClick action (like "Click to animate"), fire it
+         onClick();
+    }
+  }
+
+  const tooltipContent = shouldRenderVideo && isPlayable
+      ? "Click to play/pause animation"
+      : onClick 
+      ? "Click to animate"
+      : "No animation available";
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -107,91 +105,72 @@ export function AssistantPhotoViewer({
   };
 
   return (
-    <div
-      className={cn("flex flex-col items-center gap-2", className, hasClickAction && "cursor-pointer")}
-      onMouseEnter={handleMouseEnter}
-      onClick={hasClickAction ? onClick : undefined}
-    >
-      <div className="relative group">
-        <div
-          className={cn(
-              "h-44 w-44 rounded-lg overflow-hidden flex items-center justify-center",
-              (photoUrl || videoUrl) ? "!border-muted" : "border-muted-foreground/30",
-              avatarClassName, "relative"
-          )}
-        >
-          {showDownloadButton && (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full"
-                    onClick={handleDownload}
-                    aria-label={videoFile ? "Download Video" : "Download Image"}
-                    type="button"
-                  >
-                    <Download className="h-4 w-4 text-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>{videoFile ? "Download Video" : "Download Image"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              "flex flex-col items-center gap-2", 
+              className, 
+              hasClickAction && !disabled && "cursor-pointer"
+            )}
+            onClick={handleClick}
+          >
+            <div className="relative group">
+              <div
+                className={cn(
+                    "h-44 w-44 rounded-lg overflow-hidden flex items-center justify-center",
+                    (photoUrl || videoUrl) ? "!border-muted" : "border-muted-foreground/30",
+                    avatarClassName, "relative"
+                )}
+              >
+                {showDownloadButton && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute top-1 right-1.5 z-20 h-7 w-7 bg-background/50 hover:bg-background/80 backdrop-blur-sm p-1 rounded-full"
+                      onClick={handleDownload}
+                      aria-label={videoFile ? "Download Video" : "Download Image"}
+                      type="button"
+                    >
+                      <Download className="h-4 w-4 text-foreground" />
+                    </Button>
+                )}
 
-          {isVideoLoading && videoUrl && (
-            <Skeleton className="absolute inset-0 h-full w-full rounded-lg animate-pulse bg-muted z-10" />
-          )}
+                {isVideoLoading && videoUrl && (
+                  <Skeleton className="absolute inset-0 h-full w-full rounded-lg animate-pulse bg-muted z-10" />
+                )}
 
-          {shouldRenderVideo ? (
-              <video
-                  key={videoUrl} 
-                  ref={videoRef} 
-                  src={videoUrl || undefined} 
-                  playsInline
-                  className={cn(
-                    "w-full h-full object-cover", 
-                    (isVideoLoading || !videoUrl) && "opacity-0"
-                  )}
-                  poster={photoUrl || undefined}
-                  onCanPlay={() => {
-                    setIsVideoLoading(false);
-                    if (isPlayable && !hasPlayedOnce && videoRef.current?.paused) {
-                        videoRef.current.play()
-                          .then(() => setHasPlayedOnce(true))
-                          .catch(e => console.warn("OnCanPlay play attempt failed", e));
-                    }
-                  }}
-                  onPlaying={() => {
-                    setIsVideoLoading(false);
-                  }}
-                  onErrorCapture={(e) => {
-                    console.error("Video error event (capture):", e);
-                    setVideoError(true);
-                    setIsVideoLoading(false);
-                  }}
-              />
-          ) : (
-            <Avatar className={cn("h-full w-full border-0 rounded-lg", avatarClassName)}>
-              {photoUrl && <AvatarImage src={photoUrl} alt="Avatar Preview" className="object-cover" />}
-              <AvatarFallback className={cn(
-                "text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs rounded-lg",
-                !photoUrl && "bg-muted"
-              )}>
-                  {!photoUrl && (
-                    <> 
-                      {fallbackText}
-                      <span className="mt-1 text-xs">No Photo</span>
-                    </>
-                  )}
-              </AvatarFallback>
-            </Avatar>
-          )}
-        </div>
-      </div>
-    </div>
+                {shouldRenderVideo ? (
+                    <video
+                        key={videoUrl} 
+                        ref={videoRef} 
+                        src={videoUrl || undefined} 
+                        playsInline
+                        className={cn("w-full h-full object-cover", (isVideoLoading || !videoUrl) && "opacity-0")}
+                        poster={photoUrl || undefined}
+                        onCanPlay={() => setIsVideoLoading(false)}
+                        onPlaying={() => setIsVideoLoading(false)}
+                        onErrorCapture={() => { setVideoError(true); setIsVideoLoading(false); }}
+                    />
+                ) : (
+                  <Avatar className={cn("h-full w-full border-0 rounded-lg", avatarClassName)}>
+                    {photoUrl && <AvatarImage src={photoUrl} alt="Avatar Preview" className="object-cover" />}
+                    <AvatarFallback className={cn("text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs rounded-lg", !photoUrl && "bg-muted")}>
+                        {!photoUrl && ( <> {fallbackText} <span className="mt-1 text-xs">No Photo</span> </> )}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            </div>
+          </div>
+        </TooltipTrigger>
+        {hasClickAction && !disabled && (
+          <TooltipContent side="top">
+              <p>{tooltipContent}</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
   );
-}
+};

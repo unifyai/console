@@ -173,181 +173,209 @@ export function HireForm({
     assistants,
     mode = 'hire',
 }: HireFormProps) {
-  const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "social_accounts",
-  });
-
-  const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
-
-  const handleAddSocialAccount = (platform: string) => {
-    const platformAlreadyAdded = fields.some(field => field.platform === platform);
-    if (platformAlreadyAdded) {
-        toast.info(`You have already added an account for ${platform}.`);
-        return;
-    }
-
-    const userPhone = getValues("user_phone");
-    append({
-        platform: platform,
-        identifier: userPhone || '',
-        isVerified: false,
-        isInitial: false,
-        isVerifying: false,
-        verificationCodeSent: null,
-        verificationSentAt: null,
-        verificationAttempts: 0,
-        verificationError: null,
+    const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "social_accounts",
     });
-    setJustAddedPlatform(platform);
-  };
 
-  const photoPreviewUrl = watch("photoPreviewUrl");
-  const videoPreviewUrl = watch("videoPreviewUrl");
-  const photoFile = watch("photoFile");
-  const videoFile = watch("videoFile");
-  const isPresetPristine = watch("isPresetPristine");
-  const firstName = watch("first_name");
-  const surname = watch("surname");
-  const age = watch("age");
-  const rhfEmail = watch("email");
-  const rhfCountry = watch("country");
-  const rhfRegion = watch("region");
+    const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
+    const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
 
-  const regionRef = React.useRef(rhfRegion);
+    const handleAddSocialAccount = (platform: string) => {
+        const platformAlreadyAdded = fields.some(field => field.platform === platform);
+        if (platformAlreadyAdded) {
+            toast.info(`You have already added an account for ${platform}.`);
+            return;
+        }
 
-  // Re-validate the other name field when one changes to give immediate feedback on the duplicate check.
-  React.useEffect(() => {
-    if (getValues("surname")?.length > 0) {
-        trigger("surname");
-    }
-  }, [firstName, trigger, getValues]);
+        const userPhone = getValues("user_phone");
+        append({
+            platform: platform,
+            identifier: userPhone || '',
+            isVerified: false,
+            isInitial: false,
+            isVerifying: false,
+            verificationCodeSent: null,
+            verificationSentAt: null,
+            verificationAttempts: 0,
+            verificationError: null,
+        });
+        setJustAddedPlatform(platform);
+    };
 
-  React.useEffect(() => {
-      if (getValues("first_name")?.length > 0) {
-          trigger("first_name");
-      }
-  }, [surname, trigger, getValues]);
+    const photoPreviewUrl = watch("photoPreviewUrl");
+    const videoPreviewUrl = watch("videoPreviewUrl");
+    const photoFile = watch("photoFile");
+    const videoFile = watch("videoFile");
+    const isPresetPristine = watch("isPresetPristine");
+    const firstName = watch("first_name");
+    const surname = watch("surname");
+    const age = watch("age");
+    const rhfEmail = watch("email");
+    const rhfCountry = watch("country");
+    const rhfRegion = watch("region");
+    const regionRef = React.useRef(rhfRegion);
+    
+    // Re-validate the other name field when one changes to give immediate feedback on the duplicate check.
+    React.useEffect(() => {
+        if (getValues("surname")?.length > 0) {
+            trigger("surname");
+            }
+        }, [firstName, trigger, getValues]);
+        
+        React.useEffect(() => {
+            if (getValues("first_name")?.length > 0) {
+            trigger("first_name");
+            }
+        }, [surname, trigger, getValues]);
 
-  React.useEffect(() => {
-    const isPristine = getValues("isPresetPristine");
-    // Only trigger auto-selection if the region was changed manually, not by a preset.
-    if (isPristine || regionRef.current === rhfRegion) {
+    React.useEffect(() => {
+        const isPristine = getValues("isPresetPristine");
+        // Only trigger auto-selection if the region was changed manually, not by a preset.
+        if (isPristine || regionRef.current === rhfRegion) {
+            regionRef.current = rhfRegion;
+            return;
+        }
         regionRef.current = rhfRegion;
-        return;
-    }
-    regionRef.current = rhfRegion;
-
-    if (allDisplayableVoices.length === 0) return;
-
-    const preferredLanguage = getLangCodeForRegion(rhfRegion);
-    if (!preferredLanguage) return;
-
-    const currentVoiceId = getValues("voice_id");
-    const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
-
-    // If current voice already matches the new region's language, do nothing
-    if (currentVoice && currentVoice.language === preferredLanguage) return;
-
-    // Find the best new voice: a non-preset one is preferred
-    const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset)
-                      || allDisplayableVoices.find(v => v.language === preferredLanguage);
-
-    if (bestNewVoice) {
-        setValue("voice_id", bestNewVoice.voice_id, { shouldValidate: true });
-        setValue("voice_name", bestNewVoice.name, { shouldValidate: true });
-        setValue("voice_description", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
-        setValue("voice_gender", bestNewVoice.gender, { shouldValidate: true });
-        setValue("voice_language", bestNewVoice.language, { shouldValidate: true });
-        setValue("voice_provider", bestNewVoice.provider || VOICE_PROVIDER, { shouldValidate: true });
-        setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
-    }
-  }, [rhfRegion, allDisplayableVoices, getValues, setValue]);
-
-
-  const [emailLocalPart, setEmailLocalPart] = React.useState('');
-
-  // Sync local part state from RHF's full email (e.g., on preset selection or reset)
-  React.useEffect(() => {
-    if (rhfEmail && rhfEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-        const local = rhfEmail.substring(0, rhfEmail.length - EMAIL_DOMAIN_WITH_AT.length);
-        if (local !== emailLocalPart) {
-            setEmailLocalPart(local);
+        
+        if (allDisplayableVoices.length === 0) return;
+        
+        const preferredLanguage = getLangCodeForRegion(rhfRegion);
+        if (!preferredLanguage) return;
+        
+        const currentVoiceId = getValues("voice_id");
+        const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
+        
+        // If current voice already matches the new region's language, do nothing
+        if (currentVoice && currentVoice.language === preferredLanguage) return;
+        
+        // Find the best new voice: a non-preset one is preferred
+        const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset)
+        || allDisplayableVoices.find(v => v.language === preferredLanguage);
+        
+        if (bestNewVoice) {
+            setValue("voice_id", bestNewVoice.voice_id, { shouldValidate: true });
+            setValue("voice_name", bestNewVoice.name, { shouldValidate: true });
+            setValue("voice_description", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
+            setValue("voice_gender", bestNewVoice.gender, { shouldValidate: true });
+            setValue("voice_language", bestNewVoice.language, { shouldValidate: true });
+            setValue("voice_provider", bestNewVoice.provider || VOICE_PROVIDER, { shouldValidate: true });
+            setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
         }
-    } else if (rhfEmail) {
-         if (rhfEmail !== emailLocalPart) {
-            setEmailLocalPart(rhfEmail);
-         }
-    } else {
-        if (emailLocalPart !== '') {
-            setEmailLocalPart('');
-        }
-    }
-  }, [rhfEmail, emailLocalPart]);
+    }, [rhfRegion, allDisplayableVoices, getValues, setValue]);
 
-  // Auto-generate email based on names if not manually edited
-  React.useEffect(() => {
-    const generateUniqueEmail = (fname: string, sname: string) => {
-         const cleanFname = fname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-         const cleanSname = sname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        let baseLocalPart = "new-assistant";
-        if (cleanFname && cleanSname) baseLocalPart = `${cleanFname}-${cleanSname}`;
-        else if (cleanFname) baseLocalPart = cleanFname;
-        else if (cleanSname) baseLocalPart = cleanSname;
+    const [emailLocalPart, setEmailLocalPart] = React.useState('');
 
-        let finalLocalPart = baseLocalPart;
-        let counter = 1;
-        while (allAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
-            finalLocalPart = `${baseLocalPart}-${counter}`;
-            counter++;
-        }
-        return `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
-     };
- 
-     if (!getValues("emailManuallyEdited") && (firstName || surname)) {
-        const newEmail = generateUniqueEmail(firstName, surname);
-        setValue("email", newEmail, { shouldValidate: true });
-     }
-  }, [firstName, surname, setValue, getValues, allAssistantEmails]);
-
-
-
-  const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newLocalPart = event.target.value.replace(/[@\s]/g, '');
-    setEmailLocalPart(newLocalPart);
-    setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
-    setValue("emailManuallyEdited", true);
-    trigger("email");
-  };
-
-  const rhfVoiceId = watch("voice_id");
-  const rhfVoiceLanguage = watch("voice_language");
-  const rhfVoiceGender = watch("voice_gender");
-  const rhfVoiceName = watch("voice_name");
-  const rhfVoiceDescription = watch("voice_description");
-  const rhfIsPresetPristine = watch("isPresetPristine");
-
-
-  const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
-    if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
-        return {
-            voice_id: rhfVoiceId,
-            language: rhfVoiceLanguage as SupportedLanguage,
-            gender: rhfVoiceGender as Gender,
-            name: rhfVoiceName,
-            description: rhfVoiceDescription || '',
-            provider: getValues("voice_provider") || VOICE_PROVIDER,
-            is_preset: rhfIsPresetPristine,
-            isUserVoiceInOrchestra: getValues("voice_exists")
+    // Sync local part state from RHF's full email (e.g., on preset selection or reset)
+    React.useEffect(() => {
+        if (rhfEmail && rhfEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+            const local = rhfEmail.substring(0, rhfEmail.length - EMAIL_DOMAIN_WITH_AT.length);
+            if (local !== emailLocalPart) {
+                setEmailLocalPart(local);
+            }
+        } else if (rhfEmail) {
+            if (rhfEmail !== emailLocalPart) {
+                setEmailLocalPart(rhfEmail);
+                }
+            } else {
+                if (emailLocalPart !== '') {
+                    setEmailLocalPart('');
+                }
+            }
+        }, [rhfEmail, emailLocalPart]);
+        
+        // Auto-generate email based on names if not manually edited
+    React.useEffect(() => {
+        const generateUniqueEmail = (fname: string, sname: string) => {
+            const cleanFname = fname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+            const cleanSname = sname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+            let baseLocalPart = "new-assistant";
+            if (cleanFname && cleanSname) baseLocalPart = `${cleanFname}-${cleanSname}`;
+            else if (cleanFname) baseLocalPart = cleanFname;
+            else if (cleanSname) baseLocalPart = cleanSname;
+            
+            let finalLocalPart = baseLocalPart;
+            let counter = 1;
+            while (allAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
+                finalLocalPart = `${baseLocalPart}-${counter}`;
+                counter++;
+            }
+            return `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
         };
-    }
-    return null;
-  }, [rhfVoiceId, rhfVoiceLanguage, rhfVoiceGender, rhfVoiceName, rhfVoiceDescription, rhfIsPresetPristine, getValues]);
+        
+        if (!getValues("emailManuallyEdited") && (firstName || surname)) {
+            const newEmail = generateUniqueEmail(firstName, surname);
+            setValue("email", newEmail, { shouldValidate: true });
+        }
+    }, [firstName, surname, setValue, getValues, allAssistantEmails]);
 
-  const isEditMode = mode === 'edit';
+    const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const newLocalPart = event.target.value.replace(/[@\s]/g, '');
+        setEmailLocalPart(newLocalPart);
+        setValue("email", `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
+        setValue("emailManuallyEdited", true);
+        trigger("email");
+    };
 
-  return (
+    const rhfVoiceId = watch("voice_id");
+    const rhfVoiceLanguage = watch("voice_language");
+    const rhfVoiceGender = watch("voice_gender");
+    const rhfVoiceName = watch("voice_name");
+    const rhfVoiceDescription = watch("voice_description");
+    const rhfIsPresetPristine = watch("isPresetPristine");
+    
+    // --- Start of Video Playability Logic ---
+    const isVideoPlayable = React.useMemo(() => {
+        const hasVideo = !!videoPreviewUrl;
+        if (!hasVideo) return false;
+    
+        // A preset video is playable only if the form state is still pristine.
+        const rhfProfileVideoUrl = getValues("profile_video_url");
+        const isPresetVideo = rhfProfileVideoUrl?.includes('preset_assistants');
+
+        const videoVoiceId = getValues("video_source_voice_id");
+    
+        // A preset video is playable if the form is pristine OR if the currently selected voice matches the video's original voice.
+        if (isPresetVideo) {
+            return isPresetPristine || rhfVoiceId === videoVoiceId;
+        }
+
+        // A custom video (one the user animated themselves) is playable if the currently
+        // selected voice matches the voice used to create the video.
+        const hasCustomVideo = !!videoFile;
+        if (hasCustomVideo) {
+            const videoVoiceId = getValues("video_source_voice_id");
+            return rhfVoiceId === videoVoiceId;
+        }
+    
+        return false; // Not a preset video and not a custom video, so not playable.
+    }, [videoPreviewUrl, videoFile, getValues, isPresetPristine, rhfVoiceId]);
+    
+    // --- End of Video Playability Logic ---
+
+    const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
+        if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
+            return {
+                voice_id: rhfVoiceId,
+                language: rhfVoiceLanguage as SupportedLanguage,
+                gender: rhfVoiceGender as Gender,
+                name: rhfVoiceName,
+                description: rhfVoiceDescription || '',
+                provider: getValues("voice_provider") || VOICE_PROVIDER,
+                is_preset: rhfIsPresetPristine,
+                isUserVoiceInOrchestra: getValues("voice_exists")
+            };
+        }
+        return null;
+    }, [rhfVoiceId, rhfVoiceLanguage, rhfVoiceGender, rhfVoiceName, rhfVoiceDescription, rhfIsPresetPristine, getValues]);
+
+    const isEditMode = mode === 'edit';
+    const handlePhotoViewerClick = () => {
+        // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
+        setPhotoCustomizationTab('animate');
+    };
+    return (
     <FormProvider {...formMethods}>
         <form onSubmit={onSubmit} className="space-y-6 h-full flex flex-col">
         <ScrollArea className="flex-1 min-h-0">
@@ -456,9 +484,10 @@ export function HireForm({
                         videoUrl={videoPreviewUrl}
                         photoFile={photoFile}
                         videoFile={videoFile}
-                        isPlayable={isPresetPristine}
                         className="flex-shrink-0"
+                        isPlayable={isVideoPlayable}
                         disabled={isSubmitting}
+                        onClick={handlePhotoViewerClick}
                     />
                     <PhotoCustomization
                         assistantActions={assistantActions}
@@ -470,6 +499,8 @@ export function HireForm({
                         firstName={firstName}
                         surname={surname}
                         age={age as number | null}
+                        activeTab={photoCustomizationTab}
+                        setActiveTab={setPhotoCustomizationTab}
                     />
                     </div>
                 </div>

@@ -33,7 +33,7 @@ const fetchBalance = async (): Promise<number> => {
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
     generateSpeechAction: AssistantActions['voice']['generate'],
-    onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video') => void,
+    onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video', metadata?: { voiceId?: string }) => void,
     photoOperationCost: number,
     videoAnimationCost: number,
     selectedVoice: VoiceOption | null,
@@ -264,7 +264,7 @@ export function usePhotoCreator(
             const videoFilename = remoteVideoUrl.substring(remoteVideoUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
             const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
 
-            onNewMediaReady(newVideoFile, 'video'); // This updates imageFile and imagePreview (to a blob URL for the video)
+            onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice.voice_id });
 
             toast.success("Photo animated successfully!", { id: toastId });
 

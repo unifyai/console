@@ -79,6 +79,7 @@ export type AssistantFormData =
       videoFile?: File | null;
       photoPreviewUrl?: string | null;
       videoPreviewUrl?: string | null;
+      video_source_voice_id?: string | null;
       user_phone?: string | null;
       user_phone_isVerified?: boolean;
       user_phone_isVerifying?: boolean;

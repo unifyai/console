@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/UI/dialog";
+import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
@@ -30,6 +31,8 @@ interface PhotoCustomizationProps {
     firstName?: string | null;
     surname?: string | null;
     age?: number | null;
+    activeTab: 'upload' | 'create' | 'animate';
+    setActiveTab: (tab: 'upload' | 'create' | 'animate') => void;
 }
 
 export function PhotoCustomization({
@@ -42,8 +45,9 @@ export function PhotoCustomization({
     firstName,
     surname,
     age,
+    activeTab,
+    setActiveTab,
 }: PhotoCustomizationProps) {
-    const [activeTab, setActiveTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     // Camera state
@@ -52,6 +56,13 @@ export function PhotoCustomization({
     const [cameraError, setCameraError] = React.useState<string | null>(null);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+    const ttsPlaceholder = React.useMemo(() => {
+        if (selectedVoice?.language) {
+            return getRandomSampleLine(selectedVoice.language);
+        }
+        return "Hi there! How can I help you today?";
+    }, [selectedVoice]);
 
     const {
         prompt, setPrompt,
@@ -253,7 +264,7 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="tts-prompt"
-                            placeholder="Hi there! How can i help you today?"
+                            placeholder={ttsPlaceholder}
                             value={ttsPrompt}
                             onChange={(e) => setTtsPrompt(e.target.value)}
                             className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"

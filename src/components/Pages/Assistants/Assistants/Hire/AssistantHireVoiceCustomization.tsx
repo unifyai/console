@@ -10,7 +10,7 @@ import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square } from 'lucide-react'; 
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Camera } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
@@ -57,7 +57,8 @@ export function VoiceCustomization({
     const { control, watch } = useFormContext<AssistantFormData>();
     const designIncludeBio = watch("design_include_bio");
     const bioText = watch("about");
-
+    const videoSourceVoiceId = watch("video_source_voice_id");
+    
     // Microphone recording state
     const [recordingStatus, setRecordingStatus] = React.useState<'idle' | 'recording'>('idle');
     const [recordTime, setRecordTime] = React.useState(0);
@@ -229,6 +230,20 @@ export function VoiceCustomization({
                 <span className="flex-1 truncate font-medium text-sm" title={voice.name}>{voice.name}</span>
 
                 <div className={cn("flex items-center p-0 m-0 gap-1 sm:gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
+
+                     <TooltipProvider delayDuration={100}>
+                        {videoSourceVoiceId === voice.voice_id && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
+                                        <Camera className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-amber-500")} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top"><p>Used for current video animation</p></TooltipContent>
+                            </Tooltip>
+                        )}
+                    </TooltipProvider>
+
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
                             <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()} disabled={itemIsDisabled}>

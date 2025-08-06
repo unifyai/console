@@ -68,6 +68,7 @@ export function useAssistantHireForm(
             voice_exists: false,
             isPresetPristine: false,
             presetOriginalValues: null,
+            video_source_voice_id: null,
             design_include_bio: false,
         },
     });
@@ -184,6 +185,7 @@ export function useAssistantHireForm(
 
         setValue("photoFile", null);
         setValue("videoFile", null);
+        setValue("video_source_voice_id", null);
         setValue("photoPreviewUrl", null);
         setValue("videoPreviewUrl", null);
         setValue("profile_photo_url", null);
@@ -191,7 +193,7 @@ export function useAssistantHireForm(
         setValue("isPresetPristine", false);
     }, [getValues, setValue]);
 
-    const onNewMediaReady = React.useCallback((file: File | null, mediaType: 'photo' | 'video') => {
+    const onNewMediaReady = React.useCallback((file: File | null, mediaType: 'photo' | 'video', metadata?: { voiceId?: string }) => {
         if (mediaType === 'photo') {
             const currentPhotoPreview = getValues("photoPreviewUrl");
             if (currentPhotoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentPhotoPreview);
@@ -201,12 +203,14 @@ export function useAssistantHireForm(
             setValue("photoFile", file);
             setValue("photoPreviewUrl", file ? URL.createObjectURL(file) : null);
             setValue("videoFile", null);
+            setValue("video_source_voice_id", null);
             setValue("videoPreviewUrl", null);
             setValue("profile_video_url", null);
         } else { // video
             const currentVideoPreview = getValues("videoPreviewUrl");
             if (currentVideoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentVideoPreview);
             setValue("videoFile", file);
+            setValue("video_source_voice_id", metadata?.voiceId || null);
             setValue("videoPreviewUrl", file ? URL.createObjectURL(file) : null);
         }
         setValue("isPresetPristine", false);
@@ -223,6 +227,7 @@ export function useAssistantHireForm(
         setValue("photoPreviewUrl", preset.profile_photo);
         setValue("photoFile", null);
         setValue("videoFile", null);
+        setValue("video_source_voice_id", null);
         setValue("user_phone", '');
         setValue("user_phone_isVerified", false);
         setValue("user_phone_isVerifying", false);
@@ -303,6 +308,7 @@ export function useAssistantHireForm(
             age: preset.age,
             region: preset.region ?? '',
             voice_id: selectedPresetVoiceDetails.voice_id,
+            video_source_voice_id: providerSpecificVoiceId,
             profile_photo_url: preset.profile_photo,
             country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
         };
@@ -312,6 +318,7 @@ export function useAssistantHireForm(
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoPreviewUrl", res.signedUrl);
+                    setValue("video_source_voice_id", providerSpecificVoiceId);
                     setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${VOICE_PROVIDER.toLowerCase()}.mp4`);
                 } else {
                     setValue("isPresetPristine", false);
@@ -356,6 +363,7 @@ export function useAssistantHireForm(
             profile_video_url: null,
             photoPreviewUrl: null,
             videoPreviewUrl: null,
+            video_source_voice_id: null,
             voice_id: values?.voice_id || defaultVoice.voice_id,
             voice_name: values?.voice_name || defaultVoice.name,
             voice_language: values?.voice_language || defaultVoice.language as SupportedLanguage,

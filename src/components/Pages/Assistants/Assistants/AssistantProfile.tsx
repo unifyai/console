@@ -109,8 +109,6 @@ export function AssistantProfilePanel({
                                          <div className="relative group cursor-pointer flex-shrink-0">
                                              <AssistantPhotoViewer
                                                 photoUrl={photoSrc}
-                                                isPlayable={false}
-                                                allowHoverPlay={false}
                                                 className="flex-shrink-0"
                                                 avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
                                                 fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
