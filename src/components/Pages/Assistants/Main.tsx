@@ -217,21 +217,23 @@ export default function Main({
 
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
-        refreshHiringProfile().then(() => {
-            resetHireFormInternal();
-            setIsAssistantPresetsOpen(true);
-            setPresetAgeFilter('all');
-            setPresetRegionFilter('all');
-            setPresetGenderFilter('all');
-            setIsDialogBusyProcessingVoice(false); 
-    
-            const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
-            if (presetsToUse.length > 0) {
-                const randomIndex = Math.floor(Math.random() * presetsToUse.length);
-                selectPresetForHireForm(presetsToUse[randomIndex]);
-            }
-            setIsHireDialogOpen(true); 
-        });
+        resetHireFormInternal();
+        setIsAssistantPresetsOpen(true);
+        setPresetAgeFilter('all');
+        setPresetRegionFilter('all');
+        setPresetGenderFilter('all');
+        setIsDialogBusyProcessingVoice(false);
+
+        const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
+        if (presetsToUse.length > 0) {
+            const randomIndex = Math.floor(Math.random() * presetsToUse.length);
+            selectPresetForHireForm(presetsToUse[randomIndex]);
+        }
+
+        // Then, open the dialog. It will initially show its own loading state.
+        setIsHireDialogOpen(true);
+        refreshHiringProfile();
+
     }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, refreshHiringProfile]);
 
     const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
