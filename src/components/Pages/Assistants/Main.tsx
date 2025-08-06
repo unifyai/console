@@ -155,13 +155,23 @@ export default function Main({
         currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
 
+    // --- Voice Management Options ---
+    const [justDeletedVoiceId, setJustDeletedVoiceId] = React.useState<string | null>(null);
+    const {
+        allDisplayableVoices: unsortedVoices,
+        isLoadingUserVoices,
+        fetchUserVoices,
+        deleteUserVoice
+    } = useVoiceOptions(assistantActions.voice);
+
     // --- Callbacks for form success ---
     const handleHireSuccess = React.useCallback((newAssistant: Assistant) => {
         refreshAssistants(false);
+        fetchUserVoices();
         setIsHireDialogOpen(false);
         handleShowProfile(newAssistant.agent_id);
         refreshHiringProfile();
-    }, [refreshAssistants, handleShowProfile, refreshHiringProfile]);
+    }, [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]);
 
     const handleUpdateSuccess = React.useCallback(() => {
         refreshAssistants(false);
@@ -185,32 +195,25 @@ export default function Main({
         availablePhoneCountries,
         isLoadingCountries,
         onNewMediaReady,
-    } = useAssistantHireForm(assistantActions, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
+    } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
     
-    // --- Voice Options Management ---
+    // --- Voice Options  ---
     const hireFormRegion = hireFormMethods.watch("region");
     const preferredLanguage = React.useMemo(() => getLangCodeForRegion(hireFormRegion), [hireFormRegion]);
-
-    const handleVoiceDeleted = React.useCallback((deletedVoiceId: string) => {
-        const { getValues, setValue } = hireFormMethods;
-        if (getValues("voice_id") === deletedVoiceId) {
-            setValue("voice_id", null as any); 
-            setValue("voice_name", "");
-            setValue("voice_description", "");
-            setValue("voice_gender", "female");
-            setValue("voice_language", "en"); 
-            setValue("voice_provider", VOICE_PROVIDER);
-            setValue("voice_exists", false);
-        }
-    }, [hireFormMethods]);
-    
-    const {
-        allDisplayableVoices,
-        isLoadingUserVoices,
-        fetchUserVoices,
-        deleteUserVoice
-    } = useVoiceOptions(assistantActions.voice, handleVoiceDeleted, preferredLanguage);
-
+    const allDisplayableVoices = React.useMemo(() => {
+        // Sort the voices here in Main.tsx using useMemo
+        const sorted = [...unsortedVoices];
+        sorted.sort((a, b) => {
+            const isAPreferred = preferredLanguage && a.language === preferredLanguage;
+            const isBPreferred = preferredLanguage && b.language === preferredLanguage;
+            if (isAPreferred && !isBPreferred) return -1;
+            if (!isAPreferred && isBPreferred) return 1;
+            if (!a.is_preset && b.is_preset) return -1;
+            if (a.is_preset && !b.is_preset) return 1;
+            return (a.name || '').localeCompare(b.name || '');
+        });
+        return sorted;
+    }, [unsortedVoices, preferredLanguage]);    
 
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
@@ -245,6 +248,13 @@ export default function Main({
         selectPresetForHireForm(currentFilteredPresets[randomIndex]);
     };
     
+    const handleDeleteVoice = async (voice: VoiceOption) => {
+        const deletedId = await deleteUserVoice(voice);
+        if (deletedId) {
+            setJustDeletedVoiceId(deletedId); // Set state to trigger the effect
+        }
+    };
+
     // Profile Panel Actions
     const onDeleteAssistantSubmit = async (assistant: Assistant) => {
         const success = await deleteAssistant(assistant);
@@ -268,6 +278,21 @@ export default function Main({
             }
         }
     }, [ assistants, isLoadingAssistants, assistantError, handleOpenHireDialog, isLoadingEmails, userHiringApprovalStatus, isHireDialogOpen ]);
+    React.useEffect(() => {
+        if (justDeletedVoiceId) {
+            const { getValues, setValue } = hireFormMethods;
+            if (getValues("voice_id") === justDeletedVoiceId) {
+                setValue("voice_id", null as any); 
+                setValue("voice_name", "");
+                setValue("voice_description", "");
+                setValue("voice_gender", "female");
+                setValue("voice_language", "en"); 
+                setValue("voice_provider", VOICE_PROVIDER);
+                setValue("voice_exists", false);
+            }
+            setJustDeletedVoiceId(null); // Reset the trigger
+        }
+    }, [justDeletedVoiceId, hireFormMethods]);
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
@@ -415,7 +440,7 @@ export default function Main({
                         allDisplayableVoices={allDisplayableVoices}
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
-                        deleteUserVoice={deleteUserVoice}
+                        handleDeleteVoice={handleDeleteVoice}
                         onNewMediaReady={onNewMediaReady}
                         mode="hire"
                     />
@@ -455,7 +480,7 @@ export default function Main({
                             allDisplayableVoices={allDisplayableVoices}
                             isLoadingUserVoices={isLoadingUserVoices}
                             fetchUserVoices={fetchUserVoices}
-                            deleteUserVoice={deleteUserVoice}
+                            handleDeleteVoice={handleDeleteVoice}
                             onNewMediaReady={onNewMediaReady}
                             mode="edit"
                         />

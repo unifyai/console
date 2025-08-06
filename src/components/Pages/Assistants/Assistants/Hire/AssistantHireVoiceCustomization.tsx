@@ -35,7 +35,7 @@ interface VoiceCustomizationProps {
     allDisplayableVoices: VoiceOption[];
     isLoadingUserVoices: boolean;
     fetchUserVoices: () => void;
-    deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
+    handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
 }
 
 type ActiveCreatorTab = "select" | "clone" | "design";
@@ -49,7 +49,7 @@ export function VoiceCustomization({
     allDisplayableVoices,
     isLoadingUserVoices,
     fetchUserVoices,
-    deleteUserVoice,
+    handleDeleteVoice,
 }: VoiceCustomizationProps) {
     const [activeMainTab, setActiveMainTab] = React.useState<ActiveCreatorTab>('select');
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
@@ -248,7 +248,7 @@ export function VoiceCustomization({
                     {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip><TooltipTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); deleteUserVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); handleDeleteVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
                             </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
                         </TooltipProvider>
                     )}

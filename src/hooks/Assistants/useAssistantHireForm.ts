@@ -11,6 +11,7 @@ import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTR
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
+    registeredVoices: VoiceOption[],
     onHireSuccess?: (newAssistant: Assistant) => void,
     onUpdateSuccess?: () => void,
     isDialogOpen?: boolean,
@@ -289,7 +290,11 @@ export function useAssistantHireForm(
         setValue("voice_language", selectedPresetVoiceDetails.language as SupportedLanguage);
         setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
         setValue("voice_provider", selectedPresetVoiceDetails.provider || VOICE_PROVIDER);
-        setValue("voice_exists", false); // Presets are not "user voices in orchestra" initially
+
+        const voiceAlreadyExists = registeredVoices.some(
+            v => v.voice_id === providerSpecificVoiceId && v.isUserVoiceInOrchestra
+        );
+        setValue("voice_exists", voiceAlreadyExists);
 
         setValue("isPresetPristine", true);
         const originalValues = {

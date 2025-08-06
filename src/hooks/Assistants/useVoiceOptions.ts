@@ -8,8 +8,6 @@ import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useVoiceOptions(
     assistantVoiceActions: AssistantActions['voice'],
-    onVoiceDeleted?: (voiceId: string) => void,
-    preferredLanguage?: SupportedLanguage | null
 ) {
     const [presetVoices] = React.useState<VoiceOption[]>(() => {
         const allPresets = voicePresetsConstant as Voice[];
@@ -91,29 +89,13 @@ export function useVoiceOptions(
 
         const finalCombined = Array.from(finalMap.values());
         
-        finalCombined.sort((a, b) => {
-            const isAPreferred = preferredLanguage && a.language === preferredLanguage;
-            const isBPreferred = preferredLanguage && b.language === preferredLanguage;
-
-            if (isAPreferred && !isBPreferred) return -1;
-            if (!isAPreferred && isBPreferred) return 1;
-
-            // If both are preferred or neither are, apply original sorting logic
-            // Primary sort: Non-presets first
-            if (!a.is_preset && b.is_preset) return -1;
-            if (a.is_preset && !b.is_preset) return 1;
-
-            // Secondary sort: Alphabetical by name
-            return (a.name || '').localeCompare(b.name || '');
-        });
-
         return finalCombined;
-    }, [presetVoices, userVoicesFromOrchestra, preferredLanguage]);
+    }, [presetVoices, userVoicesFromOrchestra]);
 
-    const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<boolean> => {
+    const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<string | null> => {
         if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {
             toast.error("This voice cannot be deleted.");
-            return false;
+            return null;
         }
 
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
@@ -122,17 +104,16 @@ export function useVoiceOptions(
             if (deleteResult.detail) { 
                 console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
                 toast.error(`Error deleting voice}`, { id: toastId });
-                return false;
+                return null;
             }
 
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
-            if (onVoiceDeleted) onVoiceDeleted(voiceToDelete.voice_id);
-            return true;
+            return voiceToDelete.voice_id;
         } catch (error: any) {
             console.error(`[useVoiceOptions.ts] Error during voice deletion: ${error.message}`)
             toast.error(`Error deleting voice`, { id: toastId });
-            return false;
+            return null;
         }
     };
 

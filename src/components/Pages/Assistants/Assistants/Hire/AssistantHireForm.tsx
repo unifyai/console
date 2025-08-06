@@ -148,7 +148,7 @@ export interface HireFormProps {
   allDisplayableVoices: VoiceOption[];
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
-  deleteUserVoice: (voice: VoiceOption) => Promise<boolean>;
+  handleDeleteVoice: (voice: VoiceOption) => Promise<void>;
   assistants: Assistant[];
   mode?: 'hire' | 'edit';
 }
@@ -169,7 +169,7 @@ export function HireForm({
     allDisplayableVoices,
     isLoadingUserVoices,
     fetchUserVoices,
-    deleteUserVoice,
+    handleDeleteVoice,
     assistants,
     mode = 'hire',
 }: HireFormProps) {
@@ -499,7 +499,7 @@ export function HireForm({
                         allDisplayableVoices={allDisplayableVoices}
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
-                        deleteUserVoice={deleteUserVoice}
+                        handleDeleteVoice={handleDeleteVoice}
                     />
                     {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
                     {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}
