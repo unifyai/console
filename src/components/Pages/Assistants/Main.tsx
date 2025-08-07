@@ -428,7 +428,6 @@ export default function Main({
                     <HireForm
                         assistants={assistants}
                         formMethods={hireFormMethods}
-                        onSubmit={initiateHireSequence}
                         isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
                         assistantActions={assistantActions}
                         onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
@@ -446,14 +445,23 @@ export default function Main({
                         mode="hire"
                     />
                     <PresetsPanel                                    
-                        displayedPresets={displayedPresets} onPresetSelect={selectPresetForHireForm}
+                        displayedPresets={displayedPresets}
+                        onPresetSelect={selectPresetForHireForm}
                         onClose={() => setIsAssistantPresetsOpen(false)}
-                        onLoadMore={loadMorePresets} canLoadMore={canLoadMorePresets} isLoadingMore={isLoadingMorePresets}
-                        ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter} availableAgeBrackets={availableAgeBrackets}
-                        regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter} availableRegions={availableRegions}
-                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter} availableGenders={availableGenders}
-                        onToggleExpand={() => { /* This prop is now handled internally by AssistantHire */ }}
-                        isExpanded={false /* This prop is now handled internally by AssistantHire */}
+                        onLoadMore={loadMorePresets}
+                        canLoadMore={canLoadMorePresets}
+                        isLoadingMore={isLoadingMorePresets}
+                        ageFilter={presetAgeFilter}
+                        onAgeFilterChange={setPresetAgeFilter}
+                        availableAgeBrackets={availableAgeBrackets}
+                        regionFilter={presetRegionFilter}
+                        onRegionFilterChange={setPresetRegionFilter}
+                        availableRegions={availableRegions}
+                        genderFilter={presetGenderFilter}
+                        onGenderFilterChange={setPresetGenderFilter}
+                        availableGenders={availableGenders}
+                        isExpanded={false} // Dummy prop, will be overridden
+                        onToggleExpand={() => {}} // Dummy prop, will be overridden
                     />
                 </AssistantHire>
 

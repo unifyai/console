@@ -12,7 +12,7 @@ import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
 import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { ScrollArea } from '@/components/UI/scroll-area';
+import { ScrollArea } from "@/components/UI/scroll-area";
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
@@ -134,7 +134,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
-  onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
+  onSubmit?: (e?: React.BaseSyntheticEvent) => Promise<void>;
   isSubmitting: boolean;
   assistantActions: AssistantActions;
   onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
