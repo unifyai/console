@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info, Timer } from 'lucide-react'; // Added Info
+import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, MessageSquare, PanelLeftOpen, PanelLeftClose } from 'lucide-react'; // Added icons
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -16,6 +16,7 @@ import {
 import { ApprovalStatus } from '@/types/user';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { useFormContext, UseFormReturn } from 'react-hook-form';
+import { AssistantHireChatPanel } from './AssistantHireChatPanel';
 
 interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
     isHireDialogOpen: boolean;
@@ -61,7 +62,16 @@ export function AssistantHire ({
     formMethods,
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
+    const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
+    const [isRightPanelExpanded, setIsRightPanelExpanded] = React.useState(false);
     
+    // Reset to presets view when dialog is opened/closed
+    React.useEffect(() => {
+        if (isHireDialogOpen) {
+            setRightPanelView('presets');
+        }
+    }, [isHireDialogOpen]);
+
     const { watch } = useFormContext<AssistantFormData>();
     const socialAccounts = watch("social_accounts", []) || [];
 
@@ -75,6 +85,27 @@ export function AssistantHire ({
         return ASSISTANT_ONBOARDING_FEE + socialCosts;
     }, [socialAccounts, availableSocialPlatforms]);
 
+    const handleSelectAndSwitch = (preset: AssistantPreset) => {
+        // Get the original onPresetSelect function from the PresetsPanel child component's props
+        const originalOnPresetSelect = (presetsPanel as React.ReactElement<any>).props.onPresetSelect;
+        if (originalOnPresetSelect) {
+            originalOnPresetSelect(preset);
+        }
+        setRightPanelView('chat');
+    };
+
+    const handleToggleRightPanel = () => {
+        setIsAssistantPresetsOpen(prev => {
+            const isClosing = prev;
+            if (isClosing && isRightPanelExpanded) {
+                setIsRightPanelExpanded(false); 
+            }
+            return !prev;
+        });
+    };
+    
+    const handleToggleExpand = () => setIsRightPanelExpanded(p => !p);
+
     const isUserApproved = userApprovalStatus === "approved";
     const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
     const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval || isLoadingSocialPlatforms;
@@ -84,7 +115,8 @@ export function AssistantHire ({
         if (!isOverallDialogBusy) {
             setIsHireDialogOpen(open);
             if (!open) {
-                setShowInsufficientFundsHint(false); 
+                setShowInsufficientFundsHint(false);
+                setIsRightPanelExpanded(false); 
             }
         }
     };
@@ -149,7 +181,7 @@ export function AssistantHire ({
             <DialogContent 
                 className={cn(
                     "max-w-5xl h-[90vh] flex flex-col p-0 gap-0",
-                    isAssistantPresetsOpen && isUserApproved && "max-w-6xl"
+                    isAssistantPresetsOpen && isUserApproved && !isRightPanelExpanded && "max-w-6xl"
                 )} 
                 onInteractOutside={handleDialogInteractOutside}
                 onPointerDownOutside={(e) => { 
@@ -176,55 +208,89 @@ export function AssistantHire ({
                     renderAccessMessage()
                 ) : (
                     <div className="flex flex-1 min-h-0 overflow-hidden">
-                        {/* Hire Form Section */}
-                        <div className={cn(
-                            "flex-1 h-full min-w-0 relative transition-all duration-300 ease-in-out",
-                            "flex flex-col"
-                        )}>
-                            {/* New Header for "Your Assistant" and buttons */}
-                            <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
-                                <h3 className="text-lg font-semibold">Your Assistant</h3>
-                                <div className="flex items-center gap-1">
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
-                                                    <Shuffle className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>Randomize</p></TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsAssistantPresetsOpen(prev => !prev)} disabled={isPrimaryActionDisabled}>
-                                                    <LayoutList className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Presets" : "Show Presets"}</p></TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                            </div>
-                            <div className="flex-1 min-h-0 overflow-hidden">
-                                {hireForm}
-                            </div>
-                        </div>
+                        {/* Form Panel Section */}
+                        <AnimatePresence initial={false}>
+                            {!isRightPanelExpanded && (
+                                <motion.div
+                                    key="hire-form-panel"
+                                    initial={{ width: "0%", opacity: 0 }}
+                                    animate={{ width: isAssistantPresetsOpen ? "60%" : "100%", opacity: 1 }}
+                                    exit={{ width: "0%", opacity: 0 }}
+                                    transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+                                    className="h-full flex-shrink-0 min-w-0 bg-background relative flex flex-col"
+                                >
+                                    <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
+                                        <h3 className="text-lg font-semibold">Your Assistant</h3>
+                                        <div className="flex items-center gap-1">
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
+                                                            <Shuffle className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Randomize</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
 
-                        {/* Presets Panel Section */}
-                        {isAssistantPresetsOpen && (
-                            <motion.div
-                                key="hire-presets-panel"
-                                initial={{ width: "0%", opacity: 0 }}
-                                animate={{ width: "40%", opacity: 1 }}
-                                exit={{ width: "0%", opacity: 0 }}
-                                transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
-                                className="h-full flex-shrink-0 overflow-hidden bg-background"
-                            >
-                                {presetsPanel}
-                            </motion.div>
-                        )}
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets')} disabled={isPrimaryActionDisabled || !isAssistantPresetsOpen}>
+                                                            {rightPanelView === 'presets' ? <MessageSquare className="h-4 w-4" /> : <LayoutList className="h-4 w-4" />}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>{rightPanelView === 'presets' ? "Chat with Assistant" : "Show Presets"}</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleToggleRightPanel} disabled={isPrimaryActionDisabled}>
+                                                            <PanelLeftOpen className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Right Panel" : "Show Right Panel"}</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-h-0 overflow-hidden">
+                                        {hireForm}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Presets/Chat Panel Section */}
+                        <AnimatePresence>
+                            {isAssistantPresetsOpen && (
+                                <motion.div
+                                    key="hire-right-panel"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: isRightPanelExpanded ? "100%" : "40%" }}
+                                    exit={{ width: "0%" }}
+                                    transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
+                                    className="h-full flex-shrink-0 overflow-hidden bg-background"
+                                >
+                                    {rightPanelView === 'presets' ? (
+                                        React.cloneElement(presetsPanel as React.ReactElement<any>, {
+                                            onPresetSelect: handleSelectAndSwitch,
+                                            onToggleExpand: handleToggleExpand,
+                                            isExpanded: isRightPanelExpanded,
+                                            onClose: () => setIsAssistantPresetsOpen(false)
+                                        })
+                                    ) : (
+                                        <AssistantHireChatPanel
+                                            onToggleExpand={handleToggleExpand}
+                                            isExpanded={isRightPanelExpanded}
+                                            onClose={() => setIsAssistantPresetsOpen(false)}
+                                        />
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 )}
 

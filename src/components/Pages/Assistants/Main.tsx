@@ -451,7 +451,9 @@ export default function Main({
                         onLoadMore={loadMorePresets} canLoadMore={canLoadMorePresets} isLoadingMore={isLoadingMorePresets}
                         ageFilter={presetAgeFilter} onAgeFilterChange={setPresetAgeFilter} availableAgeBrackets={availableAgeBrackets}
                         regionFilter={presetRegionFilter} onRegionFilterChange={setPresetRegionFilter} availableRegions={availableRegions}
-                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter} availableGenders={availableGenders} 
+                        genderFilter={presetGenderFilter} onGenderFilterChange={setPresetGenderFilter} availableGenders={availableGenders}
+                        onToggleExpand={() => { /* This prop is now handled internally by AssistantHire */ }}
+                        isExpanded={false /* This prop is now handled internally by AssistantHire */}
                     />
                 </AssistantHire>
 

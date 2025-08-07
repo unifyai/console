@@ -3,9 +3,10 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
-import { X, Filter, Loader2 } from 'lucide-react';
+import { X, Filter, Loader2, PanelRightOpen, PanelLeftClose } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { Label } from '@/components/UI/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 const PRESET_ITEM_APPROX_HEIGHT = 90; // Approximate height of one PresetListItem + gap for threshold calculation
 
@@ -13,6 +14,8 @@ export interface PresetsPanelProps {
   displayedPresets: AssistantPreset[];
   onPresetSelect: (preset: AssistantPreset) => void;
   onClose: () => void;
+  onToggleExpand: () => void;
+  isExpanded: boolean;
   onLoadMore: () => void;
   canLoadMore: boolean;
   isLoadingMore: boolean;
@@ -35,6 +38,8 @@ export function PresetsPanel({
   displayedPresets,
   onPresetSelect,
   onClose,
+  onToggleExpand,
+  isExpanded,
   onLoadMore,
   canLoadMore,
   isLoadingMore,
@@ -81,10 +86,43 @@ export function PresetsPanel({
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Available Hires</h2>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close Presets</span>
-        </Button>
+        <div className="flex items-center gap-1">
+          {isExpanded ? (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
+                    <PanelLeftClose className="h-4 w-4" />
+                    <span className="sr-only">Collapse Right Panel</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Collapse Right Panel</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
+                      <PanelRightOpen className="h-4 w-4" />
+                      <span className="sr-only">Expand Right Panel</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Expand Right Panel</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close Presets</span>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
