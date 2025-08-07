@@ -43,11 +43,23 @@ export function AssistantPhotoViewer({
     if (videoUrl) {
       if (!isVideoLoading) setIsVideoLoading(true);
       setVideoError(false);
+      setHasPlayedOnce(false); // Reset autoplay state when video source changes
     } else {
       setIsVideoLoading(false);
       setVideoError(false);
     }
   }, [videoUrl]);
+  
+  // Effect to autoplay the video once when it's ready
+  React.useEffect(() => {
+      if (videoRef.current && !videoError && !isVideoLoading && !hasPlayedOnce) {
+          videoRef.current.play().catch(err => {
+              console.warn("Autoplay failed:", err);
+              // Autoplay can fail due to browser restrictions; user can still click to play.
+          });
+          setHasPlayedOnce(true);
+      }
+  }, [isVideoLoading, videoError, hasPlayedOnce]);
 
   const shouldRenderVideo = videoUrl && !videoError;
   const showDownloadButton = photoFile || videoFile;
