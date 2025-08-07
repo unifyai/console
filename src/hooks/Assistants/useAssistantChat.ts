@@ -8,8 +8,13 @@ const HIRE_ME_MESSAGE = "Glad I could be of help in this short conversation. Let
 const INSUFFICIENT_CREDITS_MESSAGE = "Sorry, I couldn't get that to you properly; it looks like a technical issue on my end. Maybe you could try refilling your credits balance? This should fix it.";
 const BILLING_URL = "https://console.unify.ai/billing";
 
-export function useAssistantChat(assistantFirstName: string) {
-    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+export function useAssistantChat(
+    assistantFirstName: string,
+    configKey: string,
+    histories: Record<string, ChatMessage[]>,
+    setHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
+) {
+    const messages = histories[configKey] || [];
     const [inputValue, setInputValue] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
@@ -17,16 +22,17 @@ export function useAssistantChat(assistantFirstName: string) {
         messages.filter(msg => msg.role === 'user').length,
     [messages]);
 
-    // Initial message from the assistant
+    // Effect to initialize conversation for a new/unseen assistant configuration
     React.useEffect(() => {
-        setMessages([
-            {
+        if (!histories[configKey]) {
+            const initialMessage: ChatMessage = {
                 id: uuidv4(),
                 role: 'assistant',
                 content: `Hello! It's great to meet you. I'm ${assistantFirstName}. Feel free to ask me anything to see how I respond.`,
-            },
-        ]);
-    }, [assistantFirstName]);
+            };
+            setHistories(prev => ({ ...prev, [configKey]: [initialMessage] }));
+        }
+    }, [configKey, histories, setHistories, assistantFirstName]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
@@ -42,13 +48,18 @@ export function useAssistantChat(assistantFirstName: string) {
             content: inputValue.trim(),
         };
 
+        // Immediately update the history for the current key
         const currentMessages = [...messages, newUserMessage];
-        setMessages(currentMessages);
+        setHistories(prev => ({ ...prev, [configKey]: currentMessages }));
         setInputValue('');
         setIsLoading(true);
 
         const assistantResponseId = uuidv4();
-        setMessages(prev => [...prev, { id: assistantResponseId, role: 'assistant', content: '' }]);
+        // Add the empty placeholder for the assistant's response
+        setHistories(prev => ({
+            ...prev,
+            [configKey]: [...prev[configKey], { id: assistantResponseId, role: 'assistant', content: '' }]
+        }));
 
         try {
             const response = await fetch('/api/assistant/chat', {
@@ -75,13 +86,14 @@ export function useAssistantChat(assistantFirstName: string) {
                 if (done) break;
                 
                 const chunk = decoder.decode(value);
-                setMessages(prev =>
-                    prev.map(msg =>
+                setHistories(prev => {
+                    const updatedHistory = prev[configKey].map(msg =>
                         msg.id === assistantResponseId
                             ? { ...msg, content: msg.content + chunk }
                             : msg
-                    )
-                );
+                    );
+                    return { ...prev, [configKey]: updatedHistory };
+                });
             }
 
         } catch (error) {
@@ -89,25 +101,32 @@ export function useAssistantChat(assistantFirstName: string) {
             console.error("Failed to get chat response:", errorMessage);
 
             if (errorMessage.includes("INSUFFICIENT_CREDITS")) {
-                setMessages(prev => prev.map(msg => 
-                    msg.id === assistantResponseId 
-                    ? { ...msg, content: `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}` }
-                    : msg
-                ));
+                setHistories(prev => {
+                    const updatedHistory = prev[configKey].map(msg => 
+                        msg.id === assistantResponseId 
+                        ? { ...msg, content: `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}` }
+                        : msg
+                    );
+                    return { ...prev, [configKey]: updatedHistory };
+                });
             } else {
                 toast.error(`Sorry, I couldn't get a response. ${errorMessage}`);
-                setMessages(prev => prev.filter(msg => msg.id !== assistantResponseId));
+                // Remove the empty assistant message placeholder on error
+                setHistories(prev => ({
+                    ...prev,
+                    [configKey]: prev[configKey].filter(msg => msg.id !== assistantResponseId)
+                }));
             }
 
         } finally {
             setIsLoading(false);
-            // Check if the user has now sent their 10th message
-            const finalUserMessageCount = currentMessages.filter(m => m.role === 'user').length;
+            // Check if the user has now sent their message limit
+            const finalUserMessageCount = (histories[configKey] || []).filter(m => m.role === 'user').length;
             if (finalUserMessageCount >= USER_MESSAGE_LIMIT) {
-                setMessages(prev => [
+                setHistories(prev => ({
                     ...prev,
-                    { id: uuidv4(), role: 'assistant', content: HIRE_ME_MESSAGE }
-                ]);
+                    [configKey]: [...prev[configKey], { id: uuidv4(), role: 'assistant', content: HIRE_ME_MESSAGE }]
+                }));
             }
         }
     };

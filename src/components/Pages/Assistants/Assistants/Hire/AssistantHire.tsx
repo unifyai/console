@@ -17,6 +17,7 @@ import { ApprovalStatus } from '@/types/user';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { useFormContext, UseFormReturn } from 'react-hook-form';
 import { AssistantHireChatPanel } from './AssistantHireChatPanel';
+import { ChatMessage } from '@/types/assistants/chat';
 
 interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
     isHireDialogOpen: boolean;
@@ -64,16 +65,27 @@ export function AssistantHire ({
     const [hireForm, presetsPanel] = React.Children.toArray(children);
     const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
     const [isRightPanelExpanded, setIsRightPanelExpanded] = React.useState(false);
+    const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
     
     // Reset to presets view when dialog is opened/closed
     React.useEffect(() => {
         if (isHireDialogOpen) {
             setRightPanelView('presets');
+        } else {
+            // Clear chat histories when dialog is fully closed to ensure fresh state next time
+            setChatHistories({});
         }
     }, [isHireDialogOpen]);
 
-    const { watch } = useFormContext<AssistantFormData>();
+    const { watch, getValues } = useFormContext<AssistantFormData>();
     const socialAccounts = watch("social_accounts", []) || [];
+    const watchedConfigFields = watch(["first_name", "surname", "age", "region", "about"]);
+
+    const assistantConfigKey = React.useMemo(() => {
+        const [first_name, surname, age, region, about] = watchedConfigFields;
+        // Simple serialization of the core assistant properties to create a unique key
+        return `${first_name || ''}-${surname || ''}-${age || 'N/A'}-${region || ''}-${about || ''}`;
+    }, [watchedConfigFields]);
 
     const totalOnboardingFee = React.useMemo(() => {
         const socialCosts = socialAccounts
@@ -86,7 +98,6 @@ export function AssistantHire ({
     }, [socialAccounts, availableSocialPlatforms]);
 
     const handleSelectAndSwitch = (preset: AssistantPreset) => {
-        // Get the original onPresetSelect function from the PresetsPanel child component's props
         const originalOnPresetSelect = (presetsPanel as React.ReactElement<any>).props.onPresetSelect;
         if (originalOnPresetSelect) {
             originalOnPresetSelect(preset);
@@ -251,7 +262,7 @@ export function AssistantHire ({
                                                             <PanelLeftOpen className="h-4 w-4" />
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Right Panel" : "Show Right Panel"}</p></TooltipContent>
+                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Panel" : "Show Panel"}</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
@@ -286,6 +297,9 @@ export function AssistantHire ({
                                             onToggleExpand={handleToggleExpand}
                                             isExpanded={isRightPanelExpanded}
                                             onClose={() => setIsAssistantPresetsOpen(false)}
+                                            assistantConfigKey={assistantConfigKey}
+                                            chatHistories={chatHistories}
+                                            setChatHistories={setChatHistories}
                                         />
                                     )}
                                 </motion.div>

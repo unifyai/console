@@ -9,11 +9,15 @@ import { AssistantFormData } from '@/types/assistants/assistant';
 import { Input } from '@/components/UI/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { useAssistantChat } from '@/hooks/Assistants/useAssistantChat';
+import { ChatMessage } from '@/types/assistants/chat';
 
 interface AssistantHireChatPanelProps {
   onClose: () => void;
   onToggleExpand: () => void;
   isExpanded: boolean;
+  assistantConfigKey: string;
+  chatHistories: Record<string, ChatMessage[]>;
+  setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
 }
 
 // Helper function to render text with clickable links
@@ -40,7 +44,7 @@ const renderContentWithLinks = (text: string) => {
     });
 };
 
-const ChatMessage = ({ message, isUser, assistantPhoto, assistantName, isLoading }: { message: string, isUser?: boolean, assistantPhoto?: string | null, assistantName?: string, isLoading?: boolean }) => {
+const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isLoading }: { message: string, isUser?: boolean, assistantPhoto?: string | null, assistantName?: string, isLoading?: boolean }) => {
     const fallback = assistantName ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase() : "A";
 
     const bubbleContent = () => {
@@ -73,6 +77,9 @@ export function AssistantHireChatPanel({
     onClose,
     onToggleExpand,
     isExpanded,
+    assistantConfigKey,
+    chatHistories,
+    setChatHistories,
 }: AssistantHireChatPanelProps) {
     const { watch } = useFormContext<AssistantFormData>();
     const photoPreviewUrl = watch("photoPreviewUrl");
@@ -80,7 +87,7 @@ export function AssistantHireChatPanel({
     const surname = watch("surname", "Assistant");
     const displayName = `${firstName} ${surname}`;
 
-    const { messages, inputValue, isLoading, handleInputChange, sendMessage, userMessageCount, USER_MESSAGE_LIMIT } = useAssistantChat(firstName);
+    const { messages, inputValue, isLoading, handleInputChange, sendMessage, userMessageCount, USER_MESSAGE_LIMIT } = useAssistantChat(firstName, assistantConfigKey, chatHistories, setChatHistories);
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
@@ -140,7 +147,7 @@ export function AssistantHireChatPanel({
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                 <div className="space-y-4">
                     {messages.map((msg, index) => (
-                        <ChatMessage
+                        <ChatMessageBubble
                             key={msg.id}
                             message={msg.content}
                             isUser={msg.role === 'user'}
