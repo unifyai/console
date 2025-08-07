@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount, PreHireChatMessage } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -8,6 +8,7 @@ import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { ChatMessage } from '@/types/assistants/chat';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -493,7 +494,7 @@ export function useAssistantHireForm(
     /* -------------------------
         Hiring new assistant
        ------------------------- */
-    const submitAssistantData = async (data: AssistantFormData) => {
+    const submitAssistantData = async (data: AssistantFormData, chatHistory?: ChatMessage[]) => {
         setIsSubmitting(true);
         clearErrors();
 
@@ -585,6 +586,18 @@ export function useAssistantHireForm(
                     throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
                 }
             }
+            
+            // Transform chat history for logging
+            const preHireChatPayload: PreHireChatMessage[] | undefined = chatHistory
+                ?.map(msg => ({
+                    medium: "unify_chat" as const,
+                    sender_id: msg.role === 'user' ? 1 : 0,
+                    receiver_id: msg.role === 'user' ? 0 : 1,
+                    timestamp: msg.timestamp.toISOString(),
+                    content: msg.content,
+                    exchange_id: 0 as const,
+                }));
+
 
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
@@ -595,7 +608,8 @@ export function useAssistantHireForm(
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id,
                 data.email, data.user_phone, data.country,
-                user_whatsapp_number
+                user_whatsapp_number,
+                preHireChatPayload // Pass the formatted chat history
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
@@ -632,9 +646,9 @@ export function useAssistantHireForm(
         }
     };
 
-    const RHFSubmitHandler = reactHookFormHandleSubmit(submitAssistantData);
+    const RHFSubmitHandler = (chatHistory?: ChatMessage[]) => reactHookFormHandleSubmit((data) => submitAssistantData(data, chatHistory));
 
-    const initiateHireSequence = async (event?: React.BaseSyntheticEvent) => {
+    const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
         if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
             if(isLoadingEmails || isLoadingCountries)
             return;
@@ -710,7 +724,7 @@ export function useAssistantHireForm(
                 if(toastIdRef.current) toast.dismiss(toastIdRef.current);
                 toastIdRef.current = undefined;
             } else {
-                await RHFSubmitHandler(event);
+                await RHFSubmitHandler(chatHistory)();
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: toastIdRef.current });

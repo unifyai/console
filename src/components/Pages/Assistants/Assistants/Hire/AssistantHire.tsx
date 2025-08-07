@@ -27,7 +27,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     setIsAssistantPresetsOpen: (value: React.SetStateAction<boolean>) => void;
     handleRandomizePreset: () => void;
     currentFilteredPresets: AssistantPreset[];
-    onHireAttempt: () => Promise<void>; 
+    onHireAttempt: (chatHistory?: ChatMessage[]) => Promise<void>; 
     children: React.ReactNode;
     isProcessingVoice?: boolean;
     isCheckingBalance: boolean; 
@@ -326,7 +326,7 @@ export function AssistantHire ({
                             <PopoverTrigger asChild>
                                 <Button 
                                     type="button" 
-                                    onClick={onHireAttempt} 
+                                    onClick={() => onHireAttempt(chatHistories[assistantConfigKey])} 
                                     className="bg-green-600 hover:bg-green-700 text-white" 
                                     disabled={isPrimaryActionDisabled}
                                 >

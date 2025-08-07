@@ -2,6 +2,16 @@ import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 
+// New type for the pre_hire_chat payload
+export interface PreHireChatMessage {
+  medium: "unify_chat";
+  sender_id: 0 | 1; // 0 for assistant, 1 for user
+  receiver_id: 0 | 1; // 0 for assistant, 1 for user
+  timestamp: string; // ISO 8601 format
+  content: string;
+  exchange_id: 0;
+}
+
 // Assistant profile types
 export interface Assistant {
   agent_id: string;
@@ -225,7 +235,8 @@ export interface AssistantActions {
         first_name: string, surname: string, age: number | null, region: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
         email: string, user_phone: string | null, country: string | null,
-        user_whatsapp_number: string | null
+        user_whatsapp_number: string | null,
+        preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
     delete: (assistantId: string) => Promise<ResponseProps>;

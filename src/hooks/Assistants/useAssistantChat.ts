@@ -24,12 +24,14 @@ export function useAssistantChat(
         messages.filter(msg => msg.role === 'user').length,
     [messages]);
 
+    // Effect to initialize conversation for a new/unseen assistant configuration
     React.useEffect(() => {
         if (!histories[configKey]) {
             const initialMessage: ChatMessage = {
                 id: uuidv4(),
                 role: 'assistant',
                 content: `Hello! It's great to meet you. I'm ${assistantFirstName}. Feel free to ask me anything to see how I respond.`,
+                timestamp: new Date(),
             };
             setHistories(prev => ({ ...prev, [configKey]: [initialMessage] }));
         }
@@ -47,17 +49,20 @@ export function useAssistantChat(
             id: uuidv4(),
             role: 'user',
             content: inputValue.trim(),
+            timestamp: new Date(),
         };
 
+        // Immediately update the history for the current key
         const currentMessages = [...messages, newUserMessage];
         setHistories(prev => ({ ...prev, [configKey]: currentMessages }));
         setInputValue('');
         setIsLoading(true);
 
         const assistantResponseId = uuidv4();
+        // Add the empty placeholder for the assistant's response
         setHistories(prev => ({
             ...prev,
-            [configKey]: [...prev[configKey], { id: assistantResponseId, role: 'assistant', content: '' }]
+            [configKey]: [...prev[configKey], { id: assistantResponseId, role: 'assistant', content: '', timestamp: new Date() }]
         }));
 
         try {
@@ -113,6 +118,7 @@ export function useAssistantChat(
                 });
             } else {
                 toast.error(`Sorry, I couldn't get a response. ${errorMessage}`);
+                // Remove the empty assistant message placeholder on error
                 setHistories(prev => ({
                     ...prev,
                     [configKey]: prev[configKey].filter(msg => msg.id !== assistantResponseId)
@@ -121,11 +127,12 @@ export function useAssistantChat(
 
         } finally {
             setIsLoading(false);
+            // Check if the user has now sent their message limit
             const finalUserMessageCount = (histories[configKey] || []).filter(m => m.role === 'user').length;
             if (finalUserMessageCount >= USER_MESSAGE_LIMIT) {
                 setHistories(prev => ({
                     ...prev,
-                    [configKey]: [...prev[configKey], { id: uuidv4(), role: 'assistant', content: HIRE_ME_MESSAGE }]
+                    [configKey]: [...prev[configKey], { id: uuidv4(), role: 'assistant', content: HIRE_ME_MESSAGE, timestamp: new Date() }]
                 }));
             }
         }
