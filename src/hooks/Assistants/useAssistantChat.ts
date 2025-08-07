@@ -10,6 +10,8 @@ const BILLING_URL = "https://console.unify.ai/billing";
 
 export function useAssistantChat(
     assistantFirstName: string,
+    assistantAge: number | null,
+    assistantBio: string | null,
     configKey: string,
     histories: Record<string, ChatMessage[]>,
     setHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
@@ -22,7 +24,6 @@ export function useAssistantChat(
         messages.filter(msg => msg.role === 'user').length,
     [messages]);
 
-    // Effect to initialize conversation for a new/unseen assistant configuration
     React.useEffect(() => {
         if (!histories[configKey]) {
             const initialMessage: ChatMessage = {
@@ -48,14 +49,12 @@ export function useAssistantChat(
             content: inputValue.trim(),
         };
 
-        // Immediately update the history for the current key
         const currentMessages = [...messages, newUserMessage];
         setHistories(prev => ({ ...prev, [configKey]: currentMessages }));
         setInputValue('');
         setIsLoading(true);
 
         const assistantResponseId = uuidv4();
-        // Add the empty placeholder for the assistant's response
         setHistories(prev => ({
             ...prev,
             [configKey]: [...prev[configKey], { id: assistantResponseId, role: 'assistant', content: '' }]
@@ -67,6 +66,9 @@ export function useAssistantChat(
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: currentMessages.map(({ role, content }) => ({ role, content })),
+                    assistantName: assistantFirstName,
+                    assistantAge: assistantAge,
+                    assistantBio: assistantBio,
                 }),
             });
 
@@ -111,7 +113,6 @@ export function useAssistantChat(
                 });
             } else {
                 toast.error(`Sorry, I couldn't get a response. ${errorMessage}`);
-                // Remove the empty assistant message placeholder on error
                 setHistories(prev => ({
                     ...prev,
                     [configKey]: prev[configKey].filter(msg => msg.id !== assistantResponseId)
@@ -120,7 +121,6 @@ export function useAssistantChat(
 
         } finally {
             setIsLoading(false);
-            // Check if the user has now sent their message limit
             const finalUserMessageCount = (histories[configKey] || []).filter(m => m.role === 'user').length;
             if (finalUserMessageCount >= USER_MESSAGE_LIMIT) {
                 setHistories(prev => ({

@@ -12,8 +12,9 @@ export async function POST(request: NextRequest) {
             });
         }
         const apiKey = user.apiKey;
+        const userName = user.name || "the user"; // Fallback for user's name
 
-        const { messages } = await request.json();
+        const { messages, assistantName, assistantAge, assistantBio } = await request.json();
 
         if (!messages || !Array.isArray(messages)) {
             return new NextResponse(JSON.stringify({ detail: "Invalid request body: messages are required." }), { 
@@ -22,10 +23,20 @@ export async function POST(request: NextRequest) {
              });
         }
 
+        // Construct the system prompt
+        const systemPrompt = `You are an assistant named ${assistantName || 'Assistant'}, who is ${assistantAge || 'ageless'}. You are speaking with ${userName}, who is considering hiring you as a general administrative assistant. Here is a bit about yourself: ${assistantBio || 'I am a diligent and capable assistant.'}. If ${userName} asks any questions about yourself, and this is not covered in the short bio above, then please just make up a sensible response to their question. If they ask what you're able to do, then explain that you can do anything that a very competent virtual administrative assistant can do. You have your own computer with your own mouse and keyboard, your own email address and phone number, and you are a fast learner who quickly learns from on-the-job experience. If the ${userName} is interested in pursuing further, then politely (not forcefully) suggest hiring in order to hop on an introductory call. If un-impressed, then it's a zero-hour contract so it's not a big deal.`;
+
+        const systemMessage: ChatCompletionMessage = {
+            role: "system",
+            content: systemPrompt
+        };
+
+        const messagesWithSystemPrompt = [systemMessage, ...messages];
+
         const url = `${process.env.ORCHESTRA_URL}/v0/chat/completions`;
         const payload: ChatCompletionRequest = {
             model: "gpt-4o-mini@openai",
-            messages,
+            messages: messagesWithSystemPrompt,
             stream: true,
         };
 
@@ -41,7 +52,6 @@ export async function POST(request: NextRequest) {
         if (!orchestraResponse.ok) {
             const errorBody = await orchestraResponse.text();
             console.error(`[API /api/assistant/chat] Orchestra API Error: ${errorBody}`);
-            // Specifically check for insufficient credits
             if (orchestraResponse.status === 402) {
                 return new NextResponse(JSON.stringify({ detail: "INSUFFICIENT_CREDITS" }), {
                     status: 402,
@@ -54,7 +64,6 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Use the globally available ReadableStream
         const stream = new ReadableStream({
             async start(controller) {
                 const reader = orchestraResponse.body?.getReader();

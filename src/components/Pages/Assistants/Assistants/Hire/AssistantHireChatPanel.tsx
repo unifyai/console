@@ -85,9 +85,11 @@ export function AssistantHireChatPanel({
     const photoPreviewUrl = watch("photoPreviewUrl");
     const firstName = watch("first_name", "New");
     const surname = watch("surname", "Assistant");
+    const age = watch("age");
+    const bio = watch("about");
     const displayName = `${firstName} ${surname}`;
 
-    const { messages, inputValue, isLoading, handleInputChange, sendMessage, userMessageCount, USER_MESSAGE_LIMIT } = useAssistantChat(firstName, assistantConfigKey, chatHistories, setChatHistories);
+    const { messages, inputValue, isLoading, handleInputChange, sendMessage, userMessageCount, USER_MESSAGE_LIMIT } = useAssistantChat(firstName, age, bio, assistantConfigKey, chatHistories, setChatHistories);
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
