@@ -181,6 +181,8 @@ export function HireForm({
 
     const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
+    const [showAnimatePing, setShowAnimatePing] = React.useState(false);
+
 
     const handleAddSocialAccount = (platform: string) => {
         const platformAlreadyAdded = fields.some(field => field.platform === platform);
@@ -374,6 +376,8 @@ export function HireForm({
     const handlePhotoViewerClick = () => {
         // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
         setPhotoCustomizationTab('animate');
+        setShowAnimatePing(true);
+        setTimeout(() => setShowAnimatePing(false), 4000);
     };
     return (
     <FormProvider {...formMethods}>
@@ -501,6 +505,7 @@ export function HireForm({
                         age={age as number | null}
                         activeTab={photoCustomizationTab}
                         setActiveTab={setPhotoCustomizationTab}
+                        showAnimatePing={showAnimatePing}
                     />
                     </div>
                 </div>

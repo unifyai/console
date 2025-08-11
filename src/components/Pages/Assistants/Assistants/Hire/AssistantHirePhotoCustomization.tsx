@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/UI/dialog";
-import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
 
 interface PhotoCustomizationProps {
     assistantActions: AssistantActions;
@@ -33,6 +32,7 @@ interface PhotoCustomizationProps {
     age?: number | null;
     activeTab: 'upload' | 'create' | 'animate';
     setActiveTab: (tab: 'upload' | 'create' | 'animate') => void;
+    showAnimatePing?: boolean;
 }
 
 export function PhotoCustomization({
@@ -47,6 +47,7 @@ export function PhotoCustomization({
     age,
     activeTab,
     setActiveTab,
+    showAnimatePing,
 }: PhotoCustomizationProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -56,13 +57,6 @@ export function PhotoCustomization({
     const [cameraError, setCameraError] = React.useState<string | null>(null);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
-
-    const ttsPlaceholder = React.useMemo(() => {
-        if (selectedVoice?.language) {
-            return getRandomSampleLine(selectedVoice.language);
-        }
-        return "Hi there! How can I help you today?";
-    }, [selectedVoice]);
 
     const {
         prompt, setPrompt,
@@ -92,6 +86,24 @@ export function PhotoCustomization({
     const isEditDisabled = !currentImageUrl || !prompt.trim() || isProcessing || disabled;
     const isAnimateDisabled = !currentImageUrl || !ttsPrompt.trim() || !selectedVoice || isProcessing || disabled;
     const imageSourceForOperations = currentImageFile || currentImageUrl;
+
+    const handleCreateKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isGenerateDisabled) {
+                handleGenerate();
+            }
+        }
+    };
+    
+    const handleAnimateKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!isAnimateDisabled) {
+                handleAnimate(imageSourceForOperations!);
+            }
+        }
+    };
 
     const handleOpenCamera = async () => {
         if (disabled) return;
@@ -222,9 +234,9 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="photo-prompt"
-                            placeholder="A photorealistic portrait of a friendly-looking person, studio lighting..."
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
+                            onKeyDown={handleCreateKeyDown}
                             className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
                             disabled={disabled || isProcessing}
                             maxLength={150}
@@ -286,9 +298,9 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="tts-prompt"
-                            placeholder={ttsPlaceholder}
                             value={ttsPrompt}
                             onChange={(e) => setTtsPrompt(e.target.value)}
+                            onKeyDown={handleAnimateKeyDown}
                             className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
                             disabled={disabled || isProcessing}
                             maxLength={50}
@@ -300,7 +312,7 @@ export function PhotoCustomization({
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <span tabIndex={0}>
+                                        <span tabIndex={0} className="relative">
                                             <Button
                                                 type="button"
                                                 variant="ghost"
@@ -311,6 +323,12 @@ export function PhotoCustomization({
                                             >
                                                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
                                             </Button>
+                                             {showAnimatePing && (
+                                                <span className="absolute top-0.5 right-0.5 flex h-3 w-3">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                                </span>
+                                            )}
                                         </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" align="end" className="max-w-xs text-sm">

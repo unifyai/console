@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/assistants/assistant'; // Added GenerateSpeechPayload
 import { ResponseProps } from '@/types/common';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
 
 // Helper to convert Base64 to Uint8Array (if not already globally available)
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -41,9 +42,22 @@ export function usePhotoCreator(
     surname?: string | null,
     age?: number | null
 ) {
-    const [prompt, setPrompt] = React.useState('');
-    const [ttsPrompt, setTtsPrompt] = React.useState('');
+    const [prompt, setPrompt] = React.useState('A photorealistic portrait of a friendly-looking person, studio lighting...');
+    
+    const initialTtsPrompt = React.useMemo(() => {
+        if (selectedVoice?.language) {
+            return getRandomSampleLine(selectedVoice.language);
+        }
+        return "Hi there! How can I help you today?";
+    }, [selectedVoice]);
+
+    const [ttsPrompt, setTtsPrompt] = React.useState(initialTtsPrompt);
     const [isProcessing, setIsProcessing] = React.useState(false);
+
+    React.useEffect(() => {
+        setTtsPrompt(initialTtsPrompt);
+    }, [initialTtsPrompt]);
+
 
     const insufficientFundsToast = (operationName: string) => {
         toast.error(`Insufficient funds for AI photo ${operationName}.`, {
