@@ -10,7 +10,7 @@ import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Camera } from 'lucide-react'; 
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
@@ -215,7 +215,7 @@ export function VoiceCustomization({
         };
     }, [cleanupRecording]);
 
-    const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
+const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
         const isSelected = selectedVoiceId === voice.voice_id;
         const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
         return (
@@ -236,7 +236,7 @@ export function VoiceCustomization({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
-                                        <Camera className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-amber-500")} />
+                                        <Clapperboard className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top"><p>Used for current video animation</p></TooltipContent>
