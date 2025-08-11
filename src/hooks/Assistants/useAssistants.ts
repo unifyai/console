@@ -14,10 +14,8 @@ export function useAssistants(
     const [error, setError] = React.useState<string | null>(null);
 
     const fetchAssistantsWithDetails = React.useCallback(async (shouldShowLoadingToast = true) => {
-
         setIsLoading(true);
         setError(null);
-        // setAssistants([]); // Don't clear immediately if just refreshing
 
         let toastId: string | number | undefined;
         if (shouldShowLoadingToast) {
@@ -25,14 +23,15 @@ export function useAssistants(
         }
 
         try {
+            // Step 1: Fetch the core assistant data first
             const listResult = await assistantActions.list();
 
             if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult && typeof (listResult as ResponseProps).detail === 'string') {
                 throw new Error((listResult as ResponseProps).detail);
             }
             if (!Array.isArray(listResult)) {
-                 const detail = (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) ? (listResult as any).detail : "Invalid response format";
-                 throw new Error(`Invalid response format received for assistants: ${detail}`);
+                const detail = (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) ? (listResult as any).detail : "Invalid response format";
+                throw new Error(`Invalid response format received for assistants: ${detail}`);
             }
 
             const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name && a.surname);
@@ -40,54 +39,51 @@ export function useAssistants(
                 console.warn("Some assistant data was incomplete and filtered out.");
             }
 
-            const assistantsWithSignedUrls = await Promise.all(
-                validAssistants.map(async (assistant) => {
-                    let signedProfilePhotoUrl: string | undefined = undefined;
-                    let signedProfileVideoUrl: string | undefined = undefined;
+            // Step 2: Set the core data immediately for a fast UI render
+            setAssistants(validAssistants);
+            setIsLoading(false);
+            if (toastId) toast.dismiss(toastId);
 
-                    if (assistant.profile_photo && isGcsPhoto(assistant.profile_photo)) {
-                        try {
-                            const photoResult = await photoActions.download(assistant.profile_photo);
-                            if (photoResult.signedUrl) {
-                                signedProfilePhotoUrl = photoResult.signedUrl;
-                            } else {
-                                console.warn(`[useAssistants] Failed to get signed URL for photo ${assistant.agent_id} (${assistant.profile_photo}): ${photoResult.detail || 'Unknown error'}`);
-                            }
-                        } catch (fetchError) {
-                            console.error(`[useAssistants] Error fetching signed URL for photo ${assistant.agent_id} (${assistant.profile_photo}):`, fetchError);
+            // Step 3: Progressively fetch signed URLs in the background
+            validAssistants.forEach(assistant => {
+                if (assistant.profile_photo && isGcsPhoto(assistant.profile_photo)) {
+                    photoActions.download(assistant.profile_photo).then(result => {
+                        if (result.signedUrl) {
+                            setAssistants(currentAssistants =>
+                                currentAssistants.map(a =>
+                                    a.agent_id === assistant.agent_id
+                                        ? { ...a, signedProfilePhotoUrl: result.signedUrl }
+                                        : a
+                                )
+                            );
                         }
-                    }
-
-                    if (assistant.profile_video && isGcsPhoto(assistant.profile_video)) {
-                        try {
-                            const videoResult = await photoActions.download(assistant.profile_video);
-                            if (videoResult.signedUrl) {
-                                signedProfileVideoUrl = videoResult.signedUrl;
-                            } else {
-                                 console.warn(`[useAssistants] Failed to get signed URL for video ${assistant.agent_id} (${assistant.profile_video}): ${videoResult.detail || 'Unknown error'}`);
-                            }
-                        } catch (fetchError) {
-                            console.error(`[useAssistants] Error fetching signed URL for video ${assistant.agent_id} (${assistant.profile_video}):`, fetchError);
+                    });
+                }
+                if (assistant.profile_video && isGcsPhoto(assistant.profile_video)) {
+                    photoActions.download(assistant.profile_video).then(result => {
+                        if (result.signedUrl) {
+                            setAssistants(currentAssistants =>
+                                currentAssistants.map(a =>
+                                    a.agent_id === assistant.agent_id
+                                        ? { ...a, signedProfileVideoUrl: result.signedUrl }
+                                        : a
+                                )
+                            );
                         }
-                    }
-
-                    return { ...assistant, signedProfilePhotoUrl, signedProfileVideoUrl };
-                })
-            );
-            setAssistants(assistantsWithSignedUrls);
+                    });
+                }
+            });
 
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : "An unknown error occurred while fetching assistants.";
             setError(errorMsg);
             setAssistants([]);
-            console.error("Assistant fetch error in hook:", errorMsg);
+            setIsLoading(false);
             if (toastId) {
                 toast.error("Failed to load assistants", { id: toastId });
             } else if (shouldShowLoadingToast) {
-                toast.error("Failed to load assistants", { id: toastId });
+                toast.error("Failed to load assistants");
             }
-        } finally {
-            setIsLoading(false);
         }
     }, [assistantActions, photoActions]);
 
@@ -130,20 +126,16 @@ export function useAssistants(
                 throw new Error((result as ResponseProps).detail);
             }
 
-            setAssistants(prev => prev.map(a => {
-                if (a.agent_id === id) {
-                    const updatedAssistant = { ...a, ...payload };
-                    if (isGcsPhoto(updatedAssistant.profile_photo)) {
-                        photoActions.download(updatedAssistant.profile_photo!).then(res => { // Non-null assertion as isGcsPhoto checks for null
-                            if (res.signedUrl) {
-                                setAssistants(currentAssistants => currentAssistants.map(sa => sa.agent_id === id ? {...sa, signedProfilePhotoUrl: res.signedUrl} : sa));
-                            }
-                        }).catch(e => console.warn("Failed to refresh photo URL post-update (no photo change)", e));
-                    }
-                    return updatedAssistant;
+            // Immediately update non-URL fields
+            setAssistants(prev => prev.map(a => a.agent_id === id ? { ...a, ...payload } : a));
+
+            // If a photo was part of the payload, refresh its URL
+            if (payload.profile_photo && isGcsPhoto(payload.profile_photo)) {
+                const res = await photoActions.download(payload.profile_photo);
+                if (res.signedUrl) {
+                    setAssistants(current => current.map(a => a.agent_id === id ? { ...a, signedProfilePhotoUrl: res.signedUrl } : a));
                 }
-                return a;
-            }));
+            }
 
             toast.success("Profile updated.", { id: toastId });
             return true;
