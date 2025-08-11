@@ -543,27 +543,29 @@ export function HireForm({
                 </div>
 
                 <Separator />
+                
+                {/* Contact Section */}
+                <div className="space-y-2">
+                    <div className='flex gap-2 items-center text-muted-foreground'>
+                        <Smartphone className="h-4 w-4"/>
+                        <Label className="text-base font-semibold">Contact</Label>
+                    </div>
 
-                {/* Assistant Contact Section (Hire Mode Only) */}
-                {mode === 'hire' && (
-                    <div className="space-y-2">
-                        <div className='flex gap-2 items-center text-muted-foreground'>
-                            <Smartphone className="h-4 w-4"/>
-                            <Label className="text-base font-semibold">My Contact</Label>
-                        </div>
+                    {/* Assistant's Contact Info (Hire Mode Only) */}
+                    {mode === 'hire' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 pt-1">
                             <div className="col-span-2 sm:col-span-1">
                                 <div className="flex flex-row gap-2 items-center pb-1">
-                                    <Label htmlFor="country">Assistant Phone Number Country</Label>
+                                    <Label htmlFor="country">Assistant Phone Country</Label>
                                     <TooltipProvider delayDuration={100}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                            <p>{"Assistant phone number will be provisioned upon hiring."}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                                <p>{"Assistant phone number will be provisioned upon hiring."}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </TooltipProvider>
                                 </div>
                                 <Select
@@ -572,7 +574,7 @@ export function HireForm({
                                     disabled={isSubmitting || isLoadingCountries}
                                 >
                                     <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
-                                    <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
+                                        <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {isLoadingCountries ? (
@@ -624,84 +626,75 @@ export function HireForm({
                                 })} />
                                 {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
                             </div>
-                            </div>
-                        <Separator />
-                    </div>
-                )}
-
-
-                {/* Your Contact Section */}
-                <div className="space-y-2">
-                <div className='flex gap-2 items-center text-muted-foreground'>
-                    <User className="h-4 w-4"/>
-                    <Label className="text-base font-semibold">Where Can I Reach Out?</Label>
-                </div>
-                <div className="space-y-3 pt-1">
-                    <div className="flex flex-col">
-                        <div className="flex flex-row gap-2 items-center pb-1">
-                            <Label htmlFor="user_phone">Your Phone Number</Label>
-                            <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                        <p>{"This is the phone number you will contact the assistant with."}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-
                         </div>
-                        <PhoneVerificationSection assistantActions={assistantActions} />
-                    </div>
+                    )}
 
-                    {fields.map((field, index) => {
-                        const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
-                        const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
-                        return (
-                            <SocialAccountInput
-                                key={field.id}
-                                index={index}
-                                platform={field.platform}
-                                justAddedPlatform={justAddedPlatform}
-                                onRemove={remove}
-                                clearJustAdded={() => setJustAddedPlatform(null)}
-                                assistantActions={assistantActions}
-                                cost={platformCost}
-                            />
-                        );
-                    })}
+                    {/* User's Contact Info */}
+                    <div className="space-y-3 pt-1">
+                        <div className="flex flex-col">
+                            <div className="flex flex-row gap-2 items-center pb-1">
+                                <Label htmlFor="user_phone">Your Phone</Label>
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                            <p>{"This is the phone number you will contact the assistant with."}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <PhoneVerificationSection assistantActions={assistantActions} />
+                        </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full border-dashed"
-                                disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
-                            >
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Social Account
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {isLoadingSocialPlatforms ? (
-                                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-                            ) : availableSocialPlatforms.length > 0 ? (
-                                availableSocialPlatforms.map(platform => (
-                                    <DropdownMenuItem
-                                        key={platform.name}
-                                        onSelect={() => handleAddSocialAccount(platform.name)}
-                                        disabled={fields.some(f => f.platform === platform.name)}
-                                        className="capitalize flex justify-between"
-                                    >
-                                        <span>{platform.name}</span>
-                                        <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
-                                    </DropdownMenuItem>
-                                ))
-                            ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        {fields.map((field, index) => {
+                            const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
+                            const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
+                            return (
+                                <SocialAccountInput
+                                    key={field.id}
+                                    index={index}
+                                    platform={field.platform}
+                                    justAddedPlatform={justAddedPlatform}
+                                    onRemove={remove}
+                                    clearJustAdded={() => setJustAddedPlatform(null)}
+                                    assistantActions={assistantActions}
+                                    cost={platformCost}
+                                />
+                            );
+                        })}
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full border-dashed"
+                                    disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
+                                >
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Social Account
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                {isLoadingSocialPlatforms ? (
+                                    <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                                ) : availableSocialPlatforms.length > 0 ? (
+                                    availableSocialPlatforms.map(platform => (
+                                        <DropdownMenuItem
+                                            key={platform.name}
+                                            onSelect={() => handleAddSocialAccount(platform.name)}
+                                            disabled={fields.some(f => f.platform === platform.name)}
+                                            className="capitalize flex justify-between"
+                                        >
+                                            <span>{platform.name}</span>
+                                            <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
+                                        </DropdownMenuItem>
+                                    ))
+                                ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
