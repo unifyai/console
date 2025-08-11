@@ -20,6 +20,8 @@ interface AssistantPhotoViewerProps {
   avatarClassName?: string;
   disabled?: boolean;
   onClick?: () => void;
+  shouldAutoplay?: boolean;
+  onAutoplay?: (url: string) => void;
 }
 
 export function AssistantPhotoViewer({
@@ -33,33 +35,34 @@ export function AssistantPhotoViewer({
   avatarClassName,
   disabled = false,
   onClick,
+  shouldAutoplay = false,
+  onAutoplay,
 }: AssistantPhotoViewerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
-  const [isVideoLoading, setIsVideoLoading] = React.useState(!!videoUrl);
-  const [hasPlayedOnce, setHasPlayedOnce] = React.useState(false);
+  const [isVideoLoading, setIsVideoLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (videoUrl) {
-      if (!isVideoLoading) setIsVideoLoading(true);
+      setIsVideoLoading(true);
       setVideoError(false);
-      setHasPlayedOnce(false); // Reset autoplay state when video source changes
     } else {
       setIsVideoLoading(false);
       setVideoError(false);
     }
   }, [videoUrl]);
   
-  // Effect to autoplay the video once when it's ready
-  React.useEffect(() => {
-      if (videoRef.current && !videoError && !isVideoLoading && !hasPlayedOnce) {
-          videoRef.current.play().catch(err => {
-              console.warn("Autoplay failed:", err);
-              // Autoplay can fail due to browser restrictions; user can still click to play.
-          });
-          setHasPlayedOnce(true);
-      }
-  }, [isVideoLoading, videoError, hasPlayedOnce]);
+  const handleCanPlay = () => {
+    setIsVideoLoading(false);
+    if (shouldAutoplay && videoRef.current) {
+        videoRef.current.play().catch(err => {
+            console.warn("Autoplay failed:", err);
+        });
+        if (onAutoplay && videoUrl) {
+            onAutoplay(videoUrl);
+        }
+    }
+  };
 
   const shouldRenderVideo = videoUrl && !videoError;
   const showDownloadButton = photoFile || videoFile;
@@ -161,7 +164,7 @@ export function AssistantPhotoViewer({
                         playsInline
                         className={cn("w-full h-full object-cover", (isVideoLoading || !videoUrl) && "opacity-0")}
                         poster={photoUrl || undefined}
-                        onCanPlay={() => setIsVideoLoading(false)}
+                        onCanPlay={handleCanPlay}
                         onPlaying={() => setIsVideoLoading(false)}
                         onErrorCapture={() => { setVideoError(true); setIsVideoLoading(false); }}
                     />
