@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
-import { X, Filter, Loader2, PanelRightOpen, PanelLeftClose } from 'lucide-react';
+import { X, Filter, Loader2, PanelRightOpen, PanelLeftClose, MessageSquare, Maximize, Minimize, Minimize2, Maximize2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { Label } from '@/components/UI/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -32,6 +32,8 @@ export interface PresetsPanelProps {
   genderFilter: string;
   onGenderFilterChange: (value: string) => void;
   availableGenders: string[];
+
+  onToggleView?: () => void;
 }
 
 export function PresetsPanel({
@@ -52,6 +54,7 @@ export function PresetsPanel({
   genderFilter,
   onGenderFilterChange,
   availableGenders,
+  onToggleView,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
 
@@ -87,40 +90,47 @@ export function PresetsPanel({
           <h2 className="text-lg font-semibold">Available Hires</h2>
         </div>
         <div className="flex items-center gap-1">
+            <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
+                            <MessageSquare className="h-4 w-4" />
+                            <span className="sr-only">Chat with Assistant</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <p>Chat with Assistant</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
           {isExpanded ? (
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                    <PanelLeftClose className="h-4 w-4" />
-                    <span className="sr-only">Collapse Right Panel</span>
+                    <Minimize2 className="h-4 w-4" />
+                    <span className="sr-only">Minimize panel</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Collapse Right Panel</p>
+                  <p>Minimize panel</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           ) : (
-            <>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                      <PanelRightOpen className="h-4 w-4" />
-                      <span className="sr-only">Expand Right Panel</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Expand Right Panel</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close Presets</span>
-              </Button>
-            </>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
+                    <Maximize2 className="h-4 w-4" />
+                    <span className="sr-only">Maximize panel</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Maximize panel</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       </div>

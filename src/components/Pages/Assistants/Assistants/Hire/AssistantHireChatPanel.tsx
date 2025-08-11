@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { X, PanelRightOpen, Send, PanelLeftClose, Loader2 } from 'lucide-react';
+import { X, PanelRightOpen, Send, PanelLeftClose, Loader2, Maximize, Minimize, LayoutList, Minimize2, Maximize2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
@@ -18,6 +18,7 @@ interface AssistantHireChatPanelProps {
   assistantConfigKey: string;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  onToggleView?: () => void;
 }
 
 // Helper function to render text with clickable links
@@ -80,6 +81,7 @@ export function AssistantHireChatPanel({
     assistantConfigKey,
     chatHistories,
     setChatHistories,
+    onToggleView,
 }: AssistantHireChatPanelProps) {
     const { watch } = useFormContext<AssistantFormData>();
     const photoPreviewUrl = watch("photoPreviewUrl");
@@ -107,40 +109,47 @@ export function AssistantHireChatPanel({
             <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
                 <h2 className="text-lg font-semibold truncate pr-2">Chat with {displayName}</h2>
                 <div className="flex items-center gap-1">
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
+                                    <LayoutList className="h-4 w-4" />
+                                    <span className="sr-only">Show Presets</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>Show Presets</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     {isExpanded ? (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                                        <PanelLeftClose className="h-4 w-4" />
-                                        <span className="sr-only">Collapse Right Panel</span>
+                                        <Minimize2 className="h-4 w-4" />
+                                        <span className="sr-only">Minimize panel</span>
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    <p>Collapse Right Panel</p>
+                                    <p>Minimize panel</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
                     ) : (
-                        <>
-                            <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                                            <PanelRightOpen className="h-4 w-4" />
-                                            <span className="sr-only">Expand Right Panel</span>
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        <p>Expand Right Panel</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                                <X className="h-4 w-4" />
-                                <span className="sr-only">Close Chat</span>
-                            </Button>
-                        </>
+                        <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
+                                        <Maximize2 className="h-4 w-4" />
+                                        <span className="sr-only">Maximize panel</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>Maximize panel</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     )}
                 </div>
             </div>

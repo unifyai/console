@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { LayoutList, Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, MessageSquare, PanelLeftOpen, PanelLeftClose } from 'lucide-react'; // Added icons
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen } from 'lucide-react'; // Added icons
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -116,6 +116,7 @@ export function AssistantHire ({
     };
     
     const handleToggleExpand = () => setIsRightPanelExpanded(p => !p);
+    const handleToggleView = () => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets');
 
     const isUserApproved = userApprovalStatus === "approved";
     const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
@@ -243,26 +244,14 @@ export function AssistantHire ({
                                                     <TooltipContent><p>Randomize</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets')} disabled={isPrimaryActionDisabled || !isAssistantPresetsOpen}>
-                                                            {rightPanelView === 'presets' ? <MessageSquare className="h-4 w-4" /> : <LayoutList className="h-4 w-4" />}
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>{rightPanelView === 'presets' ? "Chat with Assistant" : "Show Presets"}</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleToggleRightPanel} disabled={isPrimaryActionDisabled}>
-                                                            <PanelLeftOpen className="h-4 w-4" />
+                                                            {isAssistantPresetsOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide Panel" : "Show Panel"}</p></TooltipContent>
+                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide panel" : "Show panel"}</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
                                         </div>
@@ -290,7 +279,8 @@ export function AssistantHire ({
                                             onPresetSelect: handleSelectAndSwitch,
                                             onToggleExpand: handleToggleExpand,
                                             isExpanded: isRightPanelExpanded,
-                                            onClose: () => setIsAssistantPresetsOpen(false)
+                                            onClose: () => setIsAssistantPresetsOpen(false),
+                                            onToggleView: handleToggleView,
                                         })
                                     ) : (
                                         <AssistantHireChatPanel
@@ -300,6 +290,7 @@ export function AssistantHire ({
                                             assistantConfigKey={assistantConfigKey}
                                             chatHistories={chatHistories}
                                             setChatHistories={setChatHistories}
+                                            onToggleView={handleToggleView}
                                         />
                                     )}
                                 </motion.div>
