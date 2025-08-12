@@ -121,6 +121,7 @@ export default function Main({
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
+    const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
 
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
@@ -415,6 +416,7 @@ export default function Main({
                     handleRandomizePreset={handleRandomizePreset}
                     currentFilteredPresets={currentFilteredPresets}
                     onHireAttempt={initiateHireSequence}
+                    isProcessingPhoto={isDialogBusyProcessingPhoto}
                     isProcessingVoice={isDialogBusyProcessingVoice} 
                     isCheckingBalance={isCheckingBalance}
                     showInsufficientFundsHint={showInsufficientFundsHint}
@@ -430,6 +432,7 @@ export default function Main({
                         formMethods={hireFormMethods}
                         isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
                         assistantActions={assistantActions}
+                        onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                         onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                         allAssistantEmails={fetchedAssistantEmails}
                         isLoadingEmails={isLoadingEmails}
@@ -460,8 +463,8 @@ export default function Main({
                         genderFilter={presetGenderFilter}
                         onGenderFilterChange={setPresetGenderFilter}
                         availableGenders={availableGenders}
-                        isExpanded={false} // Dummy prop, will be overridden
-                        onToggleExpand={() => {}} // Dummy prop, will be overridden
+                        layoutMode="split" // Dummy prop
+                        setLayoutMode={() => {}} // Dummy prop
                     />
                 </AssistantHire>
 
@@ -473,6 +476,7 @@ export default function Main({
                         formMethods={hireFormMethods}
                         onSubmit={initiateUpdate}
                         isSubmitting={isFormSubmitting}
+                        isProcessingPhoto={isDialogBusyProcessingPhoto}
                         isProcessingVoice={isDialogBusyProcessingVoice}
                     >
                          <HireForm
@@ -481,6 +485,7 @@ export default function Main({
                             onSubmit={initiateUpdate}
                             isSubmitting={isFormSubmitting}
                             assistantActions={assistantActions}
+                            onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                             onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
                             allAssistantEmails={fetchedAssistantEmails}
                             isLoadingEmails={isLoadingEmails}

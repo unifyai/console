@@ -13,8 +13,8 @@ import { ChatMessage } from '@/types/assistants/chat';
 
 interface AssistantHireChatPanelProps {
   onClose: () => void;
-  onToggleExpand: () => void;
-  isExpanded: boolean;
+  layoutMode: 'split' | 'left' | 'right';
+  setLayoutMode: React.Dispatch<React.SetStateAction<'split' | 'left' | 'right'>>;
   assistantConfigKey: string;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
@@ -76,8 +76,8 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
 
 export function AssistantHireChatPanel({
     onClose,
-    onToggleExpand,
-    isExpanded,
+    layoutMode,
+    setLayoutMode,
     assistantConfigKey,
     chatHistories,
     setChatHistories,
@@ -122,35 +122,26 @@ export function AssistantHireChatPanel({
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    {isExpanded ? (
-                        <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                                        <Minimize2 className="h-4 w-4" />
-                                        <span className="sr-only">Minimize panel</span>
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>Minimize panel</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    ) : (
-                        <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                                        <Maximize2 className="h-4 w-4" />
-                                        <span className="sr-only">Maximize panel</span>
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>Maximize panel</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    )}
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')} disabled={layoutMode === 'right'}>
+                                    <Maximize2 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top"><p>Maximize panel</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'right' ? 'split' : 'left')}>
+                                    <Minimize2 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </div>
 

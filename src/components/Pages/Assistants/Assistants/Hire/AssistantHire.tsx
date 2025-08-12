@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen } from 'lucide-react'; // Added icons
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2 } from 'lucide-react'; // Added icons
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -66,13 +66,14 @@ export function AssistantHire ({
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
     const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
-    const [isRightPanelExpanded, setIsRightPanelExpanded] = React.useState(false);
+    const [layoutMode, setLayoutMode] = React.useState<'split' | 'left' | 'right'>('split');
     const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
     
     // Reset to presets view when dialog is opened/closed
     React.useEffect(() => {
         if (isHireDialogOpen) {
             setRightPanelView('presets');
+            setLayoutMode('split');
         } else {
             // Clear chat histories when dialog is fully closed to ensure fresh state next time
             setChatHistories({});
@@ -109,14 +110,12 @@ export function AssistantHire ({
     const handleToggleRightPanel = () => {
         setIsAssistantPresetsOpen(prev => {
             const isClosing = prev;
-            if (isClosing && isRightPanelExpanded) {
-                setIsRightPanelExpanded(false); 
+            if (isClosing && layoutMode === 'right') {
+                setLayoutMode('split'); 
             }
             return !prev;
         });
     };
-    
-    const handleToggleExpand = () => setIsRightPanelExpanded(p => !p);
     const handleToggleView = () => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets');
 
     const isUserApproved = userApprovalStatus === "approved";
@@ -128,7 +127,7 @@ export function AssistantHire ({
             setIsHireDialogOpen(open);
             if (!open) {
                 setShowInsufficientFundsHint(false);
-                setIsRightPanelExpanded(false); 
+                setLayoutMode('split'); 
             }
         }
     };
@@ -194,7 +193,7 @@ export function AssistantHire ({
             <DialogContent 
                 className={cn(
                     "max-w-5xl h-[90vh] flex flex-col p-0 gap-0",
-                    isAssistantPresetsOpen && isUserApproved && !isRightPanelExpanded && "max-w-6xl"
+                    isAssistantPresetsOpen && isUserApproved && layoutMode === 'split' && "max-w-6xl"
                 )} 
                 onInteractOutside={handleDialogInteractOutside}
                 onPointerDownOutside={(e) => { 
@@ -225,11 +224,11 @@ export function AssistantHire ({
                         <motion.div
                             key="hire-form-panel"
                             initial={false}
-                            animate={{ width: isRightPanelExpanded ? "0%" : (isAssistantPresetsOpen ? "60%" : "100%") }}
+                            animate={{ width: !isAssistantPresetsOpen ? "100%" : layoutMode === 'left' ? "100%" : layoutMode === 'right' ? "0%" : "60%" }}
                             transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
                             className="h-full flex-shrink-0 min-w-0 bg-background relative flex flex-col overflow-hidden"
                         >
-                            <div className={cn("flex flex-col h-full w-full", isRightPanelExpanded && "invisible")}>
+                            <div className={cn("flex flex-col h-full w-full", layoutMode === 'right' && "invisible")}>
                                 <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
                                     <h3 className="text-lg font-semibold">Your Assistant</h3>
                                     <div className="flex items-center gap-1">
@@ -246,11 +245,21 @@ export function AssistantHire ({
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleToggleRightPanel} disabled={isPrimaryActionDisabled}>
-                                                            {isAssistantPresetsOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')} disabled={!isAssistantPresetsOpen || layoutMode === 'left'}>
+                                                        <Maximize2 className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                    <TooltipContent><p>{isAssistantPresetsOpen ? "Hide panel" : "Show panel"}</p></TooltipContent>
+                                                <TooltipContent><p>Maximize panel</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'left' ? 'split' : 'right')} disabled={!isAssistantPresetsOpen}>
+                                                        <Minimize2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>Minimize panel</p></TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     </div>
@@ -267,30 +276,32 @@ export function AssistantHire ({
                                 <motion.div
                                     key="hire-right-panel"
                                     initial={{ width: "0%" }}
-                                    animate={{ width: isRightPanelExpanded ? "100%" : "40%" }}
+                                    animate={{ width: layoutMode === 'left' ? "0%" : layoutMode === 'right' ? "100%" : "40%" }}
                                     exit={{ width: "0%" }}
                                     transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
                                     className="h-full flex-shrink-0 overflow-hidden bg-background"
                                 >
-                                    {rightPanelView === 'presets' ? (
-                                        React.cloneElement(presetsPanel as React.ReactElement<any>, {
-                                            onPresetSelect: handlePresetSelect,
-                                            onToggleExpand: handleToggleExpand,
-                                            isExpanded: isRightPanelExpanded,
-                                            onClose: () => setIsAssistantPresetsOpen(false),
-                                            onToggleView: handleToggleView,
-                                        })
-                                    ) : (
-                                        <AssistantHireChatPanel
-                                            onToggleExpand={handleToggleExpand}
-                                            isExpanded={isRightPanelExpanded}
-                                            onClose={() => setIsAssistantPresetsOpen(false)}
-                                            assistantConfigKey={assistantConfigKey}
-                                            chatHistories={chatHistories}
-                                            setChatHistories={setChatHistories}
-                                            onToggleView={handleToggleView}
-                                        />
-                                    )}
+                                    <div className={cn("h-full w-full", layoutMode === 'left' && 'invisible')}>
+                                        {rightPanelView === 'presets' ? (
+                                            React.cloneElement(presetsPanel as React.ReactElement<any>, {
+                                                onPresetSelect: handlePresetSelect,
+                                                layoutMode: layoutMode,
+                                                setLayoutMode: setLayoutMode,
+                                                onClose: () => setIsAssistantPresetsOpen(false),
+                                                onToggleView: handleToggleView,
+                                            })
+                                        ) : (
+                                            <AssistantHireChatPanel
+                                                layoutMode={layoutMode}
+                                                setLayoutMode={setLayoutMode}
+                                                onClose={() => setIsAssistantPresetsOpen(false)}
+                                                assistantConfigKey={assistantConfigKey}
+                                                chatHistories={chatHistories}
+                                                setChatHistories={setChatHistories}
+                                                onToggleView={handleToggleView}
+                                            />
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>

@@ -14,8 +14,8 @@ export interface PresetsPanelProps {
   displayedPresets: AssistantPreset[];
   onPresetSelect: (preset: AssistantPreset) => void;
   onClose: () => void;
-  onToggleExpand: () => void;
-  isExpanded: boolean;
+  layoutMode: 'split' | 'left' | 'right';
+  setLayoutMode: React.Dispatch<React.SetStateAction<'split' | 'left' | 'right'>>;
   onLoadMore: () => void;
   canLoadMore: boolean;
   isLoadingMore: boolean;
@@ -40,8 +40,8 @@ export function PresetsPanel({
   displayedPresets,
   onPresetSelect,
   onClose,
-  onToggleExpand,
-  isExpanded,
+  layoutMode,
+  setLayoutMode,
   onLoadMore,
   canLoadMore,
   isLoadingMore,
@@ -103,35 +103,26 @@ export function PresetsPanel({
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>
-          {isExpanded ? (
             <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                    <Minimize2 className="h-4 w-4" />
-                    <span className="sr-only">Minimize panel</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Minimize panel</p>
-                </TooltipContent>
-              </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')} disabled={layoutMode === 'right'}>
+                            <Maximize2 className="h-4 w-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>Maximize panel</p></TooltipContent>
+                </Tooltip>
             </TooltipProvider>
-          ) : (
             <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleExpand}>
-                    <Maximize2 className="h-4 w-4" />
-                    <span className="sr-only">Maximize panel</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Maximize panel</p>
-                </TooltipContent>
-              </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'right' ? 'split' : 'left')}>
+                            <Minimize2 className="h-4 w-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
+                </Tooltip>
             </TooltipProvider>
-          )}
         </div>
       </div>
 
