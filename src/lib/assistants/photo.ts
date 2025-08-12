@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse, VideoAnimationResponse } from "@/types/assistants/assistant";
+import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse, ReplicatePredictionResponse } from "@/types/assistants/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/assistants/gcs-utils";
 import { Storage } from "@google-cloud/storage";
 
@@ -224,7 +224,7 @@ export const editPhoto = async (apiKey: string) => {
 };
 
 export const animatePhoto = async (apiKey: string) => {
-    return async (formData: FormData): Promise<VideoAnimationResponse | ResponseProps> => {
+    return async (formData: FormData): Promise<ReplicatePredictionResponse | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate`, {
@@ -235,17 +235,60 @@ export const animatePhoto = async (apiKey: string) => {
                 },
                 body: formData,
             });
-            const data = await response.json(); // This is { info: "video_url" }
+            const data = await response.json();
             if (!response.ok) {
-                return { detail: data.detail || `Failed to animate video: ${response.statusText}`, status: response.status };
+                return { detail: data.detail || `Failed to start animation: ${response.statusText}`, status: response.status };
             }
-            // Backend returns { info: "video_url_string" }
-            if (data.info && typeof data.info === 'string') {
-                return { video_url: data.info };
+            if (data.info && data.info.id) {
+                return data.info as ReplicatePredictionResponse;
             }
-            return { detail: "Video animation succeeded but response format was unexpected." };
+            return { detail: "Animation job started but response format was unexpected." };
         } catch (error) {
-            return { detail: error instanceof Error ? error.message : "Unknown error animating video." };
+            return { detail: error instanceof Error ? error.message : "Unknown error starting animation." };
+        }
+    };
+};
+
+export const getAnimationPrediction = async (apiKey: string) => {
+    return async (predictionId: string): Promise<ReplicatePredictionResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate/${predictionId}`, {
+                method: "GET",
+                headers: { apiKey }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to get prediction status: ${response.statusText}` };
+            }
+            if (data.info && data.info.id) {
+                return data.info as ReplicatePredictionResponse;
+            }
+            return { detail: "Unexpected response structure for prediction status." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error getting prediction status." };
+        }
+    };
+};
+
+export const cancelAnimationPrediction = async (apiKey: string) => {
+    return async (predictionId: string): Promise<ReplicatePredictionResponse | ResponseProps> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate/${predictionId}/cancel`, {
+                method: "POST",
+                headers: { apiKey }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to cancel prediction: ${response.statusText}` };
+            }
+            if (data.info && data.info.id) {
+                return data.info as ReplicatePredictionResponse;
+            }
+            return { detail: "Unexpected response structure for prediction cancellation." };
+        } catch (error) {
+            return { detail: error instanceof Error ? error.message : "Unknown error canceling prediction." };
         }
     };
 };

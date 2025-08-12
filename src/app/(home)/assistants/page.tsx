@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Pages/Assistants/Main";
 import { getTasks, updateTask } from "@/lib/assistants/task";
 import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus } from "@/lib/assistants/assistant";
-import { uploadPhoto, uploadVideo, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto } from "@/lib/assistants/photo";
+import { uploadPhoto, uploadVideo, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto, getAnimationPrediction, cancelAnimationPrediction } from "@/lib/assistants/photo";
 import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
@@ -41,6 +41,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             generate: await generatePhoto(apiKey),
             edit: await editPhoto(apiKey),
             animate: await animatePhoto(apiKey),
+            getAnimation: await getAnimationPrediction(apiKey),
+            cancelAnimation: await cancelAnimationPrediction(apiKey),
         },
         "voice": {
             list: await listVoices(apiKey),

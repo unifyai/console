@@ -1,11 +1,15 @@
+'use client';
+
 import * as React from 'react';
 import { toast } from 'sonner';
-import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, VideoAnimationResponse, VoiceOption } from '@/types/assistants/assistant'; // Added GenerateSpeechPayload
+import { StopCircle } from 'lucide-react';
+import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, ReplicatePredictionResponse, VoiceOption } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
+import { Button } from '@/components/UI/button';
 
-// Helper to convert Base64 to Uint8Array (if not already globally available)
+// Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
     const binary_string = atob(base64);
     const len = binary_string.length;
@@ -31,6 +35,52 @@ const fetchBalance = async (): Promise<number> => {
     }
 };
 
+const AnimationProgressToast = ({
+    onCancel,
+}: {
+    onCancel: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) => {
+    const [progress, setProgress] = React.useState(0);
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 95) {
+                    clearInterval(interval);
+                    return prev;
+                }
+                return prev + 1.66;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border bg-background p-4 pr-6 shadow-lg text-foreground">
+            <div className="flex flex-col gap-1.5 flex-grow">
+                <div className="text-sm font-semibold">Animating photo...</div>
+                <div className="text-sm opacity-90">This can take up to a minute.</div>
+                <div className="relative w-full h-1.5 bg-muted rounded-full overflow-hidden mt-1">
+                    <div
+                        className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all duration-1000 ease-linear"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+            </div>
+            <Button
+                onClick={onCancel}
+                aria-label="Cancel animation"
+                variant={"warning_outline"}
+                type="button"
+                className='absolute right-2 top-2 border-none'
+            >
+                <StopCircle className="h-5 w-5 hover:text-amber-500" />
+            </Button>
+        </div>
+    );
+};
+
+
 export function usePhotoCreator(
     photoActions: AssistantActions['photo'],
     generateSpeechAction: AssistantActions['voice']['generate'],
@@ -53,10 +103,24 @@ export function usePhotoCreator(
 
     const [ttsPrompt, setTtsPrompt] = React.useState(initialTtsPrompt);
     const [isProcessing, setIsProcessing] = React.useState(false);
+    const pollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+    const toastIdRef = React.useRef<string | number | undefined>();
 
     React.useEffect(() => {
         setTtsPrompt(initialTtsPrompt);
     }, [initialTtsPrompt]);
+
+    // Cleanup polling on unmount
+    React.useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+            if (toastIdRef.current) {
+                toast.dismiss(toastIdRef.current);
+            }
+        };
+    }, []);
 
 
     const insufficientFundsToast = (operationName: string) => {
@@ -206,93 +270,150 @@ export function usePhotoCreator(
         }
 
         setIsProcessing(true);
-        const toastId = toast.loading("Checking your balance...");
-
-        const currentBalance = await fetchBalance();
-        if (currentBalance < videoAnimationCost) {
-            insufficientFundsToast("animation");
-            toast.dismiss(toastId);
-            setIsProcessing(false);
-            return;
-        }
-
-        toast.loading("Generating audio for animation...", { id: toastId });
+        toastIdRef.current = toast.loading("Checking your balance...");
 
         try {
+            const currentBalance = await fetchBalance();
+            if (currentBalance < videoAnimationCost) {
+                insufficientFundsToast("animation");
+                setIsProcessing(false);
+                toast.dismiss(toastIdRef.current);
+                toastIdRef.current = undefined;
+                return;
+            }
+    
+            toast.loading("Generating audio for animation...", { id: toastIdRef.current });
+    
             const ttsPayload: GenerateSpeechPayload = {
-                text: ttsPrompt,
-                provider: selectedVoice.provider,
-                voice_id: selectedVoice.voice_id,
-                output_format: "mp3", // Replicate likely prefers mp3 or wav
-                // Add provider specific fields
-                ...(selectedVoice.provider === 'cartesia' && {
-                    model_id: 'sonic-2',
-                    cartesia_language: selectedVoice.language as SupportedLanguage
-                }),
-                ...(selectedVoice.provider === 'elevenlabs' && {
-                    model_id: 'eleven_multilingual_v2'
-                }),
+                text: ttsPrompt, provider: selectedVoice.provider, voice_id: selectedVoice.voice_id, output_format: "mp3",
+                ...(selectedVoice.provider === 'cartesia' && { model_id: 'sonic-2', cartesia_language: selectedVoice.language as SupportedLanguage }),
+                ...(selectedVoice.provider === 'elevenlabs' && { model_id: 'eleven_multilingual_v2' }),
             };
-
+    
             const ttsResult = await generateSpeechAction(ttsPayload);
-
             if (ttsResult.detail || !ttsResult.audioBase64 || !ttsResult.contentType) {
                 throw new Error(ttsResult.detail || "TTS generation failed for animation.");
             }
-
+    
             const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64);
-            const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType }); // Use mp3 extension as default
-
-            toast.loading("Animating photo...", { id: toastId });
+            const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType });
+    
+            toast.loading("Starting animation job...", { id: toastIdRef.current });
+            
             const formData = new FormData();
             formData.append('audio_file', audioFile);
-
             if (imageSource instanceof File) {
                 formData.append('image_file', imageSource);
             } else if (typeof imageSource === 'string') {
-                 if (imageSource.startsWith('blob:')) {
-                     throw new Error("Cannot animate a local photo preview. Please use a saved or generated photo.");
+                if (imageSource.startsWith('blob:')) {
+                    throw new Error("Cannot animate a local photo preview. Please use a saved or generated photo.");
                 }
                 formData.append('image_url', imageSource);
             }
+    
+            const createResult = await photoActions.animate(formData);
+            if ('detail' in createResult) {
+                throw new Error(createResult.detail);
+            }
+    
+            const prediction = createResult as ReplicatePredictionResponse;
 
-            const result = await photoActions.animate(formData);
-            if ((result as ResponseProps).detail) {
-                // Check for status code if available in ResponseProps from animate action
-                const responsePropsResult = result as ResponseProps & { status?: number };
-                if (responsePropsResult.status === 503) {
-                    toast.warning("The animation service is currently overloaded. Please try again in a few minutes.", { id: toastId });
-                    setIsProcessing(false);
-                    return;
+            const stopPolling = () => {
+                if (pollIntervalRef.current) {
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
                 }
-                throw new Error((result as ResponseProps).detail);
-            }
-            const remoteVideoUrl = (result as VideoAnimationResponse).video_url;
+            };
+    
+            const handleCancel = async (event: React.MouseEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+                event.stopPropagation();
+                stopPolling();
+                setIsProcessing(false);
+                if (toastIdRef.current) {
+                    toast.dismiss(toastIdRef.current);
+                    toastIdRef.current = undefined;
+                }
+    
+                try {
+                    await photoActions.cancelAnimation(prediction.id);
+                    toast.info("Animation canceled.");
+                } catch (e) {
+                    toast.error("Failed to cancel animation.");
+                }
+            };
+    
+            toast.custom((t) => {
+                toastIdRef.current = t;
+                return (
+                    <AnimationProgressToast onCancel={handleCancel} />
+                );
+            }, { 
+                id: toastIdRef.current, 
+                duration: Infinity,
+                className: "w-full p-0 bg-transparent rounded-md border shadow-lg"
+            });
+    
+            pollIntervalRef.current = setInterval(async () => {
+                try {
+                    const statusResult = await photoActions.getAnimation(prediction.id);
+    
+                    if ('detail' in statusResult) {
+                        console.warn(`Polling warning: ${statusResult.detail}`);
+                        return;
+                    }
+                    
+                    const currentStatus = statusResult as ReplicatePredictionResponse;
+    
+                    if (currentStatus.status === 'succeeded') {
+                        stopPolling();
+                        
+                        if (toastIdRef.current) {
+                            toast.dismiss(toastIdRef.current);
+                            toastIdRef.current = undefined;
+                        }
+                        
+                        const outputUrl = currentStatus.output as string;
+                        const videoFetchResponse = await fetch(outputUrl);
+                        if (!videoFetchResponse.ok) {
+                            console.error(`Failed to download animated video.`);
+                            toast.error("Failed to retrieve the final video.");
+                            return;
+                        }
+                        
+                        const videoBlob = await videoFetchResponse.blob();
+                        const videoFilename = outputUrl.substring(outputUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
+                        const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
+                        
+                        onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice!.voice_id });
+                        toast.success("Animation complete! Your video is now available.");       
+                        setIsProcessing(false);
 
-            // 4. Download the animated video and pass it as a File object
-            // Continue with same loading toast for processing video
-            const videoFetchResponse = await fetch(remoteVideoUrl);
-            if (!videoFetchResponse.ok) throw new Error(`Failed to download the animated video from ${remoteVideoUrl}. Status: ${videoFetchResponse.status}`);
-
-            const videoBlob = await videoFetchResponse.blob();
-            const videoFilename = remoteVideoUrl.substring(remoteVideoUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
-            const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
-
-            onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice.voice_id });
-
-            toast.success("Photo animated successfully!", { id: toastId });
-
+                    } else if (currentStatus.status === 'failed' || currentStatus.status === 'canceled') {
+                        stopPolling();
+                         if (currentStatus.status === 'failed') {
+                            toast.error(`Animation failed: ${currentStatus.error || "Unknown reason"}`, { id: toastIdRef.current });
+                        } else {
+                            toast.dismiss(toastIdRef.current);
+                        }
+                        toastIdRef.current = undefined;
+                        setIsProcessing(false);
+                    }
+                } catch (pollError) {
+                    stopPolling();
+                    toast.error("An error occurred while checking animation status.", { id: toastIdRef.current });
+                    toastIdRef.current = undefined;
+                    setIsProcessing(false);
+                }
+            }, 20000); // Poll every 20 seconds
+    
         } catch (error: any) {
-            if (error && typeof error === 'object' && 'detail' in error && 'status' in error && error.status === 503) {
-                toast.warning("The animation service is currently overloaded, please try again in a few minutes.", { id: toastId });
-            } else {
-                toast.error(`Photo animation failed: ${error.message || "Unknown error"}.`, { id: toastId });
-            }
-            console.error("[usePhotoCreator] animate error:", error);
-        } finally {
+            toast.error(error.message, { id: toastIdRef.current });
+            toastIdRef.current = undefined;
             setIsProcessing(false);
         }
     };
+
 
     return {
         prompt, setPrompt,

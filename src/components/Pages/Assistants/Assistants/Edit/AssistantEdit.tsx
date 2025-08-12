@@ -14,6 +14,7 @@ interface AssistantEditProps {
     onSubmit: () => Promise<void>;
     isSubmitting: boolean;
     children: React.ReactNode;
+     isProcessingPhoto?: boolean;
     isProcessingVoice?: boolean;
 }
 
@@ -25,10 +26,11 @@ export function AssistantEdit({
     onSubmit,
     isSubmitting,
     children,
+    isProcessingPhoto,
     isProcessingVoice,
 }: AssistantEditProps) {
 
-    const isPrimaryActionDisabled = isSubmitting || !!isProcessingVoice;
+    const isPrimaryActionDisabled = isSubmitting || !!isProcessingVoice || !!isProcessingPhoto;
 
     const handleDialogClose = (open: boolean) => {
         if (!isPrimaryActionDisabled) {
@@ -47,6 +49,7 @@ export function AssistantEdit({
     const submitButtonLabel = () => {
         if (isSubmitting) return "Updating...";
         if (isProcessingVoice) return "Processing Voice...";
+        if (isProcessingPhoto) return "Processing Photo...";
         return "Update Assistant";
     };
 

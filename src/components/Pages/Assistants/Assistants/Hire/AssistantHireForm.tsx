@@ -137,6 +137,7 @@ export interface HireFormProps {
   onSubmit?: (e?: React.BaseSyntheticEvent) => Promise<void>;
   isSubmitting: boolean;
   assistantActions: AssistantActions;
+  onPhotoProcessingStateChange?: (isProcessing: boolean) => void;
   onVoiceProcessingStateChange?: (isProcessing: boolean) => void;
   onNewMediaReady: (file: File | null, mediaType: 'photo' | 'video') => void;
   allAssistantEmails: string[];
@@ -158,6 +159,7 @@ export function HireForm({
     onSubmit,
     isSubmitting,
     assistantActions,
+    onPhotoProcessingStateChange,
     onVoiceProcessingStateChange,
     onNewMediaReady,
     allAssistantEmails,
@@ -526,6 +528,7 @@ export function HireForm({
                                         activeTab={photoCustomizationTab}
                                         setActiveTab={setPhotoCustomizationTab}
                                         showAnimatePing={showAnimatePing}
+                                        onProcessingStateChange={onPhotoProcessingStateChange}
                                     />
                                 </div>
                             </AccordionContent>

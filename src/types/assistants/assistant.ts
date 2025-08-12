@@ -137,9 +137,23 @@ export interface PhotoCreationResponse {
     url: string;
 }
 
-export interface VideoAnimationResponse {
-    video_url: string;
+export interface ReplicatePredictionResponse {
+    id: string;
+    model: string;
+    version: string;
+    input?: Record<string, any>;
+    output?: any; // This will be an array with the video URL on success
+    logs?: string;
+    error?: any;
+    status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled';
+    created_at: string;
+    completed_at?: string;
+    urls?: {
+        get?: string;
+        cancel?: string;
+    };
 }
+ 
 
 
 export interface AssistantUpdatePayload {
@@ -249,7 +263,9 @@ export interface AssistantActions {
     downloadPresetVideo: (firstName: string, lastName: string, provider: string) => Promise<{signedUrl?: string; detail?: string;}>;
     generate: (payload: PhotoGenerateRequest) => Promise<PhotoCreationResponse | ResponseProps>;
     edit: (formData: FormData) => Promise<PhotoCreationResponse | ResponseProps>;
-    animate: (formData: FormData) => Promise<VideoAnimationResponse | ResponseProps>;
+    animate: (formData: FormData) => Promise<ReplicatePredictionResponse | ResponseProps>;
+    getAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
+    cancelAnimation: (predictionId: string) => Promise<ReplicatePredictionResponse | ResponseProps>;
     },
     "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>;

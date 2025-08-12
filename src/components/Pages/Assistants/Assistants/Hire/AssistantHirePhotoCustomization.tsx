@@ -33,6 +33,7 @@ interface PhotoCustomizationProps {
     activeTab: 'upload' | 'create' | 'animate';
     setActiveTab: (tab: 'upload' | 'create' | 'animate') => void;
     showAnimatePing?: boolean;
+    onProcessingStateChange?: (isProcessing: boolean) => void;
 }
 
 export function PhotoCustomization({
@@ -48,6 +49,7 @@ export function PhotoCustomization({
     activeTab,
     setActiveTab,
     showAnimatePing,
+    onProcessingStateChange,
 }: PhotoCustomizationProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -76,6 +78,10 @@ export function PhotoCustomization({
         surname,
         age
     );
+
+    React.useEffect(() => {
+        onProcessingStateChange?.(isProcessing);
+    }, [isProcessing, onProcessingStateChange]);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;

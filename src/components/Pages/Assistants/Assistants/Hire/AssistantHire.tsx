@@ -30,6 +30,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     onHireAttempt: (chatHistory?: ChatMessage[]) => Promise<void>; 
     children: React.ReactNode;
     isProcessingVoice?: boolean;
+    isProcessingPhoto?: boolean;
     isCheckingBalance: boolean; 
     showInsufficientFundsHint: boolean; 
     setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>; 
@@ -52,6 +53,7 @@ export function AssistantHire ({
     onHireAttempt,
     children,
     isProcessingVoice,
+    isProcessingPhoto,
     isCheckingBalance,
     showInsufficientFundsHint,
     setShowInsufficientFundsHint,
@@ -118,9 +120,8 @@ export function AssistantHire ({
     const handleToggleView = () => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets');
 
     const isUserApproved = userApprovalStatus === "approved";
-    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
-    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval || isLoadingSocialPlatforms;
-
+    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !!isProcessingPhoto || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
+    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval || isLoadingSocialPlatforms ; 
 
     const handleDialogClose = (open: boolean) => {
         if (!isOverallDialogBusy) {
@@ -148,6 +149,7 @@ export function AssistantHire ({
         if (isCheckingBalance) return "Checking Balance...";
         if (isHireSubmitting) return "Hiring..."; 
         if (isProcessingVoice) return "Processing Voice...";
+        if (isProcessingPhoto) return "Processing Photo...";
         if (isLoadingSocialPlatforms) return "Loading data...";
         return "Hire Assistant";
     };
@@ -317,7 +319,7 @@ export function AssistantHire ({
                                     className="bg-green-600 hover:bg-green-700 text-white" 
                                     disabled={isPrimaryActionDisabled}
                                 >
-                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isLoadingSocialPlatforms) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isProcessingPhoto || isLoadingSocialPlatforms) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {hireButtonLabel()}
                                 </Button>
                             </PopoverTrigger>
