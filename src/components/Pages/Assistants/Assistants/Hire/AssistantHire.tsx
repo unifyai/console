@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2 } from 'lucide-react'; // Added icons
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus } from 'lucide-react'; // Added icons
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -245,19 +245,24 @@ export function AssistantHire ({
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')} disabled={!isAssistantPresetsOpen || layoutMode === 'left'}>
-                                                        <Maximize2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'left' ? 'split' : 'left')} disabled={!isAssistantPresetsOpen}>
+                                                        {layoutMode === 'left' ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent><p>Maximize panel</p></TooltipContent>
+                                                <TooltipContent><p>{layoutMode === 'left' ? 'Shrink panel' : 'Maximize panel'}</p></TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'left' ? 'split' : 'right')} disabled={!isAssistantPresetsOpen}>
-                                                        <Minimize2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')}
+                                                        disabled={!isAssistantPresetsOpen || layoutMode === 'right'}
+                                                    >
+                                                        <Minus className="h-4 w-4" />
+                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent><p>Minimize panel</p></TooltipContent>
                                             </Tooltip>

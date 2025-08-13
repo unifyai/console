@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { X, PanelRightOpen, Send, PanelLeftClose, Loader2, Maximize, Minimize, LayoutList, Minimize2, Maximize2 } from 'lucide-react';
+import { X, PanelRightOpen, Send, PanelLeftClose, Loader2, Maximize, Minimize, LayoutList, Minimize2, Maximize2, Minus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
@@ -125,18 +125,22 @@ export function AssistantHireChatPanel({
                     <TooltipProvider delayDuration={100}>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')} disabled={layoutMode === 'right'}>
-                                    <Maximize2 className="h-4 w-4" />
+                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'right' ? 'split' : 'right')} disabled={layoutMode === 'left'}>
+                                    {layoutMode === 'right' ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="top"><p>Maximize panel</p></TooltipContent>
+                            <TooltipContent side="top"><p>{layoutMode === 'right' ? 'Shrink panel' : 'Maximize panel'}</p></TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                     <TooltipProvider delayDuration={100}>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode(layoutMode === 'right' ? 'split' : 'left')}>
-                                    <Minimize2 className="h-4 w-4" />
+                                <Button
+                                    type="button"
+                                    variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')}
+                                    disabled={layoutMode === 'left'}
+                                >
+                                    <Minus className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
