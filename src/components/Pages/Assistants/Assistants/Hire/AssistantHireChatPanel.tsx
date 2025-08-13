@@ -132,20 +132,20 @@ export function AssistantHireChatPanel({
                             <TooltipContent side="top"><p>{layoutMode === 'right' ? 'Shrink panel' : 'Maximize panel'}</p></TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+                    {layoutMode === "split" &&
                     <TooltipProvider delayDuration={100}>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button
                                     type="button"
                                     variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')}
-                                    disabled={layoutMode === 'left'}
                                 >
                                     <Minus className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
                         </Tooltip>
-                    </TooltipProvider>
+                    </TooltipProvider>}
                 </div>
             </div>
 
