@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus } from 'lucide-react'; // Added icons
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X } from 'lucide-react'; // Added icons
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -68,7 +68,8 @@ export function AssistantHire ({
     const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
     const [layoutMode, setLayoutMode] = React.useState<'split' | 'left' | 'right'>('split');
     const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
-    
+    const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
+
     // Reset to presets view when dialog is opened/closed
     React.useEffect(() => {
         if (isHireDialogOpen) {
@@ -133,12 +134,18 @@ export function AssistantHire ({
     };
 
     const handleDialogInteractOutside = (e: Event) => {
-        if (isOverallDialogBusy) {
-            e.preventDefault();
-        }
         const target = e.target as HTMLElement;
+        // Allow interaction with popovers (e.g., Select, Dropdown) inside the dialog
         if (target.closest('[data-radix-popover-content]')) {
-             e.preventDefault();
+           return;
+        }
+
+        // For any other click outside, prevent closing
+        e.preventDefault();
+
+        // Show tooltip only if dialog is not busy
+        if (!isOverallDialogBusy) {
+            setIsCloseTooltipOpen(true);
         }
     };
     
@@ -197,18 +204,39 @@ export function AssistantHire ({
                 )} 
                 onInteractOutside={handleDialogInteractOutside}
                 onPointerDownOutside={(e) => { 
-                    if (isOverallDialogBusy) e.preventDefault();
                     const target = e.target as HTMLElement;
+                    // Prevent closing when clicking on popover content
                     if (target.closest('[data-radix-popover-content]')) {
-                         e.preventDefault();
+                        e.preventDefault();
+                        return;
                     }
+                    // Prevent closing for any other outside pointer down event
+                    e.preventDefault();
                 }}
+                hideClose
             >
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-                    <DialogTitle>Hire Assistant</DialogTitle>
-                    <DialogDescription>
-                        {isUserApproved ? "Hire an existing assistant or create your own." : "Request access to hire new assistants."}
-                    </DialogDescription>
+                    <div className='flex items-start justify-between'>
+                        <div className="flex flex-col gap-2">
+                            <DialogTitle>Hire Assistant</DialogTitle>
+                            <DialogDescription>
+                                {isUserApproved ? "Hire an existing assistant or create your own." : "Request access to hire new assistants."}
+                            </DialogDescription>
+                        </div>
+                         <TooltipProvider delayDuration={100}>
+                            <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>
+                                <TooltipTrigger asChild>
+                                     <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDialogClose(false)} disabled={isOverallDialogBusy}>
+                                        <X className="h-4 w-4" />
+                                        <span className="sr-only">Close Hire Dialog</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start">
+                                    <p>Click here to close and reset your changes</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </DialogHeader>
 
                 {userApprovalStatus === 'loading' ? (

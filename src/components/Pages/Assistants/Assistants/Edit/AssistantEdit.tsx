@@ -3,8 +3,9 @@ import { Assistant, AssistantFormData, AssistantActions, AvailableSocialPlatform
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
 interface AssistantEditProps {
     isOpen: boolean;
@@ -29,7 +30,8 @@ export function AssistantEdit({
     isProcessingPhoto,
     isProcessingVoice,
 }: AssistantEditProps) {
-
+    
+    const [isCloseTooltipOpen, setIsCloseTooltipOpen] = React.useState(false);
     const isPrimaryActionDisabled = isSubmitting || !!isProcessingVoice || !!isProcessingPhoto;
 
     const handleDialogClose = (open: boolean) => {
@@ -41,11 +43,14 @@ export function AssistantEdit({
     };
 
     const handleDialogInteractOutside = (e: Event) => {
-        if (isPrimaryActionDisabled) {
-            e.preventDefault();
-        }
-    };
-    
+       e.preventDefault();
+       if (!isPrimaryActionDisabled) {
+           setIsCloseTooltipOpen(true);
+           // Auto-hide tooltip after a short delay
+           setTimeout(() => setIsCloseTooltipOpen(false), 2500);
+       }
+    }; 
+
     const submitButtonLabel = () => {
         if (isSubmitting) return "Updating...";
         if (isProcessingVoice) return "Processing Voice...";
@@ -64,14 +69,32 @@ export function AssistantEdit({
                 className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0"
                 onInteractOutside={handleDialogInteractOutside}
                 onPointerDownOutside={(e) => { 
-                    if (isPrimaryActionDisabled) e.preventDefault();
+                    e.preventDefault();
                 }}
+                hideClose
             >
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-                    <DialogTitle>Edit {displayName}</DialogTitle>
-                    <DialogDescription>
-                        Modify your assistant details.
-                    </DialogDescription>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <DialogTitle>Edit {displayName}</DialogTitle>
+                            <DialogDescription>
+                                Modify your assistant details.
+                            </DialogDescription>
+                        </div>
+                        <TooltipProvider delayDuration={100}>
+                            <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>
+                                <TooltipTrigger asChild>
+                                     <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onClose} disabled={isPrimaryActionDisabled}>
+                                        <X className="h-4 w-4" />
+                                        <span className="sr-only">Close Edit Dialog</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" align="start">
+                                    <p>Click here to close and discard changes</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </DialogHeader>
 
                 <div className="flex-1 min-h-0 overflow-hidden">
