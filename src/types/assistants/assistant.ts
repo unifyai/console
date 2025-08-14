@@ -1,6 +1,7 @@
 import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
+import { ChatMessage } from "./chat";
 
 // New type for the pre_hire_chat payload
 export interface PreHireChatMessage {
@@ -275,6 +276,10 @@ export interface AssistantActions {
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
     preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
     design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    },
+    "chat": {
+        getTranscripts: (assistantContext: string) => Promise<ChatMessage[] | ResponseProps>;
+        updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
     },
     "contact": {
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;

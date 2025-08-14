@@ -32,6 +32,7 @@ import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 import { VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { ChatMessage } from '@/types/assistants/chat';
 
 
 interface MainProps {
@@ -41,7 +42,7 @@ interface MainProps {
     oneTimeToken?: string | null;
 }
 
-export default function Main({ 
+export default function Main({
     taskActions, 
     assistantActions, 
     activityLogActions,
@@ -123,6 +124,7 @@ export default function Main({
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
+    const [profileChatHistories, setProfileChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
     const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
@@ -346,9 +348,12 @@ export default function Main({
                         >
                             <AssistantProfilePanel
                                 assistant={profileAssistant}
+                                assistantActions={assistantActions}
                                 onClose={handleProfileClose}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
                                 onEdit={handleOpenEditDialog}
+                                chatHistories={profileChatHistories}
+                                setChatHistories={setProfileChatHistories}
                             />
                         </motion.div>
                     )}

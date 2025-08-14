@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user/user";
-import { ChatCompletionMessage, ChatCompletionRequest } from "@/types/assistants/chat";
+import { getTranscripts } from "@/lib/assistants/chat";
+import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage } from "@/types/assistants/chat";
+
+type ChatRequestType = 'hire' | 'profile';
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,9 +15,11 @@ export async function POST(request: NextRequest) {
             });
         }
         const apiKey = user.apiKey;
-        const userName = user.name || "the user"; // Fallback for user's name
+        const userName = user.name || "the user";
 
-        const { messages, assistantName, assistantAge, assistantBio } = await request.json();
+        // `messages` here is the full client-side session history
+        const { messages, assistantName, assistantAge, assistantBio, assistantRegion, assistantId, type } = await request.json();
+        const chatType: ChatRequestType = type || 'hire';
 
         if (!messages || !Array.isArray(messages)) {
             return new NextResponse(JSON.stringify({ detail: "Invalid request body: messages are required." }), { 
@@ -22,16 +27,49 @@ export async function POST(request: NextRequest) {
                 headers: { 'Content-Type': 'application/json' },
              });
         }
+        
+        let systemPrompt: string;
+        let finalMessages: ChatCompletionMessage[];
 
-        // Construct the system prompt
-        const systemPrompt = `You are an assistant named ${assistantName || 'Assistant'}, who is ${assistantAge || 'ageless'}. You are speaking with ${userName}, who is considering hiring you as a general administrative assistant. Here is a bit about yourself: ${assistantBio || 'I am a diligent and capable assistant.'}. If ${userName} asks any questions about yourself, and this is not covered in the short bio above, then please just make up a sensible response to their question. If they ask what you're able to do, then explain that you can do anything that a very competent virtual administrative assistant can do. You have your own computer with your own mouse and keyboard, your own email address and phone number, and you are a fast learner who quickly learns from on-the-job experience. If the ${userName} is interested in pursuing further, then politely (not forcefully) suggest hiring in order to hop on an introductory call. If un-impressed, then it's a zero-hour contract so it's not a big deal.`;
+        if (chatType === 'profile') {
+            if (!assistantId || !assistantName) {
+                return new NextResponse(JSON.stringify({ detail: "assistantId and assistantName are required for profile chat." }), { status: 400 });
+            }
+            
+            // Fetch recent history using the provided name context
+            const getTranscriptsAction = await getTranscripts(apiKey);
+            const historyResult = await getTranscriptsAction(assistantName);
+
+            if ('detail' in historyResult) {
+                // If fetching logs fails, use the client's session history as context.
+                console.warn(`Could not fetch chat history for context '${assistantName}': ${historyResult.detail}. Using client-side history as fallback.`);
+                finalMessages = messages;
+            } else {
+                // Combine historical logs with the latest user message.
+                const historyMessages = historyResult as ChatMessage[];
+                const historyCompletionMessages: ChatCompletionMessage[] = historyMessages.map(m => ({ role: m.role, content: m.content }));                
+                const lastUserMessage = messages.slice(-1);                 
+                finalMessages = [...historyCompletionMessages, ...lastUserMessage];
+            }
+            
+            const bio = assistantBio || "a helpful assistant capable of handling any task";
+            const age = assistantAge || 'ageless';
+            const region = assistantRegion || 'an undisclosed location';
+            const displayName = assistantName.replace(/([A-Z])/g, ' $1').trim();
+            
+            systemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You are ${age} years old, from ${region} and described as ${bio}. You are currently chatting with ${userName} through a web interface but you also kept note of the recent messages you've exchanged across several mediums. You may use these notes as context for the discussion but because you don't have access to all your notes and memories when talking through the web interface, ${userName} may ask you about something you don't have context for. If it's a general world knowledge question, respond normally as you would, if it's a question related to a previous interaction, explain that you don't have all your notes currently and politely suggest that you hop on a call or text via phone.`;
+
+        } else { // 'hire' type
+            systemPrompt = `You are an assistant named ${assistantName || 'Assistant'}, who is ${assistantAge || 'ageless'}. You are speaking with ${userName}, who is considering hiring you as a general administrative assistant. Here is a bit about yourself: ${assistantBio || 'I am a diligent and capable assistant.'}. If ${userName} asks any questions about yourself, and this is not covered in the short bio above, then please just make up a sensible response to their question. If they ask what you're able to do, then explain that you can do anything that a very competent virtual administrative assistant can do. You have your own computer with your own mouse and keyboard, your own email address and phone number, and you are a fast learner who quickly learns from on-the-job experience. If the ${userName} is interested in pursuing further, then politely (not forcefully) suggest hiring in order to hop on an introductory call. If un-impressed, then it's a zero-hour contract so it's not a big deal.`;
+            finalMessages = messages; // For hire chat, always use the client messages
+        }
 
         const systemMessage: ChatCompletionMessage = {
             role: "system",
             content: systemPrompt
         };
 
-        const messagesWithSystemPrompt = [systemMessage, ...messages];
+        const messagesWithSystemPrompt = [systemMessage, ...finalMessages];
 
         const url = `${process.env.ORCHESTRA_URL}/v0/chat/completions`;
         const payload: ChatCompletionRequest = {

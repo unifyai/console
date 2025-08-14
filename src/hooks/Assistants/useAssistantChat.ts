@@ -5,7 +5,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 
 const USER_MESSAGE_LIMIT = 10;
 const HIRE_ME_MESSAGE = "Glad I could be of help in this short conversation. Let's maybe resume after you've hired me? I'd be happy to pick up from there!";
-const INSUFFICIENT_CREDITS_MESSAGE = "Sorry, I couldn't get that to you properly; it looks like a technical issue on my end. Maybe you could try refilling your credits balance? This should fix it.";
+const INSUFFICIENT_CREDITS_MESSAGE = "Sorry, I couldn't get that properly; it looks like a technical issue on my end. Maybe you could try refilling your credits balance? This should fix it.";
 const BILLING_URL = "https://console.unify.ai/billing";
 
 export function useAssistantChat(
@@ -74,6 +74,7 @@ export function useAssistantChat(
                     assistantName: assistantFirstName,
                     assistantAge: assistantAge,
                     assistantBio: assistantBio,
+                    type: 'hire',
                 }),
             });
 

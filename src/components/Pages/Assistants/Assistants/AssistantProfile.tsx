@@ -1,13 +1,9 @@
 import * as React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { Button } from "@/components/UI/button";
-import { Label } from "@/components/UI/label";
-import { Separator } from "@/components/UI/separator";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine } from "lucide-react";
+import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, Smartphone, MessageSquare, Maximize2, Minus } from "lucide-react";
 import { WhatsApp } from '@mui/icons-material';
-import type { Assistant } from '@/types/assistants/assistant';
+import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/UI/scroll-area';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -19,27 +15,61 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import Markdown from 'react-markdown';
 import { AssistantPhotoViewer } from './Hire/AssistantHirePhotoPreview';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
+import { ChatMessage } from '@/types/assistants/chat';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
+    assistantActions: AssistantActions;
     onClose: () => void;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
+    chatHistories: Record<string, ChatMessage[]>;
+    setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
 }
+
+const AccordionTriggerWithButtons = React.forwardRef<
+    React.ElementRef<typeof AccordionTrigger>,
+    React.ComponentPropsWithoutRef<typeof AccordionTrigger> & {
+        buttonSlot?: React.ReactNode;
+    }
+>(({ children, buttonSlot, ...props }, ref) => (
+    <AccordionTrigger
+        ref={ref}
+        {...props}
+        className="hover:no-underline py-3.5 border-b"
+        hideChevron
+    >
+        <div className="flex items-center justify-between w-full px-4">
+            <div className="flex-grow text-left">{children}</div>
+            <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                {buttonSlot}
+            </div>
+        </div>
+    </AccordionTrigger>
+));
+AccordionTriggerWithButtons.displayName = AccordionTrigger.displayName;
+
 
 export function AssistantProfilePanel({
     assistant,
+    assistantActions,
     onClose,
     onDeleteAssistant,
     onEdit,
+    chatHistories,
+    setChatHistories,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
+    const [isChatMaximized, setIsChatMaximized] = React.useState(false);
 
     const handleDeleteConfirm = async () => {
         if (!assistant || isDeleting) return;
@@ -66,117 +96,139 @@ export function AssistantProfilePanel({
         <>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                 <div className="h-full flex flex-col w-full bg-background">
-                    {/* Header */}
-                    <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
-                        <div className='flex items-center justify-between'>
-                            <h2 className="text-lg font-semibold">{`${displayName}'s profile`}</h2>
-                            <div className="flex items-center gap-1">
-                                <TooltipProvider delayDuration={100}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
-                                                <PenLine className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                            <p>Edit Assistant</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-
-                                <TooltipProvider delayDuration={100}>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                            <p>Close Profile</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        </div>
-                    </div>
-
-                    <ScrollArea className="flex-1">
-                        <div className="py-4 sm:py-6 space-y-6">
-                            {/* Basic Info */}
-                            <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
-                                <Popover open={isVideoPopoverOpen} onOpenChange={setIsVideoPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                         <div className="relative group cursor-pointer flex-shrink-0">
-                                             <AssistantPhotoViewer
-                                                photoUrl={photoSrc}
-                                                className="flex-shrink-0"
-                                                avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
-                                                fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-                                             />
-                                            {videoSrc && <div className="absolute -z-10 top-0 left-0 h-full w-full rounded-lg bg-muted-foreground/20 transform -translate-x-2 -translate-y-2 transition-transform duration-200 ease-in-out group-data-[state=open]:translate-x-0 group-data-[state=open]:translate-y-0" />}
-                                         </div>
-                                    </PopoverTrigger>
-                                     {videoSrc && (
-                                        <PopoverContent side="bottom" align="start" sideOffset={-120} alignOffset={-40} className="p-0 border-none bg-transparent w-40 h-40 shadow-none">
-                                             <video
-                                                src={videoSrc}
-                                                autoPlay
-                                                playsInline
-                                                onEnded={()=> setIsVideoPopoverOpen(false)}
-                                                className="w-full h-full rounded-lg shadow-xl object-cover"
-                                             />
-                                        </PopoverContent>
-                                     )}
-                                </Popover>
-                                <div className="grid grid-cols-2 gap-x-4 pt-1 text-sm flex-1">
-                                    <Label className="text-muted-foreground">First Name</Label>
-                                    <span>{assistant.first_name}</span>
-                                    <Label className="text-muted-foreground">Last Name</Label>
-                                    <span>{assistant.surname}</span>
-                                    <Label className="text-muted-foreground">Age</Label>
-                                    <span>{assistant.age ?? 'N/A'}</span>
-                                    <Label className="text-muted-foreground">Region</Label>
-                                    <span>{assistant.region ?? 'N/A'}</span>
+                    
+                    <Accordion type="multiple" defaultValue={["profile", "chat"]} className="w-full flex-1 flex flex-col min-h-0">
+                        {/* Profile Section */}
+                        <AccordionItem value="profile">
+                            <AccordionTriggerWithButtons
+                                className="text-base font-semibold px-4 py-3"
+                                buttonSlot={
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
+                                                    <PenLine className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>Edit Assistant</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                }
+                            >
+                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                    <User className="h-4 w-4" />
+                                    <span>{`${assistant.first_name}'s Profile`}</span>
                                 </div>
-                            </div>
-
-                            <Separator />
-
-                            {/* About Section */}
-                            <div className="px-4 sm:px-6 space-y-2 group">
-                                <Label className="text-base font-semibold">About Me</Label>
-                                <div className="text-sm text-muted-foreground prose prose-sm max-w-none prose-p:my-1">
-                                    <Markdown>{assistant.about || "No description provided."}</Markdown>
-                                </div>
-                            </div>
-
-                            <Separator />
-
-                            {/* Assistant Contact Section */}
-                            <div className="px-4 sm:px-6 space-y-3 group/assistant-contact">
-                                <h3 className="text-base font-semibold">My Contact</h3>
-                                <div className="space-y-4 text-sm">
-                                    <div className="flex items-center gap-3">
-                                        <Mail className="h-4 w-4 text-muted-foreground" />
-                                        <span className="truncate">{assistant.email || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Phone className="h-4 w-4 text-muted-foreground" />
-                                        <span>{assistant.phone || 'N/A'}</span>
-                                    </div>
-                                    {assistant.assistant_whatsapp_number && (
-                                        <div className="flex items-center gap-3">
-                                            <WhatsApp className="h-4 w-4 text-muted-foreground" />
-                                            <span>{assistant.assistant_whatsapp_number}</span>
+                            </AccordionTriggerWithButtons>
+                            <AccordionContent>
+                                <div className="space-y-6 pt-4 pb-6">
+                                    <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
+                                        <Popover open={isVideoPopoverOpen} onOpenChange={setIsVideoPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <div className="relative group cursor-pointer flex-shrink-0">
+                                                    <AssistantPhotoViewer
+                                                        photoUrl={photoSrc}
+                                                        className="flex-shrink-0"
+                                                        avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
+                                                        fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+                                                    />
+                                                    {videoSrc && <div className="absolute -z-10 top-0 left-0 h-full w-full rounded-lg bg-muted-foreground/20 transform -translate-x-2 -translate-y-2 transition-transform duration-200 ease-in-out group-data-[state=open]:translate-x-0 group-data-[state=open]:translate-y-0" />}
+                                                </div>
+                                            </PopoverTrigger>
+                                            {videoSrc && (
+                                                <PopoverContent side="bottom" align="start" sideOffset={-120} alignOffset={-40} className="p-0 border-none bg-transparent w-40 h-40 shadow-none">
+                                                    <video
+                                                        src={videoSrc}
+                                                        autoPlay
+                                                        playsInline
+                                                        onEnded={()=> setIsVideoPopoverOpen(false)}
+                                                        className="w-full h-full rounded-lg shadow-xl object-cover"
+                                                    />
+                                                </PopoverContent>
+                                            )}
+                                        </Popover>
+                                        <div className="grid grid-cols-2 gap-x-4 pt-1 text-sm flex-1">
+                                            <span className="text-muted-foreground">First Name</span>
+                                            <span>{assistant.first_name}</span>
+                                            <span className="text-muted-foreground">Last Name</span>
+                                            <span>{assistant.surname}</span>
+                                            <span className="text-muted-foreground">Age</span>
+                                            <span>{assistant.age ?? 'N/A'}</span>
+                                            <span className="text-muted-foreground">Region</span>
+                                            <span>{assistant.region ?? 'N/A'}</span>
                                         </div>
-                                    )}
+                                    </div>
+                                    <div className="px-4 sm:px-6 space-y-2 group">
+                                        <h3 className="text-sm font-semibold">About Me</h3>
+                                        <div className="text-sm text-muted-foreground prose prose-sm max-w-none prose-p:my-1">
+                                            <Markdown>{assistant.about || "No description provided."}</Markdown>
+                                        </div>
+                                    </div>
+                                    <div className="px-4 sm:px-6 space-y-3 group/assistant-contact">
+                                        <h3 className="text-sm font-semibold">My Contact</h3>
+                                        <div className="space-y-4 text-sm">
+                                            <div className="flex items-center gap-3">
+                                                <Mail className="h-4 w-4 text-muted-foreground" />
+                                                <span className="truncate">{assistant.email || 'N/A'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                                <span>{assistant.phone || 'N/A'}</span>
+                                            </div>
+                                            {assistant.assistant_whatsapp_number && (
+                                                <div className="flex items-center gap-3">
+                                                    <WhatsApp className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{assistant.assistant_whatsapp_number}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </ScrollArea>
-
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        {/* Chat Section */}
+                        <AccordionItem value="chat" className="flex-1 flex flex-col min-h-0">
+                            <AccordionTriggerWithButtons
+                                className="text-base font-semibold px-4 py-3"
+                                buttonSlot={
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsChatMaximized(true)}>
+                                                    <Maximize2 className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>Maximize Chat</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                }
+                            >
+                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span>Chat with {assistant.first_name}</span>
+                                </div>
+                            </AccordionTriggerWithButtons>
+                             <AccordionContent
+                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0"
+                                className="p-0 flex-1 min-h-0 flex"
+                            >
+                                <AssistantProfileChatPanel 
+                                    assistant={assistant} 
+                                    assistantActions={assistantActions} 
+                                    chatHistories={chatHistories}
+                                    setChatHistories={setChatHistories}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                    
                     {/* Footer Action Buttons */}
-                    <div className="px-4 py-3 sm:px-6 sm:py-4 border-t flex justify-end items-center flex-shrink-0">
+                    <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-end items-center flex-shrink-0">
                         <AlertDialogTrigger asChild>
                             <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
                                 {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
@@ -215,6 +267,27 @@ export function AssistantProfilePanel({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <Dialog open={isChatMaximized} onOpenChange={setIsChatMaximized}>
+                <DialogContent className="max-w-6xl h-[80vh] flex flex-col p-0 gap-0" hideClose >
+                     <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
+                        <div className="flex items-start justify-between">
+                            <DialogTitle>Chat with {displayName}</DialogTitle>
+                            <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0 -mt-1" onClick={() => setIsChatMaximized(false)}>
+                                <Minus className="h-4 w-4" />
+                                <span className="sr-only">Minimize Chat</span>
+                            </Button>
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 min-h-0">
+                        <AssistantProfileChatPanel 
+                            assistant={assistant} 
+                            assistantActions={assistantActions}
+                            chatHistories={chatHistories}
+                            setChatHistories={setChatHistories}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
