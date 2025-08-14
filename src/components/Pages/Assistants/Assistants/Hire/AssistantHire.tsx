@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X } from 'lucide-react'; // Added icons
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X, MessageSquare } from 'lucide-react';
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -349,6 +349,20 @@ export function AssistantHire ({
                         <span className="font-semibold">{totalOnboardingFee.toFixed(2)} Credits</span>
                     </div>
                     <div className="flex items-center gap-2">
+                        {isUserApproved &&
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsAssistantPresetsOpen(true);
+                                    setRightPanelView('chat');
+                                }}
+                                disabled={isAssistantPresetsOpen && rightPanelView === 'chat'}
+                            >
+                                <MessageSquare className="h-4 w-4" />
+                                Chat Now
+                            </Button>
+                        }
                         <Popover
                             modal={true} 
                             open={showInsufficientFundsHint && isUserApproved} 
