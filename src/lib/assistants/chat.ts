@@ -76,7 +76,7 @@ export const updateTranscripts = async (apiKey: string) => {
         try {
             const entries = messages.map(msg => ({
                 sender_id: msg.role === 'user' ? 1 : 0,
-                receiver_id: msg.role === 'user' ? 0 : 1,
+                receiver_ids: [msg.role === 'user' ? 0 : 1],
                 content: msg.content,
                 medium: "unify_chat",
                 timestamp: msg.timestamp.toISOString(),

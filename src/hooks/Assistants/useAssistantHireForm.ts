@@ -592,7 +592,7 @@ export function useAssistantHireForm(
                 ?.map(msg => ({
                     medium: "unify_chat" as const,
                     sender_id: msg.role === 'user' ? 1 : 0,
-                    receiver_id: msg.role === 'user' ? 0 : 1,
+                    receiver_ids: [msg.role === 'user' ? 0 : 1],
                     timestamp: msg.timestamp.toISOString(),
                     content: msg.content,
                     exchange_id: 0 as const,
