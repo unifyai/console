@@ -54,6 +54,7 @@ export const getTranscripts = async (apiKey: string) => {
                         role: entries.sender_id === 1 ? 'user' : 'assistant',
                         content: entries.content,
                         timestamp: new Date(timestamp as string),
+                        message_id: typeof entries.message_id === 'number' ? entries.message_id : undefined,
                     };
                 })
                 .filter((msg): msg is ChatMessage => msg !== null);
@@ -75,6 +76,7 @@ export const updateTranscripts = async (apiKey: string) => {
         
         try {
             const entries = messages.map(msg => ({
+                message_id: msg.message_id,
                 sender_id: msg.role === 'user' ? 1 : 0,
                 receiver_ids: [msg.role === 'user' ? 0 : 1],
                 content: msg.content,

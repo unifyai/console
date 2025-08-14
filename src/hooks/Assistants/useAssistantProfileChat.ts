@@ -39,8 +39,46 @@ export function useAssistantProfileChat(
         if (!assistant) return;
         // Create context from first and last name, removing all whitespace
         const context = `${assistant.first_name}${assistant.surname}`;
+        let startMessageId = 0;
+        let shouldLogMessageId = true;
+
         try {
-            await assistantActions.chat.updateTranscripts(context, newMessages);
+            // Fetch existing transcripts to find the last message_id
+            const historyResult = await assistantActions.chat.getTranscripts(context);
+
+            if ('detail' in historyResult) {
+                // This is an error response. Don't log message_id.
+                console.error("Failed to fetch chat history for logging:", historyResult.detail);
+                shouldLogMessageId = false;
+            } else {
+                const historicalMessages = historyResult as ChatMessage[];
+                if (historicalMessages.length > 0) {
+                    // Sort by timestamp just in case they are out of order
+                    historicalMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+                    const lastMessage = historicalMessages[historicalMessages.length - 1];
+                    if (typeof lastMessage.message_id === 'number') {
+                        startMessageId = lastMessage.message_id + 1;
+                    }
+                }
+            }
+        } catch (error) {
+            // Catch any other exceptions during fetch
+            console.error("Exception while fetching chat history for logging:", error);
+            shouldLogMessageId = false;
+        }
+
+        // Prepare messages with or without message_id
+        const messagesToLog = newMessages.map((msg, index) => {
+            if (shouldLogMessageId) {
+                return { ...msg, message_id: startMessageId + index };
+            }
+            // Exclude message_id if there was an error
+            const { message_id, ...rest } = msg as ChatMessage;
+            return rest;
+        });
+
+        try {
+            await assistantActions.chat.updateTranscripts(context, messagesToLog);
         } catch (error) {
             console.error("Failed to log chat history:", error);
             // Non-critical, so we don't show a user-facing toast

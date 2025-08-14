@@ -589,7 +589,8 @@ export function useAssistantHireForm(
             
             // Transform chat history for logging
             const preHireChatPayload: PreHireChatMessage[] | undefined = chatHistory
-                ?.map(msg => ({
+                ?.map((msg, index) => ({
+                    message_id: index,
                     medium: "unify_chat" as const,
                     sender_id: msg.role === 'user' ? 1 : 0,
                     receiver_ids: [msg.role === 'user' ? 0 : 1],

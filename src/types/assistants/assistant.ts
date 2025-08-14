@@ -5,6 +5,7 @@ import { ChatMessage } from "./chat";
 
 // New type for the pre_hire_chat payload
 export interface PreHireChatMessage {
+  message_id: number;
   medium: "unify_chat";
   sender_id: 0 | 1; // 0 for assistant, 1 for user
   receiver_ids: (0 | 1)[]; // 0 for assistant, 1 for user
