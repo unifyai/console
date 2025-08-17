@@ -51,8 +51,11 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
     const bubbleContent = () => {
         if (!isUser && isLoading && !message) {
             return (
-                <div className="flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <div className="flex items-center space-x-1 px-2 text-muted-foreground">
+                    <span className="text-sm">Typing</span>
+                    <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce"></span>
                 </div>
             );
         }
