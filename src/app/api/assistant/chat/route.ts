@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/user/user";
 import { getTranscripts } from "@/lib/assistants/chat";
 import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage } from "@/types/assistants/chat";
 
-type ChatRequestType = 'hire' | 'profile';
+type ChatRequestType = 'hire' | 'profile' | 'post-hire-greeting';
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,8 +18,51 @@ export async function POST(request: NextRequest) {
         const userName = user.name || "the user";
 
         // `messages` here is the full client-side session history
-        const { messages, assistantName, assistantAge, assistantBio, assistantRegion, assistantId, type } = await request.json();
+        const { messages, assistantName, assistantAge, assistantBio, assistantRegion, assistantId, type, preHireChat } = await request.json();
         const chatType: ChatRequestType = type || 'hire';
+
+        // generate post hire greeting
+        if (chatType === 'post-hire-greeting') {
+            const hasPreHireChat = preHireChat && Array.isArray(preHireChat) && preHireChat.length > 0;
+            let greetingSystemPrompt: string;
+            const displayName = assistantName.replace(/([A-Z])/g, ' $1').trim();
+
+            if (hasPreHireChat) {
+                // Case B: Hired with pre-hire chat
+                const chatHistoryString = preHireChat.map((m: any) => `${m.role === 'user' ? userName : displayName}: ${m.content}`).join('\n');
+                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired after a brief chat with them. Here is your profile: Age ${assistantAge || 'ageless'}, from ${assistantRegion || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Here is the transcript of the pre-hire chat:\n\n${chatHistoryString}\n\nBased on your profile, bio, and this prior conversation, generate a short (2-3 sentences), friendly, and enthusiastic message to ${userName} expressing your excitement to start working together.`;
+            } else {
+                // Case A: Hired without pre-hire chat
+                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantRegion || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
+            }
+
+            const greetingMessages: ChatCompletionMessage[] = [{ role: "system", content: greetingSystemPrompt }];
+
+            const url = `${process.env.ORCHESTRA_URL}/v0/chat/completions`;
+            const payload: ChatCompletionRequest = {
+                model: "gpt-4o-mini@openai",
+                messages: greetingMessages,
+                stream: false, // This is a non-streaming request
+            };
+
+            const orchestraResponse = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+                body: JSON.stringify(payload),
+            });
+
+            const responseData = await orchestraResponse.json();
+
+            if (!orchestraResponse.ok) {
+                 console.error(`[API /api/assistant/chat GREETING] Orchestra API Error:`, responseData);
+                 return new NextResponse(JSON.stringify({ detail: responseData.detail || "Upstream API error" }), {
+                    status: orchestraResponse.status, headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            const content = responseData.choices?.[0]?.message?.content;
+            return NextResponse.json({ content });
+        }
 
         if (!messages || !Array.isArray(messages)) {
             return new NextResponse(JSON.stringify({ detail: "Invalid request body: messages are required." }), { 

@@ -43,6 +43,9 @@ interface AssistantProfileChatPanelProps {
     assistantActions: AssistantActions;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    isFirstView?: boolean;
+    preHireChat?: ChatMessage[];
+    onFirstViewCompleted?: () => void;
 }
 
 
@@ -51,12 +54,23 @@ export function AssistantProfileChatPanel({
     assistantActions,
     chatHistories,
     setChatHistories,
+    isFirstView,
+    preHireChat,
+    onFirstViewCompleted,
 }: AssistantProfileChatPanelProps) {
     
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
 
-    const { messages, inputValue, isLoading, handleInputChange, sendMessage } = useAssistantProfileChat(assistant, assistantActions, chatHistories, setChatHistories);
+    const { messages, inputValue, isLoading, handleInputChange, sendMessage } = useAssistantProfileChat(
+        assistant, 
+        assistantActions, 
+        chatHistories, 
+        setChatHistories,
+        isFirstView,
+        preHireChat,
+        onFirstViewCompleted
+    );
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {

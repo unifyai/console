@@ -10,7 +10,10 @@ export function useAssistantProfileChat(
     assistant: Assistant | null,
     assistantActions: AssistantActions,
     chatHistories: Record<string, ChatMessage[]>,
-    setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
+    setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
+    isFirstView?: boolean,
+    preHireChat?: ChatMessage[],
+    onFirstViewCompleted?: () => void,
 ) {
     const assistantId = assistant?.agent_id || null;
     const messages = assistantId ? chatHistories[assistantId] || [] : [];
@@ -18,18 +21,7 @@ export function useAssistantProfileChat(
     const [inputValue, setInputValue] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
 
-    React.useEffect(() => {
-        if (assistantId && !chatHistories[assistantId]) {
-            const initialMessage: ChatMessage = {
-                id: uuidv4(),
-                role: 'assistant',
-                content: `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`,
-                timestamp: new Date(),
-            };
-            setChatHistories(prev => ({ ...prev, [assistantId]: [initialMessage] }));
-        }
-    }, [assistantId, chatHistories, setChatHistories]);
-
+    const firstViewProcessed = React.useRef(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
@@ -84,6 +76,104 @@ export function useAssistantProfileChat(
             // Non-critical, so we don't show a user-facing toast
         }
     };
+
+    React.useEffect(() => {
+        if (!assistantId || !assistant) return;
+
+        const hasBeenInitialized = (chatHistories[assistantId]?.length || 0) > 0;
+
+        if (isFirstView && !firstViewProcessed.current) {
+            firstViewProcessed.current = true;
+            const generateAndSetGreeting = async () => {
+                setIsLoading(true);
+                const initialHistory = preHireChat || [];
+                setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
+
+                try {
+                    const response = await fetch('/api/assistant/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'post-hire-greeting',
+                            assistantId: assistant.agent_id,
+                            assistantName: `${assistant.first_name} ${assistant.surname}`,
+                            assistantAge: assistant.age,
+                            assistantBio: assistant.about,
+                            assistantRegion: assistant.region,
+                            preHireChat: preHireChat?.map(({ role, content }) => ({ role, content }))
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.detail || "Failed to generate greeting.");
+                    }
+
+                    const { content } = await response.json();
+                    if (!content) throw new Error("LLM returned an empty greeting.");
+
+                    const greetingMessage: ChatMessage = { id: uuidv4(), role: 'assistant', content, timestamp: new Date() };
+                    const messageToLog: Omit<ChatMessage, 'id'> = { role: greetingMessage.role, content: greetingMessage.content, timestamp: greetingMessage.timestamp };
+                    
+                    logMessagesToHistory([messageToLog]);
+                    setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, greetingMessage] }));
+
+                } catch (error) {
+                    console.error("Failed to generate post-hire greeting:", error);
+                    const fallbackMessage: ChatMessage = {
+                        id: uuidv4(),
+                        role: 'assistant',
+                        content: `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`,
+                        timestamp: new Date(),
+                    };
+                    const fallbackToLog: Omit<ChatMessage, 'id'> = { role: fallbackMessage.role, content: fallbackMessage.content, timestamp: fallbackMessage.timestamp };
+
+                    // Only log the fallback if there wasn't a pre-hire chat to avoid confusion
+                    if (!preHireChat || preHireChat.length === 0) {
+                        logMessagesToHistory([fallbackToLog]);
+                    }
+                    setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, fallbackMessage] }));
+                } finally {
+                    setIsLoading(false);
+                    onFirstViewCompleted?.();
+                }
+            };
+            generateAndSetGreeting();
+        } else if (!isFirstView && !hasBeenInitialized) {
+            // Case C: Existing assistant, fetch history
+            setIsLoading(true);
+            const context = `${assistant.first_name}${assistant.surname}`;
+            assistantActions.chat.getTranscripts(context)
+                .then(historyResult => {
+                    if ('detail' in historyResult) {
+                        console.error(historyResult.detail);
+                        setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                    } else {
+                        const last10 = (historyResult as ChatMessage[]).slice(-10).reverse();
+                        setChatHistories(prev => ({ ...prev, [assistantId]: last10 }));
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching transcripts:", err);
+                    setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
+        } else if (!isFirstView) {
+            // Reset the ref if it's no longer the first view (e.g., user re-opens profile later)
+            firstViewProcessed.current = false;
+        }
+    }, [
+        assistantId,
+        assistant,
+        isFirstView,
+        preHireChat,
+        onFirstViewCompleted,
+        chatHistories,
+        setChatHistories,
+        assistantActions.chat
+    ]);
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();

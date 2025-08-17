@@ -32,6 +32,9 @@ interface AssistantProfilePanelProps {
     onEdit: (assistant: Assistant) => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    isFirstView?: boolean;
+    preHireChat?: ChatMessage[];
+    onFirstViewCompleted?: () => void;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -65,6 +68,9 @@ export function AssistantProfilePanel({
     onEdit,
     chatHistories,
     setChatHistories,
+    isFirstView,
+    preHireChat,
+    onFirstViewCompleted,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -222,6 +228,9 @@ export function AssistantProfilePanel({
                                     assistantActions={assistantActions} 
                                     chatHistories={chatHistories}
                                     setChatHistories={setChatHistories}
+                                    isFirstView={isFirstView}
+                                    preHireChat={preHireChat}
+                                    onFirstViewCompleted={onFirstViewCompleted}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -284,6 +293,9 @@ export function AssistantProfilePanel({
                             assistantActions={assistantActions}
                             chatHistories={chatHistories}
                             setChatHistories={setChatHistories}
+                            isFirstView={isFirstView}
+                            preHireChat={preHireChat}
+                            onFirstViewCompleted={onFirstViewCompleted}
                         />
                     </div>
                 </DialogContent>

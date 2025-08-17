@@ -13,7 +13,7 @@ import { ChatMessage } from '@/types/assistants/chat';
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
     registeredVoices: VoiceOption[],
-    onHireSuccess?: (newAssistant: Assistant) => void,
+    onHireSuccess?: (newAssistant: Assistant, chatHistory?: ChatMessage[]) => void,
     onUpdateSuccess?: () => void,
     isDialogOpen?: boolean,
     availableSocialPlatforms: AvailableSocialPlatform[] = []
@@ -616,7 +616,7 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
-                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant);
+                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, chatHistory);
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);

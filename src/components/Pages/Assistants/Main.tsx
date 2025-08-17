@@ -124,6 +124,7 @@ export default function Main({
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
+    const [newlyHiredInfo, setNewlyHiredInfo] = React.useState<{ assistant: Assistant; preHireChat?: ChatMessage[] } | null>(null);
     const [profileChatHistories, setProfileChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
@@ -168,10 +169,11 @@ export default function Main({
     } = useVoiceOptions(assistantActions.voice);
 
     // --- Callbacks for form success ---
-    const handleHireSuccess = React.useCallback((newAssistant: Assistant) => {
+    const handleHireSuccess = React.useCallback((newAssistant: Assistant, preHireChat?: ChatMessage[]) => {
         refreshAssistants(false);
         fetchUserVoices();
         setIsHireDialogOpen(false);
+        setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
         handleShowProfile(newAssistant.agent_id);
         refreshHiringProfile();
     }, [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]);
@@ -305,6 +307,7 @@ export default function Main({
     const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
     
     // Determine active panel for width calculations
+    const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
     const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
     const assistantListWidth = isAssistantListFolded ? "w-20"
                              : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
@@ -354,6 +357,9 @@ export default function Main({
                                 onEdit={handleOpenEditDialog}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
+                                isFirstView={isFirstViewAfterHire}
+                                preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
+                                onFirstViewCompleted={() => setNewlyHiredInfo(null)}
                             />
                         </motion.div>
                     )}
