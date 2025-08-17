@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, Smartphone, MessageSquare, Maximize2, Minus } from "lucide-react";
+import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, Smartphone, MessageSquare, Maximize2, Minus, ExternalLink } from "lucide-react";
+import { SiGooglemeet } from "react-icons/si";
 import { WhatsApp } from '@mui/icons-material';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
@@ -93,6 +94,26 @@ export function AssistantProfilePanel({
     };
 
     if (!assistant) return null;
+
+    const handleStartMeet = () => {
+        if (!assistant.email) return;
+
+        const now = new Date();
+        const startTime = new Date(now.getTime());
+        const endTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+
+        // Format dates to YYYYMMDDTHHMMSSZ as required by Google Calendar
+        const formatDate = (date: Date) => date.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
+
+        const calendarUrl = new URL('https://calendar.google.com/calendar/render');
+        calendarUrl.searchParams.append('action', 'TEMPLATE');
+        calendarUrl.searchParams.append('text', `Meeting with ${assistant.first_name} ${assistant.surname}`);
+        calendarUrl.searchParams.append('dates', `${formatDate(startTime)}/${formatDate(endTime)}`);
+        calendarUrl.searchParams.append('add', assistant.email);
+        calendarUrl.searchParams.append('details', 'Generated from Assistant Console.');
+
+        window.open(calendarUrl.toString(), '_blank', 'noopener,noreferrer');
+    };
 
     const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
     const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
@@ -187,6 +208,28 @@ export function AssistantProfilePanel({
                                                 <div className="flex items-center gap-3">
                                                     <WhatsApp className="h-4 w-4 text-muted-foreground" />
                                                     <span>{assistant.assistant_whatsapp_number}</span>
+                                                </div>
+                                            )}
+                                            {assistant.email && (
+                                                <div className="flex items-center gap-3">
+                                                    <SiGooglemeet className="h-4 w-4 text-muted-foreground" />
+                                                    <TooltipProvider delayDuration={100}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="w-fit items-center flex"
+                                                                    onClick={handleStartMeet}
+                                                                >
+                                                                    Start Google Meet
+                                                                    <ExternalLink/>
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right"><p>Schedules a new meeting and invites {assistant.first_name}.</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                 </div>
                                             )}
                                         </div>
