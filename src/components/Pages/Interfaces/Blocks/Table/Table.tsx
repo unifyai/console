@@ -852,12 +852,12 @@ const LogsTable = ({
                 />}
                 <SettingButton
                   tooltip="Reset column widths"
-                  icon={<StretchHorizontal className="h-4 w-4" />}
+                  icon={<StretchVertical className="h-4 w-4" />}
                   onClick={resetColumnSizing}
-                />
+                  />
                 <SettingButton
                     tooltip="Reset row heights"
-                    icon={<StretchVertical className="h-4 w-4" />}
+                    icon={<StretchHorizontal className="h-4 w-4" />}
                     onClick={resetRowSizing}
                 />
                 <SettingButton
