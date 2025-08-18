@@ -35,7 +35,7 @@ import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({ assistantActions }) => {
-    const { control, getValues, setValue, formState: { errors } } = useFormContext<AssistantFormData>();
+    const { control, getValues, setValue, formState: { errors }, register } = useFormContext<AssistantFormData>();
 
     const phoneFieldNames = React.useMemo(() => ({
         identifier: 'user_phone' as 'user_phone',
@@ -76,18 +76,16 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     const phoneValue = useWatch({ control, name: 'user_phone' });
     const isSubmitting = useFormContext<AssistantFormData>().formState.isSubmitting;
 
-    const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setValue('user_phone', newValue, { shouldDirty: true });
-        if (getValues('user_phone_isVerified')) {
-            setValue('user_phone_isVerified', false, { shouldDirty: true });
-        }
-    };
-
     return (
         <div className="space-y-2">
              <div className="flex items-center gap-2">
-                <Input id="user_phone" type="tel" value={phoneValue || ''} placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} onChange={handlePhoneInputChange} />
+                <Input id="user_phone" type="tel" placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} {...register('user_phone', {
+                    pattern: {
+                        value: /^\+[1-9]\d{7,14}$/,
+                        message: "Please enter a valid number (e.g., +15551234567). Make sure there are no extra whitespace."
+                    },
+                    onChange: () => { if (getValues('user_phone_isVerified')) { setValue('user_phone_isVerified', false, { shouldDirty: true }); } }
+                })} />
                 {isPhoneVerified ? (
                      <Button type="button" variant="default" className="h-9" disabled>
                         <CheckCircle2 className="mr-2 h-4 w-4" /> Verified

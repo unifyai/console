@@ -40,6 +40,7 @@ export function useAssistantHireForm(
     const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
     const hireFormMethods = useForm<AssistantFormData>({
+        mode: 'onChange',
         defaultValues: {
             first_name: '', surname: '', age: null, region: 'United States', about: '',
             email: initialEmail,
