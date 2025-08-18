@@ -421,6 +421,7 @@ export interface UpdateTabRequest {
     order?: number;
     global_context?: string;
     color?: string;
+    icon?: string;
 }
 
 export interface CreateInterfaceRequest extends BaseInterfaceTemplateSchema {
@@ -432,6 +433,7 @@ export interface UpdateInterfaceRequest {
     name?: string;
     active_tab_id?: string;
     color?: string;
+    icon?: string;
 }
 
 // Validation schemas
@@ -561,6 +563,7 @@ export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,
     rename: (name: string, newName: string) => Promise<ResponseProps>,
+    update: (name: string, data: { icon?: string }) => Promise<ResponseProps>,
     delete: (name: string) => Promise<ResponseProps>,
     exportTemplate: (params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }>,
     importTemplate: (template: ProjectTemplateSchema, options: Omit<ImportProjectTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>

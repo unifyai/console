@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../
 import ActionButton from "../../../Common/Buttons/Action";
 import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
 import InterfaceButtons from "./Buttons/InterfaceButtons";
-import InterfaceTabs from "./InterfaceTabs";
+// import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
@@ -549,20 +549,22 @@ const Interface = ({
         initialFavourites={initialFavourites}
         setIsSwitchingInterface={setIsSwitchingInterface}
         onAddTile={handleSidebarAddTile}
+        fieldsActions={fieldsActions}
+        syncedInterfaceUIActions={syncedInterfaceUIActions}
       />
       
       {/* Main Content Area */}
       <div 
         className="h-full transition-all duration-300"
         style={{
-          marginLeft: isNavCollapsed ? '48px' : '256px'
+          marginLeft: 'var(--interface-nav-width, 256px)'
         }}
       >
         <div className="relative flex-1 min-w-0 h-full">
         {(isSwitchingInterface || isRefreshingInterface) && (
           <div
             className="fixed bottom-0 right-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
-            style={{ left: isNavCollapsed ? '48px' : '256px', top: '3rem' }}
+            style={{ left: 'var(--interface-nav-width, 256px)', top: '3rem' }}
           >
             <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -732,8 +734,8 @@ const Interface = ({
               <div style={{ height: '10rem' }} className="w-full" />
             </div>
 
-            {/* Floating Bottom Tab Bar */}
-            {projectQueryParam && interfaceQueryParam && (
+            {/* Floating Bottom Tab Bar - HIDDEN: Using sidebar navigation for tabs instead */}
+            {/* {projectQueryParam && interfaceQueryParam && (
               <div 
                 className={cn(
                   "fixed bottom-0 z-40 pointer-events-none transform transition-all duration-500 ease-out",
@@ -764,7 +766,7 @@ const Interface = ({
                   />
                 </div>
               </div>
-            )}
+            )} */}
           </Tabs>
           
           {/* Save/Reset Overlay */}

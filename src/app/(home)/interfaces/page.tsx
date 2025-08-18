@@ -56,6 +56,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         get:            await projects.getProjects(apiKey),
         create:         await projects.createProject(apiKey),
         rename:         await projects.renameProject(apiKey),
+        update:         await projects.patchProject(apiKey),
         delete:         await projects.deleteProject(apiKey),
         exportTemplate: await projects.exportProjectAsTemplate(apiKey),
         importTemplate: await projects.importProjectFromTemplate(apiKey)

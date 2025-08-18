@@ -316,7 +316,7 @@ const InterfaceTabs = ({
                                     style={triggerStyle}
                                     key={idx}
                                     value={tabNameToShow}
-                                    className="relative flex flex-row gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold hover:bg-primary/10"
+                                    className="relative flex flex-row gap-2 text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:bg-transparent hover:bg-transparent transition-colors"
                                     
                                 >
                                     <div className="h-5 min-w-[4rem] text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
