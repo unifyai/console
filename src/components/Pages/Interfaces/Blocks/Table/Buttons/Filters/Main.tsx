@@ -93,7 +93,10 @@ const ColumnFilter = ({
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
         dataType={dataTypes[column] as "timedelta" | "timestamp" | "date" | "time"}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        />
     }
     else if (dataTypes[column] === "image") {
         filter = <ImageColumnFilter
@@ -104,7 +107,8 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        />
     }
     else if (dataTypes[column] === "bool") {
         filter = <BooleanColumnFilter
@@ -117,7 +121,10 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        />
     }
     else if (dataTypes[column] === "list"){
         filter = <ListColumnFilter
@@ -130,7 +137,10 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        />
     }
     else {
         filter = <StringColumnFilter
@@ -143,7 +153,10 @@ const ColumnFilter = ({
         filterLoading={filterLoading}
         setFilterLoading={setFilterLoading}
         setIsFiltered={setIsFiltered}
-        renderMode={renderMode}/>
+        renderMode={renderMode}
+        entriesProperties={entriesProperties}
+        paramsProperties={paramsProperties}
+        />
     }
 
     return filter;

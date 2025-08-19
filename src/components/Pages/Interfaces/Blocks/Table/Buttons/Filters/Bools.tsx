@@ -1,12 +1,12 @@
 "use client";
 
-import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction } from "react";
+import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction, useMemo } from "react";
 import { Filters, FiltersByColumn } from "@/types/interfaces/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import BaseButton from "@/components/Common/Buttons/Base";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { Filter, Plus, Minus, Trash, CircleX, LoaderCircle, ChevronRightIcon, X } from "lucide-react";
+import { Filter, Plus, Minus, Trash, CircleX, LoaderCircle, ChevronRightIcon, X, ListTree } from "lucide-react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { combineFilters, initFilters } from "@/utils/interfaces/table/filters";
@@ -15,6 +15,10 @@ import BaseDialog from "@/components/Common/Dialogs/Base";
 import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { SelectValue, SelectTrigger, SelectLabel, SelectContent, SelectItem, SelectGroup } from "@/components/UI/select";
 import { Select } from "@/components/UI/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs";
+import Tooltip from "@/components/Common/Misc/Tooltip";
+import FormulaInput from "@/components/Common/Input/Formula";
+import { TbMathFunction } from "react-icons/tb";
 
 interface BooleanFilter {
     key: number,
@@ -29,7 +33,7 @@ const capitalizeFirstLetter = (value: string): string => {
     return trimmedValue.charAt(0).toUpperCase() + trimmedValue.slice(1);
   };
 
-const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode }: {
+const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQuery, open, setOpen, filterLoading, setFilterLoading, setIsFiltered, renderMode, entriesProperties, paramsProperties }: {
     interactive: boolean,
     column: string,
     columnFilters: FiltersByColumn
@@ -39,11 +43,16 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     filterLoading: boolean,
     setFilterLoading: (filterLoading: boolean) => void,
     setIsFiltered: (isFiltered: boolean) => void,
-    renderMode: "button" | "menuItem"
+    renderMode: "button" | "menuItem",
+    entriesProperties: string[],
+    paramsProperties: string[],
 }) => {
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
+    const [filterMode, setFilterMode] = useState<'structured' | 'expression'>('structured');
+    const [expression, setExpression] = useState('');
+    const [warningMessage, setWarningMessage] = useState('');
 
     /* Init filters */
     const options = [
@@ -54,17 +63,109 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     const modes = options.map(option => option.name)
     let defaultFilter : BooleanFilter = {key: 0, mode: "is", join: "&&", value: "true"}
     let initialValues : BooleanFilter[] = [];
-    if (columnFilters[column]) {
-        initFilters(column, columnFilters, initialValues, modes)
-    } else {
-        initialValues.push(defaultFilter)
-    }
+
     const [filters, setFilters] = useState(initialValues);
     const isFiltered = column in columnFilters;
 
     useEffect(() => {
+        if (warningMessage) {
+            const timer = setTimeout(() => setWarningMessage(''), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [warningMessage]);
+
+    useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered, setIsFiltered])
+        const existingFilter = columnFilters[column];
+        if (existingFilter) {
+            if (typeof existingFilter.expression === 'string') {
+                setFilterMode('expression');
+                setExpression(existingFilter.expression);
+                setFilters([]); // Clear structured filters
+            } else {
+                setFilterMode('structured');
+                const initialValues: BooleanFilter[] = [];
+                initFilters(column, columnFilters, initialValues, modes);
+                setFilters(initialValues.length ? initialValues : [defaultFilter]);
+                setExpression('');
+            }
+        } else {
+            setFilterMode('structured');
+            setFilters([defaultFilter]);
+            setExpression('');
+        }
+    }, [isFiltered, setIsFiltered, columnFilters, column]);
+
+    const autocompleteOptions = useMemo(() => {
+        const allColumns = [...entriesProperties, ...paramsProperties];
+        return allColumns.map(col => ({ name: col, type: "Column Name", children: [] }));
+    }, [entriesProperties, paramsProperties]);
+
+    const structuredToExpression = (structuredFilters: BooleanFilter[]): string => {
+        if (!structuredFilters.length) return '';
+        return structuredFilters.map((filter, index) => {
+            let singleExpr = '';
+            const val = filter.value === 'true' ? 'True' : 'False';
+
+            if (filter.mode === 'exists') {
+                singleExpr = filter.value === 'true' ? `exists(${column})` : `not exists(${column})`;
+            } else if (filter.mode === 'isNone') {
+                singleExpr = filter.value === 'true' ? `isNone(${column})` : `not isNone(${column})`;
+            } else { // 'is' mode
+                singleExpr = `${column} == ${val}`;
+            }
+
+            if (index > 0) {
+                return ` ${filter.join === '&&' ? 'and' : 'or'} ${singleExpr}`;
+            }
+            return singleExpr;
+        }).filter(Boolean).join('');
+    };
+    
+    const expressionToStructured = (expr: string): BooleanFilter[] | null => {
+        if (!expr.trim()) return [];
+        const newFilters: BooleanFilter[] = [];
+        const escapedColumn = column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?:\\s*(and|or)\\s+)?\\s*\\(?\\s*(?:(?:(not)\\s+)?(exists|isNone)\\s*\\(\\s*${escapedColumn}\\s*\\)|${escapedColumn}\\s*==\\s*(True|False))\\s*\\)?`, 'gi');
+        
+        let match;
+        let key = 0;
+        let lastIndex = 0;
+    
+        while ((match = regex.exec(expr)) !== null) {
+            if (match.index > lastIndex) return null;
+            const join: '&&' | '||' = match[1] && match[1].toLowerCase() === 'or' ? '||' : '&&';
+            if (match[3]) {
+                newFilters.push({ key: key++, mode: match[3].toLowerCase() as 'exists' | 'isNone', join, value: match[2] ? 'false' : 'true' });
+            } else {
+                newFilters.push({ key: key++, mode: 'is', join, value: match[4].toLowerCase() });
+            }
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < expr.trim().length) return null;
+        if (newFilters.length > 0) newFilters[0].join = '&&';
+        return newFilters;
+    };
+
+    const handleTabChange = (newMode: 'structured' | 'expression') => {
+        if (filterMode === newMode) return;
+    
+        if (newMode === 'expression') {
+            setExpression(structuredToExpression(filters));
+            setFilterMode('expression');
+            setWarningMessage('');
+        } else {
+            const newFilters = expressionToStructured(expression);
+            if (newFilters) {
+                setFilters(newFilters.length ? newFilters : [defaultFilter]);
+                setFilterMode('structured');
+                setWarningMessage('');
+            } else {
+                setWarningMessage("Expression is invalid or too complex for structured view.");
+            }
+        }
+    };
+
 
     /* Event handlers */
     const onInput = (input: string, filter: BooleanFilter) => {
@@ -74,7 +175,13 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
     }
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters }
-        if (filters.length){
+        if (filterMode === 'expression') {
+            if (expression.trim()) {
+                newColumnFilters = { ...columnFilters, [column]: { expression: expression.trim() } };
+            } else {
+                delete newColumnFilters[column];
+            }
+        } else if (filters.length){
             const newFilters = filters.map(f => ({
                 key: f.key, 
                 mode: f.mode, 
@@ -83,8 +190,8 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             }))
             const filter : Filters = combineFilters(newFilters, modes)
             newColumnFilters = {...columnFilters, [column]: filter}
-        } else{
-            Object.fromEntries(
+        } else {
+            newColumnFilters = Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
             )
             setFilters([defaultFilter])
@@ -209,15 +316,46 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
 
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
-            {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-10 items-center">
-                    {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter)}</div>
-                    <div className="col-span-1 text-center">{remove(filter)}</div>
+             <Tabs value={filterMode} onValueChange={(v) => handleTabChange(v as any)} className="w-full">
+                <TabsList className="inline-flex">
+                     <Tooltip content={warningMessage} side="top">
+                        <TabsTrigger value="structured" disabled={!!warningMessage} className="flex gap-2 items-center">
+                            <ListTree className="w-4 h-4"/>
+                            Structured Mode
+                        </TabsTrigger>
+                    </Tooltip>
+                    <TabsTrigger value="expression" className="flex gap-2 items-center">
+                        <TbMathFunction className="w-4 h-4"/>
+                        Expression Mode
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="structured" className="pt-4 space-y-2">
+                    {filters.map((filter, index) =>
+                        <div key={index} className="grid grid-cols-10 items-center">
+                            {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                            <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter)}</div>
+                            <div className="col-span-1 text-center">{remove(filter)}</div>
+                        </div>
+                    )}
+                </TabsContent>
+                <TabsContent value="expression" className="pt-4">
+                    <div className="flex flex-col gap-2">
+                        <FormulaInput
+                            options={autocompleteOptions}
+                            value={expression}
+                            setValue={setExpression}
+                            onEnter={onEnter}
+                            withIcon={false}
+                            placeholder={`e.g. ${column} == True`}
+                            withAutocomplete={false}
+                        />
+                    </div>
+                </TabsContent>
+            </Tabs>
+            <div className="flex flex-row gap-2 justify-between items-center mt-2">
+                <div className="flex items-center gap-2">
+                    {filterMode === 'structured' && append}
                 </div>
-            )}
-            <div className="flex flex-row gap-2 justify-between">
-                {append}
                 <div className="flex flex-row gap-2 justify-end">
                     {reset}
                     {submit}

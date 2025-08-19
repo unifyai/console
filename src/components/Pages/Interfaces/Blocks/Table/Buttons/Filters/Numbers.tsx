@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, Dispatch, SetStateAction } from "react";
+import { useState, useEffect, Dispatch, SetStateAction, useMemo } from "react";
 import { Filters, FiltersByColumn } from "@/types/interfaces/columns";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import BaseButton from "@/components/Common/Buttons/Base";
-import { Filter, X } from "lucide-react";
+import { Filter, X, ListTree } from "lucide-react";
+import { TbMathFunction } from "react-icons/tb";
 import { KeyboardEventHandler } from "react";
 import InputWithStartSelect from "@/components/Common/Input/StartSelect";
 import { Input } from "@/components/UI/input";
@@ -18,7 +19,10 @@ import BaseDialog from "@/components/Common/Dialogs/Base";
 import { formatNumber } from "@/utils/interfaces/formatNumber";
 import { useTableBoundariesQuery } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useTileData } from "@/contexts/hooks";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs";
+import Tooltip from "@/components/Common/Misc/Tooltip";
 import { LogsActions } from "@/types/interfaces/grid";
+import FormulaInput from "@/components/Common/Input/Formula";
 
 interface NumericFilter {
     key: number,
@@ -85,6 +89,10 @@ const NumericColumnFilter = ({
 
     /* Display loader when data updates */
     const [spinnerColor, setSpinnerColor] = useState("white");
+    const [filterMode, setFilterMode] = useState<'structured' | 'expression'>('structured');
+    const [expression, setExpression] = useState('');
+    const [warningMessage, setWarningMessage] = useState('');
+
 
     /* Initialize filters */
     const options = [
@@ -116,27 +124,129 @@ const NumericColumnFilter = ({
 
     let defaultFilter : NumericFilter = {key: 0, mode: "==", join: "&&", value: ""}
     let initialValues : NumericFilter[] = []
-    if (columnFilters[column]) {
-        initFilters(column, columnFilters, initialValues, modes)
-    } else {
-        initialValues.push(defaultFilter)
-    }
     const [filters, setFilters] = useState(initialValues);
     const isFiltered = column in columnFilters;
 
     useEffect(() => {
+        if (warningMessage) {
+            const timer = setTimeout(() => setWarningMessage(''), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [warningMessage]);
+
+    useEffect(() => {
         setIsFiltered(isFiltered);
-    }, [isFiltered, setIsFiltered])
+        const existingFilter = columnFilters[column];
+        if (existingFilter) {
+            if (typeof existingFilter.expression === 'string') {
+                setFilterMode('expression');
+                setExpression(existingFilter.expression);
+                setFilters([]); // Clear structured filters
+            } else {
+                setFilterMode('structured');
+                const initialValues: NumericFilter[] = [];
+                initFilters(column, columnFilters, initialValues, modes);
+                setFilters(initialValues.length ? initialValues : [defaultFilter]);
+                setExpression('');
+            }
+        } else {
+            setFilterMode('structured');
+            setFilters([defaultFilter]);
+            setExpression('');
+        }
+    }, [isFiltered, setIsFiltered, columnFilters, column]);
+
+    const autocompleteOptions = useMemo(() => {
+        const allColumns = [...entriesProperties, ...paramsProperties];
+        return allColumns.map(col => ({ name: col, type: "Column Name", children: [] }));
+    }, [entriesProperties, paramsProperties]);
+
+    const structuredToExpression = (filters: NumericFilter[]): string => {
+        if (!filters.length || (filters.length === 1 && !filters[0].value.trim())) return '';
+        return filters
+            .map((filter, index) => {
+                let singleExpr = '';
+                if (!filter.value.trim() && !['exists', 'isNone'].includes(filter.mode)) {
+                    return null; // Skip empty filters, except for exists/isNone
+                }
+
+                if (filter.mode === 'exists') {
+                    singleExpr = filter.value === 'true' ? `exists(${column})` : `not exists(${column})`;
+                } else if (filter.mode === 'isNone') {
+                    singleExpr = filter.value === 'true' ? `isNone(${column})` : `not isNone(${column})`;
+                } else {
+                    singleExpr = `${column} ${filter.mode} ${filter.value}`;
+                }
+
+                if (index > 0) {
+                    return ` ${filter.join === '&&' ? 'and' : 'or'} ${singleExpr}`;
+                }
+                return singleExpr;
+            })
+            .filter(Boolean)
+            .join('');
+    };
+
+    const expressionToStructured = (expression: string): NumericFilter[] | null => {
+        if (!expression.trim()) return [];
+        const newFilters: NumericFilter[] = [];
+        const escapedColumn = column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?:\\s*(and|or)\\s+)?\\s*\\(?\\s*(?:(not\\s+)?(exists|isNone)\\s*\\(\\s*${escapedColumn}\\s*\\)|(${escapedColumn})\\s*(==|!=|>=|<=|>|<)\\s*([\\d\\.-]+))\\s*\\)?`, 'gi');
+        let match;
+        let key = 0;
+        let lastIndex = 0;
+
+        while ((match = regex.exec(expression)) !== null) {
+            if (match.index > lastIndex) return null; // Unparsable part
+            const joinStr = match[1];
+            const join: '&&' | '||' = joinStr && joinStr.toLowerCase() === 'or' ? '||' : '&&';
+            if (match[3]) { // exists or isNone
+                newFilters.push({ key: key++, mode: match[3].toLowerCase() as 'exists' | 'isNone', join, value: match[2] ? 'false' : 'true' });
+            } else { // standard operator
+                newFilters.push({ key: key++, mode: match[5] as NumericFilter['mode'], join, value: match[6] });
+            }
+            lastIndex = regex.lastIndex;
+        }
+
+        if (lastIndex < expression.trim().length) return null; // Didn't parse whole string
+        if (newFilters.length > 0) newFilters[0].join = '&&';
+        return newFilters;
+    };
+
+    const handleTabChange = (newMode: 'structured' | 'expression') => {
+        if (filterMode === newMode) return;
+
+        if (newMode === 'expression') {
+            setExpression(structuredToExpression(filters));
+            setFilterMode('expression');
+            setWarningMessage('');
+        } else {
+            const newFilters = expressionToStructured(expression);
+            if (newFilters) {
+                setFilters(newFilters.length ? newFilters : [defaultFilter]);
+                setFilterMode('structured');
+                setWarningMessage('');
+            } else {
+                setWarningMessage("Expression is invalid or too complex for structured view.");
+            }
+        }
+    };
 
     /* Event handlers */
     const onInput = (value: any, filter: NumericFilter) => {
         const newFilters = [...filters]
         newFilters.find(f => f.key === filter.key)!.value = value
         setFilters(newFilters)
-    }
+    };
     const onSubmit = () => {
         let newColumnFilters = { ...columnFilters }
-        if (filters.length){
+        if (filterMode === 'expression') {
+            if (expression.trim()) {
+                newColumnFilters = { ...columnFilters, [column]: { expression: expression.trim() } };
+            } else {
+                delete newColumnFilters[column];
+            }
+        } else if (filters.length){
             const newFilters = filters.map(f => ({
                 key: f.key, 
                 mode: f.mode, 
@@ -145,10 +255,10 @@ const NumericColumnFilter = ({
             }))
             const filter : Filters = combineFilters(newFilters, modes)
             newColumnFilters = {...columnFilters, [column]: filter}
-        } else{
-            Object.fromEntries(
+        } else {
+            newColumnFilters = Object.fromEntries(
                 Object.entries(columnFilters).filter(([key, _]) => key != column)
-            )
+            );
             setFilters([defaultFilter])
         }
         setSpinnerColor("white")
@@ -313,21 +423,51 @@ const NumericColumnFilter = ({
     
     const filterContent = (
         <div className="flex flex-col gap-3 px-2 pt-4 pb-2">
-            {filters.map((filter, index) => 
-                <div key={index} className="grid grid-cols-10 items-center">
-                    {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
-                    <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
-                    <div className="col-span-1 text-center">{remove(filter)}</div>
+            <Tabs value={filterMode} onValueChange={(v) => handleTabChange(v as any)} className="w-full">
+                <TabsList className="inline-flex">
+                     <Tooltip content={warningMessage} side="top">
+                        <TabsTrigger value="structured" disabled={!!warningMessage} className="flex gap-2 items-center">
+                            <ListTree className="w-4 h-4"/>
+                            Structured Mode
+                        </TabsTrigger>
+                    </Tooltip>
+                    <TabsTrigger value="expression" className="flex gap-2 items-center">
+                        <TbMathFunction className="w-4 h-4"/>
+                        Expression Mode
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="structured" className="pt-4 space-y-2">
+                    {filters.map((filter, index) =>
+                        <div key={index} className="grid grid-cols-10 items-center">
+                            {filters.length > 0 && filter.key != 0 && <div className="col-span-1">{join(filter)}</div>}
+                            <div className={`${filters.length > 0 && filter.key != 0 ? "col-span-8" : "col-span-9"}`}>{filterInput(filter, !["==", "!=", "exists", "isNone"].includes(filter.mode))}</div>
+                            <div className="col-span-1 text-center">{remove(filter)}</div>
+                        </div>
+                    )}
+                </TabsContent>
+                <TabsContent value="expression" className="pt-4">
+                    <div className="flex flex-col gap-2">
+                        <FormulaInput
+                            options={autocompleteOptions}
+                            value={expression}
+                            setValue={setExpression}
+                            onEnter={onEnter}
+                            withIcon={false}
+                            placeholder={`e.g. ${column} > 0 and ${column} < 100`}
+                            withAutocomplete={false}
+                        />
+                    </div>
+                </TabsContent>
+            </Tabs>
+            <div className="flex flex-row gap-2 justify-between items-center mt-2">
+                <div className="flex items-center gap-2">
+                    {filterMode === 'structured' && append}
                 </div>
-            )}
-            <div className="flex flex-row gap-2 justify-between">
-                {append}
                 <div className="flex flex-row gap-2 justify-end">
                     {reset}
                     {submit}
                 </div>
             </div>
-            {/* {close} */}
         </div>
     )
 
