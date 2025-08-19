@@ -224,11 +224,23 @@ export function filtersToExpression (columnFilters: FiltersByColumn, fields: Log
 	if (Object.keys(columnFilters).length === 0) return ""
 	let expression = ""
 
-	Object.entries(columnFilters).forEach(([cKey, filter]) => 
+	Object.entries(columnFilters).forEach(([cKey, filter]) =>
 		Object.entries(filter).forEach(([fn, value]) => {
-		  expression += joinFunctionFilters(value, fn, cKey, fields)
+			if (fn === "expression") {
+				// For expression mode, the value is the complete, user-provided expression for that column.
+				// Wrap it in parentheses for safety during assembly.
+				if (value) {
+					expression += ` and (${value})`
+				}
+			} else {
+				const filterExpr = joinFunctionFilters(value, fn, cKey, fields);
+				if (filterExpr) {
+					expression += ` and (${filterExpr})`
+				}
+			}
 		})
-	)
+	);
+
 	expression = expression.replace(" and ", "") // Remove first instance of " and "
 	return expression
 }
@@ -268,21 +280,32 @@ export function initFilters (
 	modes: string[]
 ) {
     const filterModes = Object.keys(columnFilters[column]);
-    filterModes.forEach((mode, index) => {
-        const filters = columnFilters[column][mode];
-        if (filters) {
-            const array = separateFunctionFilters(filters);
-            for (let i = 0; i < array.length; i += 2) {
-                const key = index;
-                const join = array[i] as "&&" | "||";
-                const value = array[i + 1] 
-					? array[i + 1].startsWith('"') && array[i + 1].endsWith('"') 
-						? array[i + 1].slice(1, -1) : array[i + 1]
-						: "";
-                initialValues.push({key, mode, join, value});
+    filterModes.forEach((mode) => {
+        const filtersString = columnFilters[column][mode];
+        if (filtersString) {
+            const parts = separateFunctionFilters(filtersString);
+            if (parts.length === 0) return;
+
+            // First part is always a value, with a default join for UI purposes
+            initialValues.push({
+                key: initialValues.length,
+                mode,
+                join: '&&', // This is not used for expression generation, just for UI state
+                value: parts[0].startsWith('"') && parts[0].endsWith('"') ? parts[0].slice(1, -1).trim() : parts[0].trim(),
+            });
+
+            // Subsequent parts are [join, value] pairs
+            for (let i = 1; i < parts.length; i += 2) {
+                const join = parts[i] as "&&" | "||";
+                const value = parts[i + 1]
+                    ? (parts[i + 1].startsWith('"') && parts[i + 1].endsWith('"')
+                        ? parts[i + 1].slice(1, -1).trim()
+                        : parts[i + 1].trim())
+                    : "";
+                initialValues.push({ key: initialValues.length, mode, join, value });
             }
-        }
-    });
+         }
+     });
 }
 
 /* 
@@ -292,16 +315,25 @@ export function combineFilters (
 	newFilters: {key: number, mode: string, join: "&&" | "||", value: string}[],
 	modes: string[]
 ) {
-	const filters : Filters = {};
-	newFilters.forEach(filterItem => {
-	  const { mode, join, value } = filterItem;
-	  if (filters[mode]) {
-		filters[mode] += ` ${join} ${value}`;
-	  } else {
-		filters[mode] = ` ${join} ${value}`;
-	  }
+	const filtersByMode: { [mode: string]: { value: string, join: "&&" | "||" }[] } = {};
+	newFilters.forEach(f => {
+		if (!filtersByMode[f.mode]) filtersByMode[f.mode] = [];
+		filtersByMode[f.mode].push({ value: f.value, join: f.join });
 	});
-	return filters;
+
+	const combined: Filters = {};
+	for (const mode in filtersByMode) {
+		const items = filtersByMode[mode];
+		if (items.length > 0) {
+			// First item's value starts the string. Subsequent items use their join operator.
+			let result = items[0].value;
+			for (let i = 1; i < items.length; i++) {
+				result += ` ${items[i].join} ${items[i].value}`;
+			}
+			combined[mode] = result;
+		}
+	}
+	return combined;
 }
 
 /* 
