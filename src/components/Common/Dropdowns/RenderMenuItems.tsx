@@ -29,10 +29,12 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
         return nonRootNodePath || prefix || rootDisplayName || (isColumnContext ? "All Columns" : "Root Context");
     };
     
+    const maxChars = 25;
     const displayText = getDisplayText();
-
+    const truncatedText = (displayText.length > maxChars) ? displayText.slice(0, maxChars) + '...' : displayText;
+    
     const Content = () => (
-        <div className="flex w-full items-center justify-between">
+        <div className="flex w-full items-center justify-between gap-2 text-start">
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 {loading ? (
                     <Loader2 size={15} className="animate-spin flex-shrink-0" />
@@ -41,10 +43,8 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
                 ) : (
                     <div className="w-4 flex-shrink-0" />
                 )}
-                <Tooltip content={isSelectable ? "Selectable context" : `Non selectable context`} side="top">
-                    <span className="truncate flex items-center gap-1">
-                        {displayText}
-                    </span>
+                <Tooltip content={displayText} side="top">
+                    {truncatedText}
                 </Tooltip>
             </div>
             <div className="flex-shrink-0">
@@ -74,7 +74,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
         <DropdownMenuGroup>
             <DropdownMenuSub defaultOpen={isParentOfSelected}>
                 <DropdownMenuSubTrigger
-                    className={`flex w-full justify-between items-center gap-2 hover:text-white data-[state=open]:text-white ${isSelectable ? 'cursor-pointer' : 'cursor-default'}`}
+                    className={`flex w-full items-center gap-2 hover:text-white data-[state=open]:text-white ${isSelectable ? 'cursor-pointer' : 'cursor-default'}`}
                     disabled={loading}
                     onClick={(e) => {
                         if (isSelectable) {
@@ -86,7 +86,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
                     <Content/>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="p-1 w-56">
+                    <DropdownMenuSubContent>
                         {Object.entries(node.children).map(([childName, childNode], idx) => (
                             <RenderMenuItems
                                 key={idx}

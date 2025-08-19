@@ -163,7 +163,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
         if (!path) return "";
         const parts = path.split('/');
         if (parts.length > 2) {
-            return `${parts[0]}/.../${parts[parts.length - 1]}`;
+            return `.../${parts[parts.length - 1]}`;
         }
         return path;
     };
