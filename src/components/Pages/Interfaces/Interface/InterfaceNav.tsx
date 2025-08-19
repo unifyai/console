@@ -199,6 +199,152 @@ function renderSidebarIcon(iconStr: string | undefined | null, className: string
   return <Icon name={icon as any} className={className} />;
 }
 
+// Sortable Tab Component (hoisted and memoized to avoid remounts during sidebar resize)
+interface SortableTabProps {
+  tab: ProjectTab;
+  isActive: boolean;
+  isCollapsed: boolean;
+  isTabLoading: boolean;
+  onTabClick: (tab: ProjectTab) => void;
+  onSaveTab: (tab: ProjectTab) => void;
+  onResetTab: (tab: ProjectTab) => void;
+  onRenameTab: (tab: ProjectTab) => void;
+  onChangeTabIcon: (tab: ProjectTab) => void;
+  onChangeTabColor: (tab: ProjectTab) => void;
+  onSetTabContext: (tab: ProjectTab) => void;
+  onDeleteTab: (tab: ProjectTab) => void;
+}
+
+const SortableTab = React.memo(function SortableTab({
+  tab,
+  isActive,
+  isCollapsed,
+  isTabLoading,
+  onTabClick,
+  onSaveTab,
+  onResetTab,
+  onRenameTab,
+  onChangeTabIcon,
+  onChangeTabColor,
+  onSetTabContext,
+  onDeleteTab,
+}: SortableTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tab.id || tab.name })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 999 : 'auto',
+  } as React.CSSProperties
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style}
+      className={cn(
+        "group flex items-center animate-in fade-in slide-in-from-left-1 duration-200", 
+        isDragging && "z-50"
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        onClick={() => onTabClick(tab)}
+        className={cn(
+          "flex-1 flex items-center gap-2 py-2 text-sm rounded-md transition-colors relative cursor-pointer",
+          isCollapsed ? "px-0 justify-center" : "px-3",
+          isActive
+            ? "text-primary font-medium"
+            : "text-muted-foreground hover:text-foreground",
+          isDragging && "cursor-grabbing"
+        )}
+      >
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center w-full relative">
+                {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
+                {isTabLoading && (
+                  <div className="absolute -top-1 -right-1">
+                    <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <div>
+                <div>{tab.name}</div>
+                <div className="text-xs text-muted-foreground mt-1">Hold and drag to reorder</div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <>
+            {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
+            <span className="truncate">{tab.name}</span>
+            {isTabLoading && (
+              <Loader2 className="h-3 w-3 animate-spin ml-auto" />
+            )}
+          </>
+        )}
+      </button>
+      {!isCollapsed && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start">
+            <DropdownMenuItem onSelect={() => onSaveTab(tab)}>
+              <Save className="h-4 w-4 mr-2" />
+              Save Tab
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onResetTab(tab)}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset Tab
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onRenameTab(tab)}>
+              <Edit3 className="h-4 w-4 mr-2" />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onChangeTabIcon(tab)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Change Icon
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onChangeTabColor(tab)}>
+              <Palette className="h-4 w-4 mr-2" />
+              Change Color
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSetTabContext(tab)}>
+              <Layers className="h-4 w-4 mr-2" />
+              Set Tab Context
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onDeleteTab(tab)} className="text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  )
+})
+
 export default function InterfaceNav({
   interfaceId,
   projectId,
@@ -254,6 +400,28 @@ export default function InterfaceNav({
   // New state for the dropdown-based navigation
   const [selectedProject, setSelectedProject] = useState(projectId)
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null)
+  
+  // rAF-throttled resize handler to minimize re-renders during drag
+  const rafIdRef = useRef<number | null>(null)
+  const pendingWidthRef = useRef<string>(defaultWidth)
+  const handleResize = useCallback((newWidth: string) => {
+    pendingWidthRef.current = newWidth
+    if (rafIdRef.current == null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        setSidebarWidth(pendingWidthRef.current)
+        if (!isCollapsed || parseFloat(pendingWidthRef.current) >= 12) {
+          setLastExpandedWidth(pendingWidthRef.current)
+        }
+        rafIdRef.current = null
+      })
+    }
+  }, [isCollapsed])
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current)
+    }
+  }, [])
   
   // Dialog states
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
@@ -474,15 +642,15 @@ export default function InterfaceNav({
   }, [interfaceId, activeTabName, selectedProject, currentTabs, queryClient])
   
   // Navigation handlers
-  const navigateSoft = (url: string) => {
+  const navigateSoft = useCallback((url: string) => {
     setIsSwitchingInterface(true)
     router.push(url)
-  }
+  }, [router, setIsSwitchingInterface])
   
   // Navigate without triggering the loading screen (for tab switches)
-  const navigateTab = (url: string) => {
+  const navigateTab = useCallback((url: string) => {
     router.push(url)
-  }
+  }, [router])
   
   const handleProjectChange = async (newProject: string) => {
     setSelectedProject(newProject)
@@ -516,7 +684,7 @@ export default function InterfaceNav({
     navigateSoft(`?${newParams.toString()}`)
   }
   
-  const handleTabClick = (tab: ProjectTab) => {
+  const handleTabClick = useCallback((tab: ProjectTab) => {
     // Use the interface sync action to switch tabs instantly
     if (syncedInterfaceUIActions?.setActiveTab) {
       syncedInterfaceUIActions.setActiveTab(tab.name)
@@ -531,7 +699,7 @@ export default function InterfaceNav({
       newParams.set('tab', tab.name)
       navigateTab(`?${newParams.toString()}`)
     }
-  }
+  }, [syncedInterfaceUIActions, searchParams, navigateTab])
   
   const handleCreateTab = async () => {
     if (!newTabName.trim() || !interfaceId) return
@@ -1013,12 +1181,7 @@ export default function InterfaceNav({
   const { dragRef, handleMouseDown } = useSidebarResize({
     direction: "right",
     currentWidth: sidebarWidth,
-    onResize: (newWidth) => {
-      setSidebarWidth(newWidth)
-      if (!isCollapsed || parseFloat(newWidth) >= 12) {
-        setLastExpandedWidth(newWidth)
-      }
-    },
+    onResize: handleResize,
     onToggle: toggleSidebar,
     onCompletelyHide: toggleCompletelyHidden,
     isCollapsed,
@@ -1170,169 +1333,6 @@ export default function InterfaceNav({
     })
   )
 
-  // Sortable Tab Component
-  const SortableTab = ({ tab, isActive, onTabClick }: { tab: ProjectTab; isActive: boolean; onTabClick: (tab: ProjectTab) => void }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: tab.id || tab.name })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-      zIndex: isDragging ? 999 : 'auto',
-    }
-
-    // Check if this tab's data is being loaded
-    const isTabLoading = queryClient.getQueryState(['tabCompleteData', interfaceId, tab.name, selectedProject])?.fetchStatus === 'fetching'
-
-    return (
-      <div 
-        ref={setNodeRef} 
-        style={style}
-        className={cn(
-          "group flex items-center", 
-          isDragging && "z-50"
-        )}
-      >
-        <button
-          {...attributes}
-          {...listeners}
-          onClick={() => onTabClick(tab)}
-          className={cn(
-            "flex-1 flex items-center gap-2 py-2 text-sm rounded-md transition-colors relative cursor-pointer",
-            isCollapsed ? "px-0 justify-center" : "px-3",
-            isActive
-              ? "text-primary font-medium"
-              : "text-muted-foreground hover:text-foreground",
-            isDragging && "cursor-grabbing"
-          )}
-        >
-          {isCollapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center justify-center w-full relative">
-                  {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
-                  {isTabLoading && (
-                    <div className="absolute -top-1 -right-1">
-                      <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
-                    </div>
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <div>
-                  <div>{tab.name}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Hold and drag to reorder</div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <>
-              {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
-              <span className="truncate">{tab.name}</span>
-              {isTabLoading && (
-                <Loader2 className="h-3 w-3 animate-spin ml-auto" />
-              )}
-            </>
-          )}
-        </button>
-        {!isCollapsed && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start">
-              <DropdownMenuItem 
-                onSelect={() => {
-                  onTabClick(tab)
-                  setSaveInterfaceOpen(true)
-                }}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save Tab
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  onTabClick(tab)
-                  const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
-                  if (resetInterfaceCommand) {
-                    resetInterfaceCommand.action?.();
-                  }
-                }}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Tab
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setSelectedTab(tab)
-                  setNewTabName(tab.name)
-                  setRenameTabOpen(true)
-                }}
-              >
-                <Edit3 className="h-4 w-4 mr-2" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setSelectedTab(tab)
-                  setNewTabIcon((tab.icon && tab.icon.trim() !== '' && tab.icon !== 'null' && tab.icon !== 'undefined') ? tab.icon : 'file-text')
-                  setTabIconOpen(true)
-                }}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Change Icon
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setSelectedTab(tab)
-                  setNewTabColor(tab.color || '')
-                  setTabColorOpen(true)
-                }}
-              >
-                <Palette className="h-4 w-4 mr-2" />
-                Change Color
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onSelect={() => {
-                  onTabClick(tab)
-                  setGlobalContextOpen(true)
-                }}
-              >
-                <Layers className="h-4 w-4 mr-2" />
-                Set Tab Context
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onSelect={() => {
-                  setSelectedTab(tab)
-                  setDeleteTabOpen(true)
-                }}
-                className="text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-    )
-  }
-
   // Handle drag end
   const handleTabDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -1382,10 +1382,52 @@ export default function InterfaceNav({
     }
   }
 
+  // Stable callbacks for tab actions to avoid re-renders while resizing
+  const onSaveTab = useCallback((t: ProjectTab) => {
+    handleTabClick(t)
+    setSaveInterfaceOpen(true)
+  }, [handleTabClick, setSaveInterfaceOpen])
+
+  const onResetTab = useCallback((t: ProjectTab) => {
+    handleTabClick(t)
+    const resetInterfaceCommand = storeCommands.find(cmd => cmd.id === "reset-interface");
+    if (resetInterfaceCommand) {
+      resetInterfaceCommand.action?.();
+    }
+  }, [handleTabClick, storeCommands])
+
+  const onRenameTab = useCallback((t: ProjectTab) => {
+    setSelectedTab(t)
+    setNewTabName(t.name)
+    setRenameTabOpen(true)
+  }, [setSelectedTab, setNewTabName, setRenameTabOpen])
+
+  const onChangeTabIcon = useCallback((t: ProjectTab) => {
+    setSelectedTab(t)
+    setNewTabIcon((t.icon && t.icon.trim() !== '' && t.icon !== 'null' && t.icon !== 'undefined') ? t.icon : 'file-text')
+    setTabIconOpen(true)
+  }, [setSelectedTab, setNewTabIcon, setTabIconOpen])
+
+  const onChangeTabColor = useCallback((t: ProjectTab) => {
+    setSelectedTab(t)
+    setNewTabColor(t.color || '')
+    setTabColorOpen(true)
+  }, [setSelectedTab, setNewTabColor, setTabColorOpen])
+
+  const onSetTabContext = useCallback((t: ProjectTab) => {
+    handleTabClick(t)
+    setGlobalContextOpen(true)
+  }, [handleTabClick, setGlobalContextOpen])
+
+  const onDeleteTab = useCallback((t: ProjectTab) => {
+    setSelectedTab(t)
+    setDeleteTabOpen(true)
+  }, [setSelectedTab, setDeleteTabOpen])
+
   return (
     <TooltipProvider>
-      {/* Toggle Buttons */}
-      {isCompletelyHidden ? (
+      {/* Toggle Button for completely hidden state */}
+      {isCompletelyHidden && (
         <div className="fixed left-2 top-[3.625rem] z-[100] animate-in fade-in duration-300">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1402,39 +1444,6 @@ export default function InterfaceNav({
             </TooltipTrigger>
             <TooltipContent side="right">
               Show sidebar
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      ) : (
-        <div 
-          className="fixed top-[3.5rem] z-[100] pointer-events-auto"
-          style={{ 
-            left: isCollapsed ? '0.5rem' : 'calc(var(--interface-nav-width, 16rem) - 2.5rem)',
-            transition: isDraggingSidebar ? 'none' : 'left 300ms ease-in-out'
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  e.preventDefault()
-                  toggleSidebar()
-                }}
-                className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-primary-foreground hover:bg-primary"
-                style={{ position: 'relative', zIndex: 100 }}
-              >
-                {isCollapsed ? (
-                  <PanelLeft className="h-4 w-4" />
-                ) : (
-                  <PanelLeftClose className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -1462,7 +1471,7 @@ export default function InterfaceNav({
             ref={dragRef}
             onMouseDown={handleMouseDown}
             className={cn(
-              "absolute right-0 top-14 bottom-0 w-1 cursor-ew-resize bg-transparent hover:bg-[color:var(--primary)]/50 transition-colors z-10",
+              "absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize bg-transparent hover:bg-[color:var(--primary)]/50 transition-colors z-10",
               "after:absolute after:top-0 after:bottom-0 after:content-['']",
               isCollapsed ? "after:right-[-6px] after:left-[-2px]" : "after:right-[-2px] after:left-[-2px]",
               isDraggingSidebar && "bg-[color:var(--primary)]/50"
@@ -1470,198 +1479,87 @@ export default function InterfaceNav({
           />
         )}
         
-        {/* Header with Dropdowns */}
+        {/* Header with Title and Toggle */}
+        {!isCompletelyHidden && (
+          <div className="flex items-center justify-between p-3 border-b animate-in fade-in slide-in-from-top-2 duration-300">
+            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200">Interfaces</span>}
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={toggleSidebar}
+              className="h-8 w-8 ml-auto"
+            >
+              {isCollapsed ? (
+                <PanelLeft className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        )}
+        
+        {/* Projects and Interfaces Section */}
         {!isCompletelyHidden && !isCollapsed && (
-          <div className="p-3 pr-10 space-y-2 border-b overflow-hidden">
-            {/* Project Dropdown with Context Menu */}
-            <div className="flex items-center gap-1 w-full min-w-0">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between h-9"
-                  >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
-                      <span className="truncate text-sm">{selectedProject || "Projects"}</span>
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search projects..." />
-                    <CommandEmpty>No project found.</CommandEmpty>
-                    <CommandGroup>
-                                            {projectTree.length === 0 ? (
-                        // Loading skeleton for projects
-                        <div className="p-1">
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
-                              <div className="h-4 w-4 bg-muted animate-pulse rounded" />
-                              <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        projectTree.map((project) => {
-                          const isSelected = projectId === project.project
-                          return (
-                        <CommandItem
-                          key={project.project}
-                          value={project.project}
-                          onSelect={() => handleProjectChange(project.project)}
-                          className={cn(
-                              isSelected && "text-primary"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")}
-                            <span className="truncate">{project.project}</span>
-                          </div>
-                        </CommandItem>
-                          )
-                        })
-                      )}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              
-              {/* Project Context Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-9 w-9">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="bottom" align="end">
-                  <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    // Handle create interface for current project
-                    setActiveProject(selectedProject)
-                    setCreateInterfaceOpen(true)
-                  }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Interface
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => {
-                    // Handle project rename
-                    setActiveProject(selectedProject)
-                    setRenameProjectName(selectedProject)
-                    setRenameProjectOpen(true)
-                  }}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Rename Project
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    setActiveProject(selectedProject)
-                    setNewProjectIconEdit(currentProjectData?.icon || 'folder')
-                    setProjectIconOpen(true)
-                  }}>
-                    <Palette className="h-4 w-4 mr-2" />
-                    Change Icon
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    setImportProjectName(selectedProject)
-                    setImportInterfaceOpen(true)
-                  }}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import Interface
-                  </DropdownMenuItem>
-                  {selectedProject !== 'Usage' && (
-                    <DropdownMenuItem onSelect={() => {
-                      setFileUploadOpen(true)
-                    }}>
-                      <FileInput className="h-4 w-4 mr-2" />
-                      Upload Logs
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onSelect={() => handleToggleFavourite()}>
-                    <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
-                    {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={async () => {
-                    setProjectsRefreshing(true)
-                    await refetchProjectTree()
-                    setProjectsRefreshing(false)
-                  }}>
-                    <RefreshCw className={cn("h-4 w-4 mr-2", projectsRefreshing && "animate-spin")} />
-                    {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
-                  </DropdownMenuItem>
-                  {selectedProject !== 'Usage' && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onSelect={() => {
-                          setActiveProject(selectedProject)
-                          setDeleteProjectOpen(true)
-                        }}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Project
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            
-            {/* Interface Dropdown - only show when project has multiple interfaces */}
-            {currentInterfaces.length > 1 && (
-              <div className="flex items-center gap-1 w-full min-w-0">
+          <div className="p-3 space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+            {/* Projects */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground animate-in fade-in duration-200 delay-75">Project:</label>
+              <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-100">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="w-full justify-between h-9"
+                      className="flex-1 min-w-0 justify-between h-9"
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                        <span className="truncate text-sm">
-                          {currentInterface?.name || "Interfaces"}
-                        </span>
+                        {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
+                        <span className="truncate text-sm">{selectedProject || "Select project"}</span>
                       </div>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[200px] p-0">
                     <Command>
-                      <CommandInput placeholder="Search interfaces..." />
-                      <CommandEmpty>No interface found.</CommandEmpty>
+                      <CommandInput placeholder="Search projects..." />
+                      <CommandEmpty>No project found.</CommandEmpty>
                       <CommandGroup>
-                        {currentInterfaces.map((iface) => {
-                          const isSelected = currentInterface?.name === iface.name
-                          return (
-                          <CommandItem
-                            key={iface.name}
-                            value={iface.name}
-                            onSelect={() => handleInterfaceChange(iface.name)}
-                            className={cn(
-                              isSelected && "text-primary"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                              <span className="truncate">{iface.name}</span>
-                            </div>
-                          </CommandItem>
-                          )
-                        })}
+                        {projectTree.length === 0 ? (
+                          // Loading skeleton for projects
+                          <div className="p-1">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          projectTree.map((project) => {
+                            const isSelected = projectId === project.project
+                            return (
+                              <CommandItem
+                                key={project.project}
+                                value={project.project}
+                                onSelect={() => handleProjectChange(project.project)}
+                                className={cn(
+                                  isSelected && "text-primary"
+                                )}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")}
+                                  <span className="truncate">{project.project}</span>
+                                </div>
+                              </CommandItem>
+                            )
+                          })
+                        )}
                       </CommandGroup>
                     </Command>
                   </PopoverContent>
                 </Popover>
                 
-                {/* Interface Context Menu */}
+                {/* Project Context Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="icon" variant="ghost" className="h-9 w-9">
@@ -1669,137 +1567,249 @@ export default function InterfaceNav({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="bottom" align="end">
-                                      <DropdownMenuItem onSelect={() => {
-                    if (currentInterface) {
-                      setSelectedInterfaceForAction(currentInterface)
-                      setRenameInterfaceOpen(true)
-                    }
-                  }}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Rename Interface
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    if (currentInterface) {
-                      setSelectedInterfaceForAction(currentInterface)
-                      setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
-                      setInterfaceIconOpen(true)
-                    }
-                  }}>
-                    <Palette className="h-4 w-4 mr-2" />
-                    Change Icon
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => {
-                    if (currentInterface) {
-                      setSelectedInterfaceForAction(currentInterface)
-                      handleExportTemplate()
-                    }
-                  }}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export as Template
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onSelect={() => {
-                      if (currentInterface) {
-                        setSelectedInterfaceForAction(currentInterface)
-                        setDeleteInterfaceOpen(true)
-                      }
-                    }}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Interface
-                  </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
-            
-            {/* Interface Context Menu - show when single interface */}
-            {currentInterfaces.length === 1 && currentInterface && (
-              <div className="flex items-center gap-1 w-full min-w-0">
-                {/* Display single interface */}
-                <div className="w-full flex items-center gap-2 px-3 py-2 h-9 text-sm border border-input rounded-md bg-background">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {renderSidebarIcon(currentInterface.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                    <span className="truncate">{currentInterface.name}</span>
-                  </div>
-                </div>
-                
-                {/* Context Menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-9 w-9">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="bottom" align="end">
-                    <DropdownMenuItem onSelect={() => {
-                      setSelectedInterfaceForAction(currentInterface)
-                      setRenameInterfaceOpen(true)
-                    }}>
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      Rename Interface
+                    <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Project
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => {
-                      setSelectedInterfaceForAction(currentInterface)
-                      setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
-                      setInterfaceIconOpen(true)
+                      // Handle create interface for current project
+                      setActiveProject(selectedProject)
+                      setCreateInterfaceOpen(true)
+                    }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Interface
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => {
+                      // Handle project rename
+                      setActiveProject(selectedProject)
+                      setRenameProjectName(selectedProject)
+                      setRenameProjectOpen(true)
+                    }}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Rename Project
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => {
+                      setActiveProject(selectedProject)
+                      setNewProjectIconEdit(currentProjectData?.icon || 'folder')
+                      setProjectIconOpen(true)
                     }}>
                       <Palette className="h-4 w-4 mr-2" />
                       Change Icon
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => {
-                      if (currentInterface.id) {
-                        handleExportInterface(currentInterface.id)
-                      }
+                      setImportProjectName(selectedProject)
+                      setImportInterfaceOpen(true)
                     }}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export as Template
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Interface
+                    </DropdownMenuItem>
+                    {selectedProject !== 'Usage' && (
+                      <DropdownMenuItem onSelect={() => {
+                        setFileUploadOpen(true)
+                      }}>
+                        <FileInput className="h-4 w-4 mr-2" />
+                        Upload Logs
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={() => handleToggleFavourite()}>
+                      <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
+                      {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onSelect={() => {
-                        setSelectedInterfaceForAction(currentInterface)
-                        setDeleteInterfaceOpen(true)
-                      }}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Interface
+                    <DropdownMenuItem onSelect={async () => {
+                      setProjectsRefreshing(true)
+                      await refetchProjectTree()
+                      setProjectsRefreshing(false)
+                    }}>
+                      <RefreshCw className={cn("h-4 w-4 mr-2", projectsRefreshing && "animate-spin")} />
+                      {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
                     </DropdownMenuItem>
+                    {selectedProject !== 'Usage' && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onSelect={() => {
+                            setActiveProject(selectedProject)
+                            setDeleteProjectOpen(true)
+                          }}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Project
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            </div>
+            
+            {/* Interfaces */}
+            {currentInterfaces.length > 0 && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
+                <label className="text-sm font-medium text-muted-foreground">Interface:</label>
+                <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-150">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="flex-1 min-w-0 justify-between h-9"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
+                          <span className="truncate text-sm">
+                            {currentInterface?.name || "Select interface"}
+                          </span>
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search interfaces..." />
+                        <CommandEmpty>No interface found.</CommandEmpty>
+                        <CommandGroup>
+                          {currentInterfaces.map((iface) => {
+                            const isSelected = currentInterface?.name === iface.name
+                            return (
+                              <CommandItem
+                                key={iface.name}
+                                value={iface.name}
+                                onSelect={() => handleInterfaceChange(iface.name)}
+                                className={cn(
+                                  isSelected && "text-primary"
+                                )}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")}
+                                  <span className="truncate">{iface.name}</span>
+                                </div>
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {/* Interface Context Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="bottom" align="end">
+                      <DropdownMenuItem onSelect={() => {
+                        if (currentInterface) {
+                          setSelectedInterfaceForAction(currentInterface)
+                          setRenameInterfaceOpen(true)
+                        }
+                      }}>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Rename Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => {
+                        if (currentInterface) {
+                          setSelectedInterfaceForAction(currentInterface)
+                          setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
+                          setInterfaceIconOpen(true)
+                        }
+                      }}>
+                        <Palette className="h-4 w-4 mr-2" />
+                        Change Icon
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => {
+                        if (currentInterface) {
+                          setSelectedInterfaceForAction(currentInterface)
+                          handleExportTemplate()
+                        }
+                      }}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export as Template
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSelectedInterfaceForAction(currentInterface)
+                            setDeleteInterfaceOpen(true)
+                          }
+                        }}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Interface
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
             )}
           </div>
         )}
         
+        {!isCompletelyHidden && !isCollapsed && <Separator className="animate-in fade-in duration-300 delay-150" />}
+        
         {/* Tabs List */}
         {!isCompletelyHidden && (
-          <ScrollArea className="flex-1 px-2 py-2">
-            <div className="space-y-1">
-              {/* Spacer for toggle button in collapsed mode */}
-              {isCollapsed && <div className="h-10" />}
-              {/* Add Tab Button - subtle - show when we have an interface ID and not collapsed */}
-              {interfaceId && !isCollapsed && (
-                <button
-                  onClick={() => setCreateTabOpen(true)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Add Tab</span>
-                </button>
+          <ScrollArea className="flex-1">
+            <div className={cn("space-y-1", isCollapsed ? "px-2 py-2" : "p-3")}>
+              {/* Tabs label and Add button */}
+              {!isCollapsed && (
+                <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <label className="text-sm font-medium text-muted-foreground">Tabs:</label>
+                  {interfaceId && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setCreateTabOpen(true)}
+                          className="h-7 w-7"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Add new tab</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              )}
+              
+              {/* Add tab button for collapsed mode */}
+              {isCollapsed && interfaceId && (
+                <div className="flex justify-center mb-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setCreateTabOpen(true)}
+                        className="h-8 w-8"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Add Tab</TooltipContent>
+                  </Tooltip>
+                </div>
               )}
               
               {loadingTabs ? (
-                <div className="space-y-1">
+                <div className="space-y-1 animate-in fade-in duration-200">
                   {/* Show skeleton loaders that match tab items */}
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className={cn(
-                      "flex items-center gap-2 py-2",
-                      isCollapsed ? "px-0 justify-center" : "px-3"
-                    )}>
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "flex items-center gap-2 py-2 animate-in fade-in duration-200",
+                        isCollapsed ? "px-0 justify-center" : "px-3"
+                      )}
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    >
                       {isCollapsed ? (
                         <div className="h-8 w-8 bg-muted animate-pulse rounded" />
                       ) : (
@@ -1812,17 +1822,38 @@ export default function InterfaceNav({
                   ))}
                 </div>
               ) : currentTabs.length === 0 ? (
-                <div className="px-3 py-8 text-sm text-muted-foreground text-center">
-                  <div className="mb-2">
-                    <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  No tabs yet
+                <div className={cn(
+                  "text-sm text-muted-foreground text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-4" : "py-8"
+                )}>
+                  {!isCollapsed && (
+                    <>
+                      <div className="mb-2">
+                        <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <span>No tabs yet</span>
+                    </>
+                  )}
+                  {isCollapsed && interfaceId && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setCreateTabOpen(true)}
+                          className="h-8 w-8"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Add Tab</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               ) : (
                 <>
-                  {currentTabs.length > 0 && <Separator className="my-1" />}
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -1839,7 +1870,16 @@ export default function InterfaceNav({
                           key={tab.id || tab.name}
                           tab={tab}
                           isActive={activeTabName === tab.name}
+                          isCollapsed={isCollapsed}
+                          isTabLoading={queryClient.getQueryState(['tabCompleteData', interfaceId, tab.name, selectedProject])?.fetchStatus === 'fetching'}
                           onTabClick={handleTabClick}
+                          onSaveTab={onSaveTab}
+                          onResetTab={onResetTab}
+                          onRenameTab={onRenameTab}
+                          onChangeTabIcon={onChangeTabIcon}
+                          onChangeTabColor={onChangeTabColor}
+                          onSetTabContext={onSetTabContext}
+                          onDeleteTab={onDeleteTab}
                         />
                       ))}
                     </SortableContext>
@@ -1865,69 +1905,62 @@ export default function InterfaceNav({
           </ScrollArea>
         )}
         
+        {/* Separator before mode controls */}
+        {!isCompletelyHidden && !isCollapsed && showModeControls && <Separator className="animate-in fade-in duration-200" />}
+        
         {/* Mode Controls */}
-        {!isCollapsed && !isCompletelyHidden && (
-          <div
-            className={cn(
-              "border-t border-[color:var(--border)] p-2 space-y-2 bg-[color:var(--background)] flex-shrink-0 transform transition-transform duration-300",
-              showModeControls ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none"
-            )}
-          >
-            <div>
-              <div className="flex items-center justify-between w-full px-2 py-1 rounded-md">
-                <div className="flex items-center gap-2">
+        {!isCollapsed && !isCompletelyHidden && showModeControls && (
+          <div className="p-3 space-y-3 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium flex items-center gap-2">
                   <Hammer className={cn('h-4 w-4', isEditMode && 'text-primary')} />
-                  <span className="text-sm">Edit Mode</span>
-                </div>
+                  Edit Mode
+                </label>
                 <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} />
               </div>
               
-              <div className={cn(
-                "transition-all duration-300 ease-in-out overflow-hidden",
-                isEditMode ? "max-h-20" : "max-h-0"
-              )}>
-                <div className={cn(
-                  "transition-opacity duration-300 space-y-1 mt-1",
-                  isEditMode ? "opacity-100" : "opacity-0"
-                )}>
+              {isEditMode && (
+                <div className="pl-6 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start"
+                    className="w-full justify-start h-8"
                     onClick={onAddTile}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Tile
                   </Button>
                   <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <Button variant="ghost" size="sm" className="w-full justify-start h-8">
                       <Palette className="h-4 w-4 mr-2" />
                       Set Project Color
                     </Button>
                   </ColorPicker>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between w-full px-2 py-1 rounded-md">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium flex items-center gap-2">
                 <SquareMousePointer className={cn('h-4 w-4', isCommandMode && 'text-primary')} />
-                <span className="text-sm">Dashboard Mode</span>
-              </div>
+                Dashboard Mode
+              </label>
               <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} />
             </div>
           </div>
         )}
         
+        {/* Separator before collapsed mode controls */}
+        {isCollapsed && !isCompletelyHidden && showModeControls && (
+          <div className="mt-auto animate-in fade-in duration-200">
+            <Separator />
+          </div>
+        )}
+        
         {/* Collapsed Mode Controls */}
-        {isCollapsed && !isCompletelyHidden && (
-          <div
-            className={cn(
-              "absolute inset-x-0 bottom-4 flex flex-col items-center pointer-events-auto transform transition-transform duration-300",
-              showModeControls ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none"
-            )}
-          >
-            <Separator orientation="horizontal" className="w-8 mb-2" />
+        {isCollapsed && !isCompletelyHidden && showModeControls && (
+          <div className="p-2 space-y-2 flex flex-col items-center animate-in fade-in duration-300">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -1944,47 +1977,44 @@ export default function InterfaceNav({
               </TooltipContent>
             </Tooltip>
             
-            <div className={cn(
-              "transition-all duration-300 ease-in-out overflow-hidden flex flex-col items-center gap-2",
-              isEditMode ? "max-h-20 mt-2" : "max-h-0 mt-0 opacity-0"
-            )}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" onClick={onAddTile} className="h-8 w-8">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Add Tile</TooltipContent>
-              </Tooltip>
-              
-              <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                <ActionButton
-                  size="icon"
-                  variant="ghost"
-                  tooltip="Set Project Color"
-                  className="h-8 w-8"
-                  icon={<Palette className="h-4 w-4" />}
-                />
-              </ColorPicker>
-            </div>
-            
-            <div className="mt-4">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
+            {isEditMode && (
+              <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" onClick={onAddTile} className="h-8 w-8">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Add Tile</TooltipContent>
+                </Tooltip>
+                
+                <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                  <ActionButton
                     size="icon"
                     variant="ghost"
-                    onClick={onCommandModeToggle}
-                    className={cn('h-8 w-8', isCommandMode && 'text-primary')}
-                  >
-                    <SquareMousePointer className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {isCommandMode ? "Disable Dashboard Mode" : "Enable Dashboard Mode"}
-                </TooltipContent>
-              </Tooltip>
-            </div>
+                    tooltip="Set Project Color"
+                    className="h-8 w-8"
+                    icon={<Palette className="h-4 w-4" />}
+                  />
+                </ColorPicker>
+              </div>
+            )}
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={onCommandModeToggle}
+                  className={cn('h-8 w-8', isCommandMode && 'text-primary')}
+                >
+                  <SquareMousePointer className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {isCommandMode ? "Disable Dashboard Mode" : "Enable Dashboard Mode"}
+              </TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>
