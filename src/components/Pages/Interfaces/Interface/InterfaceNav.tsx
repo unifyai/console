@@ -1594,9 +1594,17 @@ export default function InterfaceNav({
                       setNewProjectIconEdit(currentProjectData?.icon || 'folder')
                       setProjectIconOpen(true)
                     }}>
-                      <Palette className="h-4 w-4 mr-2" />
+                      <Settings className="h-4 w-4 mr-2" />
                       Change Icon
                     </DropdownMenuItem>
+                    {interfaceId && (
+                      <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                        <DropdownMenuItem>
+                          <Palette className="h-4 w-4 mr-2" />
+                          Set Project Color
+                        </DropdownMenuItem>
+                      </ColorPicker>
+                    )}
                     <DropdownMenuItem onSelect={() => {
                       setImportProjectName(selectedProject)
                       setImportInterfaceOpen(true)
@@ -1718,9 +1726,17 @@ export default function InterfaceNav({
                           setInterfaceIconOpen(true)
                         }
                       }}>
-                        <Palette className="h-4 w-4 mr-2" />
+                        <Settings className="h-4 w-4 mr-2" />
                         Change Icon
                       </DropdownMenuItem>
+                      {interfaceId && (
+                        <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                          <DropdownMenuItem>
+                            <Palette className="h-4 w-4 mr-2" />
+                            Set Interface Color
+                          </DropdownMenuItem>
+                        </ColorPicker>
+                      )}
                       <DropdownMenuItem onSelect={() => {
                         if (currentInterface) {
                           setSelectedInterfaceForAction(currentInterface)
@@ -1919,26 +1935,7 @@ export default function InterfaceNav({
                 </label>
                 <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} />
               </div>
-              
-              {isEditMode && (
-                <div className="pl-6 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start h-8"
-                    onClick={onAddTile}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Tile
-                  </Button>
-                  <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start h-8">
-                      <Palette className="h-4 w-4 mr-2" />
-                      Set Project Color
-                    </Button>
-                  </ColorPicker>
-                </div>
-              )}
+
             </div>
 
             <div className="flex items-center justify-between">
@@ -1977,28 +1974,6 @@ export default function InterfaceNav({
               </TooltipContent>
             </Tooltip>
             
-            {isEditMode && (
-              <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="icon" variant="ghost" onClick={onAddTile} className="h-8 w-8">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Add Tile</TooltipContent>
-                </Tooltip>
-                
-                <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                  <ActionButton
-                    size="icon"
-                    variant="ghost"
-                    tooltip="Set Project Color"
-                    className="h-8 w-8"
-                    icon={<Palette className="h-4 w-4" />}
-                  />
-                </ColorPicker>
-              </div>
-            )}
             
             <Tooltip>
               <TooltipTrigger asChild>
@@ -2466,6 +2441,23 @@ export default function InterfaceNav({
             </div>
           }
         />, document.body
+      )}
+      
+      {/* Floating Add Tile button when Edit Mode is ON */}
+      {isEditMode && (
+        <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1.25rem' }}>
+          <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
+            <ActionButton
+              className="h-8 px-2"
+              size="sm"
+              variant="ghost"
+              onClick={onAddTile}
+              tooltip="Add new tile"
+              icon={<Plus size={14} />}
+              text="Add tile"
+            />
+          </div>
+        </div>
       )}
     </TooltipProvider>
   )
