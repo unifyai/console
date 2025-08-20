@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3 } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -850,6 +850,12 @@ const LogsTable = ({
                     defaultHidden={defaultHidden ?? true}
                     setDefaultHidden={setDefaultHidden}
                 />}
+                <SettingButton
+                    tooltip={`${showMetricsRow ? 'Hide' : 'Show'} metrics row`}
+                    icon={<BarChart3 className="h-4 w-4" />}
+                    onClick={() => setShowMetricsRow(!showMetricsRow)}
+                    variant={showMetricsRow ? "primary" : "outline"}
+                />
                 <SettingButton
                   tooltip="Reset column widths"
                   icon={<StretchVertical className="h-4 w-4" />}

@@ -746,31 +746,11 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                         </TableCell>
                                     ))}
                                 </TableRow>
-                            ) : !showFooter ? (
+                            ) : showFooter ? (
                                 <TableRow>
-                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t">
-                                        <button
-                                            onClick={() => setShowFooter && setShowFooter(true)}
-                                            className="w-full text-center mt-2 py-2 text-sm text-muted-foreground hover:bg-muted border border-muted"
-                                        >
-                                            Show Metrics
-                                        </button>
-                                    </TableCell>
+                                    {finalColumns.map((column, index) => ( <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}> {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)} </SortableContext>))}
                                 </TableRow>
-                            ) : (
-                                <>
-                                    <TableRow>
-                                        <TableCell colSpan={finalColumns.length} className="p-0 border-t">
-                                            <button onClick={() => setShowFooter && setShowFooter(false)} className="w-full text-center mt-2 py-2 text-sm text-muted-foreground hover:bg-muted border border-muted">
-                                                Hide Metrics
-                                            </button>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        {finalColumns.map((column, index) => ( <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}> {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)} </SortableContext>))}
-                                    </TableRow>
-                                </>
-                            )}
+                            ) : null}
                         </TableFooter>
 
                     </Table>
