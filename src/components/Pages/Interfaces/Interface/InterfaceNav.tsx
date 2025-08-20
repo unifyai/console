@@ -187,7 +187,7 @@ function renderSidebarIcon(iconStr: string | undefined | null, className: string
   
   // Check if it's an emoji or special character
   if (/[^a-zA-Z0-9_-]/.test(icon)) {
-    return <span className={className}>{icon}</span>;
+    return <span className={cn(className, "inline-flex items-center justify-center")}>{icon}</span>;
   }
   
   // Simple mapping: if icon is "tab", use the default
@@ -250,7 +250,7 @@ const SortableTab = React.memo(function SortableTab({
       ref={setNodeRef} 
       style={style}
       className={cn(
-        "group flex items-center animate-in fade-in slide-in-from-left-1 duration-200", 
+        "group relative flex items-center animate-in fade-in slide-in-from-left-1 duration-200 w-full", 
         isDragging && "z-50"
       )}
     >
@@ -259,8 +259,8 @@ const SortableTab = React.memo(function SortableTab({
         {...listeners}
         onClick={() => onTabClick(tab)}
         className={cn(
-          "flex-1 flex items-center gap-2 py-2 text-sm rounded-md transition-colors relative cursor-pointer",
-          isCollapsed ? "px-0 justify-center" : "px-3",
+          "flex-1 min-w-0 flex items-center gap-2 py-2 text-sm rounded-md transition-colors cursor-pointer overflow-hidden",
+          isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
           isActive
             ? "text-primary font-medium"
             : "text-muted-foreground hover:text-foreground",
@@ -287,13 +287,15 @@ const SortableTab = React.memo(function SortableTab({
             </TooltipContent>
           </Tooltip>
         ) : (
-          <>
-            {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
-            <span className="truncate">{tab.name}</span>
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden w-full">
+            <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+              {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
+            </div>
+            <span className="text-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left" title={tab.name}>{tab.name}</span>
             {isTabLoading && (
-              <Loader2 className="h-3 w-3 animate-spin ml-auto" />
+              <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
             )}
-          </>
+          </div>
         )}
       </button>
       {!isCollapsed && (
@@ -302,12 +304,12 @@ const SortableTab = React.memo(function SortableTab({
             <Button
               size="icon"
               variant="ghost"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1/2 -translate-y-1/2"
             >
               <MoreHorizontal className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start">
+          <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
             <DropdownMenuItem onSelect={() => onSaveTab(tab)}>
               <Save className="h-4 w-4 mr-2" />
               Save Tab
@@ -1453,7 +1455,7 @@ export default function InterfaceNav({
       <div 
         data-interface-color 
         className={cn(
-          "fixed left-0 top-12 h-[calc(100vh-3rem)] bg-[color:var(--background)] border-r border-[color:var(--border)] flex flex-col z-20",
+          "fixed left-0 top-12 h-[calc(100vh-3rem)] bg-[color:var(--background)] border-r border-[color:var(--border)] flex flex-col z-20 overflow-hidden",
           isCollapsed ? "w-12" : "",
           isDraggingSidebar ? "" : "transition-all duration-300 ease-in-out",
           isCompletelyHidden && "!w-0 border-0 pointer-events-none opacity-0"
@@ -1481,13 +1483,13 @@ export default function InterfaceNav({
         
         {/* Header with Title and Toggle */}
         {!isCompletelyHidden && (
-          <div className="flex items-center justify-between p-3 border-b animate-in fade-in slide-in-from-top-2 duration-300">
-            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200">Interfaces</span>}
+          <div className="flex items-center justify-between p-3 border-b animate-in fade-in slide-in-from-top-2 duration-300 gap-2 min-w-0">
+            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200 truncate">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
               onClick={toggleSidebar}
-              className="h-8 w-8 ml-auto"
+              className="h-8 w-8 ml-auto flex-shrink-0"
             >
               {isCollapsed ? (
                 <PanelLeft className="h-4 w-4" />
@@ -1500,7 +1502,7 @@ export default function InterfaceNav({
         
         {/* Projects and Interfaces Section */}
         {!isCompletelyHidden && !isCollapsed && (
-          <div className="p-3 space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+          <div className="p-3 space-y-3 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
             {/* Projects */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground animate-in fade-in duration-200 delay-75">Project:</label>
@@ -1510,16 +1512,16 @@ export default function InterfaceNav({
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="flex-1 min-w-0 justify-between h-9"
+                      className="flex-1 min-w-0 justify-between h-8"
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                         {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
                         <span className="truncate text-sm">{selectedProject || "Select project"}</span>
                       </div>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0">
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
                     <Command>
                       <CommandInput placeholder="Search projects..." />
                       <CommandEmpty>No project found.</CommandEmpty>
@@ -1562,11 +1564,11 @@ export default function InterfaceNav({
                 {/* Project Context Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-9 w-9">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="bottom" align="end">
+                  <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
                     <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create Project
@@ -1663,9 +1665,9 @@ export default function InterfaceNav({
                       <Button
                         variant="outline"
                         role="combobox"
-                        className="flex-1 min-w-0 justify-between h-9"
+                        className="flex-1 min-w-0 justify-between h-8"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                           {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
                           <span className="truncate text-sm">
                             {currentInterface?.name || "Select interface"}
@@ -1674,7 +1676,7 @@ export default function InterfaceNav({
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
                       <Command>
                         <CommandInput placeholder="Search interfaces..." />
                         <CommandEmpty>No interface found.</CommandEmpty>
@@ -1705,11 +1707,11 @@ export default function InterfaceNav({
                   {/* Interface Context Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-9 w-9">
+                      <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent side="bottom" align="end">
+                    <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
                       <DropdownMenuItem onSelect={() => {
                         if (currentInterface) {
                           setSelectedInterfaceForAction(currentInterface)
@@ -1771,12 +1773,12 @@ export default function InterfaceNav({
         
         {/* Tabs List */}
         {!isCompletelyHidden && (
-          <ScrollArea className="flex-1">
-            <div className={cn("space-y-1", isCollapsed ? "px-2 py-2" : "p-3")}>
+          <ScrollArea className="flex-1 overflow-x-hidden">
+            <div className={cn("space-y-1 min-w-0", isCollapsed ? "px-2 py-2" : "px-3 py-3 pr-2")}>
               {/* Tabs label and Add button */}
               {!isCollapsed && (
                 <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="text-sm font-medium text-muted-foreground">Tabs:</label>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center leading-none flex-shrink-0">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1784,7 +1786,7 @@ export default function InterfaceNav({
                           variant="ghost"
                           size="icon"
                           onClick={() => setCreateTabOpen(true)}
-                          className="h-7 w-7"
+                          className="h-8 w-8 flex-shrink-0 mr-1"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -1840,7 +1842,7 @@ export default function InterfaceNav({
               ) : currentTabs.length === 0 ? (
                 <div className={cn(
                   "text-sm text-muted-foreground text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-4" : "py-8"
+                  isCollapsed ? "py-4" : "py-8 px-2"
                 )}>
                   {!isCollapsed && (
                     <>
@@ -1849,7 +1851,7 @@ export default function InterfaceNav({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <span>No tabs yet</span>
+                      <span className="block break-words">No tabs yet</span>
                     </>
                   )}
                   {isCollapsed && interfaceId && (
@@ -1881,23 +1883,25 @@ export default function InterfaceNav({
                       items={currentTabs.map(tab => tab.id || tab.name)}
                       strategy={verticalListSortingStrategy}
                     >
-                      {currentTabs.map((tab) => (
-                        <SortableTab
-                          key={tab.id || tab.name}
-                          tab={tab}
-                          isActive={activeTabName === tab.name}
-                          isCollapsed={isCollapsed}
-                          isTabLoading={queryClient.getQueryState(['tabCompleteData', interfaceId, tab.name, selectedProject])?.fetchStatus === 'fetching'}
-                          onTabClick={handleTabClick}
-                          onSaveTab={onSaveTab}
-                          onResetTab={onResetTab}
-                          onRenameTab={onRenameTab}
-                          onChangeTabIcon={onChangeTabIcon}
-                          onChangeTabColor={onChangeTabColor}
-                          onSetTabContext={onSetTabContext}
-                          onDeleteTab={onDeleteTab}
-                        />
-                      ))}
+                      <div className="w-full space-y-1">
+                        {currentTabs.map((tab) => (
+                          <SortableTab
+                            key={tab.id || tab.name}
+                            tab={tab}
+                            isActive={activeTabName === tab.name}
+                            isCollapsed={isCollapsed}
+                            isTabLoading={queryClient.getQueryState(['tabCompleteData', interfaceId, tab.name, selectedProject])?.fetchStatus === 'fetching'}
+                            onTabClick={handleTabClick}
+                            onSaveTab={onSaveTab}
+                            onResetTab={onResetTab}
+                            onRenameTab={onRenameTab}
+                            onChangeTabIcon={onChangeTabIcon}
+                            onChangeTabColor={onChangeTabColor}
+                            onSetTabContext={onSetTabContext}
+                            onDeleteTab={onDeleteTab}
+                          />
+                        ))}
+                      </div>
                     </SortableContext>
                     <DragOverlay>
                       {activeTabId && (() => {
@@ -1926,24 +1930,24 @@ export default function InterfaceNav({
         
         {/* Mode Controls */}
         {!isCollapsed && !isCompletelyHidden && showModeControls && (
-          <div className="p-3 space-y-3 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="p-3 space-y-3 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-x-hidden">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Hammer className={cn('h-4 w-4', isEditMode && 'text-primary')} />
-                  Edit Mode
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium flex items-center gap-2 min-w-0">
+                  <Hammer className={cn('h-4 w-4 flex-shrink-0', isEditMode && 'text-primary')} />
+                  <span className="truncate">Edit Mode</span>
                 </label>
-                <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} />
+                <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} className="flex-shrink-0" />
               </div>
 
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <SquareMousePointer className={cn('h-4 w-4', isCommandMode && 'text-primary')} />
-                Dashboard Mode
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm font-medium flex items-center gap-2 min-w-0">
+                <SquareMousePointer className={cn('h-4 w-4 flex-shrink-0', isCommandMode && 'text-primary')} />
+                <span className="truncate">Dashboard Mode</span>
               </label>
-              <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} />
+              <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} className="flex-shrink-0" />
             </div>
           </div>
         )}
