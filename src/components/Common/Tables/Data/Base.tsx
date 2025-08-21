@@ -638,8 +638,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                     ?   (
                                             // Display potential error message in table as a single cell
                                             <TableRow>
-                                                <TableCell colSpan={finalColumns.length} className="text-start text-warning min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
-                                                    {error}
+                                                <TableCell colSpan={finalColumns.length} className="text-start text-warning text-wrap w-full min-w-[150px]" style={{borderBottom: "1px solid var(--muted)", borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                    An error occurred. Please try again or contact us if the issue persists.
                                                 </TableCell>
                                             </TableRow>
                                         )
