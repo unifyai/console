@@ -8,6 +8,7 @@ interface EmptyTableOverlayProps {
     mode: "context" | "new";
     onDismiss: () => void;
     actionButton?: React.ReactNode;
+    withPulse?: boolean;
 }
 
 const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
@@ -15,6 +16,7 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
     mode,
     onDismiss,
     actionButton,
+    withPulse = true,
 }) => {
     return (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-30">
@@ -33,10 +35,11 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                                 <div className="flex justify-center">
                                     <div className="relative inline-block">
                                         {actionButton}
+                                        {withPulse &&
                                         <span className="absolute -top-1 -left-1 flex h-3 w-3">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                        </span>
+                                        </span>}
                                     </div>
                                 </div>
                             )}
@@ -48,10 +51,11 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
                                 <div className="flex justify-center">
                                     <div className="relative inline-block">
                                         {actionButton}
+                                        {withPulse &&
                                         <span className="absolute -top-1 -left-1 flex h-3 w-3">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                                        </span>
+                                        </span>}
                                     </div>
                                 </div>
                             )}

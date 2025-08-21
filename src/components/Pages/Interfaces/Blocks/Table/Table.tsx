@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -781,18 +781,15 @@ const LogsTable = ({
     />
   ) : null;
 
-  const createLogRowButton = (inOverlay: boolean) => projectId ? (
-    <CreateEmptyLogRow
-        projectId={projectId}
-        globalContext={item?.context || context_}
-        fields={tableDataItem.fields}
-        interactive={interactive}
-        createLogsAction={logsActions.create}
-        onSuccess={() => { router.refresh(); setPending(true); }}
-        onError={(errorMessage) => { console.error("Failed to create log:", errorMessage); alert(`Error: ${errorMessage}`); }}
-        withButtonText={inOverlay}
-    />
-  ) : null;
+  const createLogRedirectButton = <Button
+    onClick={(e) => {
+        e.stopPropagation();
+        window.open("https://docs.unify.ai/logging/logs", '_blank');
+    }}
+  >
+    Learn how to create logs
+    <ExternalLink className="h-4 w-4" />
+  </Button>
 
   // Empty table overlay display and content
   const showOverlay =
@@ -873,7 +870,6 @@ const LogsTable = ({
                     tableArguments={tableArguments}
                 />
                 {contextSelectorButton(false)}
-                {createLogRowButton(false)}
             </div>
         </div>
         
@@ -1108,7 +1104,8 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? contextSelectorButton(true) : createLogRowButton(true)}
+                actionButton={overlayMode === "context" ? contextSelectorButton(true) : createLogRedirectButton}
+                withPulse={overlayMode === "context" ? true : false}
               />
             )}
             {/* <div className="min-w-max w-full"> */}
