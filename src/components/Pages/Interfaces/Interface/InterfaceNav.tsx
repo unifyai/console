@@ -1960,7 +1960,7 @@ export default function InterfaceNav({
                   <Hammer className={cn('h-4 w-4 flex-shrink-0', isEditMode && 'text-primary')} />
                   <span className="truncate">Edit Mode</span>
                 </label>
-                <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} className="flex-shrink-0" />
+                <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} className="flex-shrink-0 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input" />
               </div>
 
             </div>
@@ -1970,7 +1970,7 @@ export default function InterfaceNav({
                 <SquareMousePointer className={cn('h-4 w-4 flex-shrink-0', isCommandMode && 'text-primary')} />
                 <span className="truncate">Dashboard Mode</span>
               </label>
-              <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} className="flex-shrink-0" />
+              <Switch checked={isCommandMode} onCheckedChange={onCommandModeToggle} className="flex-shrink-0 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input" />
             </div>
           </div>
         )}
