@@ -152,7 +152,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
     // Sub components
     const columnButtonLabel = "Add Column";
-    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<CirclePlus />} />
+    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<CirclePlus />} variant="primary" />
     const hidden =  <DropdownMenuGroup>
                         {hiddenColumns.map((column, index) =>
                             <DropdownMenuItem key={index} onClick={() => {
@@ -170,7 +170,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
         : null;
     
     return (
-        <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
+        <div className="absolute -right-4 z-10 hover:opacity-100 opacity-0 transition-all">
             <BaseDropdown button={columnButton} open={open} setOpen={setOpen} context="tile">
                 {hiddenColumns.length > 0 && hidden}
                 {derived}
