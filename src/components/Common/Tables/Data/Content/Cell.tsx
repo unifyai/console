@@ -161,7 +161,7 @@ const DataTableCell = ({
       ? isCellSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : ""
       : isSelectableCell(cell) && isAllRowSelected(cell) ? `var(--primary)` : hovered ? "var(--muted)" : isPinned ? "var(--background)" : "",
     backgroundImage: cell.column.id !== "RowNumbering" && cell.getValue() === undefined 
-      ? `repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)` 
+      ? `repeating-linear-gradient(90deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 4px)` 
       : undefined
   };
 

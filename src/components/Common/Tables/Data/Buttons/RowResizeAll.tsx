@@ -67,10 +67,10 @@ const RowResizeAll = ({
 
   const resizerStyle: CSSProperties = {
     position: "absolute",
-    bottom: "-2px",
-    left: "0px",
+    bottom: 0,
+    left: 0,
     width: "100%",
-    height: "5px",
+    height: "4px", // Grabbable area positioned flush with bottom.
     zIndex: 20,
     cursor: "ns-resize",
     userSelect: "none",
@@ -79,18 +79,12 @@ const RowResizeAll = ({
   
   const dashedSeparatorStyle: CSSProperties = {
     position: 'absolute',
-    top: '-3px',
-    left: '-1px',
-    width: 'calc(100% + 2px)',
-    height: '5px',
-    backgroundImage: `repeating-linear-gradient(
-      135deg,
-      transparent,
-      transparent 4px,
-      var(--muted-foreground) 4px,
-      var(--muted-foreground) 5px
-    )`,
-    opacity: 0.5,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '1px',
+    backgroundColor: 'var(--muted)',
+    opacity: 1,
     pointerEvents: 'none',
   };
 
@@ -111,15 +105,8 @@ const RowResizeAll = ({
       style={resizerStyle}
       className="group/RowResizeAll"
     >
-      <div 
-        style={{...visualIndicatorStyle, backgroundColor: 'var(--border)', bottom: '8px'}}
-        className="group-hover/RowResizeAll:opacity-100 group-hover/RowResizeAll:bg-primary"
-      />
-      <div style={dashedSeparatorStyle} className="group-hover/RowResizeAll:opacity-100" />
-      <div 
-        style={{...visualIndicatorStyle, backgroundColor: isResizing ? 'var(--primary)' : 'var(--border)', bottom: '1px'}}
-        className="group-hover/RowResizeAll:opacity-100 group-hover/RowResizeAll:bg-primary"
-      />
+      {/* Simple visible line that acts as the table border */}
+      <div style={dashedSeparatorStyle} />
     </div>
   );
 };

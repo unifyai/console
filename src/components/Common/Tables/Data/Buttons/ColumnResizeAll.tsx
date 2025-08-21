@@ -65,12 +65,12 @@ const ColumnResizeAll = ({
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
 
-  // This is the invisible draggable area. It creates the whitespace and hover target.
+  // This is the invisible draggable area. It creates the hover target right at the cell edge.
   const resizerStyle: CSSProperties = {
     position: "absolute",
     top: 0,
-    right: "-10px", // Positions the start of the draggable area to the right of the column.
-    width: "5px",  // Sets the width of the draggable area.
+    right: "-2px", // Positions the draggable area right at the cell edge.
+    width: "4px",  // Narrow but still grabbable area.
     height: "100%",
     zIndex: 20,
     cursor: "ew-resize",
@@ -78,21 +78,15 @@ const ColumnResizeAll = ({
     touchAction: "none",
   };
   
-  // A container for the diagonal dashed pattern.
+  // Invisible resize indicator - users feel like they're resizing the cell directly.
   const dashedSeparatorStyle: CSSProperties = {
     position: 'absolute',
-    left: '-3px', // Provides a few pixels of whitespace from the column border.
-    top: '-1px', // Overlap borders to create a continuous line
-    height: 'calc(100% + 2px)',
-    width: '5px', // Container width for the diagonal pattern.
-    backgroundImage: `repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 4px,
-      var(--muted-foreground) 4px,
-      var(--muted-foreground) 5px
-    )`,
-    opacity: 0.5,
+    right: 0,
+    top: 0,
+    height: '100%',
+    width: '1px',
+    backgroundColor: 'transparent',
+    opacity: 0,
     pointerEvents: 'none',
   };
 

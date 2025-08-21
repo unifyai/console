@@ -732,7 +732,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             {/* Resizer Row */}
                             {table.getRowModel().rows?.length > 0 && (
                                 <TableRow className="relative">
-                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t">
+                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t-0 h-1 relative">
                                         {/* The cell content is empty, the resizer is positioned absolutely within it */}
                                         <RowResizeAll table={table} setRowSizing={setState.setRowSizing} />
                                     </TableCell>
