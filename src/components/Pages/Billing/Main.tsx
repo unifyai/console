@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Balance from "./Balance";
 import AutomaticRefill from "./Refill";
 import TaxClassification from "./TaxClassification";
+import Subscriptions from "./Subscriptions";
 import { Separator } from "../../UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -175,6 +176,9 @@ const Main = () => {
               <AutomaticRefill />
             </>
           )}
+
+          <Separator />
+          <Subscriptions/>
         </>
       )}
     </div>
