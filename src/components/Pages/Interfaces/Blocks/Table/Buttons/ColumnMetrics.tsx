@@ -14,14 +14,6 @@ import { useTableMetricsQuery, useInvalidateTableMetrics } from "@/hooks/Interfa
 import { useTileData } from "@/contexts/hooks";
 import { LogsActions } from "@/types/interfaces/grid";
 
-const style: CSSProperties = {
-    cursor: "default",
-    position: "sticky",
-    transition: "width transform 0.2s ease-in-out",
-    whiteSpace: "nowrap",
-    zIndex: 1,
-};
-
 const ColumnMetrics = ({
     tileId,
     tabId,
@@ -139,15 +131,13 @@ const ColumnMetrics = ({
     }
 
     return (
-        <TableCell style={style} colSpan={colSpan} className="p-1">
-            <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={(loading || isMetricsLoading || isFetching) ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading || isMetricsLoading || isFetching} variant="ghost" size="sm" className="px-1.5 h-7" />} open={interactive ? undefined : false}>
-                {metrics.map((metric_, index) =>
-                    <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
-                        {metric_}
-                    </DropdownMenuCheckboxItem>
-                )}
-            </BaseDropdown>
-        </TableCell>
+        <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={(loading || isMetricsLoading || isFetching) ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading || isMetricsLoading || isFetching} variant="ghost" size="sm" className="px-1.5 h-7" />} open={interactive ? undefined : false}>
+            {metrics.map((metric_, index) =>
+                <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
+                    {metric_}
+                </DropdownMenuCheckboxItem>
+            )}
+        </BaseDropdown>
     )
 }
 
