@@ -191,7 +191,7 @@ const RefreshLogs = ({
   };
 
   const isRefreshing = isFetching || isManualFetching;
-  const icon = isRefreshing ? <RefreshCw className="animate-spin text-green"/> 
+  const icon = isManualFetching ? <RefreshCw className="animate-spin text-green"/> 
     : loaded
     ? <Check className="text-green"/>
     : <RefreshCw/>;
