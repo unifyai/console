@@ -131,10 +131,6 @@ const FooterCell = ({
               </div>
             )}
 
-            {/* Shim to cover the column resizer from the row above */}
-            {isRightmost && (
-                <div className="shim absolute top-0 bottom-0 bg-background z-20" style={{ right: '-15px', width: '15px' }} />
-            )}
         </TableCell>
     );
 };

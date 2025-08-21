@@ -721,7 +721,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                             :   (
                                                     // Display placeholder cell if no entry found
                                                     <TableRow>
-                                                        <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                        <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderBottom: "1px solid var(--muted)",  borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
                                                             No entry found
                                                         </TableCell>
                                                     </TableRow>
