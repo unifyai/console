@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3 } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronUp, ChevronDown } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -61,6 +61,7 @@ import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery"
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useRouter } from "next/navigation"; // Import useRouter
 import SettingButton from "@/components/Common/Buttons/Setting";
+import { Button } from "@/components/UI/button";
 import { useInfiniteLogsQuery } from "@/hooks/Interfaces/Query/useInfiniteLogsQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore";
@@ -110,6 +111,9 @@ const LogsTable = ({
 
   // Show / Hide metrics row
   const [showMetricsRow, setShowMetricsRow] = useState(false);
+
+  // Menu collapse state
+  const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
@@ -803,11 +807,58 @@ const LogsTable = ({
     (sorting.length > 0 || groupSorting.length > 0) ||
     (logsFilters != undefined || commonFilter != undefined);
 
-  const tableMenu = (
-    <div className={cn(
-      "transition-all duration-300 ease-in-out mb-2 mx-1 flex flex-nowrap items-start border-b gap-x-4 overflow-x-auto command-scrollbar",
-      interactive ? "max-h-24 opacity-100 py-2" : "max-h-0 opacity-0 py-0 overflow-hidden"
-    )}>
+  const tableMenu = !interactive ? null : (
+    <div className="mb-2 mx-1">
+      {/* Menu Toggle Button */}
+      <div className="flex items-center justify-between mb-1 transition-all duration-200 ease-out">
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-muted-foreground transition-colors duration-200">Table Controls</span>
+          <span className={cn(
+            "text-xs text-muted-foreground whitespace-nowrap transition-all duration-300 ease-out overflow-hidden",
+            !isMenuCollapsed ? "max-w-xs opacity-100" : "max-w-0 opacity-0"
+          )}>
+            ({[
+              'Data',
+              showActions && projectId ? 'Actions' : null,
+              'Display',
+              projectId ? 'Monitoring' : null
+            ].filter(Boolean).join(' • ')})
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setIsMenuCollapsed(!isMenuCollapsed)}
+          className="h-6 px-2 text-muted-foreground hover:text-foreground transition-all duration-200 ease-out hover:bg-muted/50"
+        >
+          <div className={cn(
+            "flex items-center gap-1 transition-all duration-300 ease-out",
+            isMenuCollapsed ? "transform-none" : "transform-none"
+          )}>
+            <div className={cn(
+              "transition-transform duration-300 ease-out",
+              isMenuCollapsed ? "rotate-0" : "rotate-180"
+            )}>
+              <ChevronDown className="h-3 w-3" />
+            </div>
+            <span className="text-xs transition-all duration-200 ease-out">
+              {isMenuCollapsed ? 'Show' : 'Hide'}
+            </span>
+          </div>
+        </Button>
+      </div>
+      
+      {/* Existing Menu Content */}
+      <div className={cn(
+        "relative overflow-hidden transition-all duration-500 ease-out",
+        !isMenuCollapsed ? "max-h-96" : "max-h-0"
+      )}>
+        <div className={cn(
+          "flex flex-nowrap items-start border-b gap-x-4 overflow-x-auto command-scrollbar transition-all duration-400 ease-out py-2",
+          !isMenuCollapsed 
+            ? "opacity-100 transform translate-y-0" 
+            : "opacity-0 transform -translate-y-2"
+        )}>
         {/* Data Section */}
         <div className="flex flex-col gap-1 border-r pr-4">
             <span className="text-xs text-muted-foreground">Data</span>
@@ -935,6 +986,8 @@ const LogsTable = ({
                 </div>
             </div>
         )}
+        </div>
+      </div>
     </div>
   );
 
