@@ -32,6 +32,7 @@ import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { GroupLoadMoreProps } from "./Buttons/GroupLoadMore";
 import RowResizeAll from "./Buttons/RowResizeAll";
+import TableResizeAll from "./Buttons/TableResizeAll";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -732,9 +733,15 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             {/* Resizer Row */}
                             {table.getRowModel().rows?.length > 0 && (
                                 <TableRow className="relative">
-                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t-0 h-1 relative">
-                                        {/* The cell content is empty, the resizer is positioned absolutely within it */}
+                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t-0 h-1 relative group/footer-resizer-cell">
                                         <RowResizeAll table={table} setRowSizing={setState.setRowSizing} />
+                                        {interactive && (
+                                            <TableResizeAll
+                                                table={table}
+                                                setColumnSizing={setState.setColumnSizing}
+                                                setRowSizing={setState.setRowSizing}
+                                            />
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             )}
