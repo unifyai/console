@@ -87,7 +87,23 @@ export default async function Main({
   debugLog("[Main.server] Loaded projects:", projects);
 
   // Get the current project if it was provided in the URL
-  const currentProject = projects.find(proj => proj == project) || null;
+  // If no project is specified, default to "Assistants" project if it exists
+  let currentProject = projects.find(proj => proj == project) || null;
+  
+  if (!currentProject && !project) {
+    // Check if "Assistants" project exists and use it as default
+    const assistantsProject = projects.find(proj => proj === "Assistants");
+    if (assistantsProject) {
+      debugLog("[Main.server] No project specified, redirecting to Assistants project");
+      // Redirect to Assistants project
+      const { redirect } = await import('next/navigation');
+      redirect('/interfaces?project=Assistants');
+    } else {
+      debugLog("[Main.server] No project specified and Assistants project doesn't exist");
+      // We'll handle this case in the client component
+    }
+  }
+  
   debugLog("[Main.server] Current project:", currentProject);
 
   // **ALWAYS INITIALIZE WITH MINIMAL GLOBAL STATE**

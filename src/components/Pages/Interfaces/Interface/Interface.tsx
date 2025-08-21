@@ -91,6 +91,10 @@ const Interface = ({
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+  
+  // Get projects from store to check if Assistants project exists
+  const projects = useStoreContext(state => state.projects);
+  const hasAssistantsProject = projects?.includes("Assistants");
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
@@ -644,21 +648,35 @@ const Interface = ({
                     <Loader2 className="animate-spin my-36" />
                   </div>
                 ) : !projectQueryParam && !interfaceQueryParam ? (
-                  <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
-                    <DefaultProject
-                      projectActions={projectsActions}
-                      interfaceActions={interfaceActions}
-                      tabActions={tabActions}
-                      tileActions={tileActions}
-                      logsActions={logsActions}
-                      codeActions={codeActions}
-                      fileActions={fileActions}
-                      derivedEntryActions={derivedEntryActions}
-                      setTabQueryParam={setTabQueryParamFromSync}
-                      setInterfaceQueryParam={setInterfaceQueryParam}
-                      setProjectQueryParam={setProjectQueryParam}
-                    />
-                  </Suspense>
+                  // Check if Assistants project exists, if not show a message to select a project
+                  !hasAssistantsProject ? (
+                    <div className="flex flex-col items-center justify-center h-[70vh] gap-4">
+                      <div className="text-lg font-semibold text-muted-foreground">
+                        Please select a project from the navigation menu
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Choose a project to start working with interfaces
+                      </div>
+                    </div>
+                  ) : (
+                    // If Assistants project exists, this case shouldn't happen due to server redirect
+                    // But keep as fallback
+                    <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
+                      <DefaultProject
+                        projectActions={projectsActions}
+                        interfaceActions={interfaceActions}
+                        tabActions={tabActions}
+                        tileActions={tileActions}
+                        logsActions={logsActions}
+                        codeActions={codeActions}
+                        fileActions={fileActions}
+                        derivedEntryActions={derivedEntryActions}
+                        setTabQueryParam={setTabQueryParamFromSync}
+                        setInterfaceQueryParam={setInterfaceQueryParam}
+                        setProjectQueryParam={setProjectQueryParam}
+                      />
+                    </Suspense>
+                  )
                 ) : null
               ) : (
                 tabNames.map((tabName: string, idx: number) => (
