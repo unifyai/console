@@ -16,8 +16,9 @@ import {
 } from '@/components/UI/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
-import { Logo } from '@/utils/landingNav/consts'
+import ivyLogoOnly from "@/public/ivy_logo_only.png";
 import { getSession } from '@/lib/user/user'
+import Image from 'next/image';
 
 // Removed favourites handling
 
@@ -74,8 +75,12 @@ export default function TopNav() {
         {/* Logo */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
-            <Logo.dark className='hidden dark:block object-contain' width={100} height={24} loading="lazy" alt="Unify logo" />
-            <Logo.light className='block dark:hidden object-contain' width={100} height={24} loading="lazy" alt="Unify logo" />
+            <Image
+              src={ivyLogoOnly}
+              alt="Logo (collapsed)"
+              priority
+              className={`absolute h-5 w-5 object-contain transition-opacity duration-300`}
+              />
           </Link>
         </div>
 
