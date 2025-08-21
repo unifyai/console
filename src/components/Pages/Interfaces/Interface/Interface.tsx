@@ -597,7 +597,7 @@ const Interface = ({
             <div 
               className="fixed top-14 z-40 transition-all duration-300 ease-linear pointer-events-none"
               style={{ 
-                left: isNavCollapsed ? '48px' : '256px', // Adjust based on sidebar state
+                left: 'var(--interface-nav-width, 256px)', // Use dynamic sidebar width
                 right: 0,
               }}
               >
@@ -744,7 +744,7 @@ const Interface = ({
                     : "translate-y-12 opacity-0"
                 )}
                 style={{ 
-                  left: isNavCollapsed ? '48px' : '256px',
+                  left: 'var(--interface-nav-width, 256px)',
                   right: 0,
                 }}
               >

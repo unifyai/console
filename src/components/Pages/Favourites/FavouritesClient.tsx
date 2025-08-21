@@ -573,9 +573,9 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
                 <>
                   <div className="mb-3 grid grid-cols-4 gap-4 text-sm px-2">
                     <div className="" />
-                    <div className="font-medium text-center">Icon</div>
-                    <div className="font-medium text-center">Project</div>
-                    <div className="font-medium text-center">Actions</div>
+                    <div className="font-medium text-center select-none">Icon</div>
+                    <div className="font-medium text-center select-none">Project</div>
+                    <div className="font-medium text-center select-none">Actions</div>
                   </div>
                   <Separator className="mb-4" />
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleFavDragEnd}>

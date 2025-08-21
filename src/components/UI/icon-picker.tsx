@@ -280,7 +280,7 @@ const IconPicker = React.forwardRef<
       <Tooltip>
         <TooltipTrigger
           className={cn(
-            "p-2 rounded-md border hover:bg-foreground/10 transition",
+            "p-2 rounded-md border hover:bg-foreground/10 transition cursor-pointer",
             "flex items-center justify-center"
           )}
           onClick={() => handleIconClick(icon.name as IconName)}>
@@ -330,7 +330,7 @@ const IconPicker = React.forwardRef<
                 style={itemStyle}
                 className="top-0 bg-background z-10"
               >
-                <h3 className="font-medium text-sm capitalize">
+                <h3 className="font-medium text-sm capitalize select-none">
                   {categorizedIcons[item.categoryIndex].name}
                 </h3>
                 <div className="h-[1px] bg-foreground/10 w-full" />

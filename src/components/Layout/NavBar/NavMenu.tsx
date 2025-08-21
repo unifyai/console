@@ -64,7 +64,7 @@ function renderMenuItem(item: NavItem, isActive: boolean, isSubItem: boolean = f
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="ml-2 group-data-[collapsible=icon]:hidden">
+          <span className="ml-2 group-data-[collapsible=icon]:hidden select-none">
             {item.title}
           </span>
         </Link>
@@ -111,7 +111,7 @@ function renderCollapsibleMenuItemHeader(
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <span className="ml-2 group-data-[collapsible=icon]:hidden">
+            <span className="ml-2 group-data-[collapsible=icon]:hidden select-none">
               {item.title}
             </span>
           </Link>
@@ -363,7 +363,7 @@ export default function NavMenu() {
                       isDragging ? "bg-transparent text-primary" 
                       : isProjectActive ? "text-primary-foreground" : ""
                     }`} />}
-                    <span className={`ml-2 group-data-[collapsible=icon]:hidden truncate ${
+                    <span className={`ml-2 group-data-[collapsible=icon]:hidden truncate select-none ${
                       isDragging ? "bg-transparent" 
                       : isProjectActive ? "text-primary-foreground" : ""
                     }`}>

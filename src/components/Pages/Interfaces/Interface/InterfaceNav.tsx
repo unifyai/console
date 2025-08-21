@@ -1430,7 +1430,7 @@ export default function InterfaceNav({
     <TooltipProvider>
       {/* Toggle Button for completely hidden state */}
       {isCompletelyHidden && (
-        <div className="fixed left-2 top-[3.625rem] z-[100] animate-in fade-in duration-300">
+        <div className="fixed left-2 top-[3.625rem] z-[200] animate-in fade-in duration-300">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1483,13 +1483,16 @@ export default function InterfaceNav({
         
         {/* Header with Title and Toggle */}
         {!isCompletelyHidden && (
-          <div className="flex items-center justify-between p-3 border-b animate-in fade-in slide-in-from-top-2 duration-300 gap-2 min-w-0">
-            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200 truncate">Interfaces</span>}
+          <div className={cn(
+            "flex items-center border-b animate-in fade-in slide-in-from-top-2 duration-300",
+            isCollapsed ? "justify-center p-2" : "justify-between p-3 gap-2 min-w-0"
+          )}>
+            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200 truncate select-none">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
               onClick={toggleSidebar}
-              className="h-8 w-8 ml-auto flex-shrink-0"
+              className={cn("h-8 w-8 flex-shrink-0", !isCollapsed && "ml-auto")}
             >
               {isCollapsed ? (
                 <PanelLeft className="h-4 w-4" />
@@ -1505,7 +1508,7 @@ export default function InterfaceNav({
           <div className="p-3 space-y-3 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
             {/* Projects */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground animate-in fade-in duration-200 delay-75">Project:</label>
+              <label className="text-sm font-medium text-muted-foreground animate-in fade-in duration-200 delay-75 select-none">Project:</label>
               <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-100">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -1573,29 +1576,35 @@ export default function InterfaceNav({
                       <Plus className="h-4 w-4 mr-2" />
                       Create Project
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => {
-                      // Handle create interface for current project
-                      setActiveProject(selectedProject)
-                      setCreateInterfaceOpen(true)
-                    }}>
+                    <DropdownMenuItem 
+                      disabled={!selectedProject}
+                      onSelect={() => {
+                        // Handle create interface for current project
+                        setActiveProject(selectedProject)
+                        setCreateInterfaceOpen(true)
+                      }}>
                       <Plus className="h-4 w-4 mr-2" />
                       Create Interface
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => {
-                      // Handle project rename
-                      setActiveProject(selectedProject)
-                      setRenameProjectName(selectedProject)
-                      setRenameProjectOpen(true)
-                    }}>
+                    <DropdownMenuItem 
+                      disabled={!selectedProject}
+                      onSelect={() => {
+                        // Handle project rename
+                        setActiveProject(selectedProject)
+                        setRenameProjectName(selectedProject)
+                        setRenameProjectOpen(true)
+                      }}>
                       <Edit3 className="h-4 w-4 mr-2" />
                       Rename Project
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => {
-                      setActiveProject(selectedProject)
-                      setNewProjectIconEdit(currentProjectData?.icon || 'folder')
-                      setProjectIconOpen(true)
-                    }}>
+                    <DropdownMenuItem 
+                      disabled={!selectedProject}
+                      onSelect={() => {
+                        setActiveProject(selectedProject)
+                        setNewProjectIconEdit(currentProjectData?.icon || 'folder')
+                        setProjectIconOpen(true)
+                      }}>
                       <Settings className="h-4 w-4 mr-2" />
                       Change Icon
                     </DropdownMenuItem>
@@ -1607,22 +1616,28 @@ export default function InterfaceNav({
                         </DropdownMenuItem>
                       </ColorPicker>
                     )}
-                    <DropdownMenuItem onSelect={() => {
-                      setImportProjectName(selectedProject)
-                      setImportInterfaceOpen(true)
-                    }}>
+                    <DropdownMenuItem 
+                      disabled={!selectedProject}
+                      onSelect={() => {
+                        setImportProjectName(selectedProject)
+                        setImportInterfaceOpen(true)
+                      }}>
                       <Upload className="h-4 w-4 mr-2" />
                       Import Interface
                     </DropdownMenuItem>
                     {selectedProject !== 'Usage' && (
-                      <DropdownMenuItem onSelect={() => {
-                        setFileUploadOpen(true)
-                      }}>
+                      <DropdownMenuItem 
+                        disabled={!selectedProject}
+                        onSelect={() => {
+                          setFileUploadOpen(true)
+                        }}>
                         <FileInput className="h-4 w-4 mr-2" />
                         Upload Logs
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onSelect={() => handleToggleFavourite()}>
+                    <DropdownMenuItem 
+                      disabled={!selectedProject}
+                      onSelect={() => handleToggleFavourite()}>
                       <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
                       {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
                     </DropdownMenuItem>
@@ -1639,6 +1654,7 @@ export default function InterfaceNav({
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
+                          disabled={!selectedProject}
                           onSelect={() => {
                             setActiveProject(selectedProject)
                             setDeleteProjectOpen(true)
@@ -1658,7 +1674,7 @@ export default function InterfaceNav({
             {/* Interfaces */}
             {currentInterfaces.length > 0 && (
               <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
-                <label className="text-sm font-medium text-muted-foreground">Interface:</label>
+                <label className="text-sm font-medium text-muted-foreground select-none">Interface:</label>
                 <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-150">
                   <Popover>
                     <PopoverTrigger asChild>
@@ -1712,22 +1728,26 @@ export default function InterfaceNav({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                      <DropdownMenuItem onSelect={() => {
-                        if (currentInterface) {
-                          setSelectedInterfaceForAction(currentInterface)
-                          setRenameInterfaceOpen(true)
-                        }
-                      }}>
+                      <DropdownMenuItem 
+                        disabled={!currentInterface}
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSelectedInterfaceForAction(currentInterface)
+                            setRenameInterfaceOpen(true)
+                          }
+                        }}>
                         <Edit3 className="h-4 w-4 mr-2" />
                         Rename Interface
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => {
-                        if (currentInterface) {
-                          setSelectedInterfaceForAction(currentInterface)
-                          setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
-                          setInterfaceIconOpen(true)
-                        }
-                      }}>
+                      <DropdownMenuItem 
+                        disabled={!currentInterface}
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSelectedInterfaceForAction(currentInterface)
+                            setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
+                            setInterfaceIconOpen(true)
+                          }
+                        }}>
                         <Settings className="h-4 w-4 mr-2" />
                         Change Icon
                       </DropdownMenuItem>
@@ -1739,17 +1759,20 @@ export default function InterfaceNav({
                           </DropdownMenuItem>
                         </ColorPicker>
                       )}
-                      <DropdownMenuItem onSelect={() => {
-                        if (currentInterface) {
-                          setSelectedInterfaceForAction(currentInterface)
-                          handleExportTemplate()
-                        }
-                      }}>
+                      <DropdownMenuItem 
+                        disabled={!currentInterface}
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSelectedInterfaceForAction(currentInterface)
+                            handleExportTemplate()
+                          }
+                        }}>
                         <Download className="h-4 w-4 mr-2" />
                         Export as Template
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
+                        disabled={!currentInterface}
                         onSelect={() => {
                           if (currentInterface) {
                             setSelectedInterfaceForAction(currentInterface)
@@ -1778,7 +1801,7 @@ export default function InterfaceNav({
               {/* Tabs label and Add button */}
               {!isCollapsed && (
                 <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center leading-none flex-shrink-0">Tabs:</label>
+                  <label className="text-sm font-medium text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -1851,7 +1874,7 @@ export default function InterfaceNav({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <span className="block break-words">No tabs yet</span>
+                      <span className="block break-words select-none">No tabs yet</span>
                     </>
                   )}
                   {isCollapsed && interfaceId && (
@@ -1912,7 +1935,7 @@ export default function InterfaceNav({
                           <div className="bg-background border-2 border-primary/50 rounded-md shadow-xl p-2 opacity-95 transform scale-105">
                             <div className="flex items-center gap-2">
                               {renderSidebarIcon(activeTab.icon, "h-4 w-4", "tab")}
-                              {!isCollapsed && <span className="text-sm font-medium">{activeTab.name}</span>}
+                              {!isCollapsed && <span className="text-sm font-medium select-none">{activeTab.name}</span>}
                             </div>
                           </div>
                         )
@@ -1933,7 +1956,7 @@ export default function InterfaceNav({
           <div className="p-3 space-y-3 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-x-hidden">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-sm font-medium flex items-center gap-2 min-w-0">
+                <label className="text-sm font-medium flex items-center gap-2 min-w-0 select-none">
                   <Hammer className={cn('h-4 w-4 flex-shrink-0', isEditMode && 'text-primary')} />
                   <span className="truncate">Edit Mode</span>
                 </label>
@@ -1943,7 +1966,7 @@ export default function InterfaceNav({
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <label className="text-sm font-medium flex items-center gap-2 min-w-0">
+              <label className="text-sm font-medium flex items-center gap-2 min-w-0 select-none">
                 <SquareMousePointer className={cn('h-4 w-4 flex-shrink-0', isCommandMode && 'text-primary')} />
                 <span className="truncate">Dashboard Mode</span>
               </label>

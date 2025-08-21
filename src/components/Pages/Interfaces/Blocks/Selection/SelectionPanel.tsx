@@ -1557,7 +1557,7 @@ export default function SelectionPanel({
               }
             >
               <div className="flex flex-col gap-4 p-4 w-64">
-                <h4 className="font-medium leading-none text-center mb-2">View Settings</h4>
+                <h4 className="font-medium leading-none text-center mb-2 select-none">View Settings</h4>
 
                 {/* Display Mode */}
                 <div className="flex items-center justify-between">
