@@ -898,10 +898,11 @@ const LogsTable = ({
                     setDefaultHidden={setDefaultHidden}
                 />}
                 <SettingButton
-                    tooltip={`${showMetricsRow ? 'Hide' : 'Show'} metrics row`}
+                    tooltip={logs.length === 0 ? "Metrics are unavailable for empty tables" : `${showMetricsRow ? 'Hide' : 'Show'} metrics row`}
                     icon={<BarChart3 className="h-4 w-4" />}
                     onClick={() => setShowMetricsRow(!showMetricsRow)}
                     variant={showMetricsRow ? "primary" : "outline"}
+                    disabled={logs.length === 0}
                 />
                 <SettingButton
                   tooltip="Reset column widths"
@@ -1132,7 +1133,7 @@ const LogsTable = ({
                         setState={setState}
                         scrollContainerRef={panelScrollRefs[idx]}
                         
-                        showFooter={showMetricsRow}
+                        showFooter={showMetricsRow && logs.length > 0}
                         setShowFooter={setShowMetricsRow}
 
                         // Row indexing offset information
