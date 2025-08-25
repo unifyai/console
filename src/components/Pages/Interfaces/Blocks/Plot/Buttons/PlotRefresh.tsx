@@ -232,26 +232,41 @@ const PlotRefresh = ({
     }
   };
 
-  const isRefreshing = isFetching || isManualFetching;
-  const icon = isManualFetching
-    ? <RefreshCw className="animate-spin text-green"/> 
-    : loaded
-    ? <Check className="text-green"/>
-    : <RefreshCw/>;
+  const isAutoUpdating = tileDataState?.auto_update === "true";
+  const isManualSpinning = isFetching || isManualFetching;
+
+  const getIcon = () => {
+    if (isAutoUpdating) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (isManualSpinning) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (loaded) {
+      return <Check className="text-green" />;
+    }
+    return <RefreshCw />;
+  };
+
+  const getTooltip = () => {
+    if (isAutoUpdating) return "Auto-refreshing plot logs...";
+    if (isManualSpinning) return "Refreshing plot logs...";
+    return "Refresh plot logs";
+  };
 
   const manualRefreshButton = (
     <ActionButton 
       className="rounded-sm h-8"
-      icon={icon}
-      tooltip={isRefreshing ? "Refreshing plot logs.." : tileDataState?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
+      icon={getIcon()}
+      tooltip={getTooltip()}
       onClick={onManualClick}
-      disabled={tileDataState?.auto_update === "true"}
+      disabled={isAutoUpdating}
     />
   );
 
   const autoRefresh = (
     <ActionButton 
-      variant={tileDataState?.auto_update === "true" ? "primary" : "ghost"}
+      variant={isAutoUpdating ? "primary" : "ghost"}
       className="rounded-sm"
       icon={<Timer />}
       tooltip={"Auto refresh every 5s"}
