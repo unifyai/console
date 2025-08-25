@@ -108,7 +108,13 @@ const RefreshLogs = ({
         null, null, null, null, null, null, null, null, null
       )
       .then(latest => {
-        if (isMounted.current) setLastUpdated(latest);
+        if (isMounted.current) {
+          if (latest && typeof latest === 'object' && (latest as any).detail) {
+            // It's an error object, don't update timestamp.
+            return;
+          }
+          setLastUpdated(latest);
+        }
       })
       .catch(err => {
         if (err.name !== 'AbortError') {
@@ -154,6 +160,14 @@ const RefreshLogs = ({
             groupSortingExpression,
             null, null, null, null, null, null, null, null, null
           );
+
+          if (latest && typeof latest === 'object' && (latest as any).detail && (latest as any).detail.startsWith("Context '") && (latest as any).detail.endsWith("' not found")) {
+            if (syncedTileDataActions) {
+              showSuccessToast("Context not found", "Attempting to open table without context.");
+              await syncedTileDataActions.setContext(undefined);
+            }
+            return;
+          }
 
           const latestTs = new Date(latest).getTime();
           const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
