@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPl
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X, MessageSquare } from 'lucide-react';
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X, LayoutList, MessageSquare } from 'lucide-react';
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -355,12 +355,22 @@ export function AssistantHire ({
                                 variant="outline"
                                 onClick={() => {
                                     setIsAssistantPresetsOpen(true);
-                                    setRightPanelView('chat');
+                                    setLayoutMode("split")
+                                    setRightPanelView(rightPanelView === 'chat' ? 'presets' : 'chat');
                                 }}
-                                disabled={isAssistantPresetsOpen && rightPanelView === 'chat'}
                             >
-                                <MessageSquare className="h-4 w-4" />
-                                Chat Now
+                                {rightPanelView === 'presets' ? (
+                                        <div className="flex flex-row gap-1 items-center">
+                                            <MessageSquare className="h-4 w-4" />
+                                            Chat Now
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-row gap-1 items-center">
+                                            <LayoutList className="h-4 w-4" />
+                                            Browse Assistants
+                                        </div>
+                                    )
+                                }
                             </Button>
                         }
                         <Popover
