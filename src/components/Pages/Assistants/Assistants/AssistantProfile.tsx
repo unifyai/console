@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check } from "lucide-react";
+import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check, ChevronDown } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { BiLogoZoom } from "react-icons/bi";
@@ -76,10 +76,13 @@ const AccordionTriggerWithButtons = React.forwardRef<
         ref={ref}
         {...props}
         className="hover:no-underline py-3.5 border-b"
-        hideChevron
+        hideChevron // Hide the primitive's default chevron
     >
         <div className="flex items-center justify-between w-full px-4">
-            <div className="flex-grow text-left">{children}</div>
+            <div className="flex items-center gap-2">
+                <div className="flex-grow text-left">{children}</div>
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </div>
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 {buttonSlot}
             </div>
@@ -155,7 +158,7 @@ export function AssistantProfilePanel({
                         {/* Profile Section */}
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
-                                className="text-base font-semibold px-4 py-3"
+                                className="text-base font-semibold"
                                 buttonSlot={
                                     <TooltipProvider delayDuration={100}>
                                         <Tooltip>
@@ -305,7 +308,7 @@ export function AssistantProfilePanel({
                         {/* Chat Section */}
                         <AccordionItem value="chat" className="flex-1 flex flex-col min-h-0">
                             <AccordionTriggerWithButtons
-                                className="text-base font-semibold px-4 py-3"
+                                className="text-base font-semibold"
                                 buttonSlot={
                                     <TooltipProvider delayDuration={100}>
                                         <Tooltip>
