@@ -260,6 +260,23 @@ export function AssistantHire ({
                                 <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
                                     <h3 className="text-lg font-semibold">Your Assistant</h3>
                                     <div className="flex items-center gap-1">
+                                        {layoutMode === "split" && 
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')}
+                                                            disabled={!isAssistantPresetsOpen}
+                                                        >
+                                                            <Minus className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Minimize panel</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        }
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
@@ -280,23 +297,6 @@ export function AssistantHire ({
                                                 <TooltipContent><p>{layoutMode === 'left' ? 'Shrink panel' : 'Maximize panel'}</p></TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
-                                        {layoutMode === "split" && 
-                                            <TooltipProvider delayDuration={100}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon" className="h-7 w-7" onClick={() => setLayoutMode('right')}
-                                                            disabled={!isAssistantPresetsOpen}
-                                                        >
-                                                            <Minus className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>Minimize panel</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        }
                                     </div>
                                 </div>
                                 <div className="flex-1 min-h-0 overflow-hidden">

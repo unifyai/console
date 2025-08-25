@@ -90,6 +90,21 @@ export function PresetsPanel({
           <h2 className="text-lg font-semibold">Available Hires</h2>
         </div>
         <div className="flex items-center gap-1">
+            {layoutMode === "split" &&
+              <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button
+                              type="button"
+                              variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')}
+                            >
+                              <Minus className="h-4 w-4" />
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
+                  </Tooltip>
+              </TooltipProvider>
+            }
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -113,20 +128,6 @@ export function PresetsPanel({
                     <TooltipContent side="top"><p>{layoutMode === 'right' ? 'Shrink panel' : 'Maximize panel'}</p></TooltipContent>
                 </Tooltip>
             </TooltipProvider>
-            {layoutMode === "split" &&
-            <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLayoutMode('left')}
-                          >
-                            <Minus className="h-4 w-4" />
-                         </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>Minimize panel</p></TooltipContent>
-                </Tooltip>
-            </TooltipProvider>}
         </div>
       </div>
 
