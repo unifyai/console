@@ -18,7 +18,8 @@ export function useAssistantChat(
 ) {
     const messages = histories[configKey] || [];
     const [inputValue, setInputValue] = React.useState('');
-    const [isLoading, setIsLoading] = React.useState(false);
+    const [isSending, setIsSending] = React.useState(false);
+    const [isInitialGreetingLoading, setIsInitialGreetingLoading] = React.useState(false);
 
     const userMessageCount = React.useMemo(() => 
         messages.filter(msg => msg.role === 'user').length,
@@ -26,16 +27,47 @@ export function useAssistantChat(
 
     // Effect to initialize conversation for a new/unseen assistant configuration
     React.useEffect(() => {
+        // This effect should only run when the assistant identity (configKey) changes.
+        // It should not re-run when the history for this assistant is populated.
+        
+        // Check if a conversation for this assistant has been started.
         if (!histories[configKey]) {
-            const initialMessage: ChatMessage = {
-                id: uuidv4(),
+            setIsInitialGreetingLoading(true);
+            const placeholderMessageId = uuidv4();
+
+            // Add an empty placeholder message to trigger the "Typing..." UI
+            const placeholderMessage: ChatMessage = {
+                id: placeholderMessageId,
                 role: 'assistant',
-                content: `Hello! It's great to meet you. I'm ${assistantFirstName}. Feel free to ask me anything to see how I respond.`,
+                content: '', // Empty content is key for the typing indicator
                 timestamp: new Date(),
             };
-            setHistories(prev => ({ ...prev, [configKey]: [initialMessage] }));
+            // We set the initial state for this configKey
+            setHistories(prev => ({ ...prev, [configKey]: [placeholderMessage] }));
+
+            // Simulate typing delay
+            const timer = setTimeout(() => {
+                const greetingContent = `Hello! It's great to meet you. I'm ${assistantFirstName}. Feel free to ask me anything to see how I respond.`;
+                
+                // Now, update the placeholder with the actual greeting
+                setHistories(prev => {
+                    const currentHistory = prev[configKey] || [];
+                    const updatedHistory = currentHistory.map(msg =>
+                        msg.id === placeholderMessageId
+                            ? { ...msg, content: greetingContent }
+                            : msg
+                    );
+                    return { ...prev, [configKey]: updatedHistory };
+                });
+                
+                setIsInitialGreetingLoading(false);
+            }, 1500); // 1.5 second typing simulation
+
+            return () => clearTimeout(timer);
         }
-    }, [configKey, histories, setHistories, assistantFirstName]);
+    // By removing `histories` from the dependency array, we prevent this effect
+    // from re-running every time we call `setHistories` inside it.
+    }, [configKey, assistantFirstName, setHistories]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
@@ -43,7 +75,7 @@ export function useAssistantChat(
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isLoading || userMessageCount >= USER_MESSAGE_LIMIT) return;
+        if (!inputValue.trim() || isSending || isInitialGreetingLoading || userMessageCount >= USER_MESSAGE_LIMIT) return;
 
         const newUserMessage: ChatMessage = {
             id: uuidv4(),
@@ -56,7 +88,7 @@ export function useAssistantChat(
         const currentMessages = [...messages, newUserMessage];
         setHistories(prev => ({ ...prev, [configKey]: currentMessages }));
         setInputValue('');
-        setIsLoading(true);
+        setIsSending(true);
 
         const assistantResponseId = uuidv4();
         // Add the empty placeholder for the assistant's response
@@ -127,7 +159,7 @@ export function useAssistantChat(
             }
 
         } finally {
-            setIsLoading(false);
+            setIsSending(false);
             // Check if the user has now sent their message limit
             const finalUserMessageCount = (histories[configKey] || []).filter(m => m.role === 'user').length;
             if (finalUserMessageCount >= USER_MESSAGE_LIMIT) {
@@ -142,7 +174,7 @@ export function useAssistantChat(
     return {
         messages,
         inputValue,
-        isLoading,
+        isLoading: isSending || isInitialGreetingLoading,
         handleInputChange,
         sendMessage,
         userMessageCount,
