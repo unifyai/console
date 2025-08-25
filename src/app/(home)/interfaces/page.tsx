@@ -198,6 +198,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         <Main
             project={searchParams?.project as string | null}
             interface_={searchParams?.interface as string | null}
+            searchParams={searchParams}
             actions={
                 {
                     projectsActions,

@@ -1,7 +1,6 @@
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import Interface from "../Interface/Interface";
-import InterfaceSelector from "../Interface/InterfaceSelector";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
 import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore, buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
@@ -62,11 +61,13 @@ export default async function Main({
   interface_,
   actions,
   initialFavourites,
+  searchParams,
 }: {
   project: string | null;
   interface_: string | null;  // This is the interface name from query param
   actions: InterfaceWrapperActions;
   initialFavourites: Favourite[];
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
 
   debugLog("[Main.server] === PARAMETER DEBUG ===");
@@ -87,11 +88,13 @@ export default async function Main({
   debugLog("[Main.server] Loaded projects:", projects);
 
   // Get the current project if it was provided in the URL
-  // If no project is specified, default to "Assistants" project if it exists
+  // If no project is specified, default to "Assistants" project if it exists (unless user deliberately deselected)
   let currentProject = projects.find(proj => proj == project) || null;
   
-  if (!currentProject && !project) {
-    // Check if "Assistants" project exists and use it as default
+  const userRequestedProjectSelection = searchParams?.selectProject === 'true';
+  
+  if (!currentProject && !project && !userRequestedProjectSelection) {
+    // Check if "Assistants" project exists and use it as default (fresh session)
     const assistantsProject = projects.find(proj => proj === "Assistants");
     if (assistantsProject) {
       debugLog("[Main.server] No project specified, redirecting to Assistants project");
@@ -361,38 +364,28 @@ export default async function Main({
     tilesById: Object.keys(completeInitialState.tilesById || {})
   });
   
-  // Determine which component to render
-  const shouldShowInterfaceSelector = currentProject && !interface_;
+  // Always render the Interface component - it will handle missing interface logic internally
   const interfaceId = (currentProject && interface_) ? 
     (interfaces.find(i => i.name === interface_)?.id || "") : "";
 
   return (
     <StoreInitializer initialState={completeInitialState}>
       <HydrationBoundary state={dehydrate(qc)}>
-        {shouldShowInterfaceSelector ? (
-          <InterfaceSelector
-            projectId={currentProject!}
-            interfaceActions={actions.interfaceActions}
-            tabActions={actions.tabActions}
-            tileActions={actions.tileActions}
-          />
-        ) : (
-          <Interface
-            interfaceId={interfaceId}
-            projectsActions={actions.projectsActions}
-            interfaceActions={actions.interfaceActions}
-            tabActions={actions.tabActions}
-            tileActions={actions.tileActions}
-            logsActions={actions.logsActions}
-            fieldsActions={actions.fieldsActions}
-            derivedEntryActions={actions.derivedEntryActions}
-            contextActions={actions.contextActions}
-            codeActions={actions.codeActions}
-            fileActions={actions.fileActions}
-            favouritesActions={actions.favouritesActions}
-            initialFavourites={initialFavourites}
-          />
-        )}
+        <Interface
+          interfaceId={interfaceId}
+          projectsActions={actions.projectsActions}
+          interfaceActions={actions.interfaceActions}
+          tabActions={actions.tabActions}
+          tileActions={actions.tileActions}
+          logsActions={actions.logsActions}
+          fieldsActions={actions.fieldsActions}
+          derivedEntryActions={actions.derivedEntryActions}
+          contextActions={actions.contextActions}
+          codeActions={actions.codeActions}
+          fileActions={actions.fileActions}
+          favouritesActions={actions.favouritesActions}
+          initialFavourites={initialFavourites}
+        />
       </HydrationBoundary>
     </StoreInitializer>
   );

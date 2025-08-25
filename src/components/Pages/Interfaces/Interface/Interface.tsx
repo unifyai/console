@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Plus } from "lucide-react";
 import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
+import { Button } from "../../../UI/button";
+import { Icon } from "../../../UI/icon-picker";
 import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
 import InterfaceButtons from "./Buttons/InterfaceButtons";
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
@@ -33,9 +35,14 @@ import { useSidebar } from '@/components/UI/sidebar';
 import { ScrollArea } from '../../../UI/scroll-area';
 import InterfaceNav from './InterfaceNav';
 import { withLoadingToast } from '@/components/Common/Toasts/notifications'
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
 import { cn } from '@/lib/utils';
+import { useListInterfacesQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery'
+import { 
+  createInterfaceUrl,
+  createCompleteDefaultInterface,
+} from "@/utils/interfaces/interfaceSelector"
 
 export const PageScrollContext = React.createContext<React.RefObject<HTMLDivElement> | null>(null);
 
@@ -87,18 +94,91 @@ const Interface = ({
   // Query params - no more tab param needed
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
+  const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
+  const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Loading...');
+  
+  // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
+  const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
+    let icon = iconStr;
+    if (!icon || typeof icon !== 'string' || icon.trim() === '' || 
+        icon === 'null' || icon === 'undefined' || icon === 'none') {
+      icon = defaultIcon;
+    } else {
+      icon = icon.trim();
+    }
+    
+    // Check if it's an emoji or special character
+    if (/[^a-zA-Z0-9_-]/.test(icon)) {
+      return <span className={cn(className, "inline-flex items-center justify-center")}>{icon}</span>;
+    }
+    
+    return <Icon name={icon as any} className={className} />;
+  };
+  
+  // Auto-select interface when none is specified
+  const shouldAutoSelectInterface = !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
+  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces } = useListInterfacesQuery(
+    shouldAutoSelectInterface ? projectQueryParam : null,
+    interfaceActions
+  );
+  
+  // Add a flag to track if we're deliberately showing selection screen
+  const [preventAutoSelect, setPreventAutoSelect] = useState(false);
+  
+  // Track which interface is being loaded
+  const [loadingInterfaceId, setLoadingInterfaceId] = useState<string | null>(null);
+  
+  // Track which project is being loaded
+  const [loadingProjectName, setLoadingProjectName] = useState<string | null>(null);
+  
+  // Show project/interface selection when user deliberately deselected
+  const showProjectSelection = selectProjectParam === 'true';
+  const showInterfaceSelection = selectInterfaceParam === 'true' && projectQueryParam && !interfaceId;
+  
+  // Set preventAutoSelect when showing selection screens
+  useEffect(() => {
+    if (showInterfaceSelection || showProjectSelection) {
+      setPreventAutoSelect(true);
+    } else {
+      setPreventAutoSelect(false);
+    }
+  }, [showInterfaceSelection, showProjectSelection]);
   
   // Get projects from store to check if Assistants project exists
   const projects = useStoreContext(state => state.projects);
   const hasAssistantsProject = projects?.includes("Assistants");
+  
+  // Fetch project tree with icons
+  const { data: projectTree = [] } = useQuery<
+    Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
+  >({
+    queryKey: ['projects', 'tree'],
+    queryFn: async () => {
+      const res = await fetch('/api/projects/tree')
+      if (!res.ok) throw new Error('Failed to fetch project tree')
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+  });
+  
+  // Get interfaces from projectTree for selection screen (faster than separate API call)
+  const currentProjectData = projectTree?.find(p => p.project === projectQueryParam);
+  const interfacesForSelection = currentProjectData?.interfaces || [];
+  const isLoadingInterfacesForSelection = showInterfaceSelection && !projectTree.length;
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
     setIsSwitchingInterface(false);
+    setLoadingMessage('Loading...');
   }, [interfaceQueryParam]);
 
   useEffect(() => {
@@ -270,6 +350,74 @@ const Interface = ({
 
   const queryClient = useQueryClient();
 
+  // Auto-select interface when none is specified
+  useEffect(() => {
+    // Add delay and additional check to prevent race conditions
+    if (!shouldAutoSelectInterface || isLoadingInterfaces || !projectQueryParam || preventAutoSelect) return;
+
+    // Debounce the auto-selection to ensure URL params have settled
+    const timer = setTimeout(() => {
+      // Double-check the selectInterface param hasn't been set in the meantime
+      const currentParams = new URLSearchParams(window.location.search);
+      if (currentParams.get('selectInterface') === 'true') {
+        return;
+      }
+
+      const selectOrCreateInterface = async () => {
+        try {
+          setLoadingMessage('Loading interfaces...');
+          setIsSwitchingInterface(true);
+
+          if (projectInterfaces.length > 0) {
+            // If interfaces exist, find the most recently updated one and redirect.
+            const sortedInterfaces = [...projectInterfaces].sort((a, b) => {
+              const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+              const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+              return dateB - dateA; // Sort descending (newest first)
+            });
+            const latestInterface = sortedInterfaces[0];
+            
+            if (latestInterface) {
+              const searchParams = new URLSearchParams(window.location.search);
+              const newUrl = createInterfaceUrl(searchParams, latestInterface.name);
+              router.push(newUrl);
+            }
+          } else if (projectQueryParam !== 'Usage') {
+            // If no interfaces exist, create a default one and then redirect.
+            const newInterface = await createCompleteDefaultInterface({
+              queryClient,
+              project: projectQueryParam,
+              interfaceActions,
+              tabActions,
+              tileActions,
+              baseName: "Default"
+            });
+
+            if (newInterface && newInterface.name) {
+              const searchParams = new URLSearchParams(window.location.search);
+              const newUrl = createInterfaceUrl(searchParams, newInterface.name);
+              router.push(newUrl);
+            }
+          } else {
+            // For the special "Usage" project we simply stay on the project view with no interfaces.
+            setIsSwitchingInterface(false);
+          }
+        } catch (err) {
+          console.error("Error in interface selection/creation:", err);
+          setIsSwitchingInterface(false);
+          showErrorToast('Failed to load interface. Please try again.');
+        }
+      };
+
+      selectOrCreateInterface();
+    }, 500); // 500ms delay to let URL params settle
+
+    return () => clearTimeout(timer);
+  }, [shouldAutoSelectInterface, isLoadingInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
+  
+  // Don't clean up selection params - they should persist until user makes a choice
+  // This prevents auto-selection from re-triggering after deselection
+
   // Safety timeout: hide switching overlay and cancel queries if navigation stalls
   useEffect(() => {
     if (!isSwitchingInterface) return;
@@ -287,7 +435,7 @@ const Interface = ({
       // Hide the overlay and show an error
       setIsSwitchingInterface(false);
       showErrorToast('Navigation timed out. Please try again.', 'Failed to load the selected interface.');
-    }, 30000); // 30 seconds
+    }, 90000); // 90 seconds
 
     return () => clearTimeout(timer);
   }, [isSwitchingInterface, queryClient]);
@@ -552,32 +700,220 @@ const Interface = ({
         favouritesActions={favouritesActions}
         initialFavourites={initialFavourites}
         setIsSwitchingInterface={setIsSwitchingInterface}
+        setLoadingMessage={setLoadingMessage}
         onAddTile={handleSidebarAddTile}
         fieldsActions={fieldsActions}
         syncedInterfaceUIActions={syncedInterfaceUIActions}
       />
       
       {/* Main Content Area */}
-      <div 
-        className="h-full transition-all duration-300"
-        style={{
-          marginLeft: 'var(--interface-nav-width, 256px)'
-        }}
-      >
-        <div className="relative flex-1 min-w-0 h-full">
-        {(isSwitchingInterface || isRefreshingInterface) && (
-          <div
-            className="fixed bottom-0 right-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
-            style={{ left: 'var(--interface-nav-width, 256px)', top: '3rem' }}
-          >
-            <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-muted-foreground text-center whitespace-nowrap">
-                {isSwitchingInterface ? 'Switching project...' : 'Refreshing interface...'}
-              </p>
+      {showProjectSelection ? (
+        /* Project Selection Screen - Full viewport centered */
+        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
+          <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
+            <div className="text-center mb-8 pt-4">
+              <h1 className="text-2xl font-semibold mb-2">Select a Project</h1>
+              <p className="text-muted-foreground">Choose a project to continue working on your interfaces.</p>
             </div>
+            
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-2 pb-6">
+                {projects?.map((project) => {
+                  const projectData = projectTree?.find(p => p.project === project);
+                  const icon = projectData?.icon;
+                  const isLoading = loadingProjectName === project;
+                  return (
+                    <button
+                      key={project}
+                      onClick={() => {
+                        setLoadingProjectName(project);
+                        setLoadingMessage(`Loading ${project} project...`);
+                        setIsSwitchingInterface(true);
+                        setSelectProjectParam(null);
+                        setProjectQueryParam(project);
+                      }}
+                      disabled={isLoading || loadingProjectName !== null}
+                      className={cn(
+                        "w-full p-3 text-left border border-border rounded-lg transition-all duration-200 group",
+                        isLoading 
+                          ? "bg-muted cursor-not-allowed opacity-75" 
+                          : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                          isLoading 
+                            ? "bg-muted" 
+                            : "bg-primary/10 group-hover:bg-primary-foreground/20"
+                        )}>
+                          {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <span className="text-primary group-hover:text-primary-foreground">
+                              {renderIcon(icon, "h-4 w-4", "folder")}
+                            </span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "font-medium",
+                          isLoading && "text-muted-foreground"
+                        )}>{project}</span>
+                      </div>
+                    </button>
+                  );
+                }) || (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p>Loading projects...</p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </div>
-        )}
+        </div>
+      ) : showInterfaceSelection ? (
+        /* Interface Selection Screen - Full viewport centered */
+        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
+          <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
+            <div className="text-center mb-8 pt-4">
+              <h1 className="text-2xl font-semibold mb-2">Select an Interface</h1>
+              <p className="text-muted-foreground">Choose an interface for the {projectQueryParam} project.</p>
+            </div>
+            
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-2 pb-6">
+                {isLoadingInterfacesForSelection ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p>Loading interfaces...</p>
+                  </div>
+                ) : interfacesForSelection.length > 0 ? (
+                  interfacesForSelection.map((iface) => {
+                    // Interface already comes from projectTree, so icon is directly available
+                    const icon = iface.icon;
+                    const isLoading = loadingInterfaceId === iface.id;
+                    
+                    return (
+                      <button
+                        key={iface.id}
+                        onClick={() => {
+                          setLoadingInterfaceId(iface.id);
+                          setLoadingMessage(`Loading ${iface.name} interface...`);
+                          setIsSwitchingInterface(true);
+                          const newParams = new URLSearchParams(window.location.search);
+                          newParams.set('interface', iface.name);
+                          newParams.delete('selectInterface');
+                          router.push(`/interfaces?${newParams.toString()}`);
+                        }}
+                        disabled={isLoading || loadingInterfaceId !== null}
+                        className={cn(
+                          "w-full p-3 text-left border border-border rounded-lg transition-all duration-200 group",
+                          isLoading 
+                            ? "bg-muted cursor-not-allowed opacity-75" 
+                            : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn(
+                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                            isLoading 
+                              ? "bg-muted" 
+                              : "bg-primary/10 group-hover:bg-primary-foreground/20"
+                          )}>
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <span className="text-primary group-hover:text-primary-foreground">
+                                {renderIcon(icon, "h-4 w-4", "layout-grid")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-medium block">{iface.name}</span>
+                            {iface.updated_at && (
+                              <span className={cn(
+                                "text-xs",
+                                isLoading 
+                                  ? "text-muted-foreground" 
+                                  : "text-muted-foreground group-hover:text-primary-foreground/70"
+                              )}>
+                                {isLoading ? 'Loading...' : `Last updated: ${new Date(iface.updated_at).toLocaleDateString()}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="mb-6">
+                      <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                        <Icon name="layout-grid" className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-muted-foreground">No interfaces found for this project.</p>
+                    </div>
+                    <Button
+                      size="default"
+                      onClick={async () => {
+                        setLoadingMessage('Creating default interface...');
+                        setIsSwitchingInterface(true);
+                        try {
+                          const newInterface = await createCompleteDefaultInterface({
+                            queryClient,
+                            project: projectQueryParam || '',
+                            interfaceActions,
+                            tabActions,
+                            tileActions,
+                            baseName: "Default"
+                          });
+                          
+                          if (newInterface && newInterface.name) {
+                            const newParams = new URLSearchParams(window.location.search);
+                            newParams.set('interface', newInterface.name);
+                            newParams.delete('selectInterface');
+                            router.push(`/interfaces?${newParams.toString()}`);
+                          }
+                        } catch (error) {
+                          showErrorToast('Failed to create interface');
+                        } finally {
+                          setIsSwitchingInterface(false);
+                        }
+                      }}
+                      className="mx-auto"
+                    >
+                      <Plus className="mr-2 h-3 w-3" />
+                      Create Default Interface
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+      ) : (
+        /* Regular Interface Content - With sidebar margin */
+        <div 
+          className="h-full transition-all duration-300"
+          style={{
+            marginLeft: 'var(--interface-nav-width, 256px)'
+          }}
+        >
+          <div className="relative flex-1 min-w-0 h-full">
+          {(isSwitchingInterface || isRefreshingInterface) && (
+            <div
+              className="fixed bottom-0 right-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
+              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem' }}
+            >
+              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-muted-foreground text-center whitespace-nowrap">
+                  {isRefreshingInterface ? 'Refreshing interface...' : loadingMessage}
+                </p>
+              </div>
+            </div>
+          )}
           <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
           <div className="relative bg-background" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
@@ -898,8 +1234,9 @@ const Interface = ({
                       */}
          </div>
             </ScrollArea>
-         </div>
-    </div>
+          </div>
+        </div>
+      )}
     </div>
   </PageScrollContext.Provider>
   );

@@ -29,7 +29,8 @@ import {
   Layers,
   Upload,
   FileInput,
-  FileOutput
+  FileOutput,
+  Check
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -154,6 +155,7 @@ interface InterfaceNavProps {
   favouritesActions: FavouritesActions
   initialFavourites: Favourite[]
   setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>
+  setLoadingMessage: React.Dispatch<React.SetStateAction<string>>
   onAddTile: () => void
   fieldsActions: FieldsActions
   syncedInterfaceUIActions?: {
@@ -259,18 +261,24 @@ const SortableTab = React.memo(function SortableTab({
         {...listeners}
         onClick={() => onTabClick(tab)}
         className={cn(
-          "flex-1 min-w-0 flex items-center gap-2 py-2 text-sm rounded-md transition-colors cursor-pointer overflow-hidden",
+          "flex-1 min-w-0 flex items-center gap-2 py-2 text-sm rounded-md transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
           isActive
-            ? "text-primary font-medium"
-            : "text-muted-foreground hover:text-foreground",
+            ? "text-primary font-medium hover:bg-black/5 dark:hover:bg-white/5"
+            : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5",
           isDragging && "cursor-grabbing"
         )}
       >
         {isCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center w-full relative">
+              <div 
+                className="flex items-center justify-center w-full relative"
+                onDoubleClick={(e) => {
+                  e.stopPropagation()
+                  onChangeTabIcon(tab)
+                }}
+              >
                 {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
                 {isTabLoading && (
                   <div className="absolute -top-1 -right-1">
@@ -283,15 +291,31 @@ const SortableTab = React.memo(function SortableTab({
               <div>
                 <div>{tab.name}</div>
                 <div className="text-xs text-muted-foreground mt-1">Hold and drag to reorder</div>
+                <div className="text-xs text-muted-foreground">Double-click to change icon</div>
               </div>
             </TooltipContent>
           </Tooltip>
         ) : (
           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden w-full">
-            <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+            <div 
+              className="w-4 h-4 flex-shrink-0 flex items-center justify-center"
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                onChangeTabIcon(tab)
+              }}
+            >
               {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
             </div>
-            <span className="text-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left" title={tab.name}>{tab.name}</span>
+            <span 
+              className="text-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
+              title={tab.name}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                onRenameTab(tab)
+              }}
+            >
+              {tab.name}
+            </span>
             {isTabLoading && (
               <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
             )}
@@ -367,6 +391,7 @@ export default function InterfaceNav({
   favouritesActions,
   initialFavourites,
   setIsSwitchingInterface,
+  setLoadingMessage,
   onAddTile,
   onRefresh,
   refreshStatus,
@@ -403,6 +428,16 @@ export default function InterfaceNav({
   const [selectedProject, setSelectedProject] = useState(projectId)
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null)
   
+  // Loading states for project and interface transitions
+  const [isChangingProject, setIsChangingProject] = useState(false)
+  const [isChangingInterface, setIsChangingInterface] = useState(false)
+  const [transitioningToProject, setTransitioningToProject] = useState<string | null>(null)
+  const [transitioningToInterface, setTransitioningToInterface] = useState<string | null>(null)
+  
+  // Popover control states
+  const [projectPopoverOpen, setProjectPopoverOpen] = useState(false)
+  const [interfacePopoverOpen, setInterfacePopoverOpen] = useState(false)
+  
   // rAF-throttled resize handler to minimize re-renders during drag
   const rafIdRef = useRef<number | null>(null)
   const pendingWidthRef = useRef<string>(defaultWidth)
@@ -422,6 +457,13 @@ export default function InterfaceNav({
   useEffect(() => {
     return () => {
       if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current)
+      // Clean up transition states on unmount
+      setIsChangingProject(false)
+      setIsChangingInterface(false)
+      setTransitioningToProject(null)
+      setTransitioningToInterface(null)
+      setProjectPopoverOpen(false)
+      setInterfacePopoverOpen(false)
     }
   }, [])
   
@@ -449,6 +491,11 @@ export default function InterfaceNav({
   const [deleteInterfaceOpen, setDeleteInterfaceOpen] = useState(false)
   const [isRenamingInterface, setIsRenamingInterface] = useState(false)
   const [isDeletingInterface, setIsDeletingInterface] = useState(false)
+  
+  // Save as new interface state
+  const [saveAsNewInterfaceOpen, setSaveAsNewInterfaceOpen] = useState(false)
+  const [saveAsNewInterfaceName, setSaveAsNewInterfaceName] = useState('')
+  const [isSavingAsNewInterface, setIsSavingAsNewInterface] = useState(false)
   
   // Tab dialog states
   const [createTabOpen, setCreateTabOpen] = useState(false)
@@ -526,7 +573,18 @@ export default function InterfaceNav({
   // Update selected project and interface based on props
   useEffect(() => {
     setSelectedProject(projectId)
+    // Reset loading states when project changes (navigation completed)
+    setIsChangingProject(false)
+    setTransitioningToProject(null)
+    setProjectPopoverOpen(false)
   }, [projectId])
+  
+  // Reset interface loading states when interface changes
+  useEffect(() => {
+    setIsChangingInterface(false)
+    setTransitioningToInterface(null)
+    setInterfacePopoverOpen(false)
+  }, [interfaceId])
   
   // Find current interface data
   const currentProjectData = useMemo(() => {
@@ -655,35 +713,105 @@ export default function InterfaceNav({
   }, [router])
   
   const handleProjectChange = async (newProject: string) => {
-    setSelectedProject(newProject)
-    const newParams = new URLSearchParams(searchParams.toString())
-    newParams.set('project', newProject)
-    
-    // Find interfaces for the new project
-    const projectData = projectTree.find(p => p.project === newProject)
-    const interfaces = projectData?.interfaces || []
-    
-    if (interfaces.length === 1) {
-      // Auto-select the only interface
-      newParams.set('interface', interfaces[0].name)
-    } else if (interfaces.length > 1) {
-      // Clear interface selection to show dropdown
-      newParams.delete('interface')
+    // Check if clicking on already selected project to unselect
+    if (selectedProject === newProject) {
+      setIsChangingProject(true)
+      setTransitioningToProject(newProject)
+      setSelectedProject('')
       setSelectedInterface(null)
+      setLoadingMessage('Loading project selection...')
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.delete('project')
+      newParams.delete('interface')
+      newParams.delete('tab')
+      newParams.set('selectProject', 'true') // Flag to show project selection instead of redirecting
+      try {
+        navigateSoft(`/interfaces?${newParams.toString()}`)
+      } finally {
+        setTimeout(() => {
+          setIsChangingProject(false)
+          setTransitioningToProject(null)
+          setProjectPopoverOpen(false)
+        }, 500)
+      }
+      return
     }
-    
-    newParams.delete('tab') // Clear tab selection
-    navigateSoft(`?${newParams.toString()}`)
+
+    setIsChangingProject(true)
+    setTransitioningToProject(newProject)
+    setLoadingMessage(`Switching to ${newProject} project...`)
+    try {
+      setSelectedProject(newProject)
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('project', newProject)
+      newParams.delete('selectProject') // Clear the project selection screen flag
+      
+      // Find interfaces for the new project
+      const projectData = projectTree.find(p => p.project === newProject)
+      const interfaces = projectData?.interfaces || []
+      
+      if (interfaces.length === 1) {
+        // Auto-select the only interface
+        newParams.set('interface', interfaces[0].name)
+      } else if (interfaces.length > 1) {
+        // Clear interface selection to show dropdown
+        newParams.delete('interface')
+        setSelectedInterface(null)
+      }
+      
+      newParams.delete('tab') // Clear tab selection
+      navigateSoft(`/interfaces?${newParams.toString()}`)
+    } finally {
+      setTimeout(() => {
+        setIsChangingProject(false)
+        setTransitioningToProject(null)
+        setProjectPopoverOpen(false)
+      }, 500)
+    }
   }
   
   const handleInterfaceChange = async (newInterfaceName: string) => {
     const iface = currentInterfaces.find(i => i.name === newInterfaceName)
     if (!iface) return
     
-    const newParams = new URLSearchParams(searchParams.toString())
-    newParams.set('interface', iface.name)
-    newParams.delete('tab') // Clear tab selection
-    navigateSoft(`?${newParams.toString()}`)
+    // Check if clicking on already selected interface to unselect
+    if (currentInterface?.name === newInterfaceName) {
+      setIsChangingInterface(true)
+      setTransitioningToInterface(newInterfaceName)
+      setLoadingMessage('Loading interface selection...')
+      try {
+        setSelectedInterface(null)
+        const newParams = new URLSearchParams(searchParams.toString())
+        newParams.delete('interface')
+        newParams.delete('tab')
+        newParams.set('selectInterface', 'true') // Flag to show interface selection instead of auto-selecting
+        navigateSoft(`/interfaces?${newParams.toString()}`)
+      } finally {
+        setTimeout(() => {
+          setIsChangingInterface(false)
+          setTransitioningToInterface(null)
+          setInterfacePopoverOpen(false)
+        }, 500)
+      }
+      return
+    }
+
+    setIsChangingInterface(true)
+    setTransitioningToInterface(newInterfaceName)
+    setLoadingMessage(`Loading ${newInterfaceName} interface...`)
+    try {
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('interface', iface.name)
+      newParams.delete('selectInterface') // Clear the interface selection screen flag
+      newParams.delete('tab') // Clear tab selection
+      navigateSoft(`/interfaces?${newParams.toString()}`)
+    } finally {
+      setTimeout(() => {
+        setIsChangingInterface(false)
+        setTransitioningToInterface(null)
+        setInterfacePopoverOpen(false)
+      }, 500)
+    }
   }
   
   const handleTabClick = useCallback((tab: ProjectTab) => {
@@ -1055,6 +1183,49 @@ export default function InterfaceNav({
     setIsCreatingInterface(false)
   }
   
+  const handleSaveAsNewInterface = async () => {
+    if (!selectedInterfaceForAction || !saveAsNewInterfaceName.trim() || !selectedProject) return
+    
+    setIsSavingAsNewInterface(true)
+    try {
+      // First export the current interface as a template
+      const exportResult = await interfaceActions.exportTemplate({ interface_id: selectedInterfaceForAction.id })
+      if (!exportResult || !('template' in exportResult)) {
+        throw new Error('Failed to export interface')
+      }
+      
+      // Then import it with the new name
+      const importResult = await importInterfaceTemplate(
+        exportResult,
+        selectedProject,
+        saveAsNewInterfaceName.trim(),
+        interfaceActions,
+        currentInterfaces
+      )
+      
+      if (importResult.success && importResult.importedInterface) {
+        await refetchProjectTree()
+        
+        // Navigate to the new interface
+        const newParams = new URLSearchParams(searchParams.toString())
+        newParams.set('project', selectedProject)
+        newParams.set('interface', importResult.importedInterface.name)
+        navigateSoft(`?${newParams.toString()}`)
+        
+        setSaveAsNewInterfaceOpen(false)
+        setSaveAsNewInterfaceName('')
+        showSuccessToast(`Interface "${importResult.importedInterface.name}" created successfully`)
+      } else {
+        throw new Error(importResult.error || 'Failed to create interface copy')
+      }
+    } catch (error) {
+      console.error('Failed to save as new interface:', error)
+      showErrorToast(error instanceof Error ? error.message : 'Failed to save as new interface')
+    } finally {
+      setIsSavingAsNewInterface(false)
+    }
+  }
+  
   const handleRenameInterface = async () => {
     if (!selectedInterfaceForAction || !newInterfaceName.trim()) return
     
@@ -1309,6 +1480,13 @@ export default function InterfaceNav({
     }
   }, [renameProjectOpen, activeProject])
   
+  // Initialize interface name when opening save as new dialog
+  useEffect(() => {
+    if (saveAsNewInterfaceOpen && selectedInterfaceForAction) {
+      setSaveAsNewInterfaceName(`${selectedInterfaceForAction.name} (Copy)`)
+    }
+  }, [saveAsNewInterfaceOpen, selectedInterfaceForAction])
+  
   const getDefaultPrimary = () => (
     typeof window !== 'undefined'
       ? (getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#2a862a')
@@ -1430,7 +1608,7 @@ export default function InterfaceNav({
     <TooltipProvider>
       {/* Toggle Button for completely hidden state */}
       {isCompletelyHidden && (
-        <div className="fixed left-2 top-[3.625rem] z-[200] animate-in fade-in duration-300">
+        <div className="fixed left-2 top-[3.125rem] z-[200] animate-in fade-in duration-300">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1455,7 +1633,7 @@ export default function InterfaceNav({
       <div 
         data-interface-color 
         className={cn(
-          "fixed left-0 top-12 h-[calc(100vh-3rem)] bg-[color:var(--background)] border-r border-[color:var(--border)] flex flex-col z-20 overflow-hidden",
+          "fixed left-0 top-10 h-[calc(100vh-2.5rem)] bg-[color:var(--background)] border-r border-[color:var(--border)] flex flex-col z-20 overflow-hidden",
           isCollapsed ? "w-12" : "",
           isDraggingSidebar ? "" : "transition-all duration-300 ease-in-out",
           isCompletelyHidden && "!w-0 border-0 pointer-events-none opacity-0"
@@ -1485,14 +1663,14 @@ export default function InterfaceNav({
         {!isCompletelyHidden && (
           <div className={cn(
             "flex items-center border-b animate-in fade-in slide-in-from-top-2 duration-300",
-            isCollapsed ? "justify-center p-2" : "justify-between p-3 gap-2 min-w-0"
+            isCollapsed ? "justify-center p-2" : "justify-between p-2 gap-2 min-w-0"
           )}>
-            {!isCollapsed && <span className="font-semibold animate-in fade-in duration-200 truncate select-none">Interfaces</span>}
+            {!isCollapsed && <span className="text-xs text-muted-foreground animate-in fade-in duration-200 truncate select-none uppercase tracking-wider">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
               onClick={toggleSidebar}
-              className={cn("h-8 w-8 flex-shrink-0", !isCollapsed && "ml-auto")}
+              className={cn("h-7 w-7 flex-shrink-0", !isCollapsed && "ml-auto")}
             >
               {isCollapsed ? (
                 <PanelLeft className="h-4 w-4" />
@@ -1505,12 +1683,12 @@ export default function InterfaceNav({
         
         {/* Projects and Interfaces Section */}
         {!isCompletelyHidden && !isCollapsed && (
-          <div className="p-3 space-y-3 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
+          <div className="p-3 space-y-2.5 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
             {/* Projects */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground animate-in fade-in duration-200 delay-75 select-none">Project:</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground animate-in fade-in duration-200 delay-75 select-none">Project:</label>
               <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-100">
-                <Popover>
+                <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -1542,6 +1720,7 @@ export default function InterfaceNav({
                         ) : (
                           projectTree.map((project) => {
                             const isSelected = projectId === project.project
+                            const isLoading = isChangingProject && transitioningToProject === project.project
                             return (
                               <CommandItem
                                 key={project.project}
@@ -1551,9 +1730,16 @@ export default function InterfaceNav({
                                   isSelected && "text-primary"
                                 )}
                               >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")}
-                                  <span className="truncate">{project.project}</span>
+                                <div className="flex items-center gap-2 min-w-0 w-full">
+                                  {isSelected ? (
+                                    <Check className="h-4 w-4 flex-shrink-0" />
+                                  ) : (
+                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
+                                  )}
+                                  <span className="truncate flex-1">{project.project}</span>
+                                  {isLoading && (
+                                    <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                  )}
                                 </div>
                               </CommandItem>
                             )
@@ -1673,10 +1859,10 @@ export default function InterfaceNav({
             
             {/* Interfaces */}
             {currentInterfaces.length > 0 && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
-                <label className="text-sm font-medium text-muted-foreground select-none">Interface:</label>
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
+                <label className="text-xs font-medium text-muted-foreground select-none">Interface:</label>
                 <div className="flex items-center gap-1 w-full min-w-0 animate-in fade-in slide-in-from-left-1 duration-200 delay-150">
-                  <Popover>
+                  <Popover open={interfacePopoverOpen} onOpenChange={setInterfacePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -1699,6 +1885,7 @@ export default function InterfaceNav({
                         <CommandGroup>
                           {currentInterfaces.map((iface) => {
                             const isSelected = currentInterface?.name === iface.name
+                            const isLoading = isChangingInterface && transitioningToInterface === iface.name
                             return (
                               <CommandItem
                                 key={iface.name}
@@ -1708,9 +1895,16 @@ export default function InterfaceNav({
                                   isSelected && "text-primary"
                                 )}
                               >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                                  <span className="truncate">{iface.name}</span>
+                                <div className="flex items-center gap-2 min-w-0 w-full">
+                                  {isSelected ? (
+                                    <Check className="h-4 w-4 flex-shrink-0" />
+                                  ) : (
+                                    renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
+                                  )}
+                                  <span className="truncate flex-1">{iface.name}</span>
+                                  {isLoading && (
+                                    <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                  )}
                                 </div>
                               </CommandItem>
                             )
@@ -1728,6 +1922,40 @@ export default function InterfaceNav({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                      <DropdownMenuItem 
+                        disabled={!currentInterface}
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSaveInterfaceOpen(true)
+                          }
+                        }}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        disabled={!currentInterface}
+                        onSelect={() => {
+                          if (currentInterface) {
+                            setSelectedInterfaceForAction(currentInterface)
+                            setSaveAsNewInterfaceOpen(true)
+                          }
+                        }}>
+                        <div className="h-4 w-4 mr-2 relative">
+                          <Save className="h-4 w-4" />
+                          <Plus className="h-2.5 w-2.5 absolute -top-1 -right-1 rounded-full bg-background text-foreground hover:text-foreground" />
+                        </div>
+                        Save as New Int...
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        disabled={!selectedProject}
+                        onSelect={() => {
+                          setActiveProject(selectedProject)
+                          setCreateInterfaceOpen(true)
+                        }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         disabled={!currentInterface}
                         onSelect={() => {
@@ -1792,16 +2020,19 @@ export default function InterfaceNav({
           </div>
         )}
         
-        {!isCompletelyHidden && !isCollapsed && <Separator className="animate-in fade-in duration-300 delay-150" />}
+        {/* Show separator and tabs only when both project and interface are selected */}
+        {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
+          <Separator className="animate-in fade-in duration-300 delay-150" />
+        )}
         
-        {/* Tabs List */}
-        {!isCompletelyHidden && (
-          <ScrollArea className="flex-1 overflow-x-hidden">
+        {/* Tabs List - Only show when both project and interface are selected */}
+        {!isCompletelyHidden && projectId && interfaceId && (
+          <ScrollArea className="flex-1 overflow-x-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
             <div className={cn("space-y-1 min-w-0", isCollapsed ? "px-2 py-2" : "px-3 py-3 pr-2")}>
               {/* Tabs label and Add button */}
               {!isCollapsed && (
                 <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="text-sm font-medium text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
+                  <label className="text-xs font-medium text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -2415,6 +2646,42 @@ export default function InterfaceNav({
         />, document.body
       )}
       
+      {typeof window !== 'undefined' && saveAsNewInterfaceOpen && selectedInterfaceForAction && createPortal(
+        <BaseDialog
+          button={null as any}
+          open={saveAsNewInterfaceOpen}
+          setOpen={setSaveAsNewInterfaceOpen}
+          title="Save as New Interface"
+          body={
+            <div className="space-y-2 pt-4">
+              <Label htmlFor="new-interface-name">New Interface Name</Label>
+              <Input
+                id="new-interface-name"
+                value={saveAsNewInterfaceName}
+                onChange={(e) => setSaveAsNewInterfaceName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewInterface()}
+                autoFocus
+              />
+              <p className="text-sm text-muted-foreground">
+                This will create a copy of &quot;{selectedInterfaceForAction.name}&quot; with all its tabs and tiles.
+              </p>
+            </div>
+          }
+          footer={
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSaveAsNewInterfaceOpen(false)}>
+                Cancel
+              </Button>
+              <SubmitButton
+                text="Create Copy"
+                onClick={handleSaveAsNewInterface}
+                loading={isSavingAsNewInterface}
+              />
+            </div>
+          }
+        />, document.body
+      )}
+      
       {/* File Upload Dialog */}
       {fileUploadOpen && (
         <FileUpload
@@ -2472,15 +2739,15 @@ export default function InterfaceNav({
       
       {/* Floating Add Tile button when Edit Mode is ON */}
       {isEditMode && (
-        <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1.25rem' }}>
-          <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-2">
+        <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
+          <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
             <ActionButton
-              className="h-8 px-2"
+              className="h-7 px-1.5 text-xs"
               size="sm"
               variant="ghost"
               onClick={onAddTile}
               tooltip="Add new tile"
-              icon={<Plus size={14} />}
+              icon={<Plus size={12} />}
               text="Add tile"
             />
           </div>

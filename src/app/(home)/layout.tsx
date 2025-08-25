@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <OnboardingGuard>
                 <TopNav />
                 <Suspense fallback={<LoadingScreen/>}>
-                  <main className="relative top-12 h-[calc(100vh-3rem)]">
+                  <main className="relative top-10 h-[calc(100vh-2.5rem)]">
                     <NuqsAdapter>{children}</NuqsAdapter>
                   </main>
                 </Suspense>

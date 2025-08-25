@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
-import { User, CreditCard, Key, LogOut, ExternalLink } from 'lucide-react'
+import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Button } from '@/components/UI/button'
 import {
@@ -50,7 +50,7 @@ export default function TopNav() {
         setProfileName(userName)
         const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
         setAvatarJSX(
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-4 w-4">
             <AvatarImage src={imageUrl} alt="User Avatar"/>
             <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
           </Avatar>
@@ -70,7 +70,7 @@ export default function TopNav() {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-12 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
+    <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
       <div className="h-full px-4 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center">
@@ -79,7 +79,7 @@ export default function TopNav() {
               src={ivyLogoOnly}
               alt="Logo (collapsed)"
               priority
-              className={`absolute h-5 w-5 object-contain transition-opacity duration-300`}
+              className={`h-5 w-5 object-contain transition-opacity duration-300`}
               />
           </Link>
         </div>
@@ -90,12 +90,13 @@ export default function TopNav() {
           <Link
             href="/assistants"
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
               pathname === '/assistants' || pathname.startsWith('/assistants/')
                 ? "text-[color:var(--primary)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
+            <Bot className="h-4 w-4" />
             Assistants
           </Link>
 
@@ -103,12 +104,13 @@ export default function TopNav() {
           <Link
             href="/interfaces"
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
+              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
               pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
                 ? "text-[color:var(--primary)]"
                 : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
+            <LayoutGrid className="h-4 w-4" />
             Interfaces
           </Link>
 
@@ -118,10 +120,11 @@ export default function TopNav() {
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1",
+              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
               "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
             )}
           >
+            <BookOpen className="h-4 w-4" />
             Docs
             <ExternalLink className="h-3 w-3" />
           </a>
@@ -177,8 +180,8 @@ export default function TopNav() {
           {/* Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                {avatarJSX || <User className="h-4 w-4" />}
+              <Button variant="ghost" className="relative h-6 w-6 rounded-full p-0">
+                {avatarJSX || <User className="h-3 w-3" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
