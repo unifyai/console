@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, Smartphone, MessageSquare, Maximize2, Minus, ExternalLink } from "lucide-react";
+import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
+import { BiLogoMicrosoftTeams } from "react-icons/bi";
+import { BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
@@ -37,6 +39,32 @@ interface AssistantProfilePanelProps {
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
 }
+
+const CopyableContact: React.FC<{ value: string; type: 'Email' | 'Phone' | 'WhatsApp'; icon: React.ReactNode }> = ({ value, type, icon }) => {
+    const [isCopied, setIsCopied] = React.useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(value);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    return (
+        <TooltipProvider delayDuration={100}>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={handleCopy}>
+                        {isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
+                        <span className="truncate mb-0.5">{value || 'N/A'}</span>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                    <p>Copy {type}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+};
 
 const AccordionTriggerWithButtons = React.forwardRef<
     React.ElementRef<typeof AccordionTrigger>,
@@ -102,7 +130,6 @@ export function AssistantProfilePanel({
         const startTime = new Date(now.getTime());
         const endTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
 
-        // Format dates to YYYYMMDDTHHMMSSZ as required by Google Calendar
         const formatDate = (date: Date) => date.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
 
         const calendarUrl = new URL('https://calendar.google.com/calendar/render');
@@ -195,43 +222,80 @@ export function AssistantProfilePanel({
                                     </div>
                                     <div className="px-4 sm:px-6 space-y-3 group/assistant-contact">
                                         <h3 className="text-sm font-semibold">My Contact</h3>
-                                        <div className="space-y-4 text-sm">
-                                            <div className="flex items-center gap-3">
-                                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                                <span className="truncate">{assistant.email || 'N/A'}</span>
+                                        <div className="grid text-xs gap-4 grid-cols-2">
+                                            <div className="space-y-2">
+                                                {assistant.email && <CopyableContact value={assistant.email} type="Email" icon={<Mail className="h-4 w-4 text-muted-foreground" />} />}
+                                                {assistant.phone && <CopyableContact value={assistant.phone} type="Phone" icon={<Phone className="h-4 w-4 text-muted-foreground" />} />}
+                                                {assistant.assistant_whatsapp_number && <CopyableContact value={assistant.assistant_whatsapp_number} type="WhatsApp" icon={<WhatsApp className="h-4 w-4 text-muted-foreground" />} />}
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                                <span>{assistant.phone || 'N/A'}</span>
+                                            <div className="space-y-2">
+                                                {assistant.email && (
+                                                    <div className="flex items-center gap-1">
+                                                        <SiGooglemeet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <TooltipProvider delayDuration={100}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="w-fit items-center flex h-5"
+                                                                        onClick={handleStartMeet}
+                                                                    >
+                                                                        Start Google Meet
+                                                                        <ExternalLink className="h-1 w-1"/>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top"><p>Schedule a Google Meet meeting and invite {assistant.first_name}.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                )}
+                                                {assistant.email && (
+                                                    <div className="flex items-center gap-1">
+                                                        <BiLogoMicrosoftTeams className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <TooltipProvider delayDuration={100}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="w-fit items-center flex h-5"
+                                                                        onClick={handleStartMeet}
+                                                                        disabled
+                                                                    >
+                                                                        Coming Soon
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top"><p>Schedule a Microsoft Teams meeting and invite {assistant.first_name}.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                )}
+                                                {assistant.email && (
+                                                    <div className="flex items-center gap-1">
+                                                        <BiLogoZoom className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <TooltipProvider delayDuration={100}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="link"
+                                                                        size="sm"
+                                                                        className="w-fit items-center flex h-5"
+                                                                        onClick={handleStartMeet}
+                                                                        disabled
+                                                                    >
+                                                                        Coming Soon
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top"><p>Schedule a Zoom meeting and invite {assistant.first_name}.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                )}
                                             </div>
-                                            {assistant.assistant_whatsapp_number && (
-                                                <div className="flex items-center gap-3">
-                                                    <WhatsApp className="h-4 w-4 text-muted-foreground" />
-                                                    <span>{assistant.assistant_whatsapp_number}</span>
-                                                </div>
-                                            )}
-                                            {assistant.email && (
-                                                <div className="flex items-center gap-3">
-                                                    <SiGooglemeet className="h-4 w-4 text-muted-foreground" />
-                                                    <TooltipProvider delayDuration={100}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="w-fit items-center flex"
-                                                                    onClick={handleStartMeet}
-                                                                >
-                                                                    Start Google Meet
-                                                                    <ExternalLink/>
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="right"><p>Schedules a new meeting and invites {assistant.first_name}.</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
