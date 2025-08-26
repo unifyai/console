@@ -64,6 +64,7 @@ export function useTabStreamingQuery(
   const storeApi = useStoreApiContext();
   const [prefetchedTabs, setPrefetchedTabs] = useState<Set<string>>(new Set());
   const [currentlyPrefetching, setCurrentlyPrefetching] = useState<Set<string>>(new Set());
+  const [failedPrefetchTabs, setFailedPrefetchTabs] = useState<Set<string>>(new Set());
   const { buildCompleteTabData } = useTabDataOptimistic();
 
   // Get all tabs for the interface from cache first
@@ -135,7 +136,7 @@ export function useTabStreamingQuery(
   // Calculate which tabs should be in the current prefetch queue
   const prefetchQueue = useMemo(() => {
     const unprefetchedTabs = nonActiveTabs.filter(tab => 
-      !prefetchedTabs.has(tab.name!) && !currentlyPrefetching.has(tab.name!)
+      !prefetchedTabs.has(tab.name!) && !currentlyPrefetching.has(tab.name!) && !failedPrefetchTabs.has(tab.name!)
     );
     
     const availableSlots = MAX_CONCURRENT_PREFETCH - currentlyPrefetching.size;
@@ -147,7 +148,7 @@ export function useTabStreamingQuery(
       .filter(Boolean) as TabData[];
       
     return [...currentQueue, ...tabsToAdd];
-  }, [nonActiveTabs, prefetchedTabs, currentlyPrefetching]);
+  }, [nonActiveTabs, prefetchedTabs, currentlyPrefetching, failedPrefetchTabs]);
 
   // Update currently prefetching set when queue changes
   useEffect(() => {
@@ -210,6 +211,7 @@ export function useTabStreamingQuery(
   useEffect(() => {
     const newCompleted = new Set(prefetchedTabs);
     const stillPrefetching = new Set(currentlyPrefetching);
+    const newFailed = new Set(failedPrefetchTabs);
     
     prefetchQueries.forEach((query, index) => {
       const tabName = prefetchQueue[index]?.name;
@@ -221,6 +223,7 @@ export function useTabStreamingQuery(
         } else if (query.isError) {
           console.warn(`[useTabStreamingQuery] Failed to prefetch tab: ${tabName}`, query.error);
           stillPrefetching.delete(tabName);
+          newFailed.add(tabName);
         }
       }
     });
@@ -234,7 +237,12 @@ export function useTabStreamingQuery(
         !Array.from(stillPrefetching).every(name => currentlyPrefetching.has(name))) {
       setCurrentlyPrefetching(stillPrefetching);
     }
-  }, [prefetchQueries, prefetchQueue, prefetchedTabs, currentlyPrefetching]);
+
+    if (newFailed.size !== failedPrefetchTabs.size ||
+        !Array.from(newFailed).every(name => failedPrefetchTabs.has(name))) {
+      setFailedPrefetchTabs(newFailed);
+    }
+  }, [prefetchQueries, prefetchQueue, prefetchedTabs, currentlyPrefetching, failedPrefetchTabs]);
 
   // Function to switch tabs instantly (using cached data)
   const switchTab = useCallback((tabName: string) => {

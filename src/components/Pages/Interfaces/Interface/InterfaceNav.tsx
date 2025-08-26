@@ -549,6 +549,7 @@ export default function InterfaceNav({
   const storeCommands = useStoreContext((state) => state.commands)
   const fileUploadOpen = useStoreContext((state) => state.fileUploadOpen)
   const setFileUploadOpen = useStoreContext((state) => state.setFileUploadOpen)
+  const storeAddTab = useStoreContext((state) => state.addTab)
   
   // Fetch project tree using React Query for better caching
   const { data: projectTree = [], isLoading: projectTreeLoading, refetch: refetchProjectTree } = useQuery<
@@ -630,14 +631,6 @@ export default function InterfaceNav({
     queryKey: ['tabs', interfaceId],
     queryFn: async () => {
       if (!interfaceId) return []
-      
-      // First check if tabs are already in the project tree
-      if (currentInterface?.tabs) {
-        // Sort tabs from project tree by order
-        return [...currentInterface.tabs].sort((a, b) => (a.order || 0) - (b.order || 0))
-      }
-      
-      // Otherwise fetch tabs
       const tabs = await tabActions.list(interfaceId)
       return tabs.sort((a, b) => (a.order || 0) - (b.order || 0))
     },
@@ -648,8 +641,8 @@ export default function InterfaceNav({
     refetchOnMount: false,
   })
   
-  // Use either tabs loading or interface loading state
-  const loadingTabs = tabsLoading || (interfaceId && !currentInterface)
+  // Tabs loading should not depend on currentInterface loading
+  const loadingTabs = tabsLoading
   
   // Prefetch current tab - must be called unconditionally for React hooks rules
   useTabStreamingQuery(
@@ -840,24 +833,38 @@ export default function InterfaceNav({
       const newTab = await tabActions.create(interfaceId, newTabName.trim(), {})
       showSuccessToast(`Tab "${newTabName}" created successfully`)
       
+      // Ensure the new tab exists in the local store immediately
+      storeAddTab(interfaceId, newTab.name, {
+        id: newTab.id,
+        name: newTab.name,
+        visible: true,
+        active: true,
+      } as any)
+      
+      // Optimistically update tabs cache so it appears immediately
+      queryClient.setQueryData(['tabs', interfaceId], (oldData: ProjectTab[] | undefined) => {
+        const previous = Array.isArray(oldData) ? oldData : []
+        const exists = previous.some(t => (t.id && (newTab as any).id ? t.id === (newTab as any).id : t.name === newTab.name))
+        const next = exists ? previous : [...previous, newTab]
+        return next.sort((a, b) => (a.order || 0) - (b.order || 0))
+      })
+      
       setCreateTabOpen(false)
-      const tabNameToNavigate = newTabName.trim()
+      const tabNameToNavigate = newTab.name
       setNewTabName('')
       
-      // Invalidate and refetch to ensure the new tab is in the store
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['tabs', interfaceId] }),
-        queryClient.invalidateQueries({ queryKey: ['projects', 'tree'] })
-      ])
-      
-      // Refetch tabs to ensure the store is updated
-      await refetchTabs()
-      await refetchProjectTree()
-      
-      // Navigate to the new tab
+      // Switch to the new tab immediately
       if (syncedInterfaceUIActions) {
         syncedInterfaceUIActions.setActiveTab(tabNameToNavigate)
+      } else {
+        const newParams = new URLSearchParams(searchParams.toString())
+        newParams.set('tab', tabNameToNavigate)
+        navigateTab(`?${newParams.toString()}`)
       }
+      
+      // Background refresh to reconcile with server
+      void queryClient.invalidateQueries({ queryKey: ['tabs', interfaceId] })
+      void queryClient.invalidateQueries({ queryKey: ['projects', 'tree'] })
     } catch (error) {
       console.error('Failed to create tab:', error)
       showErrorToast('Failed to create tab')
