@@ -935,7 +935,7 @@ const Interface = ({
               >
               {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
             <div 
-              className="fixed top-14 z-40 transition-all duration-300 ease-linear pointer-events-none"
+              className="fixed top-10 z-40 transition-all duration-300 ease-linear pointer-events-none"
               style={{ 
                 left: 'var(--interface-nav-width, 256px)', // Use dynamic sidebar width
                 right: 0,

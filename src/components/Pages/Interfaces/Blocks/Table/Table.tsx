@@ -810,17 +810,6 @@ const LogsTable = ({
       <div className="flex items-center justify-between mb-1 transition-all duration-200 ease-out">
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-muted-foreground transition-colors duration-200">Table Controls</span>
-          <span className={cn(
-            "text-xs text-muted-foreground whitespace-nowrap transition-all duration-300 ease-out overflow-hidden",
-            !isMenuCollapsed ? "max-w-xs opacity-100" : "max-w-0 opacity-0"
-          )}>
-            ({[
-              'Data',
-              showActions && projectId ? 'Actions' : null,
-              'Display',
-              projectId ? 'Monitoring' : null
-            ].filter(Boolean).join(' • ')})
-          </span>
         </div>
         <Button
           size="sm"
@@ -848,7 +837,7 @@ const LogsTable = ({
       {/* Existing Menu Content */}
       <div className={cn(
         "relative overflow-hidden transition-all duration-500 ease-out",
-        !isMenuCollapsed ? "max-h-96" : "max-h-0"
+        !isMenuCollapsed ? "max-h-96" : "max-h-0 pointer-events-none"
       )}>
         <div className={cn(
           "flex flex-nowrap items-start border-b gap-x-4 overflow-x-auto command-scrollbar transition-all duration-400 ease-out py-2",
