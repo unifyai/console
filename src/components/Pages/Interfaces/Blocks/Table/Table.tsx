@@ -13,7 +13,7 @@ import {
 import { DerivedEntryActions, LogsActions, FieldsActions, ContextActions, TableGroupedMetrics } from "@/types/interfaces/grid";
 import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useCallback, createRef, useContext } from "react";
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
-import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
+import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronRight, ChevronDown, ExternalLink } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
@@ -804,39 +804,84 @@ const LogsTable = ({
     (sorting.length > 0 || groupSorting.length > 0) ||
     (logsFilters != undefined || commonFilter != undefined);
 
+  const logsCounter = projectId && (
+    <div className="shrink-0">
+        {useBidirectionalLoading ? (
+          // Custom bidirectional controls
+          <div className="flex items-center justify-center p-1">
+            <div className="text-center">
+              <div className="text-xs">
+                {(() => {
+                  const globalOffset = infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0;
+                  const rangeStart = globalOffset + 1;
+                  const rangeEnd = globalOffset + effectiveLoadedCount;
+                  const itemType = grouping.length > 0 ? "groups" : "logs";
+                  
+                  if (effectiveLoadedCount === 0) {
+                    return `0 of ${totalCount} ${itemType}`;
+                  }
+                  
+                  return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} ${showAdvancedFeatures ? `(${effectiveLoadedCount} loaded)` : ""}`;
+                })()}
+              </div>
+              {infiniteLogsQuery.bidirectionalInfo && showAdvancedFeatures && (
+                <div className="text-xs text-muted-foreground">
+                  Pages: {infiniteLogsQuery.bidirectionalInfo.pagesInMemory}/{infiniteLogsQuery.bidirectionalInfo.maxPagesInMemory}
+                  {infiniteLogsQuery.bidirectionalInfo.windowStart !== infiniteLogsQuery.bidirectionalInfo.windowEnd && (
+                    <span> | Window: {infiniteLogsQuery.bidirectionalInfo.windowStart}-{infiniteLogsQuery.bidirectionalInfo.windowEnd}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Standard unidirectional controller
+          <InfiniteScrollController
+              loadedCount={effectiveLoadedCount}
+              estimatedTotal={totalCount}
+              totalCount={totalCount}
+              hasNextPage={effectiveHasNextPage}
+              isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
+              onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
+              onRefresh={() => infiniteLogsQuery.refetch()}
+              interactive={interactive}
+              itemName={grouping.length > 0 ? "groups" : "logs"}
+              showRefresh={false}
+              className="w-full p-1"
+          />
+        )}
+    </div>
+  );
+
   const tableMenu = !interactive ? null : (
     <div className="mb-2 mx-1">
       {/* Menu Toggle Button */}
-      <div className="flex items-center justify-between mb-1 transition-all duration-200 ease-out">
-        <div className="flex items-center gap-1">
-          <span className="text-xs font-medium text-muted-foreground transition-colors duration-200">Table Controls</span>
-        </div>
+      <div className="flex flex-row justify-between gap-2">
         <Button
           size="sm"
           variant="ghost"
           onClick={() => setIsMenuCollapsed(!isMenuCollapsed)}
-          className="h-6 px-2 text-muted-foreground hover:text-foreground transition-all duration-200 ease-out hover:bg-muted/50"
+          className="h-6 text-muted-foreground hover:text-foreground transition-all duration-200 ease-out hover:bg-muted/50"
         >
           <div className={cn(
             "flex items-center gap-1 transition-all duration-300 ease-out",
             isMenuCollapsed ? "transform-none" : "transform-none"
           )}>
+            <span className="text-xs font-medium text-muted-foreground transition-colors duration-200">Table Controls</span>
             <div className={cn(
               "transition-transform duration-300 ease-out",
-              isMenuCollapsed ? "rotate-0" : "rotate-180"
+              isMenuCollapsed ? "rotate-0" : "rotate-90"
             )}>
-              <ChevronDown className="h-3 w-3" />
+              <ChevronRight className="h-3 w-3" />
             </div>
-            <span className="text-xs transition-all duration-200 ease-out">
-              {isMenuCollapsed ? 'Show' : 'Hide'}
-            </span>
           </div>
         </Button>
+        {logsCounter}
       </div>
       
       {/* Existing Menu Content */}
       <div className={cn(
-        "relative overflow-hidden transition-all duration-500 ease-out",
+        "relative overflow-hidden transition-all duration-500 ease-out px-2",
         !isMenuCollapsed ? "max-h-96" : "max-h-0 pointer-events-none"
       )}>
         <div className={cn(
@@ -974,55 +1019,6 @@ const LogsTable = ({
         )}
         </div>
       </div>
-    </div>
-  );
-
-  const tableFooter = projectId && (
-    <div className="pt-2 px-1 border-border border-t shrink-0">
-        {useBidirectionalLoading ? (
-          // Custom bidirectional controls
-          <div className="flex items-center justify-center p-2">
-            <div className="text-center">
-              <div className="text-sm">
-                {(() => {
-                  const globalOffset = infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0;
-                  const rangeStart = globalOffset + 1;
-                  const rangeEnd = globalOffset + effectiveLoadedCount;
-                  const itemType = grouping.length > 0 ? "groups" : "logs";
-                  
-                  if (effectiveLoadedCount === 0) {
-                    return `0 of ${totalCount} ${itemType}`;
-                  }
-                  
-                  return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} ${showAdvancedFeatures ? `(${effectiveLoadedCount} loaded)` : ""}`;
-                })()}
-              </div>
-              {infiniteLogsQuery.bidirectionalInfo && showAdvancedFeatures && (
-                <div className="text-xs text-muted-foreground">
-                  Pages: {infiniteLogsQuery.bidirectionalInfo.pagesInMemory}/{infiniteLogsQuery.bidirectionalInfo.maxPagesInMemory}
-                  {infiniteLogsQuery.bidirectionalInfo.windowStart !== infiniteLogsQuery.bidirectionalInfo.windowEnd && (
-                    <span> | Window: {infiniteLogsQuery.bidirectionalInfo.windowStart}-{infiniteLogsQuery.bidirectionalInfo.windowEnd}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          // Standard unidirectional controller
-          <InfiniteScrollController
-              loadedCount={effectiveLoadedCount}
-              estimatedTotal={totalCount}
-              totalCount={totalCount}
-              hasNextPage={effectiveHasNextPage}
-              isFetchingNextPage={infiniteLogsQuery.isFetchingNextPage}
-              onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
-              onRefresh={() => infiniteLogsQuery.refetch()}
-              interactive={interactive}
-              itemName={grouping.length > 0 ? "groups" : "logs"}
-              showRefresh={false}
-              className="w-full"
-          />
-        )}
     </div>
   );
 
@@ -1463,7 +1459,6 @@ const LogsTable = ({
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>
-          {tableFooter}
         </div>
       )}
     </div>
