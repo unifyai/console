@@ -227,8 +227,24 @@ export function AssistantProfilePanel({
                                         <h3 className="text-sm font-semibold">My Contact</h3>
                                         <div className="grid text-xs gap-4 grid-cols-2">
                                             <div className="space-y-2">
-                                                {assistant.email && <CopyableContact value={assistant.email} type="Email" icon={<Mail className="h-4 w-4 text-muted-foreground" />} />}
-                                                {assistant.phone && <CopyableContact value={assistant.phone} type="Phone" icon={<Phone className="h-4 w-4 text-muted-foreground" />} />}
+                                                {assistant.email && <CopyableContact value={assistant.email} type="Email" icon={<Mail className="h-4 w-4 text-muted-foreground" />} />}                                                
+                                                {assistant.phone ? (
+                                                    <CopyableContact value={assistant.phone} type="Phone" icon={<Phone className="h-4 w-4 text-muted-foreground" />} />
+                                                ) : (
+                                                    <div className="flex items-center gap-1">
+                                                        <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="w-fit items-center flex h-5 px-1"
+                                                            onClick={() => onEdit(assistant)}
+                                                        > 
+                                                            Add phone number 
+                                                            <PenLine className="h-2 w-2" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                                 {assistant.assistant_whatsapp_number && <CopyableContact value={assistant.assistant_whatsapp_number} type="WhatsApp" icon={<WhatsApp className="h-4 w-4 text-muted-foreground" />} />}
                                             </div>
                                             <div className="space-y-2">

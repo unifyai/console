@@ -5,6 +5,7 @@ import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import { Input } from "@/components/UI/input";
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+import { Label } from "@/components/UI/label";
 import { Check, Trash2, Loader2, RefreshCw, X, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AssistantFormData, AssistantActions } from '@/types/assistants/assistant';
@@ -97,43 +98,47 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
     
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2">
-                {getPlatformIcon(platform)}
-                <Input
-                    id={`social_accounts_${index}_identifier`}
-                    placeholder={`Your ${platform} phone number...`}
-                    className="h-9 flex-1"
-                    value={account.identifier || ''}
-                    disabled={isVerifying || account.isVerified}
-                    onChange={handleIdentifierChange}
-                />
-                {account.isVerified ? (
-                    <Button type="button" variant="default" className="h-9" disabled>
-                        <CheckCircle2 className="mr-2 h-4 w-4" /> Verified
-                    </Button>
-                ) : (
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip open={!isVerifying ? isTooltipOpen : false} onOpenChange={setIsTooltipOpen}>
-                            <TooltipTrigger asChild>
-                                <Button type="button" variant="outline" className="h-9" onClick={() => handleVerifyClick(false)} disabled={isVerifying || !account.identifier}>
-                                    {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    {isVerifying ? 'Verifying...' : 'Verify'}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                <p>Costs ${cost.toFixed(2)} credits to pair with your assistant. Verify first to link.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                )}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    {getPlatformIcon(platform, "h-4 w-4 text-muted-foreground")}
+                    <Label className="capitalize">{platform}</Label>
+                </div>
                 {!account.isInitial && (
-                    <Button type="button" variant="destructive" size="sm" className="h-9" onClick={() => onRemove(index)} disabled={isVerifying}>
-                        Remove
-                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-auto p-1 text-xs font-semibold text-muted-foreground hover:text-destructive" onClick={() => onRemove(index)} disabled={isVerifying}>Remove</Button>
                 )}
             </div>
-            {isVerificationFlowActive && (
-                <div className="pl-4 ml-8 flex items-start gap-3 border-l-2 border-muted">
+            <div className="space-y-2 rounded-lg border p-4">
+                <div className="flex items-center gap-2">
+                    <Input
+                        id={`social_accounts_${index}_identifier`}
+                        placeholder={`Your ${platform} phone number...`}
+                        className="h-9 flex-1"
+                        value={account.identifier || ''}
+                        disabled={isVerifying || account.isVerified}
+                        onChange={handleIdentifierChange}
+                    />
+                    {account.isVerified ? (
+                        <Button type="button" variant="default" className="h-9" disabled>
+                            <CheckCircle2 className="mr-2 h-4 w-4" /> Verified
+                        </Button>
+                    ) : (
+                        <TooltipProvider delayDuration={100}>
+                            <Tooltip open={!isVerifying ? isTooltipOpen : false} onOpenChange={setIsTooltipOpen}>
+                                <TooltipTrigger asChild>
+                                    <Button type="button" variant="outline" className="h-9" onClick={() => handleVerifyClick(false)} disabled={isVerifying || !account.identifier}>
+                                        {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        {isVerifying ? 'Verifying...' : 'Verify'}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    <p>Costs ${cost.toFixed(2)} credits to pair with your assistant. Verify first to link.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
+                </div>
+                {isVerificationFlowActive && (
+                <div className="pl-4 flex items-start gap-3 border-l-2 border-muted">
                     <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
                             <Input
@@ -159,10 +164,11 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                         </Button>
                     </div>
                 </div>
-            )}
-            {socialAccountErrors && !isVerificationFlowActive ? (
-                <p className="text-sm font-medium text-destructive mt-1 pl-8">{socialAccountErrors.message}</p>
-            ) : null}
+                )}
+                {socialAccountErrors && !isVerificationFlowActive ? (
+                    <p className="text-sm font-medium text-destructive mt-1">{socialAccountErrors.message}</p>
+                ) : null}
+            </div>
         </div>
     );
 };

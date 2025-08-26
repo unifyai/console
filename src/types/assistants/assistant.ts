@@ -111,6 +111,7 @@ export type AssistantFormData =
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
       social_accounts?: SocialAccount[];
+      isPhoneNumberAdded?: boolean;
       design_include_bio?: boolean;
     };
 

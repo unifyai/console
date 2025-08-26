@@ -9,14 +9,14 @@ import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send } from 'lucide-react';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { getCountryFlag } from '@/utils/assistants/country-utils';
-import { EMAIL_DOMAIN_WITH_AT, VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
+import { EMAIL_DOMAIN_WITH_AT, VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -173,7 +173,7 @@ export function HireForm({
     assistants,
     mode = 'hire',
 }: HireFormProps) {
-    const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
+    const { register, formState: { errors }, watch, setValue, getValues, trigger, control, clearErrors } = formMethods;
     const { fields, append, remove } = useFieldArray({
         control,
         name: "social_accounts",
@@ -183,6 +183,26 @@ export function HireForm({
     const [justAddedPlatform, setJustAddedPlatform] = React.useState<string | null>(null);
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
+
+    const isPhoneNumberAdded = useWatch({ control, name: 'isPhoneNumberAdded' });
+
+    const handleAddPhone = () => {
+        setValue('isPhoneNumberAdded', true, { shouldDirty: true });
+    };
+
+    const handleRemovePhone = () => {
+        setValue('isPhoneNumberAdded', false, { shouldDirty: true });
+        // Clear related fields
+        setValue('country', FALLBACK_DEFAULT_COUNTRY_CODE, { shouldDirty: true });
+        setValue('user_phone', '', { shouldDirty: true });
+        setValue('user_phone_isVerified', false, { shouldDirty: true });
+        setValue('user_phone_isVerifying', false, { shouldDirty: true });
+        setValue('user_phone_verificationCodeSent', null, { shouldDirty: true });
+        setValue('user_phone_verificationSentAt', null, { shouldDirty: true });
+        setValue('user_phone_verificationAttempts', 0, { shouldDirty: true });
+        setValue('user_phone_verificationError', null, { shouldDirty: true });
+        clearErrors(['country', 'user_phone']);
+    };
 
 
     const handleAddSocialAccount = (platform: string) => {
@@ -307,11 +327,11 @@ export function HireForm({
             return `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
         };
         
-        if (!getValues("emailManuallyEdited") && (firstName || surname)) {
+        if (mode !== 'edit' && !getValues("emailManuallyEdited") && (firstName || surname)) {
             const newEmail = generateUniqueEmail(firstName, surname);
             setValue("email", newEmail, { shouldValidate: true });
         }
-    }, [firstName, surname, setValue, getValues, allAssistantEmails]);
+    }, [firstName, surname, setValue, getValues, allAssistantEmails, mode]);
 
     const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const newLocalPart = event.target.value.replace(/[@\s]/g, '');
@@ -402,7 +422,7 @@ export function HireForm({
                                     <span>Profile</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-4">
+                            <AccordionContent className="pt-2">
                                 <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1">
                                         <div className="col-span-2 sm:col-span-1">
@@ -499,7 +519,7 @@ export function HireForm({
                                     <span>Appearance</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-4">
+                            <AccordionContent className="pt-2">
                                 <div className="flex flex-col sm:flex-row items-start gap-4">
                                     <AssistantPhotoViewer
                                         photoUrl={photoPreviewUrl}
@@ -540,7 +560,7 @@ export function HireForm({
                                     <span>Voice</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-4">
+                            <AccordionContent className="pt-2">
                                 <VoiceCustomization
                                     assistantActions={assistantActions}
                                     onVoiceSelected={(selectedVoice) => {
@@ -574,154 +594,140 @@ export function HireForm({
                                     <span>Contact</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-4">
-                                <div className="space-y-4">
-                                    {/* Assistant's Contact Info (Hire Mode Only) */}
-                                    {mode === 'hire' && (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                                            <div className="col-span-2 sm:col-span-1">
-                                                <div className="flex flex-row gap-2 items-center pb-1">
-                                                    <Label htmlFor="country">Assistant Phone Country</Label>
-                                                    <TooltipProvider delayDuration={100}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                                                <p>{"Assistant phone number will be provisioned upon hiring."}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                                <Select
-                                                    value={rhfCountry}
-                                                    onValueChange={(value) => setValue("country", value, { shouldValidate: true })}
-                                                    disabled={isSubmitting || isLoadingCountries}
-                                                >
-                                                    <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
-                                                        <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {isLoadingCountries ? (
-                                                            <SelectItem value="loading" disabled>Loading...</SelectItem>
-                                                        ) : (
-                                                            availablePhoneCountries.map(country => (
-                                                                <SelectItem key={country.code} value={country.code}>
-                                                                    <span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})
-                                                                </SelectItem>
-                                                            ))
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                                {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
-                                            </div>
-                                            <div className="flex flex-col pb-1">
-                                                <Label htmlFor="email_local_part">Assistant Email</Label>
-                                                <div className="flex items-center rounded-md pt-1.5">
-                                                    <Input
-                                                        id="email_local_part"
-                                                        type="text"
-                                                        value={emailLocalPart}
-                                                        onChange={handleLocalPartChange}
-                                                        placeholder="new-assistant"
-                                                        className="flex-grow focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none"
-                                                        aria-describedby="email_domain_part"
-                                                        disabled={isSubmitting || isLoadingEmails}
-                                                    />
-                                                    <span
-                                                        id="email_domain_part"
-                                                        className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none"
-                                                    >
-                                                        {EMAIL_DOMAIN_WITH_AT}
-                                                    </span>
-                                                </div>
-                                                <input type="hidden" {...register("email", {
-                                                    required: "Email is required",
-                                                    pattern: {
-                                                        value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
-                                                        message: `Valid email must end with ${EMAIL_DOMAIN_WITH_AT}`
-                                                    },
-                                                    validate: (value) => {
-                                                        if (value.startsWith('@')) return `Email local part cannot be empty.`;
-                                                        if (allAssistantEmails.includes(value)) {
-                                                            return "This email is already in use by another assistant.";
-                                                        }
-                                                        return true;
-                                                    }
-                                                })} />
-                                                {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* User's Contact Info */}
-                                    <div className="space-y-3">
-                                        <div className="flex flex-col">
-                                            <div className="flex flex-row gap-2 items-center pb-1">
-                                                <Label htmlFor="user_phone">Your Phone</Label>
-                                                <TooltipProvider delayDuration={100}>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="right" align="end" className="max-w-xs text-sm">
-                                                            <p>{"This is the phone number you will contact the assistant with."}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <PhoneVerificationSection assistantActions={assistantActions} />
-                                        </div>
-
-                                        {fields.map((field, index) => {
-                                            const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
-                                            const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
-                                            return (
-                                                <SocialAccountInput
-                                                    key={field.id}
-                                                    index={index}
-                                                    platform={field.platform}
-                                                    justAddedPlatform={justAddedPlatform}
-                                                    onRemove={remove}
-                                                    clearJustAdded={() => setJustAddedPlatform(null)}
-                                                    assistantActions={assistantActions}
-                                                    cost={platformCost}
-                                                />
-                                            );
-                                        })}
-
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="w-full border-dashed"
-                                                    disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
-                                                >
-                                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                                    Add Social Account
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                                                {isLoadingSocialPlatforms ? (
-                                                    <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-                                                ) : availableSocialPlatforms.length > 0 ? (
-                                                    availableSocialPlatforms.map(platform => (
-                                                        <DropdownMenuItem
-                                                            key={platform.name}
-                                                            onSelect={() => handleAddSocialAccount(platform.name)}
-                                                            disabled={fields.some(f => f.platform === platform.name)}
-                                                            className="capitalize flex justify-between"
-                                                        >
-                                                            <span>{platform.name}</span>
-                                                            <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
-                                                        </DropdownMenuItem>
-                                                    ))
-                                                ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
+                            <AccordionContent className="pt-2">
+                                 <div className="space-y-2">
+                                      {/* Email Section (Hire Mode Only) */}
+                                      {mode === 'hire' && (
+                                         <div className="col-span-2 sm:col-span-1">
+                                              <div className="flex flex-row items-center gap-2 mb-1.5">
+                                                  <Mail className="h-4 w-4 text-muted-foreground" />
+                                                  <Label htmlFor="email_local_part">Email address</Label>
+                                              </div>
+                                              <div className="flex items-center rounded-md">
+                                                  <Input
+                                                      id="email_local_part"
+                                                      type="text"
+                                                      value={emailLocalPart}
+                                                      onChange={handleLocalPartChange}
+                                                      placeholder="new-assistant"
+                                                      className="flex max-w-[250px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none h-9"
+                                                      aria-describedby="email_domain_part"
+                                                      disabled={isSubmitting || isLoadingEmails}
+                                                  />
+                                                  <span
+                                                      id="email_domain_part"
+                                                      className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none h-9 flex items-center" >
+                                                      {EMAIL_DOMAIN_WITH_AT}
+                                                  </span>
+                                              </div>
+                                              <input type="hidden" {...register("email", {
+                                                  required: "Email is required",
+                                                  pattern: {
+                                                      value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
+                                                      message: `Valid email must end with ${EMAIL_DOMAIN_WITH_AT}`
+                                                  },
+                                                  validate: (value) => {
+                                                      if (value.startsWith('@')) return `Email local part cannot be empty.`;
+                                                      if (mode === 'hire' && allAssistantEmails.includes(value)) {
+                                                          return "This email is already in use by another assistant.";
+                                                      }
+                                                      return true;
+                                                  }
+                                              })} />
+                                              {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
+                                          </div>
+                                      )}
+                                     <div className={cn("col-span-2", mode === 'hire' ? "sm:col-span-1" : "sm:col-span-2", "flex flex-col gap-2")}>
+                                         {/* Phone Section (Conditional) */}
+                                         {isPhoneNumberAdded ? (
+                                             <div className="space-y-2">
+                                                 <div className="flex items-center justify-between">
+                                                     <div className="flex items-center gap-2">
+                                                         <Phone className="h-4 w-4 text-muted-foreground" />
+                                                         <Label>Phone Number</Label>
+                                                     </div>
+                                                     <Button type="button" variant="ghost" size="sm" onClick={handleRemovePhone} className="h-auto p-1 text-xs font-semibold text-muted-foreground hover:text-destructive">Remove</Button>
+                                                  </div>
+                                                 <div className="space-y-4 rounded-lg border p-4">
+                                                     {mode === 'hire' && (
+                                                         <div>
+                                                             <div className="flex flex-row gap-2 items-center pb-1">
+                                                                 <Label htmlFor="country">Assistant Phone</Label>
+                                                                 <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"Assistant phone number will be provisioned upon hiring."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                             </div>
+                                                             <Select value={rhfCountry} onValueChange={(value) => setValue("country", value, { shouldValidate: true })} disabled={isSubmitting || isLoadingCountries} >
+                                                                 <SelectTrigger id="country" {...register("country", { required: isPhoneNumberAdded ? "Phone number country is required." : false })}>
+                                                                     <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
+                                                                 </SelectTrigger>
+                                                                 <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
+                                                             </Select>
+                                                             {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                                                         </div>
+                                                     )}
+                                                     <div>
+                                                         <div className="flex flex-row gap-2 items-center pb-1">
+                                                             <Label htmlFor="user_phone">Your Phone</Label>
+                                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                         </div>
+                                                         <PhoneVerificationSection assistantActions={assistantActions} />
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         ) : (
+                                             <Button type="button" variant="outline" className="w-full border-dashed justify-center p-3" onClick={handleAddPhone}>
+                                                 <Phone className="mr-2 h-4 w-4" /> Add phone number
+                                             </Button>
+                                         )}
+     
+                                         {/* Social Accounts Section */}
+                                         <div className="space-y-2">
+                                             {fields.map((field, index) => {
+                                                 const platformInfo = availableSocialPlatforms.find(p => p.name === field.platform);
+                                                 const platformCost = platformInfo?.cost ?? ASSISTANT_ONBOARDING_FEE;
+                                                 return (
+                                                     <SocialAccountInput
+                                                         key={field.id}
+                                                         index={index}
+                                                         platform={field.platform}
+                                                         justAddedPlatform={justAddedPlatform}
+                                                         onRemove={remove}
+                                                         clearJustAdded={() => setJustAddedPlatform(null)}
+                                                         assistantActions={assistantActions}
+                                                         cost={platformCost}
+                                                     />
+                                                 );
+                                             })}
+                                             <DropdownMenu>
+                                                 <DropdownMenuTrigger asChild>
+                                                     <Button
+                                                         type="button"
+                                                         variant="outline"
+                                                         className="w-full border-dashed justify-center p-3"
+                                                         disabled={isLoadingSocialPlatforms || (availableSocialPlatforms.length > 0 && availableSocialPlatforms.every(p => fields.some(f => f.platform === p.name)))}
+                                                     >
+                                                         <User className="mr-2 h-4 w-4" />
+                                                         Add social account
+                                                     </Button>
+                                                 </DropdownMenuTrigger>
+                                                 <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                                    {isLoadingSocialPlatforms ? (<DropdownMenuItem disabled>Loading...</DropdownMenuItem>) : availableSocialPlatforms.length > 0 ? (
+                                                         availableSocialPlatforms.map(platform => (
+                                                             <DropdownMenuItem
+                                                                 key={platform.name}
+                                                                 onSelect={() => handleAddSocialAccount(platform.name)}
+                                                                 disabled={fields.some(f => f.platform === platform.name)}
+                                                                 className="capitalize flex justify-between"
+                                                             >
+                                                                 <span>{platform.name}</span>
+                                                                 <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
+                                                             </DropdownMenuItem>
+                                                         ))
+                                                     ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}
+                                                 </DropdownMenuContent>
+                                             </DropdownMenu>
+                                         </div>
+                                     </div>
+                                 </div> 
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>

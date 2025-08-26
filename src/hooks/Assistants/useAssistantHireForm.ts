@@ -70,6 +70,7 @@ export function useAssistantHireForm(
             voice_exists: false,
             isPresetPristine: false,
             presetOriginalValues: null,
+            isPhoneNumberAdded: false,
             video_source_voice_id: null,
             design_include_bio: false,
         },
@@ -403,9 +404,11 @@ export function useAssistantHireForm(
             profile_video_url: assistant.profile_video,
             photoFile: null,
             videoFile: null,
+            country: assistant.country || FALLBACK_DEFAULT_COUNTRY_CODE,
             user_phone: assistant.user_phone || '',
             user_phone_isVerified: !!assistant.user_phone,
             social_accounts: socialAccounts,
+            isPhoneNumberAdded: !!assistant.phone,
             // Assuming voice details are fetched and passed with the assistant object
             // This might need adjustment if voice details need separate fetching
             voice_id: assistant.voice_id || undefined,
@@ -425,9 +428,11 @@ export function useAssistantHireForm(
 
         try {
             // Validations
-            if (data.user_phone && !data.user_phone_isVerified) {
-                setError("user_phone", { type: "manual", message: "Your phone number must be verified." });
-                throw new Error("Your phone number must be verified.");
+            if (data.isPhoneNumberAdded) {
+                if (data.user_phone && !data.user_phone_isVerified) {
+                    setError("user_phone", { type: "manual", message: "Your phone number must be verified." });
+                    throw new Error("Your phone number must be verified.");
+                }
             }
             if (data.social_accounts && data.social_accounts.some(acc => acc.identifier && !acc.isVerified)) {
                 toast.error("All added social accounts must be verified before saving.");
@@ -439,7 +444,9 @@ export function useAssistantHireForm(
 
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
-            if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
+            if (data.isPhoneNumberAdded) {
+                if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
+            }
 
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
@@ -533,13 +540,15 @@ export function useAssistantHireForm(
                 setError("email", { type: "manual", message: "This email is already in use." });
                 throw new Error("Email already in use.");
             }
-            if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
-                setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
-                throw new Error("Valid international phone number is required");
-            }
-            if (!data.user_phone_isVerified) {
-                setError("user_phone", { type: "manual", message: "Your phone number must be verified."});
-                throw new Error("Your phone number must be verified.");
+            if (data.isPhoneNumberAdded) {
+                if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
+                    setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
+                    throw new Error("Valid international phone number is required");
+                }
+                if (!data.user_phone_isVerified) {
+                    setError("user_phone", { type: "manual", message: "Your phone number must be verified."});
+                    throw new Error("Your phone number must be verified. Or, remove the phone number selection to hire without a phone number.");
+                }
             }
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
@@ -604,12 +613,15 @@ export function useAssistantHireForm(
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
 
+            const userPhonePayload = data.isPhoneNumberAdded ? data.user_phone : null;
+            const countryPayload = data.isPhoneNumberAdded ? data.country : null;
+
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id,
-                data.email, data.user_phone, data.country,
+                data.email, userPhonePayload, countryPayload,
                 user_whatsapp_number,
                 preHireChatPayload // Pass the formatted chat history
             );
@@ -673,9 +685,11 @@ export function useAssistantHireForm(
             return;
         }
 
-        if (!getValues("user_phone_isVerified")) {
-            toast.error("Your phone number must be verified before hiring.");
-            return;
+        if (getValues("isPhoneNumberAdded")) {
+            if (!getValues("user_phone_isVerified")) {
+                toast.error("A verified phone number must be provided to give the assistant a number. Otherwise, remove the phone number selection to skip this step.");
+                return;
+            }
         }
 
         const socialAccounts = getValues("social_accounts") || [];
