@@ -612,6 +612,7 @@ export const nestedColumns = (
 				// Now call our utility for final formatting
 				return formatCellValue(cellValue, dataType, columnWidth);
 			},
+			minSize: 80,
 			meta: {
 				dataType: dataType,
 				fieldType: fieldType,

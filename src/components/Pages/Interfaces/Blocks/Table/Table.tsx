@@ -854,7 +854,7 @@ const LogsTable = ({
   );
 
   const tableMenu = !interactive ? null : (
-    <div className="mb-2 mx-1">
+    <div className="mb-2 -mx-1">
       {/* Menu Toggle Button */}
       <div className="flex flex-row justify-between gap-2">
         <Button
@@ -1102,7 +1102,7 @@ const LogsTable = ({
                     <div
                       key={idx}
                       ref={panelScrollRefs[idx]}
-                      className="relative flex-1 flex-col gap-2 border-l ml-2 border-gray-200 first:border-none snap-y snap-mandatory"
+                      className="relative flex-1 flex-col gap-2 border-l border-gray-200 first:border-none snap-y snap-mandatory"
                       style={{
                         overflowX: "visible",
                         overflowY: "visible",

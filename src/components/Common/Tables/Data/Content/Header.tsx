@@ -412,7 +412,7 @@ const DataTableHeader = ({
   const selectionClass = isSelected ? 'bg-primary' : '';
   const pinnedClass = isPinned && !isSelected ? 'bg-background' : '';
   const defaultBgClass = !isSelected && !isPinned ? 'bg-transparent' : '';
-  const hoverClass = !isSelected && !isPinned && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
+  const hoverClass = !isSelected && (!isPinned || isIndexColumn) && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
 
@@ -429,7 +429,8 @@ const DataTableHeader = ({
       context="tile"
       open={renameOpen}
       setOpen={setRenameOpen}
-      button={<></>} // invisible trigger, open via state
+      button={null}
+      triggerClassName="hidden"
       title="Rename Column"
       body={
         <Input
@@ -487,20 +488,20 @@ const DataTableHeader = ({
       }
 
       {/* Header content */}
-      <div className={`px-2 py-1 ${!isNotUtilColumn ? "h-10" : ""}`} onDoubleClick={handleHeaderDoubleClick}>
+      <div className={`px-1 py-1 h-full`} onDoubleClick={handleHeaderDoubleClick}>
 
         {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
-          className={`flex flex-wrap items-center justify-between h-full text-center px-1 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
+          className={`flex flex-wrap items-center justify-between h-full text-center px-1 select-none`}
         >
           {header.isPlaceholder ? null : (
             <>
               {isParentColumn ? (
                 <div
-                  className="sticky flex items-center h-full px-2"
+                  className="sticky flex items-center h-full px-1 overflow-hidden"
                   style={{ left: `${pinnedAreaWidth}px` }}
                 >
                   {/* PARENT COLUMN LAYOUT (sticky) */}
@@ -531,6 +532,7 @@ const DataTableHeader = ({
                               e.stopPropagation();
                               setDropdownOpen(true);
                             }}
+                            className="w-4 h-4 p-0 pt-1"
                           />
                         }
                       >
@@ -628,6 +630,7 @@ const DataTableHeader = ({
                                 e.stopPropagation();
                                 setDropdownOpen(true);
                               }}
+                              className="w-4 h-4 p-0 pt-1"
                             />
                           }
                         >
@@ -759,7 +762,7 @@ const DataTableHeader = ({
         {!header.isPlaceholder && isNotUtilColumn && (
           <div
             ref={activeActionsRef}
-            className={`flex items-center justify-left gap-1 ${
+            className={`flex items-center justify-left gap-1${
               hasActiveActions ? "" : "hidden"
             }`}
           >
@@ -769,7 +772,7 @@ const DataTableHeader = ({
 
         {/* Hidden action components for group, sort, filter, context, hide (need to be rendered on the DOM even if hidden in order to be able to forward refs) */}
         {(!hasActiveActions) && (
-          <div className={`${
+          <div className={`flex ${
             Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
             ? "invisible"
             : "hidden"
