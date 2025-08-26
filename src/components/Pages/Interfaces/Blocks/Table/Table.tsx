@@ -989,7 +989,7 @@ const LogsTable = ({
   );
 
   const tableFooter = projectId && (
-    <div className="pt-2 px-1 border-border border-t">
+    <div className="pt-2 px-1 border-border border-t shrink-0">
         {useBidirectionalLoading ? (
           // Custom bidirectional controls
           <div className="flex items-center justify-center p-2">
@@ -1088,7 +1088,7 @@ const LogsTable = ({
   return (
     <div
       ref={containerRef} 
-      className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md"
+      className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
       {/* If truly pending or logs not present, show a spinner */}
@@ -1097,9 +1097,9 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col min-h-0">
           {tableMenu}
-          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto">
+          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto min-h-0">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}

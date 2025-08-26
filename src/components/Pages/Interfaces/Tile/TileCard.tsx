@@ -118,7 +118,7 @@ const TileCard = ({
 
   return (
     <TileColorContext.Provider value={resolvedColor}>
-      <div ref={tileCardRef} className="relative flex w-full h-full border">
+      <div ref={tileCardRef} className="relative flex w-full h-full border overflow-hidden">
 
         {/* Focus button moved inside tile content (handled in Tile component) */}
         <div className={"w-full flex-1 flex flex-col items-center"}>
