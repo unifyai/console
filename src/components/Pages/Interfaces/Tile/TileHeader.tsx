@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, CopyPlus, Grip, X, Braces, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
+import { Maximize2, EyeOff, CopyPlus, Grip, X, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -212,7 +212,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                              <div role="button">
                                 <Tooltip content={`Context: ${context}`}>
                                     <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
-                                        <Braces size={16} />
+                                        <FolderTree size={16} />
                                         <span className="truncate">{truncatePath(context)}</span>
                                     </Badge>
                                 </Tooltip>

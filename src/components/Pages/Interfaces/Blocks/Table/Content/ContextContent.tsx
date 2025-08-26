@@ -4,7 +4,7 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useMemo, useState } from "react";
-import { Braces, CircleX, Grid2x2, X } from "lucide-react";
+import { CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/interfaces/common";
 import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";

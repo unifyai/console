@@ -26,11 +26,11 @@ import {
   Settings,
   Save,
   RotateCcw,
-  Layers,
   Upload,
   FileInput,
   FileOutput,
-  Check
+  Check,
+  FolderTree
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -356,7 +356,7 @@ const SortableTab = React.memo(function SortableTab({
               Change Color
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onSetTabContext(tab)}>
-              <Layers className="h-4 w-4 mr-2" />
+              <FolderTree className="h-4 w-4 mr-2" />
               Set Tab Context
             </DropdownMenuItem>
             <DropdownMenuSeparator />

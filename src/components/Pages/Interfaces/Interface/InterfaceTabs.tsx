@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Settings, Save, ListRestart, Loader2, TriangleAlert, Check, Pen, Trash, Eye, Palette, Braces } from "lucide-react";
+import { Plus, Settings, Save, ListRestart, Loader2, TriangleAlert, Check, Pen, Trash, Eye, Palette } from "lucide-react";
 import { TabsList, TabsTrigger } from "@/components/UI/tabs";
 import { useEffect, useMemo, useState, CSSProperties } from "react";
 import { GranularTabActions, GranularInterfaceActions, GranularTileActions, FieldsActions, LogsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
