@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check, ChevronDown } from "lucide-react";
+import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check, ChevronRight } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { BiLogoZoom } from "react-icons/bi";
@@ -81,7 +81,7 @@ const AccordionTriggerWithButtons = React.forwardRef<
         <div className="flex items-center justify-between w-full px-4">
             <div className="flex items-center gap-2">
                 <div className="flex-grow text-left">{children}</div>
-                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
             </div>
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 {buttonSlot}
