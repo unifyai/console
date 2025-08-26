@@ -26,6 +26,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
 import { ChatMessage } from '@/types/assistants/chat';
+import { Skeleton } from "@/components/UI/skeleton";
+import { toast } from "sonner";
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -108,6 +110,37 @@ export function AssistantProfilePanel({
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isChatMaximized, setIsChatMaximized] = React.useState(false);
+    const [isVideoLoading, setIsVideoLoading] = React.useState(false);
+    const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
+    const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
+    const displayName = `${assistant.first_name} ${assistant.surname}`;
+
+    const cleanupVideoTimeout = React.useCallback(() => {
+        if (videoLoadTimeoutRef.current) {
+            clearTimeout(videoLoadTimeoutRef.current);
+            videoLoadTimeoutRef.current = null;
+        }
+    }, []);
+
+    const handlePopoverOpenChange = (open: boolean) => {
+        setIsVideoPopoverOpen(open);
+        if (open && videoSrc) {
+            setIsVideoLoading(true);
+            cleanupVideoTimeout(); // Clear any existing timeout
+            // Set a new timeout
+            videoLoadTimeoutRef.current = setTimeout(() => {
+                setIsVideoLoading(false);
+                setIsVideoPopoverOpen(false);
+                toast.error("Video preview failed to load in time.");
+            }, 5000);
+        } else {
+            // Cleanup on close
+            setIsVideoLoading(false);
+            cleanupVideoTimeout();
+        }
+    };
 
     const handleDeleteConfirm = async () => {
         if (!assistant || isDeleting) return;
@@ -145,9 +178,17 @@ export function AssistantProfilePanel({
         window.open(calendarUrl.toString(), '_blank', 'noopener,noreferrer');
     };
 
-    const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
-    const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
-    const displayName = `${assistant.first_name} ${assistant.surname}`;
+    const handleVideoCanPlay = () => {
+        cleanupVideoTimeout();
+        setIsVideoLoading(false);
+    };
+
+    const handleVideoError = () => {
+        cleanupVideoTimeout();
+        setIsVideoLoading(false);
+        setIsVideoPopoverOpen(false);
+        toast.error("Video preview failed to load.");
+    };
 
     return (
         <>
@@ -182,7 +223,7 @@ export function AssistantProfilePanel({
                             <AccordionContent>
                                 <div className="space-y-6 pt-4 pb-6">
                                     <div className="flex items-start gap-4 sm:gap-6 px-4 sm:px-6">
-                                        <Popover open={isVideoPopoverOpen} onOpenChange={setIsVideoPopoverOpen}>
+                                        <Popover open={isVideoPopoverOpen} onOpenChange={handlePopoverOpenChange}>
                                             <PopoverTrigger asChild>
                                                 <div className="relative group cursor-pointer flex-shrink-0">
                                                     <AssistantPhotoViewer
@@ -191,17 +232,23 @@ export function AssistantProfilePanel({
                                                         avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
                                                         fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
                                                     />
+                                                    {isVideoPopoverOpen && isVideoLoading && (
+                                                        <Skeleton className="absolute inset-0 z-10 h-20 w-20 sm:h-20 sm:w-20 rounded-lg" />
+                                                    )}
                                                     {videoSrc && <div className="absolute -z-10 top-0 left-0 h-full w-full rounded-lg bg-muted-foreground/20 transform -translate-x-2 -translate-y-2 transition-transform duration-200 ease-in-out group-data-[state=open]:translate-x-0 group-data-[state=open]:translate-y-0" />}
                                                 </div>
                                             </PopoverTrigger>
                                             {videoSrc && (
                                                 <PopoverContent side="bottom" align="start" sideOffset={-120} alignOffset={-40} className="p-0 border-none bg-transparent w-40 h-40 shadow-none">
                                                     <video
+                                                        key={videoSrc}
                                                         src={videoSrc}
                                                         autoPlay
                                                         playsInline
-                                                        onEnded={()=> setIsVideoPopoverOpen(false)}
-                                                        className="w-full h-full rounded-lg shadow-xl object-cover"
+                                                        onEnded={() => handlePopoverOpenChange(false)}
+                                                        onCanPlay={handleVideoCanPlay}
+                                                        onError={handleVideoError}
+                                                        className={cn("w-full h-full rounded-lg shadow-xl object-cover", isVideoLoading && "opacity-0")}
                                                     />
                                                 </PopoverContent>
                                             )}
