@@ -72,7 +72,7 @@ export default function TopNav() {
   return (
     <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
       <div className="h-full px-4 flex items-center justify-between">
-        {/* Logo */}
+        {/* Logo + Nav */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
             <Image
@@ -82,53 +82,53 @@ export default function TopNav() {
               className={`h-5 w-5 object-contain transition-opacity duration-300`}
               />
           </Link>
+          <div className="mx-3 h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-6">
+            {/* Assistants - Direct Link */}
+            <Link
+              href="/assistants"
+              className={cn(
+                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                pathname === '/assistants' || pathname.startsWith('/assistants/')
+                  ? "text-[color:var(--primary)]"
+                  : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+              )}
+            >
+              <Bot className="h-4 w-4" />
+              Assistants
+            </Link>
+
+            {/* Interfaces - Direct Link */}
+            <Link
+              href="/interfaces"
+              className={cn(
+                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
+                  ? "text-[color:var(--primary)]"
+                  : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Interfaces
+            </Link>
+
+            {/* Docs - External Link */}
+            <a
+              href="https://docs.unify.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
+              )}
+            >
+              <BookOpen className="h-4 w-4" />
+              Docs
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </nav>
         </div>
-
-        {/* Navigation - Centered */}
-        <nav className="hidden md:flex items-center space-x-6 absolute left-1/2 -translate-x-1/2">
-          {/* Assistants - Direct Link */}
-          <Link
-            href="/assistants"
-            className={cn(
-              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
-              pathname === '/assistants' || pathname.startsWith('/assistants/')
-                ? "text-[color:var(--primary)]"
-                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
-            )}
-          >
-            <Bot className="h-4 w-4" />
-            Assistants
-          </Link>
-
-          {/* Interfaces - Direct Link */}
-          <Link
-            href="/interfaces"
-            className={cn(
-              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
-              pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
-                ? "text-[color:var(--primary)]"
-                : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Interfaces
-          </Link>
-
-          {/* Docs - External Link */}
-          <a
-            href="https://docs.unify.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "px-3 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
-              "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
-            )}
-          >
-            <BookOpen className="h-4 w-4" />
-            Docs
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        </nav>
 
         {/* Right side */}
         <div className="flex items-center space-x-2">
