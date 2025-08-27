@@ -1088,7 +1088,7 @@ const LogsTable = ({
       ) : (
         <div className="w-full h-full flex flex-col min-h-0">
           {tableMenu}
-          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 relative overflow-x-auto min-h-0">
+          <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 pr-3 relative overflow-x-auto min-h-0">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}

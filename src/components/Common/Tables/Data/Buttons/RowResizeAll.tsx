@@ -67,17 +67,17 @@ const RowResizeAll = ({
 
   const resizerStyle: CSSProperties = {
     position: "absolute",
-    bottom: 0,
-    left: 0,
+    bottom: "-6px",
+    left: "0px",
     width: "100%",
-    height: "4px", // Grabbable area positioned flush with bottom.
-    zIndex: 20,
+    height: "5px",
+    zIndex: 100,
     cursor: "ns-resize",
     userSelect: "none",
     touchAction: "none",
   };
   
-  const dashedSeparatorStyle: CSSProperties = {
+  const handlerStyle: CSSProperties = {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -88,25 +88,13 @@ const RowResizeAll = ({
     pointerEvents: 'none',
   };
 
-  const visualIndicatorStyle: CSSProperties = {
-    position: 'absolute',
-    left: '-1px',
-    width: 'calc(100% + 2px)',
-    height: '1px',
-    opacity: 1,
-    transition: 'opacity 0.2s, background-color 0.2s',
-    borderRadius: '4px',
-    pointerEvents: 'none',
-  }
-  
   return (
     <div
       onMouseDown={handleMouseDown}
       style={resizerStyle}
       className="group/RowResizeAll"
     >
-      {/* Simple visible line that acts as the table border */}
-      <div style={dashedSeparatorStyle} />
+      <div style={handlerStyle} />
     </div>
   );
 };

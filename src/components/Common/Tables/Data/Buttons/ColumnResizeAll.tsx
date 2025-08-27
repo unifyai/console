@@ -65,44 +65,28 @@ const ColumnResizeAll = ({
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
 
-  // This is the invisible draggable area. It creates the hover target right at the cell edge.
   const resizerStyle: CSSProperties = {
     position: "absolute",
-    top: 0,
-    right: "-2px", // Positions the draggable area right at the cell edge.
-    width: "4px",  // Narrow but still grabbable area.
+    top: "0px",
+    right: "-12px",
+    width: "5px",
     height: "100%",
-    zIndex: 20,
+    zIndex: 100,
     cursor: "ew-resize",
     userSelect: "none",
     touchAction: "none",
   };
   
-  // Invisible resize indicator - users feel like they're resizing the cell directly.
-  const dashedSeparatorStyle: CSSProperties = {
+  const handlerStyle: CSSProperties = {
     position: 'absolute',
     right: 0,
     top: 0,
     height: '100%',
     width: '1px',
-    backgroundColor: 'transparent',
-    opacity: 0,
+    backgroundColor: 'var(--muted)',
+    opacity: 1,
     pointerEvents: 'none',
   };
-
-  // This is the solid bar that appears on hover/drag.
-  const visualIndicatorStyle: CSSProperties = {
-    position: 'absolute',
-    right: '1px', // Positioned at the far right of the draggable area.
-    top: '-1px',
-    height: 'calc(100% + 2px)',
-    width: '2px',
-    backgroundColor: isResizing ? 'var(--primary)' : 'var(--border)', // Uses theme border color.
-    opacity: 1,
-    transition: 'opacity 0.2s, background-color 0.2s',
-    borderRadius: '4px',
-    pointerEvents: 'none',
-  }
   
   return (
     <div
@@ -110,11 +94,7 @@ const ColumnResizeAll = ({
       style={resizerStyle}
       className="group/ColumnResizeAll"
     >
-      <div style={dashedSeparatorStyle} className="group-hover/ColumnResizeAll:opacity-100" />
-      <div 
-        style={visualIndicatorStyle}
-        className="group-hover/ColumnResizeAll:opacity-100 group-hover/ColumnResizeAll:bg-primary"
-      />
+      <div style={handlerStyle}/>
     </div>
   );
 };

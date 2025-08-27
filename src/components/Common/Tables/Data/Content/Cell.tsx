@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/UI/skeleton";
 import { sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
 import { StateProps } from "@/types/dataTable";
-import ColumnResizeAll from "../Buttons/ColumnResizeAll";
 
 const DataTableCell = ({
   cell,
@@ -233,10 +232,7 @@ const DataTableCell = ({
           if (!showResizer) return null;
 
         return (
-            <>
                 <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
-                {isRightmost && <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any} />}
-            </>
         );
        })()}
 

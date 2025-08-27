@@ -566,7 +566,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         return elements;
     };
 
-    return (<div className="relative flex h-fit w-full gap-2 min-w-max">
+    return (
+            <div className="relative flex h-fit w-full gap-2 min-w-max">
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -686,7 +687,6 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 loadingText="Loading previous..."
                                                                 disabled={auto_update}
                                                                 table={table}
-                                                                withColumnResizeAll={true}
                                                             />
                                                         )}
                                                         
@@ -712,7 +712,6 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 loadingText="Loading more..."
                                                                 disabled={auto_update}
                                                                 table={table}
-                                                                withColumnResizeAll={true}
                                                             />
                                                         )}
                                                     </>
@@ -762,6 +761,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
 
                     </Table>
                 </DndContext>
+                <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any}/>
                 {ExtraComponents && ExtraComponents(table)}
-    </div>);
+            </div>
+    );
 }

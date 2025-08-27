@@ -9,7 +9,6 @@ import ColumnResizer from "@/components/Common/Tables/Data/Buttons/ColumnResize"
 import ColumnPinner from "@/components/Common/Tables/Data/Buttons/ColumnPinner";
 
 import { DraggingColumnsState, DraggingColumnPinnerState } from "@/types/interfaces/columns";
-import ColumnResizeAll from "@/components/Common/Tables/Data/Buttons/ColumnResizeAll";
 
 const FooterCell = ({ 
     column, 

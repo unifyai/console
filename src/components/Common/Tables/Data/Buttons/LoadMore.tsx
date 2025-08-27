@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react';
 import { TableRow, TableCell } from '@/components/UI/table';
 import Tooltip from '@/components/Common/Misc/Tooltip';
 import { Table } from '@tanstack/react-table';
-import ColumnResizeAll from './ColumnResizeAll';
 
 export interface LoadMoreProps {
   onLoadMore: () => void;
@@ -26,7 +25,7 @@ export interface LoadMoreProps {
   loadingText?: string;
 
   table?: Table<any>;
-  withColumnResizeAll?: boolean;
+
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -42,7 +41,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   buttonText = "Load More",
   loadingText = "Loading...",
   table,
-  withColumnResizeAll = false,
+
 }) => {
   const isDisabled = !interactive || isLoading || disabled;
   const disabledTooltip = !interactive 
@@ -144,12 +143,6 @@ const LoadMore: React.FC<LoadMoreProps> = ({
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderButtonContent()}
-            {withColumnResizeAll && table && (
-              <ColumnResizeAll
-                table={table}
-                setColumnSizing={table.options.onColumnSizingChange as any}
-              />
-            )}
           </TableCell>
         </TableRow>
       )}
@@ -163,12 +156,6 @@ const LoadMore: React.FC<LoadMoreProps> = ({
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderLoadingContent()}
-            {withColumnResizeAll && table && (
-              <ColumnResizeAll
-                table={table}
-                setColumnSizing={table.options.onColumnSizingChange as any}
-              />
-            )}
           </TableCell>
         </TableRow>
       )}
