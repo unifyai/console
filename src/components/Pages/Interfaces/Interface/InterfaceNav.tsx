@@ -231,6 +231,8 @@ const SortableTab = React.memo(function SortableTab({
   onSetTabContext,
   onDeleteTab,
 }: SortableTabProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  
   const {
     attributes,
     listeners,
@@ -323,12 +325,15 @@ const SortableTab = React.memo(function SortableTab({
         )}
       </button>
       {!isCollapsed && (
-        <DropdownMenu>
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1/2 -translate-y-1/2"
+              className={cn(
+                "h-8 w-8 transition-opacity absolute right-1 top-1/2 -translate-y-1/2",
+                dropdownOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+              )}
             >
               <MoreHorizontal className="h-3 w-3" />
             </Button>
