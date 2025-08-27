@@ -14,6 +14,7 @@ import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { getTileCardRef } from '@/utils/interfaces/refRegistry';
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 const TileHeader = lazy(() => import('./TileHeader'));
 const TileFooter = lazy(() => import('./TileFooter'));
@@ -71,6 +72,9 @@ const TileCard = ({
 
   // Use granular tile hooks for tile-specific state
   const { meta: tileMetaState, ui: tileUIState, data: tileDataState } = useTile(tileId, tabId);
+  
+  // Use global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   // SYNCHRONISED TILE-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTileActions } = useTileSync(
@@ -127,7 +131,7 @@ const TileCard = ({
           <div
             className={cn(
               "w-full transition-all duration-300 ease-in-out",
-              tabUIState?.edit ? "max-h-12 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+              isEditMode ? "max-h-12 opacity-100" : "max-h-0 opacity-0 pointer-events-none"
             )}
           >
             <TileHeader
@@ -147,20 +151,20 @@ const TileCard = ({
           
           {/* Tile overlays and content */}
 
-          {!tileType && tabUIState?.edit && (
+          {!tileType && isEditMode && (
             <NewTileOverlay
               tileName={tileName}
               onSelectType={handleSelectType}
             />
           )}
 
-          {tileType === "View" && !tableName && tabUIState?.edit && (
+          {tileType === "View" && !tableName && isEditMode && (
             <UnlinkedTileOverlay
               tileType={tileType}
               tileName={tileName}
               tableNames={tableNames}
               onSelectTable={(selectedTable) => syncedTileDataActions?.setTable(selectedTable)}
-              isEditMode={tabUIState?.edit || false}
+              isEditMode={isEditMode || false}
             />
           )}
 

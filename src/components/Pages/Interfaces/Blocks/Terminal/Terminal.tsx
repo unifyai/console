@@ -23,6 +23,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
 import { Play, Square, Maximize2 } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 interface TerminalProps {
@@ -74,6 +75,9 @@ export default function Terminal({
   const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
   const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
   const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
 
   /* -------------------------------------------------- state / refs */
@@ -240,7 +244,7 @@ export default function Terminal({
             onClick={stopTerminal}
           />
         )}
-        {!tabUIState?.edit && !focusPaneOpen && (
+        {!isEditMode && !focusPaneOpen && (
           <ActionButton
             icon={<Maximize2 className="h-4 w-4" />}
             variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tiles.find(t=>t.id===tileId)?.name) ? "primary" : "outline"}

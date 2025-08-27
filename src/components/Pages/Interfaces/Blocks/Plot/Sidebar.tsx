@@ -13,6 +13,7 @@ import { ContextActions, GranularTileActions, FieldsActions, LogsActions, Projec
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { PlotTile } from '@/contexts/slices/selectors/plotTile';
 
 import PlotType from './Buttons/PlotType';
@@ -161,6 +162,9 @@ const PlotSettings = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
@@ -362,7 +366,7 @@ const PlotSettings = ({
                 useDialog={true}
               />
             )}
-            {!tabUIState?.edit && !focusPaneOpen && (
+            {!isEditMode && !focusPaneOpen && (
               <ActionButton
                 tooltip="Open in focus pane"
                 side="left"

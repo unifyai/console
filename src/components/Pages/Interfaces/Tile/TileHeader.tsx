@@ -22,6 +22,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover
 import { Input } from "@/components/UI/input";
 import { Button } from "@/components/UI/button";
 import { useRenameContextQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
@@ -39,6 +40,9 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     const { meta: tileMetaState, data: tileDataState, ui: tileUIState, uiActions: tileUIActions} = useTile(tileId, tabId);
     const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
     const { data: tabDataState} = useTabData(tabId, interfaceId);
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
     
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
@@ -197,7 +201,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     syncedTileMetaActions={syncedTileActions?.meta}
                     syncedTableTileActions={syncedTileActions?.tableTileActions}
                     tabUIActions={tabUIActions}
-                    isEditMode={tabUIState?.edit || false}
+                    isEditMode={isEditMode || false}
                     onOpenChange={setIsPopoverOpen}
                 >
                     <div
@@ -308,9 +312,9 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
 
             {/* Right part: Action buttons */}
             <div 
-                className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${tabUIState?.edit ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
+                className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${isEditMode ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
             >
-                {!tabUIState?.edit && !focusPaneOpen && (
+                {!isEditMode && !focusPaneOpen && (
                 <ActionButton
                     className="cursor-pointer"
                     onClick={() => {
@@ -327,7 +331,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                 />
                 )}
                 
-                {tabUIState?.edit && (
+                {isEditMode && (
                     <>
                         <ActionButton
                             className="cursor-pointer"

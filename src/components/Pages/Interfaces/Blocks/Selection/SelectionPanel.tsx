@@ -78,6 +78,7 @@ import { createContext, useContextSelector } from "use-context-selector";
 import { TableActions } from "@/contexts/hooks/tile/useTableTile";
 import { Span } from "@/types/interfaces/traces";
 import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 // Create a custom context for panel-specific state
@@ -220,6 +221,9 @@ export default function SelectionPanel({
   setFocusPaneOpen: (open:boolean)=>void
 }) {
   const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   // Extract all values from panelState
   const {
@@ -1359,7 +1363,7 @@ export default function SelectionPanel({
           {/* Right side: Controls */}
           <div className="flex items-center gap-2">
             {/* Focus pane button */}
-            {!tabUIState?.edit && !focusPaneOpen && (
+            {!isEditMode && !focusPaneOpen && (
               <ActionButton
                 tooltip="Open in focus pane"
                 icon={<Maximize2 className="h-4 w-4" />}

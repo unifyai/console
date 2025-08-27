@@ -13,6 +13,7 @@ import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Int
 import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
 import { PlotArguments } from "@/types/interfaces/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 const LogsPlot = ({ 
     tileId,
@@ -69,9 +70,12 @@ const LogsPlot = ({
 
     // Get the item representation for the current tile
     const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
+    
+    // Get global UI mode settings
+    const { isInteractive } = useGlobalUIMode();
 
     // UI state from the tab
-    const interactive = tabUIState?.interactive || false;
+    const interactive = isInteractive;
     const pending = tabUIState?.pending || tileUIState?.pending || false;
 
     // Use React Query to access plotDataItem and plotArguments

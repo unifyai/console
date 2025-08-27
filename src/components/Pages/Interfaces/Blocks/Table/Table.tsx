@@ -15,6 +15,7 @@ import React, { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, 
 import { ScrollArea, ScrollBar } from "@/components/UI/scroll-area";
 import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, StretchVertical, BarChart3, ChevronRight, ChevronDown, ExternalLink } from "lucide-react";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
@@ -243,9 +244,12 @@ const LogsTable = ({
   const flatLogs = maybeFlattenGroupedLogs(logs)
   if (Object.entries(params).length && Object.entries(logs).length)
     flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
+  
+  // Get global UI mode settings
+  const { isInteractive, isEditMode } = useGlobalUIMode();
 
   // UI state from the tab
-  const interactive = tabUIState?.interactive || false;
+  const interactive = isInteractive;
   const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
 
   // Basic states for quick feedback
@@ -953,7 +957,7 @@ const LogsTable = ({
                     icon={<SquareSplitHorizontal className="h-4 w-4" />}
                     onClick={() => setPanelCount(c => (c % 2) + 1)}
                 />
-                {!tabUIState?.edit && !focusPaneOpen && (
+                {!isEditMode && !focusPaneOpen && (
                   <SettingButton
                     tooltip="Open in focus pane"
                     icon={<Maximize2 className="h-4 w-4" />}

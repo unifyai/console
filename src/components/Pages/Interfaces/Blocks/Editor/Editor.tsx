@@ -17,6 +17,7 @@ import { FilePlus, FolderPlus, Trash2, Plus, Save, Maximize2 } from "lucide-reac
 import { FileEntry } from "@/types/interfaces/grid";
 import EditableSecret from "@/components/Common/Code/EditableSecret";
 import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const Editor = ({
@@ -63,6 +64,9 @@ const Editor = ({
     const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
     const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
     const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
 
     // Maintain list of file entries (name + type). Content is fetched lazily on demand
     const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
@@ -427,7 +431,7 @@ const Editor = ({
                         tooltip="Save To File"
                         onClick={() => onSave(tempCode)}
                     />
-                    {!tabUIState?.edit && !focusPaneOpen && (
+                    {!isEditMode && !focusPaneOpen && (
                         <ActionButton
                             icon={<Maximize2 size={16} />}
                             variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileMetaState?.name) ? "primary" : "outline"}

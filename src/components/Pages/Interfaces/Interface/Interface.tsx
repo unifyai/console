@@ -26,6 +26,7 @@ import { Toaster } from 'sonner';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Interfaces/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { useTabStreamingQuery } from '@/hooks/Interfaces/Query/useTabStreamingQuery';
 import { useInterfaceSync } from '@/contexts/hooks/interface/sync/useInterfaceSync';
 import { selectActiveTab, selectTotalInactiveTabsForInterface } from '@/contexts/selectors/tab';
@@ -211,14 +212,17 @@ const Interface = ({
   const selectProjectsOpen = useStoreContext((state) => state.selectProjectsOpen);
   const fileUploadOpen = useStoreContext((state) => state.fileUploadOpen);
   const globalContextOpen = useStoreContext((state) => state.globalContextOpen);
+  const setGlobalContextOpen = useStoreContext((state) => state.setGlobalContextOpen);
   
   const setDeleteProjectOpen = useStoreContext((state) => state.setDeleteProjectOpen);
   const setCreateProjectOpen = useStoreContext((state) => state.setCreateProjectOpen);
   const setSelectProjectsOpen = useStoreContext((state) => state.setSelectProjectsOpen);
   const setFileUploadOpen = useStoreContext((state) => state.setFileUploadOpen);
-  const setGlobalContextOpen = useStoreContext((state) => state.setGlobalContextOpen);
   
-  // Command-related state from store
+  // Global UI modes
+  const { isEditMode, isDashboardMode, setEditMode, setDashboardMode } = useGlobalUIMode();
+
+  // Command state
   const storeCommands = useStoreContext((state) => state.commands);
 
   // Initialize React Query mutations for tab operations
@@ -678,13 +682,13 @@ const Interface = ({
       <InterfaceNav
         interfaceId={interfaceId}
         projectId={projectQueryParam || ''}
-        isEditMode={tabUIState?.edit || false}
-        isCommandMode={!tabUIState?.interactive}
+        isEditMode={isEditMode}
+        isCommandMode={isDashboardMode}
         onEditModeToggle={() => {
-          tabUIActions?.setEdit(!tabUIState?.edit);
+          setEditMode(!isEditMode);
         }}
         onCommandModeToggle={() => {
-          tabUIActions?.setInteractive(!tabUIState?.interactive);
+          setDashboardMode(!isDashboardMode);
         }}
         onNavCollapseChange={setIsNavCollapsed}
         onRefresh={handleInterfaceRefresh}
@@ -1162,7 +1166,7 @@ const Interface = ({
         )}
 
         {/* Edit Tile Name Dialog */}
-        {tabUIState?.edit && tabUIState?.editTile && (
+        {isEditMode && tabUIState?.editTile && (
           <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
             <EditTileName
               tabIdOrName={activeTabId || ""}

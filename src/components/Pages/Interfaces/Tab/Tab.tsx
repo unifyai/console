@@ -10,6 +10,7 @@ import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { Tile } from "@/contexts/slices/selectors/tile";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 // Import the new dependency management system
 import { useDependencyAwareSortedTilesForTab } from "@/utils/interfaces/tileDependencies/dependencyManager";
@@ -56,6 +57,9 @@ const Tab = ({
 
   const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
@@ -202,8 +206,8 @@ const Tab = ({
         rowHeight={105 / heightFactor}
         margin={[0, 0]}
         containerPadding={[0, 0]}
-        isDraggable={tabUIState?.edit && !dragResizeDisabled}
-        isResizable={tabUIState?.edit && !dragResizeDisabled}
+        isDraggable={isEditMode && !dragResizeDisabled}
+        isResizable={isEditMode && !dragResizeDisabled}
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
         compactType={null}

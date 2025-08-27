@@ -11,6 +11,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
 import { useListInterfacesQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
@@ -71,6 +72,9 @@ const InterfaceButtons = ({
         uiActions: tabUIActions,
     } = useTab(tabIdOrName || "", interfaceId);
     const tabId = tabMetaState?.id || null;
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
 
     // Fetch interfaces for the current project
     const { data: interfacesData, isLoading: isLoadingInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
@@ -310,7 +314,7 @@ const InterfaceButtons = ({
         <div className="flex items-center gap-2">
             
             {/* Add Tile Button (edit mode only) */}
-            {!hideAddTileButton && tabId && tabUIState?.edit && <AddTile
+            {!hideAddTileButton && tabId && isEditMode && <AddTile
                 tabId={tabId}
                 interfaceId={interfaceId}
                 project={project}
