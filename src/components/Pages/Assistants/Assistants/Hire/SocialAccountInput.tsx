@@ -32,7 +32,7 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
     clearJustAdded,
     cost
 }) => {
-    const { control, formState: { errors }, setValue, getValues } = useFormContext<AssistantFormData>();
+    const { control, formState: { errors }, setValue, getValues, clearErrors } = useFormContext<AssistantFormData>();
     const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
 
     const account = useWatch({
@@ -80,6 +80,9 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
         setValue(fieldNames.identifier, newValue, { shouldDirty: true });
         if (getValues(fieldNames.isVerified)) {
             setValue(fieldNames.isVerified, false, { shouldDirty: true });
+        }
+        if (errors.social_accounts?.[index]?.identifier) {
+            clearErrors(fieldNames.identifier);
         }
     };
 

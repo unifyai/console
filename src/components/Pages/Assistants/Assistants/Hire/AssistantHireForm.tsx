@@ -35,7 +35,7 @@ import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
 const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }> = ({ assistantActions }) => {
-    const { control, getValues, setValue, formState: { errors }, register } = useFormContext<AssistantFormData>();
+    const { control, getValues, setValue, formState: { errors }, register, clearErrors } = useFormContext<AssistantFormData>();
 
     const phoneFieldNames = React.useMemo(() => ({
         identifier: 'user_phone' as 'user_phone',
@@ -84,7 +84,12 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                         value: /^\+[1-9]\d{7,14}$/,
                         message: "Please enter a valid number (e.g., +15551234567). Make sure there are no extra whitespace."
                     },
-                    onChange: () => { if (getValues('user_phone_isVerified')) { setValue('user_phone_isVerified', false, { shouldDirty: true }); } }
+                    onChange: () => {
+                        if (getValues('user_phone_isVerified')) {
+                            setValue('user_phone_isVerified', false, { shouldDirty: true });
+                        }
+                        if (errors.user_phone) clearErrors('user_phone');
+                    }
                 })} />
                 {isPhoneVerified ? (
                      <Button type="button" variant="default" className="h-9" disabled>

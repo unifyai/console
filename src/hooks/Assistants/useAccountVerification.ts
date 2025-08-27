@@ -62,10 +62,7 @@ export function useAccountVerification({
         }
 
         const isValid = await trigger(fieldNames.identifier);
-        if (!isValid) {
-            toast.error(validationMessage);
-            return;
-        }
+        if (!isValid) return;
 
         const identifier = getValues(fieldNames.identifier) as string;
         setValue(fieldNames.isVerifying, true as PathValue<AssistantFormData, typeof fieldNames.isVerifying>, { shouldDirty: true });
