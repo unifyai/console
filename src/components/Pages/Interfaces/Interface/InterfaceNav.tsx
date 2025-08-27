@@ -252,7 +252,7 @@ const SortableTab = React.memo(function SortableTab({
       ref={setNodeRef} 
       style={style}
       className={cn(
-        "group relative flex items-center animate-in fade-in slide-in-from-left-1 duration-200 w-full", 
+        "group relative flex items-center animate-in fade-in slide-in-from-bottom-1 duration-200 w-full", 
         isDragging && "z-50"
       )}
     >
@@ -2034,11 +2034,11 @@ export default function InterfaceNav({
         
         {/* Tabs List - Only show when both project and interface are selected */}
         {!isCompletelyHidden && projectId && interfaceId && (
-          <ScrollArea className="flex-1 overflow-x-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
-            <div className={cn("space-y-1 min-w-0", isCollapsed ? "px-2 py-2" : "px-3 py-3 pr-2")}>
-              {/* Tabs label and Add button */}
-              {!isCollapsed && (
-                <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
+            {/* Tabs label and Add button - pinned at top for expanded mode */}
+            {!isCollapsed && (
+              <div className="px-3 pt-3 pb-2 flex-shrink-0">
+                <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
                   <label className="text-xs font-medium text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
@@ -2056,26 +2056,11 @@ export default function InterfaceNav({
                     </Tooltip>
                   )}
                 </div>
-              )}
-              
-              {/* Add tab button for collapsed mode */}
-              {isCollapsed && interfaceId && (
-                <div className="flex justify-center mb-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setCreateTabOpen(true)}
-                        className="h-8 w-8"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Add Tab</TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
+              </div>
+            )}
+            <div className="flex-1 relative overflow-hidden min-h-0">
+              <ScrollArea className="h-full w-full">
+                <div className={cn("space-y-1 min-w-0 relative", isCollapsed ? "px-2 py-2 pb-6" : "px-3 pt-1 pb-3")}>
               
               {loadingTabs ? (
                 <div className="space-y-1 animate-in fade-in duration-200">
@@ -2103,33 +2088,14 @@ export default function InterfaceNav({
               ) : currentTabs.length === 0 ? (
                 <div className={cn(
                   "text-sm text-muted-foreground text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-4" : "py-8 px-2"
+                  isCollapsed ? "py-4" : "py-6 px-2"
                 )}>
-                  {!isCollapsed && (
-                    <>
-                      <div className="mb-2">
-                        <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <span className="block break-words select-none">No tabs yet</span>
-                    </>
-                  )}
-                  {isCollapsed && interfaceId && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setCreateTabOpen(true)}
-                          className="h-8 w-8"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Add Tab</TooltipContent>
-                    </Tooltip>
-                  )}
+                  <div className="mb-2">
+                    <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <span className="block break-words select-none">No tabs yet</span>
                 </div>
               ) : (
                 <>
@@ -2182,8 +2148,38 @@ export default function InterfaceNav({
                   </DndContext>
                 </>
               )}
+                </div>
+              </ScrollArea>
+              {/* Fade gradients for smooth scroll effect */}
+              <div className={cn(
+                "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none z-10",
+                isCollapsed ? "h-12 mx-2" : "h-2.5 mx-3"
+              )} />
+              <div className={cn(
+                "absolute top-0 left-0 right-0 bg-gradient-to-b from-background via-background/60 to-transparent pointer-events-none z-10",
+                isCollapsed ? "h-4 mx-2" : "h-2.5 mx-3"
+              )} />
             </div>
-          </ScrollArea>
+          </div>
+        )}
+        
+        {/* Add tab button for collapsed mode - placed at bottom */}
+        {!isCompletelyHidden && isCollapsed && projectId && interfaceId && (
+          <div className="p-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCreateTabOpen(true)}
+                  className="h-8 w-8 w-full"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Add Tab</TooltipContent>
+            </Tooltip>
+          </div>
         )}
         
         {/* Separator before mode controls */}
