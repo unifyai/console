@@ -180,7 +180,7 @@ export function AssistantEditPhone({
                 <DialogHeader>
                     <DialogTitle>Edit Phone Number for {displayName}</DialogTitle>
                     <DialogDescription>
-                        Your assistant's number will be provisioned in the selected country. You may then contact them using the phone number you provide below.
+                        Your assistant&apos;s number will be provisioned in the selected country. You may then contact them using the phone number you provide below.
                     </DialogDescription>
                 </DialogHeader>
 
