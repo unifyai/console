@@ -390,28 +390,42 @@ export function useAssistantHireForm(
         if (assistant.user_whatsapp_number) {
             socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isInitial: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
         }
-
+        const assistantVoiceDetails = registeredVoices.find(v => v.voice_id === assistant.voice_id);
         reset({
             ...getValues(),
+
+            // Profile
             first_name: assistant.first_name,
             surname: assistant.surname,
             age: assistant.age,
             region: assistant.region,
             about: assistant.about || '',
+
+            // Media
             photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profile_photo,
             videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profile_video,
             profile_photo_url: assistant.profile_photo,
             profile_video_url: assistant.profile_video,
             photoFile: null,
             videoFile: null,
+
+            // Contact
             country: assistant.country || FALLBACK_DEFAULT_COUNTRY_CODE,
             user_phone: assistant.user_phone || '',
             user_phone_isVerified: !!assistant.user_phone,
             social_accounts: socialAccounts,
             isPhoneNumberAdded: !!assistant.phone,
-            // Assuming voice details are fetched and passed with the assistant object
-            // This might need adjustment if voice details need separate fetching
+            email: assistant.email || '',
+            emailManuallyEdited: true, // Assume existing email was set
+
+            // Voice
             voice_id: assistant.voice_id || undefined,
+            voice_name: assistantVoiceDetails?.name,
+            voice_description: assistantVoiceDetails?.description,
+            voice_gender: assistantVoiceDetails?.gender,
+            voice_language: assistantVoiceDetails?.language,
+            voice_provider: assistantVoiceDetails?.provider || VOICE_PROVIDER,
+            voice_exists: !!assistantVoiceDetails, 
         });
         setShowInsufficientFundsHint(false);
     }, [reset, getValues]);
@@ -446,6 +460,10 @@ export function useAssistantHireForm(
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
             if (data.isPhoneNumberAdded) {
                 if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
+            }
+
+            if (data.country !== editingAssistant.country) {
+                payload.country = data.country;
             }
 
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);

@@ -33,6 +33,7 @@ import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 import { VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
+import { AssistantEditPhone } from './Assistants/Edit/AssistantEditPhone';
 
 
 interface MainProps {
@@ -121,6 +122,7 @@ export default function Main({
     // --- Dialogs & Forms ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
+    const [assistantForPhoneEdit, setAssistantForPhoneEdit] = React.useState<Assistant | null>(null);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
@@ -246,6 +248,11 @@ export default function Main({
         setAssistantToEdit(assistant);
     }, [loadAssistantForEdit]);
 
+    const handleOpenPhoneEditDialog = React.useCallback((assistant: Assistant) => {
+        loadAssistantForEdit(assistant); // Load data into the form
+        setAssistantForPhoneEdit(assistant);
+    }, [loadAssistantForEdit]);
+
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
             toast.info("No presets match filters.");
@@ -355,6 +362,7 @@ export default function Main({
                                 onClose={handleProfileClose}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
                                 onEdit={handleOpenEditDialog}
+                                onOpenPhoneEditDialog={handleOpenPhoneEditDialog}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
                                 isFirstView={isFirstViewAfterHire}
@@ -513,6 +521,21 @@ export default function Main({
                         />
                     </AssistantEdit>
                 )}
+                {assistantForPhoneEdit && (
+                    <AssistantEditPhone
+                        isOpen={!!assistantForPhoneEdit}
+                        onClose={() => setAssistantForPhoneEdit(null)}
+                        assistant={assistantForPhoneEdit}
+                        formMethods={hireFormMethods}
+                        onSubmit={initiateUpdate}
+                        isSubmitting={isFormSubmitting}
+                        assistantActions={assistantActions}
+                        onSuccess={() => {
+                            setAssistantForPhoneEdit(null);
+                        }}
+                    />
+                )}
+
             </FormProvider>
         </>
     );
