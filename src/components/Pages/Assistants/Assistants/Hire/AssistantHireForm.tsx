@@ -358,6 +358,12 @@ export function HireForm({
         const hasVideo = !!videoPreviewUrl;
         if (!hasVideo) return false;
     
+        // An existing video on an assistant being edited is always playable,
+        // as it's not dependent on the currently selected form voice.
+        if (mode === 'edit' && !!getValues("profile_video_url") && !videoFile) {
+            return true;
+        }
+
         // A preset video is playable only if the form state is still pristine.
         const rhfProfileVideoUrl = getValues("profile_video_url");
         const isPresetVideo = rhfProfileVideoUrl?.includes('preset_assistants');
@@ -410,7 +416,7 @@ export function HireForm({
         setPlayedVideoUrls(prev => new Set(prev).add(url));
     }, []);
 
-    const shouldAutoplayVideo = !!videoPreviewUrl && !playedVideoUrls.has(videoPreviewUrl);
+    const shouldAutoplayVideo = !!videoPreviewUrl && !playedVideoUrls.has(videoPreviewUrl) && !isEditMode;
 
     return (
     <FormProvider {...formMethods}>
