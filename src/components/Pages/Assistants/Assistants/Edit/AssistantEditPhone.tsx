@@ -172,7 +172,7 @@ export function AssistantEditPhone({
     };
     
     const displayName = `${assistant.first_name} ${assistant.surname}`;
-    const isUpdateButtonDisabled = isSubmitting || isLoadingCountries;
+    const isUpdateButtonDisabled = isSubmitting || isLoadingCountries || !rhfUserPhone || !rhfUserPhoneIsVerified || !rhfCountry;
 
     return (
         <Dialog open={isOpen} onOpenChange={!isSubmitting ? onClose : () => {}}>
