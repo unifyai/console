@@ -557,20 +557,49 @@ export default function InterfaceNav({
   const storeAddTab = useStoreContext((state) => state.addTab)
   
   // Fetch project tree using React Query for better caching
-  const { data: projectTree = [], isLoading: projectTreeLoading, refetch: refetchProjectTree } = useQuery<
+  const { data: projectTree = [], isLoading: projectTreeLoading, isFetching: projectTreeFetching, isError: projectTreeError, refetch: refetchProjectTree } = useQuery<
     Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {
-      const res = await fetch('/api/projects/tree')
-      if (!res.ok) throw new Error('Failed to fetch project tree')
-      return res.json()
+      try {
+        const res = await fetch('/api/projects/tree')
+        
+        if (!res.ok) {
+          // Try to get error message from response
+          let errorMessage = `Failed to fetch project tree: ${res.status}`
+          try {
+            const errorData = await res.json()
+            if (errorData.detail) {
+              errorMessage = errorData.detail
+            }
+          } catch {
+            // Ignore JSON parse errors, use default message
+          }
+          throw new Error(errorMessage)
+        }
+        
+        const data = await res.json()
+        
+        // Validate response is actually an array
+        if (!Array.isArray(data)) {
+          console.error('Invalid project tree response:', data)
+          throw new Error('Invalid project tree format')
+        }
+        
+        return data
+      } catch (error) {
+        console.error('Failed to fetch project tree:', error)
+        throw error instanceof Error ? error : new Error('Failed to fetch project tree')
+      }
     },
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
   
   // Fetch contexts for file upload
@@ -632,22 +661,53 @@ export default function InterfaceNav({
   }, [interfaceId])
   
   // Fetch tabs for the current interface using React Query
-  const { data: currentTabs = [], isLoading: tabsLoading, refetch: refetchTabs } = useQuery<ProjectTab[]>({
+  const { data: currentTabs = [], isLoading: tabsLoading, isFetching: tabsFetching, isError: tabsError, error: tabsErrorDetails, refetch: refetchTabs } = useQuery<ProjectTab[]>({
     queryKey: ['tabs', interfaceId],
     queryFn: async () => {
       if (!interfaceId) return []
-      const tabs = await tabActions.list(interfaceId)
-      return tabs.sort((a, b) => (a.order || 0) - (b.order || 0))
+      
+      try {
+        const tabs = await tabActions.list(interfaceId)
+        
+        // Handle various error response formats
+        if (!tabs) {
+          console.warn('No tabs data returned for interface:', interfaceId)
+          return []
+        }
+        
+        // Check if it's an error object instead of array
+        if (typeof tabs === 'object' && !Array.isArray(tabs)) {
+          // Handle both {error: "..."} and {detail: "..."} formats
+          const errorMessage = (tabs as any).error || (tabs as any).detail || 'Invalid response format'
+          console.error('Tab fetch error:', errorMessage)
+          throw new Error(errorMessage)
+        }
+        
+        // Ensure it's actually an array
+        if (!Array.isArray(tabs)) {
+          console.error('Invalid tabs response type:', typeof tabs, tabs)
+          throw new Error('Expected array of tabs but received ' + typeof tabs)
+        }
+        
+        // Safe to sort now
+        return tabs.sort((a, b) => (a.order || 0) - (b.order || 0))
+      } catch (error) {
+        console.error('Failed to fetch tabs:', error)
+        // Re-throw to let React Query handle retries
+        throw error instanceof Error ? error : new Error('Failed to fetch tabs')
+      }
     },
     enabled: !!interfaceId,
     staleTime: 2 * 60 * 1000, // Consider tabs fresh for 2 minutes
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    retry: 3, // Retry failed requests 3 times
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   })
   
-  // Tabs loading should not depend on currentInterface loading
-  const loadingTabs = tabsLoading
+  // Tabs loading should check both isLoading (initial) and isFetching (refetch/retry)
+  const loadingTabs = tabsLoading || tabsFetching
   
   // Prefetch current tab - must be called unconditionally for React hooks rules
   useTabStreamingQuery(
@@ -717,7 +777,7 @@ export default function InterfaceNav({
       setTransitioningToProject(newProject)
       setSelectedProject('')
       setSelectedInterface(null)
-      setLoadingMessage('Loading project selection...')
+      setLoadingMessage('Loading projects...')
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.delete('project')
       newParams.delete('interface')
@@ -737,7 +797,7 @@ export default function InterfaceNav({
 
     setIsChangingProject(true)
     setTransitioningToProject(newProject)
-    setLoadingMessage(`Switching to ${newProject} project...`)
+    setLoadingMessage(`Loading ${newProject}...`)
     try {
       setSelectedProject(newProject)
       const newParams = new URLSearchParams(searchParams.toString())
@@ -776,7 +836,7 @@ export default function InterfaceNav({
     if (currentInterface?.name === newInterfaceName) {
       setIsChangingInterface(true)
       setTransitioningToInterface(newInterfaceName)
-      setLoadingMessage('Loading interface selection...')
+      setLoadingMessage('Loading interfaces...')
       try {
         setSelectedInterface(null)
         const newParams = new URLSearchParams(searchParams.toString())
@@ -796,7 +856,7 @@ export default function InterfaceNav({
 
     setIsChangingInterface(true)
     setTransitioningToInterface(newInterfaceName)
-    setLoadingMessage(`Loading ${newInterfaceName} interface...`)
+    setLoadingMessage(`Loading ${newInterfaceName}...`)
     try {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.set('interface', iface.name)
@@ -1719,7 +1779,23 @@ export default function InterfaceNav({
                       <CommandInput placeholder="Search projects..." />
                       <CommandEmpty>No project found.</CommandEmpty>
                       <CommandGroup>
-                        {projectTree.length === 0 ? (
+                        {projectTreeError ? (
+                          // Error state
+                          <div className="p-3 text-center">
+                            <p className="text-sm text-destructive mb-2">Failed to load projects</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                refetchProjectTree()
+                                setProjectPopoverOpen(false)
+                              }}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Button>
+                          </div>
+                        ) : projectTree.length === 0 && (projectTreeLoading || projectTreeFetching) ? (
                           // Loading skeleton for projects
                           <div className="p-1">
                             {[1, 2, 3].map((i) => (
@@ -1728,6 +1804,11 @@ export default function InterfaceNav({
                                 <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
                               </div>
                             ))}
+                          </div>
+                        ) : projectTree.length === 0 ? (
+                          // Empty state
+                          <div className="p-3 text-center text-sm text-muted-foreground">
+                            No projects found
                           </div>
                         ) : (
                           projectTree.map((project) => {
@@ -2067,7 +2148,33 @@ export default function InterfaceNav({
               <ScrollArea className="h-full w-full">
                 <div className={cn("space-y-1 min-w-0 relative", isCollapsed ? "px-2 py-2 pb-6" : "px-3 pt-1 pb-3")}>
               
-              {loadingTabs ? (
+              {tabsError ? (
+                // Error state
+                <div className={cn(
+                  "text-sm text-destructive text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-4 px-2" : "py-6 px-3"
+                )}>
+                  <div className="mb-2">
+                    <svg className="h-8 w-8 mx-auto text-destructive/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="block break-words select-none mb-2">
+                    {tabsErrorDetails instanceof Error ? tabsErrorDetails.message : 'Failed to load tabs'}
+                  </span>
+                  {!isCollapsed && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => refetchTabs()} 
+                      className="mt-2"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              ) : loadingTabs ? (
                 <div className="space-y-1 animate-in fade-in duration-200">
                   {/* Show skeleton loaders that match tab items */}
                   {[1, 2, 3].map((i) => (
