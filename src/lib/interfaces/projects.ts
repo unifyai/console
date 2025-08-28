@@ -44,7 +44,7 @@ export const renameProject = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/projects/${oldName}`,
+            `${process.env.NEXTAUTH_URL}/api/projects/${encodeURIComponent(oldName)}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
@@ -61,7 +61,7 @@ export const deleteProject = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/projects/${name}`,
+            `${process.env.NEXTAUTH_URL}/api/projects/${encodeURIComponent(name)}`,
             { method: "DELETE", headers: { apiKey: apiKey } }
         );
         return await response.json();

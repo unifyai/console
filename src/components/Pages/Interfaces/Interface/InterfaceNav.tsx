@@ -116,6 +116,10 @@ import {
 } from "@/components/UI/command"
 import { FileUpload } from './Buttons/FileUpload'
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
+import { CreateProjectDialog } from './Dialogs/CreateProjectDialog'
+import { CreateInterfaceDialog } from './Dialogs/CreateInterfaceDialog'
+import { CreateTabDialog } from './Dialogs/CreateTabDialog'
+import { RenameProjectDialog } from './Dialogs/RenameProjectDialog'
 
 interface ProjectInterface {
   id: string;
@@ -169,9 +173,9 @@ interface InterfaceNavProps {
 function renderSidebarIcon(iconStr: string | undefined | null, className: string, type: 'project' | 'interface' | 'tab' = 'tab') {
   // Default icons for each type
   const defaultIcons: Record<string, string> = {
-    project: 'folder',
-    interface: 'layout-grid',
-    tab: 'file-text'
+    project: 'folder',      // Default project icon
+    interface: 'layout-grid', // Default interface icon
+    tab: 'file-text'        // Default tab icon
   };
   
   // Ensure we have a valid type
@@ -473,28 +477,21 @@ export default function InterfaceNav({
   
   // Dialog states
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [newProjectIcon, setNewProjectIcon] = useState<string | undefined>(undefined)
-  const [createProjectError, setCreateProjectError] = useState('')
-  const [isCreatingProject, setIsCreatingProject] = useState(false)
   
   // Project action states
   const [activeProject, setActiveProject] = useState<string | null>(null)
   const [renameProjectOpen, setRenameProjectOpen] = useState(false)
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false)
-  const [renameProjectName, setRenameProjectName] = useState('')
-  const [isRenamingProject, setIsRenamingProject] = useState(false)
   const [isDeletingProject, setIsDeletingProject] = useState(false)
   
   // Interface action states
   const [createInterfaceOpen, setCreateInterfaceOpen] = useState(false)
-  const [newInterfaceName, setNewInterfaceName] = useState('')
-  const [isCreatingInterface, setIsCreatingInterface] = useState(false)
   const [selectedInterfaceForAction, setSelectedInterfaceForAction] = useState<ProjectInterface | null>(null)
   const [renameInterfaceOpen, setRenameInterfaceOpen] = useState(false)
   const [deleteInterfaceOpen, setDeleteInterfaceOpen] = useState(false)
   const [isRenamingInterface, setIsRenamingInterface] = useState(false)
   const [isDeletingInterface, setIsDeletingInterface] = useState(false)
+  const [newInterfaceName, setNewInterfaceName] = useState('') // For rename dialog
   
   // Save as new interface state
   const [saveAsNewInterfaceOpen, setSaveAsNewInterfaceOpen] = useState(false)
@@ -503,11 +500,10 @@ export default function InterfaceNav({
   
   // Tab dialog states
   const [createTabOpen, setCreateTabOpen] = useState(false)
-  const [newTabName, setNewTabName] = useState('')
-  const [isCreatingTab, setIsCreatingTab] = useState(false)
   const [renameTabOpen, setRenameTabOpen] = useState(false)
   const [deleteTabOpen, setDeleteTabOpen] = useState(false)
   const [selectedTab, setSelectedTab] = useState<ProjectTab | null>(null)
+  const [newTabName, setNewTabName] = useState('') // For rename dialog
   const [isRenamingTab, setIsRenamingTab] = useState(false)
   const [isDeletingTab, setIsDeletingTab] = useState(false)
   const [tabColorOpen, setTabColorOpen] = useState(false)
@@ -891,14 +887,28 @@ export default function InterfaceNav({
     }
   }, [syncedInterfaceUIActions, searchParams, navigateTab])
   
-  const handleCreateTab = async () => {
-    if (!newTabName.trim() || !interfaceId) return
+  const handleCreateTab = useCallback(async (tabName: string, tabIcon?: string) => {
+    if (!interfaceId) throw new Error('No active interface')
     
-    setIsCreatingTab(true)
     try {
       // Create the tab
-      const newTab = await tabActions.create(interfaceId, newTabName.trim(), {})
-      showSuccessToast(`Tab "${newTabName}" created successfully`)
+      const newTab = await tabActions.create(interfaceId, tabName, {})
+      
+      // If an icon was provided, update the tab with it
+      if (tabIcon && newTab.id) {
+        try {
+          await tabActions.update({
+            id: newTab.id,
+            interface_id: interfaceId,
+            name: tabName,
+            data: { icon: tabIcon }
+          })
+        } catch (error) {
+          console.error('Failed to set tab icon:', error)
+        }
+      }
+      
+      showSuccessToast(`Tab "${tabName}" created successfully`)
       
       // Ensure the new tab exists in the local store immediately
       storeAddTab(interfaceId, newTab.name, {
@@ -906,19 +916,19 @@ export default function InterfaceNav({
         name: newTab.name,
         visible: true,
         active: true,
+        icon: tabIcon,
       } as any)
       
       // Optimistically update tabs cache so it appears immediately
       queryClient.setQueryData(['tabs', interfaceId], (oldData: ProjectTab[] | undefined) => {
         const previous = Array.isArray(oldData) ? oldData : []
         const exists = previous.some(t => (t.id && (newTab as any).id ? t.id === (newTab as any).id : t.name === newTab.name))
-        const next = exists ? previous : [...previous, newTab]
+        const next = exists ? previous : [...previous, { ...newTab, icon: tabIcon }]
         return next.sort((a, b) => (a.order || 0) - (b.order || 0))
       })
       
       setCreateTabOpen(false)
       const tabNameToNavigate = newTab.name
-      setNewTabName('')
       
       // Switch to the new tab immediately
       if (syncedInterfaceUIActions) {
@@ -934,11 +944,9 @@ export default function InterfaceNav({
       void queryClient.invalidateQueries({ queryKey: ['projects', 'tree'] })
     } catch (error) {
       console.error('Failed to create tab:', error)
-      showErrorToast('Failed to create tab')
-    } finally {
-      setIsCreatingTab(false)
+      throw error instanceof Error ? error : new Error('Failed to create tab')
     }
-  }
+  }, [interfaceId, tabActions, storeAddTab, queryClient, syncedInterfaceUIActions, searchParams, navigateTab])
   
   const handleRenameTab = async () => {
     if (!selectedTab || !newTabName.trim() || !interfaceId) return
@@ -1039,14 +1047,8 @@ export default function InterfaceNav({
     }
   }
   
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) {
-      setCreateProjectError('Project name is required')
-      return
-    }
-    
-    setIsCreatingProject(true)
-    const result = await createProject(newProjectName, projectActions, projectTree.map(p => p.project), newProjectIcon)
+  const handleCreateProject = useCallback(async (projectName: string, projectIcon?: string) => {
+    const result = await createProject(projectName, projectActions, projectTree.map(p => p.project), projectIcon)
     
     if (result.success && result.projectName) {
       // Create default interface
@@ -1070,13 +1072,10 @@ export default function InterfaceNav({
       // Refresh
       await refetchProjectTree()
       setCreateProjectOpen(false)
-      setNewProjectName('')
-      setNewProjectIcon(undefined)
     } else {
-      setCreateProjectError(result.error || 'Failed to create project')
+      throw new Error(result.error || 'Failed to create project')
     }
-    setIsCreatingProject(false)
-  }
+  }, [projectTree, projectActions, queryClient, interfaceActions, tabActions, tileActions, navigateSoft, refetchProjectTree])
   
   const handleSaveProjectIcon = async () => {
     if (!activeProject) return
@@ -1191,26 +1190,24 @@ export default function InterfaceNav({
     }
   }
   
-  const handleRenameProject = async () => {
-    if (!activeProject || !renameProjectName.trim()) return
+  const handleRenameProject = useCallback(async (newName: string) => {
+    if (!activeProject) throw new Error('No active project')
     
-    setIsRenamingProject(true)
-    const result = await renameProject(activeProject, renameProjectName.trim(), projectActions, projectTree.map(p => p.project))
+    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.project))
     
     if (result.success) {
       await refetchProjectTree()
       
       // Navigate to renamed project
       const newParams = new URLSearchParams(searchParams.toString())
-      newParams.set('project', renameProjectName.trim())
+      newParams.set('project', newName)
       navigateSoft(`?${newParams.toString()}`)
       
       setRenameProjectOpen(false)
     } else {
-      showErrorToast(result.error || 'Failed to rename project')
+      throw new Error(result.error || 'Failed to rename project')
     }
-    setIsRenamingProject(false)
-  }
+  }, [activeProject, projectActions, projectTree, searchParams, navigateSoft, refetchProjectTree])
   
   const handleDeleteProject = async () => {
     if (!activeProject) return
@@ -1228,12 +1225,11 @@ export default function InterfaceNav({
     setIsDeletingProject(false)
   }
   
-  const handleCreateInterface = async () => {
-    if (!activeProject || !newInterfaceName.trim()) return
+  const handleCreateInterface = useCallback(async (interfaceName: string, interfaceIcon?: string) => {
+    if (!activeProject) throw new Error('No active project')
     
-    setIsCreatingInterface(true)
     const result = await createInterface(
-      newInterfaceName.trim(),
+      interfaceName,
       activeProject,
       queryClient,
       { interfaces: interfaceActions, tabs: tabActions, tiles: tileActions },
@@ -1241,6 +1237,18 @@ export default function InterfaceNav({
     )
     
     if (result.success && result.interface) {
+      // If an icon was provided, update the interface with it
+      if (interfaceIcon && result.interface.id) {
+        try {
+          await interfaceActions.update({
+            interface_id: result.interface.id,
+            data: { icon: interfaceIcon }
+          })
+        } catch (error) {
+          console.error('Failed to set interface icon:', error)
+        }
+      }
+      
       await refetchProjectTree()
       
       // Navigate to new interface
@@ -1250,12 +1258,10 @@ export default function InterfaceNav({
       navigateSoft(`?${newParams.toString()}`)
       
       setCreateInterfaceOpen(false)
-      setNewInterfaceName('')
     } else {
-      showErrorToast(result.error || 'Failed to create interface')
+      throw new Error(result.error || 'Failed to create interface')
     }
-    setIsCreatingInterface(false)
-  }
+  }, [activeProject, queryClient, interfaceActions, tabActions, tileActions, searchParams, navigateSoft, refetchProjectTree])
   
   const handleSaveAsNewInterface = async () => {
     if (!selectedInterfaceForAction || !saveAsNewInterfaceName.trim() || !selectedProject) return
@@ -1547,12 +1553,7 @@ export default function InterfaceNav({
     }
   }, [renameInterfaceOpen, selectedInterfaceForAction])
   
-  // Initialize project name when opening rename dialog
-  useEffect(() => {
-    if (renameProjectOpen && activeProject) {
-      setRenameProjectName(activeProject)
-    }
-  }, [renameProjectOpen, activeProject])
+
   
   // Initialize interface name when opening save as new dialog
   useEffect(() => {
@@ -1879,7 +1880,6 @@ export default function InterfaceNav({
                       onSelect={() => {
                         // Handle project rename
                         setActiveProject(selectedProject)
-                        setRenameProjectName(selectedProject)
                         setRenameProjectOpen(true)
                       }}>
                       <Edit3 className="h-4 w-4 mr-2" />
@@ -2431,81 +2431,17 @@ export default function InterfaceNav({
       </div>
       
       {/* Dialogs */}
-      {typeof window !== 'undefined' && createProjectOpen && createPortal(
-        <BaseDialog
-          button={<></>}
-          open={createProjectOpen}
-          setOpen={setCreateProjectOpen}
-          title="Create New Project"
-          body={
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="project-name">Project Name</Label>
-                <Input
-                  id="project-name"
-                  value={newProjectName}
-                  onChange={(e) => {
-                    setNewProjectName(e.target.value)
-                    setCreateProjectError('')
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Project Icon</Label>
-                <IconSelector value={newProjectIcon as any} onValueChange={setNewProjectIcon} />
-              </div>
-              {createProjectError && <p className="text-xs text-destructive">{createProjectError}</p>}
-            </div>
-          }
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCreateProjectOpen(false)}>
-                Cancel
-              </Button>
-              <SubmitButton
-                text="Create"
-                onClick={handleCreateProject}
-                loading={isCreatingProject}
-              />
-            </div>
-          }
-        />, document.body
-      )}
+      <CreateProjectDialog
+        open={createProjectOpen}
+        onOpenChange={setCreateProjectOpen}
+        onSubmit={handleCreateProject}
+      />
       
-      {typeof window !== 'undefined' && createTabOpen && createPortal(
-        <BaseDialog
-          button={null as any}
-          open={createTabOpen}
-          setOpen={setCreateTabOpen}
-          title="Create New Tab"
-          body={
-            <div className="space-y-2 pt-4">
-              <Label htmlFor="tab-name">Tab Name</Label>
-              <Input
-                id="tab-name"
-                value={newTabName}
-                onChange={(e) => setNewTabName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateTab()}
-                autoFocus
-              />
-            </div>
-          }
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCreateTabOpen(false)}>
-                Cancel
-              </Button>
-              <SubmitButton
-                text="Create"
-                onClick={handleCreateTab}
-                loading={isCreatingTab}
-              />
-            </div>
-          }
-        />, document.body
-      )}
+      <CreateTabDialog
+        open={createTabOpen}
+        onOpenChange={setCreateTabOpen}
+        onSubmit={handleCreateTab}
+      />
       
       {typeof window !== 'undefined' && renameTabOpen && selectedTab && createPortal(
         <BaseDialog
@@ -2674,38 +2610,12 @@ export default function InterfaceNav({
       )}
       
       {/* Project Dialogs */}
-      {typeof window !== 'undefined' && renameProjectOpen && activeProject && createPortal(
-        <BaseDialog
-          button={null as any}
-          open={renameProjectOpen}
-          setOpen={setRenameProjectOpen}
-          title={`Rename Project "${activeProject}"`}
-          body={
-            <div className="space-y-2 pt-4">
-              <Label htmlFor="project-rename">New Project Name</Label>
-              <Input
-                id="project-rename"
-                value={renameProjectName}
-                onChange={(e) => setRenameProjectName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleRenameProject()}
-                autoFocus
-              />
-            </div>
-          }
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setRenameProjectOpen(false)}>
-                Cancel
-              </Button>
-              <SubmitButton
-                text="Rename"
-                onClick={handleRenameProject}
-                loading={isRenamingProject}
-              />
-            </div>
-          }
-        />, document.body
-      )}
+      <RenameProjectDialog
+        open={renameProjectOpen}
+        onOpenChange={setRenameProjectOpen}
+        onSubmit={handleRenameProject}
+        currentName={activeProject || ''}
+      />
       
       {typeof window !== 'undefined' && deleteProjectOpen && activeProject && createPortal(
         <BaseDialog
@@ -2733,38 +2643,12 @@ export default function InterfaceNav({
       )}
       
       {/* Interface Dialogs */}
-      {typeof window !== 'undefined' && createInterfaceOpen && activeProject && createPortal(
-        <BaseDialog
-          button={null as any}
-          open={createInterfaceOpen}
-          setOpen={setCreateInterfaceOpen}
-          title={`Create Interface in "${activeProject}"`}
-          body={
-            <div className="space-y-2 pt-4">
-              <Label htmlFor="interface-name">Interface Name</Label>
-              <Input
-                id="interface-name"
-                value={newInterfaceName}
-                onChange={(e) => setNewInterfaceName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateInterface()}
-                autoFocus
-              />
-            </div>
-          }
-          footer={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCreateInterfaceOpen(false)}>
-                Cancel
-              </Button>
-              <SubmitButton
-                text="Create"
-                onClick={handleCreateInterface}
-                loading={isCreatingInterface}
-              />
-            </div>
-          }
-        />, document.body
-      )}
+      <CreateInterfaceDialog
+        open={createInterfaceOpen}
+        onOpenChange={setCreateInterfaceOpen}
+        onSubmit={handleCreateInterface}
+        projectName={activeProject || ''}
+      />
       
       {typeof window !== 'undefined' && renameInterfaceOpen && selectedInterfaceForAction && createPortal(
         <BaseDialog
