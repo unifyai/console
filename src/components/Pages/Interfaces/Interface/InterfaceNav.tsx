@@ -467,8 +467,7 @@ export default function InterfaceNav({
       setIsChangingInterface(false)
       setTransitioningToProject(null)
       setTransitioningToInterface(null)
-      setProjectPopoverOpen(false)
-      setInterfacePopoverOpen(false)
+      // Don't force close popovers on unmount
     }
   }, [])
   
@@ -614,14 +613,14 @@ export default function InterfaceNav({
     // Reset loading states when project changes (navigation completed)
     setIsChangingProject(false)
     setTransitioningToProject(null)
-    setProjectPopoverOpen(false)
+    // Keep popover open to allow multiple selections
   }, [projectId])
   
   // Reset interface loading states when interface changes
   useEffect(() => {
     setIsChangingInterface(false)
     setTransitioningToInterface(null)
-    setInterfacePopoverOpen(false)
+    // Keep popover open to allow multiple selections
   }, [interfaceId])
   
   // Find current interface data
@@ -792,7 +791,7 @@ export default function InterfaceNav({
         setTimeout(() => {
           setIsChangingProject(false)
           setTransitioningToProject(null)
-          setProjectPopoverOpen(false)
+          // Don't close the popover - let user close it manually
         }, 500)
       }
       return
@@ -826,7 +825,7 @@ export default function InterfaceNav({
       setTimeout(() => {
         setIsChangingProject(false)
         setTransitioningToProject(null)
-        setProjectPopoverOpen(false)
+        // Don't close the popover - let user close it manually
       }, 500)
     }
   }
@@ -851,7 +850,7 @@ export default function InterfaceNav({
         setTimeout(() => {
           setIsChangingInterface(false)
           setTransitioningToInterface(null)
-          setInterfacePopoverOpen(false)
+          // Don't close the popover - let user close it manually
         }, 500)
       }
       return
@@ -870,7 +869,7 @@ export default function InterfaceNav({
       setTimeout(() => {
         setIsChangingInterface(false)
         setTransitioningToInterface(null)
-        setInterfacePopoverOpen(false)
+        // Don't close the popover - let user close it manually
       }, 500)
     }
   }
@@ -1777,7 +1776,7 @@ export default function InterfaceNav({
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <Command>
                       <CommandInput placeholder="Search projects..." />
                       {!projectTreeLoading && !projectTreeFetching && (
@@ -1793,7 +1792,7 @@ export default function InterfaceNav({
                               variant="ghost"
                               onClick={() => {
                                 refetchProjectTree()
-                                setProjectPopoverOpen(false)
+                                // Keep popover open to see the results
                               }}
                             >
                               <RefreshCw className="h-3 w-3 mr-1" />
@@ -1980,7 +1979,7 @@ export default function InterfaceNav({
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <Command>
                         <CommandInput placeholder="Search interfaces..." />
                         {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
