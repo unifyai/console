@@ -36,7 +36,7 @@ import {
   DndContext, 
   closestCenter, 
   type DragEndEvent, 
-  DragOverlay, 
+  DragOverlay,
   useSensor,
   useSensors,
   PointerSensor,
@@ -245,7 +245,7 @@ const SortableTab = React.memo(function SortableTab({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0 : 1, // Hide original element while dragging
     zIndex: isDragging ? 999 : 'auto',
   } as React.CSSProperties
 
@@ -537,6 +537,9 @@ export default function InterfaceNav({
   
   // Drag and drop state
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [initialOffset, setInitialOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 }) // Offset to maintain cursor position during drag
+  
+
   
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -1588,6 +1591,8 @@ export default function InterfaceNav({
   // Handle drag end
   const handleTabDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
+    setActiveTabId(null)
+    setInitialOffset({ x: 0, y: 0 })
 
     if (!over || active.id === over.id || !interfaceId) {
       return
@@ -1598,10 +1603,8 @@ export default function InterfaceNav({
 
     if (oldIndex === -1 || newIndex === -1) return
 
-    // Optimistically update the UI
+    // Optimistically update the UI immediately via query cache
     const newTabs = arrayMove(currentTabs, oldIndex, newIndex)
-    
-    // Update the tabs in the query cache immediately for instant UI feedback
     queryClient.setQueryData(['tabs', interfaceId], newTabs)
 
     try {
@@ -1777,7 +1780,9 @@ export default function InterfaceNav({
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
                     <Command>
                       <CommandInput placeholder="Search projects..." />
-                      <CommandEmpty>No project found.</CommandEmpty>
+                      {!projectTreeLoading && !projectTreeFetching && (
+                        <CommandEmpty>No project found.</CommandEmpty>
+                      )}
                       <CommandGroup>
                         {projectTreeError ? (
                           // Error state
@@ -1795,9 +1800,10 @@ export default function InterfaceNav({
                               Retry
                             </Button>
                           </div>
-                        ) : projectTree.length === 0 && (projectTreeLoading || projectTreeFetching) ? (
+                        ) : (projectTreeLoading || projectTreeFetching) ? (
                           // Loading skeleton for projects
                           <div className="p-1">
+                            <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading projects...</div>
                             {[1, 2, 3].map((i) => (
                               <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
                                 <div className="h-4 w-4 bg-muted animate-pulse rounded" />
@@ -1808,6 +1814,9 @@ export default function InterfaceNav({
                         ) : projectTree.length === 0 ? (
                           // Empty state
                           <div className="p-3 text-center text-sm text-muted-foreground">
+                            <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
                             No projects found
                           </div>
                         ) : (
@@ -1974,34 +1983,57 @@ export default function InterfaceNav({
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0">
                       <Command>
                         <CommandInput placeholder="Search interfaces..." />
-                        <CommandEmpty>No interface found.</CommandEmpty>
+                        {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
+                          <CommandEmpty>No interface found.</CommandEmpty>
+                        )}
                         <CommandGroup>
-                          {currentInterfaces.map((iface) => {
-                            const isSelected = currentInterface?.name === iface.name
-                            const isLoading = isChangingInterface && transitioningToInterface === iface.name
-                            return (
-                              <CommandItem
-                                key={iface.name}
-                                value={iface.name}
-                                onSelect={() => handleInterfaceChange(iface.name)}
-                                className={cn(
-                                  isSelected && "text-primary"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 w-full">
-                                  {isSelected ? (
-                                    <Check className="h-4 w-4 flex-shrink-0" />
-                                  ) : (
-                                    renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
-                                  )}
-                                  <span className="truncate flex-1">{iface.name}</span>
-                                  {isLoading && (
-                                    <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
-                                  )}
+                          {(projectTreeLoading || projectTreeFetching) ? (
+                            // Loading skeleton for interfaces
+                            <div className="p-1">
+                              <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading interfaces...</div>
+                              {[1, 2].map((i) => (
+                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                  <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${80 + i * 10}%` }} />
                                 </div>
-                              </CommandItem>
-                            )
-                          })}
+                              ))}
+                            </div>
+                          ) : currentInterfaces.length === 0 ? (
+                            // Empty state
+                            <div className="p-3 text-center text-sm text-muted-foreground">
+                              <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                              </svg>
+                              No interfaces in this project
+                            </div>
+                          ) : (
+                            currentInterfaces.map((iface) => {
+                              const isSelected = currentInterface?.name === iface.name
+                              const isLoading = isChangingInterface && transitioningToInterface === iface.name
+                              return (
+                                <CommandItem
+                                  key={iface.name}
+                                  value={iface.name}
+                                  onSelect={() => handleInterfaceChange(iface.name)}
+                                  className={cn(
+                                    isSelected && "text-primary"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 w-full">
+                                    {isSelected ? (
+                                      <Check className="h-4 w-4 flex-shrink-0" />
+                                    ) : (
+                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
+                                    )}
+                                    <span className="truncate flex-1">{iface.name}</span>
+                                    {isLoading && (
+                                      <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              )
+                            })
+                          )}
                         </CommandGroup>
                       </Command>
                     </PopoverContent>
@@ -2211,12 +2243,32 @@ export default function InterfaceNav({
                 </div>
               ) : (
                 <>
+                  {/* Tab drag and drop functionality */}
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleTabDragEnd}
-                    onDragStart={(event) => setActiveTabId(event.active.id as string)}
-                    onDragCancel={() => setActiveTabId(null)}
+                    onDragStart={(event) => {
+                      setActiveTabId(event.active.id as string)
+                      
+                      // Calculate offset to maintain cursor position on dragged element
+                      if (event.active.rect.current?.initial && event.activatorEvent) {
+                        const rect = event.active.rect.current.initial
+                        const mouseEvent = event.activatorEvent as MouseEvent
+                        
+                        if ('clientX' in mouseEvent && 'clientY' in mouseEvent) {
+                          // Calculate offset from element center to click position
+                          const offsetX = (mouseEvent.clientX - rect.left) - rect.width / 2
+                          const offsetY = (mouseEvent.clientY - rect.top) - rect.height / 2
+                          
+                          setInitialOffset({ x: offsetX, y: offsetY })
+                        }
+                      }
+                    }}
+                    onDragCancel={() => {
+                      setActiveTabId(null)
+                      setInitialOffset({ x: 0, y: 0 })
+                    }}
                   >
                     <SortableContext
                       items={currentTabs.map(tab => tab.id || tab.name)}
@@ -2242,14 +2294,26 @@ export default function InterfaceNav({
                         ))}
                       </div>
                     </SortableContext>
-                    <DragOverlay>
+                    <DragOverlay 
+                      dropAnimation={null}
+                      modifiers={[
+                        ({ transform }) => ({
+                          ...transform,
+                          x: transform.x + initialOffset.x,
+                          y: transform.y + initialOffset.y - 40, // Adjust Y to position element at cursor
+                        })
+                      ]}
+                    >
                       {activeTabId && (() => {
                         const activeTab = currentTabs.find(tab => (tab.id || tab.name) === activeTabId)
                         if (!activeTab) return null
                         
                         return (
-                          <div className="bg-background border-2 border-primary/50 rounded-md shadow-xl p-2 opacity-95 transform scale-105">
-                            <div className="flex items-center gap-2">
+                          <div className="bg-background border rounded-md shadow-lg cursor-grabbing pointer-events-none">
+                            <div className={cn(
+                              "flex items-center gap-2 py-2",
+                              isCollapsed ? "px-2 justify-center" : "px-3"
+                            )}>
                               {renderSidebarIcon(activeTab.icon, "h-4 w-4", "tab")}
                               {!isCollapsed && <span className="text-sm font-medium select-none">{activeTab.name}</span>}
                             </div>
