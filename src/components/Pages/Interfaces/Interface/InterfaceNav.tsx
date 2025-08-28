@@ -784,11 +784,7 @@ export default function InterfaceNav({
       try {
         navigateSoft(`/interfaces?${newParams.toString()}`)
       } finally {
-        setTimeout(() => {
-          setIsChangingProject(false)
-          setTransitioningToProject(null)
-          // Don't close the popover - let user close it manually
-        }, 500)
+        // Loading states will be reset in useEffect when projectId prop changes
       }
       return
     }
@@ -818,11 +814,7 @@ export default function InterfaceNav({
       newParams.delete('tab') // Clear tab selection
       navigateSoft(`/interfaces?${newParams.toString()}`)
     } finally {
-      setTimeout(() => {
-        setIsChangingProject(false)
-        setTransitioningToProject(null)
-        // Don't close the popover - let user close it manually
-      }, 500)
+      // Loading states will be reset in useEffect when projectId prop changes
     }
   }
   
@@ -842,13 +834,9 @@ export default function InterfaceNav({
         newParams.delete('tab')
         newParams.set('selectInterface', 'true') // Flag to show interface selection instead of auto-selecting
         navigateSoft(`/interfaces?${newParams.toString()}`)
-      } finally {
-        setTimeout(() => {
-          setIsChangingInterface(false)
-          setTransitioningToInterface(null)
-          // Don't close the popover - let user close it manually
-        }, 500)
-      }
+          } finally {
+      // Loading states will be reset in useEffect when interfaceId prop changes
+    }
       return
     }
 
@@ -861,13 +849,9 @@ export default function InterfaceNav({
       newParams.delete('selectInterface') // Clear the interface selection screen flag
       newParams.delete('tab') // Clear tab selection
       navigateSoft(`/interfaces?${newParams.toString()}`)
-    } finally {
-      setTimeout(() => {
-        setIsChangingInterface(false)
-        setTransitioningToInterface(null)
-        // Don't close the popover - let user close it manually
-      }, 500)
-    }
+          } finally {
+        // Loading states will be reset in useEffect when interfaceId prop changes
+      }
   }
   
   const handleTabClick = useCallback((tab: ProjectTab) => {
@@ -1829,18 +1813,20 @@ export default function InterfaceNav({
                                 value={project.project}
                                 onSelect={() => handleProjectChange(project.project)}
                                 className={cn(
-                                  isSelected && "text-primary"
+                                  isSelected && !isLoading && "text-primary"
                                 )}
                               >
                                 <div className="flex items-center gap-2 min-w-0 w-full">
-                                  {isSelected ? (
-                                    <Check className="h-4 w-4 flex-shrink-0" />
+                                  {isLoading ? (
+                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
+                                  ) : isSelected ? (
+                                    <Check className="h-4 w-4 flex-shrink-0 animate-in fade-in zoom-in duration-200" />
                                   ) : (
                                     renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
                                   )}
                                   <span className="truncate flex-1">{project.project}</span>
                                   {isLoading && (
-                                    <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                    <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                                   )}
                                 </div>
                               </CommandItem>
@@ -2015,18 +2001,20 @@ export default function InterfaceNav({
                                   value={iface.name}
                                   onSelect={() => handleInterfaceChange(iface.name)}
                                   className={cn(
-                                    isSelected && "text-primary"
+                                    isSelected && !isLoading && "text-primary"
                                   )}
                                 >
                                   <div className="flex items-center gap-2 min-w-0 w-full">
-                                    {isSelected ? (
-                                      <Check className="h-4 w-4 flex-shrink-0" />
+                                    {isLoading ? (
+                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
+                                    ) : isSelected ? (
+                                      <Check className="h-4 w-4 flex-shrink-0 animate-in fade-in zoom-in duration-200" />
                                     ) : (
                                       renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
                                     )}
                                     <span className="truncate flex-1">{iface.name}</span>
                                     {isLoading && (
-                                      <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
                                     )}
                                   </div>
                                 </CommandItem>
