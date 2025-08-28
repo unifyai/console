@@ -791,7 +791,7 @@ export default function InterfaceNav({
 
     setIsChangingProject(true)
     setTransitioningToProject(newProject)
-    setLoadingMessage(`Loading ${newProject}...`)
+    setLoadingMessage('Loading project...')
     try {
       setSelectedProject(newProject)
       const newParams = new URLSearchParams(searchParams.toString())
@@ -842,7 +842,7 @@ export default function InterfaceNav({
 
     setIsChangingInterface(true)
     setTransitioningToInterface(newInterfaceName)
-    setLoadingMessage(`Loading ${newInterfaceName}...`)
+    setLoadingMessage('Loading interface...')
     try {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.set('interface', iface.name)
