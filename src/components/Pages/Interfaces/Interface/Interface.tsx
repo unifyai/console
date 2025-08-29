@@ -712,8 +712,13 @@ const Interface = ({
       
       {/* Main Content Area */}
       {showProjectSelection ? (
-        /* Project Selection Screen - Full viewport centered */
-        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
+        /* Project Selection Screen - Container centered */
+        <div 
+          className="h-full transition-all duration-300 flex flex-col bg-background"
+          style={{
+            marginLeft: 'var(--interface-nav-width, 256px)'
+          }}
+        >
           <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
             <div className="text-center mb-8 pt-4">
               <h1 className="text-2xl font-semibold mb-2">Select a Project</h1>
@@ -777,8 +782,13 @@ const Interface = ({
           </div>
         </div>
       ) : showInterfaceSelection ? (
-        /* Interface Selection Screen - Full viewport centered */
-        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
+        /* Interface Selection Screen - Container centered */
+        <div 
+          className="h-full transition-all duration-300 flex flex-col bg-background"
+          style={{
+            marginLeft: 'var(--interface-nav-width, 256px)'
+          }}
+        >
           <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
             <div className="text-center mb-8 pt-4">
               <h1 className="text-2xl font-semibold mb-2">Select an Interface</h1>
