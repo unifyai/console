@@ -275,7 +275,7 @@ function BreadcrumbNavItem({
                 <DropdownMenuTrigger asChild>
                   <button 
                     className={cn(
-                      "h-5 w-5 flex items-center justify-center hover:bg-accent/50 rounded transition-all duration-200 delay-75",
+                      "h-5 w-5 flex items-center justify-center hover:bg-accent/50 rounded transition-all duration-200 delay-75 cursor-pointer",
                       actionsOpen ? "opacity-100 scale-100" : "opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100",
                       disabled && "pointer-events-none"
                     )}
