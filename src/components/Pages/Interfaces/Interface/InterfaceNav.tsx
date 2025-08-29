@@ -32,7 +32,7 @@ import {
   Check,
   FolderTree
 } from 'lucide-react'
-import { BreadcrumbNav, CollapsedBreadcrumbNav } from './BreadcrumbNav'
+import { BreadcrumbNav } from './BreadcrumbNav'
 import { 
   DndContext, 
   closestCenter, 
@@ -1873,40 +1873,7 @@ export default function InterfaceNav({
           </div>
         )}
         
-        {/* Collapsed Mode Breadcrumb Navigation */}
-        {!isCompletelyHidden && isCollapsed && (
-          <TooltipProvider>
-            <CollapsedBreadcrumbNav
-              selectedProject={selectedProject}
-              selectedInterface={currentInterface?.name || null}
-              currentProjectData={currentProjectData ? { icon: currentProjectData.icon } : null}
-              currentInterface={currentInterface ? { icon: currentInterface.icon || '' } : null}
-              projects={projectTree.map(p => ({ id: p.project, name: p.project, icon: p.icon }))}
-              projectsLoading={projectTreeLoading}
-              projectsError={projectTreeError}
-              onProjectSelect={handleProjectChange}
-              onProjectRetry={refetchProjectTree}
-              interfaces={currentInterfaces}
-              interfacesLoading={projectTreeLoading || projectTreeFetching}
-              interfacesError={projectTreeError}
-              onInterfaceSelect={handleInterfaceChange}
-              onInterfaceRetry={refetchProjectTree}
-              onProjectDoubleClickIcon={() => {
-                setActiveProject(selectedProject)
-                setNewProjectIconEdit(currentProjectData?.icon || 'folder')
-                setProjectIconOpen(true)
-              }}
-              onInterfaceDoubleClickIcon={() => {
-                if (currentInterface) {
-                  setSelectedInterfaceForAction(currentInterface)
-                  setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
-                  setInterfaceIconOpen(true)
-                }
-              }}
-              className="animate-in fade-in duration-300"
-            />
-          </TooltipProvider>
-        )}
+
         
         {/* Show separator and tabs only when both project and interface are selected */}
         {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
