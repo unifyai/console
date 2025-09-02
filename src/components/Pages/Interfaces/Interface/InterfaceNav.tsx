@@ -32,7 +32,7 @@ import {
   Check,
   FolderTree
 } from 'lucide-react'
-import { BreadcrumbNav } from './BreadcrumbNav'
+// import { BreadcrumbNav } from './BreadcrumbNav'
 import { 
   DndContext, 
   closestCenter, 
@@ -430,17 +430,6 @@ export default function InterfaceNav({
   const [sidebarWidth, setSidebarWidth] = useState(defaultWidth)
   const [lastExpandedWidth, setLastExpandedWidth] = useState(savedLastExpandedWidth)
   const [isDraggingSidebar, setIsDraggingSidebar] = useState(false)
-  
-  // Detect if sidebar is too narrow for full breadcrumb
-  const COMPACT_THRESHOLD = 208 // 13rem in pixels - activates only when sidebar is quite narrow
-  const [isBreadcrumbCompact, setIsBreadcrumbCompact] = useState(() => {
-    // Initialize based on current width
-    if (isCollapsed || isCompletelyHidden) return false
-    const widthValue = parseFloat(sidebarWidth)
-    const unit = sidebarWidth.includes('rem') ? 'rem' : 'px'
-    const widthInPixels = unit === 'rem' ? widthValue * 16 : widthValue
-    return widthInPixels < COMPACT_THRESHOLD
-  })
   
   const [favourites, setFavourites] = useState<Favourite[]>(initialFavourites || [])
   const [projectsRefreshing, setProjectsRefreshing] = useState(false)
@@ -1519,22 +1508,7 @@ export default function InterfaceNav({
     onNavCollapseChange?.(isCollapsed && !isCompletelyHidden)
   }, [isCollapsed, isCompletelyHidden, sidebarWidth, onNavCollapseChange])
   
-  // Monitor sidebar width for compact mode
-  useEffect(() => {
-    if (isCollapsed || isCompletelyHidden) {
-      setIsBreadcrumbCompact(false)
-    } else {
-      const widthValue = parseFloat(sidebarWidth)
-      const unit = sidebarWidth.includes('rem') ? 'rem' : 'px'
-      const widthInPixels = unit === 'rem' ? widthValue * 16 : widthValue
-      const shouldBeCompact = widthInPixels < COMPACT_THRESHOLD
-      setIsBreadcrumbCompact(shouldBeCompact)
-      // Debug logging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Sidebar width:', sidebarWidth, '→', widthInPixels, 'px, compact:', shouldBeCompact)
-      }
-    }
-  }, [sidebarWidth, isCollapsed, isCompletelyHidden, COMPACT_THRESHOLD])
+
   
   useEffect(() => {
     let state = 'expanded'
@@ -1748,132 +1722,309 @@ export default function InterfaceNav({
         )}
         
         {/* Header with Breadcrumb Navigation and Toggle */}
-        {!isCompletelyHidden && !isCollapsed && (
+        {!isCompletelyHidden && (
           <div className={cn(
             "flex items-center border-b animate-in fade-in slide-in-from-top-2 duration-300",
-            "px-2 py-1 gap-1 min-w-0"
+            isCollapsed ? "justify-center p-2" : "justify-between p-2 gap-2 min-w-0"
           )}>
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <BreadcrumbNav
-                // Project props
-                selectedProject={selectedProject}
-                projectTree={projectTree}
-                projectTreeLoading={projectTreeLoading}
-                projectTreeError={projectTreeError}
-                onProjectChange={handleProjectChange}
-                onProjectRefresh={refetchProjectTree}
-                
-                // Interface props
-                selectedInterface={currentInterface?.name || null}
-                currentInterfaces={currentInterfaces}
-                interfacesLoading={projectTreeLoading || projectTreeFetching}
-                interfacesError={projectTreeError}
-                onInterfaceChange={handleInterfaceChange}
-                
-                // Action handlers
-                onCreateProject={() => setCreateProjectOpen(true)}
-                onRenameProject={() => {
-                        setActiveProject(selectedProject)
-                        setRenameProjectOpen(true)
-                }}
-                onDeleteProject={() => {
-                  setActiveProject(selectedProject)
-                  setDeleteProjectOpen(true)
-                }}
-                onChangeProjectIcon={() => {
-                        setActiveProject(selectedProject)
-                        setNewProjectIconEdit(currentProjectData?.icon || 'folder')
-                        setProjectIconOpen(true)
-                }}
-                onImportInterface={() => {
-                        setImportProjectName(selectedProject)
-                        setImportInterfaceOpen(true)
-                }}
-                onUploadLogs={() => setFileUploadOpen(true)}
-                onToggleFavorite={handleToggleFavourite}
-                onRefreshAll={async () => {
-                      setProjectsRefreshing(true)
-                      await refetchProjectTree()
-                      setProjectsRefreshing(false)
-                }}
-                
-                onSaveInterface={() => setSaveInterfaceOpen(true)}
-                onSaveAsNewInterface={() => {
-                          if (currentInterface) {
-                            setSelectedInterfaceForAction(currentInterface)
-                            setSaveAsNewInterfaceOpen(true)
-                          }
-                }}
-                onCreateInterface={() => {
-                          setActiveProject(selectedProject)
-                          setCreateInterfaceOpen(true)
-                }}
-                onRenameInterface={() => {
-                          if (currentInterface) {
-                            setSelectedInterfaceForAction(currentInterface)
-                            setRenameInterfaceOpen(true)
-                          }
-                }}
-                onDeleteInterface={() => {
-                  if (currentInterface) {
-                    setSelectedInterfaceForAction(currentInterface)
-                    setDeleteInterfaceOpen(true)
-                  }
-                }}
-                onChangeInterfaceIcon={() => {
-                          if (currentInterface) {
-                            setSelectedInterfaceForAction(currentInterface)
-                            setNewInterfaceIcon(currentInterface.icon || 'layout-grid')
-                            setInterfaceIconOpen(true)
-                          }
-                }}
-                onExportInterface={() => {
-                          if (currentInterface) {
-                            setSelectedInterfaceForAction(currentInterface)
-                            handleExportTemplate()
-                          }
-                }}
-                
-                // Theme
-                themeColor={themeColor}
-                onThemeChange={handleThemeChange}
-                onThemeReset={handleThemeReset}
-                
-                // State
-                            isProjectChanging={isChangingProject}
-            isInterfaceChanging={isChangingInterface}
-            projectsRefreshing={projectsRefreshing}
-            isCompact={isBreadcrumbCompact}
-            
-            className=""
-          />
-            </div>
+            {!isCollapsed && <span className="text-xs text-muted-foreground animate-in fade-in duration-200 truncate select-none uppercase tracking-wider">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
               onClick={toggleSidebar}
-              className="h-6 w-6 flex-shrink-0"
+              className={cn("h-7 w-7 flex-shrink-0", !isCollapsed && "ml-auto")}
             >
-              <PanelLeftClose className="h-3.5 w-3.5" />
-            </Button>
-              </div>
-            )}
-        
-        {/* Header for Collapsed mode */}
-        {!isCompletelyHidden && isCollapsed && (
-          <div className="flex items-center justify-center border-b p-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={toggleSidebar}
-              className="h-6 w-6"
-            >
-              <PanelLeft className="h-3.5 w-3.5" />
+              {isCollapsed ? (
+                <PanelLeft className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
             </Button>
           </div>
         )}
         
+        {/* Projects and Interfaces Section */}
+        {!isCompletelyHidden && !isCollapsed && (
+          <div className="p-3 space-y-2.5 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
+            {/* Projects */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground select-none">Project:</label>
+              <div className="flex items-center gap-1 w-full min-w-0">
+                <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="flex-1 min-w-0 justify-between h-8"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                        {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
+                        <span className="truncate text-sm">{selectedProject || "Select project"}</span>
+                      </div>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    <Command>
+                      <CommandInput placeholder="Search projects..." />
+                      {!projectTreeLoading && !projectTreeFetching && (
+                        <CommandEmpty>No project found.</CommandEmpty>
+                      )}
+                      <CommandGroup>
+                        {projectTreeError ? (
+                          <div className="p-3 text-center">
+                            <p className="text-sm text-destructive mb-2">Failed to load projects</p>
+                            <Button size="sm" variant="ghost" onClick={() => { refetchProjectTree() }}>
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Button>
+                          </div>
+                        ) : (projectTreeLoading || projectTreeFetching) ? (
+                          <div className="p-1">
+                            <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading projects...</div>
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
+                              </div>
+                            ))}
+                          </div>
+                        ) : projectTree.length === 0 ? (
+                          <div className="p-3 text-center text-sm text-muted-foreground">
+                            <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                            No projects found
+                          </div>
+                        ) : (
+                          projectTree.map((project) => {
+                            const isSelected = projectId === project.project
+                            const isLoading = isChangingProject && transitioningToProject === project.project
+                            return (
+                              <CommandItem
+                                key={project.project}
+                                value={project.project}
+                                onSelect={() => handleProjectChange(project.project)}
+                                className={cn(isSelected && !isLoading && "text-primary")}
+                              >
+                                <div className="flex items-center gap-2 min-w-0 w-full">
+                                  {isLoading ? (
+                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
+                                  ) : isSelected ? (
+                                    <Check className="h-4 w-4 flex-shrink-0" />
+                                  ) : (
+                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
+                                  )}
+                                  <span className="truncate flex-1">{project.project}</span>
+                                  {isLoading && (
+                                    <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                  )}
+                                </div>
+                              </CommandItem>
+                            )
+                          })
+                        )}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {/* Project Context Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                    <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Project
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Interface
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setRenameProjectOpen(true) }}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Rename Project
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setNewProjectIconEdit(currentProjectData?.icon || 'folder'); setProjectIconOpen(true) }}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Change Icon
+                    </DropdownMenuItem>
+                    {interfaceId && (
+                      <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                        <DropdownMenuItem>
+                          <Palette className="h-4 w-4 mr-2" />
+                          Set Project Color
+                        </DropdownMenuItem>
+                      </ColorPicker>
+                    )}
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import Interface
+                    </DropdownMenuItem>
+                    {selectedProject !== 'Usage' && (
+                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setFileUploadOpen(true) }}>
+                        <FileInput className="h-4 w-4 mr-2" />
+                        Upload Logs
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => handleToggleFavourite()}>
+                      <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
+                      {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={async () => { setProjectsRefreshing(true); await refetchProjectTree(); setProjectsRefreshing(false) }}>
+                      <RefreshCw className={cn("h-4 w-4 mr-2", projectsRefreshing && "animate-spin")} />
+                      {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
+                    </DropdownMenuItem>
+                    {selectedProject !== 'Usage' && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setDeleteProjectOpen(true) }} className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Project
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
 
+            {/* Interfaces */}
+            {currentInterfaces.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground select-none">Interface:</label>
+                <div className="flex items-center gap-1 w-full min-w-0">
+                  <Popover open={interfacePopoverOpen} onOpenChange={setInterfacePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="flex-1 min-w-0 justify-between h-8"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                          {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
+                          <span className="truncate text-sm">{currentInterface?.name || "Select interface"}</span>
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      <Command>
+                        <CommandInput placeholder="Search interfaces..." />
+                        {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
+                          <CommandEmpty>No interface found.</CommandEmpty>
+                        )}
+                        <CommandGroup>
+                          {(projectTreeLoading || projectTreeFetching) ? (
+                            <div className="p-1">
+                              <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading interfaces...</div>
+                              {[1, 2].map((i) => (
+                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                  <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${80 + i * 10}%` }} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : currentInterfaces.length === 0 ? (
+                            <div className="p-3 text-center text-sm text-muted-foreground">
+                              <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                              </svg>
+                              No interfaces in this project
+                            </div>
+                          ) : (
+                            currentInterfaces.map((iface) => {
+                              const isSelected = currentInterface?.name === iface.name
+                              const isLoading = isChangingInterface && transitioningToInterface === iface.name
+                              return (
+                                <CommandItem
+                                  key={iface.name}
+                                  value={iface.name}
+                                  onSelect={() => handleInterfaceChange(iface.name)}
+                                  className={cn(isSelected && !isLoading && "text-primary")}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 w-full">
+                                    {isLoading ? (
+                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
+                                    ) : isSelected ? (
+                                      <Check className="h-4 w-4 flex-shrink-0" />
+                                    ) : (
+                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
+                                    )}
+                                    <span className="truncate flex-1">{iface.name}</span>
+                                    {isLoading && (
+                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              )
+                            })
+                          )}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {/* Interface Context Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSaveInterfaceOpen(true) } }}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setSaveAsNewInterfaceOpen(true) } }}>
+                        <div className="h-4 w-4 mr-2 relative">
+                          <Save className="h-4 w-4" />
+                          <Plus className="h-2.5 w-2.5 absolute -top-1 -right-1 rounded-full bg-background text-foreground" />
+                        </div>
+                        Save as New Int...
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setRenameInterfaceOpen(true) } }}>
+                        <Edit3 className="h-4 w-4 mr-2" />
+                        Rename Interface
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setNewInterfaceIcon(currentInterface.icon || 'layout-grid'); setInterfaceIconOpen(true) } }}>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Change Icon
+                      </DropdownMenuItem>
+                      {interfaceId && (
+                        <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                          <DropdownMenuItem>
+                            <Palette className="h-4 w-4 mr-2" />
+                            Set Interface Color
+                          </DropdownMenuItem>
+                        </ColorPicker>
+                      )}
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export as Template
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Interface
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Show separator and tabs only when both project and interface are selected */}
         {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
