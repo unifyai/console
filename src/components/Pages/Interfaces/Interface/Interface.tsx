@@ -677,7 +677,7 @@ const Interface = ({
   return (
   <PageScrollContext.Provider value={pageScrollContainerRef}>
 
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative overflow-hidden">
       {/* New Interface Navigation Sidebar */}
       <InterfaceNav
         interfaceId={interfaceId}
@@ -898,17 +898,17 @@ const Interface = ({
         </div>
       ) : (
         /* Regular Interface Content - With sidebar margin */
-        <div 
-          className="h-full transition-all duration-300"
-          style={{
-            marginLeft: 'var(--interface-nav-width, 256px)'
-          }}
-        >
+                  <div 
+            className="absolute top-0 right-0 bottom-0 transition-all duration-300"
+            style={{
+              left: 'var(--interface-nav-width, 256px)'
+            }}
+          >
           <div className="relative flex-1 min-w-0 h-full">
           {(isSwitchingInterface || isRefreshingInterface) && (
             <div
-              className="fixed bottom-0 right-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
-              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem' }}
+              className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
+              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem', right: 0, bottom: 0 }}
             >
               <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -919,7 +919,7 @@ const Interface = ({
             </div>
           )}
           <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
-          <div className="relative bg-background" ref={gridRef}>
+                     <div className="relative bg-background pt-3" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
           {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
@@ -939,13 +939,13 @@ const Interface = ({
               >
               {/* Floating Top Menu Elements (KEEPING FOR NOW) */}
             <div 
-              className="fixed top-10 z-40 transition-all duration-300 ease-linear pointer-events-none"
+              className="fixed top-10 z-40 transition-all duration-300 ease-linear pointer-events-none h-0"
               style={{ 
-                left: 'var(--interface-nav-width, 256px)', // Use dynamic sidebar width
+                left: 'var(--interface-nav-width, 256px)',
                 right: 0,
               }}
               >
-              <div className="flex justify-between gap-5 w-full p-4 pointer-events-auto overflow-x-auto command-scrollbar">
+              <div className="flex justify-between gap-5 w-full px-4 py-0 pointer-events-auto command-scrollbar overflow-x-hidden">
                 {/* ProjectButtons removed as per UI simplification */}
 
                 <div className="flex flex-row gap-2 items-center">
@@ -976,10 +976,10 @@ const Interface = ({
             <div 
               className="transition-all duration-200 ease-linear"
               style={{ 
-                paddingTop: '1rem', // Removed conditional edit-mode deadspace
-                paddingLeft: '1rem',    // Content padding
-                paddingRight: '1rem',   // Content padding
-                minHeight: 'calc(100vh - 6rem)', // Ensure full height minus top padding
+                paddingTop: 0,
+                paddingLeft: '1rem',
+                paddingRight: '1rem',
+                height: '100%',
               }}
               >
               {tabNames.length === 0 ? (
@@ -1088,8 +1088,8 @@ const Interface = ({
                 ))
               )}
               
-              {/* Bottom deadspace - ensures scrollable space for floating bottom menu */}
-              <div style={{ height: '10rem' }} className="w-full" />
+              {/* Bottom spacer to allow dragging tiles downward without touching screen bottom */}
+              <div className="w-full h-40" />
             </div>
 
             {/* Floating Bottom Tab Bar - HIDDEN: Using sidebar navigation for tabs instead */}

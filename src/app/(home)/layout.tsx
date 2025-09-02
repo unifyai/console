@@ -18,15 +18,15 @@ import OnboardingGuard from "@/components/Pages/TaxClassification/OnboardingGuar
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="h-screen w-screen">
+    <html lang="en" suppressHydrationWarning className="h-screen overflow-hidden">
+      <body className="h-screen w-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             <ThemeLoader>
               <OnboardingGuard>
                 <TopNav />
                 <Suspense fallback={<LoadingScreen/>}>
-                  <main className="relative top-10 h-[calc(100vh-2.5rem)]">
+                  <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden">
                     <NuqsAdapter>{children}</NuqsAdapter>
                   </main>
                 </Suspense>
