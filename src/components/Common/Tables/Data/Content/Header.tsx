@@ -32,7 +32,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 
 // Icon / button
 import ActionButton from "@/components/Common/Buttons/Action";
-import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
+import { MoreVertical, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 import { shouldRenderHeader, calculateRowSpan } from "@/utils/interfaces/table/table";
@@ -525,13 +525,13 @@ const DataTableHeader = ({
                         button={
                           <ActionButton
                             tooltip="Parent column actions"
-                            icon={<MoreHorizontal className="h-4 w-4" />}
+                            icon={<MoreVertical className="h-4 w-4" />}
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDropdownOpen(true);
                             }}
-                            className="w-4 h-4 p-0 pt-1"
+                            className="w-4 h-4 mr-1 pt-2"
                           />
                         }
                       >
@@ -623,13 +623,13 @@ const DataTableHeader = ({
                             <ActionButton
                               ref={actionButtonRef}
                               tooltip="Child column actions"
-                              icon={<MoreHorizontal className="h-4 w-4" />}
+                              icon={<MoreVertical className="h-4 w-4" />}
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDropdownOpen(true);
                               }}
-                              className="w-4 h-4 p-0 pt-1"
+                              className="w-4 h-4 mr-1 pt-2"
                             />
                           }
                         >

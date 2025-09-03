@@ -782,7 +782,10 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
 
                     </Table>
                 </DndContext>
-                <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any}/>
+                {(!error && table.getRowModel().rows?.length) 
+                    ? <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any}/> 
+                    : null
+                }
                 {ExtraComponents && ExtraComponents(table)}
             </div>
     );

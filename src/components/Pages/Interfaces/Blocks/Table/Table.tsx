@@ -1214,8 +1214,8 @@ const LogsTable = ({
                 withPulse={overlayMode === "context" ? true : false}
               />
             )}
-            {/* <div className="min-w-max w-full"> */}
-              <div className="min-w-0 w-full pr-4 pb-2">
+              {/* <div className="min-w-max w-full"> */}
+            <div className="min-w-0 w-fit pr-4 pb-2">
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
