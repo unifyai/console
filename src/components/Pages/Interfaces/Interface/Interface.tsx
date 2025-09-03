@@ -29,6 +29,7 @@ import { useCommand } from '@/contexts/hooks/commands/useCommand';
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { useTabStreamingQuery } from '@/hooks/Interfaces/Query/useTabStreamingQuery';
 import { useInterfaceSync } from '@/contexts/hooks/interface/sync/useInterfaceSync';
+import { useTabSync } from '@/contexts/hooks/tab/sync';
 import { selectActiveTab, selectTotalInactiveTabsForInterface } from '@/contexts/selectors/tab';
 import { useInterfaceData } from '@/contexts/hooks/interface/useInterfaceData';
 import SaveResetOverlay from './SaveResetOverlay';
@@ -234,6 +235,11 @@ const Interface = ({
   const { dataActions: interfaceDataActions } = useInterfaceData(interfaceId);
   const { data: tabDataState, dataActions: tabDataActions } = useTabData(activeTabId, interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(activeTabId, interfaceId);
+
+  // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { actions: syncedTabActions } = useTabSync(activeTabId, interfaceId, tabActions, tileActions);
+  const syncedTabDataActions = syncedTabActions?.data ?? null;
+  const syncedTabUIActions = syncedTabActions?.ui ?? null;
 
   // NEW: Use tab streaming for all tab data management
   const tabStreamingQuery = useTabStreamingQuery(
@@ -671,7 +677,12 @@ const Interface = ({
     while (items.some(it => it.name === `Tile_${idx}`)) idx++;
     const newTileName = `Tile_${idx}`;
     const position = { x: 0, y: 0, width: 4, height: 4 } as any;
+    // Use synced actions to ensure a UUID is generated and server tile is created
+    if (syncedTabDataActions?.initTile) {
+      syncedTabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
+    } else {
     tabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
+    }
   };
 
   return (

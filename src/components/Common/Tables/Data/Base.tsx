@@ -45,6 +45,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     error?: string;
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
+    onBlockedEdit?: (cell: TanstackCell<any, unknown>) => void;
     
     showFooter?: boolean,
     setShowFooter?: React.Dispatch<React.SetStateAction<boolean>>,
@@ -100,6 +101,11 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode;
     RowExpanding?: (props: RowExpandingProps) => ReactNode;
+
+    // Inline editing support
+    editEnabled?: boolean;
+    isCellMutable?: (cell: TanstackCell<any, unknown>) => boolean;
+    onCommitCellEdit?: (payload: { rowIds: string[]; source: "entries" | "params"; path: (string | number)[]; newValue: any }) => Promise<void>;
 }
 
 export default function DataTable<TData extends LogProps | GroupedLogProps>({
@@ -113,6 +119,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     error,
     scrollContainerRef,
     onRenameColumn,
+    onBlockedEdit,
 
     showFooter,
     setShowFooter,
@@ -157,9 +164,15 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     ExtraCellContent,
     ExtraComponents,
     RowExpanding,
+
+    // Inline editing support
+    editEnabled,
+    isCellMutable,
+    onCommitCellEdit,
 }: DataTableProps<TData>) {
     // Internal state management
     const [isUpdatingLogs, setIsUpdatingLogs] = useState(false);
+    const [activeEditingCellId, setActiveEditingCellId] = useState<string | null>(null);
     const [expandingRowId, setExpandingRowId] = useState<string | null>(null);
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -373,7 +386,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         selectedCells: state.selectedCells,
         setSelectedCells: setState.setSelectedCells,
         scrollContainerRef: scrollContainerRef,
-        tableHeaderRef: tableHeaderRef,
+        tableHeaderRef: tableHeaderRef,  
         tableFooterRef: tableFooterRef,  
     });
 
@@ -500,14 +513,22 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 renderSkeletonRows={renderSkeletonRows}
                 cellSelection={cellSelection}
                 isCellSelected={isCellSelected}
+                isRowSelected={isRowSelected}
                 isCellExpanded={isCellExpanded}
                 setExpandedCells={setExpandedCells}
                 selectedCells={state.selectedCells}
                 resizeMap={resizeMap}
-                rightmostColumnId={rightmostColumnId}
                 draggingColumns={state.draggingColumns}
                 isAnimating={isAnimating}
                 setDraggingColumnPinner={setState.setDraggingColumnPinner}
+                rightmostColumnId={rightmostColumnId}
+                editingCellId={activeEditingCellId}
+                setEditingCellId={setActiveEditingCellId}
+                // Inline editing
+                editEnabled={!!editEnabled}
+                isCellMutable={isCellMutable}
+                onCommitCellEdit={onCommitCellEdit}
+                onBlockedEdit={onBlockedEdit}
             />
         );
         

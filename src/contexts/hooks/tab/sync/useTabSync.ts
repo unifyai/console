@@ -112,7 +112,7 @@ export function useTabSync(
         tile_id: tileId,
         actions: tileActions
       });
-
+      
       debugLog(`Tile ${tileName} created with ID ${tileId}`);
       
       return result;

@@ -361,6 +361,12 @@ export default function Selection({
       }
 
       try {
+        const entriesKeys = Object.keys(entriesUpdate || {});
+        const paramsKeys = Object.keys(paramsUpdate || {});
+        if ((!entriesKeys.length) && (!paramsKeys.length)) return;
+      } catch (_) {}
+
+      try {
         const response = await logsActions.update(
           projectId,
           context,

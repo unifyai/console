@@ -82,6 +82,20 @@ export const updateLogs = async (apiKey: string) => {
         "use server";
 
         try {
+            // Validate inputs before sending to server to avoid 400s
+            if (!project || typeof project !== 'string' || project.trim() === '') {
+                return { detail: "Missing 'project' when updating logs." };
+            }
+            const isValidLogsArray = Array.isArray(logs) && logs.length > 0 && logs.every((id) => Number.isInteger(id));
+            if (!isValidLogsArray) {
+                return { detail: "Invalid 'logs' payload. Expected a non-empty array of integer IDs." };
+            }
+            const hasEntries = entries && Object.keys(entries).length > 0;
+            const hasParams = params && Object.keys(params).length > 0;
+            if (!hasEntries && !hasParams) {
+                return { detail: "No changes provided. 'entries' or 'params' must include at least one field to update." };
+            }
+
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs`,
                 {

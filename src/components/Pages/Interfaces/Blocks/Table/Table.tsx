@@ -69,8 +69,11 @@ import GroupLoadMore from "@/components/Common/Tables/Data/Buttons/GroupLoadMore
 import { checkHasNextPage } from "@/utils/interfaces/logsCore";
 import { calculateGroupHasNextPage as calcGroupHasNextPageUtil } from "@/utils/interfaces/table/grouping";
 import { cn } from "@/lib/utils";
-
-// Check if advanced table features should be shown
+import { getDeep, setDeep } from "@/utils/objectPath";
+import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
+import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
+  
+  // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
 
 const LogsTable = ({
@@ -99,6 +102,7 @@ const LogsTable = ({
   const router = useRouter(); // Initialize useRouter
   const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
+  // Always show immutable/undefined toasts on each double-click
   const [useVirtualization, setUseVirtualization] = useState(false); // Enable virtualization by default
   const [useBidirectionalLoading, setUseBidirectionalLoading] = useState(true); // Enable bidirectional loading
   const [bidirectionalConfig, setBidirectionalConfig] = useState({
@@ -141,6 +145,7 @@ const LogsTable = ({
     error: tableDataError,
     updateTableDataItemWithUpdater,
     updateLogs,
+    updateLogsByRowIds,
   } = useTableDataQueryWithTracking(tileId, tabId);
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
@@ -291,8 +296,9 @@ const LogsTable = ({
   // Column definitions
   const entriesTree = useMemo(() => buildTree(entriesProperties), [entriesProperties]);
   const paramsTree = useMemo(() => buildTree(paramsProperties), [paramsProperties]);
-  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].data_type])) : {}, [fields]);
-  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields).map(entry => [entry[0], entry[1].field_type])) : {}, [fields]);
+  const dataTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.data_type])) : {}, [fields]);
+  const fieldTypes = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.field_type])) : {}, [fields]);
+  const mutabilityMap = useMemo(() => fields ? Object.fromEntries(Object.entries(fields as any).map((entry: any) => [entry[0], entry[1]?.mutable])) : {}, [fields]);
 
   const indicesTitle = "RowNumbering";
   const entriesTitle = "Entries";
@@ -767,6 +773,116 @@ const LogsTable = ({
     }
   };
 
+  // Inline cell edit helpers
+  const isCellMutable = useCallback((cell: any) => {
+    const rawId: string = cell.column.id || "";
+    const id = sanitizeId(rawId);
+    const topLevelKey = id.split("/")[0];
+    const colType = cell.column.columnDef.meta?.columnType;
+    const fieldType_ = cell.column.columnDef.meta?.fieldType;
+    const m = mutabilityMap[topLevelKey];
+    // Disallow derived entries
+    if (fieldType_ === "derived_entry") return false;
+    // Return false for undefined or explicitly false mutability
+    if (m === undefined) return false;
+    return !(m === false || m === "false");
+  }, [mutabilityMap]);
+
+  const onBlockedEdit = useCallback((cell: any) => {
+    try {
+      const rawId: string = cell.column.id || "";
+      const id = sanitizeId(rawId);
+      const topLevelKey = id.split("/")[0];
+      const fieldInfo = (fields as any)?.[topLevelKey];
+      if (!fieldInfo) {
+        showErrorToast('Field not defined', 'This field is not defined in Logs schema. Define it before editing.');
+      } else if (fieldInfo.mutable === false || fieldInfo.mutable === 'false') {
+        showErrorToast('Field is immutable', 'This field cannot be edited. Make it mutable in Logs > Fields or use a versioned context.');
+      }
+    } catch (_) {}
+  }, [fields]);
+
+  const onCommitCellEdit = useCallback(async ({ rowIds, source, path, newValue }: { rowIds: string[]; source: "entries" | "params"; path: (string | number)[]; newValue: any }) => {
+    if (!projectId || !rowIds?.length) return;
+
+    // Capture previous value for strict rollback
+    const firstPrev = (tableDataItem?.logs || []).find((l: any) => String(l.id) === String(rowIds[0]));
+    if (!firstPrev) return;
+    const topKey = String(path[0]);
+    const prevTop = source === 'entries' ? (firstPrev.entries ?? {}) : (firstPrev.params ?? {});
+    const prevValue = getDeep(prevTop, path);
+
+    // Optimistic local update first
+    if (updateLogsByRowIds) {
+      // Attempt cast if original was null/undefined and user typed string
+      try {
+        const originalTopLevel = prevTop;
+        const originalAtPath = prevValue;
+        if ((originalAtPath === null || originalAtPath === undefined) && typeof newValue === 'string') {
+          const fieldInfo = fields?.[topKey];
+          const pyType = fieldInfo?.data_type as any;
+          if (pyType) {
+            const casted = castToPythonType(newValue, pyType);
+            if (!(casted && typeof casted === 'object' && 'error' in casted)) {
+              newValue = casted;
+            }
+          }
+        }
+      } catch (_) {/* noop */}
+
+      updateLogsByRowIds(rowIds, { source, path, newValue });
+    }
+
+    // Guard: do not allow edits if field is immutable or undefined in schema
+    const fieldInfo = (fields as any)?.[topKey];
+    const isDefined = !!fieldInfo;
+    const isImmutable = fieldInfo && (fieldInfo.mutable === false || fieldInfo.mutable === 'false');
+    if (source === 'entries' && (!isDefined || isImmutable)) {
+      // Immediately rollback optimistic change if any
+      if (updateLogsByRowIds) {
+        updateLogsByRowIds(rowIds, { source, path, newValue: prevValue });
+      }
+      return;
+    }
+
+    let entriesUpdate: any = {};
+    let paramsUpdate: any = {};
+    if (source === 'entries') {
+      const updated = setDeep(prevTop, path.slice(1), newValue);
+      entriesUpdate = { [topKey]: updated };
+    } else {
+      const updated = setDeep(prevTop, path.slice(1), newValue);
+      paramsUpdate = { [topKey]: updated };
+    }
+
+    try {
+      const entriesKeys = Object.keys(entriesUpdate || {});
+      const paramsKeys = Object.keys(paramsUpdate || {});
+      if ((!entriesKeys.length) && (!paramsKeys.length)) return;
+    } catch (_) {}
+
+    // Persist to server
+    const res = await logsActions.update(
+      projectId,
+      item?.context || context_ || null,
+      rowIds.map(id => parseInt(String(id), 10)),
+      entriesUpdate,
+      paramsUpdate
+    );
+    try {
+      if ((res as any)?.detail) {
+        console.error('[Table Inline Edit] Update failed', res);
+        showErrorToast('Update failed', (res as any)?.detail || 'Failed to update log entry');
+        // Strict rollback
+        if (updateLogsByRowIds) {
+          updateLogsByRowIds(rowIds, { source, path, newValue: prevValue });
+        }
+      } else {
+        showSuccessToast('Updated', 'Cell updated successfully');
+      }
+    } catch (_) {}
+  }, [projectId, logsActions, fields, tableDataItem, updateLogsByRowIds, item?.context, context_, showErrorToast]);
+
   // Define buttons to be used in menu and overlay
   const contextSelectorButton = (inOverlay: boolean) => projectId ? (
     <ContextSelector
@@ -1124,6 +1240,12 @@ const LogsTable = ({
                         
                         showFooter={showMetricsRow && logs.length > 0}
                         setShowFooter={setShowMetricsRow}
+                        
+                        // Inline editing props
+                        editEnabled={true}
+                        isCellMutable={isCellMutable}
+                        onCommitCellEdit={onCommitCellEdit}
+                        onBlockedEdit={onBlockedEdit}
 
                         // Row indexing offset information
                         offsetInfo={{

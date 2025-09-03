@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction } from "react";
+import { useState, CSSProperties, ReactNode, Dispatch, SetStateAction, useEffect } from "react";
 
 import { Header, Cell, Row, Table, flexRender } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
@@ -37,7 +37,14 @@ const DataTableCell = ({
   state,
   children,
   setDraggingColumnPinner,
-  isRightmost
+  isRightmost,
+  // Inline editing
+  editEnabled,
+  isCellMutable,
+  onCommitCellEdit,
+  onBlockedEdit,
+  editingCellId,
+  setEditingCellId
 }: {
   cell: Cell<any, unknown>,
   row: Row<any>,
@@ -63,7 +70,14 @@ const DataTableCell = ({
   state: StateProps,
   children?: ReactNode,
   setDraggingColumnPinner: (state: any) => void,
-  isRightmost?: boolean
+  isRightmost?: boolean,
+  // Inline editing
+  editEnabled?: boolean,
+  isCellMutable?: (cell: Cell<any, unknown>) => boolean,
+  onCommitCellEdit?: (payload: { rowIds: string[]; source: "entries" | "params"; path: (string | number)[]; newValue: any }) => Promise<void>,
+  onBlockedEdit?: (cell: Cell<any, unknown>) => void,
+  editingCellId?: string | null,
+  setEditingCellId?: (id: string | null) => void
 }) => {
   const { isDragging, setNodeRef, transform } = useSortable({
     id: cell.column.id,
@@ -72,6 +86,77 @@ const DataTableCell = ({
   const columnID = cell.column.columnDef.id!;
   const cellID = `${cell.row.id}_${sanitizeId(columnID)}`
   const isNewCell = state.newCells ? state.newCells.includes(cellID) : undefined;
+
+  // Inline edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState<any>(undefined);
+
+  // Derived helpers for editing
+  const dataType = cell.column.columnDef.meta?.dataType;
+  const fieldType = cell.column.columnDef.meta?.fieldType;
+  const isGroupCell = cell.getIsGrouped();
+  const isPlaceholder = cell.getIsPlaceholder();
+  const canAttemptEdit = !!editEnabled && !isGroupCell && !isPlaceholder && cell.column.id !== "RowNumbering";
+  const cellIsMutable = typeof isCellMutable === 'function' ? isCellMutable(cell) : true;
+
+  const thisCellId = `${row.id}:${cell.column.id}`;
+
+  const startEdit = () => {
+    if (!canAttemptEdit || !cellIsMutable) return;
+    // Claim the global editor slot
+    if (typeof setEditingCellId === 'function') setEditingCellId(thisCellId);
+    // Set initial draft from current rendered value (use raw accessor value)
+    let value = cell.getValue();
+    setDraftValue(value);
+    setIsEditing(true);
+  };
+  // If user double-clicked but cell is not editable, call the blocked callback
+  const maybeStartOrBlock = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    if (!canAttemptEdit) return;
+    if (!cellIsMutable) {
+      if (typeof setEditingCellId === 'function') setEditingCellId(null);
+      if (typeof (onBlockedEdit) === 'function') onBlockedEdit(cell);
+      return;
+    }
+    startEdit();
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    if (typeof setEditingCellId === 'function' && editingCellId === thisCellId) setEditingCellId(null);
+  };
+
+  const commitEdit = async () => {
+    if (!onCommitCellEdit) {
+      setIsEditing(false);
+      if (typeof setEditingCellId === 'function' && editingCellId === thisCellId) setEditingCellId(null);
+      return;
+    }
+    try {
+      setIsCommitting(true);
+      // Immediately close the editor and release the global lock
+      setIsEditing(false);
+      if (typeof setEditingCellId === 'function' && editingCellId === thisCellId) setEditingCellId(null);
+      // Build payload
+      const rowId = String(row.id);
+      const columnIdSanitized = sanitizeId(cell.column.id);
+      const source: "entries" | "params" = cell.column.columnDef.meta?.columnType === "params" ? "params" : "entries";
+      const path = columnIdSanitized.split("/");
+      await onCommitCellEdit({ rowIds: [rowId], source, path, newValue: draftValue });
+    } catch (e) {
+      // Editor already closed; just stop committing flag
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
+  // Enforce single-active-editor: if another cell is being edited, close this one
+  useEffect(() => {
+    if (editingCellId !== thisCellId && isEditing) {
+      setIsEditing(false);
+    }
+  }, [editingCellId, thisCellId, isEditing]);
 
   // Pre-calculate checks for active and over states
   const isInActiveGroup = draggingColumns.active.ids?.includes(columnID);
@@ -165,6 +250,7 @@ const DataTableCell = ({
   };
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
 
   // Check if this row is grouped and has subrows that have not been populated yet
   const hasSkeletonLogs = 'groupCount' in row.original && 
@@ -179,21 +265,80 @@ const DataTableCell = ({
 
   const isNotUtilColumn = cell.column.columnDef.meta?.columnType !== "util";
 
-  return (
-    <TableCell 
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onMouseDown={(e) => cellSelection.handleCellMouseDown(e, cell)}
-      onMouseUp={(e) => cellSelection.handleCellMouseUp(e, cell)}
-      onMouseOver={(e) => cellSelection.handleCellMouseOver(e, cell)}
-      onKeyDown={(e) => cellSelection.handleCellsKeyDown(e)}
-      rowSpan={cell.rowSpan}
-      style={style}
-      tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
-      ref={setNodeRef}
-      className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
-    >
-      <div className="overflow-hidden text-nowrap text-ellipsis truncate ...">
+  const renderEditor = () => {
+    const overlayCls = "absolute inset-0 flex items-center";
+    const commonCls = "w-full h-full px-2 py-0 text-sm bg-background text-foreground outline-none border-0 focus:ring-0 focus:outline-none box-border";
+    // Choose widget per dataType
+    if (dataType === "number") {
+      return (
+        <div className={overlayCls}>
+          <input
+            type="number"
+            className={commonCls}
+            value={draftValue ?? ''}
+            onChange={(e) => setDraftValue(e.target.value === '' ? '' : Number(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+            }}
+            autoFocus
+          />
+        </div>
+      );
+    }
+    if (dataType === "image" || dataType === "audio" || dataType === "pdf") {
+      // Non-editable rich types
+      return (
+        <div className="w-full h-full flex items-center text-xs text-muted-foreground">Editing not supported for this type</div>
+      );
+    }
+    const isMultiline = typeof draftValue === 'object' || (typeof draftValue === 'string' && draftValue.length > 100);
+    if (isMultiline) {
+      return (
+        <div className={overlayCls}>
+          <textarea
+            className={`${commonCls} font-mono resize-none overflow-hidden`}
+            rows={1}
+            value={typeof draftValue === 'string' ? draftValue : JSON.stringify(draftValue ?? '', null, 2)}
+            onChange={(e) => setDraftValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+            }}
+            autoFocus
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={overlayCls}>
+        <input
+          className={commonCls}
+          value={draftValue ?? ''}
+          onChange={(e) => setDraftValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+            if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+          }}
+          autoFocus
+        />
+      </div>
+    );
+  };
+
+  const content = (() => {
+    if (isEditing) {
+      return (
+        <div className="flex items-center gap-1">
+          <div className="flex-1">
+            {renderEditor()}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-hidden text-nowrap text-ellipsis truncate ..." onDoubleClick={(e) => { maybeStartOrBlock(e); }}>
         {shouldShowGrouping 
           ? (properties.includes(columnID) &&
             <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
@@ -226,17 +371,41 @@ const DataTableCell = ({
               : (flexRender(cell.column.columnDef.cell, cell.getContext()))
         }
       </div>
+    );
+  })();
+
+  return (
+    <TableCell 
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onMouseDown={(e) => cellSelection.handleCellMouseDown(e, cell)}
+      onMouseUp={(e) => cellSelection.handleCellMouseUp(e, cell)}
+      onMouseOver={(e) => cellSelection.handleCellMouseOver(e, cell)}
+      onKeyDown={(e) => cellSelection.handleCellsKeyDown(e)}
+      onDoubleClick={(e) => { maybeStartOrBlock(e); }}
+      rowSpan={cell.rowSpan}
+      style={style}
+      tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
+      ref={setNodeRef}
+      className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
+    >
+      {content}
+
+      {isCommitting && (
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          <Skeleton className="h-full w-full" />
+        </div>
+      )}
 
       {(() => {
         const showResizer = cell.column.getCanResize() && !state.draggingColumnPinner.isPinning;
-          if (!showResizer) return null;
+        if (!showResizer) return null;
 
         return (
-                <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
+          <ColumnResizer column={cell.column} resizeHandler={resizeMap[cell.column.id]} />
         );
-       })()}
+      })()}
 
-      {/* Column pin drag handle on last pinned-left column */}
       {isLastLeftPinnedColumn && (
         <div className="absolute inset-y-0 right-0" style={{ width: 5 }}>
           <ColumnPinner
