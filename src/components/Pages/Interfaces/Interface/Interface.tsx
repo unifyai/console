@@ -155,6 +155,19 @@ const Interface = ({
   const projects = useStoreContext(state => state.projects);
   const hasAssistantsProject = projects?.includes("Assistants");
   
+  // Determine if we should auto-open the project selection screen when no projects exist
+  const shouldAutoShowProjectSelection = !projectQueryParam && !interfaceQueryParam && !hasAssistantsProject;
+  
+  // Effective flag to render the project selection screen
+  const effectiveShowProjectSelection = showProjectSelection || shouldAutoShowProjectSelection;
+  
+  // Ensure the URL reflects the selection screen state when auto-showing
+  useEffect(() => {
+    if (shouldAutoShowProjectSelection && selectProjectParam !== 'true') {
+      setSelectProjectParam('true');
+    }
+  }, [shouldAutoShowProjectSelection, selectProjectParam, setSelectProjectParam]);
+  
   // Fetch project tree with icons
   const { data: projectTree = [] } = useQuery<
     Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
@@ -721,7 +734,7 @@ const Interface = ({
       />
       
       {/* Main Content Area */}
-      {showProjectSelection ? (
+      {effectiveShowProjectSelection ? (
         /* Project Selection Screen - Full viewport centered */
         <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
           <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
@@ -998,19 +1011,7 @@ const Interface = ({
                     <Loader2 className="animate-spin my-36" />
                   </div>
                 ) : !projectQueryParam && !interfaceQueryParam ? (
-                  // Check if Assistants project exists, if not show a message to select a project
-                  !hasAssistantsProject ? (
-                    <div className="flex flex-col items-center justify-center h-[70vh] gap-4">
-                      <div className="text-title text-muted-foreground">
-                        Please select a project from the navigation menu
-                      </div>
-                      <div className="text-body text-muted-foreground">
-                        Choose a project to start working with interfaces
-                      </div>
-                    </div>
-                  ) : (
-                    // If Assistants project exists, this case shouldn't happen due to server redirect
-                    // But keep as fallback
+                  hasAssistantsProject ? (
                     <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>
                       <DefaultProject
                         projectActions={projectsActions}
@@ -1026,7 +1027,7 @@ const Interface = ({
                         setProjectQueryParam={setProjectQueryParam}
                       />
                     </Suspense>
-                  )
+                  ) : null
                 ) : null
               ) : (
                 tabNames.map((tabName: string, idx: number) => (
