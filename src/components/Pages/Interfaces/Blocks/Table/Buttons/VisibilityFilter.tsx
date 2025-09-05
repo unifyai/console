@@ -78,7 +78,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
 
     /* Show / hide all columns */
     const hideAll= <div className="flex justify-between items-center mb-5 mt-3">
-                        <span className="font-bold text-sm">{anyHidden ? "Show all" : "Hide all"}</span>
+                        <span className="text-label text-strong">{anyHidden ? "Show all" : "Hide all"}</span>
                         <Switch checked={!anyHidden} onCheckedChange={handleAllCheck}/>
                     </div> 
 
@@ -86,12 +86,12 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     const hideParams = paramColumns.length > 0 && (
         <div className="mt-2">
             <div className="flex justify-between items-center mb-1">
-            <p className="font-bold text-sm">Params</p>
+            <p className="text-label text-strong">Params</p>
             <Switch checked={!anyHiddenParam} onCheckedChange={handleAllParamsCheck}/>
             </div>
             {paramColumns.map((column, index) => (
             <div key={index} className="flex items-center justify-between py-1 pl-4">
-                <span className="text-sm max-w-[200px] truncate" title={column}>
+                <span className="text-body max-w-[200px] truncate" title={column}>
                     {context ? sanitizeId(processContext("split", context, column)) : column}
                 </span>
                 <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)}/>
@@ -104,12 +104,12 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     const hideEntries =
         <div className="mt-4">
         <div className="flex justify-between items-center mb-1">
-            <p className="font-bold text-sm">Entries</p>
+            <p className="text-label text-strong">Entries</p>
             <Switch checked={!anyHiddenEntry} onCheckedChange={handleAllEntriesCheck}/>
         </div>
         {entryColumns.map((column, index) => (
             <div key={index} className="flex items-center justify-between py-1 pl-4">
-                <span className="text-sm max-w-[200px] truncate" title={column}>
+                <span className="text-body max-w-[200px] truncate" title={column}>
                     {context ? sanitizeId(processContext("split", context, column)) : column}
                 </span>
                 <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)}/>
@@ -135,7 +135,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
                 {/* Toggle for default hide underscore columns */}
                 {/* 
                 <div className="flex justify-between items-center mb-3">
-                    <span className="font-bold text-sm">Hide private columns</span>
+                    <span className="text-label text-strong">Hide private columns</span>
                     <Switch checked={defaultHidden} onCheckedChange={setDefaultHidden}/>
                 </div>
                 */}

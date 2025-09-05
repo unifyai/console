@@ -129,12 +129,12 @@ export const RenameProjectDialog = React.memo(function RenameProjectDialog({
               placeholder="Enter new project name..."
               className={validationError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Allowed: letters, numbers, underscores, hyphens, and forward slashes
             </p>
           </div>
           {displayError && (
-            <p className="text-xs text-destructive">{displayError}</p>
+            <p className="text-caption text-destructive">{displayError}</p>
           )}
         </div>
       }

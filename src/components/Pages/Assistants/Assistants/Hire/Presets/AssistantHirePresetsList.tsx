@@ -87,7 +87,7 @@ export function PresetsPanel({
       {/* Header */}
       <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Available Hires</h2>
+          <h2 className="text-title">Available Hires</h2>
         </div>
         <div className="flex items-center gap-1">
             {layoutMode === "split" &&
@@ -136,12 +136,12 @@ export function PresetsPanel({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div>
             <Select value={ageFilter} onValueChange={onAgeFilterChange}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-8 text-caption">
                 <SelectValue placeholder="Age" />
               </SelectTrigger>
               <SelectContent>
                 {availableAgeBrackets.map(bracket => (
-                  <SelectItem key={bracket} value={bracket} className="text-xs">
+                  <SelectItem key={bracket} value={bracket} className="text-caption">
                     {bracket === 'all' ? 'All Ages' : bracket}
                   </SelectItem>
                 ))}
@@ -150,12 +150,12 @@ export function PresetsPanel({
           </div>
           <div>
             <Select value={regionFilter} onValueChange={onRegionFilterChange} disabled={availableRegions.length <= 1}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-8 text-caption">
                 <SelectValue placeholder="Region" />
               </SelectTrigger>
               <SelectContent>
                 {availableRegions.map(region => (
-                  <SelectItem key={region} value={region} className="text-xs">
+                  <SelectItem key={region} value={region} className="text-caption">
                     {region === 'all' ? 'All Regions' : region}
                   </SelectItem>
                 ))}
@@ -164,12 +164,12 @@ export function PresetsPanel({
           </div>
           <div>
             <Select value={genderFilter} onValueChange={onGenderFilterChange} disabled={availableGenders.length <= 1}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-8 text-caption">
                 <SelectValue placeholder="Gender" />
               </SelectTrigger>
               <SelectContent>
                 {availableGenders.map(gender => (
-                  <SelectItem key={gender} value={gender} className="text-xs capitalize">
+                  <SelectItem key={gender} value={gender} className="text-caption capitalize">
                     {gender === 'all' ? 'All Genders' : gender}
                   </SelectItem>
                 ))}
@@ -191,18 +191,18 @@ export function PresetsPanel({
               />
             ))
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">
+            <p className="text-body text-muted-foreground text-center py-8">
               No presets match filters.
             </p>
           )}
           {isLoadingMore && (
             <div className="flex justify-center items-center p-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+              <span className="ml-2 text-body text-muted-foreground">Loading...</span>
             </div>
           )}
           {!isLoadingMore && !canLoadMore && displayedPresets.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center pt-4 pb-2">
+            <p className="text-caption text-muted-foreground text-center pt-4 pb-2">
               End of results.
             </p>
           )}

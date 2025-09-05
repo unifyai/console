@@ -134,6 +134,7 @@
   /* Apply background and text colors */
   body {
     @apply bg-[color:var(--background)] text-[color:var(--foreground)];
+    @apply font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -289,4 +290,22 @@
 /* Prevent accidental text selection during drag attempts */
 [data-interface-color] button {
   -webkit-touch-callout: none;
+}
+
+@layer components {
+  .text-display { @apply font-sans text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight; }
+  .text-h1 { @apply font-sans text-3xl md:text-4xl font-semibold tracking-tight; }
+  .text-h2 { @apply font-sans text-2xl md:text-3xl font-semibold tracking-tight; }
+  .text-h3 { @apply font-sans text-xl md:text-2xl font-semibold; }
+  .text-title { @apply font-sans text-lg font-semibold; }
+  .text-subtitle { @apply font-sans text-base text-muted-foreground; }
+  .text-body { @apply font-sans text-sm md:text-base leading-relaxed; }
+  .text-body-sm { @apply font-sans text-sm leading-snug; }
+  .text-caption { @apply font-sans text-xs text-muted-foreground; }
+  .text-mono { @apply font-mono; }
+  .text-link { @apply text-primary underline underline-offset-2 hover:opacity-90; }
+  .text-muted { @apply text-muted-foreground; }
+  .text-strong { @apply font-semibold; }
+  .numeric { @apply tabular-nums; }
+  .text-label { @apply font-sans text-sm font-medium; }
 }

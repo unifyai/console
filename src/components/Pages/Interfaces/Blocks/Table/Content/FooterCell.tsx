@@ -114,7 +114,7 @@ const FooterCell = ({
             ref={setNodeRef} 
             className={`group/cell relative select-none overflow-visible ${column.id === "RowNumbering" ? "text-left" : "text-center"}`}
         >
-            <div className={`font-bold min-h-[1rem] flex flex-col ${column.id === "RowNumbering" ? "items-start justify-start pl-2" : "text-nowrap text-ellipsis items-center justify-center"}`}>
+            <div className={`text-label text-strong min-h-[1rem] flex flex-col ${column.id === "RowNumbering" ? "items-start justify-start pl-2" : "text-nowrap text-ellipsis items-center justify-center"}`}>
                 {children}
             </div>
             {/* Pin handle */}

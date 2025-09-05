@@ -205,7 +205,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     onOpenChange={setIsPopoverOpen}
                 >
                     <div
-                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-sm font-medium text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
+                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-label text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
                     >
                         {tileName}{tileUIState?.loading && <Loader2 className="animate-spin ml-2 inline-block" size={16} />}
                     </div>
@@ -215,7 +215,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                         <PopoverTrigger asChild>
                              <div role="button">
                                 <Tooltip content={`Context: ${context}`}>
-                                    <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
+                                    <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-body font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
                                         <FolderTree size={16} />
                                         <span className="truncate">{truncatePath(context)}</span>
                                     </Badge>
@@ -225,7 +225,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                         <PopoverContent className="w-80 z-50">
                             {/* Renaming section, mimicking TileInfoPalette */}
                             <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                                <span className="text-sm text-muted-foreground min-w-12">Name</span>
+                                                                        <span className="text-label text-muted-foreground min-w-12">Name</span>
                                 {isContextEditing ? (
                                     <div className="flex items-center gap-1 flex-1">
                                         <Input
@@ -235,7 +235,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                                                 if (e.key === 'Enter') handleRenameContext();
                                                 if (e.key === 'Escape') handleCancelContextEdit();
                                             }}
-                                            className="h-7 text-xs flex-1"
+                                            className="h-7 text-caption flex-1"
                                             autoFocus
                                         />
                                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleRenameContext}>
@@ -247,8 +247,8 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 flex-1">
-                                        <span className="text-sm flex-1 truncate" title={context}>{truncatePath(context)}</span>
-                                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setIsContextEditing(true)}>
+                                        <span className="text-body flex-1 truncate" title={context}>{truncatePath(context)}</span>
+                                        <Button size="sm" variant="outline" className="h-7 px-2 text-caption" onClick={() => setIsContextEditing(true)}>
                                             Edit
                                         </Button>
                                     </div>
@@ -293,7 +293,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                 )}
                 {columnContext && tileType == "Table" && (
                     <Tooltip content={`Column context: ${columnContext}`}>
-                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-sm font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-body font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={16} />
                             <span className="truncate">{truncatePath(columnContext)}</span>
                             <ActionButton

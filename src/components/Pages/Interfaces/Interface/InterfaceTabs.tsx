@@ -316,7 +316,7 @@ const InterfaceTabs = ({
                                     style={triggerStyle}
                                     key={idx}
                                     value={tabNameToShow}
-                                    className="relative flex flex-row gap-2 text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:bg-transparent hover:bg-transparent transition-colors"
+                                    className="relative flex flex-row gap-2 text-muted-foreground hover:text-foreground data-[state=active]:text-primary data-[state=active]:text-strong data-[state=active]:bg-transparent hover:bg-transparent transition-colors"
                                     
                                 >
                                     <div className="h-5 min-w-[4rem] text-center relative" onClick={() => handleTabClick(tabNameToShow)}>
@@ -446,7 +446,7 @@ const InterfaceTabs = ({
                                                         autoFocus
                                                     />
                                                     {renameError && (
-                                                        <p className="text-xs text-destructive mt-1">{renameError}</p>
+                                                        <p className="text-caption text-destructive mt-1">{renameError}</p>
                                                     )}
                                                 </div>
                                             </div>

@@ -76,8 +76,8 @@ export function AssistantEdit({
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
                     <div className="flex items-start justify-between">
                         <div>
-                            <DialogTitle>Edit {displayName}</DialogTitle>
-                            <DialogDescription>
+                            <DialogTitle className="text-title">Edit {displayName}</DialogTitle>
+                            <DialogDescription className="text-subtitle">
                                 Modify your assistant details.
                             </DialogDescription>
                         </div>

@@ -1,15 +1,11 @@
 import { Body, Button, Column, Container, Font, Head, Heading, Html, Img, Preview, Row, Section, Tailwind } from "@react-email/components";
-import { Inter } from "next/font/google";
+
 
 interface LoginVerifyProps {
     url: string;
 }
 
-const inter = Inter({
-    weight: "400",
-    subsets: ["latin"],
-    display: "swap",
-});
+/* Using @react-email/components <Font> and hosted Google CSS is sufficient for emails; next/font is not necessary here. */
 
 const LoginVerify = ({ url }: LoginVerifyProps) => {
     return (<Html lang="en" dir="ltr">
@@ -29,7 +25,7 @@ const LoginVerify = ({ url }: LoginVerifyProps) => {
                 <Preview>Verify your login</Preview>
             </Head>
             <Container className="max-w-full bg-[#f3f3f5]">
-                <div className={`${inter.className} my-7 mx-auto w-[640px]`}>
+                <div className={`my-7 mx-auto w-[640px]`}>
                     <Img src="https://cdn.saas.unify.ai/unify_logo.png" className="mb-10 mx-auto" height={72} width={277} alt="Unify" />
                     <div
                         className="text-center px-4 tracking-wider font-extralight bg-background"

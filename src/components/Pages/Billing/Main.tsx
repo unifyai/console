@@ -128,8 +128,8 @@ const Main = () => {
   return (
     <div className="space-y-6 p-8 w-fit">
       <div>
-        <h1 className="text-4xl font-bold text-foreground">Billing</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-h1 text-foreground">Billing</h1>
+        <p className="text-subtitle">
           Manage your credits balance and payment preferences.
         </p>
       </div>

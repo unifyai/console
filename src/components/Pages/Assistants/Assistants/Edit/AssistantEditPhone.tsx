@@ -101,7 +101,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                                 <Send className="h-4 w-4" />
                             </Button>
                         </div>
-                         {verificationError && <p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
+                         {verificationError && <p className="text-body text-strong text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
                     </div>
                     <div className="flex items-center gap-2 pt-0">
                         <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
@@ -113,7 +113,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                     </div>
                 </div>
             )}
-            {errors.user_phone && !isVerificationFlowActive && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+            {errors.user_phone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.user_phone.message}</p>}
         </div>
     );
 };
@@ -178,8 +178,8 @@ export function AssistantEditPhone({
         <Dialog open={isOpen} onOpenChange={!isSubmitting ? onClose : () => {}}>
             <DialogContent onInteractOutside={(e) => { if (isSubmitting) e.preventDefault(); }}>
                 <DialogHeader>
-                    <DialogTitle>Edit Phone Number for {displayName}</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-title">Edit Phone Number for {displayName}</DialogTitle>
+                    <DialogDescription className="text-subtitle">
                         Your assistant&apos;s number will be provisioned in the selected country. You may then contact them using the phone number you provide below.
                     </DialogDescription>
                 </DialogHeader>
@@ -188,7 +188,7 @@ export function AssistantEditPhone({
                     <div>
                         <div className="flex flex-row gap-2 items-center pb-1">
                             <Label htmlFor="country">Assistant Phone Country</Label>
-                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
+                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
                         </div>
                         <Select value={rhfCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => setValue("country", value, { shouldValidate: true })} disabled={isSubmitting || isLoadingCountries} >
                             <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
@@ -196,12 +196,12 @@ export function AssistantEditPhone({
                             </SelectTrigger>
                             <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                         </Select>
-                        {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                        {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
                     </div>
                     <div>
                         <div className="flex flex-row gap-2 items-center pb-1">
                             <Label htmlFor="user_phone">Your Phone</Label>
-                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
+                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
                         </div>
                         <PhoneVerificationSection assistantActions={assistantActions} />
                     </div>

@@ -80,7 +80,7 @@ const SelectionCommand = ({
                         />
                     </div>
                     {filteredItems.length === 0 ? (
-                        <div className="text-center text-sm py-2 px-2">No results found.</div>
+                        <div className="text-center text-body py-2 px-2">No results found.</div>
                     ) : (
                         <div className="max-h-60 overflow-y-auto">
                            {Object.entries(tree.children).sort((a, b) => a[0].localeCompare(b[0])).map(([name, node], idx) => (

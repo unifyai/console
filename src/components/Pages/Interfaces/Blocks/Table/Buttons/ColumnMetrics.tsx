@@ -9,7 +9,7 @@ import { DropdownMenuCheckboxItem } from "@/components/UI/dropdown-menu";
 import { metrics } from "@/constants/logs";
 import { ChevronDown, LoaderCircle } from "lucide-react";
 import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
-import { withDelayedLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showLoadingToast, showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { useTableMetricsQuery, useInvalidateTableMetrics } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useTileData } from "@/contexts/hooks";
 import { LogsActions } from "@/types/interfaces/grid";
@@ -103,30 +103,23 @@ const ColumnMetrics = ({
         setLoading(false);
     }, [logs])
     
-    const onClick = async (metric_: string) => {
+    const onClick = (metric_: string) => {
+        const loadingId = showLoadingToast("Updating metric...");
         try {
-            const { showSuccess } = await withDelayedLoadingToast(
-                async () => {
-                    // Reset current metrics to trigger loading state
-                    resetMetrics();
-                    setLoading(true);
-                    
-                    // Set the new metric (this will trigger background refetch)
-                    setMetric(metric_);
-                },
-                {
-                    loading: "Updating metric...",
-                    success: `Metric changed to ${metric_}.`,
-                    error: "Failed to change metric."
-                }
-            );
+            // Reset current metrics to trigger loading state
+            resetMetrics();
+            setLoading(true);
             
+            // Set the new metric (this will trigger background refetch)
+            setMetric(metric_);
+
             // Store the success function to call later when metrics are loaded
-            showSuccessRef.current = showSuccess;
+            showSuccessRef.current = () => showSuccessToast(`Metric changed to ${metric_}.`, undefined, loadingId);
             
         } catch (error) {
             setLoading(false);
             showSuccessRef.current = null;
+            showErrorToast(error, "Failed to change metric.", loadingId);
         }
     }
 

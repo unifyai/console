@@ -118,7 +118,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                                 <Send className="h-4 w-4" />
                             </Button>
                         </div>
-                         {verificationError && <p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
+                         {verificationError && <p className="text-body text-strong text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
                     </div>
                     <div className="flex items-center gap-2 pt-0">
                         <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
@@ -130,7 +130,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                     </div>
                 </div>
             )}
-            {errors.user_phone && !isVerificationFlowActive && <p className="text-sm font-medium text-destructive mt-1">{errors.user_phone.message}</p>}
+            {errors.user_phone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.user_phone.message}</p>}
         </div>
     );
 };
@@ -427,10 +427,10 @@ export function HireForm({
                         
                         {/* Profile Section */}
                         <AccordionItem value="profile">
-                            <AccordionTrigger className="text-base font-semibold">
+                            <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <User className="h-4 w-4"/>
-                                    <span>Profile</span>
+                                    <span className="text-body">Profile</span>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
@@ -451,7 +451,7 @@ export function HireForm({
                                                 return isDuplicate ? "An assistant with this full name already exists." : true;
                                             }
                                         })} disabled={isEditMode} />
-                                        {errors.first_name && <p className="text-sm font-medium text-destructive mt-1">{errors.first_name.message}</p>}
+                                        {errors.first_name && <p className="text-body text-strong text-destructive mt-1">{errors.first_name.message}</p>}
                                         </div>
                                         <div className="col-span-2 sm:col-span-1">
                                         <Label htmlFor="surname">Last Name</Label>
@@ -468,12 +468,12 @@ export function HireForm({
                                                 return isDuplicate ? "An assistant with this full name already exists." : true;
                                             }
                                         })} disabled={isEditMode} />
-                                        {errors.surname && <p className="text-sm font-medium text-destructive mt-1">{errors.surname.message}</p>}
+                                        {errors.surname && <p className="text-body text-strong text-destructive mt-1">{errors.surname.message}</p>}
                                         </div>
                                         <div className="col-span-2 sm:col-span-1">
                                         <Label htmlFor="age">Age</Label>
                                         <Input id="age" type="number" {...register("age", { valueAsNumber: true, min: { value: 18, message: "Age must be at least 18" }, max: { value: 70, message: "Age must be 70 or less" } })} disabled={isEditMode} />
-                                        {errors.age && <p className="text-sm font-medium text-destructive mt-1">{errors.age.message}</p>}
+                                        {errors.age && <p className="text-body text-strong text-destructive mt-1">{errors.age.message}</p>}
                                         </div>
                                         <div className="col-span-2 sm:col-span-1">
                                             <Label htmlFor="region">Region</Label>
@@ -493,7 +493,7 @@ export function HireForm({
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {errors.region && <p className="text-sm font-medium text-destructive mt-1">{errors.region.message}</p>}
+                                            {errors.region && <p className="text-body text-strong text-destructive mt-1">{errors.region.message}</p>}
                                         </div>
                                     </div>
                                     <div className="flex flex-col w-full space-y-2 pt-1">
@@ -504,7 +504,7 @@ export function HireForm({
                                                 <TooltipTrigger asChild>
                                                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                                                 </TooltipTrigger>
-                                                <TooltipContent side="right" align="end" className="max-w-xs text-sm">
+                                                <TooltipContent side="right" align="end" className="max-w-xs text-caption">
                                                     <p>{staticSkillsText}</p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -516,7 +516,7 @@ export function HireForm({
                                             className="min-h-[100px] pr-8"
                                             {...register("about", { required: "About description is required" })}
                                         />
-                                        {errors.about && <p className="text-sm font-medium text-destructive mt-1">{errors.about.message}</p>}
+                                        {errors.about && <p className="text-body text-strong text-destructive mt-1">{errors.about.message}</p>}
                                     </div>
                                 </div>
                             </AccordionContent>
@@ -524,10 +524,10 @@ export function HireForm({
 
                         {/* Photo Section */}
                         <AccordionItem value="photo">
-                            <AccordionTrigger className="text-base font-semibold">
+                            <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <ImageIcon className="h-4 w-4"/>
-                                    <span>Appearance</span>
+                                    <span className="text-body">Appearance</span>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
@@ -565,10 +565,10 @@ export function HireForm({
 
                         {/* Voice Section */}
                         <AccordionItem value="voice">
-                             <AccordionTrigger className="text-base font-semibold">
+                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Volume2 className="h-4 w-4"/>
-                                    <span>Voice</span>
+                                    <span className="text-body">Voice</span>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
@@ -591,18 +591,18 @@ export function HireForm({
                                     fetchUserVoices={fetchUserVoices}
                                     handleDeleteVoice={handleDeleteVoice}
                                 />
-                                {errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_id.message}</p>}
-                                {errors.voice_language && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_language.message}</p>}
-                                {errors.voice_provider && !errors.voice_id && <p className="text-sm font-medium text-destructive mt-1">{errors.voice_provider.message}</p>}
+                                {errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_id.message}</p>}
+                                {errors.voice_language && !errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_language.message}</p>}
+                                {errors.voice_provider && !errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_provider.message}</p>}
                             </AccordionContent>
                         </AccordionItem>
                         
                         {/* Contact Section */}
                         <AccordionItem value="contact" className="border-b-0">
-                            <AccordionTrigger className="text-base font-semibold">
+                            <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Smartphone className="h-4 w-4"/>
-                                    <span>Contact</span>
+                                    <span className="text-body">Contact</span>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
@@ -627,7 +627,7 @@ export function HireForm({
                                                   />
                                                   <span
                                                       id="email_domain_part"
-                                                      className="px-3 py-2 bg-muted text-muted-foreground text-sm rounded-r-md border-l border-input select-none h-9 flex items-center" >
+                                                      className="px-3 py-2 bg-muted text-muted-foreground text-caption rounded-r-md border-l border-input select-none h-9 flex items-center" >
                                                       {EMAIL_DOMAIN_WITH_AT}
                                                   </span>
                                               </div>
@@ -645,7 +645,7 @@ export function HireForm({
                                                       return true;
                                                   }
                                               })} />
-                                              {errors.email && <p className="text-sm font-medium text-destructive mt-1">{errors.email.message}</p>}
+                                              {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
                                           </div>
                                       )}
                                      <div className={cn("col-span-2", mode === 'hire' ? "sm:col-span-1" : "sm:col-span-2", "flex flex-col gap-2")}>
@@ -657,14 +657,14 @@ export function HireForm({
                                                          <Phone className="h-4 w-4 text-muted-foreground" />
                                                          <Label>Phone Number</Label>
                                                      </div>
-                                                     <Button type="button" variant="ghost" size="sm" onClick={handleRemovePhone} className="h-auto p-1 text-xs font-semibold text-muted-foreground hover:text-destructive">Remove</Button>
+                                                     <Button type="button" variant="ghost" size="sm" onClick={handleRemovePhone} className="h-auto p-1 text-caption text-strong text-muted-foreground hover:text-destructive">Remove</Button>
                                                   </div>
                                                  <div className="space-y-4 rounded-lg border p-4">
                                                      {mode === 'hire' && (
                                                          <div>
                                                              <div className="flex flex-row gap-2 items-center pb-1">
                                                                  <Label htmlFor="country">Assistant Phone</Label>
-                                                                 <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"Assistant phone number will be provisioned upon hiring."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                                 <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"Assistant phone number will be provisioned upon hiring."}</p></TooltipContent></Tooltip></TooltipProvider>
                                                              </div>
                                                              <Select value={rhfCountry} onValueChange={(value) => setValue("country", value, { shouldValidate: true })} disabled={isSubmitting || isLoadingCountries} >
                                                                  <SelectTrigger id="country" {...register("country", { required: isPhoneNumberAdded ? "Phone number country is required." : false })}>
@@ -672,13 +672,13 @@ export function HireForm({
                                                                  </SelectTrigger>
                                                                  <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                                                              </Select>
-                                                             {errors.country && <p className="text-sm font-medium text-destructive mt-1">{errors.country.message}</p>}
+                                                             {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
                                                          </div>
                                                      )}
                                                      <div>
                                                          <div className="flex flex-row gap-2 items-center pb-1">
                                                              <Label htmlFor="user_phone">Your Phone</Label>
-                                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-sm"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
                                                          </div>
                                                          <PhoneVerificationSection assistantActions={assistantActions} />
                                                      </div>
@@ -727,10 +727,10 @@ export function HireForm({
                                                                  key={platform.name}
                                                                  onSelect={() => handleAddSocialAccount(platform.name)}
                                                                  disabled={fields.some(f => f.platform === platform.name)}
-                                                                 className="capitalize flex justify-between"
+                                                                 className="capitalize flex justify-between text-body"
                                                              >
                                                                  <span>{platform.name}</span>
-                                                                 <span className="text-muted-foreground text-xs">{platform.cost.toFixed(2)} credits</span>
+                                                                 <span className="text-muted-foreground text-caption">{platform.cost.toFixed(2)} credits</span>
                                                              </DropdownMenuItem>
                                                          ))
                                                      ) : (<DropdownMenuItem disabled>No platforms available.</DropdownMenuItem>)}

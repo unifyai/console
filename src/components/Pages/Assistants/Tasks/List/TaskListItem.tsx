@@ -81,7 +81,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                 break;
         }
         return (
-            <span className={cn("flex items-center justify-center text-xs capitalize", textColor)}>
+            <span className={cn("flex items-center justify-center text-caption capitalize", textColor)}>
                 {icon}
                 {p}
             </span>
@@ -160,7 +160,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                      "grid-cols-[minmax(0,_1fr)_90px_110px_100px]" // Name | Priority | Deadline | Status
                  )}>
                     <div className="min-w-0 overflow-hidden">
-                        <span className="font-medium text-sm break-words truncate" title={task.name}>
+                        <span className="text-body text-strong break-words truncate" title={task.name}>
                             {task.name}
                         </span>
                     </div>
@@ -180,7 +180,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                         </TooltipProvider>
                     </div>
 
-                    <div className="text-xs text-muted-foreground text-center truncate">
+                    <div className="text-caption text-muted-foreground text-center truncate">
                         <TooltipProvider delayDuration={100}>
                              <Tooltip>
                                 <TooltipTrigger asChild>
@@ -223,7 +223,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                             placeholder="Task description..."
                             disabled={isSaving}
                             className={cn(
-                                "text-sm text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 resize-none w-full block",
+                                "text-body text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 resize-none w-full block",
                                 "!border-0 !outline-none !ring-0 !shadow-none p-2",
                                 "min-h-[80px]", 
                                 isEditing ? "bg-background" : "bg-transparent"
@@ -257,7 +257,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                         </div>
                      )}
                     {saveError && (
-                         <p className="text-xs text-destructive mt-1 px-1 absolute -bottom-5 left-1">
+                         <p className="text-caption text-destructive mt-1 px-1 absolute -bottom-5 left-1">
                              Error: {saveError}
                          </p>
                      )}

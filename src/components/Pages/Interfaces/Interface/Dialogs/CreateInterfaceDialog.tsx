@@ -93,7 +93,7 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
             />
           </div>
           {error && (
-            <p className="text-xs text-destructive">{error}</p>
+            <p className="text-caption text-destructive">{error}</p>
           )}
         </div>
       }

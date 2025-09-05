@@ -48,10 +48,10 @@ const UnlinkedTileOverlay: React.FC<UnlinkedTileOverlayProps> = ({
                     </BaseDropdown>
                 ) : (
                     <div className="text-center">
-                        <p className="text-xs text-muted-foreground mb-2">
+                        <p className="text-caption text-muted-foreground mb-2">
                             No tables available to link
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-caption text-muted-foreground">
                             Create a Table tile first, then link this View tile to it
                         </p>
                     </div>

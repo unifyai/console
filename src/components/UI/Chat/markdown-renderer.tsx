@@ -94,7 +94,7 @@ export const CodeBlock = ({
       : childrenTakeAllStringContents(children)
 
   const preClass = cn(
-    "overflow-x-scroll rounded-md border bg-background/50 p-4 font-mono text-sm [scrollbar-width:none]",
+    "overflow-x-scroll rounded-md border bg-background/50 p-4 font-mono text-caption [scrollbar-width:none]",
     className
   )
 
@@ -140,12 +140,12 @@ function childrenTakeAllStringContents(element: any): string {
 }
 
 const COMPONENTS = {
-  h1: withClass("h1", "text-2xl font-semibold"),
-  h2: withClass("h2", "font-semibold text-xl"),
-  h3: withClass("h3", "font-semibold text-lg"),
-  h4: withClass("h4", "font-semibold text-base"),
-  h5: withClass("h5", "font-medium"),
-  strong: withClass("strong", "font-semibold"),
+  h1: withClass("h1", "text-h1"),
+  h2: withClass("h2", "text-h2"),
+  h3: withClass("h3", "text-h3"),
+  h4: withClass("h4", "text-title"),
+  h5: withClass("h5", "text-strong"),
+  strong: withClass("strong", "text-strong"),
   a: withClass("a", "text-primary underline underline-offset-2"),
   blockquote: withClass("blockquote", "border-l-2 border-primary pl-4"),
   code: ({ children, className, node, ...rest }: any) => {
@@ -175,7 +175,7 @@ const COMPONENTS = {
   ),
   th: withClass(
     "th",
-    "border border-foreground/20 px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right"
+    "border border-foreground/20 px-4 py-2 text-left text-strong [&[align=center]]:text-center [&[align=right]]:text-right"
   ),
   td: withClass(
     "td",

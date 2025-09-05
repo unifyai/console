@@ -177,10 +177,10 @@ export function AssistantHire ({
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-0">
                 {icon}
-                <h3 className="text-xl font-semibold mb-3">
+                <h3 className="text-h3 mb-3">
                     {userApprovalStatus === "pending" ? "Request Pending" : "Access Required"}
                 </h3>
-                <p className="text-muted-foreground mb-6">{message}</p>
+                <p className="text-body text-muted-foreground mb-6">{message}</p>
                 {showRequestButton && (
                     <Button onClick={onRequestAccess} disabled={isLoadingUserApproval}>
                         {isLoadingUserApproval ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -218,8 +218,8 @@ export function AssistantHire ({
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
                     <div className='flex items-start justify-between'>
                         <div className="flex flex-col gap-2">
-                            <DialogTitle>Hire Assistant</DialogTitle>
-                            <DialogDescription>
+                            <DialogTitle className="text-h3">Hire Assistant</DialogTitle>
+                            <DialogDescription className="text-subtitle">
                                 {isUserApproved ? "Hire an existing assistant or create your own." : "Request access to hire new assistants."}
                             </DialogDescription>
                         </div>
@@ -242,7 +242,7 @@ export function AssistantHire ({
                 {userApprovalStatus === 'loading' ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-0">
                         <Loader2 className="h-12 w-12 text-primary mb-4 animate-spin" />
-                        <p className="text-muted-foreground">Checking your access status...</p>
+                        <p className="text-body text-muted-foreground">Checking your access status...</p>
                     </div>
                 ) : !isUserApproved ? (
                     renderAccessMessage()
@@ -258,7 +258,7 @@ export function AssistantHire ({
                         >
                             <div className={cn("flex flex-col h-full w-full", layoutMode === 'right' && "invisible")}>
                                 <div className="flex items-center justify-between px-6 py-3.5 border-b flex-shrink-0">
-                                    <h3 className="text-lg font-semibold">Your Assistant</h3>
+                                    <h3 className="text-title">Your Assistant</h3>
                                     <div className="flex items-center gap-1">
                                         {layoutMode === "split" && 
                                             <TooltipProvider delayDuration={100}>
@@ -344,9 +344,9 @@ export function AssistantHire ({
                 )}
 
                 <DialogFooter className="px-6 py-3 border-t flex-shrink-0 flex items-center">
-                    <div className="text-sm mr-auto">
+                    <div className="text-body mr-auto">
                         <span className="text-muted-foreground">Total Onboarding Fee: </span>
-                        <span className="font-semibold">{totalOnboardingFee.toFixed(2)} Credits</span>
+                        <span className="text-strong">{totalOnboardingFee.toFixed(2)} Credits</span>
                     </div>
                     <div className="flex items-center gap-2">
                         {isUserApproved &&
@@ -403,9 +403,9 @@ export function AssistantHire ({
                                         <div className="space-y-2">
                                             <div className="flex items-center">
                                                 <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-                                                <h3 className="font-medium leading-none text-destructive">Insufficient Funds</h3>
+                                                <h3 className="text-title text-destructive">Insufficient Funds</h3>
                                             </div>
-                                            <p className="text-sm text-muted-foreground">
+                                            <p className="text-body text-muted-foreground">
                                                 Your required balance is ${totalOnboardingFee.toFixed(2)}. Please recharge your account.
                                             </p>
                                         </div>

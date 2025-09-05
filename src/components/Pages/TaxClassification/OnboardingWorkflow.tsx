@@ -12,6 +12,7 @@ import TaxClassificationForm from './TaxClassificationForm';
 import NewsletterPreferencesForm from './NewsletterPreferencesForm';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { TaxClassificationFormData, UserBusinessStatusResponse } from '@/types/user';
+import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface ProfileData {
   name: string;
@@ -416,14 +417,14 @@ export default function OnboardingWorkflow() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-full bg-background flex flex-col min-w-0">
       {/* Header */}
       <div className="bg-card border-b flex-shrink-0">
         <div className="max-w-4xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold">Welcome to Unify</h1>
-              <p className="text-muted-foreground mt-2">Let&apos;s get your account set up</p>
+              <h1 className="text-h2">Welcome to Unify</h1>
+              <p className="text-subtitle mt-2">Let&apos;s get your account set up</p>
             </div>
             <div className="text-sm text-muted-foreground">
               Step {currentStep + 1} of {ONBOARDING_STEPS.length}
@@ -444,8 +445,8 @@ export default function OnboardingWorkflow() {
                     {(index < currentStep || (index === 0 && existingUser) || (index === 1 && existingBusinessStatus)) ? <CheckCircle className="w-4 h-4" /> : index + 1}
                   </div>
                   <div className="text-xs text-center mt-2">
-                    <div className="font-medium">{step.title}</div>
-                    <div className="text-muted-foreground">{step.description}</div>
+                    <div className="text-label">{step.title}</div>
+                    <div className="text-muted">{step.description}</div>
                   </div>
                 </div>
               ))}
@@ -455,35 +456,37 @@ export default function OnboardingWorkflow() {
       </div>
 
       {/* Content */}
-      <main className="flex-grow overflow-y-auto">
-        <div className="max-w-4xl w-full mx-auto px-6 py-6">
-          <Card className="w-full">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-2xl">{currentStepData.title}</CardTitle>
-              <CardDescription className="text-base">{currentStepData.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Global Error */}
-              {error && (
-                <Alert variant="destructive" className="mb-6">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+      <main className="flex-grow min-h-0 overflow-hidden">
+        <div className="max-w-4xl w-full mx-auto px-6 py-6 h-full flex flex-col min-h-0">
+          <ScrollArea className="flex-1">
+            <Card className="w-full">
+              <CardHeader className="pb-6">
+                <CardTitle className="text-h3">{currentStepData.title}</CardTitle>
+                <CardDescription className="text-body">{currentStepData.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Global Error */}
+                {error && (
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertDescription className="text-body">{error}</AlertDescription>
+                  </Alert>
+                )}
 
-              {/* Show helpful message about pre-populated data */}
-              {(existingUser || existingBusinessStatus) && currentStep < 2 && (
-                <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
-                  <CheckCircle className="h-4 w-4 text-blue-600" />
-                  <AlertDescription>
-                    We&apos;ve pre-populated this form with your existing information. Please review and update as needed.
-                  </AlertDescription>
-                </Alert>
-              )}
+                {/* Show helpful message about pre-populated data */}
+                {(existingUser || existingBusinessStatus) && currentStep < 2 && (
+                  <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-body">
+                      We&apos;ve pre-populated this form with your existing information. Please review and update as needed.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-              {/* Step Content */}
-              {renderStepContent()}
-            </CardContent>
-          </Card>
+                {/* Step Content */}
+                {renderStepContent()}
+              </CardContent>
+            </Card>
+          </ScrollArea>
         </div>
       </main>
 

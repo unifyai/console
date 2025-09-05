@@ -238,7 +238,7 @@ const FocusDialog = ({
         <div className="w-full h-full flex flex-col box-border">
             {/* Toolbar */}
             <div className="flex items-center gap-4 p-2 border-b bg-background/80">
-                <h2 className="text-lg font-semibold">Focus Mode</h2>
+                <h2 className="text-title">Focus Mode</h2>
                 <ActionButton
                     tooltip="Add split screen"
                     icon={<Plus />}

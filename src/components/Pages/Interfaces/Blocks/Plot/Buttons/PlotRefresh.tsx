@@ -10,8 +10,7 @@ import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpda
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
-import { showLoadingToast, showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 // Helper function to fetch latest timestamps for plot tables
 function fetchLatestTimestamps(
@@ -193,7 +192,7 @@ const PlotRefresh = ({
     setIsManualFetching(true);
 
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         async () => {
           // Get current plot arguments from cache
           const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
@@ -216,9 +215,9 @@ const PlotRefresh = ({
           }
         },
         {
-          loading: "Refreshing plot data...",
-          success: "Plot data refreshed successfully!",
-          error: "Failed to refresh plot data."
+          loadingMessage: "Refreshing plot data...",
+          successMessage: "Plot data refreshed successfully!",
+          errorMessage: "Failed to refresh plot data."
         }
       );
     } catch (error: any) {

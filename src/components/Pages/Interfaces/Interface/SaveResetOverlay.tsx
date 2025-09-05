@@ -91,12 +91,12 @@ const SaveResetOverlay: React.FC<SaveResetOverlayProps> = ({
           
           {/* Main message */}
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">
+            <h3 className="text-title text-foreground">
               {getStatusText()}
             </h3>
             
             {/* Sub message */}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               {getSubText()}
             </p>
           </div>

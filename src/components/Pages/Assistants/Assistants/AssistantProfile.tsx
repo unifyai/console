@@ -58,7 +58,7 @@ const CopyableContact: React.FC<{ value: string; type: 'Email' | 'Phone' | 'What
                 <TooltipTrigger asChild>
                     <div className="flex items-center gap-2 cursor-pointer" onClick={handleCopy}>
                         {isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        <span className="truncate mb-0.5">{value || 'N/A'}</span>
+                        <span className="truncate mb-0.5 text-body">{value || 'N/A'}</span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
@@ -83,7 +83,7 @@ const AccordionTriggerWithButtons = React.forwardRef<
     >
         <div className="flex items-center justify-between w-full px-4">
             <div className="flex items-center gap-2">
-                <div className="flex-grow text-left">{children}</div>
+                <div className="flex-grow text-left text-title">{children}</div>
                 <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
             </div>
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -201,7 +201,7 @@ export function AssistantProfilePanel({
                         {/* Profile Section */}
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
-                                className="text-base font-semibold"
+                                className="text-title"
                                 buttonSlot={
                                     <TooltipProvider delayDuration={100}>
                                         <Tooltip>
@@ -219,7 +219,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <User className="h-4 w-4" />
-                                    <span>{`${assistant.first_name}'s Profile`}</span>
+                                    <span className="text-body">{`${assistant.first_name}'s Profile`}</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                             <AccordionContent>
@@ -255,26 +255,26 @@ export function AssistantProfilePanel({
                                                 </PopoverContent>
                                             )}
                                         </Popover>
-                                        <div className="grid grid-cols-2 gap-x-4 pt-1 text-sm flex-1">
-                                            <span className="text-muted-foreground">First Name</span>
+                                        <div className="grid grid-cols-2 gap-x-4 pt-1 text-body flex-1">
+                                            <span className="text-caption text-muted-foreground">First Name</span>
                                             <span>{assistant.first_name}</span>
-                                            <span className="text-muted-foreground">Last Name</span>
+                                            <span className="text-caption text-muted-foreground">Last Name</span>
                                             <span>{assistant.surname}</span>
-                                            <span className="text-muted-foreground">Age</span>
+                                            <span className="text-caption text-muted-foreground">Age</span>
                                             <span>{assistant.age ?? 'N/A'}</span>
-                                            <span className="text-muted-foreground">Region</span>
+                                            <span className="text-caption text-muted-foreground">Region</span>
                                             <span>{assistant.region ?? 'N/A'}</span>
                                         </div>
                                     </div>
                                     <div className="px-4 sm:px-6 space-y-2 group">
-                                        <h3 className="text-sm font-semibold">About Me</h3>
-                                        <div className="text-sm text-muted-foreground prose prose-sm max-w-none prose-p:my-1">
+                                        <h3 className="text-title">About Me</h3>
+                                        <div className="text-body text-muted-foreground prose max-w-none prose-p:my-1">
                                             <Markdown>{assistant.about || "No description provided."}</Markdown>
                                         </div>
                                     </div>
                                     <div className="px-4 sm:px-6 space-y-3 group/assistant-contact">
-                                        <h3 className="text-sm font-semibold">My Contact</h3>
-                                        <div className="grid text-xs gap-4 grid-cols-2">
+                                        <h3 className="text-title">My Contact</h3>
+                                        <div className="grid text-caption gap-4 grid-cols-2">
                                             <div className="space-y-2">
                                                 {assistant.email && <CopyableContact value={assistant.email} type="Email" icon={<Mail className="h-4 w-4 text-muted-foreground" />} />}                                                
                                                 {assistant.phone ? (
@@ -286,7 +286,7 @@ export function AssistantProfilePanel({
                                                             type="button"
                                                             variant="ghost"
                                                             size="sm"
-                                                            className="w-fit items-center flex h-5 px-1"
+                                                            className="w-fit items-center flex h-5 px-1 text-caption"
                                                             onClick={() => onOpenPhoneEditDialog(assistant)}
                                                         > 
                                                             Add phone number 
@@ -307,7 +307,7 @@ export function AssistantProfilePanel({
                                                                         type="button"
                                                                         variant="link"
                                                                         size="sm"
-                                                                        className="w-fit items-center flex h-5"
+                                                                        className="w-fit items-center flex h-5 text-caption"
                                                                         onClick={handleStartMeet}
                                                                     >
                                                                         Start Google Meet
@@ -329,7 +329,7 @@ export function AssistantProfilePanel({
                                                                         type="button"
                                                                         variant="link"
                                                                         size="sm"
-                                                                        className="w-fit items-center flex h-5"
+                                                                        className="w-fit items-center flex h-5 text-caption"
                                                                         onClick={handleStartMeet}
                                                                         disabled
                                                                     >
@@ -351,7 +351,7 @@ export function AssistantProfilePanel({
                                                                         type="button"
                                                                         variant="link"
                                                                         size="sm"
-                                                                        className="w-fit items-center flex h-5"
+                                                                        className="w-fit items-center flex h-5 text-caption"
                                                                         onClick={handleStartMeet}
                                                                         disabled
                                                                     >
@@ -373,7 +373,7 @@ export function AssistantProfilePanel({
                         {/* Chat Section */}
                         <AccordionItem value="chat" className="flex-1 flex flex-col min-h-0">
                             <AccordionTriggerWithButtons
-                                className="text-base font-semibold"
+                                className="text-title"
                                 buttonSlot={
                                     <TooltipProvider delayDuration={100}>
                                         <Tooltip>
@@ -391,7 +391,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <MessageSquare className="h-4 w-4" />
-                                    <span>Chat with {assistant.first_name}</span>
+                                    <span className="text-body">Chat with {assistant.first_name}</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent
@@ -455,7 +455,7 @@ export function AssistantProfilePanel({
                 <DialogContent className="max-w-6xl h-[80vh] flex flex-col p-0 gap-0" hideClose >
                      <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
                         <div className="flex items-start justify-between">
-                            <DialogTitle>Chat with {displayName}</DialogTitle>
+                            <DialogTitle className="text-title">Chat with {displayName}</DialogTitle>
                             <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0 -mt-1" onClick={() => setIsChatMaximized(false)}>
                                 <Minus className="h-4 w-4" />
                                 <span className="sr-only">Minimize Chat</span>

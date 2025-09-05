@@ -6,8 +6,7 @@ import { LogsActions, FieldsActions, ProjectsActions, ContextActions, GranularTi
 import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
-import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showErrorToast, showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 const RefreshLogs = ({ 
   tileId, 
@@ -147,7 +146,7 @@ const RefreshLogs = ({
     setIsManualFetching(true);
     
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         async () => {
           // Get latest timestamp first
           const latest = await logsActions.getLatest(
@@ -188,9 +187,9 @@ const RefreshLogs = ({
           }
         },
         {
-          loading: "Refreshing logs...",
-          success: "Logs refreshed successfully!",
-          error: "Failed to refresh logs."
+          loadingMessage: "Refreshing logs...",
+          successMessage: "Logs refreshed successfully!",
+          errorMessage: "Failed to refresh logs."
         }
       );
     } catch (error: any) {

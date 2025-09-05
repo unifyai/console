@@ -69,19 +69,19 @@ export function AssistantListItem({
                              <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                          </Avatar>
                          <div className="space-y-1 flex-1">
-                             <h4 className="text-sm font-semibold">{displayName}</h4>
-                             <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                             <h4 className="text-title">{displayName}</h4>
+                             <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                  <Mail className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                 <a href={`mailto:${assistant.email}`} className="truncate hover:underline">
+                                 <a href={`mailto:${assistant.email}`} className="truncate text-link">
                                      {assistant.email}
                                  </a>
                              </div>
-                             <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                             <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                  <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
                                  <span className="truncate">{assistant.phone}</span>
                              </div>
                              {assistant.assistant_whatsapp_number && (
-                                 <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                      <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
                                      <span className="truncate">{assistant.assistant_whatsapp_number}</span>
                                  </div>
@@ -127,19 +127,19 @@ export function AssistantListItem({
                                  <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                              </Avatar>
                              <div className="space-y-1 flex-1">
-                                 <h4 className="text-sm font-semibold">{displayName}</h4>
-                                 <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                                 <h4 className="text-title">{displayName}</h4>
+                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                      <Mail className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                     <a href={`mailto:${assistant.email}`} className="truncate hover:underline">
+                                     <a href={`mailto:${assistant.email}`} className="truncate text-link">
                                          {assistant.email}
                                      </a>
                                  </div>
-                                 <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                      <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
                                      <span className="truncate">{assistant.phone}</span>
                                  </div>
                                  {assistant.assistant_whatsapp_number && (
-                                     <div className="flex items-center pt-1 text-xs text-muted-foreground">
+                                     <div className="flex items-center pt-1 text-caption text-muted-foreground">
                                          <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
                                          <span className="truncate">{assistant.assistant_whatsapp_number}</span>
                                      </div>
@@ -148,7 +148,7 @@ export function AssistantListItem({
                          </div>
                     </HoverCardContent>
                 </HoverCard>
-                <span className="text-sm font-medium truncate">{displayName}</span>
+                <span className="text-body text-strong truncate">{displayName}</span>
             </div>
         </div>
     );

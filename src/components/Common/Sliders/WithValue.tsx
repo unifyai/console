@@ -98,7 +98,7 @@ const SliderWithValue = ({label, ticks, value: initialValue, setValue, max, min,
         </div>
         <div className="flex flex-col grow w-full px-2">
             <span
-                className="mb-2 flex w-full items-center justify-between gap-2 text-xs font-medium text-muted-foreground"
+                className="mb-2 flex w-full items-center justify-between gap-2 text-caption text-strong text-muted-foreground"
                 aria-hidden="true"
             >
                 <span>{minimum}</span>

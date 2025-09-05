@@ -328,7 +328,7 @@ const PlotSettings = ({
             {/* Fixed Tooltip and Grouping Key */}
             <div className="flex flex-col gap-2 px-3 pb-4">
               {/* Fixed Tooltip Container */}
-              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-caption transition-all duration-200 ease-in-out ${
                 isTooltipMinimized 
                   ? 'h-10 overflow-hidden px-2 py-1' 
                   : 'p-3'

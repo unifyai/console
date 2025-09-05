@@ -107,7 +107,7 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                     <Label className="capitalize">{platform}</Label>
                 </div>
                 {!account.isInitial && (
-                    <Button type="button" variant="ghost" size="sm" className="h-auto p-1 text-xs font-semibold text-muted-foreground hover:text-destructive" onClick={() => onRemove(index)} disabled={isVerifying}>Remove</Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-auto p-1 text-caption text-strong text-muted-foreground hover:text-destructive" onClick={() => onRemove(index)} disabled={isVerifying}>Remove</Button>
                 )}
             </div>
             <div className="space-y-2 rounded-lg border p-4">
@@ -156,7 +156,7 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                                 <Send className="h-4 w-4" />
                             </Button>
                         </div>
-                         {verificationError && <p className="text-sm font-medium text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
+                         {verificationError && <p className="text-body text-strong text-destructive mt-1 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />{verificationError}</p>}
                     </div>
                     <div className="flex items-center gap-2 pt-0">
                         <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => handleVerifyClick(true)} disabled={cooldown > 0}>
@@ -169,7 +169,7 @@ export const SocialAccountInput: React.FC<SocialAccountInputProps> = ({
                 </div>
                 )}
                 {socialAccountErrors && !isVerificationFlowActive ? (
-                    <p className="text-sm font-medium text-destructive mt-1">{socialAccountErrors.message}</p>
+                    <p className="text-body text-strong text-destructive mt-1">{socialAccountErrors.message}</p>
                 ) : null}
             </div>
         </div>

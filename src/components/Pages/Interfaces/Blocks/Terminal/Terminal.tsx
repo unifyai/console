@@ -94,7 +94,7 @@ export default function Terminal({
     if (started) return;
 
     /* xterm setup */
-    const term = new XTerm({ fontFamily: "monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
+    const term = new XTerm({ fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current!);
@@ -266,7 +266,7 @@ export default function Terminal({
 
       {/* ----- terminal area ----- */}
       <div className="flex-1 overflow-hidden">
-        <div ref={containerRef} className="w-full h-full" />
+        <div ref={containerRef} className="w-full h-full font-mono" />
       </div>
     </div>
   );

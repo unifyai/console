@@ -98,7 +98,7 @@ const ContextContent = ({
             </div>
 
             {empty && (
-                <div className="text-center text-sm py-2 px-2">
+                <div className="text-center text-body py-2 px-2">
                     {searchQuery ? "No contexts match your search." : "No contexts found."}
                 </div>
             )}

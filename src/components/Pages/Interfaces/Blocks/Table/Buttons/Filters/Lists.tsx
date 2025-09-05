@@ -385,7 +385,7 @@ const ListColumnFilter = ({ interactive, column, columnFilters, setColumnFilterQ
                   rounded-sm
                   px-2
                   py-1.5
-                  text-sm
+                  text-body
                   outline-none
                   transition-colors
                   focus:bg-accent

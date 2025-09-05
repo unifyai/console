@@ -267,7 +267,7 @@ const DataTableCell = ({
 
   const renderEditor = () => {
     const overlayCls = "absolute inset-0 flex items-center";
-    const commonCls = "w-full h-full px-2 py-0 text-sm bg-background text-foreground outline-none border-0 focus:ring-0 focus:outline-none box-border";
+    const commonCls = "w-full h-full px-2 py-0 text-body bg-background text-foreground outline-none border-0 focus:ring-0 focus:outline-none box-border";
     // Choose widget per dataType
     if (dataType === "number") {
       return (
@@ -289,7 +289,7 @@ const DataTableCell = ({
     if (dataType === "image" || dataType === "audio" || dataType === "pdf") {
       // Non-editable rich types
       return (
-        <div className="w-full h-full flex items-center text-xs text-muted-foreground">Editing not supported for this type</div>
+        <div className="w-full h-full flex items-center text-caption text-muted-foreground">Editing not supported for this type</div>
       );
     }
     const isMultiline = typeof draftValue === 'object' || (typeof draftValue === 'string' && draftValue.length > 100);

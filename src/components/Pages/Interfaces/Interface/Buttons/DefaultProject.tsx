@@ -209,7 +209,7 @@ const DefaultProject = ({
                                 <Badge variant="primary">{demo.replaceAll("/", " / ")}</Badge>
                             </div>}
                         </div>
-                        <div className="text-sm font-semibold w-[600px]">
+                        <div className="text-body text-strong w-[600px]">
                             {demoDescription}
                         </div>
                         <div className="flex flex-col gap-1 border p-1 rounded-lg">

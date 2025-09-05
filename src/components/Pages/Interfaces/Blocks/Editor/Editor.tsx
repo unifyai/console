@@ -290,7 +290,7 @@ const Editor = ({
 
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="flex flex-row items-center ml-4 my-2 text-sm gap-1">
+            <div className="flex flex-row items-center ml-4 my-2 text-body gap-1">
                 <Tooltip content="File Name" side="top">
                     <Input
                         value={tempFileName}
@@ -300,7 +300,7 @@ const Editor = ({
                             editorTileActions?.setFileName(e.target.value)
                         }}
                         placeholder="File Name"
-                        className="text-sm w-24"
+                        className="text-body w-24"
                     />
                 </Tooltip>
                 .
@@ -312,7 +312,7 @@ const Editor = ({
                         editorTileActions?.setFileType(e.target.value);
                     }}
                     placeholder="File Type"
-                    className="text-sm w-24"
+                    className="text-body w-24"
                     />
                 </Tooltip>
                 <div className="flex flex-row gap-1 mr-2">
@@ -450,8 +450,8 @@ const Editor = ({
                         />
                     )}
                 </div>
-                {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
-                {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
+                {uploading && <div className="text-body text-muted-foreground">Uploading...</div>}
+                {saved && <div className="text-primary text-body text-strong">File saved!</div>}
             </div>
             {tempFileType !== "env" ? (
             <CodeBlock

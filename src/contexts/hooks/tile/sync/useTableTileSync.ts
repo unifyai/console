@@ -8,8 +8,7 @@ import { useTileUI } from "../useTileUI";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showErrorToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 /**
  * Debug flag for state syncing logging
@@ -173,7 +172,7 @@ export function useTableTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => tableTypeMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -192,9 +191,9 @@ export function useTableTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Updating table type...",
-          success: "Table type updated!",
-          error: `Failed to set table type for ${tileName}`,
+          loadingMessage: "Updating table type...",
+          successMessage: "Table type updated!",
+          errorMessage: `Failed to set table type for ${tileName}`,
         }
       );
     } catch (error) {
@@ -227,7 +226,7 @@ export function useTableTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => sortingMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -246,9 +245,9 @@ export function useTableTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Applying sorting...",
-          success: "Sorting applied!",
-          error: `Failed to set sorting for ${tileName}`,
+          loadingMessage: "Applying sorting...",
+          successMessage: "Sorting applied!",
+          errorMessage: `Failed to set sorting for ${tileName}`,
         }
       );
     } catch (error) {
@@ -280,7 +279,7 @@ export function useTableTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => groupSortingMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -299,9 +298,9 @@ export function useTableTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Applying grouping...",
-          success: "Grouping applied successfully!",
-          error: `Failed to apply grouping for ${tileName}.`,
+          loadingMessage: "Applying grouping...",
+          successMessage: "Grouping applied successfully!",
+          errorMessage: `Failed to apply grouping for ${tileName}.`,
         }
       );
     } catch (error) {
@@ -494,7 +493,7 @@ export function useTableTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => pageNumberMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,   
@@ -513,9 +512,9 @@ export function useTableTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Changing page...",
-          success: "Page changed!",
-          error: `Failed to set page number for ${tileName}`,
+          loadingMessage: "Changing page...",
+          successMessage: "Page changed!",
+          errorMessage: `Failed to set page number for ${tileName}`,
         }
       );
     } catch (error) {

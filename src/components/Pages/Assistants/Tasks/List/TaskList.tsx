@@ -49,7 +49,7 @@ const ListFooter = React.memo(({ isLoadingMore }: { isLoadingMore: boolean }) =>
     return (
         <div className="flex justify-center items-center p-4">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading more tasks...</span>
+            <span className="ml-2 text-body text-muted-foreground">Loading more tasks...</span>
         </div>
     );
 });
@@ -171,7 +171,7 @@ export function TaskList({
                 ) : initialLoadError ? (
                      <div className="flex flex-col items-center justify-center pt-10 text-center h-full">
                          <WifiOff className="h-8 w-8 text-muted-foreground mb-3" />
-                         <p className="text-base font-medium text-muted-foreground">Could not load tasks</p>
+                         <p className="text-body text-strong text-muted-foreground">Could not load tasks</p>
                      </div>
                 ) : tasks.length > 0 ? (
                     <Virtuoso
@@ -187,7 +187,7 @@ export function TaskList({
                         className="scrollbar-thin scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent"
                      />
                 ) : (
-                    <p className="p-6 text-sm text-muted-foreground text-center">
+                    <p className="p-6 text-body text-muted-foreground text-center">
                         No tasks found matching criteria.
                     </p>
                 )}

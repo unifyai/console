@@ -227,7 +227,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     h-8 w-[90%]
     rounded-none border border-input 
     px-3 py-1 inset-0
-    text-base md:text-sm
+    text-body
     shadow-sm 
     transition-colors 
     caret-foreground

@@ -16,7 +16,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
         if (!isUser && isLoading && !message) {
             return (
                 <div className="flex items-center space-x-1 px-2 text-muted-foreground">
-                    <span className="text-sm">Typing</span>
+                    <span className="text-caption">Typing</span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce"></span>
@@ -34,7 +34,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
                     <AvatarFallback>{fallback}</AvatarFallback>
                 </Avatar>
             )}
-            <div className={cn("rounded-lg p-3 text-sm max-w-[85%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}>
+            <div className={cn("rounded-lg p-3 text-body max-w-[85%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}>
                 {bubbleContent()}
             </div>
         </div>

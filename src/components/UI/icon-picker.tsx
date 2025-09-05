@@ -264,7 +264,7 @@ const IconPicker = React.forwardRef<
         key={category.name}
         variant={"outline"}
         size="sm"
-        className="text-xs"
+        className="text-caption"
         onClick={(e) => {
           e.stopPropagation();
           scrollToCategory(category.name);
@@ -330,7 +330,7 @@ const IconPicker = React.forwardRef<
                 style={itemStyle}
                 className="top-0 bg-background z-10"
               >
-                <h3 className="font-medium text-sm capitalize select-none">
+                <h3 className="text-caption text-strong capitalize select-none">
                   {categorizedIcons[item.categoryIndex].name}
                 </h3>
                 <div className="h-[1px] bg-foreground/10 w-full" />

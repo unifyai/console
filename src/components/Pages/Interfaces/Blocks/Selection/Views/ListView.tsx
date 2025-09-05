@@ -464,7 +464,7 @@ function renderNoDiffMode(
                       <div key={gIdx}>
                         <div className="flex items-center gap-1 mb-1">
                           <RowBadge rowNumbers={group.rows} mode="none" />
-                           <span className="text-xs text-muted-foreground">
+                           <span className="text-caption text-muted-foreground">
                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                            </span>
                         </div>

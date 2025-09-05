@@ -11,8 +11,8 @@ export function PromptSuggestions({
 }: PromptSuggestionsProps) {
   return (
     <div className="space-y-6">
-      {label && <h2 className="text-center text-2xl font-bold">{label}</h2>}
-      <div className="flex gap-6 text-sm">
+      {label && <h2 className="text-center text-h2">{label}</h2>}
+      <div className="flex gap-6 text-body">
         {suggestions.map((suggestion) => (
           <button
             key={suggestion}

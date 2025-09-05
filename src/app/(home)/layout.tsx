@@ -15,10 +15,11 @@ import ThemeLoader from "@/components/Layout/ThemeLoader";
 import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
 import OnboardingGuard from "@/components/Pages/TaxClassification/OnboardingGuard";
+import { fontSans, fontMono } from "@/styles/fonts";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-screen overflow-hidden">
+    <html lang="en" suppressHydrationWarning className={`${fontSans.variable} ${fontMono.variable} h-screen overflow-hidden`}>
       <body className="h-screen w-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>

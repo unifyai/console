@@ -89,7 +89,7 @@ export default function TopNav() {
             <Link
               href="/assistants"
               className={cn(
-                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 pathname === '/assistants' || pathname.startsWith('/assistants/')
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
@@ -103,7 +103,7 @@ export default function TopNav() {
             <Link
               href="/interfaces"
               className={cn(
-                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
@@ -119,7 +119,7 @@ export default function TopNav() {
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "px-3 first:pl-0 py-1 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
             >
@@ -187,24 +187,24 @@ export default function TopNav() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium">{profileName}</p>
+                  <p className="text-label">{profileName}</p>
                 </div>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
-                <Link href="/profile" className="flex items-center hover:text-[color:var(--foreground)]">
+                <Link href="/profile" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <User className="mr-2 h-4 w-4" />
                   <span>{profileName}</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
-                <Link href="/billing" className="flex items-center hover:text-[color:var(--foreground)]">
+                <Link href="/billing" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Billing</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
-                <Link href="/keys" className="flex items-center hover:text-[color:var(--foreground)]">
+                <Link href="/keys" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <Key className="mr-2 h-4 w-4" />
                   <span>API Keys</span>
                 </Link>
@@ -215,7 +215,7 @@ export default function TopNav() {
                   e.preventDefault()
                   handleSignOut()
                 }}
-                className="text-[color:var(--destructive)] hover:bg-[color:var(--destructive)] hover:text-[color:var(--destructive-foreground)] cursor-pointer"
+                className="text-body text-[color:var(--destructive)] hover:bg-[color:var(--destructive)] hover:text-[color:var(--destructive-foreground)] cursor-pointer"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign out</span>

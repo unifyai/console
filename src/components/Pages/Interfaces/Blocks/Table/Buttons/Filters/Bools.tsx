@@ -273,7 +273,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         <BaseButton 
             text={capitalizeFirstLetter(filter.value)} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg w-full font-normal text-sm"
+            className="rounded-none rounded-tr-lg rounded-br-lg w-full font-normal text-body"
             onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]

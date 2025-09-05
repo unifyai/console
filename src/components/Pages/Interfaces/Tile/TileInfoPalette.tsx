@@ -105,7 +105,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
             {/* Name editor (only in edit mode) */}
             {isEditMode && (
                 <div className="flex items-center gap-2 mb-3 pb-3 border-b">
-                    <span className="text-sm text-muted-foreground min-w-12">Name</span>
+                    <span className="text-label text-muted-foreground min-w-12">Name</span>
                     {isEditing ? (
                         <div className="flex items-center gap-1 flex-1">
                             <Input
@@ -115,7 +115,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                                     if (e.key === 'Enter') handleSaveName();
                                     if (e.key === 'Escape') handleCancelEdit();
                                 }}
-                                className="h-7 text-xs flex-1"
+                                className="h-7 text-caption flex-1"
                                 autoFocus
                             />
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleSaveName}>
@@ -127,11 +127,11 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                         </div>
                     ) : (
                         <div className="flex items-center gap-2 flex-1">
-                            <span className="text-sm flex-1">{tileName}</span>
+                            <span className="text-body flex-1">{tileName}</span>
                             <Button 
                                 size="sm" 
                                 variant="outline" 
-                                className="h-7 px-2 text-xs"
+                                className="h-7 px-2 text-caption"
                                 onClick={() => setIsEditing(true)}
                             >
                                 Edit
@@ -145,14 +145,14 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
             <div className="flex items-center gap-2 mb-2">
                 <div className="flex items-center gap-2">
                     {getTypeIcon(tileType)}
-                    <span className="text-sm text-muted-foreground min-w-12">Type</span>
+                    <span className="text-label text-muted-foreground min-w-12">Type</span>
                 </div>
                 {isEditMode ? (
                     <div className="flex-1">
                         <BaseDropdown
                             context="tile"
                             button={
-                                <Button variant="outline" size="sm" className="h-7 px-2 text-xs w-full justify-between">
+                                <Button variant="outline" size="sm" className="h-7 px-2 text-caption w-full justify-between">
                                     {tileType || "Select Type"}
                                 </Button>
                             }
@@ -189,7 +189,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                         </BaseDropdown>
                     </div>
                 ) : (
-                    <span className="text-sm flex-1">{tileType || "None"}</span>
+                    <span className="text-body flex-1">{tileType || "None"}</span>
                 )}
             </div>
 
@@ -198,7 +198,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                 <div className="flex items-center gap-2 mb-2">
                     <div className="flex items-center gap-2">
                         <Database className="h-4 w-4" />
-                        <span className="text-sm text-muted-foreground min-w-12">Linked</span>
+                        <span className="text-label text-muted-foreground min-w-12">Linked</span>
                     </div>
                     {isEditMode ? (
                         <div className="flex-1">
@@ -208,7 +208,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
-                                        className="h-7 px-2 text-xs w-full justify-between"
+                                        className="h-7 px-2 text-caption w-full justify-between"
                                     >
                                         {linkedTable || "Select Table"}
                                     </Button>
@@ -227,7 +227,7 @@ const TileInfoPalette: React.FC<TileInfoPaletteProps> = ({
                             </BaseDropdown>
                         </div>
                     ) : (
-                        <span className="text-sm flex-1">{linkedTable || "None"}</span>
+                        <span className="text-body flex-1">{linkedTable || "None"}</span>
                     )}
                 </div>
             )}

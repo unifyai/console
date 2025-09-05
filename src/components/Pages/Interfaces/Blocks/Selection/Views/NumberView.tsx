@@ -58,7 +58,7 @@ const EditableNumberField = ({
   return (isImmutable
     ? <Tooltip content="Immutable field cannot be edited">
         <input
-          className="w-full border rounded p-1 text-sm font-mono"
+          className="w-full border rounded p-1 text-body font-mono"
           {...inputProps}
           value={displayValue}
           disabled
@@ -67,7 +67,7 @@ const EditableNumberField = ({
     : <input
         type="number"
         step="any"
-        className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+        className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
         {...inputProps}
         value={displayValue}
       />
@@ -226,7 +226,7 @@ export default function NumberView({
                         {!nested && 
                         <div className="flex items-center gap-1 mb-1">
                             <RowBadge rowNumbers={group.rows} mode="none" />
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-caption text-muted-foreground">
                                 {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                             </span>
                         </div>}
@@ -281,10 +281,10 @@ export default function NumberView({
         )}
 
         <div className="space-y-2">
-          {!versionEmpty && <p className="font-semibold">Value</p>}
+          {!versionEmpty && <p className="text-title">Value</p>}
           <div className="flex border rounded p-2 relative group">
             <div>
-              <p className="text-sm">{formatNumberVal(baseNum)}</p>
+              <p className="text-body">{formatNumberVal(baseNum)}</p>
             </div>
             {baseNum !== null && (
               <CopyButton
@@ -329,7 +329,7 @@ export default function NumberView({
             <div key={i} className="p-3 space-y-4">
               {!versionEmpty && (
                 <div className="space-y-2">
-                  <p className="font-semibold">Version</p>
+                  <p className="text-title">Version</p>
                   {verGroups.map((vg, j) => (
                     <div
                       key={j}
@@ -341,7 +341,7 @@ export default function NumberView({
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground">
+                        <p className="italic text-body text-muted-foreground">
                           No version
                         </p>
                       )}
@@ -351,7 +351,7 @@ export default function NumberView({
               )}
 
               <div className="space-y-2">
-                {!versionEmpty && <p className="font-semibold">Value</p>}
+                {!versionEmpty && <p className="text-title">Value</p>}
                 <div className="border rounded p-2 bg-background relative group">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                   {numVal !== null && (
@@ -361,7 +361,7 @@ export default function NumberView({
                       copyMessage="Copied number!"
                     />
                   )}
-                  <p className="text-sm mt-2">{formatNumberVal(numVal)}</p>
+                  <p className="text-body mt-2">{formatNumberVal(numVal)}</p>
                 </div>
               </div>
             </div>
@@ -391,9 +391,9 @@ export default function NumberView({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold">Operation:</p>
+        <p className="text-title">Operation:</p>
         <button
-          className="px-2 py-1 border rounded text-sm hover:bg-muted"
+          className="px-2 py-1 border rounded text-body hover:bg-muted"
           onClick={handleCycleSymbol}
         >
           {currentSymbol}
@@ -429,7 +429,7 @@ export default function NumberView({
             {/* Show param versions if not empty */}
             {!versionEmpty && (
               <div className="space-y-2">
-                <p className="font-semibold">Param Version</p>
+                <p className="text-title">Param Version</p>
                 {versionGroups.map((vg, j) => {
                   return (
                     <div
@@ -442,7 +442,7 @@ export default function NumberView({
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground">
+                        <p className="italic text-body text-muted-foreground">
                           No version
                         </p>
                       )}
@@ -465,12 +465,12 @@ export default function NumberView({
                       />
                     )}
                     <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                    <p className="text-sm pt-2">{formatNumberVal(baseNum)}</p>
+                    <p className="text-body pt-2">{formatNumberVal(baseNum)}</p>
                   </div>
                 </div>
 
                 {/* Symbol */}
-                <span className="text-xl font-bold">{currentSymbol}</span>
+                <span className="text-xl text-strong">{currentSymbol}</span>
 
                 {/* Comparable */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start group">
@@ -483,11 +483,11 @@ export default function NumberView({
                       />
                     )}
                     <RowBadge rowNumbers={rowNums} mode="none" />
-                    <p className="text-sm pt-2">{formatNumberVal(compVal)}</p>
+                    <p className="text-body pt-2">{formatNumberVal(compVal)}</p>
                   </div>
                 </div>
 
-                <span className="mx-2 text-xl font-bold">=</span>
+                <span className="mx-2 text-xl text-strong">=</span>
 
                 {/* Result */}
                 <div className="relative border rounded p-2 w-fit min-w-24 text-start bg-background group">
@@ -499,8 +499,8 @@ export default function NumberView({
                         copyMessage="Copied result!"
                       />
                     )}
-                    <p className="text-sm">Result</p>
-                    <p className="text-sm mt-2">
+                    <p className="text-title">Result</p>
+                    <p className="text-body mt-2">
                       {result === null ? "(cannot calculate)" :
                        Number.isFinite(result) ? formatNumberVal(result) : "∞"}
                     </p>

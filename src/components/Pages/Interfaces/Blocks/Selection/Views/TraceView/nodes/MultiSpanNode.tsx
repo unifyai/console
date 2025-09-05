@@ -34,7 +34,7 @@ function MultiSpanNode({ data, isConnectable }: any) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
-            className="nodrag pointer-events-auto text-sm font-bold text-foreground hover:underline"
+            className="nodrag pointer-events-auto text-body text-strong text-foreground hover:underline"
             onMouseDown={(e) => e.stopPropagation()}
             style={{ cursor: "pointer" }}
           >
@@ -44,7 +44,7 @@ function MultiSpanNode({ data, isConnectable }: any) {
                 <span>{spanName}</span>
               </div>
               {rowString && (
-                <span className="text-xs text-muted-foreground ml-5">
+                <span className="text-caption text-muted-foreground ml-5">
                   Rows: {rowString}
                 </span>
               )}
@@ -55,14 +55,14 @@ function MultiSpanNode({ data, isConnectable }: any) {
           className="nodrag pointer-events-auto w-56 p-2 space-y-1"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <p className="text-sm font-semibold">Merged Node</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-title">Merged Node</p>
+          <p className="text-caption text-muted-foreground">
             {inBase 
               ? "This node is also in the base" 
               : "This node is only in the comparables"
             }
           </p>
-          {rowString && <p className="text-xs">Rows: {rowString}</p>}
+          {rowString && <p className="text-caption">Rows: {rowString}</p>}
         </PopoverContent>
       </Popover>
 

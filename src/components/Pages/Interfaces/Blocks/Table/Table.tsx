@@ -930,7 +930,7 @@ const LogsTable = ({
           // Custom bidirectional controls
           <div className="flex items-center justify-center p-1">
             <div className="text-center">
-              <div className="text-xs">
+              <div className="text-caption">
                 {(() => {
                   const globalOffset = infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0;
                   const rangeStart = globalOffset + 1;
@@ -945,7 +945,7 @@ const LogsTable = ({
                 })()}
               </div>
               {infiniteLogsQuery.bidirectionalInfo && showAdvancedFeatures && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-caption text-muted-foreground">
                   Pages: {infiniteLogsQuery.bidirectionalInfo.pagesInMemory}/{infiniteLogsQuery.bidirectionalInfo.maxPagesInMemory}
                   {infiniteLogsQuery.bidirectionalInfo.windowStart !== infiniteLogsQuery.bidirectionalInfo.windowEnd && (
                     <span> | Window: {infiniteLogsQuery.bidirectionalInfo.windowStart}-{infiniteLogsQuery.bidirectionalInfo.windowEnd}</span>
@@ -987,7 +987,7 @@ const LogsTable = ({
             "flex items-center gap-1 transition-all duration-300 ease-out",
             isMenuCollapsed ? "transform-none" : "transform-none"
           )}>
-            <span className="text-xs font-medium text-muted-foreground transition-colors duration-200">Table Controls</span>
+            <span className="text-caption text-muted-foreground transition-colors duration-200">Table Controls</span>
             <div className={cn(
               "transition-transform duration-300 ease-out",
               isMenuCollapsed ? "rotate-0" : "rotate-90"
@@ -1012,7 +1012,7 @@ const LogsTable = ({
         )}>
         {/* Data Section */}
         <div className="flex flex-col gap-1 border-r pr-4">
-            <span className="text-xs text-muted-foreground">Data</span>
+            <span className="text-caption text-muted-foreground">Data</span>
             <div className="flex items-center gap-2">
                 <GlobalFilter
                     interactive={interactive}
@@ -1030,7 +1030,7 @@ const LogsTable = ({
         {/* Actions Section */}
         {showActions && projectId && (
             <div className="flex flex-col gap-1 border-r pr-4">
-                <span className="text-xs text-muted-foreground">Actions</span>
+                <span className="text-caption text-muted-foreground">Actions</span>
                 <div className="flex items-center gap-2">
                     <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
                     <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
@@ -1041,7 +1041,7 @@ const LogsTable = ({
         
         {/* Display Section */}
         <div className="flex flex-col gap-1 border-r pr-4">
-            <span className="text-xs text-muted-foreground">Display</span>
+            <span className="text-caption text-muted-foreground">Display</span>
             <div className="flex items-center gap-2">
                 {projectId && <VisibilityFilter
                     fields={fields}
@@ -1100,20 +1100,20 @@ const LogsTable = ({
                     />
                     <SettingButton
                         tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
-                        icon={<div className="h-4 w-4 flex items-center justify-center text-xs font-bold">↕</div>}
+                        icon={<div className="h-4 w-4 flex items-center justify-center text-caption text-strong">↕</div>}
                         onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
                         variant={useBidirectionalLoading ? "primary" : "outline"}
                     />
                     {useBidirectionalLoading && (
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Pages:</span>
+                        <span className="text-caption text-muted-foreground">Pages:</span>
                         <select
                           value={bidirectionalConfig.maxPagesInMemory}
                           onChange={(e) => setBidirectionalConfig(prev => ({ 
                             ...prev, 
                             maxPagesInMemory: Number(e.target.value) 
                           }))}
-                          className="text-xs border rounded px-1 py-0.5"
+                          className="text-caption border rounded px-1 py-0.5"
                         >
                           <option value={3}>3</option>
                           <option value={5}>5</option>
@@ -1130,7 +1130,7 @@ const LogsTable = ({
         {/* Monitoring Section */}
         {projectId && (
             <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Monitoring</span>
+                <span className="text-caption text-muted-foreground">Monitoring</span>
                 <div className="flex items-center gap-2">
                     <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
                     <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />

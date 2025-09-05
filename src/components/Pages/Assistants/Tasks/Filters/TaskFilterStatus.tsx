@@ -42,7 +42,7 @@ export function TaskStatusFilter({
                             </SelectItem>
                         ))
                     ) : (
-                        <div className="p-2 text-sm text-muted-foreground text-center">No statuses to show</div>
+                        <div className="p-2 text-body text-muted-foreground text-center">No statuses to show</div>
                     )}
                 </SelectContent>
             </Select>

@@ -34,7 +34,7 @@ const renderContentWithLinks = (text: string) => {
                     href={part}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary underline hover:text-primary/80"
+                    className="text-link"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {part}
@@ -52,7 +52,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
         if (!isUser && isLoading && !message) {
             return (
                 <div className="flex items-center space-x-1 px-2 text-muted-foreground">
-                    <span className="text-sm">Typing</span>
+                    <span className="text-caption">Typing</span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                     <span className="h-1.5 w-1.5 bg-current rounded-full animate-bounce"></span>
@@ -63,14 +63,16 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
     };
 
     return (
-        <div className={cn("flex items-start gap-3", isUser && "justify-end")}>
+        <div className={cn("flex items-start gap-3", isUser && "justify-end")}
+        >
             {!isUser && (
                 <Avatar className="h-8 w-8 border flex-shrink-0">
                     <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
                     <AvatarFallback>{fallback}</AvatarFallback>
                 </Avatar>
             )}
-            <div className={cn("rounded-lg p-3 text-sm max-w-[85%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}>
+            <div className={cn("rounded-lg p-3 text-body max-w-[85%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}
+            >
                 {bubbleContent()}
             </div>
         </div>
@@ -110,7 +112,7 @@ export function AssistantHireChatPanel({
         <div className="h-full flex flex-col w-full bg-background border-l">
             {/* Header */}
             <div className="p-4 border-b flex items-center justify-between flex-shrink-0">
-                <h2 className="text-lg font-semibold truncate pr-2">Chat with {displayName}</h2>
+                <h2 className="text-title truncate pr-2">Chat with {displayName}</h2>
                 <div className="flex items-center gap-1">
                     {layoutMode === "split" &&
                         <TooltipProvider delayDuration={100}>

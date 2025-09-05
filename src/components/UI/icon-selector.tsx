@@ -131,7 +131,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
         ) : (
           categorizedIcons.map((cat) => (
             <div key={cat.name} id={`cat-${cat.name}`} className="space-y-2">
-              <h3 className="font-medium text-sm capitalize pl-1 select-none">{cat.name}</h3>
+              <h3 className="text-caption text-strong capitalize pl-1 select-none">{cat.name}</h3>
               <div className="grid grid-cols-5 gap-2">
                 {cat.icons.map((ic) => renderIconButton(ic.name as IconName))}
               </div>

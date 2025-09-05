@@ -36,7 +36,7 @@ import SaveResetOverlay from './SaveResetOverlay';
 import { useSidebar } from '@/components/UI/sidebar';
 import { ScrollArea } from '../../../UI/scroll-area';
 import InterfaceNav from './InterfaceNav';
-import { withLoadingToast } from '@/components/Common/Toasts/notifications'
+import { withLoadingToastFn } from '@/components/Common/Toasts/notifications'
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
 import { cn } from '@/lib/utils';
@@ -499,16 +499,15 @@ const Interface = ({
     }
 
     try {
-        await withLoadingToast(
+        await withLoadingToastFn(
             async () => {
                 await router.refresh();
             },
             {
-                loading: 'Refreshing interface...',
-                success: 'Interface refreshed!',
-                error: 'Failed to refresh interface.'
-            },
-            2000 // Only show loading toast if refresh takes > 2 seconds
+                loadingMessage: 'Refreshing interface...',
+                successMessage: 'Interface refreshed!',
+                errorMessage: 'Failed to refresh interface.'
+            }
         );
         setRefreshStatus('success');
         setIsRefreshingInterface(false);
@@ -727,8 +726,8 @@ const Interface = ({
         <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
           <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
             <div className="text-center mb-8 pt-4">
-              <h1 className="text-2xl font-semibold mb-2">Select a Project</h1>
-              <p className="text-muted-foreground">Choose a project to continue working on your interfaces.</p>
+              <h1 className="text-h2 mb-2">Select a Project</h1>
+              <p className="text-subtitle">Choose a project to continue working on your interfaces.</p>
             </div>
             
             <ScrollArea className="flex-1 pr-4">
@@ -778,7 +777,7 @@ const Interface = ({
                     </button>
                   );
                 }) || (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div className="text-center text-body text-muted-foreground py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     <p>Loading projects...</p>
                   </div>
@@ -792,14 +791,14 @@ const Interface = ({
         <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
           <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
             <div className="text-center mb-8 pt-4">
-              <h1 className="text-2xl font-semibold mb-2">Select an Interface</h1>
-              <p className="text-muted-foreground">Choose an interface for the {projectQueryParam} project.</p>
+              <h1 className="text-h2 mb-2">Select an Interface</h1>
+              <p className="text-subtitle">Choose an interface for the {projectQueryParam} project.</p>
             </div>
             
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-2 pb-6">
                 {isLoadingInterfacesForSelection ? (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div className="text-center text-body text-muted-foreground py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     <p>Loading interfaces...</p>
                   </div>
@@ -845,10 +844,10 @@ const Interface = ({
                             )}
                           </div>
                           <div className="flex-1">
-                            <span className="font-medium block">{iface.name}</span>
+                            <span className="text-strong block">{iface.name}</span>
                             {iface.updated_at && (
                               <span className={cn(
-                                "text-xs",
+                                "text-caption",
                                 isLoading 
                                   ? "text-muted-foreground" 
                                   : "text-muted-foreground group-hover:text-primary-foreground/70"
@@ -867,7 +866,7 @@ const Interface = ({
                       <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
                         <Icon name="layout-grid" className="h-6 w-6 text-muted-foreground" />
                       </div>
-                      <p className="text-muted-foreground">No interfaces found for this project.</p>
+                      <p className="text-body text-muted-foreground">No interfaces found for this project.</p>
                     </div>
                     <Button
                       size="default"
@@ -923,7 +922,7 @@ const Interface = ({
             >
               <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
                 <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-muted-foreground text-center whitespace-nowrap">
+                <p className="text-body text-muted-foreground text-center whitespace-nowrap">
                   {isRefreshingInterface ? 'Refreshing interface...' : loadingMessage}
                 </p>
               </div>
@@ -1002,10 +1001,10 @@ const Interface = ({
                   // Check if Assistants project exists, if not show a message to select a project
                   !hasAssistantsProject ? (
                     <div className="flex flex-col items-center justify-center h-[70vh] gap-4">
-                      <div className="text-lg font-semibold text-muted-foreground">
+                      <div className="text-title text-muted-foreground">
                         Please select a project from the navigation menu
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-body text-muted-foreground">
                         Choose a project to start working with interfaces
                       </div>
                     </div>
@@ -1047,7 +1046,7 @@ const Interface = ({
                         {pendingTabChange === tabName ? (
                           <div className="flex flex-col items-center justify-center gap-2">
                             <Loader2 className="animate-spin my-36" />
-                            <div className="text-sm text-muted-foreground">Switching tab...</div>
+                            <div className="text-body text-muted-foreground">Switching tab...</div>
                           </div>
                         ) : (
                           <Loader2 className="animate-spin my-36" />
@@ -1061,7 +1060,7 @@ const Interface = ({
                           
                           {/* Show streaming indicators */}
                           {DEBUG_TAB_PREFETCHING && tabStreamingQuery.prefetchProgress.total > 0 && (
-                            <div className="fixed bottom-16 right-4 text-xs text-muted-foreground bg-background/80 p-2 rounded border">
+                            <div className="fixed bottom-16 right-4 text-caption text-muted-foreground bg-background/80 p-2 rounded border">
                               <div className="flex items-center gap-2">
                                 {(() => {
                                   // Get actual tabs from the store using selector
@@ -1195,17 +1194,17 @@ const Interface = ({
               <div className="mt-4 flex flex-col gap-4">
                 <div>
                   Are you sure you want to save the changes to{" "}
-                  <span className="font-semibold">{activeTabName}</span>?
+                  <span className="text-strong">{activeTabName}</span>?
                 </div>
                 <div className="flex flex-col gap-2">
                   {saveTabWithTilesMutation.isPending && (
-                    <div className="text-sm text-center">
+                    <div className="text-body text-center">
                       <Loader2 className="h-4 w-4 inline-block mr-2 animate-spin" />
                       Saving changes...
                     </div>
                   )}
                   {saveTabWithTilesMutation.isError && (
-                    <div className="text-sm text-destructive text-center">
+                    <div className="text-body text-destructive text-center">
                       Error saving changes: {saveTabWithTilesMutation.error?.message || "Unknown error"}
                       <br />
                       Please try again.

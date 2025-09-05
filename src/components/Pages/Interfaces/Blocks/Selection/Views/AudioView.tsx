@@ -87,7 +87,7 @@ export default function AudioView({
       <div className="space-y-4">
         {!versionEmpty && (
           <div className="space-y-2">
-            <p className="font-semibold text-sm">Version</p>
+            <p className="text-title">Version</p>
             {baseVersion ? (
               <div className="border rounded p-2 relative group">
                 <MarkdownRenderer>{baseVersion}</MarkdownRenderer>
@@ -99,19 +99,19 @@ export default function AudioView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         <div className="space-y-2">
-          {!versionEmpty && <p className="font-semibold text-sm">Audio</p>}
+          {!versionEmpty && <p className="text-title">Audio</p>}
           {!hasAudio ? (
-            <p className="text-sm italic text-muted-foreground">No audio</p>
+            <p className="text-body italic text-muted-foreground">No audio</p>
           ) : (
             <div className="border rounded p-2 bg-background relative group">
                 <div className="pr-16 flex-grow mb-2">
-                    <p className="text-sm break-all">{baseUrl}</p>
+                    <p className="text-body break-all">{baseUrl}</p>
                 </div>
                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ActionButton
@@ -155,7 +155,7 @@ export default function AudioView({
           <div key={idx} className="border rounded p-3 space-y-4">
             {!versionEmpty && (
               <>
-                <p className="font-semibold text-sm">Version</p>
+                <p className="text-title">Version</p>
                 <div className="space-y-2">
                   {verGroups.map((vg, j) => (
                     <div key={j} className="border rounded p-2 relative group">
@@ -165,7 +165,7 @@ export default function AudioView({
                           <MarkdownRenderer>{vg.versionText}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground pt-2">No version</p>
+                        <p className="italic text-body text-muted-foreground pt-2">No version</p>
                       )}
                     </div>
                   ))}
@@ -174,11 +174,11 @@ export default function AudioView({
             )}
 
             <div className="space-y-2">
-              {!versionEmpty && <p className="font-semibold text-sm">Audio</p>}
+              {!versionEmpty && <p className="text-title">Audio</p>}
               <div className="border rounded p-2 relative group">
                 <RowBadge rowNumbers={rows} mode="none" />
                 <div className="pr-16 mt-3 mb-2">
-                    <p className="text-sm break-all">{audioUrl}</p>
+                    <p className="text-body break-all">{audioUrl}</p>
                 </div>
                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ActionButton

@@ -206,13 +206,13 @@ export function PhotoCustomization({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
                         {/* File Upload Input */}
                         <label
-                            className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
+                            className="flex flex-col items-center justify-center w/full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
                             aria-disabled={disabled}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
-                            <span className="font-medium text-muted-foreground text-sm">Drop file or <span className="text-primary underline">browse</span></span>
-                            <span className="text-xs text-muted-foreground/80 mt-1">PNG, JPG, WEBP to 50MB</span>
+                            <span className="text-body text-muted-foreground">Drop file or <span className="text-link">browse</span></span>
+                            <span className="text-caption text-muted-foreground/80 mt-1">PNG, JPG, WEBP to 50MB</span>
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -224,14 +224,14 @@ export function PhotoCustomization({
                         </label>
                         {/* Camera Input */}
                         <div
-                            className="flex flex-col items-center justify-center w-full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
+                            className="flex flex-col items-center justify-center w/full h-full text-center bg-background border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors"
                             onClick={handleOpenCamera}
                             role="button"
                             aria-disabled={disabled}
                         >
                             <Camera className="w-8 h-8 text-muted-foreground mb-2" />
-                            <span className="font-medium text-muted-foreground text-sm">Use Camera</span>
-                            <span className="text-xs text-muted-foreground/80 mt-1">Capture a photo directly</span>
+                            <span className="text-body text-muted-foreground">Use Camera</span>
+                            <span className="text-caption text-muted-foreground/80 mt-1">Capture a photo directly</span>
                         </div>
                     </div>
                 </TabsContent>
@@ -243,12 +243,12 @@ export function PhotoCustomization({
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             onKeyDown={handleCreateKeyDown}
-                            className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
+                            className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-body h-auto"
                             disabled={disabled || isProcessing}
                             maxLength={150}
                         />
                         <div className="flex justify-between items-center pt-1">
-                             <p className="text-xs text-muted-foreground px-1">
+                             <p className="text-caption text-muted-foreground px-1">
                                 Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits
                             </p>
                             <div className="flex gap-1">
@@ -269,7 +269,7 @@ export function PhotoCustomization({
                                                 </Button>
                                             </span>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                        <TooltipContent side="top" align="end" className="max-w-xs text-caption">
                                             <p>{editTooltipContent}</p>
                                         </TooltipContent>
                                     </Tooltip>
@@ -290,7 +290,7 @@ export function PhotoCustomization({
                                                 </Button>
                                             </span>
                                         </TooltipTrigger>
-                                        <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                        <TooltipContent side="top" align="end" className="max-w-xs text-caption">
                                             <p>{generateTooltipContent}</p>
                                         </TooltipContent>
                                     </Tooltip>
@@ -307,12 +307,12 @@ export function PhotoCustomization({
                             value={ttsPrompt}
                             onChange={(e) => setTtsPrompt(e.target.value)}
                             onKeyDown={handleAnimateKeyDown}
-                            className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm h-auto"
+                            className="flex-1 bg-transparent border-0 resize-none p-1 focus-visible:ring-0 focus-visible:ring-offset-0 text-body h-auto"
                             disabled={disabled || isProcessing}
                             maxLength={50}
                         />
                         <div className="flex justify-between items-center pt-1">
-                             <p className="text-xs text-muted-foreground px-1">
+                             <p className="text-caption text-muted-foreground px-1">
                                 Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits
                             </p>
                             <TooltipProvider delayDuration={100}>
@@ -337,7 +337,7 @@ export function PhotoCustomization({
                                             )}
                                         </span>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" align="end" className="max-w-xs text-sm">
+                                    <TooltipContent side="top" align="end" className="max-w-xs text-caption">
                                         <p>{animateTooltipContent}</p>
                                     </TooltipContent>
                                 </Tooltip>
@@ -350,15 +350,15 @@ export function PhotoCustomization({
             <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
                 <DialogContent onInteractOutside={(e) => { e.preventDefault(); handleCloseCamera(); }} onEscapeKeyDown={handleCloseCamera} className="sm:max-w-[625px]">
                     <DialogHeader>
-                        <DialogTitle>Take a Photo</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-title">Take a Photo</DialogTitle>
+                        <DialogDescription className="text-subtitle">
                             Position yourself in the frame and capture your new profile photo.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="relative">
                         {cameraError ? (
                             <div className="flex flex-col items-center justify-center h-80 bg-muted rounded-md text-center p-4">
-                                <p className="text-destructive">{cameraError}</p>
+                                <p className="text-body text-destructive">{cameraError}</p>
                             </div>
                         ) : (
                             <video

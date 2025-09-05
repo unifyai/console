@@ -145,14 +145,14 @@ function renderMessageContent(content: unknown): JSX.Element {
             }
             // default => JSON
             return (
-              <pre key={i} className="bg-background p-2 text-xs rounded">
+              <pre key={i} className="bg-background p-2 text-caption rounded">
                 {JSON.stringify(chunk, null, 2)}
               </pre>
             );
           }
           // fallback => JSON
           return (
-            <pre key={i} className="bg-background p-2 text-xs rounded">
+            <pre key={i} className="bg-background p-2 text-caption rounded">
               {JSON.stringify(chunk, null, 2)}
             </pre>
           );
@@ -162,7 +162,7 @@ function renderMessageContent(content: unknown): JSX.Element {
   }
   // fallback => JSON
   return (
-    <pre className="bg-background p-2 text-xs rounded">
+    <pre className="bg-background p-2 text-caption rounded">
       {JSON.stringify(content, null, 2)}
     </pre>
   );
@@ -257,7 +257,7 @@ export default function ChatInView({
                         className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                       >
                         <div className="mb-2 flex items-center justify-between">
-                          <p className="font-bold text-sm">{label}</p>
+                          <p className="text-title">{label}</p>
                           <CopyButton
                             content={JSON.stringify(m.content ?? "")}
                             copyMessage="Copied!"
@@ -482,7 +482,7 @@ export default function ChatInView({
                                 >
                                   <div className="border border-mutedbg-background p-4 rounded shadow-sm w-full">
                                     <div className="mb-2 flex items-center justify-between">
-                                      <p className="font-bold text-sm">{label}</p>
+                                      <p className="text-title">{label}</p>
                                       <CopyButton
                                         content={JSON.stringify(m.content ?? "")}
                                         copyMessage="Copied!"
@@ -524,7 +524,7 @@ export default function ChatInView({
                                 >
                                   <div className="border border-muted bg-background p-4 rounded shadow-sm w-full">
                                     <div className="mb-2 flex items-center justify-between">
-                                      <p className="font-bold text-sm">{label}</p>
+                                      <p className="text-title">{label}</p>
                                       <CopyButton
                                         content={JSON.stringify(m.content ?? "")}
                                         copyMessage="Copied!"
@@ -693,7 +693,7 @@ export default function ChatInView({
                           className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                         >
                           <div className="mb-2 flex items-center justify-between">
-                            <p className="font-bold text-sm">{label}</p>
+                            <p className="text-title">{label}</p>
                             <CopyButton
                               content={baseStr}
                               copyMessage="Copied!"
@@ -715,7 +715,7 @@ export default function ChatInView({
                               return (
                                 <div
                                   key={idx2}
-                                  className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted"
+                                  className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted"
                                 >
                                   <div className="flex gap-2 text-xxs">
                                     {baseMsg && (
@@ -741,7 +741,7 @@ export default function ChatInView({
                             })
                           ) : (
                             /* No comparables => compare with empty */
-                            <div className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted">
+                            <div className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted">
                               <div className="flex gap-2 text-xxs">
                                 {baseMsg && (
                                   <RowBadge

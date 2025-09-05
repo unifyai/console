@@ -97,7 +97,7 @@ import {
   exportInterfaceTemplate,
   importInterfaceTemplate
 } from './actions'
-import { withLoadingToast } from '@/components/Common/Toasts/notifications'
+import { withLoadingToastFn } from '@/components/Common/Toasts/notifications'
 import ColorPicker from '@/components/Common/Misc/ColorPicker'
 import ActionButton from '@/components/Common/Buttons/Action'
 import { debounce } from 'lodash'
@@ -268,10 +268,10 @@ const SortableTab = React.memo(function SortableTab({
         {...listeners}
         onClick={() => onTabClick(tab)}
         className={cn(
-          "flex-1 min-w-0 flex items-center gap-2 py-2 text-sm rounded-md transition-all cursor-pointer overflow-hidden",
+          "flex-1 min-w-0 flex items-center gap-2 py-2 text-body rounded-md transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
           isActive
-            ? "text-primary font-medium hover:bg-black/5 dark:hover:bg-white/5"
+            ? "text-primary text-strong hover:bg-black/5 dark:hover:bg-white/5"
             : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5",
           isDragging && "cursor-grabbing"
         )}
@@ -297,8 +297,8 @@ const SortableTab = React.memo(function SortableTab({
             <TooltipContent side="right">
               <div>
                 <div>{tab.name}</div>
-                <div className="text-xs text-muted-foreground mt-1">Hold and drag to reorder</div>
-                <div className="text-xs text-muted-foreground">Double-click to change icon</div>
+                <div className="text-caption text-muted-foreground mt-1">Hold and drag to reorder</div>
+                <div className="text-caption text-muted-foreground">Double-click to change icon</div>
               </div>
             </TooltipContent>
           </Tooltip>
@@ -314,7 +314,7 @@ const SortableTab = React.memo(function SortableTab({
               {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
             </div>
             <span 
-              className="text-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
+              className="text-body block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
               title={tab.name}
               onDoubleClick={(e) => {
                 e.stopPropagation()
@@ -1147,7 +1147,7 @@ export default function InterfaceNav({
     if (!iface) return
     
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         async () => {
           const result = await interfaceActions.exportTemplate({ interface_id: interfaceId })
           if (result && typeof result === 'object' && 'template' in result) {
@@ -1165,9 +1165,9 @@ export default function InterfaceNav({
           }
         },
         {
-          loading: 'Exporting interface template...',
-          success: 'Template exported successfully!',
-          error: 'Failed to export template'
+          loadingMessage: 'Exporting interface template...',
+          successMessage: 'Template exported successfully!',
+          errorMessage: 'Failed to export template'
         }
       )
     } catch (error) {
@@ -1727,7 +1727,7 @@ export default function InterfaceNav({
             "flex items-center border-b animate-in fade-in slide-in-from-top-2 duration-300",
             isCollapsed ? "justify-center p-2" : "justify-between p-2 gap-2 min-w-0"
           )}>
-            {!isCollapsed && <span className="text-xs text-muted-foreground animate-in fade-in duration-200 truncate select-none uppercase tracking-wider">Interfaces</span>}
+            {!isCollapsed && <span className="text-caption text-muted-foreground animate-in fade-in duration-200 truncate select-none uppercase tracking-wider">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
@@ -1748,7 +1748,7 @@ export default function InterfaceNav({
           <div className="p-3 space-y-2.5 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
             {/* Projects */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground select-none">Project:</label>
+              <label className="text-label text-muted-foreground select-none">Project:</label>
               <div className="flex items-center gap-1 w-full min-w-0">
                 <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
                   <PopoverTrigger asChild>
@@ -1759,7 +1759,7 @@ export default function InterfaceNav({
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                         {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
-                        <span className="truncate text-sm">{selectedProject || "Select project"}</span>
+                        <span className="truncate text-body">{selectedProject || "Select project"}</span>
                       </div>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -1773,7 +1773,7 @@ export default function InterfaceNav({
                       <CommandGroup>
                         {projectTreeError ? (
                           <div className="p-3 text-center">
-                            <p className="text-sm text-destructive mb-2">Failed to load projects</p>
+                            <p className="text-body text-destructive mb-2">Failed to load projects</p>
                             <Button size="sm" variant="ghost" onClick={() => { refetchProjectTree() }}>
                               <RefreshCw className="h-3 w-3 mr-1" />
                               Retry
@@ -1781,7 +1781,7 @@ export default function InterfaceNav({
                           </div>
                         ) : (projectTreeLoading || projectTreeFetching) ? (
                           <div className="p-1">
-                            <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading projects...</div>
+                            <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading projects...</div>
                             {[1, 2, 3].map((i) => (
                               <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
                                 <div className="h-4 w-4 bg-muted animate-pulse rounded" />
@@ -1790,7 +1790,7 @@ export default function InterfaceNav({
                             ))}
                           </div>
                         ) : projectTree.length === 0 ? (
-                          <div className="p-3 text-center text-sm text-muted-foreground">
+                          <div className="p-3 text-center text-body text-muted-foreground">
                             <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                             </svg>
@@ -1897,7 +1897,7 @@ export default function InterfaceNav({
             {/* Interfaces */}
             {currentInterfaces.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground select-none">Interface:</label>
+                <label className="text-label text-muted-foreground select-none">Interface:</label>
                 <div className="flex items-center gap-1 w-full min-w-0">
                   <Popover open={interfacePopoverOpen} onOpenChange={setInterfacePopoverOpen}>
                     <PopoverTrigger asChild>
@@ -1908,7 +1908,7 @@ export default function InterfaceNav({
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                           {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                          <span className="truncate text-sm">{currentInterface?.name || "Select interface"}</span>
+                          <span className="truncate text-body">{currentInterface?.name || "Select interface"}</span>
                         </div>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -1922,7 +1922,7 @@ export default function InterfaceNav({
                         <CommandGroup>
                           {(projectTreeLoading || projectTreeFetching) ? (
                             <div className="p-1">
-                              <div className="p-2 text-center text-xs text-muted-foreground mb-1">Loading interfaces...</div>
+                              <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading interfaces...</div>
                               {[1, 2].map((i) => (
                                 <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
                                   <div className="h-4 w-4 bg-muted animate-pulse rounded" />
@@ -1931,7 +1931,7 @@ export default function InterfaceNav({
                               ))}
                             </div>
                           ) : currentInterfaces.length === 0 ? (
-                            <div className="p-3 text-center text-sm text-muted-foreground">
+                            <div className="p-3 text-center text-body text-muted-foreground">
                               <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                               </svg>
@@ -2038,7 +2038,7 @@ export default function InterfaceNav({
             {!isCollapsed && (
               <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
                 <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
+                  <label className="text-label text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -2064,7 +2064,7 @@ export default function InterfaceNav({
               {tabsError ? (
                 // Error state
                 <div className={cn(
-                  "text-sm text-destructive text-center animate-in fade-in duration-300",
+                  "text-body text-destructive text-center animate-in fade-in duration-300",
                   isCollapsed ? "py-4 px-2" : "py-6 px-3"
                 )}>
                   <div className="mb-2">
@@ -2112,7 +2112,7 @@ export default function InterfaceNav({
                 </div>
               ) : currentTabs.length === 0 ? (
                 <div className={cn(
-                  "text-sm text-muted-foreground text-center animate-in fade-in duration-300",
+                  "text-body text-muted-foreground text-center animate-in fade-in duration-300",
                   isCollapsed ? "py-4" : "py-6 px-2"
                 )}>
                   <div className="mb-2">
@@ -2196,7 +2196,7 @@ export default function InterfaceNav({
                               isCollapsed ? "px-2 justify-center" : "px-3"
                             )}>
                               {renderSidebarIcon(activeTab.icon, "h-4 w-4", "tab")}
-                              {!isCollapsed && <span className="text-sm font-medium select-none">{activeTab.name}</span>}
+                              {!isCollapsed && <span className="text-body text-strong select-none">{activeTab.name}</span>}
                             </div>
                           </div>
                         )
@@ -2246,7 +2246,7 @@ export default function InterfaceNav({
         {!isCollapsed && !isCompletelyHidden && showModeControls && (
           <div className="px-2 py-1.5 space-y-1.5 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-x-hidden">
             <div className="flex items-center justify-between gap-1.5">
-              <label className="text-xs font-medium flex items-center gap-1 min-w-0 select-none">
+              <label className="text-label flex items-center gap-1 min-w-0 select-none">
                 <Hammer className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')} />
                   <span className="truncate">Edit Mode</span>
                 </label>
@@ -2254,7 +2254,7 @@ export default function InterfaceNav({
               </div>
 
             <div className="flex items-center justify-between gap-1.5">
-              <label className="text-xs font-medium flex items-center gap-1 min-w-0 select-none">
+              <label className="text-label flex items-center gap-1 min-w-0 select-none">
                 <SquareMousePointer className={cn('h-3.5 w-3.5 flex-shrink-0', isCommandMode && 'text-primary')} />
                 <span className="truncate">Dashboard Mode</span>
               </label>
@@ -2602,7 +2602,7 @@ export default function InterfaceNav({
                 onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewInterface()}
                 autoFocus
               />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 This will create a copy of &quot;{selectedInterfaceForAction.name}&quot; with all its tabs and tiles.
               </p>
             </div>
@@ -2658,10 +2658,10 @@ export default function InterfaceNav({
                     }
                   }
                 }}
-                className="block w-full text-sm text-gray-500
+                className="block w-full text-body text-gray-500
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
+                  file:text-label file:font-semibold
                   file:bg-primary file:text-primary-foreground
                   hover:file:bg-primary/90"
               />
@@ -2682,7 +2682,7 @@ export default function InterfaceNav({
         <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
           <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
             <ActionButton
-              className="h-7 px-1.5 text-xs"
+              className="h-7 px-1.5 text-caption"
               size="sm"
               variant="ghost"
               onClick={onAddTile}

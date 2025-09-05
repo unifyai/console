@@ -114,10 +114,10 @@ export default function ExecutionTimeView({
       <div className="space-y-4">
         {version && (
           <div className="space-y-2">
-            <p className="font-semibold text-sm">Version</p>
+            <p className="text-title">Version</p>
             {version ? (
               <div className="flex border rounded p-2 relative group">
-                <p className="text-sm">{version}</p>
+                <p className="text-body">{version}</p>
                 <CopyButton
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={version}
@@ -126,16 +126,16 @@ export default function ExecutionTimeView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
         <div className="space-y-2">
           {version && (
-            <p className="font-semibold text-sm">Value</p>
+            <p className="text-title">Value</p>
           )}
           <div className="flex border rounded p-2 relative group">
-            <p className="text-sm">{formatTimeNumber(baseTime)}</p>
+            <p className="text-body">{formatTimeNumber(baseTime)}</p>
             <CopyButton
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               content={baseTime.toString()}
@@ -169,7 +169,7 @@ export default function ExecutionTimeView({
       <div className="space-y-4">
         {(version || comparableVersions.some((s) => !!s)) && (
           <div>
-            <p className="font-semibold text-sm mb-4">Version</p>
+            <p className="text-title mb-4">Version</p>
             <div className="space-y-2">
               {[baseLogIndex, ...comparisonLogsIndex].map((r) => {
                 const isBase = r === baseLogIndex;
@@ -179,10 +179,10 @@ export default function ExecutionTimeView({
                     <RowBadge rowNumbers={[r]} mode="none" />
                     {verText ? (
                       <div className="pt-2">
-                        <p className="text-sm">{verText}</p>
+                        <p className="text-body">{verText}</p>
                       </div>
                     ) : (
-                      <p className="italic text-sm text-muted-foreground">No version</p>
+                      <p className="italic text-body text-muted-foreground">No version</p>
                     )}
                   </div>
                 );
@@ -200,7 +200,7 @@ export default function ExecutionTimeView({
                 copyMessage="Copied execution time!"
                 tooltipContent="Copy execution time"
               />
-              <p className="text-sm mt-1 mb-1">{grp.time}</p>
+              <p className="text-body mt-1 mb-1">{grp.time}</p>
             </div>
           </div>
         ))}
@@ -269,8 +269,8 @@ export default function ExecutionTimeView({
               <div className="font-bold text-xl mx-2">=</div>
               {/* Diff block */}
               <div className="flex-col min-w-24 relative border rounded p-2 group">
-                <p className="text-sm">Diff</p>
-                <p className="text-sm">{diffStr}</p>
+                <p className="text-title">Diff</p>
+                <p className="text-body">{diffStr}</p>
                 <CopyButton
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   content={diffStr}

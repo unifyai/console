@@ -121,7 +121,7 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
               placeholder="Enter project name..."
               className={validationError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Allowed: letters, numbers, underscores, hyphens, and forward slashes
             </p>
           </div>
@@ -133,7 +133,7 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
             />
           </div>
           {error && (
-            <p className="text-xs text-destructive">{error}</p>
+            <p className="text-caption text-destructive">{error}</p>
           )}
         </div>
       }

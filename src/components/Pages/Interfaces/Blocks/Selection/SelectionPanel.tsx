@@ -1327,7 +1327,7 @@ export default function SelectionPanel({
   if (!baseLog) {
     return (
       <div className="flex flex-col w-full h-full overflow-hidden bg-background">
-        <p className="text-sm text-muted-foreground p-2">
+        <p className="text-body text-muted-foreground p-2">
           No valid base row
         </p>
       </div>
@@ -1357,7 +1357,7 @@ export default function SelectionPanel({
         {/* Panel-specific controls */}
         <div className="p-2 border-b border-muted flex items-center justify-between">
           {/* Left side: Selected Row Count */}
-          <div className="text-sm text-muted-foreground">
+          <div className="text-body text-muted-foreground">
             Selected {selectedRowCount} row(s)
           </div>
           {/* Right side: Controls */}
@@ -1401,7 +1401,7 @@ export default function SelectionPanel({
             {/* Base row selection (Moved here) - Conditional on diffMode !== 'none' AND not cellEditMode */}
             {selectedRowIndices.length > 1 && diffMode !== 'none' && !cellEditMode && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Base:</span>
+                <span className="text-body text-muted-foreground">Base:</span>
                 <Combobox
                   items={selectedRowIndices.map((rIdx, i) => ({
                     value: String(i),
@@ -1434,11 +1434,11 @@ export default function SelectionPanel({
                 }
               >
                 <div className="flex flex-col gap-1 p-3">
-                  <p className="font-bold text-medium pb-1">Select visible columns</p>
+                  <p className="text-title pb-1">Select visible columns</p>
                   <div className="max-h-[60vh] overflow-y-auto command-scrollbar pr-2">
                     {/* Master toggle for all */}
                     <div className="flex justify-between items-center mb-5 mt-3">
-                      <span className="font-bold text-sm">
+                      <span className="text-strong">
                         {(allPossibleColumns?.entries || entryKeys).every((k) => entriesFilter[k] !== false) &&
                         (allPossibleColumns?.params || paramKeys).every((k) => paramsFilter[k] !== false)
                           ? "Hide all"
@@ -1473,7 +1473,7 @@ export default function SelectionPanel({
                     {(allPossibleColumns?.params || paramKeys).length > 0 && (
                       <div className="mt-2">
                         <div className="flex justify-between items-center mb-1">
-                          <p className="font-bold text-sm">Params</p>
+                          <p className="text-label text-strong">Params</p>
                           <Switch
                             checked={(allPossibleColumns?.params || paramKeys).every(
                               (k) => paramsFilter[k] !== false
@@ -1494,7 +1494,7 @@ export default function SelectionPanel({
                             key={k}
                             className="flex items-center justify-between py-1 pl-4"
                           >
-                            <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                            <span className="text-body w-[180px] truncate pr-2" title={k}>
                               {k}
                             </span>
                             <Switch
@@ -1511,7 +1511,7 @@ export default function SelectionPanel({
                     {/* Entries toggles */}
                     <div className="mt-4">
                       <div className="flex justify-between items-center mb-1">
-                        <p className="font-bold text-sm">Entries</p>
+                        <p className="text-label text-strong">Entries</p>
                         <Switch
                           checked={(allPossibleColumns?.entries || entryKeys).every(
                             (k) => entriesFilter[k] !== false
@@ -1532,7 +1532,7 @@ export default function SelectionPanel({
                           key={k}
                           className="flex items-center justify-between py-1 pl-4"
                         >
-                          <span className="text-sm w-[180px] truncate pr-2" title={k}>
+                          <span className="text-body w-[180px] truncate pr-2" title={k}>
                             {k}
                           </span>
                           <Switch

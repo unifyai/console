@@ -53,7 +53,7 @@ function SpanNode({ data, isConnectable }: any) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
-            className="nodrag pointer-events-auto text-sm font-bold text-foreground underline-offset-2 hover:underline"
+            className="nodrag pointer-events-auto text-body text-strong text-foreground underline-offset-2 hover:underline"
             onMouseDown={(e) => e.stopPropagation()}
             style={{ cursor: "pointer" }}
           >
@@ -64,8 +64,8 @@ function SpanNode({ data, isConnectable }: any) {
           className="nodrag pointer-events-auto w-56 p-2 space-y-1"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <p className="text-sm font-semibold">Span Info</p>
-          <div className="text-sm text-muted-foreground">
+          <p className="text-title">Span Info</p>
+          <div className="text-body text-muted-foreground">
             <p>ID: {ID}</p>
             <p>Offset: {offset}</p>
             <p>Exec Time: {execTime}</p>

@@ -226,8 +226,8 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                 )}
                 onClick={() => !itemIsDisabled && handleSelectVoiceDisplay(voice)}
             >
-                <span className="text-md">{getLanguageFlag(voice.language)}</span>
-                <span className="flex-1 truncate font-medium text-sm" title={voice.name}>{voice.name}</span>
+                <span className="text-body">{getLanguageFlag(voice.language)}</span>
+                <span className="flex-1 truncate text-body text-strong" title={voice.name}>{voice.name}</span>
 
                 <div className={cn("flex items-center p-0 m-0 gap-1 sm:gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
 
@@ -249,7 +249,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                             <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()} disabled={itemIsDisabled}>
                                 <Info className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                             </Button>
-                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{voice.description || "No description."}</p></TooltipContent></Tooltip>
+                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{voice.description || "No description."}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
 
                     <TooltipProvider delayDuration={100}>
@@ -257,14 +257,14 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                             <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null) }>
                                 {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                             </Button>
-                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
+                        </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
                     
                     {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip><TooltipTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); handleDeleteVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
-                            </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-sm"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
+                            </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
                         </TooltipProvider>
                     )}
                 </div>
@@ -471,7 +471,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                 <div className="p-2 space-y-1">
                                     {otherVoices.length === 0 && !selectedVoice ? (
                                         <div className="flex flex-col items-center justify-center pt-10">
-                                            <p className="text-sm text-muted-foreground text-center">No voices. Try creating or designing one.</p>
+                                            <p className="text-body text-muted-foreground text-center">No voices. Try creating or designing one.</p>
                                         </div>
                                     ) : (
                                         otherVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
@@ -486,11 +486,11 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                     <ScrollArea className="h-full w-full">
                         <div className="p-3 space-y-3">
                             <div className="space-y-1">
-                                <Label htmlFor="clone-name" className="text-xs">Voice Name</Label>
-                                <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                                <Label htmlFor="clone-name" className="text-label">Voice Name</Label>
+                                <Input id="clone-name" value={cloneName} onChange={e => setCloneName(e.target.value)} placeholder="e.g., My Clone" className="h-8" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
                             </div>
                              <div className="pt-2">
-                                <Label className="text-xs">Audio Clip (max 5s, .wav, .mp3)</Label>
+                                <Label className="text-label">Audio Clip (max 5s, .wav, .mp3)</Label>
                                 {!cloneFile ? (
                                     <div className="grid grid-cols-2 gap-2 mt-1">
                                         <label 
@@ -504,7 +504,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                             aria-disabled={disabled || isProcessingCreate || isGeneratingPreviews}
                                         >
                                             <UploadCloud className="w-6 h-6 text-muted-foreground" /> 
-                                            <span className="font-medium text-muted-foreground text-sm mt-1">Drop or <span className="text-primary underline">browse</span></span>
+                                            <span className="text-body text-muted-foreground mt-1">Drop or <span className="text-link">browse</span></span>
                                             <input type="file" id="clone-file-input" accept=".wav,.mp3" className="hidden" 
                                                 onChange={(e) => { 
                                                     const f = e.target.files?.[0]; 
@@ -529,22 +529,22 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                             {recordingStatus === 'recording' ? (
                                                 <>
                                                     <Square className="w-6 h-6 text-destructive mb-1" />
-                                                    <span className="font-medium text-sm">Stop Recording</span>
+                                                    <span className="text-body">Stop Recording</span>
                                                     <div className="flex items-center gap-1.5 mt-1">
                                                         <div className="h-2 w-2 rounded-full bg-destructive animate-pulse"></div>
-                                                        <span className="text-xs font-mono text-destructive/80">{new Date(recordTime * 1000).toISOString().substr(14, 5)}</span>
+                                                        <span className="text-caption font-mono text-destructive/80">{new Date(recordTime * 1000).toISOString().substr(14, 5)}</span>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <>
                                                     <Mic className="w-6 h-6 text-muted-foreground" />
-                                                    <span className="font-medium text-muted-foreground text-sm mt-1">Record Audio</span>
+                                                    <span className="text-body text-muted-foreground mt-1">Record Audio</span>
                                                 </>
                                             )}
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="mt-2 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-sm h-9">
+                                    <div className="mt-2 flex items-center justify-between p-1.5 pl-2.5 border rounded-md bg-muted/50 text-body h-9">
                                         <span className="truncate mr-2 flex-1" title={cloneFileName ?? undefined}>{cloneFileName}</span>
                                         <div className="flex items-center gap-1">
                                             <TooltipProvider delayDuration={100}><Tooltip>
@@ -567,9 +567,9 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                     </div>
                                 )}
                             </div>
-                            <div className="pt-1"><Label htmlFor="clone-desc" className="text-xs">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-sm min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
+                            <div className="pt-1"><Label htmlFor="clone-desc" className="text-label">Description (Optional)</Label><Textarea id="clone-desc" value={cloneDescription} onChange={e => setCloneDescription(e.target.value)} placeholder="Notes about this voice..." rows={2} className="text-body min-h-[50px]" disabled={disabled || isProcessingCreate || isGeneratingPreviews} /></div>
                             
-                            <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
+                            <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || !cloneFile || !cloneName}>
                                 {isProcessingCreate && createMode === 'clone' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
                             </Button>
                         </div>
@@ -582,12 +582,12 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                             <div className="p-3 space-y-3">
                                 <div className="space-y-4">
                                     <div className="space-y-1">
-                                        <Label htmlFor="design-final-name" className="text-xs">Voice Name</Label>
-                                        <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
+                                        <Label htmlFor="design-final-name" className="text-label">Voice Name</Label>
+                                        <Input id="design-final-name" value={designFinalVoiceName} onChange={e => setDesignFinalVoiceName(e.target.value)} placeholder="e.g., My Designed Voice" className="h-8" disabled={disabled || isProcessingCreate || isGeneratingPreviews} />
                                     </div>
                                     <div className="space-y-1">
                                         <div className="flex flex-row justify-between gap-2 items-center pb-1">
-                                            <Label htmlFor="design-desc" className="text-xs">Voice Description Prompt</Label>
+                                            <Label htmlFor="design-desc" className="text-label">Voice Description Prompt</Label>
                                         </div>
                                         <Textarea 
                                             id="design-desc" 
@@ -595,7 +595,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                             onChange={e => setDesignVoiceDescription(e.target.value)} 
                                             placeholder="e.g., A calm and soothing female voice with a British accent..." 
                                             rows={2} 
-                                            className="text-sm min-h-[50px]" 
+                                            className="text-body min-h-[50px]" 
                                             disabled={disabled || isProcessingCreate || isGeneratingPreviews} 
                                             maxLength={DESIGN_VOICE_DESC_MAX_LENGTH}
                                         />
@@ -616,7 +616,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                                 <div className="grid gap-1.5 leading-none">
                                                     <label
                                                         htmlFor="design-include-bio"
-                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5"
+                                                        className="text-label leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5"
                                                     >
                                                         Include profile bio
                                                         <TooltipProvider delayDuration={100}>
@@ -624,7 +624,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                                                 <TooltipTrigger type="button" asChild>
                                                                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                                                                 </TooltipTrigger>
-                                                                <TooltipContent side="top" className="max-w-xs text-sm">
+                                                                <TooltipContent side="top" className="max-w-xs text-caption">
                                                                     <p>If checked, the profile bio provided above will be taken into account to refine the voice description.</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
@@ -632,35 +632,35 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                                     </label>
                                                 </div>
                                             </div>
-                                            <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, designIncludeBio))}>
+                                            <p className={cn("text-caption text-right mt-0.5", getCharCountClass(designVoiceDescription.length, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, designIncludeBio))}>
                                                 {designVoiceDescription.length}/{DESIGN_VOICE_DESC_MAX_LENGTH}
                                                 {!designIncludeBio && ` (min ${DESIGN_VOICE_DESC_MIN_LENGTH})`}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="design-sample" className="text-xs">Sample Text for Previews (Optional)</Label>
+                                        <Label htmlFor="design-sample" className="text-label">Sample Text for Previews (Optional)</Label>
                                         <Input 
                                             id="design-sample" 
                                             value={designSampleText} 
                                             onChange={e => setDesignSampleText(e.target.value)} 
                                             placeholder={`e.g., Hello, this is a sample reference text for generating the voice.`}
-                                            className="h-8 text-sm" 
+                                            className="h-8" 
                                             disabled={disabled || isProcessingCreate || isGeneratingPreviews}
                                             maxLength={DESIGN_SAMPLE_TEXT_MAX_LENGTH}
                                         />
-                                        <p className={cn("text-xs text-right mt-0.5", getCharCountClass(designSampleText.length, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH, true))}>
+                                        <p className={cn("text-caption text-right mt-0.5", getCharCountClass(designSampleText.length, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH, true))}>
                                             {designSampleText.length}/{DESIGN_SAMPLE_TEXT_MAX_LENGTH} 
                                             {designSampleText.length > 0 && ` (min ${DESIGN_SAMPLE_TEXT_MIN_LENGTH})`}
                                         </p>
                                     </div>
-                                    <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8 text-sm" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (!designVoiceDescription.trim() && !designIncludeBio) || (!!designIncludeBio && !bioText?.trim())}>
+                                    <Button type="button" onClick={handleGenerateDesignPreviews} className="w-full h-8" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (!designVoiceDescription.trim() && !designIncludeBio) || (!!designIncludeBio && !bioText?.trim())}>
                                         {isGeneratingPreviews ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />} Generate Previews
                                     </Button>
 
                                     {designPreviews.length > 0 && (
                                         <div className="space-y-2 pt-2">
-                                            <Label className="text-xs">Select a Preview to Finalize:</Label>
+                                            <Label className="text-label">Select a Preview to Finalize:</Label>
                                             <ScrollArea className="h-[120px] border rounded-md p-1"> {/* Increased height */}
                                                 {designPreviews.map((preview, idx) => (
                                                     <Button
@@ -668,7 +668,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                                         key={preview.generated_voice_id}
                                                         variant={selectedPreviewId === preview.generated_voice_id ? "default" : "outline"}
                                                         size="sm"
-                                                        className="w-full justify-start h-8 mb-1 text-xs"
+                                                        className="w-full justify-start h-8 mb-1 text-caption"
                                                         onClick={(e) => playDesignPreviewAudio(e, preview)}
                                                         disabled={isGeneratingPreviews || isProcessingCreate}
                                                     >
@@ -680,7 +680,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                             </ScrollArea>
                                         </div>
                                     )}
-                                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 text-sm bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (createMode === 'design' && !selectedPreviewId)}>
+                                    <Button type="button" onClick={handleCreateAndSelect} className="w-full h-9 bg-green-600 hover:bg-green-700" disabled={disabled || isProcessingCreate || isGeneratingPreviews || (createMode === 'design' && !selectedPreviewId)}>
                                         {isProcessingCreate && createMode === 'design' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Create & Select Voice
                                     </Button>
                                 </div>

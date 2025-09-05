@@ -67,7 +67,7 @@ const EditableRawField = ({
   return (
     <textarea
       rows={Math.min(12, Math.max(4, draft.split("\n").length))}
-      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+      className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
       {...inputProps}
       value={draft} // Use the draft value directly
     />
@@ -196,7 +196,7 @@ export default function RawView({
                       {/* Display RowBadges for the logs sharing this value */}
                       <div className="flex items-center gap-1 mb-1">
                           <RowBadge rowNumbers={group.rows} mode="none" />
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-caption text-muted-foreground">
                               {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                           </span>
                       </div>
@@ -238,7 +238,7 @@ export default function RawView({
             {baseVer ? (
               <div className="flex border rounded p-2 relative group">
                 <div className="mt-1 mb-1">
-                  <p className="text-sm whitespace-pre-wrap">{baseVer}</p>
+                  <p className="text-body whitespace-pre-wrap">{baseVer}</p>
                 </div>
                 <CopyButton
                   className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -248,7 +248,7 @@ export default function RawView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
@@ -260,7 +260,7 @@ export default function RawView({
           )}
           <div className="flex border rounded p-2 relative group">
             <div className="mt-1 mb-1">
-              <p className="text-sm whitespace-pre-wrap">{baseStr}</p>
+              <p className="text-body whitespace-pre-wrap">{baseStr}</p>
             </div>
             <CopyButton
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
@@ -317,10 +317,10 @@ export default function RawView({
                         />
                         {vStr ? (
                           <div className="pt-2">
-                            <p className="text-sm whitespace-pre-wrap">{vStr}</p>
+                            <p className="text-body whitespace-pre-wrap">{vStr}</p>
                           </div>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground">
+                          <p className="italic text-body text-muted-foreground">
                             No version
                           </p>
                         )}
@@ -344,7 +344,7 @@ export default function RawView({
                     tooltipContent="Copy raw text"
                   />
                   <div className="pt-2">
-                    <p className="text-sm whitespace-pre-wrap">{g.rawText}</p>
+                    <p className="text-body whitespace-pre-wrap">{g.rawText}</p>
                   </div>
                 </div>
               </div>
@@ -396,7 +396,7 @@ export default function RawView({
                   return (
                     <div key={j} className="borderspace-y-2">
                       <div className="border rounded p-2">
-                        <div className="flex items-centergap-2 gap-2 text-xs">
+                        <div className="flex items-centergap-2 gap-2 text-caption">
                           {baseRowPresent && <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadge} />}
                           <RowBadge rowNumbers={vg.rows.filter(r => r !== baseLogIndex)} mode={changed ? "insert" : "none"} />
                         </div>
@@ -428,7 +428,7 @@ export default function RawView({
                 <p className="font-semibold">Raw Diff</p>
               )}
               <div className="border rounded p-2">
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-caption">
                   <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />
                   <RowBadge rowNumbers={block.rows} mode={newMode} />
                 </div>

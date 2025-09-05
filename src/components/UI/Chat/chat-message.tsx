@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { MarkdownRenderer } from "@/components/UI/Chat/markdown-renderer"
 
 const chatBubbleVariants = cva(
-  "group/message relative break-words rounded-lg p-3 text-sm sm:max-w-[70%]",
+  "group/message relative break-words rounded-lg p-3 text-body sm:max-w-[70%]",
   {
     variants: {
       isUser: {
@@ -94,7 +94,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       {showTimeStamp && createdAt ? (
         <span
           className={cn(
-            "mt-1 block px-1 text-xs opacity-50",
+            "mt-1 block px-1 text-caption opacity-50",
             animation !== "none" && "animate-in fade-in-0 duration-500"
           )}
         >

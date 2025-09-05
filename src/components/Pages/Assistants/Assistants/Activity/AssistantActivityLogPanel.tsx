@@ -43,7 +43,7 @@ export function AssistantActivityLogPanel({
             return (
                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
                     <WifiOff className="h-7 w-7 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium text-muted-foreground">Could not load activity.</p>
+                    <p className="text-body text-muted-foreground">Could not load activity.</p>
                 </div>
             );
         }
@@ -59,7 +59,7 @@ export function AssistantActivityLogPanel({
         return (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
                 <Inbox className="h-7 w-7 text-muted-foreground mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">No activity summary found.</p>
+                <p className="text-body text-muted-foreground">No activity summary found.</p>
             </div>
         );
     };
@@ -69,7 +69,7 @@ export function AssistantActivityLogPanel({
             {/* Header */}
             <div className="px-4 py-3.5 sm:px-6 sm:py-3.5 border-b flex-shrink-0">
                 <div className='flex items-start justify-between'>
-                    <h2 className="text-lg font-semibold truncate pr-2">
+                    <h2 className="text-title truncate pr-2">
                         {`${displayName}'s Activity Summary`}
                     </h2>
                     <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onClose}>

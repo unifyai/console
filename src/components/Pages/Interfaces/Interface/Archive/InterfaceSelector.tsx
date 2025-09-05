@@ -543,10 +543,10 @@ export default function InterfaceSelector({
         <div className="container mx-auto py-6 space-y-6">
           <Card className="shadow-sm">
             <CardHeader className="pb-4">
-              <CardTitle className="flex items-center justify-between text-lg">
+              <CardTitle className="flex items-center justify-between text-title">
                 {titleText}
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-body">
                 {descriptionText}
               </CardDescription>
             </CardHeader>
@@ -584,7 +584,7 @@ export default function InterfaceSelector({
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <div className="text-sm text-muted-foreground">Loading interface...</div>
+            <div className="text-body text-muted-foreground">Loading interface...</div>
           </div>
         </div>
       )}
@@ -594,7 +594,7 @@ export default function InterfaceSelector({
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <div className="text-sm text-muted-foreground">Exporting template...</div>
+            <div className="text-body text-muted-foreground">Exporting template...</div>
           </div>
         </div>
       )}
@@ -604,15 +604,15 @@ export default function InterfaceSelector({
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin" />
-            <div className="text-sm text-muted-foreground">Refreshing interface list...</div>
+            <div className="text-body text-muted-foreground">Refreshing interface list...</div>
           </div>
         </div>
       )}
       
       <div className="container mx-auto py-6 space-y-6">
         <Card className="shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center justify-between text-lg">
+                      <CardHeader className="pb-4">
+            <CardTitle className="flex items-center justify-between text-title">
               <span>Project Interfaces</span>
               <div className="flex gap-2">
                 <Button 
@@ -644,10 +644,10 @@ export default function InterfaceSelector({
                 </Button>
               </div>
             </CardTitle>
-            <CardDescription className="text-sm">
-              Select an interface to work with for project: <span className="font-mono font-medium">{projectId}</span>
+            <CardDescription className="text-body">
+              Select an interface to work with for project: <span className="font-mono text-strong">{projectId}</span>
               {(isFetching || isRefetchingAfterImport) && (
-                <span className="ml-2 text-xs text-muted-foreground">
+                <span className="ml-2 text-caption text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin inline mr-1" />
                   {isRefetchingAfterImport ? 'Refreshing after import...' : 'Refreshing...'}
                 </span>
@@ -759,7 +759,7 @@ export default function InterfaceSelector({
                     <div className="space-y-2">
                       <FileUp className="h-8 w-8 mx-auto text-gray-400" />
                       <div>
-                        <p className="text-sm font-medium">
+                        <p className="text-body text-strong">
                           Drag and drop your template file here, or{" "}
                           <Button
                             variant="link"
@@ -778,7 +778,7 @@ export default function InterfaceSelector({
                             browse files
                           </Button>
                         </p>
-                        <p className="text-xs text-gray-500">JSON files only</p>
+                        <p className="text-caption text-muted-foreground">JSON files only</p>
                       </div>
                     </div>
                   )}
@@ -803,7 +803,7 @@ export default function InterfaceSelector({
                     className={nameError ? "border-red-500" : ""}
                   />
                   {nameError && (
-                    <p className="text-xs text-red-500">{nameError}</p>
+                    <p className="text-caption text-destructive">{nameError}</p>
                   )}
                 </div>
 
@@ -815,7 +815,7 @@ export default function InterfaceSelector({
                       checked={useTemplateName}
                       onCheckedChange={handleUseTemplateNameChange}
                     />
-                    <Label htmlFor="use-template-name" className="text-sm">
+                    <Label htmlFor="use-template-name" className="text-body">
                       Use from template ({templateData.template.name})
                     </Label>
                   </div>
@@ -875,7 +875,7 @@ export default function InterfaceSelector({
                 className={createNameError ? "border-red-500" : ""}
               />
               {createNameError && (
-                <p className="text-xs text-red-500">{createNameError}</p>
+                <p className="text-caption text-destructive">{createNameError}</p>
               )}
             </div>
 

@@ -270,7 +270,7 @@ export default function ImageView({
       <div className="space-y-4">
         {!versionEmpty && (
           <div className="space-y-2">
-            <p className="font-semibold text-sm">Version</p>
+            <p className="text-title">Version</p>
             {baseVer ? (
               <div className="border rounded p-2 relative group">
                 <MarkdownRenderer>{baseVer}</MarkdownRenderer>
@@ -282,15 +282,15 @@ export default function ImageView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         <div className="space-y-2">
-          {!versionEmpty && <p className="font-semibold text-sm">Image</p>}
+          {!versionEmpty && <p className="text-title">Image</p>}
           {!hasImage ? (
-            <p className="text-sm italic text-muted-foreground">No image</p>
+            <p className="text-body italic text-muted-foreground">No image</p>
           ) : (
             <LightboxWrapper 
               className="border rounded p-2 bg-background"
@@ -364,7 +364,7 @@ export default function ImageView({
               {/* Param Versions */}
               {!versionEmpty && (
                 <>
-                  <p className="font-semibold text-sm">Version</p>
+                  <p className="text-title">Version</p>
                   <div className="space-y-2">
                     {versionGroups.map((vg, j) => (
                       <div
@@ -377,7 +377,7 @@ export default function ImageView({
                             <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                           </div>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground">
+                          <p className="italic text-body text-muted-foreground">
                             No version
                           </p>
                         )}
@@ -389,7 +389,7 @@ export default function ImageView({
 
               {/* The actual image */}
               <div className="space-y-2">
-                {!versionEmpty && <p className="font-semibold text-sm">Image</p>}
+                {!versionEmpty && <p className="text-title">Image</p>}
                 <div className="border rounded p-2 bg-background relative">
                   <RowBadge rowNumbers={rows} mode="none" />
                   {isNonEmptyImage(src) ? (
@@ -403,7 +403,7 @@ export default function ImageView({
                       </Suspense>
                     </LightboxWrapper>
                   ) : (
-                    <p className="text-sm italic text-muted-foreground">
+                    <p className="text-body italic text-muted-foreground">
                       No image
                     </p>
                   )}
@@ -483,7 +483,7 @@ export default function ImageView({
           <div key={i} className="border rounded p-3 space-y-4">
             {!versionEmpty && (
               <>
-                <p className="font-semibold text-sm">Version</p>
+                <p className="text-title">Version</p>
                 <div className="space-y-2">
                   {versionGroups.map((vg, j) => {
                     const rowSet = vg.rows;
@@ -499,7 +499,7 @@ export default function ImageView({
                         key={j}
                         className="border rounded p-2 relative group"
                       >
-                        <div className="flex items-center gap-2 text-xs mb-2">
+                        <div className="flex items-center gap-2 text-caption mb-2">
                           {hasBase && (
                             <RowBadge
                               rowNumbers={[baseLogIndex]}
@@ -516,7 +516,7 @@ export default function ImageView({
                         {vg.text ? (
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground">
+                          <p className="italic text-body text-muted-foreground">
                             No version
                           </p>
                         )}
@@ -528,7 +528,7 @@ export default function ImageView({
             )}
 
             <div className="space-y-2">
-              {!versionEmpty && <p className="font-semibold text-sm">Image Diff</p>}
+              {!versionEmpty && <p className="text-title">Image Diff</p>}
 
               <div className="flex flex-col gap-4">
                 {/* (1) Base block */}
@@ -547,7 +547,7 @@ export default function ImageView({
                       </div>
                     </Suspense>
                   ) : (
-                    <p className="text-sm italic text-muted-foreground">
+                    <p className="text-body italic text-muted-foreground">
                       No image
                     </p>
                   )}
@@ -569,7 +569,7 @@ export default function ImageView({
                       </div>
                     </Suspense>
                   ) : (
-                    <p className="text-sm italic text-muted-foreground">
+                    <p className="text-body italic text-muted-foreground">
                       No image
                     </p>
                   )}

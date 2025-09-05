@@ -171,8 +171,8 @@ export function AssistantPhotoViewer({
                 ) : (
                   <Avatar className={cn("h-full w-full border-0 rounded-lg", avatarClassName)}>
                     {photoUrl && <AvatarImage src={photoUrl} alt="Avatar Preview" className="object-cover" />}
-                    <AvatarFallback className={cn("text-muted-foreground bg-transparent flex flex-col items-center justify-center text-xs rounded-lg", !photoUrl && "bg-muted")}>
-                        {!photoUrl && ( <> {fallbackText} <span className="mt-1 text-xs">No Photo</span> </> )}
+                    <AvatarFallback className={cn("text-muted-foreground bg-transparent flex flex-col items-center justify-center text-caption rounded-lg", !photoUrl && "bg-muted")}> 
+                        {!photoUrl && ( <> {fallbackText} <span className="mt-1 text-caption">No Photo</span> </> )}
                     </AvatarFallback>
                   </Avatar>
                 )}

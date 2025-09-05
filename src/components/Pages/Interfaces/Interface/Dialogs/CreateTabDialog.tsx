@@ -91,7 +91,7 @@ export const CreateTabDialog = React.memo(function CreateTabDialog({
             />
           </div>
           {error && (
-            <p className="text-xs text-destructive">{error}</p>
+            <p className="text-caption text-destructive">{error}</p>
           )}
         </div>
       }

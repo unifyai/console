@@ -17,7 +17,7 @@ const SelectionHints = () => {
         <div className="flex flex-col col-span-6 gap-2">
 
             <div className="flex flex-col gap-1 border-primary border-1 rounded-md p-4">
-                <p className="font-bold">Table Actions</p>
+                <p className="text-title">Table Actions</p>
                 <div className="grid grid-rows-2">
                     <Hint command="Click" instruction="Click on a cell to select it."/>
                     <Hint command="[Ctrl + Click]"  instruction="Ctrl and click on another cell to multi-select cells."/>

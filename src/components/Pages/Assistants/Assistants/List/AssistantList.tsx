@@ -135,7 +135,7 @@ export function AssistantList({
                     ) : error ? (
                          <div className="flex flex-col items-center justify-center pt-10 text-center">
                              <WifiOff className="h-6 w-6 text-muted-foreground mb-2" />
-                             {!isFolded && <p className="text-sm text-muted-foreground">Could not load assistants.</p>}
+                             {!isFolded && <p className="text-body text-muted-foreground">Could not load assistants.</p>}
                          </div>
                     ) : filteredAssistants.length > 0 ? (
                         filteredAssistants.map((assistant) => (
@@ -149,9 +149,9 @@ export function AssistantList({
                             />
                         ))
                     ) : searchTerm && !isFolded ? (
-                         <p className="p-4 text-sm text-muted-foreground text-center">No assistants match filters.</p>
+                         <p className="p-4 text-body text-muted-foreground text-center">No assistants match filters.</p>
                     ) : !isFolded ? (
-                         <p className="p-4 text-sm text-muted-foreground text-center">No assistants found.</p>
+                         <p className="p-4 text-body text-muted-foreground text-center">No assistants found.</p>
                     ) : null}
                 </div>
             </ScrollArea>

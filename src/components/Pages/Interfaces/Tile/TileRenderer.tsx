@@ -72,7 +72,7 @@ const TileRenderer: React.FC<TileRendererProps> = ({
       <div className="w-full h-full flex items-center justify-center">
         <SkeletonLoader />
         {DEBUG_TILE_DEPENDENCIES && renderState?.missingDependencies?.length && renderState?.missingDependencies?.length > 0 && (
-          <div className="absolute bottom-2 left-2 text-xs text-gray-500">
+          <div className="absolute bottom-2 left-2 text-caption text-muted-foreground">
             <div>Waiting for:</div>
             {renderState?.missingDependencies.map((missing, index) => (
               <div key={index} className="ml-2">• {missing}</div>

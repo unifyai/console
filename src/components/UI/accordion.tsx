@@ -32,7 +32,7 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "group flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline",
+        "group flex flex-1 items-center justify-between py-4 text-title transition-all hover:underline",
         className
       )}
       {...props}
@@ -56,7 +56,7 @@ const AccordionContent = React.forwardRef<
   <AccordionPrimitive.Content
     ref={ref}
     className={cn(
-      "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+      "overflow-hidden text-body transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
       outerClassName
     )}
     {...props}

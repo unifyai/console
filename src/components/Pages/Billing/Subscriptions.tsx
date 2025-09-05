@@ -43,7 +43,7 @@ const plans = [
 const FeatureItem = ({ children }: { children: React.ReactNode }) => (
   <li className="flex items-start">
     <Check className="w-5 h-5 mr-2 text-primary flex-shrink-0 mt-1" />
-    <span className="text-sm text-muted-foreground">{children}</span>
+    <span className="text-body text-muted-foreground">{children}</span>
   </li>
 );
 
@@ -51,8 +51,8 @@ const Main = () => {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-2xl">Select Your Plan</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-h3">Select Your Plan</CardTitle>
+        <CardDescription className="text-body">
           Hire, customize and manage your team of AI assistants with plans that fit your needs.
         </CardDescription>
       </CardHeader>
@@ -61,15 +61,15 @@ const Main = () => {
           {plans.map((plan, index) => (
             <Card key={index} className={`flex flex-col ${plan.name === 'Personal' ? 'border-primary' : ''}`}>
               <CardHeader className="text-center">
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <CardDescription className="text-lg font-semibold text-primary">{plan.price}</CardDescription>
+                <CardTitle className="text-title">{plan.name}</CardTitle>
+                <CardDescription className="text-title text-primary">{plan.price}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <ul className="space-y-4">
                   {plan.features.map((feature, featureIndex) => {
                     if (feature.startsWith("-")) {
                       return (
-                        <li key={featureIndex} className="ml-8 text-sm text-muted-foreground">
+                        <li key={featureIndex} className="ml-8 text-body text-muted-foreground">
                           {feature}
                         </li>
                       );

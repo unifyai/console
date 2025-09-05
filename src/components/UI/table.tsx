@@ -8,7 +8,7 @@ const Table = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-sm border-separate border-spacing-0", className)}
+      className={cn("w-full caption-bottom text-body border-separate border-spacing-0", className)}
       {...props}
     />
 ))
@@ -41,7 +41,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t font-medium [&>tr]:last:border-b-0 sticky bottom-0 z-10",
+      "border-t text-strong [&>tr]:last:border-b-0 sticky bottom-0 z-10",
       className
     )}
     {...props}
@@ -71,7 +71,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-10",
+      "h-10 px-2 text-left align-middle text-label text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sticky top-0 z-10",
       className
     )}
     {...props}
@@ -100,7 +100,7 @@ const TableCaption = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <caption
     ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    className={cn("mt-4 text-caption", className)}
     {...props}
   />
 ))

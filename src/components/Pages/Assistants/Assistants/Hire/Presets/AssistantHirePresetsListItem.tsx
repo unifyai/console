@@ -47,16 +47,16 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
           {fallback}
         </AvatarFallback>
       </Avatar>
-      <div className="space-y-1 text-sm min-w-0">
+      <div className="space-y-1 text-body min-w-0">
         <div className="grid grid-cols-[auto_1fr] gap-x-2 items-baseline">
-           <span className="text-muted-foreground text-xs">Name:</span>
-           <span className="font-medium truncate">{displayName}</span>
-           <span className="text-muted-foreground text-xs">Age:</span>
+           <span className="text-caption text-muted-foreground">Name:</span>
+           <span className="text-strong truncate">{displayName}</span>
+           <span className="text-caption text-muted-foreground">Age:</span>
            <span>{preset.age}</span>
-           <span className="text-muted-foreground text-xs">Region:</span>
+           <span className="text-caption text-muted-foreground">Region:</span>
            <span>{preset.region}</span>
         </div>
-         <p className="text-xs text-muted-foreground line-clamp-2"> {/* Show snippet */}
+         <p className="text-caption text-muted-foreground line-clamp-2"> {/* Show snippet */}
             {preset.about}
         </p>
       </div>
