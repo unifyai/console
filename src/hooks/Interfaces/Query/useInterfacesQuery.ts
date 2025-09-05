@@ -15,7 +15,8 @@ export function useListInterfacesQuery(
     queryKey: ['interfaces', projectId],
     queryFn: async () => {
       if (!projectId) return [];
-      return actions.list(projectId);
+      const result = await actions.list(projectId);
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!projectId,
   });

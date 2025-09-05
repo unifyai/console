@@ -84,7 +84,8 @@ export default async function Main({
     queryKey: ["projects"], 
     queryFn: actions.projectsActions.get 
   });
-  projects = qc.getQueryData<string[]>(["projects"]) || [];
+  const maybeProjects = qc.getQueryData(["projects"]);
+  projects = Array.isArray(maybeProjects) ? (maybeProjects as string[]) : [];
   debugLog("[Main.server] Loaded projects:", projects);
 
   // Get the current project if it was provided in the URL
@@ -105,6 +106,13 @@ export default async function Main({
       debugLog("[Main.server] No project specified and Assistants project doesn't exist");
       // We'll handle this case in the client component
     }
+  }
+  
+  // If a project was specified in the URL but the user doesn't have access to it,
+  // redirect to the project selection screen to avoid an endless loading state.
+  if (project && !currentProject) {
+    debugLog("[Main.server] Project specified in URL is not accessible. Redirecting to project selection.", { project });
+    redirect(`/interfaces?selectProject=true&notice=projectNotFound&missing=${encodeURIComponent(String(project))}`);
   }
   
   debugLog("[Main.server] Current project:", currentProject);
@@ -165,7 +173,8 @@ export default async function Main({
     });
 
     // Get interfaces from cache
-    interfaces = qc.getQueryData<InterfaceData[]>(["interfaces", currentProject, false]) || [];
+    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject, false]);
+    interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
     debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
   }
 
@@ -219,8 +228,8 @@ export default async function Main({
     debugLog("[Main.server] Validating interface:", interface_, "found:", !!currentInterface);
     
     if (!currentInterface) {
-      debugLog("[Main.server] Interface not found, redirecting to remove interface param");
-      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}`);
+      debugLog("[Main.server] Interface not found or inaccessible, redirecting to interface selection for project");
+      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interface_))}`);
     }
     
     debugLog("[Main.server] Valid interface found, building all state slices");

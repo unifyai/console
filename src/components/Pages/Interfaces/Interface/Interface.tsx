@@ -98,11 +98,14 @@ const Interface = ({
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
   const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
+  const [noticeParam, setNoticeParam] = useQueryState("notice", { shallow: false });
+  const [missingParam, setMissingParam] = useQueryState("missing", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
+  const lastNoticeKeyRef = useRef<string | null>(null);
   
   // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
   const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
@@ -201,6 +204,29 @@ const Interface = ({
     const t = setTimeout(() => setTabBarReady(true), 100);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!noticeParam) return;
+
+    const missing = Array.isArray(missingParam) ? missingParam[0] : missingParam;
+    const key = `${noticeParam}:${missing || ''}`;
+    if (lastNoticeKeyRef.current === key) {
+      // Already shown this notice in this session
+      setNoticeParam(null);
+      setMissingParam(null);
+      return;
+    }
+    lastNoticeKeyRef.current = key;
+    if (noticeParam === 'projectNotFound') {
+      showErrorToast('Project not found', undefined, `notice:${key}`);
+    } else if (noticeParam === 'interfaceNotFound') {
+      showErrorToast('Interface not found', undefined, `notice:${key}`);
+    }
+
+    // Clear the notice params so it only shows once
+    setNoticeParam(null);
+    setMissingParam(null);
+  }, [noticeParam, missingParam, setNoticeParam, setMissingParam]);
 
   const pageScrollContainerRef = useRef<HTMLDivElement>(null);
 
