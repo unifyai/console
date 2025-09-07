@@ -58,7 +58,7 @@ const CopyableContact: React.FC<{ value: string; type: 'Email' | 'Phone' | 'What
                 <TooltipTrigger asChild>
                     <div className="flex items-center gap-2 cursor-pointer" onClick={handleCopy}>
                         {isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        <span className="truncate mb-0.5 text-body">{value || 'N/A'}</span>
+                        <span className="truncate text-caption">{value || 'N/A'}</span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
