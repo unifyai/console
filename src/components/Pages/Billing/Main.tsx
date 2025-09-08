@@ -155,6 +155,10 @@ const Main = () => {
         </div>
       ) : (
         <>
+
+          <Subscriptions/>          
+          
+          <Separator/>
           {billingEligibility && !billingEligibility.can_enable_monthly_billing ? (
             <Alert variant="default">
               <AlertCircle className="h-4 w-4" />
@@ -176,9 +180,7 @@ const Main = () => {
               <AutomaticRefill />
             </>
           )}
-
-          <Separator />
-          <Subscriptions/>
+          
         </>
       )}
     </div>
