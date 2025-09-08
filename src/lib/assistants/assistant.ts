@@ -2,7 +2,7 @@ import { ResponseProps } from "@/types/common";
 import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage } from "@/types/assistants/assistant";
 
 export const listAssistants = async (apiKey: string) => {
-    return async (): Promise<Assistant[] | ResponseProps> => {
+    return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
         "use server";
 
         try {
@@ -29,8 +29,8 @@ export const listAssistants = async (apiKey: string) => {
             }
 
             if (!response.ok) {
-                const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`;
-                return { detail: errorMessage };
+                const errorMessage = data.detail || `Failed to list assistants: ${response.statusText}`
+                return { detail: errorMessage, status: response.status };
             }
 
             if ("info" in data) {   // In case data is nested inside an info property

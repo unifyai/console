@@ -26,8 +26,17 @@ export function useAssistants(
             // Step 1: Fetch the core assistant data first
             const listResult = await assistantActions.list();
 
-            if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult && typeof (listResult as ResponseProps).detail === 'string') {
-                throw new Error((listResult as ResponseProps).detail);
+            if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
+                // Specifically handle 403 Forbidden as a non-error state (user is not approved)
+                if ((listResult as any).status === 403) {
+                    setAssistants([]); // Treat as an empty list, not an error
+                    setError(null);
+                    setIsLoading(false);
+                    if (toastId) toast.dismiss(toastId);
+                    return;
+                }
+                // For all other errors, throw to be caught below
+                throw new Error((listResult as ResponseProps).detail || "Failed to fetch assistants.");
             }
             if (!Array.isArray(listResult)) {
                 const detail = (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) ? (listResult as any).detail : "Invalid response format";
