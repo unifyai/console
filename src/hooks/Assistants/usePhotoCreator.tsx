@@ -9,6 +9,8 @@ import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { Button } from '@/components/UI/button';
 
+const ANIMATION_POLLING_INTERVAL = 5000;
+
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
     const binary_string = atob(base64);
@@ -40,25 +42,36 @@ const AnimationProgressToast = ({
 }: {
     onCancel: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) => {
+    const [dots, setDots] = React.useState('.');
     const [progress, setProgress] = React.useState(0);
 
     React.useEffect(() => {
-        const interval = setInterval(() => {
+        const dotsInterval = setInterval(() => {
+            setDots(prev => (prev.length >= 3 ? '.' : prev + '.'));
+        }, 500);
+
+        const progressInterval = setInterval(() => {
             setProgress(prev => {
-                if (prev >= 95) {
-                    clearInterval(interval);
-                    return prev;
+                const newProgress = prev + (100 - prev) / 2;
+                // Stop interval when we are very close to 100 to prevent it from running indefinitely
+                if (newProgress > 99) {
+                    clearInterval(progressInterval);
+                    return 99;
                 }
-                return prev + 1.66;
+                return newProgress;
             });
-        }, 1000);
-        return () => clearInterval(interval);
+        }, ANIMATION_POLLING_INTERVAL);
+
+        return () => {
+            clearInterval(dotsInterval);
+            clearInterval(progressInterval);
+        };
     }, []);
 
     return (
         <div className="group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border bg-background p-4 pr-6 shadow-lg text-foreground">
             <div className="flex flex-col gap-1.5 flex-grow">
-                <div className="text-sm font-semibold">Animating photo...</div>
+                <div className="text-sm font-semibold">Animating photo{dots}</div>
                 <div className="text-sm opacity-90">This can take up to a minute.</div>
                 <div className="relative w-full h-1.5 bg-muted rounded-full overflow-hidden mt-1">
                     <div
@@ -105,6 +118,11 @@ export function usePhotoCreator(
     const [isProcessing, setIsProcessing] = React.useState(false);
     const pollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
     const toastIdRef = React.useRef<string | number | undefined>();
+    const isProcessingRef = React.useRef(isProcessing);
+
+    React.useEffect(() => {
+        isProcessingRef.current = isProcessing;
+    }, [isProcessing]);
 
     React.useEffect(() => {
         setTtsPrompt(initialTtsPrompt);
@@ -114,7 +132,7 @@ export function usePhotoCreator(
     React.useEffect(() => {
         return () => {
             if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
+                clearTimeout(pollIntervalRef.current);
             }
             if (toastIdRef.current) {
                 toast.dismiss(toastIdRef.current);
@@ -295,7 +313,7 @@ export function usePhotoCreator(
                 throw new Error(ttsResult.detail || "TTS generation failed for animation.");
             }
     
-            const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64);
+            const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64) as any;
             const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType });
     
             toast.loading("Starting animation job...", { id: toastIdRef.current });
@@ -320,7 +338,7 @@ export function usePhotoCreator(
 
             const stopPolling = () => {
                 if (pollIntervalRef.current) {
-                    clearInterval(pollIntervalRef.current);
+                    clearTimeout(pollIntervalRef.current);
                     pollIntervalRef.current = null;
                 }
             };
@@ -330,16 +348,19 @@ export function usePhotoCreator(
                 event.stopPropagation();
                 stopPolling();
                 setIsProcessing(false);
+                
                 if (toastIdRef.current) {
                     toast.dismiss(toastIdRef.current);
                     toastIdRef.current = undefined;
                 }
-    
+
+                const cancelToastId = toast.loading("Canceling animation...");
+
                 try {
                     await photoActions.cancelAnimation(prediction.id);
-                    toast.info("Animation canceled.");
+                    toast.success("Animation canceled.", { id: cancelToastId, duration: 4000 });
                 } catch (e) {
-                    toast.error("Failed to cancel animation.");
+                    toast.error("Failed to cancel animation.", { id: cancelToastId, duration: 4000 });
                 }
             };
     
@@ -354,12 +375,18 @@ export function usePhotoCreator(
                 className: "w-full p-0 bg-transparent rounded-md border shadow-lg"
             });
     
-            pollIntervalRef.current = setInterval(async () => {
+            const poll = async () => {
+                if (!isProcessingRef.current) {
+                    stopPolling();
+                    return;
+                }
+                
                 try {
                     const statusResult = await photoActions.getAnimation(prediction.id);
-    
+
                     if ('detail' in statusResult) {
                         console.warn(`Polling warning: ${statusResult.detail}`);
+                        pollIntervalRef.current = setTimeout(poll, 20000);
                         return;
                     }
                     
@@ -368,16 +395,31 @@ export function usePhotoCreator(
                     if (currentStatus.status === 'succeeded') {
                         stopPolling();
                         
-                        if (toastIdRef.current) {
-                            toast.dismiss(toastIdRef.current);
+                        if (toastIdRef.current) toast.loading("Finalizing video...", { id: toastIdRef.current });
+                        
+                        const output = currentStatus.output;
+                        let outputUrl: string | null = null;
+
+                        if (Array.isArray(output) && output.length > 0 && typeof output[0] === 'string') {
+                            outputUrl = output[0];
+                        } else if (typeof output === 'string' && output.trim() !== '') {
+                            outputUrl = output;
+                        }
+
+                        if (!outputUrl) {
+                            console.error("Animation succeeded but no valid output URL was found.", currentStatus);
+                            toast.error("Animation succeeded but the video URL was missing or invalid.", { id: toastIdRef.current });
                             toastIdRef.current = undefined;
+                            setIsProcessing(false);
+                            return;
                         }
                         
-                        const outputUrl = currentStatus.output as string;
                         const videoFetchResponse = await fetch(outputUrl);
                         if (!videoFetchResponse.ok) {
                             console.error(`Failed to download animated video.`);
-                            toast.error("Failed to retrieve the final video.");
+                            toast.error("Failed to retrieve the final video.", { id: toastIdRef.current });
+                            toastIdRef.current = undefined;
+                            setIsProcessing(false);
                             return;
                         }
                         
@@ -386,29 +428,38 @@ export function usePhotoCreator(
                         const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
                         
                         onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice!.voice_id });
-                        toast.success("Animation complete! Your video is now available.");       
+                        if(toastIdRef.current) toast.success("Animation complete! Your video is now available.", { id: toastIdRef.current, duration: 4000 });       
                         setIsProcessing(false);
+                        toastIdRef.current = undefined;
 
                     } else if (currentStatus.status === 'failed' || currentStatus.status === 'canceled') {
                         stopPolling();
-                         if (currentStatus.status === 'failed') {
-                            toast.error(`Animation failed: ${currentStatus.error || "Unknown reason"}`, { id: toastIdRef.current });
-                        } else {
-                            toast.dismiss(toastIdRef.current);
+                        if (toastIdRef.current) {
+                            if (currentStatus.status === 'failed') {
+                                toast.error(`Animation failed: ${currentStatus.error || "Unknown reason"}`, { id: toastIdRef.current, duration: 5000 });
+                            } else {
+                                toast.info("Animation was canceled on the server.", { id: toastIdRef.current, duration: 5000 });
+                            }
                         }
                         toastIdRef.current = undefined;
                         setIsProcessing(false);
+                    } else {
+                        pollIntervalRef.current = setTimeout(poll, 20000);
                     }
                 } catch (pollError) {
                     stopPolling();
-                    toast.error("An error occurred while checking animation status.", { id: toastIdRef.current });
-                    toastIdRef.current = undefined;
+                    if(toastIdRef.current) {
+                        toast.error("An error occurred while checking animation status.", { id: toastIdRef.current, duration: 5000 });
+                        toastIdRef.current = undefined;
+                    }
                     setIsProcessing(false);
                 }
-            }, 20000); // Poll every 20 seconds
+            };
+            
+            pollIntervalRef.current = setTimeout(poll, ANIMATION_POLLING_INTERVAL);
     
         } catch (error: any) {
-            toast.error(error.message, { id: toastIdRef.current });
+            if(toastIdRef.current) toast.error(error.message, { id: toastIdRef.current });
             toastIdRef.current = undefined;
             setIsProcessing(false);
         }
