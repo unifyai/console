@@ -50,7 +50,7 @@ export default function TopNav() {
         setProfileName(userName)
         const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
         setAvatarJSX(
-          <Avatar className="h-4 w-4">
+          <Avatar className="h-6 w-6">
             <AvatarImage src={imageUrl} alt="User Avatar"/>
             <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
           </Avatar>
@@ -89,13 +89,12 @@ export default function TopNav() {
             <Link
               href="/assistants"
               className={cn(
-                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
+                "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 pathname === '/assistants' || pathname.startsWith('/assistants/')
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
             >
-              <Bot className="h-4 w-4" />
               Assistants
             </Link>
 
@@ -103,13 +102,12 @@ export default function TopNav() {
             <Link
               href="/interfaces"
               className={cn(
-                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
+                "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
             >
-              <LayoutGrid className="h-4 w-4" />
               Interfaces
             </Link>
 
@@ -119,11 +117,10 @@ export default function TopNav() {
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "px-3 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
+                "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
                 "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
             >
-              <BookOpen className="h-4 w-4" />
               Docs
               <ExternalLink className="h-3 w-3" />
             </a>
@@ -131,7 +128,7 @@ export default function TopNav() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-4">
           {/* Search - temporarily hidden */}
           {/*
           <div className={cn(
@@ -174,6 +171,11 @@ export default function TopNav() {
           </div>
           */}
 
+          {/* Upgrade Button */}
+          <Button variant="primary" className="relative h-7 w-fit p-2" onClick={(e) => window.open('/billing', '_blank')}>
+            Upgrade
+          </Button>
+
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
 
@@ -181,7 +183,7 @@ export default function TopNav() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-6 w-6 rounded-full p-0">
-                {avatarJSX || <User className="h-3 w-3" />}
+                {avatarJSX || <User className="h-6 w-6" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -201,12 +203,6 @@ export default function TopNav() {
                 <Link href="/billing" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Billing</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
-                <Link href="/keys" className="flex items-center text-body hover:text-[color:var(--foreground)]">
-                  <Key className="mr-2 h-4 w-4" />
-                  <span>API Keys</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
