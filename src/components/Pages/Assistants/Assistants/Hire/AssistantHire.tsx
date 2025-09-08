@@ -353,6 +353,7 @@ export function AssistantHire ({
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="h-8"
                                 onClick={() => {
                                     setIsAssistantPresetsOpen(true);
                                     setLayoutMode("split")
@@ -384,9 +385,10 @@ export function AssistantHire ({
                         >
                             <PopoverTrigger asChild>
                                 <Button 
-                                    type="button" 
+                                    type="button"
+                                    variant="primary"
                                     onClick={() => onHireAttempt(chatHistories[assistantConfigKey])} 
-                                    className="bg-green-600 hover:bg-green-700 text-white" 
+                                    className="h-8" 
                                     disabled={isPrimaryActionDisabled}
                                 >
                                     {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isProcessingPhoto || isLoadingSocialPlatforms) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

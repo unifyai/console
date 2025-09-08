@@ -172,7 +172,7 @@ export default function TopNav() {
           */}
 
           {/* Upgrade Button */}
-          <Button variant="primary" className="relative h-7 w-fit p-2" onClick={(e) => window.open('/billing', '_blank')}>
+          <Button variant="primary" className="relative h-6 w-fit p-2 text-sm" onClick={(e) => window.open('/billing', '_blank')}>
             Upgrade
           </Button>
 
