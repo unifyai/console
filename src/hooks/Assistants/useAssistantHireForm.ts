@@ -489,7 +489,7 @@ export function useAssistantHireForm(
             if (data.voice_id && !data.voice_exists) {
                  const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
                  const voiceCreationResponse = await assistantActions.voice.register(data.voice_id, provider, data.voice_name!, data.voice_description!, data.voice_gender!, data.voice_language!, false);
-                 if ('detail' in voiceCreationResponse) throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
+                 if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
             }
 
             if (Object.keys(payload).length > 0) {
@@ -610,7 +610,7 @@ export function useAssistantHireForm(
                     data.voice_id, provider, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
                 );
-                if ('detail' in voiceCreationResponse) {
+                if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) {
                     throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
                 }
             }
