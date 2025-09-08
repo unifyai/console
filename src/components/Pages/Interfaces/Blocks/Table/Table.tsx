@@ -72,8 +72,8 @@ import { cn } from "@/lib/utils";
 import { getDeep, setDeep } from "@/utils/objectPath";
 import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
-  
-  // Check if advanced table features should be shown
+
+// Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
 
 const LogsTable = ({
@@ -120,6 +120,12 @@ const LogsTable = ({
   // Menu collapse state
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
+  // Section visibility states
+  const [dataSectionVisible, setDataSectionVisible] = useState(true);
+  const [actionsSectionVisible, setActionsSectionVisible] = useState(true);
+  const [displaySectionVisible, setDisplaySectionVisible] = useState(true);
+  const [monitoringSectionVisible, setMonitoringSectionVisible] = useState(true);
+
   // Track group-specific offsets for row indexing
   const [groupOffsets, setGroupOffsets] = useState<Map<string, number>>(new Map());
 
@@ -139,8 +145,8 @@ const LogsTable = ({
   } = useTile(tileId, tabId);
 
   // Use the existing hook structure for metadata and mutations
-  const { 
-    tableData: tableDataItem, 
+  const {
+    tableData: tableDataItem,
     isError: isTableDataError,
     error: tableDataError,
     updateTableDataItemWithUpdater,
@@ -168,7 +174,7 @@ const LogsTable = ({
   const tileName = tileMetaState?.name || "";
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
   const groupSortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.group_sorting || null;
-  
+
   // TODO: See if we can directly wait for the table arguments to be updated,
   // rather than hacking this to manually get the correct get logs expressions
   // for the infinite scrolls
@@ -232,13 +238,13 @@ const LogsTable = ({
   );
   const syncedTileDataActions = syncedTileActions?.data ?? null;
   const { tableTileActions } = tableTile ?? { tableTileActions: null };
-  
+
   // Get access to the table tile specific data and actions with granular access
   const limit = tableTileState?.limit as number;
   const offset = tableTileState?.offset as number;
   const group_limit = tableTileState?.group_limit as number;
   const group_offset = tableTileState?.group_offset as number;
-  
+
   const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
 
   // Display loaders for group metrics and shared values
@@ -249,7 +255,7 @@ const LogsTable = ({
   const flatLogs = maybeFlattenGroupedLogs(logs)
   if (Object.entries(params).length && Object.entries(logs).length)
     flatLogs.map(log => Object.entries(log.params).map(([key, value]) => paramsValues[key] = params[key][value]))
-  
+
   // Get global UI mode settings
   const { isInteractive, isEditMode } = useGlobalUIMode();
 
@@ -382,7 +388,7 @@ const LogsTable = ({
           )),
     ];
   }, [entriesTree, paramsTree, dataTypes, fieldTypes, params, columnContext, fields, paramsProperties.length]);
- 
+
   // Apply rendered depth encoding to account for depth mismatch for all headers
   // This is needed for accurate column hiding/showing/grouping to work on all nest levels
   // Always assign depth = 0 for the meta column types as passed here
@@ -435,7 +441,7 @@ const LogsTable = ({
           : true
     ])
   ), [columnIDs, hiddenList, defaultHidden]);
-  
+
   // Toggle handler for updating hiddenColumns from visibility map
   const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => {
     const hidden = Object.keys(v).filter((k) => !v[k]);
@@ -447,7 +453,7 @@ const LogsTable = ({
           : undefined
     );
   }, [tableTileActions]);
-  
+
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = useCallback((filtersObj: FiltersByColumn) => {
     const keys = Object.keys(filtersObj);
@@ -493,7 +499,7 @@ const LogsTable = ({
     left: columnsPinLeft ? columnsPinLeft.split(",") : [indicesTitle],
     right: columnsPinRight ? columnsPinRight.split(",") : [],
   }), [columnsPinLeft, columnsPinRight, indicesTitle]);
-  
+
   const setColumnPinning = useCallback((pin: ColumnPinningState) => {
     tableTileActions?.setColumnsPinLeft(pin.left ? pin.left.join(",") : undefined);
     tableTileActions?.setColumnsPinRight(pin.right ? pin.right.join(",") : undefined);
@@ -700,7 +706,7 @@ const LogsTable = ({
       // Use infinite query data once it's available
       return infiniteLogsQuery.hasNextPage;
     }
-    
+
     // Calculate from initial tableDataItem using pagination utility
     return checkHasNextPage({
       currentLogs: logs,
@@ -710,15 +716,15 @@ const LogsTable = ({
     });
   }, [
     isTableDataLoading,
-    infiniteLogsQuery.isLoading, 
+    infiniteLogsQuery.isLoading,
     infiniteLogsQuery.isPending,
-    infiniteLogsQuery.hasNextPage, 
-    logs.length, 
-    tableTileState?.limit, 
+    infiniteLogsQuery.hasNextPage,
+    logs.length,
+    tableTileState?.limit,
     tableTileState?.group_limit,
-    tableTileState?.group_offset, 
+    tableTileState?.group_offset,
     tableTileState?.offset,
-    groupingExpression, 
+    groupingExpression,
     totalCount
   ]);
 
@@ -936,11 +942,11 @@ const LogsTable = ({
                   const rangeStart = globalOffset + 1;
                   const rangeEnd = globalOffset + effectiveLoadedCount;
                   const itemType = grouping.length > 0 ? "groups" : "logs";
-                  
+
                   if (effectiveLoadedCount === 0) {
                     return `0 of ${totalCount} ${itemType}`;
                   }
-                  
+
                   return `${rangeStart}-${rangeEnd} of ${totalCount} ${itemType} ${showAdvancedFeatures ? `(${effectiveLoadedCount} loaded)` : ""}`;
                 })()}
               </div>
@@ -973,9 +979,26 @@ const LogsTable = ({
     </div>
   );
 
+  // Menu Toggle Button and Section Toggles
+  const toggleSection = (sectionSetter: React.Dispatch<React.SetStateAction<boolean>>, visible: boolean) => {
+    sectionSetter(!visible);
+  };
+
+  const renderSectionToggle = (setter: React.Dispatch<React.SetStateAction<boolean>>, visible: boolean, label: string) => (
+    <div className="flex items-center gap-1 cursor-pointer" onClick={() => toggleSection(setter, visible)}>
+        <span className="text-caption text-muted-foreground">{label}</span>
+        <div className={cn(
+            "transition-transform duration-300 ease-out text-muted-foreground",
+            visible ? "rotate-90" : "rotate-0"
+        )}>
+            <ChevronRight className="h-3 w-3" />
+        </div>
+    </div>
+);
+
   const tableMenu = !interactive ? null : (
     <div className="mb-2 -mx-1">
-      {/* Menu Toggle Button */}
+
       <div className="flex flex-row justify-between gap-2">
         <Button
           size="sm"
@@ -998,143 +1021,147 @@ const LogsTable = ({
         </Button>
         {logsCounter}
       </div>
-      
-      {/* Existing Menu Content */}
+
       <div className={cn(
         "relative overflow-hidden transition-all duration-500 ease-out px-2",
         !isMenuCollapsed ? "max-h-96" : "max-h-0 pointer-events-none"
       )}>
         <div className={cn(
-          "flex flex-nowrap items-start border-b gap-x-4 overflow-x-auto command-scrollbar transition-all duration-400 ease-out py-2",
-          !isMenuCollapsed 
-            ? "opacity-100 transform translate-y-0" 
+          "flex flex-nowrap items-stretch overflow-x-auto command-scrollbar transition-all duration-400 ease-out py-2",
+          !isMenuCollapsed
+            ? "opacity-100 transform translate-y-0"
             : "opacity-0 transform -translate-y-2"
         )}>
+
         {/* Data Section */}
-        <div className="flex flex-col gap-1 border-r pr-4">
-            <span className="text-caption text-muted-foreground">Data</span>
-            <div className="flex items-center gap-2">
-                <GlobalFilter
-                    interactive={interactive}
-                    logsFilters={logsFilters}
-                    commonFilter={commonFilter}
-                    setCommonFilter={syncedTileDataActions?.setCommonFilter!}
-                    logs={logs}
-                    currentTable={item?.name || ""}
-                    tableArguments={tableArguments}
-                />
-                {contextSelectorButton(false)}
-            </div>
+        <div className={cn("flex flex-col gap-1 pr-4 border-r transition-all duration-300 ease-out",
+            !dataSectionVisible && "max-w-[80px]")}>
+          {renderSectionToggle(setDataSectionVisible, dataSectionVisible, "Data")}
+          <div className={cn("flex items-center gap-2", !dataSectionVisible && "hidden")}>
+              <GlobalFilter
+                  interactive={interactive}
+                  logsFilters={logsFilters}
+                  commonFilter={commonFilter}
+                  setCommonFilter={syncedTileDataActions?.setCommonFilter!}
+                  logs={logs}
+                  currentTable={item?.name || ""}
+                  tableArguments={tableArguments}
+              />
+              {contextSelectorButton(false)}
+          </div>
         </div>
-        
+
         {/* Actions Section */}
         {showActions && projectId && (
-            <div className="flex flex-col gap-1 border-r pr-4">
-                <span className="text-caption text-muted-foreground">Actions</span>
-                <div className="flex items-center gap-2">
-                    <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
-                    <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
-                    <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
-                </div>
+            <div className={cn("flex flex-col gap-1 pl-4 pr-4 border-r transition-all duration-300 ease-out",
+              !actionsSectionVisible && "max-w-[80px]")}>
+              {renderSectionToggle(setActionsSectionVisible, actionsSectionVisible, "Actions")}
+              <div className={cn("flex items-center gap-2", !actionsSectionVisible && "hidden")}>
+                  <ResetServerAction condition={grouping.length > 0} type={"grouping"} interactive={interactive} logs={logs} setterFunction={() => {setGrouping([]); setGroupSorting([])}}/>
+                  <ResetServerAction condition={(sorting.length > 0 || groupSorting.length > 0)} type={"sorting"} interactive={interactive} logs={logs} setterFunction={() => {setSorting([]); setGroupSorting([])}}/>
+                  <ResetServerAction condition={(logsFilters != undefined || commonFilter != undefined)} type={"filters"} interactive={interactive} logs={logs} setterFunction={() => {setLogsFilters({}); syncedTileDataActions?.setCommonFilter(undefined)}}/>
+              </div>
             </div>
         )}
-        
+
         {/* Display Section */}
-        <div className="flex flex-col gap-1 border-r pr-4">
-            <span className="text-caption text-muted-foreground">Display</span>
-            <div className="flex items-center gap-2">
-                {projectId && <VisibilityFilter
-                    fields={fields}
-                    columnVisibility={columnVisibility}
-                    setColumnVisibility={setColumnVisibility}
-                    context={item?.context ?? null}
-                    defaultHidden={defaultHidden ?? true}
-                    setDefaultHidden={setDefaultHidden}
-                />}
-                <SettingButton
-                    tooltip={logs.length === 0 ? "Metrics are unavailable for empty tables" : `${showMetricsRow ? 'Hide' : 'Show'} metrics row`}
-                    icon={<BarChart3 className="h-4 w-4" />}
-                    onClick={() => setShowMetricsRow(!showMetricsRow)}
-                    variant={showMetricsRow ? "primary" : "outline"}
-                    disabled={logs.length === 0}
+        <div className={cn("flex flex-col gap-1 pl-4 pr-4 border-r transition-all duration-300 ease-out",
+          !displaySectionVisible && "max-w-[80px]")}>
+          {renderSectionToggle(setDisplaySectionVisible, displaySectionVisible, "Display")}
+          <div className={cn("flex items-center gap-2", !displaySectionVisible && "hidden")}>
+              {projectId && <VisibilityFilter
+                  fields={fields}
+                  columnVisibility={columnVisibility}
+                  setColumnVisibility={setColumnVisibility}
+                  context={item?.context ?? null}
+                  defaultHidden={defaultHidden ?? true}
+                  setDefaultHidden={setDefaultHidden}
+              />}
+              <SettingButton
+                  tooltip={logs.length === 0 ? "Metrics are unavailable for empty tables" : `${showMetricsRow ? 'Hide' : 'Show'} metrics row`}
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  onClick={() => setShowMetricsRow(!showMetricsRow)}
+                  variant={showMetricsRow ? "primary" : "outline"}
+                  disabled={logs.length === 0}
+              />
+              <SettingButton
+                tooltip="Reset column widths"
+                icon={<StretchVertical className="h-4 w-4" />}
+                onClick={resetColumnSizing}
                 />
+              <SettingButton
+                  tooltip="Reset row heights"
+                  icon={<StretchHorizontal className="h-4 w-4" />}
+                  onClick={resetRowSizing}
+              />
+              <SettingButton
+                  tooltip={`Cycle split view (${panelCount})`}
+                  icon={<SquareSplitHorizontal className="h-4 w-4" />}
+                  onClick={() => setPanelCount(c => (c % 2) + 1)}
+              />
+              {!isEditMode && !focusPaneOpen && (
                 <SettingButton
-                  tooltip="Reset column widths"
-                  icon={<StretchVertical className="h-4 w-4" />}
-                  onClick={resetColumnSizing}
-                  />
-                <SettingButton
-                    tooltip="Reset row heights"
-                    icon={<StretchHorizontal className="h-4 w-4" />}
-                    onClick={resetRowSizing}
+                  tooltip="Open in focus pane"
+                  icon={<Maximize2 className="h-4 w-4" />}
+                  onClick={() => {
+                    const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                    if (!focusedTileNames.includes(tileName)) {
+                      tabUIActions?.setFocusedTileNames([
+                        tileName,
+                        focusedTileNames[0] || focusedTileNames[1],
+                      ] as [string | undefined, string | undefined]);
+                    }
+                    setFocusPaneOpen(true);
+                  }}
+                  variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName) ? "primary" : "outline"}
                 />
-                <SettingButton
-                    tooltip={`Cycle split view (${panelCount})`}
-                    icon={<SquareSplitHorizontal className="h-4 w-4" />}
-                    onClick={() => setPanelCount(c => (c % 2) + 1)}
-                />
-                {!isEditMode && !focusPaneOpen && (
+              )}
+              {showAdvancedFeatures && (
+                <>
                   <SettingButton
-                    tooltip="Open in focus pane"
-                    icon={<Maximize2 className="h-4 w-4" />}
-                    onClick={() => {
-                      const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
-                      if (!focusedTileNames.includes(tileName)) {
-                        tabUIActions?.setFocusedTileNames([
-                          tileName,
-                          focusedTileNames[0] || focusedTileNames[1],
-                        ] as [string | undefined, string | undefined]);
-                      }
-                      setFocusPaneOpen(true);
-                    }}
-                    variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName) ? "primary" : "outline"}
+                      tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
+                      icon={<Layers className="h-4 w-4" />}
+                      onClick={() => setUseVirtualization(!useVirtualization)}
+                      variant={useVirtualization ? "primary" : "outline"}
                   />
-                )}
-                {showAdvancedFeatures && (
-                  <>
-                    <SettingButton
-                        tooltip={`Toggle virtualization (${useVirtualization ? 'ON' : 'OFF'})`}
-                        icon={<Layers className="h-4 w-4" />}
-                        onClick={() => setUseVirtualization(!useVirtualization)}
-                        variant={useVirtualization ? "primary" : "outline"}
-                    />
-                    <SettingButton
-                        tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
-                        icon={<div className="h-4 w-4 flex items-center justify-center text-caption text-strong">↕</div>}
-                        onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
-                        variant={useBidirectionalLoading ? "primary" : "outline"}
-                    />
-                    {useBidirectionalLoading && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-caption text-muted-foreground">Pages:</span>
-                        <select
-                          value={bidirectionalConfig.maxPagesInMemory}
-                          onChange={(e) => setBidirectionalConfig(prev => ({ 
-                            ...prev, 
-                            maxPagesInMemory: Number(e.target.value) 
-                          }))}
-                          className="text-caption border rounded px-1 py-0.5"
-                        >
-                          <option value={3}>3</option>
-                          <option value={5}>5</option>
-                          <option value={7}>7</option>
-                          <option value={10}>10</option>
-                        </select>
-                      </div>
-                    )}
-                  </>
-                )}
-            </div>
+                  <SettingButton
+                      tooltip={`Toggle bidirectional loading (${useBidirectionalLoading ? 'ON' : 'OFF'})`}
+                      icon={<div className="h-4 w-4 flex items-center justify-center text-caption text-strong">↕</div>}
+                      onClick={() => setUseBidirectionalLoading(!useBidirectionalLoading)}
+                      variant={useBidirectionalLoading ? "primary" : "outline"}
+                  />
+                  {useBidirectionalLoading && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-caption text-muted-foreground">Pages:</span>
+                      <select
+                        value={bidirectionalConfig.maxPagesInMemory}
+                        onChange={(e) => setBidirectionalConfig(prev => ({
+                          ...prev,
+                          maxPagesInMemory: Number(e.target.value)
+                        }))}
+                        className="text-caption border rounded px-1 py-0.5"
+                      >
+                        <option value={3}>3</option>
+                        <option value={5}>5</option>
+                        <option value={7}>7</option>
+                        <option value={10}>10</option>
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+          </div>
         </div>
-        
+
         {/* Monitoring Section */}
         {projectId && (
-            <div className="flex flex-col gap-1">
-                <span className="text-caption text-muted-foreground">Monitoring</span>
-                <div className="flex items-center gap-2">
-                    <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
-                    <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />
-                </div>
+            <div className={cn("flex flex-col gap-1 pl-4 pr-4 transition-all duration-300 ease-out",
+              !monitoringSectionVisible && "max-w-[80px]")}>
+              {renderSectionToggle(setMonitoringSectionVisible, monitoringSectionVisible, "Monitoring")}
+              <div className={cn("flex items-center gap-2", !monitoringSectionVisible && "hidden")}>
+                  <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
+                  <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />
+              </div>
             </div>
         )}
         </div>
@@ -1143,7 +1170,7 @@ const LogsTable = ({
   );
 
   // Handle cell deselection from clicks
-  const containerRef = useRef<HTMLDivElement>(null); 
+  const containerRef = useRef<HTMLDivElement>(null);
   const onContainerClick = (event: React.MouseEvent<HTMLElement, MouseEvent>) => {
     if (tableTileActions) deselectFromClickOutside(event, containerRef, selectedCells, tableTileActions.setSelected, ["LogsTable", "LogsTablePreferences"])
   }
@@ -1192,7 +1219,7 @@ const LogsTable = ({
 
   return (
     <div
-      ref={containerRef} 
+      ref={containerRef}
       className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
@@ -1237,10 +1264,10 @@ const LogsTable = ({
                         state={state}
                         setState={setState}
                         scrollContainerRef={panelScrollRefs[idx]}
-                        
+
                         showFooter={showMetricsRow && logs.length > 0}
                         setShowFooter={setShowMetricsRow}
-                        
+
                         // Inline editing props
                         editEnabled={true}
                         isCellMutable={isCellMutable}
@@ -1252,7 +1279,7 @@ const LogsTable = ({
                           globalOffset: infiniteLogsQuery.bidirectionalInfo?.globalOffset || 0,
                           groupOffsets: groupOffsets,
                         }}
-                        
+
                         // Virtualization props - only enabled when useVirtualization is true
                         enableVirtualization={useVirtualization}
                         virtualRowHeight={60}
@@ -1273,10 +1300,10 @@ const LogsTable = ({
                         bidirectionalInfo={infiniteLogsQuery.bidirectionalInfo}
 
                         isItemLoaded={(index: number) => !!logs[index]}
-                        
+
                         // Component props
                         LoadMore={LoadMore}
-                        
+
                         // Multi-level LoadMore props
                         GroupLoadMore={({groupId, colSpan, interactive, position}) => (
                           <GroupLoadMore
@@ -1316,7 +1343,6 @@ const LogsTable = ({
                               }}
                           />
                         )}
-                        
                         ColumnGroupBy={(column, groupLoading, setGroupLoading, setGroupSortLoading, setIsGrouped, renderMode = "button") => (
                           <ColumnGroupBy
                             interactive={interactive}
@@ -1441,9 +1467,9 @@ const LogsTable = ({
                             setExpandingRowId={props.setExpandingRowId}
                             onExpand={
                               async (
-                                groupingColumnId: string, 
-                                groupingValue: string, 
-                                parentId: string, 
+                                groupingColumnId: string,
+                                groupingValue: string,
+                                parentId: string,
                                 setExpandingRowId: (id: string | null) => void,
                               ) => {
                               setLoadingGroups(prev => {
@@ -1551,7 +1577,7 @@ const LogsTable = ({
                                       tileId={tileId}
                                       tabId={tabId}
                                       projectId={projectId}
-                                      column={column}                                      
+                                      column={column}
                                       metric={metric}
                                       pending={summaryPending}
                                       draggingColumns={state.draggingColumns}
