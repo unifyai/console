@@ -35,3 +35,19 @@ export async function POST(
         },
     );
 }
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: { projectName: string } }
+) {
+    return await fetch(
+        `${baseUrl}/project/${params.projectName}/contexts`,
+        {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Content-Type": "application/json",
+            }
+        },
+    );
+}

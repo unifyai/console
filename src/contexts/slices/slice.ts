@@ -13,6 +13,7 @@ import { createViewTileSlice, ViewTileState, ViewTileActions } from "./viewTileS
 import { createEditorTileSlice, EditorTileState, EditorTileActions } from "./editorTileSlice";
 import { createTerminalTileSlice, TerminalTileState, TerminalTileActions } from "./terminalTileSlice";
 import { createAsyncSlice, AsyncState, AsyncActions } from "./asyncSlice";
+import { createContextsSlice, ContextsState, ContextsActions } from "./contextsSlice";
 
 // Re-export the types from the domain logic
 export type { Project } from "./selectors/project";
@@ -32,7 +33,8 @@ export interface StoreState extends
   ViewTileState,
   EditorTileState,
   TerminalTileState,
-  AsyncState {}
+  AsyncState,
+  ContextsState {}
 
 // Combined actions interface
 export interface StoreActions extends
@@ -47,7 +49,8 @@ export interface StoreActions extends
   ViewTileActions,
   EditorTileActions,
   TerminalTileActions,
-  AsyncActions {}
+  AsyncActions,
+  ContextsActions {}
 
 // Combined slice type
 export type StoreSlice = StoreState & StoreActions;
@@ -71,4 +74,5 @@ export const createStoreSlice: StateCreator<
   ...createEditorTileSlice(...a),
   ...createTerminalTileSlice(...a),
   ...createAsyncSlice(...a),
+  ...createContextsSlice(...a),
 }); 

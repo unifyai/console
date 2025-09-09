@@ -305,7 +305,7 @@ export interface BaseTabTemplateSchema {
     visible?: boolean;
     active?: boolean;
     order?: number;
-    global_context?: string;
+    context?: string;
     color?: string;
 }
 
@@ -337,6 +337,7 @@ export interface TabData extends BaseTabSchema {
 export interface BaseInterfaceTemplateSchema {
     name: string;
     color?: string;
+    context?: string;
 }
 
 // Template schema for a detached interface
@@ -363,6 +364,7 @@ export interface BaseInterfaceSchema extends BaseInterfaceTemplateSchema {
 export interface InterfaceData extends BaseInterfaceSchema {
     tabs?: TabData[];
     active_tab_id?: string;
+    context?: string;
 }
 
 // Template schema for multiple interfaces from a project
@@ -419,7 +421,7 @@ export interface UpdateTabRequest {
     visible?: boolean;
     active?: boolean;
     order?: number;
-    global_context?: string;
+    context?: string;
     color?: string;
     icon?: string;
 }
@@ -434,6 +436,7 @@ export interface UpdateInterfaceRequest {
     active_tab_id?: string;
     color?: string;
     icon?: string;
+    context?: string;
 }
 
 // Validation schemas

@@ -432,7 +432,7 @@ export function useTabSync(
         params: {
           id: tabId,
           data: {
-            global_context: ""
+            context: ""
           }
         },
         actions: tabActions
@@ -524,12 +524,40 @@ export function useTabSync(
       params: {
         id: tabId,
         data: {
-          global_context: context || ""
+          context: context || ""
         }
       },
       actions: tabActions
     }, {
-      onSettled: () => {
+      onSettled: async () => {
+        // After updating the tab, propagate context to tiles without explicit context
+        try {
+          const tileIds = tabDataActions.getTileIds();
+          const tileNames = tabDataActions.getTileNames();
+          const idToName = new Map<string, string>();
+          tileIds.forEach((id, idx) => { if (tileNames[idx]) idToName.set(id, tileNames[idx]); });
+
+          const patchPromises: Promise<any>[] = [];
+          if (tileActions) {
+            // Use patch so we don't override other fields
+            Array.from(idToName.entries()).forEach(([id, name]) => {
+              const tile = tabDataActions.getPartialTile(name);
+              if (tile && (!tile.context || tile.context === "")) {
+                patchPromises.push(
+                  patchTileMutation.mutateAsync({
+                    id,
+                    updateData: { context: context || "" },
+                    actions: tileActions
+                  })
+                );
+              }
+            });
+          }
+          await Promise.all(patchPromises);
+        } catch (e) {
+          console.warn("Failed to propagate tab context to tiles:", e);
+        }
+
         // Refresh the router to update UI with new data
         debugLog("[wrapGlobalContext] onSettled:", context);
         refreshRouter({

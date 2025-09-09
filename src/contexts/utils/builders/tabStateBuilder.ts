@@ -29,7 +29,7 @@ export function buildTabState(
   const tabSliceData: TabSliceData = {
     tileIds: tileIds,
     tileNames: tileNames,
-    globalContext: tabData.global_context,
+    globalContext: tabData.context,
     itemsNeedRecompute: false,
   };
   

@@ -121,6 +121,7 @@ import { CreateProjectDialog } from './Dialogs/CreateProjectDialog'
 import { CreateInterfaceDialog } from './Dialogs/CreateInterfaceDialog'
 import { CreateTabDialog } from './Dialogs/CreateTabDialog'
 import { RenameProjectDialog } from './Dialogs/RenameProjectDialog'
+import ContextTreePicker from '@/components/Common/Dropdowns/ContextTreePicker'
 
 interface ProjectInterface {
   id: string;
@@ -670,7 +671,6 @@ export default function InterfaceNav({
         
         // Handle various error response formats
         if (!tabs) {
-          console.warn('No tabs data returned for interface:', interfaceId)
           return []
         }
         
@@ -1658,13 +1658,218 @@ export default function InterfaceNav({
 
   const onSetTabContext = useCallback((t: ProjectTab) => {
     handleTabClick(t)
-    setGlobalContextOpen(true)
+    setSelectedTab(t)
+    setTabContextOpen(true)
   }, [handleTabClick, setGlobalContextOpen])
 
   const onDeleteTab = useCallback((t: ProjectTab) => {
     setSelectedTab(t)
     setDeleteTabOpen(true)
   }, [setSelectedTab, setDeleteTabOpen])
+
+  // Cascade helpers: set context at interface and project scope without overriding explicit child contexts
+  const applyInterfaceContextCascade = useCallback(async (ctx: string) => {
+    if (!interfaceId || !selectedProject) return
+    setIsSettingContext(true)
+    try {
+      // Update interface
+      const s = storeApi.getState() as any
+      s.setContextOptimistic?.('interface', interfaceId, ctx, { interfaceId, projectId: selectedProject })
+      s.enqueueContextSync?.('interface', interfaceId, ctx, { interfaceId, projectId: selectedProject })
+      // Fetch tabs and update those without explicit context (from store)
+      const tabIds: string[] = (s.interfacesById?.[interfaceId]?.tabIds || []) as string[]
+      for (const tabId of tabIds) {
+        const tabHasExplicit = Boolean(s.tabsById?.[tabId]?.globalContext) || Boolean(s.tabContexts?.[tabId])
+        if (!tabHasExplicit) {
+          const s2 = storeApi.getState() as any
+          s2.setContextOptimistic?.('tab', tabId, ctx, { tabId, interfaceId, projectId: selectedProject })
+          s2.enqueueContextSync?.('tab', tabId, ctx, { tabId, interfaceId, projectId: selectedProject })
+        }
+        // Fetch tiles for this tab and update those without explicit context (from store)
+        const tileIds: string[] = (s.tabsById?.[tabId]?.tileIds || []) as string[]
+        for (const tileId of tileIds) {
+          const tileHasExplicit = Boolean(s.tilesById?.[tileId]?.context) || Boolean(s.tileContexts?.[tileId])
+          if (!tileHasExplicit) {
+            const s3 = storeApi.getState() as any
+            s3.setContextOptimistic?.('tile', tileId, ctx, { tabId, interfaceId, projectId: selectedProject })
+            s3.enqueueContextSync?.('tile', tileId, ctx, { tabId, interfaceId, projectId: selectedProject })
+          }
+        }
+      }
+      // Minimal cache nudges; no full refresh
+      queryClient.invalidateQueries({ queryKey: ['tabs', interfaceId] })
+    } catch (e: any) {
+      console.error('Failed to apply interface context:', e)
+      showErrorToast(e?.message || 'Failed to apply interface context')
+    } finally {
+      setIsSettingContext(false)
+      // Leave dialog open; user closes explicitly
+    }
+  }, [interfaceId, selectedProject, interfaceActions, tabActions, tileActions, queryClient])
+  
+  const applyProjectContextCascade = useCallback(async (ctx: string) => {
+    if (!selectedProject) return
+    setIsSettingContext(true)
+    try {
+      { const s0 = storeApi.getState() as any; s0.setProjectDefaultContext?.(selectedProject, ctx || null); }
+      // Discover interfaces for the project from the store
+      const s = storeApi.getState() as any
+      const ifaceIds: string[] = (s.projectsById?.[selectedProject]?.interfaceIds || []) as string[]
+      for (const ifaceId of ifaceIds) {
+        // Set interface context if missing
+        const ifaceHasExplicit = Boolean(s.interfaceContexts?.[ifaceId])
+        if (!ifaceHasExplicit) {
+          const s1 = storeApi.getState() as any
+          s1.setContextOptimistic?.('interface', ifaceId, ctx, { interfaceId: ifaceId, projectId: selectedProject })
+          s1.enqueueContextSync?.('interface', ifaceId, ctx, { interfaceId: ifaceId, projectId: selectedProject })
+        }
+        // Tabs in interface (from store)
+        const tabIds: string[] = (s.interfacesById?.[ifaceId]?.tabIds || []) as string[]
+        for (const tabId of tabIds) {
+          const tabHasExplicit = Boolean(s.tabContexts?.[tabId]) || Boolean(s.tabsById?.[tabId]?.globalContext)
+          if (!tabHasExplicit) {
+            const s2 = storeApi.getState() as any
+            s2.setContextOptimistic?.('tab', tabId, ctx, { tabId, interfaceId: ifaceId, projectId: selectedProject })
+            s2.enqueueContextSync?.('tab', tabId, ctx, { tabId, interfaceId: ifaceId, projectId: selectedProject })
+          }
+          // Tiles in tab (from store)
+          const tileIds: string[] = (s.tabsById?.[tabId]?.tileIds || []) as string[]
+          for (const tileId of tileIds) {
+            const tileHasExplicit = Boolean(s.tileContexts?.[tileId]) || Boolean(s.tilesById?.[tileId]?.context)
+            if (!tileHasExplicit) {
+              const s3 = storeApi.getState() as any
+              s3.setContextOptimistic?.('tile', tileId, ctx, { tabId, interfaceId: ifaceId, projectId: selectedProject })
+              s3.enqueueContextSync?.('tile', tileId, ctx, { tabId, interfaceId: ifaceId, projectId: selectedProject })
+            }
+          }
+        }
+      }
+      // No cache invalidation to avoid skeletons; async sync will reconcile later
+    } catch (e: any) {
+      console.error('Failed to apply project context:', e)
+      showErrorToast(e?.message || 'Failed to apply project context')
+    } finally {
+      setIsSettingContext(false)
+      // Leave dialog open; user closes explicitly
+    }
+  }, [selectedProject, interfaceActions, tabActions, tileActions, queryClient])
+  
+  const applyTabContextCascade = useCallback(async (ctx: string) => {
+    // Resolve tab id: prefer provided id, otherwise look up by name within the current interface
+    const resolveTabId = () => {
+      const s = storeApi.getState() as any
+      const directId = selectedTab?.id as string | undefined
+      if (directId) return directId
+      const ifaceId = interfaceId as string | undefined
+      const name = selectedTab?.name as string | undefined
+      if (!ifaceId || !name) return undefined
+      const ids: string[] = (s.interfacesById?.[ifaceId]?.tabIds || []) as string[]
+      for (const id of ids) {
+        if ((s.tabsById?.[id]?.name as string | undefined) === name) return id
+      }
+      return undefined
+    }
+    const targetTabId = resolveTabId()
+    if (!targetTabId) return
+    setIsSettingContext(true)
+    try {
+      // Update the tab's context (optimistic + enqueue)
+      { const s = storeApi.getState() as any; s.setContextOptimistic?.('tab', targetTabId as string, ctx, { tabId: targetTabId, interfaceId, projectId: selectedProject }); s.enqueueContextSync?.('tab', targetTabId as string, ctx, { tabId: targetTabId, interfaceId, projectId: selectedProject }); }
+      // Update tiles in this tab that have no explicit context (from store)
+      const sNow = storeApi.getState() as any
+      const tileIds: string[] = (sNow.tabsById?.[targetTabId]?.tileIds || []) as string[]
+      for (const tileId of tileIds) {
+        const tileHasExplicit = Boolean(sNow.tileContexts?.[tileId]) || Boolean(sNow.tilesById?.[tileId]?.context)
+        if (!tileHasExplicit) {
+          { const s2 = storeApi.getState() as any; s2.setContextOptimistic?.('tile', tileId, ctx, { tabId: targetTabId, interfaceId, projectId: selectedProject }); s2.enqueueContextSync?.('tile', tileId, ctx, { tabId: targetTabId, interfaceId, projectId: selectedProject }); }
+        }
+      }
+      // Avoid heavy invalidations or refresh to prevent skeletons; zustand optimistic state drives UI
+    } catch (e: any) {
+      console.error('Failed to apply tab context:', e)
+      showErrorToast(e?.message || 'Failed to apply tab context')
+    } finally {
+      setIsSettingContext(false)
+      // Leave dialog open; user closes explicitly
+    }
+  }, [selectedTab, interfaceId, tabActions, tileActions, queryClient])
+
+  // Context dialogs
+  const [projectContextOpen, setProjectContextOpen] = useState(false)
+  const [interfaceContextOpen, setInterfaceContextOpen] = useState(false)
+  const [tabContextOpen, setTabContextOpen] = useState(false)
+  const [isSettingContext, setIsSettingContext] = useState(false)
+  const [interfaceContextBase, setInterfaceContextBase] = useState<string>("")
+  const [tabContextBase, setTabContextBase] = useState<string>("")
+
+
+  
+
+  
+  const allContextNames = useMemo(() => (contexts || []).map(c => c.name).sort(), [contexts])
+  const filterByPrefix = useCallback((names: string[], prefix?: string) => {
+    if (!prefix) return names
+    const p = prefix.endsWith('/') ? prefix : `${prefix}/`
+    return names.filter(n => n === prefix || n.startsWith(p))
+  }, [])
+  
+  // Sanitize via central contexts slice: set project contexts then sweep
+  const storeApi = useStoreApiContext()
+  const projectDefaultCtx = useStoreContext((s) => selectedProject ? (s.projectDefaultContext?.[selectedProject] ?? null) : null)
+  const tabExplicitContext = useStoreContext((s) => {
+    // Resolve tab id from selectedTab.id or by matching name within current interface
+    const directId = selectedTab?.id as string | undefined
+    let id = directId
+    if (!id && selectedTab?.name && interfaceId) {
+      const ids: string[] = ((s as any).interfacesById?.[interfaceId]?.tabIds || []) as string[]
+      for (const tid of ids) {
+        if (((s as any).tabsById?.[tid]?.name as string | undefined) === selectedTab.name) { id = tid; break; }
+      }
+    }
+    if (!id) return null
+    const fromSlice = (s as any).tabContexts?.[id] ?? null
+    const fromTab = ((s as any).tabsById?.[id]?.globalContext ?? null) as string | null
+    return (fromSlice ?? fromTab) as string | null
+  })
+  useEffect(() => {
+    if (!selectedProject) return
+    const s = storeApi.getState() as any
+    if (Array.isArray(contexts)) {
+      s.setProjectContexts?.(selectedProject, contexts.map(c => c.name))
+      s.clearInvalidContexts?.(selectedProject)
+    }
+  }, [selectedProject, contexts, storeApi])
+  
+  // Inherited base for Interface dialog: show top-level segment of the interface context (e.g., "AnnaPeskova")
+  const interfaceInheritedBase = useMemo(() => {
+    if (!interfaceContextBase) return null
+    const parts = interfaceContextBase.split('/').filter(Boolean)
+    if (parts.length === 0) return null
+    const top = parts[0]
+    return top && top !== interfaceContextBase ? top : null
+  }, [interfaceContextBase])
+  
+
+  // Load prefixes when dialogs open (from store)
+  useEffect(() => {
+    if (interfaceId && interfaceContextOpen) {
+      const s = storeApi.getState() as any
+      const ctx = (s.interfaceContexts?.[interfaceId] ?? null) as string | null
+      setInterfaceContextBase(ctx || "")
+    }
+    if (selectedTab && tabContextOpen) {
+      const s = storeApi.getState() as any
+      // Resolve tab id by id or name
+      let tabId = selectedTab.id as string | undefined
+      if (!tabId && selectedTab.name && interfaceId) {
+        const ids: string[] = (s.interfacesById?.[interfaceId]?.tabIds || []) as string[]
+        for (const tid of ids) { if ((s.tabsById?.[tid]?.name as string | undefined) === selectedTab.name) { tabId = tid; break; } }
+      }
+      if (!tabId) return
+      const ctx = (s.tabContexts?.[tabId] ?? s.tabsById?.[tabId]?.globalContext ?? null) as string | null
+      setTabContextBase(ctx || "")
+    }
+  }, [interfaceId, interfaceContextOpen, selectedTab, tabContextOpen, storeApi])
 
   return (
     <TooltipProvider>
@@ -1861,6 +2066,10 @@ export default function InterfaceNav({
                         </DropdownMenuItem>
                       </ColorPicker>
                     )}
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => setProjectContextOpen(true)}>
+                      <FolderTree className="h-4 w-4 mr-2" />
+                      Set Project Context
+                    </DropdownMenuItem>
                     <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }}>
                       <Upload className="h-4 w-4 mr-2" />
                       Import Interface
@@ -2012,6 +2221,10 @@ export default function InterfaceNav({
                       <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }}>
                         <Download className="h-4 w-4 mr-2" />
                         Export as Template
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => setInterfaceContextOpen(true)}>
+                        <FolderTree className="h-4 w-4 mr-2" />
+                        Set Interface Context
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive">
@@ -2692,6 +2905,90 @@ export default function InterfaceNav({
             />
           </div>
         </div>
+      )}
+      
+      {/* Set Project Context Dialog */}
+      {typeof window !== 'undefined' && projectContextOpen && createPortal(
+        <BaseDialog
+          button={null as any}
+          open={projectContextOpen}
+          setOpen={setProjectContextOpen}
+          title={`Set Context for "${selectedProject}"`}
+          body={
+            <ContextTreePicker
+              contexts={allContextNames}
+              current={projectDefaultCtx || null}
+              basePrefix={projectDefaultCtx || undefined}
+              inherited={null}
+              onPick={(ctx) => applyProjectContextCascade(ctx)}
+              projectId={selectedProject || undefined}
+              contextActions={contextActions}
+              hideClear
+            />
+          }
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="outline" onClick={() => applyProjectContextCascade("")}>Clear selection</Button>
+              <Button variant="outline" className="ml-auto" onClick={() => setProjectContextOpen(false)} disabled={isSettingContext}>Cancel</Button>
+            </div>
+          }
+        />, document.body
+      )}
+      
+      {/* Set Interface Context Dialog */}
+      {typeof window !== 'undefined' && interfaceContextOpen && createPortal(
+        <BaseDialog
+          button={null as any}
+          open={interfaceContextOpen}
+          setOpen={setInterfaceContextOpen}
+          title={`Set Context for Interface`}
+          body={
+            <ContextTreePicker
+              contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
+              current={interfaceContextBase}
+              basePrefix={interfaceContextBase || undefined}
+              inherited={interfaceInheritedBase}
+              onPick={(ctx) => applyInterfaceContextCascade(ctx)}
+              projectId={selectedProject || undefined}
+              contextActions={contextActions}
+              hideClear
+            />
+          }
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="outline" onClick={() => applyInterfaceContextCascade("")}>Clear selection</Button>
+              <Button variant="outline" className="ml-auto" onClick={() => setInterfaceContextOpen(false)} disabled={isSettingContext}>Cancel</Button>
+            </div>
+          }
+        />, document.body
+      )}
+
+      {/* Set Tab Context Dialog */}
+      {typeof window !== 'undefined' && tabContextOpen && selectedTab != null && createPortal(
+        <BaseDialog
+          button={null as any}
+          open={tabContextOpen}
+          setOpen={setTabContextOpen}
+          title={"Set Tab Context"}
+          body={
+            <ContextTreePicker
+              contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
+              current={tabExplicitContext}
+              basePrefix={interfaceContextBase || undefined}
+              inherited={!tabExplicitContext ? (interfaceContextBase || null) : null}
+              onPick={(ctx) => { applyTabContextCascade(ctx) }}
+              projectId={selectedProject || undefined}
+              contextActions={contextActions}
+              hideClear
+            />
+          }
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="outline" onClick={() => { applyTabContextCascade("") }}>Clear selection</Button>
+              <Button variant="outline" className="ml-auto" onClick={() => setTabContextOpen(false)} disabled={isSettingContext}>Cancel</Button>
+            </div>
+          }
+        />, document.body
       )}
     </TooltipProvider>
   )

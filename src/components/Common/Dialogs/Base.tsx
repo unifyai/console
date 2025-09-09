@@ -63,7 +63,7 @@ export default function BaseDialog({
       {body}
 
       {footer &&
-          <DialogFooter>
+          <DialogFooter className="w-full">
               {footer}
           </DialogFooter>
       }

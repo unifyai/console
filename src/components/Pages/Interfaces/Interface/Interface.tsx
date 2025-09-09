@@ -41,6 +41,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { TileProps } from '@/types/interfaces/grid';
 import { cn } from '@/lib/utils';
 import { useListInterfacesQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery'
+import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery';
 import { 
   createInterfaceUrl,
   createCompleteDefaultInterface,
@@ -106,6 +107,22 @@ const Interface = ({
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const lastNoticeKeyRef = useRef<string | null>(null);
+  const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
+
+  // Seed contexts on project change
+  const activeProjectId = projectQueryParam || null;
+  const contextsQuery = useListContextsQuery(activeProjectId, contextActions);
+  useEffect(() => {
+    if (!activeProjectId) return;
+    if (contextsQuery.data && Array.isArray(contextsQuery.data)) {
+      const s = storeApi.getState() as any;
+      s.setProjectContexts?.(activeProjectId, contextsQuery.data.map((c: any) => c.name));
+      // Do not overwrite existing projectDefaultContext; only set if undefined
+      if (s.projectDefaultContext?.[activeProjectId] === undefined) {
+        s.setProjectDefaultContext?.(activeProjectId, null);
+      }
+    }
+  }, [activeProjectId, contextsQuery.data, storeApi]);
   
   // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
   const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
@@ -343,7 +360,7 @@ const Interface = ({
   // Auto-select first tab if no active tab is set and tabs are available
   useEffect(() => {
     if (tabNames.length > 0 && syncedInterfaceUIActions && (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))) {
-      console.log(`[Interface] No active tab set or active tab doesn't exist in available tabs: ${tabNames}, selecting last tab: ${tabNames[tabNames.length - 1]}`);
+      
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
   }, [activeTabName, tabNames, syncedInterfaceUIActions]);
@@ -534,7 +551,7 @@ const Interface = ({
         ].includes(key0);
       }});
     } catch (err) {
-      console.warn('Cache invalidation failed:', err);
+      
     }
 
     try {
@@ -702,7 +719,7 @@ const Interface = ({
         commandHooks.closeProject();
         break;
       default:
-        console.log(`Unknown command: ${id}`);
+        
     }
   };
 
@@ -722,6 +739,63 @@ const Interface = ({
     tabDataActions.initTile(newTileName, { position, minW: null, minH: null, type: null, visible: true });
     }
   };
+
+  // Background worker: process context sync queue
+  useEffect(() => {
+    let cancelled = false;
+    let timer: any = null;
+
+    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, attempt));
+
+    const runOnce = async () => {
+      if (cancelled) return;
+      const s = storeApi.getState() as any;
+      if (s.processingQueue) return; // avoid concurrent runs
+      const job = s.peekContextSync?.();
+      if (!job) return; // nothing to do
+      try {
+        s.setProcessingQueue?.(true);
+        // Execute job against Orchestra using granular actions
+        if (job.scope === 'interface') {
+          await interfaceActions.updateById(job.targetId, { context: job.context });
+        } else if (job.scope === 'tab') {
+          await tabActions.updateById(job.targetId, { context: job.context });
+        } else if (job.scope === 'tile') {
+          await tileActions.updateById(job.targetId, { context: job.context });
+        }
+        // Remove from queue after success
+        s.dequeueContextSync?.();
+      } catch (e) {
+        // Re-enqueue with incremented attempts and backoff
+        const nextAttempts = (job.attempts || 0) + 1;
+        const delay = backoff(nextAttempts);
+        // Put back at front with updated attempts and scheduled delay by just waiting
+        s.dequeueContextSync?.();
+        s.enqueueContextSync?.(job.scope, job.targetId, job.context, {
+          projectId: job.projectId,
+          interfaceId: job.interfaceId,
+          tabId: job.tabId,
+        });
+        // sleep
+        await new Promise(r => setTimeout(r, delay));
+      } finally {
+        s.setProcessingQueue?.(false);
+      }
+    };
+
+    const pump = () => {
+      const s = storeApi.getState() as any;
+      if (!s.peekContextSync?.()) return; // nothing queued
+      runOnce().finally(() => {
+        if (!cancelled) timer = setTimeout(pump, 200); // continue draining
+      });
+    };
+
+    // React to queue length changes by polling quickly
+    timer = setInterval(pump, 500);
+
+    return () => { cancelled = true; if (timer) clearInterval(timer); };
+  }, [storeApi, interfaceActions, tabActions, tileActions]);
 
   return (
   <PageScrollContext.Provider value={pageScrollContainerRef}>

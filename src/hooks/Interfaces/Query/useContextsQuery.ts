@@ -3,6 +3,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ContextActions } from '@/types/interfaces/grid';
 import { useQueryClient } from "@tanstack/react-query";
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 
 /**
  * Hook to fetch all contexts for a project
@@ -58,6 +59,7 @@ export function useCreateContextQuery() {
  */
 export function useRenameContextQuery() {
   const queryClient = useQueryClient();
+  const storeApi = useStoreApiContext();
   
   return useMutation({
     mutationFn: async ({ 
@@ -74,7 +76,9 @@ export function useRenameContextQuery() {
       return actions.rename(projectId, currentName, newName);
     },
     onSuccess: (data, variables) => {
-      // Invalidate contexts query to refetch the list
+      // Optimistic local rename for instant UI consistency
+      try { const s = storeApi.getState() as any; s.renameProjectContext?.(variables.projectId, variables.currentName, variables.newName); } catch {}
+      // Invalidate contexts to reconcile
       queryClient.invalidateQueries({ 
         queryKey: ['contexts', variables.projectId] 
       });
@@ -87,6 +91,7 @@ export function useRenameContextQuery() {
  */
 export function useDeleteContextQuery() {
   const queryClient = useQueryClient();
+  const storeApi = useStoreApiContext();
   
   return useMutation({
     mutationFn: async ({ 
@@ -101,6 +106,8 @@ export function useDeleteContextQuery() {
       return actions.delete(projectId, contextName);
     },
     onSuccess: (_, variables) => {
+      // Optimistic local delete for immediate UI
+      try { const s = storeApi.getState() as any; s.deleteProjectContext?.(variables.projectId, variables.contextName); } catch {}
       // Invalidate contexts query to refetch the list
       queryClient.invalidateQueries({ 
         queryKey: ['contexts', variables.projectId] 

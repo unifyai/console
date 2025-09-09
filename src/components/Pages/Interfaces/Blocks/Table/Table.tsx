@@ -45,6 +45,8 @@ import ColumnGroupSort from "@/components/Pages/Interfaces/Blocks/Table/Buttons/
 import RowExpanding, { RowExpandingProps } from "@/components/Common/Tables/Data/Buttons/RowExpanding";
 import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/interfaces/table/grouping";
 import ContextSelector from "./Content/ContextSelector";
+import ContextTreePicker from "@/components/Common/Dropdowns/ContextTreePicker";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { deselectFromClickOutside } from "@/hooks/Interfaces/useCellSelection";
@@ -52,6 +54,7 @@ import { isHiddenByDefault } from "@/utils/interfaces/table/table";
 import EmptyTableOverlay from "./EmptyTableOverlay";
 import LoadMore from "@/components/Common/Tables/Data/Buttons/LoadMore";
 import { PageScrollContext } from "../../Interface/Interface";
+import { useInterface } from "@/contexts/hooks/interface/useInterface";
 
 // Import new hooks
 import { useTab } from "@/contexts/hooks/tab";
@@ -59,6 +62,7 @@ import { useTile, useTileItem } from '@/contexts/hooks/tile';
 import { shallow } from "zustand/vanilla/shallow";
 import { useTableDataQueryWithTracking, useTableGroupedMetricsQuery, useTableArgumentsQuery } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
+import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useRouter } from "next/navigation"; // Import useRouter
 import SettingButton from "@/components/Common/Buttons/Setting";
@@ -72,6 +76,7 @@ import { cn } from "@/lib/utils";
 import { getDeep, setDeep } from "@/utils/objectPath";
 import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
+import { FolderTree } from "lucide-react";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -100,6 +105,7 @@ const LogsTable = ({
   contextActions: ContextActions,
 }) => {
   const router = useRouter(); // Initialize useRouter
+  const storeApi = useStoreApiContext();
   const queryClient = useQueryClient(); // Add queryClient for cache invalidation
   const [panelCount, setPanelCount] = useState(1);
   // Always show immutable/undefined toasts on each double-click
@@ -119,6 +125,7 @@ const LogsTable = ({
 
   // Menu collapse state
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
+  const [tableContextPopoverOpen, setTableContextPopoverOpen] = useState(false);
 
   // Section visibility states
   const [dataSectionVisible, setDataSectionVisible] = useState(true);
@@ -889,22 +896,51 @@ const LogsTable = ({
     } catch (_) {}
   }, [projectId, logsActions, fields, tableDataItem, updateLogsByRowIds, item?.context, context_, showErrorToast]);
 
-  // Define buttons to be used in menu and overlay
+  // Compute inherited context: tile -> tab -> interface -> project (project has no explicit context so effectively tab->interface)
+  const { interface: interfaceObj } = useInterface(interfaceId, projectId);
+  const inheritedContext = (item?.context || context_ || (interfaceObj as any)?.context || null);
+
   const contextSelectorButton = (inOverlay: boolean) => projectId ? (
-    <ContextSelector
-        tileId={tileId}
-        tabId={tabId}
-        interfaceId={interfaceId}
-        projectId={projectId}
-        context={item?.context || context_}
-        logsActions={logsActions}
-        contextActions={contextActions}
-        setPending={setPending}
-        tileActions={tileActions}
-        projectsActions={projectsActions}
-        fieldsActions={fieldsActions}
-        withButtonText={inOverlay}
-    />
+    <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
+      <PopoverTrigger asChild>
+        <Button variant={inheritedContext ? "primary" : "outline"} size={inOverlay ? "default" : "sm"} className={inOverlay ? "" : "h-7"}>
+          <FolderTree className="h-4 w-4 mr-2"/>
+          {inOverlay ? "Context" : "Context"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-96 z-50 p-0">
+        <ContextTreePicker
+          contexts={(listContextsQuery.data || []).map(c => c.name)}
+          current={item?.context || null}
+          basePrefix={(context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || undefined) as any}
+          inherited={!item?.context ? (context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || null) : null}
+          onPick={(ctx) => {
+            const s = (storeApi.getState() as any);
+            const tileIdResolved = tileId;
+            // Optimistic clear or set
+            s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+            s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+            // Also update legacy synced actions to reflect immediately
+            syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, "");
+
+          }}
+          className="w-full"
+          projectId={projectId || undefined}
+          contextActions={contextActions}
+          hideClear
+        />
+        <div className="flex items-center justify-between p-2 border-t border-border">
+          <Button variant="outline" size="sm" onClick={() => {
+            const s = (storeApi.getState() as any);
+            const tileIdResolved = tileId;
+            s.setContextOptimistic?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+            s.enqueueContextSync?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+            syncedTileActions?.data?.setContextAndColumnContext(undefined, "");
+          }}>Clear selection</Button>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => setTableContextPopoverOpen(false)}>Cancel</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   ) : null;
 
   const createLogRedirectButton = <Button

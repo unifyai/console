@@ -173,8 +173,8 @@ export function convertTabToTabData(tab: Tab | null): TabData | null {
     active: tab.active,
     order: tab.order,
     
-    // Handle globalContext -> global_context conversion
-    global_context: tab.globalContext || undefined,
+    // Handle globalContext -> context conversion
+    context: tab.globalContext || undefined,
     
     // Handle color conversion
     color: tab.color || undefined,
