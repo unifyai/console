@@ -111,11 +111,11 @@ export function useAssistantProfileChat(
 
                     const { content } = await response.json();
                     if (!content) throw new Error("LLM returned an empty greeting.");
-
+                    
                     const greetingMessage: ChatMessage = { id: uuidv4(), role: 'assistant', content, timestamp: new Date() };
                     const messageToLog: Omit<ChatMessage, 'id'> = { role: greetingMessage.role, content: greetingMessage.content, timestamp: greetingMessage.timestamp };
                     
-                    logMessagesToHistory([messageToLog]);
+                    // logMessagesToHistory([messageToLog]);
                     setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, greetingMessage] }));
 
                 } catch (error) {
@@ -130,7 +130,7 @@ export function useAssistantProfileChat(
 
                     // Only log the fallback if there wasn't a pre-hire chat to avoid confusion
                     if (!preHireChat || preHireChat.length === 0) {
-                        logMessagesToHistory([fallbackToLog]);
+                        // logMessagesToHistory([fallbackToLog]);
                     }
                     setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, fallbackMessage] }));
                 } finally {
@@ -250,10 +250,10 @@ export function useAssistantProfileChat(
             };
             
             // Log the user message and the final assistant response
-            await logMessagesToHistory([
+            /* await logMessagesToHistory([
                 { role: newUserMessage.role, content: newUserMessage.content, timestamp: newUserMessage.timestamp },
                 finalAssistantMessage
-            ]);
+            ]); */
 
 
         } catch (error) {

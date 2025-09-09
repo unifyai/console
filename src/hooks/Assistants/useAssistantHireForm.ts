@@ -616,7 +616,7 @@ export function useAssistantHireForm(
             }
             
             // Transform chat history for logging
-            const preHireChatPayload: PreHireChatMessage[] | undefined = chatHistory
+            /* const preHireChatPayload: PreHireChatMessage[] | undefined = chatHistory
                 ?.map((msg, index) => ({
                     message_id: index,
                     medium: "unify_chat" as const,
@@ -625,7 +625,7 @@ export function useAssistantHireForm(
                     timestamp: msg.timestamp.toISOString(),
                     content: msg.content,
                     exchange_id: 0 as const,
-                }));
+                })); */
 
 
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
@@ -641,7 +641,7 @@ export function useAssistantHireForm(
                 data.about, data.voice_id,
                 data.email, userPhonePayload, countryPayload,
                 user_whatsapp_number,
-                preHireChatPayload // Pass the formatted chat history
+                undefined
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
