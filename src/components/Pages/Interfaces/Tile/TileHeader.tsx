@@ -168,7 +168,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
 
                 {columnContext && tileType == "Table" && (
                     <Tooltip content={`Column context: ${columnContext}`}>
-                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 text-body font-normal pr-1" role="button" aria-label="Open Menu" tabIndex={0}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={16} />
                             <span className="truncate">{truncatePath(columnContext)}</span>
                             <ActionButton
