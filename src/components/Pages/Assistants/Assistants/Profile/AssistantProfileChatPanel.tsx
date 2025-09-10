@@ -83,6 +83,15 @@ export function AssistantProfileChatPanel({
         }
     }, [messages]);
 
+    const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // Prevents adding a new line in the input
+            // Create a synthetic event to pass to sendMessage, which expects a form event
+            const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+            sendMessage(syntheticEvent);
+        }
+    };
+
     const isChatDisabled = isLoading;
 
     return (
@@ -113,9 +122,10 @@ export function AssistantProfileChatPanel({
                         disabled={isChatDisabled}
                         className="pr-10 h-9"
                         autoComplete="off"
+                        onKeyDown={sendMessageOnEnter}
                      />
                      <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isChatDisabled || !inputValue.trim()}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        <Send className="h-4 w-4" />
                      </Button>
                  </div>
             </form>
