@@ -193,6 +193,9 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 	const fullPath = node.path.slice(0, -1);
 	const isSelected = current === fullPath;
 	const hasKids = entries.length > 0;
+	const isAncestorOfSelected = hasKids && current ? current.startsWith(node.path) : false;
+	const isHighlighted = isSelected || isAncestorOfSelected;
+
 	const INDENT = 16;
 	const LINE_OFFSET = 8; // vertical line x offset at each depth
 	const BULLET_OFFSET = 16; // distance from depth indent to bullet
@@ -205,11 +208,11 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 			<div className="relative h-7">
 				<button
 					type="button"
-					className={`flex w-full min-w-0 items-center gap-2 px-2 h-7 rounded hover:bg-accent ${isSelected ? "bg-primary/10" : ""}`}
+					className={`flex w-full min-w-0 items-center gap-2 px-2 h-7 rounded hover:bg-muted ${isSelected ? "bg-primary/10" : ""}`}
 					style={{ marginLeft: indent + BULLET_OFFSET }}
 					onClick={() => onPick(isSelected ? "" : fullPath)}
 				>
-					<span className={`h-2 w-2 rounded-full ${isSelected ? "bg-primary" : "bg-muted"}`} />
+					<span className={`h-2 w-2 rounded-full ${isHighlighted ? "bg-primary" : "bg-muted"}`} />
 					<span className="truncate text-body leading-7">{label}</span>
 				</button>
 			</div>
@@ -221,19 +224,18 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 		<div className="relative">
 			<AccordionItem value={fullPath} className="border-0">
 				<div className="relative h-7">
-					<AccordionTrigger hideChevron={false} className="py-0 h-7 text-body">
+					<AccordionTrigger hideChevron={false} className="py-0 h-7 text-body hover:no-underline">
 						<div
-							className="flex w-full items-center gap-2 px-2 rounded hover:bg-accent"
+							className="flex w-full items-center gap-2 px-2 rounded hover:bg-muted"
 							style={{ marginLeft: indent + BULLET_OFFSET }}
-							onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPick(isSelected ? "" : fullPath); }}
 						>
 							<button
 								type="button"
-								className={`h-2 w-2 rounded-full ${isSelected ? "bg-primary" : "bg-muted"}`}
+								className={`h-2 w-2 rounded-full ${isHighlighted ? "bg-primary" : "bg-muted"}`}
 								onClick={(e) => {
 									e.preventDefault();
 									e.stopPropagation();
-									onPick(fullPath);
+									onPick(isSelected ? "" : fullPath);
 								}}
 							/>
 							<span className="truncate text-body leading-7">{label}</span>
@@ -258,4 +260,4 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 			</AccordionItem>
 		</div>
 	);
-} 
+}
