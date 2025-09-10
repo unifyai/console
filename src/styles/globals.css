@@ -317,6 +317,9 @@
   .text-data { @apply font-sans text-xs leading-5; }
   .text-data-header { @apply font-sans text-xs font-medium text-muted-foreground; }
   .text-overline { @apply font-sans text-xs uppercase tracking-widest text-muted-foreground; }
+  .tooltip-size-sm { @apply px-2 py-1 text-xs; }
+  .tooltip-size-md { @apply px-3 py-1.5 text-xs; }
+  .tooltip-size-lg { @apply px-4 py-2 text-sm; }
 }
 
 @layer utilities {

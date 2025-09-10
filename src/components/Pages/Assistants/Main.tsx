@@ -316,9 +316,9 @@ export default function Main({
     // Determine active panel for width calculations
     const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
     const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
-    const assistantListWidth = isAssistantListFolded ? "w-20"
+    const assistantListWidth = isAssistantListFolded ? "w-18"
                              : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
-                             : activeSidePanelCount === 1 ? "w-1/3 lg:w-[350px] xl:w-[400px]" 
+                             : activeSidePanelCount === 1 ? "w-1/3 lg:w-[300px] xl:w-[350px]" 
                              : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
     const panelBaseWidth = activeSidePanelCount === 2 ? "20%" : "25%";
 
