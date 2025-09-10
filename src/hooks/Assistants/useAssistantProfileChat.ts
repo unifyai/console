@@ -87,7 +87,10 @@ export function useAssistantProfileChat(
             const generateAndSetGreeting = async () => {
                 setIsLoading(true);
                 const initialHistory = preHireChat || [];
-                setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
+                const greetingMessageId = uuidv4();
+                const placeholderMessage: ChatMessage = { id: greetingMessageId, role: 'assistant', content: '', timestamp: new Date() };
+
+                setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, placeholderMessage] }));
 
                 try {
                     const response = await fetch('/api/assistant/chat', {
@@ -112,27 +115,32 @@ export function useAssistantProfileChat(
                     const { content } = await response.json();
                     if (!content) throw new Error("LLM returned an empty greeting.");
                     
-                    const greetingMessage: ChatMessage = { id: uuidv4(), role: 'assistant', content, timestamp: new Date() };
-                    const messageToLog: Omit<ChatMessage, 'id'> = { role: greetingMessage.role, content: greetingMessage.content, timestamp: greetingMessage.timestamp };
-                    
+                    const messageToLog: Omit<ChatMessage, 'id'> = { role: 'assistant', content: content, timestamp: new Date() };
                     // logMessagesToHistory([messageToLog]);
-                    setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, greetingMessage] }));
+                    
+                    setChatHistories(prev => {
+                        const updatedHistory = (prev[assistantId] || []).map(msg =>
+                            msg.id === greetingMessageId ? { ...msg, content } : msg
+                        );
+                        return { ...prev, [assistantId]: updatedHistory };
+                    });
 
                 } catch (error) {
                     console.error("Failed to generate post-hire greeting:", error);
-                    const fallbackMessage: ChatMessage = {
-                        id: uuidv4(),
-                        role: 'assistant',
-                        content: `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`,
-                        timestamp: new Date(),
-                    };
-                    const fallbackToLog: Omit<ChatMessage, 'id'> = { role: fallbackMessage.role, content: fallbackMessage.content, timestamp: fallbackMessage.timestamp };
+                    const fallbackContent = `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`;
+                    const fallbackToLog: Omit<ChatMessage, 'id'> = { role: 'assistant', content: fallbackContent, timestamp: new Date() };
 
                     // Only log the fallback if there wasn't a pre-hire chat to avoid confusion
                     if (!preHireChat || preHireChat.length === 0) {
                         // logMessagesToHistory([fallbackToLog]);
                     }
-                    setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, fallbackMessage] }));
+                    
+                    setChatHistories(prev => {
+                        const updatedHistory = (prev[assistantId] || []).map(msg =>
+                            msg.id === greetingMessageId ? { ...msg, content: fallbackContent } : msg
+                        );
+                        return { ...prev, [assistantId]: updatedHistory };
+                    });
                 } finally {
                     setIsLoading(false);
                     onFirstViewCompleted?.();
