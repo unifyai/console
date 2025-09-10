@@ -43,14 +43,13 @@ export function TaskPriorityFilter({
                 onValueChange={setPriorityFilter}
                 disabled={disableFilters}
             >
-                <SelectTrigger className="w-[160px] flex-shrink-0 h-8">
-                    <SelectedIcon className={cn("h-3.5 w-3.5 mr-2", currentPriorityDetails.iconClassName)} />
+                <SelectTrigger className="w-[150px] flex-shrink-0 h-8">
+                    <SelectedIcon className={cn("h-3.5 w-3.5", currentPriorityDetails.iconClassName)} />
                     <SelectValue placeholder="Filter by priority" />
                 </SelectTrigger>
                 <SelectContent>
                     {priorityOptions.map(p => {
                         const details = getPriorityDetails(p as Priority | 'all');
-                        const IconComponent = details.icon;
                         return (
                             <SelectItem key={p} value={p} className="capitalize">
                                 {details.label}

@@ -26,8 +26,8 @@ export function TaskAssistantFilter({
 
     return (
         <Select value={assistantFilter} onValueChange={setAssistantFilter} disabled={disableFilters || assistants.length === 0}>
-            <SelectTrigger className="w-[180px] flex-shrink-0 h-8">
-                <Users className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-[160px] flex-shrink-0 h-8">
+                <Users className="h-4 w-4" />
                 <SelectValue placeholder="Filter by assistant" />
             </SelectTrigger>
             <SelectContent>

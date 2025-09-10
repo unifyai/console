@@ -40,8 +40,8 @@ export function TaskDeadlineFilter({
                 onValueChange={setDeadlineFilter}
                 disabled={disableFilters}
             >
-                <SelectTrigger className="w-[180px] flex-shrink-0 h-8">
-                    <SelectedIcon className={cn("h-3.5 w-3.5 mr-2", selectedIconClassName)} />
+                <SelectTrigger className="w-[160px] flex-shrink-0 h-8">
+                    <SelectedIcon className={cn("h-3.5 w-3.5", selectedIconClassName)} />
                     <SelectValue placeholder="Filter by deadline" />
                 </SelectTrigger>
                 <SelectContent>

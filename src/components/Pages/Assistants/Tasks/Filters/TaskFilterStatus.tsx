@@ -30,8 +30,8 @@ export function TaskStatusFilter({
                 onValueChange={setStatusFilter}
                 disabled={disableFilters}
             >
-                <SelectTrigger className="w-[160px] flex-shrink-0 h-8">
-                    <Filter className="h-4 w-4 mr-2"/>
+                <SelectTrigger className="w-[150px] flex-shrink-0 h-8">
+                    <Filter className="h-4 w-4"/>
                     <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
