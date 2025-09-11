@@ -9,7 +9,7 @@ import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
 import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail } from 'lucide-react';
+import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail, Settings, Laptop } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -31,6 +31,7 @@ import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
 import { useAccountVerification } from '@/hooks/Assistants/useAccountVerification';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
+import { FaUbuntu, FaWindows, FaApple } from "react-icons/fa";
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -739,6 +740,53 @@ export function HireForm({
                                          </div>
                                      </div>
                                  </div> 
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="advanced" className="border-b-0">
+                            <AccordionTrigger className="text-title">
+                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                    <Settings className="h-4 w-4"/>
+                                    <span className="text-body">Advanced</span>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pt-2">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Laptop className="h-4 w-4 text-muted-foreground mb-1" />
+                                        <Label htmlFor="operating_system">Assistant&apos;s Operating System</Label>
+                                    </div>
+                                    <Controller
+                                        name="operating_system"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
+                                                <SelectTrigger id="operating_system">
+                                                    <SelectValue placeholder="Select an OS..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ubuntu">
+                                                        <div className="flex items-center gap-2">
+                                                            <FaUbuntu className="h-4 w-4" />
+                                                            <span>Ubuntu</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    <SelectItem value="windows" disabled>
+                                                        <div className="flex items-center gap-2">
+                                                            <FaWindows className="h-4 w-4" />
+                                                            <span>Windows - Coming Soon</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    <SelectItem value="macos" disabled>
+                                                        <div className="flex items-center gap-2">
+                                                            <FaApple className="h-4 w-4" />
+                                                            <span>MacOS - Coming Soon</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                </div>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>

@@ -71,6 +71,7 @@ export function useAssistantHireForm(
             isPresetPristine: false,
             presetOriginalValues: null,
             isPhoneNumberAdded: false,
+            operating_system: 'ubuntu',
             video_source_voice_id: null,
             design_include_bio: false,
         },
@@ -376,6 +377,7 @@ export function useAssistantHireForm(
             voice_provider: values?.voice_provider || defaultVoice.provider || VOICE_PROVIDER,
             isPresetPristine: false,
             presetOriginalValues: null,
+            operating_system: 'ubuntu',
             design_include_bio: false,
         });
         setShowInsufficientFundsHint(false);
@@ -426,6 +428,9 @@ export function useAssistantHireForm(
             voice_language: assistantVoiceDetails?.language,
             voice_provider: assistantVoiceDetails?.provider || VOICE_PROVIDER,
             voice_exists: !!assistantVoiceDetails, 
+
+            // Advanced
+            operating_system: 'ubuntu',
         });
         setShowInsufficientFundsHint(false);
     }, [reset, getValues]);
