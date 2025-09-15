@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { AssistantPreset } from '@/types/assistants/assistant';
+import { AssistantPreset, Voice } from '@/types/assistants/assistant';
 import assistantPresetsConstant from "@/constants/assistants/assistant_presets.js";
-import { VOICE_PROVIDER } from '@/constants/assistants/settings';
+import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 const PRESETS_PAGE_LIMIT = 12;
 const PRESET_AGE_BRACKETS = ['all', '18-25', '26-35', '36-45', '46-55', '56+'];
@@ -17,30 +18,47 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 export function useAssistantPresets() {
     const [allAssistantPresets] = React.useState<AssistantPreset[]>(() => shuffleArray(
-        assistantPresetsConstant.filter(assistant => assistant.voice_ids[VOICE_PROVIDER] && assistant.voice_ids[VOICE_PROVIDER] != "") as AssistantPreset[]
+        assistantPresetsConstant.filter(assistant => assistant.voice_ids[PRIMARY_VOICE_PROVIDER] || assistant.voice_ids["openai"]) as AssistantPreset[]
     ));
 
     const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
     const [presetRegionFilter, setPresetRegionFilter] = React.useState<string>('all');
     const [presetGenderFilter, setPresetGenderFilter] = React.useState<string>('all');
+    const [presetLanguageFilter, setPresetLanguageFilter] = React.useState<string>('all');
 
     const [uniquePresetRegions, setUniquePresetRegions] = React.useState<string[]>(['all']);
     const [uniquePresetGenders, setUniquePresetGenders] = React.useState<string[]>(['all']);
+    const [uniquePresetLanguages, setUniquePresetLanguages] = React.useState<string[]>(['all']);
 
     const [currentFilteredPresets, setCurrentFilteredPresets] = React.useState<AssistantPreset[]>([]);
     const [displayedPresets, setDisplayedPresets] = React.useState<AssistantPreset[]>([]);
     const [presetsToShowCount, setPresetsToShowCount] = React.useState<number>(PRESETS_PAGE_LIMIT);
     const [isLoadingMorePresets, setIsLoadingMorePresets] = React.useState(false);
+    
+    const allPresetVoices = voicePresetsConstant as Voice[];
+
+    const presetsWithLanguage = React.useMemo(() => {
+        return allAssistantPresets.map(preset => {
+            const voiceId = preset.voice_ids[PRIMARY_VOICE_PROVIDER] || preset.voice_ids["openai"];
+            const voice = allPresetVoices.find(v => v.voice_id === voiceId);
+            return {
+                ...preset,
+                language: voice?.language || null
+            };
+        });
+    }, [allAssistantPresets, allPresetVoices]);
 
     React.useEffect(() => {
-        const regions = ['all', ...Array.from(new Set(allAssistantPresets.map(p => p.region).filter(Boolean))) as string[]];
-        const genders = ['all', ...Array.from(new Set(allAssistantPresets.map(p => p.gender).filter(Boolean))) as string[]];
+        const regions = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.region).filter(Boolean))) as string[]];
+        const genders = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.gender).filter(Boolean))) as string[]];
+        const languages = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.language).filter(Boolean))) as string[]];
         setUniquePresetRegions(regions.sort());
         setUniquePresetGenders(genders.sort((a,b) => a.localeCompare(b)));
-    }, [allAssistantPresets]);
+        setUniquePresetLanguages(languages.sort());
+    }, [presetsWithLanguage]);
 
     React.useEffect(() => {
-        let filtered = [...allAssistantPresets];
+        let filtered = [...presetsWithLanguage];
 
         if (presetAgeFilter !== 'all' && presetAgeFilter) {
             const [minAgeStr, maxAgeStr] = presetAgeFilter.split('-');
@@ -54,10 +72,13 @@ export function useAssistantPresets() {
         if (presetGenderFilter !== 'all' && presetGenderFilter) {
             filtered = filtered.filter(p => p.gender?.toLowerCase() === presetGenderFilter.toLowerCase());
         }
+        if (presetLanguageFilter !== 'all' && presetLanguageFilter) {
+            filtered = filtered.filter(p => p.language === presetLanguageFilter);
+        }
 
         setCurrentFilteredPresets(filtered);
         setPresetsToShowCount(PRESETS_PAGE_LIMIT); // Reset count when filters change
-    }, [allAssistantPresets, presetAgeFilter, presetRegionFilter, presetGenderFilter]);
+    }, [presetsWithLanguage, presetAgeFilter, presetRegionFilter, presetGenderFilter, presetLanguageFilter]);
 
     React.useEffect(() => {
         setDisplayedPresets(currentFilteredPresets.slice(0, presetsToShowCount));
@@ -83,9 +104,11 @@ export function useAssistantPresets() {
         presetAgeFilter, setPresetAgeFilter,
         presetRegionFilter, setPresetRegionFilter,
         presetGenderFilter, setPresetGenderFilter,
+        presetLanguageFilter, setPresetLanguageFilter,
         availableAgeBrackets: PRESET_AGE_BRACKETS,
         availableRegions: uniquePresetRegions,
         availableGenders: uniquePresetGenders,
+        availableLanguages: uniquePresetLanguages,
         currentFilteredPresets,
         allAssistantPresets,
     };

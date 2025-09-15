@@ -4,9 +4,9 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Pages/Assistants/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Pages/Assistants/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform, VoiceOption } from "@/types/assistants/assistant";
-import { ActivityLogActions } from "@/types/assistants/activity";
-import { TaskActions, Status as TaskStatusEnum } from "@/types/assistants/task";
+import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform, VoiceOption } from '@/types/assistants/assistant';
+import { ActivityLogActions } from '@/types/assistants/activity';
+import { TaskActions, Status as TaskStatusEnum } from '@/types/assistants/task';
 import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { AssistantProfilePanel } from './Assistants/AssistantProfile';
@@ -31,7 +31,7 @@ import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
-import { VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantEditPhone } from './Assistants/Edit/AssistantEditPhone';
 
@@ -157,7 +157,9 @@ export default function Main({
         presetAgeFilter, setPresetAgeFilter,
         presetRegionFilter, setPresetRegionFilter,
         presetGenderFilter, setPresetGenderFilter,
+        presetLanguageFilter, setPresetLanguageFilter,
         availableAgeBrackets, availableRegions, availableGenders,
+        availableLanguages,
         currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
 
@@ -229,11 +231,13 @@ export default function Main({
         setPresetAgeFilter('all');
         setPresetRegionFilter('all');
         setPresetGenderFilter('all');
+        setPresetLanguageFilter('all');
         setIsDialogBusyProcessingVoice(false);
 
-        const presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
+        let presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
         if (presetsToUse.length > 0) {
             const randomIndex = Math.floor(Math.random() * presetsToUse.length);
+            presetsToUse = presetsToUse.filter(p => !p.voice_ids["openai"]) // Don't pick openai-voice presets as initial presets
             selectPresetForHireForm(presetsToUse[randomIndex]);
         }
 
@@ -241,7 +245,7 @@ export default function Main({
         setIsHireDialogOpen(true);
         refreshHiringProfile();
 
-    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, refreshHiringProfile]);
+    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, setPresetLanguageFilter, refreshHiringProfile]);
 
     const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
         loadAssistantForEdit(assistant);
@@ -301,7 +305,7 @@ export default function Main({
                 setValue("voice_description", "");
                 setValue("voice_gender", "female");
                 setValue("voice_language", "en"); 
-                setValue("voice_provider", VOICE_PROVIDER);
+                setValue("voice_provider", PRIMARY_VOICE_PROVIDER);
                 setValue("voice_exists", false);
             }
             setJustDeletedVoiceId(null); // Reset the trigger
@@ -482,6 +486,9 @@ export default function Main({
                         genderFilter={presetGenderFilter}
                         onGenderFilterChange={setPresetGenderFilter}
                         availableGenders={availableGenders}
+                        languageFilter={presetLanguageFilter}
+                        onLanguageFilterChange={setPresetLanguageFilter}
+                        availableLanguages={availableLanguages}
                         layoutMode="split" // Dummy prop
                         setLayoutMode={() => {}} // Dummy prop
                     />

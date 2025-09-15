@@ -10,7 +10,7 @@ import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, Hourglass, X, Slash, TimerOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
@@ -24,7 +24,7 @@ import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
 
 // Import Utils/Constants
 import { getLanguageFlag, getLanguageLabel } from '@/utils/assistants/voice-utils'; 
-import { VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 
 interface VoiceCustomizationProps {
     assistantActions: AssistantActions; 
@@ -231,7 +231,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
 
                 <div className={cn("flex items-center p-0 m-0 gap-1 sm:gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
 
-                     <TooltipProvider delayDuration={100}>
+                    <TooltipProvider delayDuration={100}>
                         {videoSourceVoiceId === voice.voice_id && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -240,6 +240,19 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top"><p>Used for current video animation</p></TooltipContent>
+                            </Tooltip>
+                        )}
+                    </TooltipProvider>
+
+                    <TooltipProvider delayDuration={100}>
+                        {voice.provider === "openai" && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
+                                        <TimerOff className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top"><p>Low latency voice</p></TooltipContent>
                             </Tooltip>
                         )}
                     </TooltipProvider>
@@ -445,10 +458,10 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                 onValueChange={(v) => setActiveMainTab(v as ActiveCreatorTab)} 
                 className="w-full"
             >
-                <TabsList className={cn("grid w-full h-9", VOICE_PROVIDER === 'elevenlabs' ? "grid-cols-3" : "grid-cols-2")}>
+                <TabsList className={cn("grid w-full h-9", PRIMARY_VOICE_PROVIDER === 'elevenlabs' ? "grid-cols-3" : "grid-cols-2")}>
                     <TabsTrigger value="select" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Select</TabsTrigger>
                     <TabsTrigger value="clone" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Clone</TabsTrigger>
-                    {VOICE_PROVIDER === 'elevenlabs' && (
+                    {PRIMARY_VOICE_PROVIDER === 'elevenlabs' && (
                         <TabsTrigger value="design" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Design</TabsTrigger>
                     )}
                 </TabsList>
@@ -576,7 +589,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                     </ScrollArea>
                 </TabsContent>
 
-                {VOICE_PROVIDER === 'elevenlabs' && (
+                {PRIMARY_VOICE_PROVIDER === 'elevenlabs' && (
                     <TabsContent value="design" className="mt-2 border rounded-md h-[276px]">
                         <ScrollArea className="h-full w-full">
                             <div className="p-3 space-y-3">

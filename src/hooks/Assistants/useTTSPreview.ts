@@ -92,6 +92,8 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
             payload.cartesia_language = voice.language as SupportedLanguage;
         } else if (voice.provider === 'elevenlabs') {
             payload.model_id = 'eleven_multilingual_v2'; 
+        } else if (voice.provider === 'openai') {
+            payload.model_id = 'gpt-4o-mini-tts'
         } else {
             toast.error(`Unsupported voice provider: ${voice.provider}`);
             setIsPlayingPreviewForVoiceId(null);
@@ -115,12 +117,12 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
             } else { 
                 const errorDetail = result.detail || "TTS generation failed";
                 console.error(`Error playing voice (hook): ${errorDetail}, Status: ${result.status}`);
-                toast.error(`Error playing voice: ${String(errorDetail).substring(0, 200)}`);
+                toast.error(`Error playing voice. Please try again or contact us if the issue persists.`);
                 setIsPlayingPreviewForVoiceId(null);
             }
         } catch (e: any) {
             console.error("TTS Preview Error (hook catch block):", e);
-            toast.error(`Failed to play preview: ${String(e.message || e).substring(0,200)}`);
+            toast.error(`Failed to play preview. Please try again or contact us if the issue persists.`);
             setIsPlayingPreviewForVoiceId(null);
         }
     };

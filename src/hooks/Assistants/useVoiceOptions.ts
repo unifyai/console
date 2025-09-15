@@ -4,16 +4,16 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
 import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
-import { VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 
 export function useVoiceOptions(
     assistantVoiceActions: AssistantActions['voice'],
 ) {
     const [presetVoices] = React.useState<VoiceOption[]>(() => {
         const allPresets = voicePresetsConstant as Voice[];
-        // Filter presets based on the VOICE_PROVIDER setting
+        // Filter presets based on the PRIMARY_VOICE_PROVIDER setting
         const filteredPresets = allPresets.filter(
-            preset => preset.provider === VOICE_PROVIDER
+            preset => preset.provider === PRIMARY_VOICE_PROVIDER || preset.provider === "openai" 
         );
         return filteredPresets.map(vp => ({
             ...vp,
@@ -34,16 +34,16 @@ export function useVoiceOptions(
         try {
             const result = await assistantVoiceActions.list();
             if (Array.isArray(result)) {
-                // Also filter user's voices from DB if their provider doesn't match VOICE_PROVIDER
+                // Also filter user's voices from DB if their provider doesn't match PRIMARY_VOICE_PROVIDER
                 // This might be too restrictive if a user has old voices from a different provider
-                // For now, let's assume voices in DB are valid regardless of current VOICE_PROVIDER setting,
+                // For now, let's assume voices in DB are valid regardless of current PRIMARY_VOICE_PROVIDER setting,
                 // or that the backend /assistant/voice list already filters by active provider if necessary.
                 // The main goal here is to filter the *presets*.
-                // If user voices from DB should also be filtered by current VOICE_PROVIDER, add filter here:
-                // .filter(v => v.provider === VOICE_PROVIDER)
+                // If user voices from DB should also be filtered by current PRIMARY_VOICE_PROVIDER, add filter here:
+                // .filter(v => v.provider === PRIMARY_VOICE_PROVIDER)
                 setUserVoicesFromOrchestra(result.map(v => ({
                     ...v,
-                    provider: v.provider || VOICE_PROVIDER,
+                    provider: v.provider || PRIMARY_VOICE_PROVIDER,
                     isUserVoiceInOrchestra: true, 
                     is_preset: v.is_preset ?? false,
                 })));

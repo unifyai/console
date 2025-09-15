@@ -7,6 +7,7 @@ import { X, Filter, Loader2, PanelRightOpen, PanelLeftClose, MessageSquare, Maxi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { Label } from '@/components/UI/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
+import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 
 const PRESET_ITEM_APPROX_HEIGHT = 90; // Approximate height of one PresetListItem + gap for threshold calculation
 
@@ -33,6 +34,10 @@ export interface PresetsPanelProps {
   onGenderFilterChange: (value: string) => void;
   availableGenders: string[];
 
+  languageFilter: string;
+  onLanguageFilterChange: (value: string) => void;
+  availableLanguages: string[];
+
   onToggleView?: () => void;
 }
 
@@ -54,6 +59,9 @@ export function PresetsPanel({
   genderFilter,
   onGenderFilterChange,
   availableGenders,
+  languageFilter,
+  onLanguageFilterChange,
+  availableLanguages,
   onToggleView,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
@@ -133,7 +141,7 @@ export function PresetsPanel({
 
       {/* Filters */}
       <div className="p-3 border-b space-y-3 flex-shrink-0">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <div>
             <Select value={ageFilter} onValueChange={onAgeFilterChange}>
               <SelectTrigger className="h-8 text-caption">
@@ -171,6 +179,20 @@ export function PresetsPanel({
                 {availableGenders.map(gender => (
                   <SelectItem key={gender} value={gender} className="text-caption capitalize">
                     {gender === 'all' ? 'All Genders' : gender}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Select value={languageFilter} onValueChange={onLanguageFilterChange} disabled={availableLanguages.length <= 1}>
+              <SelectTrigger className="h-8 text-caption">
+                <SelectValue placeholder="Language" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableLanguages.map(lang => (
+                  <SelectItem key={lang} value={lang} className="text-caption capitalize">
+                    {lang === 'all' ? 'All Languages' : getLanguageLabel(lang)}
                   </SelectItem>
                 ))}
               </SelectContent>

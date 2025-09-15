@@ -16,7 +16,7 @@ import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { getCountryFlag } from '@/utils/assistants/country-utils';
-import { EMAIL_DOMAIN_WITH_AT, VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import { EMAIL_DOMAIN_WITH_AT, PRIMARY_VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -289,7 +289,7 @@ export function HireForm({
             setValue("voice_description", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
             setValue("voice_gender", bestNewVoice.gender, { shouldValidate: true });
             setValue("voice_language", bestNewVoice.language, { shouldValidate: true });
-            setValue("voice_provider", bestNewVoice.provider || VOICE_PROVIDER, { shouldValidate: true });
+            setValue("voice_provider", bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
             setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
         }
     }, [rhfRegion, allDisplayableVoices, getValues, setValue]);
@@ -397,7 +397,7 @@ export function HireForm({
                 gender: rhfVoiceGender as Gender,
                 name: rhfVoiceName,
                 description: rhfVoiceDescription || '',
-                provider: getValues("voice_provider") || VOICE_PROVIDER,
+                provider: getValues("voice_provider") || PRIMARY_VOICE_PROVIDER,
                 is_preset: rhfIsPresetPristine,
                 isUserVoiceInOrchestra: getValues("voice_exists")
             };
@@ -581,7 +581,7 @@ export function HireForm({
                                         setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
                                         setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
                                         setValue("voice_language", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
-                                        setValue("voice_provider", selectedVoice?.provider || VOICE_PROVIDER, { shouldValidate: true });
+                                        setValue("voice_provider", selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
                                         setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
                                     }}
                                     initialVoiceId={getValues("voice_id")}

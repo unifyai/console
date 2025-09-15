@@ -908,5 +908,77 @@ export default [
       "cartesia": "e8a863c6-22c7-4671-86ca-91cacffc038d", // Japanese Male Conversational (jp, male, "This voice is clear and confident, perfect for a Japanese call center agent.")
       "elevenlabs": "TX3LPaxmHKxFdv7VOQHJ" // Liam (en -> ja, young male adult voice with energy and warmth)
     }
+  },
+  {
+    "first_name": "Jung",
+    "surname": "Hwang",
+    "age": 28,
+    "gender": "male",
+    "about": "A dedicated and detail-oriented professional, I am passionate about leveraging technology to solve complex problems. I thrive in collaborative environments and am always eager to learn and grow. My goal is to contribute to meaningful projects and make a positive impact.",
+    "region": "South Korea",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/63.jpg",
+    "voice_ids": {
+      "openai": "cedar"
+    }
+  },
+  {
+    "first_name": "Fatima",
+    "surname": "Zayed",
+    "age": 30,
+    "gender": "female",
+    "about": "A creative and resourceful individual with a passion for storytelling and visual arts. I am committed to producing high-quality work and collaborating with others to bring innovative ideas to life. I am always seeking new challenges and opportunities for growth.",
+    "region": "United Arab Emirates",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/98.jpg",
+    "voice_ids": {
+      "openai": "marin"
+    }
+  },
+  {
+    "first_name": "Sofia",
+    "surname": "Santos",
+    "age": 34,
+    "gender": "female",
+    "about": "A warm and empathetic professional with a strong background in community engagement. I am passionate about helping others and fostering positive relationships. I am a dedicated team player and am always looking for ways to make a difference.",
+    "region": "Brazil",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/99.jpg",
+    "voice_ids": {
+      "openai": "coral"
+    }
+  },
+  {
+    "first_name": "Seo-yeon",
+    "surname": "Park",
+    "age": 26,
+    "gender": "female",
+    "about": "A highly motivated and organized professional with a keen eye for detail. I am committed to delivering excellent results and am always eager to take on new challenges. I am a strong communicator and enjoy working as part of a team.",
+    "region": "South Korea",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/90.jpg",
+    "voice_ids": {
+      "openai": "shimmer"
+    }
+  },
+  {
+    "first_name": "Andrei",
+    "surname": "Popescu",
+    "age": 32,
+    "gender": "male",
+    "about": "A driven and analytical professional with a strong background in data analysis and problem-solving. I am passionate about using data to drive business decisions and am always looking for new ways to innovate. I am a dedicated and hardworking individual with a proven track record of success.",
+    "region": "Romania",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/male/512/16.jpg",
+    "voice_ids": {
+      "openai": "ash"
+    }
+  },
+  {
+    "first_name": "Amara",
+    "surname": "Okafor",
+    "age": 29,
+    "gender": "female",
+    "about": "A confident and charismatic professional with a passion for communication and public speaking. I am a natural leader and am always looking for opportunities to inspire and motivate others. I am a creative and strategic thinker with a proven ability to develop and execute successful campaigns.",
+    "region": "Nigeria",
+    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/44.jpg",
+    "voice_ids": {
+      "openai": "alloy"
+    }
   }
 ]

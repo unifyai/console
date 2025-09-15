@@ -10,12 +10,22 @@ export const languageOptions: { value: SupportedLanguage; label: string; flag: s
     { value: "ru", label: "Russian", flag: "🇷🇺" }, { value: "sv", label: "Swedish", flag: "🇸🇪" },
     { value: "tr", label: "Turkish", flag: "🇹🇷" },
 ];
-export const getLanguageFlag = (langCode: string | undefined) => languageOptions.find(l => l.value === langCode)?.flag || "🏳️";
-export const getLanguageLabel = (langCode: string | undefined) => languageOptions.find(l => l.value === langCode)?.label || langCode?.toUpperCase() || "N/A";
+export const getLanguageFlag = (langCode: string | undefined) => {
+    if (langCode === 'multi') return "🌎";
+    return languageOptions.find(l => l.value === langCode)?.flag || "🏳️";
+}
+export const getLanguageLabel = (langCode: string | undefined) => {
+    if (langCode === 'multi') return "Multilingual";
+    return languageOptions.find(l => l.value === langCode)?.label || langCode?.toUpperCase() || "N/A";
+}
 export const cartesiaLocalizeGenderOptions: { value: CartesiaGender; label: string }[] = [
     { value: "female", label: "Female" }, { value: "male", label: "Male" },
 ];
 export const sampleTTSLinesByLanguage: Record<SupportedLanguage | string, string[]> = {
+    all: [
+        "Hello, how can I assist you today?",
+        "I can speak many languages.",
+    ],
     en: [
         "Hello, how can I assist you today?",
         "I'm here to help with any questions you might have.",
@@ -98,7 +108,7 @@ export const sampleTTSLinesByLanguage: Record<SupportedLanguage | string, string
     ]
 };
 
-export const getRandomSampleLine = (language: SupportedLanguage): string => {
+export const getRandomSampleLine = (language: SupportedLanguage | "multi"): string => {
     const lines = sampleTTSLinesByLanguage[language] || sampleTTSLinesByLanguage.default;
     return lines[Math.floor(Math.random() * lines.length)];
 };

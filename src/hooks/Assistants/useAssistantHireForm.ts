@@ -7,7 +7,7 @@ import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
-import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 
 export function useAssistantHireForm(
@@ -20,14 +20,14 @@ export function useAssistantHireForm(
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
 
-    // Find a default voice that matches the current VOICE_PROVIDER
+    // Find a default voice that matches the current PRIMARY_VOICE_PROVIDER
     const getDefaultVoiceForProvider = () => {
-        let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === VOICE_PROVIDER);
+        let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === PRIMARY_VOICE_PROVIDER);
         if (!suitableDefault && voicePresetsConstant.length > 0) {
             suitableDefault = (voicePresetsConstant as Voice[])[0]; // Fallback to first preset if no provider match
         }
         if (!suitableDefault) { // Absolute fallback if voicePresetsConstant is empty
-            return { voice_id: '', name: 'Default', language: 'en', description: 'Default voice', gender: 'female', provider: VOICE_PROVIDER };
+            return { voice_id: '', name: 'Default', language: 'en', description: 'Default voice', gender: 'female', provider: PRIMARY_VOICE_PROVIDER };
         }
         return suitableDefault;
     };
@@ -66,7 +66,7 @@ export function useAssistantHireForm(
             voice_language: defaultVoice.language as SupportedLanguage,
             voice_description: defaultVoice.description,
             voice_gender: defaultVoice.gender as Gender,
-            voice_provider: defaultVoice.provider || VOICE_PROVIDER,
+            voice_provider: defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
             voice_exists: false,
             isPresetPristine: false,
             presetOriginalValues: null,
@@ -174,7 +174,7 @@ export function useAssistantHireForm(
             country === originalValues.country &&
             voiceId === originalValues.voice_id &&
             (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url)) &&
-            voiceProvider === VOICE_PROVIDER;
+            voiceProvider === PRIMARY_VOICE_PROVIDER;
 
         if (getValues("isPresetPristine") && !isPristine) {
             setValue("isPresetPristine", false);
@@ -261,25 +261,26 @@ export function useAssistantHireForm(
         setValue("email", `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
         setValue("emailManuallyEdited", false);
 
-        // Determine the voice_id based on VOICE_PROVIDER
-        const providerSpecificVoiceId = preset.voice_ids[VOICE_PROVIDER] || null;
+        // Determine the voice_id based on PRIMARY_VOICE_PROVIDER, or OpenAi if an OpenAI voice
+        const presetVoiceProvider = preset.voice_ids["openai"] ? "openai" : PRIMARY_VOICE_PROVIDER;
+        const providerSpecificVoiceId = preset.voice_ids["openai"] || preset.voice_ids[PRIMARY_VOICE_PROVIDER] || null;
 
         // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
         let selectedPresetVoiceDetails: VoiceOption | undefined = (voicePresetsConstant as VoiceOption[]).find(
-            vp => vp.voice_id === providerSpecificVoiceId && vp.provider === VOICE_PROVIDER
+            vp => vp.voice_id === providerSpecificVoiceId && (vp.provider === presetVoiceProvider)
         );
 
         if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
             // Fallback if voice ID is in preset but not in voice_presets.js for that provider
             // This should ideally not happen if data is consistent.
-            console.warn(`Voice ID ${providerSpecificVoiceId} for provider ${VOICE_PROVIDER} found in assistant preset but not in voice_presets.js. Using fallback.`);
+            console.warn(`Voice ID ${providerSpecificVoiceId} found in assistant preset but not in voice_presets.js. Using fallback.`);
             selectedPresetVoiceDetails = {
                 voice_id: providerSpecificVoiceId,
                 name: "Preset Voice",
                 description: "Preset voice",
                 gender: preset.gender === 'male' ? 'male' : 'female', // Infer from assistant preset
                 language: 'en', // Default language
-                provider: VOICE_PROVIDER,
+                provider: presetVoiceProvider,
                 is_preset: true,
                 isUserVoiceInOrchestra: false,
             };
@@ -290,7 +291,7 @@ export function useAssistantHireForm(
                  selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
                  selectedPresetVoiceDetails.is_preset = true;
             }
-            console.warn(`No voice_id found for provider ${VOICE_PROVIDER} in preset. Using default voice.`);
+            console.warn(`No corresponding voice_id found in preset. Using default voice.`);
         }
 
         setValue("voice_id", selectedPresetVoiceDetails.voice_id);
@@ -298,7 +299,7 @@ export function useAssistantHireForm(
         setValue("voice_description", selectedPresetVoiceDetails.description);
         setValue("voice_language", selectedPresetVoiceDetails.language as SupportedLanguage);
         setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
-        setValue("voice_provider", selectedPresetVoiceDetails.provider || VOICE_PROVIDER);
+        setValue("voice_provider", selectedPresetVoiceDetails.provider || PRIMARY_VOICE_PROVIDER);
 
         const voiceAlreadyExists = registeredVoices.some(
             v => v.voice_id === providerSpecificVoiceId && v.isUserVoiceInOrchestra
@@ -318,12 +319,12 @@ export function useAssistantHireForm(
         };
         setValue("presetOriginalValues", originalValues);
         setValue("videoPreviewUrl", null);
-        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, VOICE_PROVIDER)
+        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, presetVoiceProvider)
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoPreviewUrl", res.signedUrl);
                     setValue("video_source_voice_id", providerSpecificVoiceId);
-                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${VOICE_PROVIDER.toLowerCase()}.mp4`);
+                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${presetVoiceProvider.toLowerCase()}.mp4`);
                 } else {
                     setValue("isPresetPristine", false);
                 }
@@ -374,7 +375,7 @@ export function useAssistantHireForm(
             voice_description: values?.voice_description || defaultVoice.description,
             voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
             voice_exists: values?.voice_exists || false,
-            voice_provider: values?.voice_provider || defaultVoice.provider || VOICE_PROVIDER,
+            voice_provider: values?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
             isPresetPristine: false,
             presetOriginalValues: null,
             operating_system: 'ubuntu',
@@ -426,7 +427,7 @@ export function useAssistantHireForm(
             voice_description: assistantVoiceDetails?.description,
             voice_gender: assistantVoiceDetails?.gender,
             voice_language: assistantVoiceDetails?.language,
-            voice_provider: assistantVoiceDetails?.provider || VOICE_PROVIDER,
+            voice_provider: assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
             voice_exists: !!assistantVoiceDetails, 
 
             // Advanced
@@ -492,7 +493,7 @@ export function useAssistantHireForm(
             }
 
             if (data.voice_id && !data.voice_exists) {
-                 const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
+                 const provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
                  const voiceCreationResponse = await assistantActions.voice.register(data.voice_id, provider, data.voice_name!, data.voice_description!, data.voice_gender!, data.voice_language!, false);
                  if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
             }
@@ -610,7 +611,7 @@ export function useAssistantHireForm(
             }
 
             if (!data.voice_exists && data.voice_id) {
-                const provider = data?.voice_provider || defaultVoice.provider || VOICE_PROVIDER;
+                const provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
                 const voiceCreationResponse = await assistantActions.voice.register(
                     data.voice_id, provider, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)

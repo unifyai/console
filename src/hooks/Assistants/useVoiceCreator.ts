@@ -3,7 +3,7 @@ import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesi
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { SupportedLanguage } from "@cartesia/cartesia-js/api";
-import { VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 import { useFormContext } from 'react-hook-form';
 
 type CreateMode = 'clone' | 'design';
@@ -40,7 +40,7 @@ export function useVoiceCreator(
     }, []);
 
     const handleGenerateDesignPreviews = async () => {
-        if (VOICE_PROVIDER !== 'elevenlabs') {
+        if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
             toast.error("Voice design is only available for the ElevenLabs provider.");
             return;
         }
@@ -123,10 +123,10 @@ export function useVoiceCreator(
                 formData.append('file', cloneFile);
                 formData.append('name', cloneName);
                 if (cloneDescription) formData.append('description', cloneDescription);
-                formData.append('provider', VOICE_PROVIDER);
+                formData.append('provider', PRIMARY_VOICE_PROVIDER);
                 backendResponse = await assistantVoiceActions.clone(formData);
             } else if (createMode === 'design') {
-                if (VOICE_PROVIDER !== 'elevenlabs') {
+                if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
                     toast.error("Design mode is only available for ElevenLabs provider.", { id: toastId });
                     setIsProcessingCreate(false); return;
                 }
@@ -162,7 +162,7 @@ export function useVoiceCreator(
 
                 const fullNewVoice: VoiceOption = {
                     ...voiceDataFromBackend,
-                    provider: voiceDataFromBackend.provider || VOICE_PROVIDER, 
+                    provider: voiceDataFromBackend.provider || PRIMARY_VOICE_PROVIDER, 
                     isUserVoiceInOrchestra: true, 
                     is_preset: voiceDataFromBackend.is_preset ?? false,
                 };

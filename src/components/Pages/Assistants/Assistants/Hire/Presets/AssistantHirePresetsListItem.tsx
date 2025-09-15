@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { Skeleton } from "@/components/UI/skeleton";
+import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 
 type ImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -55,6 +56,10 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
            <span>{preset.age}</span>
            <span className="text-caption text-muted-foreground">Region:</span>
            <span>{preset.region}</span>
+           <span className="text-caption text-muted-foreground">Language:</span>
+           <span className="flex items-center gap-1.5">
+               {preset.language ? getLanguageLabel(preset.language) : '-'}
+           </span>
         </div>
          <p className="text-caption text-muted-foreground line-clamp-2"> {/* Show snippet */}
             {preset.about}

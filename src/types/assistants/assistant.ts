@@ -63,7 +63,9 @@ export type AssistantPreset =
       voice_ids: {
           cartesia?: string | null;
           elevenlabs?: string | null;
+          openai?: string | null;
       };
+      language?: string | null;
     };
 
 export interface SocialAccount {
@@ -105,9 +107,9 @@ export type AssistantFormData =
       voice_name?: string;
       voice_description?: string;
       voice_gender?: CartesiaGender;
-      voice_language?: SupportedLanguage;
+      voice_language?: SupportedLanguage | "multi";
       voice_exists?: boolean;
-      voice_provider?: "cartesia" | "elevenlabs";
+      voice_provider?: "cartesia" | "elevenlabs" | "openai";
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
       social_accounts?: SocialAccount[];
@@ -181,8 +183,8 @@ export interface Voice {
   name: string;
   description: string;
   gender: Gender;
-  language: SupportedLanguage;
-  provider: "cartesia" | "elevenlabs";
+  language: SupportedLanguage | "multi";
+  provider: "cartesia" | "elevenlabs" | "openai";
   is_preset?: boolean;
 }
 
@@ -192,7 +194,7 @@ export type VoiceOption = Voice & {
 
 export interface GenerateSpeechPayload {
     text: string;
-provider: "cartesia" | "elevenlabs";
+    provider: "cartesia" | "elevenlabs" | "openai";
     voice_id: string;
     model_id?: string;
     output_format: "mp3" | "wav" | "flac" | "pcm_s16le" | "pcm_mulaw";
@@ -273,7 +275,7 @@ export interface AssistantActions {
     },
     "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>;
-    register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage, is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
+    register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
