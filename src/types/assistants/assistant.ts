@@ -83,9 +83,10 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'email'>
   & {
-      email?: string;
+      email?: string | null;
+      isEmailAdded?: boolean;
       emailManuallyEdited?: boolean;
       profile_photo_url?: string | null; // GCS URL for photo
       profile_video_url?: string | null; // GCS URL for video
@@ -254,7 +255,7 @@ export interface AssistantActions {
     create: (
         first_name: string, surname: string, age: number | null, region: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
-        email: string, user_phone: string | null, country: string | null,
+        email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;

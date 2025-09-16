@@ -190,7 +190,18 @@ export function HireForm({
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
 
+    const isEmailAdded = useWatch({ control, name: 'isEmailAdded' });
     const isPhoneNumberAdded = useWatch({ control, name: 'isPhoneNumberAdded' });
+
+    const handleAddEmail = () => {
+        setValue('isEmailAdded', true, { shouldDirty: true });
+    };
+
+    const handleRemoveEmail = () => {
+        setValue('isEmailAdded', false, { shouldDirty: true });
+        setValue('email', null, { shouldDirty: true });
+        clearErrors('email');
+    };
 
     const handleAddPhone = () => {
         setValue('isPhoneNumberAdded', true, { shouldDirty: true });
@@ -608,47 +619,57 @@ export function HireForm({
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
                                  <div className="space-y-2">
-                                      {/* Email Section (Hire Mode Only) */}
-                                      {mode === 'hire' && (
-                                         <div className="col-span-2 sm:col-span-1">
-                                              <div className="flex flex-row items-center gap-2 mb-1.5">
-                                                  <Mail className="h-4 w-4 text-muted-foreground" />
-                                                  <Label htmlFor="email_local_part">Email address</Label>
-                                              </div>
-                                              <div className="flex items-center rounded-md">
-                                                  <Input
-                                                      id="email_local_part"
-                                                      type="text"
-                                                      value={emailLocalPart}
-                                                      onChange={handleLocalPartChange}
-                                                      placeholder="new-assistant"
-                                                      className="flex max-w-[250px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none h-9"
-                                                      aria-describedby="email_domain_part"
-                                                      disabled={isSubmitting || isLoadingEmails}
-                                                  />
-                                                  <span
-                                                      id="email_domain_part"
-                                                      className="px-3 py-2 bg-muted text-muted-foreground text-caption rounded-r-md border-l border-input select-none h-9 flex items-center" >
-                                                      {EMAIL_DOMAIN_WITH_AT}
-                                                  </span>
-                                              </div>
-                                              <input type="hidden" {...register("email", {
-                                                  required: "Email is required",
-                                                  pattern: {
-                                                      value: new RegExp(`^[a-zA-Z0-9._-]+${EMAIL_DOMAIN_WITH_AT.replace(/\./g, '\\.')}$`),
-                                                      message: `Valid email must end with ${EMAIL_DOMAIN_WITH_AT}`
-                                                  },
-                                                  validate: (value) => {
-                                                      if (value.startsWith('@')) return `Email local part cannot be empty.`;
-                                                      if (mode === 'hire' && allAssistantEmails.includes(value)) {
-                                                          return "This email is already in use by another assistant.";
-                                                      }
-                                                      return true;
-                                                  }
-                                              })} />
-                                              {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
-                                          </div>
-                                      )}
+                                        {/* Email Section (Conditional) */}
+                                        {isEmailAdded ? (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                                        <Label>Email address</Label>
+                                                    </div>
+                                                    {mode === 'hire' && (
+                                                        <Button type="button" variant="ghost" size="sm" onClick={handleRemoveEmail} className="h-auto p-1 text-caption text-strong text-muted-foreground hover:text-destructive">Remove</Button>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-2 rounded-lg border p-4">
+                                                    <div className="flex items-center rounded-md">
+                                                        <Input
+                                                            id="email_local_part"
+                                                            type="text"
+                                                            value={emailLocalPart}
+                                                            onChange={handleLocalPartChange}
+                                                            placeholder="new-assistant"
+                                                            className="flex max-w-[250px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none h-9"
+                                                            aria-describedby="email_domain_part"
+                                                            disabled={isSubmitting || isLoadingEmails || mode === 'edit'}
+                                                        />
+                                                        <span
+                                                            id="email_domain_part"
+                                                            className="px-3 py-2 bg-muted text-muted-foreground text-caption rounded-r-md border-l border-input select-none h-9 flex items-center" >
+                                                            {EMAIL_DOMAIN_WITH_AT}
+                                                        </span>
+                                                    </div>
+                                                    <input type="hidden" {...register("email", {
+                                                        validate: (value) => {
+                                                            if (getValues("isEmailAdded")) {
+                                                                if (!value) return "Email is required";
+                                                                if (!value.endsWith(EMAIL_DOMAIN_WITH_AT)) return `Valid email must end with ${EMAIL_DOMAIN_WITH_AT}`;
+                                                                if (value.startsWith('@')) return `Email local part cannot be empty.`;
+                                                                if (mode === 'hire' && allAssistantEmails.includes(value)) {
+                                                                    return "This email is already in use by another assistant.";
+                                                                }
+                                                            }
+                                                            return true;
+                                                        }
+                                                    })} />
+                                                    {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Button type="button" variant="outline" className="w-full border-dashed justify-center p-3" onClick={handleAddEmail}>
+                                                <Mail className="mr-2 h-4 w-4" /> Add email address
+                                            </Button>
+                                        )}
                                      <div className={cn("col-span-2", mode === 'hire' ? "sm:col-span-1" : "sm:col-span-2", "flex flex-col gap-2")}>
                                          {/* Phone Section (Conditional) */}
                                          {isPhoneNumberAdded ? (

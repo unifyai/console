@@ -9,7 +9,7 @@ import { ActivityLogActions } from '@/types/assistants/activity';
 import { TaskActions, Status as TaskStatusEnum } from '@/types/assistants/task';
 import { toast } from "sonner";
 import { Toaster } from "sonner";
-import { AssistantProfilePanel } from './Assistants/AssistantProfile';
+import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
 import { AssistantActivityLogPanel } from './Assistants/Activity/AssistantActivityLogPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Assistants/Hire/AssistantHire';
@@ -34,6 +34,7 @@ import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantEditPhone } from './Assistants/Edit/AssistantEditPhone';
+import { AssistantEditEmail } from './Assistants/Edit/AssistantEditEmail';
 
 
 interface MainProps {
@@ -123,6 +124,7 @@ export default function Main({
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
     const [assistantForPhoneEdit, setAssistantForPhoneEdit] = React.useState<Assistant | null>(null);
+    const [assistantForEmailEdit, setAssistantForEmailEdit] = React.useState<Assistant | null>(null);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
@@ -257,6 +259,11 @@ export default function Main({
         setAssistantForPhoneEdit(assistant);
     }, [loadAssistantForEdit]);
 
+    const handleOpenEmailEditDialog = React.useCallback((assistant: Assistant) => {
+        loadAssistantForEdit(assistant); // Load data into the form
+        setAssistantForEmailEdit(assistant);
+    }, [loadAssistantForEdit]);
+
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
             toast.info("No presets match filters.");
@@ -367,6 +374,7 @@ export default function Main({
                                 onDeleteAssistant={onDeleteAssistantSubmit}
                                 onEdit={handleOpenEditDialog}
                                 onOpenPhoneEditDialog={handleOpenPhoneEditDialog}
+                                onOpenEmailEditDialog={handleOpenEmailEditDialog}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
                                 isFirstView={isFirstViewAfterHire}
@@ -539,6 +547,21 @@ export default function Main({
                         assistantActions={assistantActions}
                         onSuccess={() => {
                             setAssistantForPhoneEdit(null);
+                        }}
+                    />
+                )}
+
+                {assistantForEmailEdit && (
+                    <AssistantEditEmail
+                        isOpen={!!assistantForEmailEdit}
+                        onClose={() => setAssistantForEmailEdit(null)}
+                        assistant={assistantForEmailEdit}
+                        formMethods={hireFormMethods}
+                        onSubmit={initiateUpdate}
+                        isSubmitting={isFormSubmitting}
+                        allAssistantEmails={fetchedAssistantEmails}
+                        onSuccess={() => {
+                            setAssistantForEmailEdit(null);
                         }}
                     />
                 )}

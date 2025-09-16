@@ -21,9 +21,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
-import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantProfileInfoPanel } from './Profile/AssistantProfileInfoPanel';
+import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
+import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -32,6 +32,7 @@ interface AssistantProfilePanelProps {
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
     onOpenPhoneEditDialog: (assistant: Assistant) => void;
+    onOpenEmailEditDialog: (assistant: Assistant) => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
@@ -72,6 +73,7 @@ export function AssistantProfilePanel({
     onDeleteAssistant,
     onEdit,
     onOpenPhoneEditDialog,
+    onOpenEmailEditDialog,
     chatHistories,
     setChatHistories,
     isFirstView,
@@ -138,6 +140,7 @@ export function AssistantProfilePanel({
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
                                     onOpenPhoneEditDialog={onOpenPhoneEditDialog} 
+                                    onOpenEmailEditDialog={onOpenEmailEditDialog}
                                 />
                             </AccordionContent>
                         </AccordionItem>

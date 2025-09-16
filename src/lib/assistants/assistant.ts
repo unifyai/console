@@ -129,7 +129,10 @@ export const updateAssistant = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        ...payload,
+                        create_infra: true
+                    })
                 }
             );
 
@@ -167,7 +170,7 @@ export const createAssistant = async (apiKey: string) => {
     return async (
         first_name: string, surname: string, age: number | null, region: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
-        email: string, user_phone: string | null, country: string | null,
+        email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null,
         pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
