@@ -50,6 +50,9 @@
 
     --ring: var(--light-neutral-grey);
 
+    --favourite: #BA8E23
+    ;
+
     --radius: 0.5rem;
 
     --chart-1: #e8623c; 
@@ -101,6 +104,8 @@
 
     --ring: var(--dark-slate-gray);
 
+    --favourite: #FFD600;
+
     --radius: 0.5rem;
 
     --chart-5: #eb2483; 
@@ -129,7 +134,13 @@
   /* Apply background and text colors */
   body {
     @apply bg-[color:var(--background)] text-[color:var(--foreground)];
+    @apply font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Default emphasis weight */
+  strong, b {
+    @apply font-medium;
   }
 }
 
@@ -246,4 +257,80 @@
 
 .command-scrollbar [cmdk-list]::-webkit-scrollbar {
   display: none !important;
+}
+
+/* Drag and drop styles for tab reordering */
+.cursor-grabbing {
+  cursor: grabbing !important;
+}
+
+/* Smooth transitions for dragging */
+[data-interface-color] .group {
+  transition: transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Prevent text selection during drag */
+.dragging,
+.cursor-grabbing {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Ensure tab buttons are draggable */
+[data-interface-color] .cursor-pointer {
+  touch-action: none;
+}
+
+/* Visual feedback on hover - subtle background change */
+[data-interface-color] .cursor-pointer:hover:not(.text-primary) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark [data-interface-color] .cursor-pointer:hover:not(.text-primary) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Prevent accidental text selection during drag attempts */
+[data-interface-color] button {
+  -webkit-touch-callout: none;
+}
+
+@layer components {
+  .text-display { @apply font-sans text-2xl md:text-3xl lg:text-4xl font-medium leading-tight tracking-tight; }
+  .text-h1 { @apply font-sans text-xl md:text-2xl font-medium leading-tight; }
+  .text-h2 { @apply font-sans text-lg md:text-xl font-medium; }
+  .text-h3 { @apply font-sans text-base md:text-lg font-medium; }
+  .text-title { @apply font-sans text-sm font-medium; }
+  .text-subtitle { @apply font-sans text-sm text-muted-foreground; }
+  .text-body { @apply font-sans text-sm leading-6; }
+  .text-body-dense { @apply font-sans text-xs leading-5; }
+  .text-body-sm { @apply font-sans text-xs leading-snug; }
+  .text-caption { @apply font-sans text-xs text-muted-foreground; }
+  .text-mono { @apply font-mono; }
+  .text-link { @apply text-primary underline underline-offset-2 hover:opacity-90; }
+  .text-muted { @apply text-muted-foreground; }
+  .text-strong { @apply font-medium; }
+  .numeric { @apply tabular-nums; }
+  .text-label { @apply font-sans text-sm font-medium; }
+  .text-data { @apply font-sans text-xs leading-5; }
+  .text-data-header { @apply font-sans text-xs font-medium text-muted-foreground; }
+  .text-overline { @apply font-sans text-xs uppercase tracking-widest text-muted-foreground; }
+  .tooltip-size-sm { @apply px-2 py-1 text-xs; }
+  .tooltip-size-md { @apply px-3 py-1.5 text-xs; }
+  .tooltip-size-lg { @apply px-4 py-2 text-sm; }
+}
+
+@layer utilities {
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
+  }
+  .animate-accordion-down { animation: accordion-down 0.2s ease-out; }
+  .animate-accordion-up { animation: accordion-up 0.2s ease-out; }
 }

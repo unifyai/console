@@ -10,8 +10,8 @@ const UserInfo = ({ formState, user, handleInputChange, onPrem }: {
 }) => {
   return (
     <div className="mt-4 profile-form tutorial-user-information">
-      <p className="font-bold">Change your personal information</p>
-      <div className="grid grid-cols-2 gap-4">
+      <p className="text-title">Change your personal information</p>
+      <div className="grid grid-cols-2 gap-4 text-body">
         <div className="mt-2">
           <Label>First Name</Label>
           <Input 

@@ -22,7 +22,7 @@ import ChatOutView from "./Views/ChatView/ChatOutView";
 import PdfView from "./Views/PdfView";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { CircleMinus, FoldVertical, UnfoldVertical } from "lucide-react";
+import { CircleMinus, FoldVertical, Speaker, UnfoldVertical } from "lucide-react";
 import ActionButton from "@/components/Common/Buttons/Action";
 
 import RawView from "./Views/RawView";
@@ -34,7 +34,9 @@ import {
   isMatrix,
   isNumber,
   isTimestamp,
-  isChat
+  isChat,
+  AudioPlayer,
+  isAudio
 } from "@/utils/interfaces/selection/selection";
 import { isPdf } from "./SelectionUtils";
 
@@ -84,13 +86,14 @@ function isEmptyOrBlank(v: any): boolean {
  * If multiple distinct types appear among base+comparables, treat as string.
  */
 function getValueType(value: any):
-  "trace" | "dict" | "list" | "image" | "matrix" | "string" | "number" | "timestamp" | "chat" | "pdf"
+  "trace" | "dict" | "list" | "image" | "audio" | "matrix" | "string" | "number" | "timestamp" | "chat" | "pdf"
 {
   if (isTrace(value))     return "trace";
   if (isDict(value))      return "dict";
   if (isList(value))      return "list";
   if (isPdf(value))       return "pdf";
   if (isImage(value))     return "image";
+  if (isAudio(value))     return "audio";
   if (isMatrix(value))    return "matrix";
   if (isNumber(value))    return "number";
   if (isTimestamp(value)) return "timestamp";
@@ -124,6 +127,8 @@ function getTypeIcon(valueType: string) {
       return <Brackets className="h-4 w-4 text-primary" />;
     case "image":
       return <ImageIcon className="h-4 w-4 text-primary" />;
+    case "audio":
+      return <Speaker className="h-4 w-4 text-primary" />;
     case "matrix":
       return <Grid className="h-4 w-4 text-primary" />;
     case "number":
@@ -215,6 +220,8 @@ function getSelectionView(
       return <PdfView {...commonViewProps} />;
     case "image":
       return <ImageView {...commonViewProps} />;
+    case "audio":
+      return <AudioPlayer {...commonViewProps} />;
     case "matrix":
       return <MatrixView {...commonViewProps} />;
     case "number":

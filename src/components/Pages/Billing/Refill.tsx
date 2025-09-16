@@ -148,8 +148,8 @@ const AutomaticRefill = () => {
   return (
     <Card className="w-full relative">
       <CardHeader>
-        <CardTitle className="text-2xl">Automatic Refill</CardTitle>
-        <CardDescription className="text-sm">
+        <CardTitle className="text-h3">Automatic Refill</CardTitle>
+        <CardDescription className="text-body">
           Set up automatic refills to keep your account balance topped up.
         </CardDescription>
         <div className="absolute top-4 right-4">
@@ -176,7 +176,7 @@ const AutomaticRefill = () => {
           )}
           
           <div className="flex flex-col">
-            <label htmlFor="minBalance" className="text-sm font-medium">
+            <label htmlFor="minBalance" className="text-label">
               Minimum Balance
             </label>
             <Input
@@ -190,7 +190,7 @@ const AutomaticRefill = () => {
             />
           </div>
           <div className="flex flex-col">
-            <label htmlFor="rechargeAmount" className="text-sm font-medium">
+            <label htmlFor="rechargeAmount" className="text-label">
               Recharge Amount
             </label>
             <Input

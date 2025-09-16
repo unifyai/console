@@ -35,6 +35,8 @@ import {
   isMatrix,
   isNumber,
   isTimestamp,
+  AudioPlayer,
+  isAudio,
 } from "@/utils/interfaces/selection/selection";
 import { MessageSquare, BarChart2, FileText, Component } from "lucide-react";
 import { LogsActions } from "@/types/interfaces/grid";
@@ -100,6 +102,9 @@ function pickDataView(
   if (isImage(finalValue)) {
     return <ImageView {...commonProps} />;
   }
+  if (isAudio(finalValue)) {
+    return <AudioPlayer {...commonProps} />;
+  }
   if (isMatrix(finalValue)) {
     return <MatrixView {...commonProps} />;
   }
@@ -144,14 +149,14 @@ function renderMessageContent(content: unknown): JSX.Element {
             }
             // default => show JSON
             return (
-              <pre key={i} className="bg-background p-2 text-xs rounded">
+              <pre key={i} className="bg-background p-2 text-caption rounded">
                 {JSON.stringify(chunk, null, 2)}
               </pre>
             );
           }
           // fallback => JSON
           return (
-            <pre key={i} className="bg-background p-2 text-xs rounded">
+            <pre key={i} className="bg-background p-2 text-caption rounded">
               {JSON.stringify(chunk, null, 2)}
             </pre>
           );
@@ -161,7 +166,7 @@ function renderMessageContent(content: unknown): JSX.Element {
   }
   // fallback => JSON
   return (
-    <pre className="bg-background p-2 text-xs rounded">
+    <pre className="bg-background p-2 text-caption rounded">
       {JSON.stringify(content, null, 2)}
     </pre>
   );
@@ -257,7 +262,7 @@ export default function ChatOutView({
                         className="border border-muted bg-background p-4 rounded shadow-sm w-full"
                       >
                         <div className="mb-2 flex items-center justify-between">
-                          <p className="font-bold text-sm">{label}</p>
+                          <p className="text-title">{label}</p>
                           <CopyButton
                             content={JSON.stringify(mainContent)}
                             copyMessage="Copied!"
@@ -270,7 +275,7 @@ export default function ChatOutView({
                         {/* Tool calls section */}
                         {toolCalls.length > 0 && (
                           <div className="mt-2 border-l-2 pl-2">
-                            <p className="font-bold text-sm mb-1">Tool Calls</p>
+                            <p className="text-title mb-1">Tool Calls</p>
                             <CopyButton
                               className="mb-1"
                               content={JSON.stringify(toolCalls, null, 2)}
@@ -497,7 +502,7 @@ export default function ChatOutView({
                                 >
                                   <div className="border bg-background p-4 rounded shadow-sm w-full">
                                     <div className="mb-2 flex items-center justify-between">
-                                      <p className="font-bold text-sm">{label}</p>
+                                      <p className="text-title">{label}</p>
                                       <CopyButton
                                         content={JSON.stringify(m.content)}
                                         copyMessage="Copied!"
@@ -508,7 +513,7 @@ export default function ChatOutView({
 
                                     {m.toolCalls.length > 0 && (
                                       <div className="mt-2 border-l-2 pl-2">
-                                        <p className="font-bold text-sm mb-1">
+                                        <p className="text-title mb-1">
                                           Tool Calls
                                         </p>
                                         <CopyButton
@@ -739,7 +744,7 @@ export default function ChatOutView({
                           className="bg-background p-4 rounded shadow-sm border border-muted"
                         >
                           <div className="mb-2 flex items-center justify-between">
-                            <p className="font-bold text-sm">{label}</p>
+                            <p className="text-title">{label}</p>
                             <CopyButton content={baseStr} copyMessage="Copied!" />
                           </div>
 
@@ -753,7 +758,7 @@ export default function ChatOutView({
                               return (
                                 <div
                                   key={idx2}
-                                  className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted"
+                                  className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted"
                                 >
                                   <div className="flex gap-2 text-xxs">
                                     {baseMsg && (
@@ -778,7 +783,7 @@ export default function ChatOutView({
                               );
                             })
                           ) : (
-                            <div className="mt-4 bg-background p-2 rounded text-xs space-y-2 relative border border-muted">
+                            <div className="mt-4 bg-background p-2 rounded text-caption space-y-2 relative border border-muted">
                               <div className="flex gap-2 text-xxs">
                                 {baseMsg && (
                                   <RowBadge
@@ -808,7 +813,7 @@ export default function ChatOutView({
                             if (hasBaseTools || anyCompTools) {
                               return (
                                 <div className="mt-6 pt-2 border-t border-muted space-y-2">
-                                  <p className="font-bold text-xs">Tool Calls Diff</p>
+                                  <p className="text-title">Tool Calls Diff</p>
                                   {compMsgs.length > 0 ? (
                                     compMsgs.map((cm, idx3) => {
                                       const cTools = JSON.stringify(cm.toolCalls, null, 2);
@@ -818,7 +823,7 @@ export default function ChatOutView({
                                       return (
                                         <div
                                           key={idx3}
-                                          className="bg-background p-2 rounded text-xs space-y-2 relative"
+                                          className="bg-background p-2 rounded text-caption space-y-2 relative"
                                         >
                                           <div className="flex gap-2 text-xxs">
                                             {baseMsg && (
@@ -843,7 +848,7 @@ export default function ChatOutView({
                                       );
                                     })
                                   ) : (
-                                    <div className="bg-background p-2 rounded text-xs space-y-2 relative">
+                                    <div className="bg-background p-2 rounded text-caption space-y-2 relative">
                                       <div className="flex gap-2 text-xxs">
                                         {baseMsg && (
                                           <RowBadge

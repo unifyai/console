@@ -174,8 +174,8 @@ const ProfileForm = ({user, onPrem}: {
           ) : (
             <CheckCircle className="h-4 w-4" />
           )}
-          <AlertTitle>{alert.type === 'error' ? 'Error' : 'Success'}</AlertTitle>
-          <AlertDescription>{alert.message}</AlertDescription>
+          <AlertTitle className="text-title">{alert.type === 'error' ? 'Error' : 'Success'}</AlertTitle>
+          <AlertDescription className="text-body">{alert.message}</AlertDescription>
         </Alert>
       )}
     </div>

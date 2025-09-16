@@ -3,6 +3,7 @@ import { Button } from '@/components/UI/button';
 import { Loader2 } from 'lucide-react';
 import { TableRow, TableCell } from '@/components/UI/table';
 import Tooltip from '@/components/Common/Misc/Tooltip';
+import { Table } from '@tanstack/react-table';
 
 export interface LoadMoreProps {
   onLoadMore: () => void;
@@ -22,6 +23,9 @@ export interface LoadMoreProps {
   // Button text customization
   buttonText?: string;
   loadingText?: string;
+
+  table?: Table<any>;
+
 }
 
 const LoadMore: React.FC<LoadMoreProps> = ({
@@ -36,12 +40,14 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   position = "sticky",
   buttonText = "Load More",
   loadingText = "Loading...",
+  table,
+
 }) => {
   const isDisabled = !interactive || isLoading || disabled;
   const disabledTooltip = !interactive 
     ? "Table is not interactive" 
     : disabled 
-      ? "Loading is disabled" 
+      ? "Loading is disabled while streaming" 
       : isLoading 
         ? "Currently loading..." 
         : "";
@@ -78,11 +84,6 @@ const LoadMore: React.FC<LoadMoreProps> = ({
     ) : button;
   }
 
-  // Don't render anything if no more pages available
-  if (!hasNextPage && !isLoading) {
-    return null;
-  }
-
   // Helper function to render button content
   const renderButtonContent = () => {
     const button = (
@@ -101,8 +102,8 @@ const LoadMore: React.FC<LoadMoreProps> = ({
 
     const content = (
       <div
-        className={`${position} left-1/2 transform -translate-x-1/2 inline-block`}
-        style={{ width: 'fit-content' }}
+        className={`${position} transform -translate-x-1/2 inline-block`}
+        style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
       >
         <div className="flex items-center justify-center gap-2">
           {isDisabled && disabledTooltip ? (
@@ -120,8 +121,8 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   // Helper function to render loading content
   const renderLoadingContent = () => (
     <div
-      className={`${position} left-1/2 transform -translate-x-1/2 inline-block`}
-      style={{ width: 'fit-content' }}
+      className={`${position} transform -translate-x-1/2 inline-block`}
+      style={{ width: 'fit-content', left: 'var(--scroll-center-left, 50%)' }}
     >
       <div className="flex items-center justify-center gap-2 px-6 py-2 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-md">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -133,12 +134,12 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   // Render as table row for table context
   return (
     <>
-      {/* Load More button row - only show if there are more pages and not fetching */}
+      {/* Load More button row - only show if there are more pages, or if it should be visible but disabled (e.g. during auto-update) */}
       {hasNextPage && !isLoading && (
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
-            className="relative py-4 border-t"
+            className="py-4 border-t relative"
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderButtonContent()}
@@ -151,7 +152,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         <TableRow>
           <TableCell 
             colSpan={colSpan} 
-            className="relative py-4 border-t"
+            className="py-4 border-t relative"
             style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)"}}
           >
             {renderLoadingContent()}
@@ -162,4 +163,4 @@ const LoadMore: React.FC<LoadMoreProps> = ({
   );
 };
 
-export default LoadMore; 
+export default LoadMore;

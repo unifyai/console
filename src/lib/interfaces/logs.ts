@@ -82,6 +82,20 @@ export const updateLogs = async (apiKey: string) => {
         "use server";
 
         try {
+            // Validate inputs before sending to server to avoid 400s
+            if (!project || typeof project !== 'string' || project.trim() === '') {
+                return { detail: "Missing 'project' when updating logs." };
+            }
+            const isValidLogsArray = Array.isArray(logs) && logs.length > 0 && logs.every((id) => Number.isInteger(id));
+            if (!isValidLogsArray) {
+                return { detail: "Invalid 'logs' payload. Expected a non-empty array of integer IDs." };
+            }
+            const hasEntries = entries && Object.keys(entries).length > 0;
+            const hasParams = params && Object.keys(params).length > 0;
+            if (!hasEntries && !hasParams) {
+                return { detail: "No changes provided. 'entries' or 'params' must include at least one field to update." };
+            }
+
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs`,
                 {
@@ -239,7 +253,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
 
 // delete logs
 export const deleteLogs = async (apiKey: string) => {
-    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null = "all") => {
+    return async (project: string, context: string | null, ids_and_fields: LogFieldsProps) => {
         "use server";
 
         const response = await fetch(
@@ -247,7 +261,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, context, ids_and_fields, source_type })
+                body: JSON.stringify({ project, context, ids_and_fields, source_type: "all", delete_empty_logs: true, delete_empty_fields: true })
             }
         );
         return await response.json();

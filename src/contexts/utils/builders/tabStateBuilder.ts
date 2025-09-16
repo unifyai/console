@@ -29,7 +29,7 @@ export function buildTabState(
   const tabSliceData: TabSliceData = {
     tileIds: tileIds,
     tileNames: tileNames,
-    globalContext: tabData.global_context,
+    globalContext: tabData.context,
     itemsNeedRecompute: false,
   };
   
@@ -38,7 +38,7 @@ export function buildTabState(
     interfaceId: tabData.interface_id || null,
     focusedTileNames: [undefined, undefined],
     resetting: false,
-    edit: true,
+    edit: false,
     interactive: true,
     help: true,
     deleting: false,

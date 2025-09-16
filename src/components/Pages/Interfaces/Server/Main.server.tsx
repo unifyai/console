@@ -1,7 +1,6 @@
 import getQueryClient from '@/app/getQueryClient';
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import Interface from "../Interface/Interface";
-import InterfaceSelector from "../Interface/InterfaceSelector";
 import { StoreInitializer } from "@/contexts/providers/StoreInitializer";
 import { buildInterfaceStateForStore, buildProjectStateForStore, buildGlobalStateForStore, buildTabStateForStore, buildTileStateForStore } from "@/contexts/utils/stateBuilderUtils";
 import { IStoreState } from "@/contexts/store";
@@ -62,11 +61,13 @@ export default async function Main({
   interface_,
   actions,
   initialFavourites,
+  searchParams,
 }: {
   project: string | null;
   interface_: string | null;  // This is the interface name from query param
   actions: InterfaceWrapperActions;
   initialFavourites: Favourite[];
+  searchParams?: { [key: string]: string | string[] | undefined };
 }) {
 
   debugLog("[Main.server] === PARAMETER DEBUG ===");
@@ -83,11 +84,37 @@ export default async function Main({
     queryKey: ["projects"], 
     queryFn: actions.projectsActions.get 
   });
-  projects = qc.getQueryData<string[]>(["projects"]) || [];
+  const maybeProjects = qc.getQueryData(["projects"]);
+  projects = Array.isArray(maybeProjects) ? (maybeProjects as string[]) : [];
   debugLog("[Main.server] Loaded projects:", projects);
 
   // Get the current project if it was provided in the URL
-  const currentProject = projects.find(proj => proj == project) || null;
+  // If no project is specified, default to "Assistants" project if it exists (unless user deliberately deselected)
+  let currentProject = projects.find(proj => proj == project) || null;
+  
+  const userRequestedProjectSelection = searchParams?.selectProject === 'true';
+  
+  if (!currentProject && !project && !userRequestedProjectSelection) {
+    // Check if "Assistants" project exists and use it as default (fresh session)
+    const assistantsProject = projects.find(proj => proj === "Assistants");
+    if (assistantsProject) {
+      debugLog("[Main.server] No project specified, redirecting to Assistants project");
+      // Redirect to Assistants project
+      const { redirect } = await import('next/navigation');
+      redirect('/interfaces?project=Assistants');
+    } else {
+      debugLog("[Main.server] No project specified and Assistants project doesn't exist");
+      // We'll handle this case in the client component
+    }
+  }
+  
+  // If a project was specified in the URL but the user doesn't have access to it,
+  // redirect to the project selection screen to avoid an endless loading state.
+  if (project && !currentProject) {
+    debugLog("[Main.server] Project specified in URL is not accessible. Redirecting to project selection.", { project });
+    redirect(`/interfaces?selectProject=true&notice=projectNotFound&missing=${encodeURIComponent(String(project))}`);
+  }
+  
   debugLog("[Main.server] Current project:", currentProject);
 
   // **ALWAYS INITIALIZE WITH MINIMAL GLOBAL STATE**
@@ -146,7 +173,8 @@ export default async function Main({
     });
 
     // Get interfaces from cache
-    interfaces = qc.getQueryData<InterfaceData[]>(["interfaces", currentProject, false]) || [];
+    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject, false]);
+    interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
     debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
   }
 
@@ -200,8 +228,8 @@ export default async function Main({
     debugLog("[Main.server] Validating interface:", interface_, "found:", !!currentInterface);
     
     if (!currentInterface) {
-      debugLog("[Main.server] Interface not found, redirecting to remove interface param");
-      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}`);
+      debugLog("[Main.server] Interface not found or inaccessible, redirecting to interface selection for project");
+      redirect(`/interfaces?project=${encodeURIComponent(currentProject)}&selectInterface=true&notice=interfaceNotFound&missing=${encodeURIComponent(String(interface_))}`);
     }
     
     debugLog("[Main.server] Valid interface found, building all state slices");
@@ -345,38 +373,28 @@ export default async function Main({
     tilesById: Object.keys(completeInitialState.tilesById || {})
   });
   
-  // Determine which component to render
-  const shouldShowInterfaceSelector = currentProject && !interface_;
+  // Always render the Interface component - it will handle missing interface logic internally
   const interfaceId = (currentProject && interface_) ? 
     (interfaces.find(i => i.name === interface_)?.id || "") : "";
 
   return (
     <StoreInitializer initialState={completeInitialState}>
       <HydrationBoundary state={dehydrate(qc)}>
-        {shouldShowInterfaceSelector ? (
-          <InterfaceSelector
-            projectId={currentProject!}
-            interfaceActions={actions.interfaceActions}
-            tabActions={actions.tabActions}
-            tileActions={actions.tileActions}
-          />
-        ) : (
-          <Interface
-            interfaceId={interfaceId}
-            projectsActions={actions.projectsActions}
-            interfaceActions={actions.interfaceActions}
-            tabActions={actions.tabActions}
-            tileActions={actions.tileActions}
-            logsActions={actions.logsActions}
-            fieldsActions={actions.fieldsActions}
-            derivedEntryActions={actions.derivedEntryActions}
-            contextActions={actions.contextActions}
-            codeActions={actions.codeActions}
-            fileActions={actions.fileActions}
-            favouritesActions={actions.favouritesActions}
-            initialFavourites={initialFavourites}
-          />
-        )}
+        <Interface
+          interfaceId={interfaceId}
+          projectsActions={actions.projectsActions}
+          interfaceActions={actions.interfaceActions}
+          tabActions={actions.tabActions}
+          tileActions={actions.tileActions}
+          logsActions={actions.logsActions}
+          fieldsActions={actions.fieldsActions}
+          derivedEntryActions={actions.derivedEntryActions}
+          contextActions={actions.contextActions}
+          codeActions={actions.codeActions}
+          fileActions={actions.fileActions}
+          favouritesActions={actions.favouritesActions}
+          initialFavourites={initialFavourites}
+        />
       </HydrationBoundary>
     </StoreInitializer>
   );

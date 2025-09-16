@@ -4,13 +4,12 @@ import DeleteDialog from "@/components/Common/Dialogs/Delete";
 
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useMemo, useState } from "react";
-import { Braces, CircleX, Grid2x2, X } from "lucide-react";
+import { CircleX, Grid2x2, X } from "lucide-react";
 import { useTileItem } from "@/contexts/hooks/tile";
 import { buildNestedDropdownTree, getFieldsByColumnContext } from "@/utils/interfaces/common";
 import { Context, ContextActions, LogsActions, GranularTabActions, GranularTileActions, ProjectsActions, FieldsActions } from "@/types/interfaces/grid";
 import RenderMenuItems from "@/components/Common/Dropdowns/RenderMenuItems";
 import { LogFieldsResponseProps } from "@/types/interfaces/logs";
-import { useTabSync } from "@/contexts/hooks/tab/sync";
 import { useTableDataQuery } from "@/hooks/Interfaces/Query/useTableDataQuery";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
@@ -50,15 +49,6 @@ const ContextContent = ({
 
     const [searchQuery, setSearchQuery] = useState("");
 
-    // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { actions: syncedTabActions } = useTabSync(
-        tabId || null, 
-        interfaceId || null, 
-        serverTabActions, 
-        serverTileActions,
-    );
-    const syncedTabDataActions = syncedTabActions?.data ?? null;
-
     // SYNCHRONISED TABLE-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTileActions } = useTileSync(
         tileId || null,
@@ -81,14 +71,6 @@ const ContextContent = ({
         }
     } : setContext;
 
-    // Use React Query to access tableDataItem
-    const { 
-        data: tableDataItem,
-        isLoading: isTableDataLoading,
-        isError: isTableDataError,
-        error: tableDataError
-    } = useTableDataQuery(tileId || null, tabId || null);
-
     const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
     const contexts = listContextsQuery.data || [];
 
@@ -99,27 +81,10 @@ const ContextContent = ({
         return contextNames.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [contextNames, searchQuery]);
 
-    const filteredColumnContexts = useMemo(() => {
-        const columnContexts = tableDataItem?.columnContexts || [];
-        if (!searchQuery) return columnContexts;
-        return columnContexts.filter(name => name.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [tableDataItem?.columnContexts, searchQuery]);
-
-    const empty = filteredGlobalContexts.length === 0 && filteredColumnContexts.length === 0;
+    const empty = filteredGlobalContexts.length === 0;
 
     // Build and render the tree
-    // filter contexts based on the prefixes and construct the tree
     const contextTree = buildNestedDropdownTree(filteredGlobalContexts);
-    const columnContextTree = buildNestedDropdownTree(filteredColumnContexts);
-    const contextHeader = (item != undefined && context != undefined) ? (
-        context == "" ? (context || "Context") : context
-    ) : "Context";
-
-    const onDelete = (ctx: string) => {
-        if (ctx) {
-            syncedTabDataActions?.removeContextFromTab(ctx);
-        }
-    }
 
     return (
         <div className="flex flex-col gap-2">
@@ -133,30 +98,12 @@ const ContextContent = ({
             </div>
 
             {empty && (
-                <div className="text-center text-sm py-2 px-2">
+                <div className="text-center text-body py-2 px-2">
                     {searchQuery ? "No contexts match your search." : "No contexts found."}
                 </div>
             )}
             
             {filteredGlobalContexts.length > 0 ? <div>
-                <div className="font-bold text-sm px-2 pb-2 border-b flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                        <Braces size={18} />
-                        {contextHeader == "Context"
-                            ? contextHeader
-                            : <Tooltip content={contextHeader}>
-                                {contextHeader.length > 20 ? contextHeader.slice(0, 20) + "..." : contextHeader}
-                            </Tooltip>
-                        }
-                    </div>
-                    {(item != undefined ? item.context : context) && <Tooltip content="Clear context" side="bottom">
-                        <CircleX
-                            size={18}
-                            onClick={() => finalSetContext && finalSetContext("")}
-                            className="cursor-pointer hover:text-primary"
-                        />
-                    </Tooltip>}
-                </div>
                 {Object.entries(contextTree.children).sort((a, b) => {
                     if (a[0] === "<root>") return -1;
                     if (b[0] === "<root>") return 1;
@@ -167,79 +114,15 @@ const ContextContent = ({
                         node={node}
                         nodeName={name}
                         isTopLevel={true}
-                        showRoot={true}
                         prefix={""}
                         attr={item != undefined ? item.context : context}
                         setter={(ctx: string) => finalSetContext && finalSetContext(ctx)}
                         isColumnContext={false}
                         loading={loading}
-                        deleteDialog={
-                            projectId ? <div onClick={(e) => e.stopPropagation()}>
-                                <DeleteDialog
-                                    variant="warning"
-                                    type="context"
-                                    args={[projectId, name !== "<root>" ? name : context ?? ""]}
-                                    deletingFunction={contextActions.delete}
-                                    onDelete={() => onDelete(name !== "<root>" ? name : context ?? "")}
-                                    className="h-fit flex items-center"
-                                />
-                            </div> : <></>
-                        }
+                        selectableNodes={contextNames}
                     />
                 ))}
             </div> : <></>}
-            {item && syncedTileDataActions && filteredColumnContexts.length > 0 && <div className="pt-2">
-                <div className="font-bold text-sm px-2 pb-2 border-t border-b flex justify-between items-center">
-                    <div className="flex gap-2 items-center">
-                        <Grid2x2 size={18} /> Column Context
-                    </div>
-                    {item.column_context && <Tooltip content="Clear column context">
-                        <X
-                            size={18}
-                            onClick={() => syncedTileDataActions.setColumnContext("")}
-                            className="cursor-pointer hover:text-primary"
-                        />
-                    </Tooltip>}
-                </div>
-                {Object.entries(columnContextTree.children).sort((a, b) => {
-                    if (a[0] === "<root>") return -1;
-                    if (b[0] === "<root>") return 1;
-                    return a[0].localeCompare(b[0]);
-                }).map(([name, node], idx) => (
-                    <RenderMenuItems
-                        key={idx}
-                        node={node}
-                        nodeName={name}
-                        isTopLevel={true}
-                        showRoot={true}
-                        attr={item.column_context}
-                        isColumnContext={true}
-                        setter={(value) => syncedTileDataActions.setColumnContext(value)}
-                        loading={loading}
-                        deleteDialog={
-                            projectId ? <div onClick={(e) => e.stopPropagation()}>
-                                <DeleteDialog
-                                    variant="warning"
-                                    type={"context"}
-                                    args={
-                                        [
-                                            projectId,
-                                            context,
-                                            getFieldsByColumnContext(
-                                                tableDataItem?.fields as LogFieldsResponseProps,
-                                                name !== "<root>" ? name : context ?? ""
-                                            ).map(field => [null, field])
-                                        ]
-                                    }
-                                    deletingFunction={logsActions.delete}
-                                    onDelete={() => onDelete(name !== "<root>" ? name : context ?? "")}
-                                    className="h-fit flex items-center"
-                                />
-                            </div> : <></>
-                        }
-                    />
-                ))}
-            </div>}
         </div>
     );
 }

@@ -99,7 +99,7 @@ export function createInterfaceSelectorColumns({
         const truncatedId = fullId ? fullId.substring(0, 8) : '';
         return (
           <div 
-            className="font-mono text-xs truncate cursor-pointer p-2 rounded transition-colors" 
+            className="font-mono text-caption truncate cursor-pointer p-2 rounded transition-colors" 
             title={`Full ID: ${fullId}`}
             onClick={() => onInterfaceSelect(row.original.name)}
           >
@@ -114,7 +114,7 @@ export function createInterfaceSelectorColumns({
       size: 200,
       cell: ({ row }) => (
         <div 
-          className="font-medium truncate cursor-pointer p-2 rounded transition-colors" 
+          className="text-strong truncate cursor-pointer p-2 rounded transition-colors" 
           title={row.getValue("name")}
           onClick={() => onInterfaceSelect(row.original.name)}
         >
@@ -156,7 +156,7 @@ export function createInterfaceSelectorColumns({
         const date = row.getValue("created_at") as string;
         return date ? (
           <div 
-            className="text-xs text-muted-foreground cursor-pointer p-2 rounded transition-colors"
+            className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"
             onClick={() => onInterfaceSelect(row.original.name)}
           >
             {new Date(date).toLocaleDateString()}
@@ -172,7 +172,7 @@ export function createInterfaceSelectorColumns({
         const date = row.getValue("updated_at") as string;
         return date ? (
           <div 
-            className="text-xs text-muted-foreground cursor-pointer p-2 rounded transition-colors"
+            className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"
             onClick={() => onInterfaceSelect(row.original.name)}
           >
             {new Date(date).toLocaleDateString()}

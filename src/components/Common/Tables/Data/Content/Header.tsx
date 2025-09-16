@@ -32,7 +32,7 @@ import BaseDropdown from "@/components/Common/Dropdowns/Base";
 
 // Icon / button
 import ActionButton from "@/components/Common/Buttons/Action";
-import { MoreHorizontal, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
+import { MoreVertical, Group, ArrowUpDown, Filter, FolderTree, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 
 import { shouldRenderHeader, calculateRowSpan } from "@/utils/interfaces/table/table";
@@ -71,7 +71,8 @@ const DataTableHeader = ({
   onRenameColumn,
   children,
   columnActionsApplied,
-  setColumnActionsApplied
+  setColumnActionsApplied,
+  isRightmost
 }: {
   interactive?: boolean,
   auto_update?: boolean,
@@ -109,6 +110,7 @@ const DataTableHeader = ({
   children?: ReactNode,
   columnActionsApplied: { [depth: number]: { [columnId: string]: boolean } },
   setColumnActionsApplied: Dispatch<SetStateAction<{ [depth: number]: { [columnId: string]: boolean } }>>
+  isRightmost?: boolean
 }) => {
 
   const { attributes, listeners, setNodeRef, isDragging, transform } = useSortable({
@@ -131,6 +133,7 @@ const DataTableHeader = ({
   const isPinned = header.column.getIsPinned();
   const isLastLeftPinnedColumn = isPinned === "left" && header.column.getIsLastColumn('left');
   const isParentColumn = header.column.columnDef.meta?.isParent;
+
   const isNotUtilColumn = header.column.columnDef.meta?.columnType != "util";
   const isDerivedColumn = header.column.columnDef.meta?.fieldType === "derived_entry";
   const isImageColumn = header.column.columnDef.meta?.dataType === "image";
@@ -376,7 +379,7 @@ const DataTableHeader = ({
   const style: CSSProperties = {
     boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
-    position: isChildPinned || isParentFullyPinned ? 'sticky' : 'relative',
+    position: isChildPinned || isParentFullyPinned ? 'sticky' : undefined,
     left: isParentFullyPinned
       ? `${pinnedAreaWidth}px`
       : isChildPinned
@@ -408,7 +411,7 @@ const DataTableHeader = ({
   const selectionClass = isSelected ? 'bg-primary' : '';
   const pinnedClass = isPinned && !isSelected ? 'bg-background' : '';
   const defaultBgClass = !isSelected && !isPinned ? 'bg-transparent' : '';
-  const hoverClass = !isSelected && !isPinned && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
+  const hoverClass = !isSelected && (!isPinned || isIndexColumn) && !dropdownOpen && (!isPlaceholderColumn || isIndexColumn) ? 'hover:bg-muted' : '';
 
   const maxLabelWidth = Math.max(Number((style.width as string).split("px")[0]) - (actionButtonRef.current?.clientWidth ?? 0), 10)
 
@@ -425,7 +428,8 @@ const DataTableHeader = ({
       context="tile"
       open={renameOpen}
       setOpen={setRenameOpen}
-      button={<></>} // invisible trigger, open via state
+      button={null}
+      triggerClassName="hidden"
       title="Rename Column"
       body={
         <Input
@@ -483,20 +487,20 @@ const DataTableHeader = ({
       }
 
       {/* Header content */}
-      <div className={`px-2 py-1 ${!isNotUtilColumn ? "h-10" : ""}`} onDoubleClick={handleHeaderDoubleClick}>
+      <div className={`px-1 py-1 h-full`} onDoubleClick={handleHeaderDoubleClick}>
 
         {/* Single outer div to handle hovered logic. Distinguish parent vs child inside. */}
         <div
           onMouseDown={(e) => cellSelection.handleCellMouseDown(e, header)}
           onMouseUp={(e) => cellSelection.handleCellMouseUp(e, header)}
           onMouseOver={(e) => cellSelection.handleCellMouseOver(e, header)}
-          className={`flex flex-wrap items-center justify-between h-full text-center px-1 select-none ${!isNotUtilColumn ? "h-10" : ""}`}
+          className={`flex flex-wrap items-center justify-between h-full text-center px-1 select-none`}
         >
           {header.isPlaceholder ? null : (
             <>
               {isParentColumn ? (
                 <div
-                  className="sticky flex items-center h-full px-2"
+                  className="sticky flex items-center h-full px-1 overflow-hidden"
                   style={{ left: `${pinnedAreaWidth}px` }}
                 >
                   {/* PARENT COLUMN LAYOUT (sticky) */}
@@ -521,12 +525,13 @@ const DataTableHeader = ({
                         button={
                           <ActionButton
                             tooltip="Parent column actions"
-                            icon={<MoreHorizontal className="h-4 w-4" />}
+                            icon={<MoreVertical className="h-4 w-4" />}
                             variant="ghost"
                             onClick={(e) => {
                               e.stopPropagation();
                               setDropdownOpen(true);
                             }}
+                            className="w-4 h-4 mr-1 pt-2"
                           />
                         }
                       >
@@ -584,7 +589,7 @@ const DataTableHeader = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div 
-                            className="flex-1 min-w-0 pr-2 whitespace-nowrap overflow-hidden truncate cursor-pointer"
+                            className="flex-1 min-w-0 whitespace-nowrap overflow-hidden truncate cursor-pointer"
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </div>
@@ -604,7 +609,7 @@ const DataTableHeader = ({
 
                     {/* triple-dot for child columns */}
                     {interactive == true && (
-                      <div className="ml-1 flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
+                      <div className="flex-none dropdown-menu" onMouseDown={(e) => e.stopPropagation()}>
                         <BaseDropdown
                           context="tile"
                           open={dropdownOpen}
@@ -618,12 +623,13 @@ const DataTableHeader = ({
                             <ActionButton
                               ref={actionButtonRef}
                               tooltip="Child column actions"
-                              icon={<MoreHorizontal className="h-4 w-4" />}
+                              icon={<MoreVertical className="h-4 w-4" />}
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDropdownOpen(true);
                               }}
+                              className="w-4 h-4 mr-1 pt-2"
                             />
                           }
                         >
@@ -755,7 +761,7 @@ const DataTableHeader = ({
         {!header.isPlaceholder && isNotUtilColumn && (
           <div
             ref={activeActionsRef}
-            className={`flex items-center justify-left gap-1 ${
+            className={`flex items-center justify-left gap-1${
               hasActiveActions ? "" : "hidden"
             }`}
           >
@@ -765,7 +771,7 @@ const DataTableHeader = ({
 
         {/* Hidden action components for group, sort, filter, context, hide (need to be rendered on the DOM even if hidden in order to be able to forward refs) */}
         {(!hasActiveActions) && (
-          <div className={`${
+          <div className={`flex ${
             Object.values(columnActionsApplied[header.column.columnDef.meta?.renderedDepth ?? 0] || {}).some(Boolean)
             ? "invisible"
             : "hidden"
@@ -842,10 +848,12 @@ const DataTableHeader = ({
 
       {/* Column resizer – aligned exactly at the border */}
       {(() => {
-        const showResizer = header.column.getCanResize();
-        return showResizer ? (
-          <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
-        ) : null;
+        const canResize = header.column.getCanResize();
+        if (!canResize) return null;
+
+        return (
+            <ColumnResizer column={header.column as any} resizeHandler={header.getResizeHandler()} />
+        )
       })()}
     </TableHead>
   );

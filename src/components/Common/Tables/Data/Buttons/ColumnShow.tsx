@@ -4,7 +4,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import { DropdownMenuItem, DropdownMenuGroup } from "@/components/UI/dropdown-menu";
 import { Table, Header } from "@tanstack/react-table";
-import { CirclePlus } from "lucide-react";
+import { CirclePlus, Plus } from "lucide-react";
 import { getImmediateRightNeighbors, getImmediateHiddenSiblings, updateColumnVisibility, sanitizeId, isLastSameParentColumnInColumnOrder } from "@/utils/interfaces/table/columnOperations";
 import { getColumnGroupIDs, moveGroupInColumnOrder } from "@/utils/interfaces/table/table";
 import { ReactNode, useState } from "react";
@@ -152,7 +152,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
     // Sub components
     const columnButtonLabel = "Add Column";
-    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<CirclePlus />} />
+    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<Plus/>} variant="primary"/>
     const hidden =  <DropdownMenuGroup>
                         {hiddenColumns.map((column, index) =>
                             <DropdownMenuItem key={index} onClick={() => {
@@ -170,7 +170,7 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
         : null;
     
     return (
-        <div className="absolute -right-2 z-10 hover:opacity-100 opacity-0 transition-all">
+        <div className="absolute -right-4 z-50 hover:opacity-100 opacity-0 transition-all scale-[0.85]">
             <BaseDropdown button={columnButton} open={open} setOpen={setOpen} context="tile">
                 {hiddenColumns.length > 0 && hidden}
                 {derived}

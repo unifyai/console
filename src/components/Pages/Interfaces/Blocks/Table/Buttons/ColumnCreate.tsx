@@ -238,14 +238,14 @@ const ColumnCreate = ({
     const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
     
     const warning = (error: string) => 
-                    <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-sm text-destructive overflow-x-auto max-w-[300px]">{error}</p>
+                    <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-body text-destructive overflow-x-auto max-w-[300px]">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text={loading ? "Creating column" : "Create"} onClick={() => onSubmit()} icon={loading && <LoaderCircle className="animate-spin text-white"/>} />
                     </div>
     const body =    <div className="px-2 pb-2 flex flex-col gap-1 h-full w-[400px]" onClick={(e) => e.stopPropagation()}>
 
         <div className="flex flex-col h-full">
-            <DropdownMenuLabel className="text-sm font-semibold">Column name</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-label text-strong">Column name</DropdownMenuLabel>
             <div className="flex flex-row gap-2">
                 {column}
                 {commonRoot && info}
@@ -254,8 +254,8 @@ const ColumnCreate = ({
         </div>
 
         <div className="flex flex-col h-full">
-            <DropdownMenuLabel className="text-sm font-semibold">Derived expression</DropdownMenuLabel>
-            <DropdownMenuLabel className="text-sm font-normal">
+            <DropdownMenuLabel className="text-label text-strong">Derived expression</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-body">
                 <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
             </DropdownMenuLabel>
             {entry}
@@ -283,7 +283,7 @@ const ColumnCreate = ({
                     rounded-sm 
                     px-2 
                     py-1.5 
-                    text-sm 
+                    text-body 
                     outline-none 
                     transition-colors 
                     focus:bg-accent 

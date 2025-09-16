@@ -19,6 +19,7 @@ import { Table, TableHeader, TableRow, TableBody, TableCell, TableFooter } from 
 import DataTableHeader from "./Content/Header";
 import DataTableRow from "./Content/Row";
 import SubRowsContainer from "./Content/SubRowsContainer";
+import ColumnResizeAll from "./Buttons/ColumnResizeAll";
 
 import { StateProps, SetStateProps } from "@/types/dataTable";
 import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
@@ -30,6 +31,8 @@ import { LoadMoreProps } from "./Buttons/LoadMore";
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { GroupLoadMoreProps } from "./Buttons/GroupLoadMore";
+import RowResizeAll from "./Buttons/RowResizeAll";
+import TableResizeAll from "./Buttons/TableResizeAll";
 
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
@@ -42,7 +45,11 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     error?: string;
     scrollContainerRef?: React.RefObject<HTMLDivElement>,
     onRenameColumn?: (oldName: string, newName: string) => void;
+    onBlockedEdit?: (cell: TanstackCell<any, unknown>) => void;
     
+    showFooter?: boolean,
+    setShowFooter?: React.Dispatch<React.SetStateAction<boolean>>,
+
     // Row indexing offset information
     offsetInfo?: {
         globalOffset: number;
@@ -83,7 +90,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     // Multi-level LoadMore props
     GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps> & { position?: "before" | "after" }> | null;
     
-    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[]) => ReactNode; 
+    FooterCell?: (column: TanstackColumn<any | unknown>, resizeMap: {[x: string]: (event: unknown) => void;}, table: TanstackTable<any | unknown>, draggingColumnPinner: DraggingColumnPinnerState, setDraggingColumnPinner: (draggingColumnPinner: DraggingColumnPinnerState) => void, columnPinning: ColumnPinningState, columnOrder: string[], isRightmost?: boolean) => ReactNode; 
     ColumnGroupBy?: (column: TanstackColumn<any | unknown>, groupLoading: boolean, setGroupLoading: (groupLoading: boolean) => void, setIsGrouped: (isGrouped: boolean) => void, setGroupSortLoading: (groupSortLoading: boolean) => void, renderMode: "button" | "menuItem") => ReactNode;
     ColumnGroupSort?: (column: TanstackColumn<any | unknown>, groupSortLoading: boolean, setGroupSortLoading: (groupSortLoading: boolean) => void, setSortingDirection: (sortingDirection: "asc" | "desc" | false) => void, renderMode: "button" | "menuItem", direction?: "asc" | "desc") => ReactNode;
     ColumnFilters?: (column: TanstackColumn<any | unknown>, filterLoading: boolean, setIsFiltered: (isFiltered: boolean) => void, setFilterLoading: (filterLoading: boolean) => void, open: boolean, setOpen: Dispatch<SetStateAction<boolean>>, renderMode: "button" | "menuItem") => ReactNode;
@@ -94,6 +101,11 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     ExtraCellContent?: (cell: TanstackCell<any, unknown>, isCellExpanded: (cell: TanstackCell<any, unknown>) => boolean, setExpandedCells: Dispatch<SetStateAction<{[k: string]: boolean}>>) => ReactNode;
     ExtraComponents?: (table: TanstackTable<any | unknown>) => ReactNode;
     RowExpanding?: (props: RowExpandingProps) => ReactNode;
+
+    // Inline editing support
+    editEnabled?: boolean;
+    isCellMutable?: (cell: TanstackCell<any, unknown>) => boolean;
+    onCommitCellEdit?: (payload: { rowIds: string[]; source: "entries" | "params"; path: (string | number)[]; newValue: any }) => Promise<void>;
 }
 
 export default function DataTable<TData extends LogProps | GroupedLogProps>({
@@ -107,6 +119,11 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     error,
     scrollContainerRef,
     onRenameColumn,
+    onBlockedEdit,
+
+    showFooter,
+    setShowFooter,
+
     offsetInfo,
     
     // Virtualization props with defaults
@@ -147,9 +164,15 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     ExtraCellContent,
     ExtraComponents,
     RowExpanding,
+
+    // Inline editing support
+    editEnabled,
+    isCellMutable,
+    onCommitCellEdit,
 }: DataTableProps<TData>) {
     // Internal state management
     const [isUpdatingLogs, setIsUpdatingLogs] = useState(false);
+    const [activeEditingCellId, setActiveEditingCellId] = useState<string | null>(null);
     const [expandingRowId, setExpandingRowId] = useState<string | null>(null);
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -194,6 +217,33 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         setIsGroupingUpdating(false);
         setIsUpdatingLogs(false);
     }, [data, setIsGroupingUpdating, setIsUpdatingLogs]);
+
+    // Effect to update CSS variable for centering sticky elements
+    useEffect(() => {
+        const container = scrollContainerRef?.current;
+        if (!container) return;
+
+        const updateCenterPosition = () => {
+            const center = container.scrollLeft + container.clientWidth / 2;
+            container.style.setProperty('--scroll-center-left', `${center}px`);
+        };
+
+        // Initial calculation
+        updateCenterPosition();
+
+        // Update on scroll
+        container.addEventListener('scroll', updateCenterPosition);
+
+        // Update on resize
+        const resizeObserver = new ResizeObserver(updateCenterPosition);
+        resizeObserver.observe(container);
+
+        // Cleanup
+        return () => {
+            container.removeEventListener('scroll', updateCenterPosition);
+            resizeObserver.disconnect();
+        };
+    }, [scrollContainerRef]);
 
     // Init table
     const table = useReactTable({
@@ -303,6 +353,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
     );
 
     const visibleColumns = table.getVisibleLeafColumns();
+    const rightmostColumnId = visibleColumns[visibleColumns.length - 1]?.id;
 
     // Reorder columns: move grouped columns (state.grouping) to the left in grouping order
     const groupingIds = state.grouping as string[];
@@ -335,7 +386,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         selectedCells: state.selectedCells,
         setSelectedCells: setState.setSelectedCells,
         scrollContainerRef: scrollContainerRef,
-        tableHeaderRef: tableHeaderRef,
+        tableHeaderRef: tableHeaderRef,  
         tableFooterRef: tableFooterRef,  
     });
 
@@ -452,6 +503,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 key={row.id}
                 row={row}
                 table={table}
+                setRowSizing={setState.setRowSizing}
                 state={state}
                 setExpandingRowId={setExpandingRowId}
                 expandingRowId={expandingRowId}
@@ -461,6 +513,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 renderSkeletonRows={renderSkeletonRows}
                 cellSelection={cellSelection}
                 isCellSelected={isCellSelected}
+                isRowSelected={isRowSelected}
                 isCellExpanded={isCellExpanded}
                 setExpandedCells={setExpandedCells}
                 selectedCells={state.selectedCells}
@@ -468,6 +521,14 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                 draggingColumns={state.draggingColumns}
                 isAnimating={isAnimating}
                 setDraggingColumnPinner={setState.setDraggingColumnPinner}
+                rightmostColumnId={rightmostColumnId}
+                editingCellId={activeEditingCellId}
+                setEditingCellId={setActiveEditingCellId}
+                // Inline editing
+                editEnabled={!!editEnabled}
+                isCellMutable={isCellMutable}
+                onCommitCellEdit={onCommitCellEdit}
+                onBlockedEdit={onBlockedEdit}
             />
         );
         
@@ -495,6 +556,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         parentRow={row}
                         subRows={allSubRows} // Pass all subRows for recursive filtering
                         table={table}
+                        setRowSizing={setState.setRowSizing}
                         state={state}
                         setExpandingRowId={setExpandingRowId}
                         expandingRowId={expandingRowId}
@@ -512,6 +574,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                         isAnimating={isAnimating}
                         setDraggingColumnPinner={setState.setDraggingColumnPinner}
                         columnCount={finalColumns.length}
+                        rightmostColumnId={rightmostColumnId}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
                         bidirectionalEnabled={bidirectionalEnabled}
@@ -524,7 +587,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
         return elements;
     };
 
-    return (<div className="relative flex h-fit w-full gap-2 min-w-max">
+    return (
+            <div className="relative flex h-fit w-full gap-2 min-w-max">
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -535,7 +599,12 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                     onDragEnd={(event) => handleDragEndWrapper(event)}
                     onDragCancel={(event) => handleDragCancelWrapper(event)}
                 >
-                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed', minWidth: table.getTotalSize() }}>
+                    <Table className={`relative ${className}`} style={{ width: table.getTotalSize(), tableLayout: 'fixed' }}>
+                        <colgroup>
+                            {table.getFlatHeaders().map(header =>
+                                !header.isPlaceholder && header.subHeaders.length === 0 && <col key={header.id} style={{ width: `${header.getSize()}px`}} />
+                            )}
+                        </colgroup>
                         <TableHeader ref={tableHeaderRef} className="sticky top-0 z-20 bg-background">
                             {table.getHeaderGroups().map((headerGroup, headerGroupIndex) => (
                                 <TableRow key={headerGroup.id}>
@@ -573,6 +642,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                 columnActionsApplied={columnActionsApplied}
                                                 setColumnActionsApplied={setColumnActionsApplied}
                                                 onRenameColumn={onRenameColumn}
+                                                isRightmost={header.column.id === rightmostColumnId}
                                             />
                                         ))}
                                     </SortableContext>
@@ -590,8 +660,8 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                     ?   (
                                             // Display potential error message in table as a single cell
                                             <TableRow>
-                                                <TableCell colSpan={finalColumns.length} className="text-start text-warning min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
-                                                    {error}
+                                                <TableCell colSpan={finalColumns.length} className="text-start text-warning text-wrap w-full min-w-[150px]" style={{borderBottom: "1px solid var(--muted)", borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                    An error occurred. Please try again or contact us if the issue persists.
                                                 </TableCell>
                                             </TableRow>
                                         )
@@ -637,6 +707,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 buttonText="Load Previous"
                                                                 loadingText="Loading previous..."
                                                                 disabled={auto_update}
+                                                                table={table}
                                                             />
                                                         )}
                                                         
@@ -657,10 +728,11 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 colSpan={finalColumns.length}
                                                                 asTableRow={true}
                                                                 interactive={interactive}
-                                                                position="relative"
+                                                                position="sticky"
                                                                 buttonText="Load More"
                                                                 loadingText="Loading more..."
                                                                 disabled={auto_update}
+                                                                table={table}
                                                             />
                                                         )}
                                                     </>
@@ -669,7 +741,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                             :   (
                                                     // Display placeholder cell if no entry found
                                                     <TableRow>
-                                                        <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
+                                                        <TableCell colSpan={finalColumns.length} className="text-center min-w-[150px]" style={{borderBottom: "1px solid var(--muted)",  borderRight: "1px solid var(--muted)", borderLeft: "1px solid var(--muted)", borderTop: "1px solid var(--muted)"}}>
                                                             No entry found
                                                         </TableCell>
                                                     </TableRow>
@@ -677,25 +749,44 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                             }
                         </TableBody>
 
-                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background border-t-2 border-foreground">
-                            <TableRow>
-                                {isUpdatingLogs ? (
-                                    finalColumns.map((_, idx) => (
+                        <TableFooter ref={tableFooterRef} className="sticky bottom-0 z-20 bg-background pt-2">
+                            {/* Resizer Row */}
+                            {table.getRowModel().rows?.length > 0 && (
+                                <TableRow className="relative">
+                                    <TableCell colSpan={finalColumns.length} className="p-0 border-t-0 h-1 relative group/footer-resizer-cell">
+                                        <RowResizeAll table={table} setRowSizing={setState.setRowSizing} />
+                                        {interactive && (
+                                            <TableResizeAll
+                                                table={table}
+                                                setColumnSizing={setState.setColumnSizing}
+                                                setRowSizing={setState.setRowSizing}
+                                            />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {isUpdatingLogs ? (
+                                <TableRow>
+                                    {finalColumns.map((_, idx) => (
                                         <TableCell key={idx} className="p-2">
                                             <div className="h-4 bg-muted rounded animate-pulse" />
                                         </TableCell>
-                                    ))
-                                ) : (
-                                    finalColumns.map((column, index) => (
-                                        <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}>
-                                            {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder)}
-                                        </SortableContext>
-                                    ))
-                                )}
-                            </TableRow>
+                                    ))}
+                                </TableRow>
+                            ) : showFooter ? (
+                                <TableRow>
+                                    {finalColumns.map((column, index) => ( <SortableContext key={index} items={state.columnOrder} strategy={horizontalListSortingStrategy}> {FooterCell && FooterCell(column, resizeMap, table, state.draggingColumnPinner, setState.setDraggingColumnPinner, state.columnPinning, state.columnOrder, column.id == rightmostColumnId)} </SortableContext>))}
+                                </TableRow>
+                            ) : null}
                         </TableFooter>
+
                     </Table>
                 </DndContext>
+                {(!error && table.getRowModel().rows?.length) 
+                    ? <ColumnResizeAll table={table} setColumnSizing={table.options.onColumnSizingChange as any}/> 
+                    : null
+                }
                 {ExtraComponents && ExtraComponents(table)}
-    </div>);
+            </div>
+    );
 }

@@ -16,7 +16,7 @@ import { toComputableValue, computeStatistic } from "../common";
 import { LogProps, LogsResponseProps, LogItemProps, HeaderNode, GroupedLogProps } from "@/types/interfaces/logs";
 import { Table } from "@tanstack/react-table";
 
-import { ImageDisplay, isImage } from "../selection/selection";
+import { AudioPlayer, ImageDisplay, isImage } from "../selection/selection";
 import { formatNumber } from "../formatNumber";
 import { durationToTimeDelta, timeDeltaValueToDuration } from "../format";
 import { processContext, sanitizeId } from "./columnOperations";
@@ -418,17 +418,16 @@ export function formatCellValue(
 ): React.ReactNode {
 
 	// Calculate truncation dynamically based on column width
-	const AVERAGE_CHAR_WIDTH_PX = 8; // Approximate pixels per character
+	const AVERAGE_CHAR_WIDTH_PX = 6; // Approximate pixels per character
 	const CELL_PADDING_PX = 16;      // Approximate total horizontal padding (e.g., 8px left + 8px right)
 	const MIN_CHARS = 5;             // Minimum characters to show even if column is very narrow
 	const DEFAULT_MAX_CHARS = 50;    // Default max characters if width is not available or calculation fails
-	const ABSOLUTE_MAX_CHARS = 200;  // Absolute max characters to prevent excessively long strings
 	let maxChars = DEFAULT_MAX_CHARS;
 	if (columnWidth && columnWidth > CELL_PADDING_PX) {
 	  const availableWidth = columnWidth - CELL_PADDING_PX;
 	  const calculatedChars = Math.floor(availableWidth / AVERAGE_CHAR_WIDTH_PX);
 	  // Ensure calculated chars are within reasonable bounds
-	  maxChars = Math.max(MIN_CHARS, Math.min(calculatedChars, ABSOLUTE_MAX_CHARS));
+	  maxChars = Math.max(MIN_CHARS, calculatedChars);
 	} else if (columnWidth && columnWidth <= CELL_PADDING_PX) {
 	  // If column is narrower than padding, show minimum chars
 	  maxChars = MIN_CHARS;
@@ -462,6 +461,17 @@ export function formatCellValue(
 		return "Invalid Image";
 	  }
   
+	  case "audio": {
+		if (typeof rawValue === "string") {
+			let value = rawValue.trim();
+			if (value.startsWith('"') && value.endsWith('"')) {
+				value = value.slice(1, -1);
+			}
+			// Use a compact audio player for the table cell
+			return <AudioPlayer value={value} className="h-8" />;
+		}
+		return "Invalid Audio";
+	  }
 	  case "int":
 	  case "float": {
 		// Safely parse to float, if invalid or NaN display fallback
@@ -602,6 +612,7 @@ export const nestedColumns = (
 				// Now call our utility for final formatting
 				return formatCellValue(cellValue, dataType, columnWidth);
 			},
+			minSize: 80,
 			meta: {
 				dataType: dataType,
 				fieldType: fieldType,

@@ -37,6 +37,134 @@ const debounce = (fn: Function, ms = 300) => {
   };
 };
 
+export const AudioPlayer = ({ value, className }: { value: string; className?: string }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchSignedUrl = async (audioUrl: string) => {
+    try {
+      const parsedUrl = new URL(audioUrl);
+      const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+      const bucket = pathParts[0];
+      const path = pathParts.slice(1).join("/");
+      
+      const currentUrl = signedUrlCache.get(audioUrl);
+      const queryParams = new URLSearchParams({
+        bucket: bucket,
+        path: path,
+        ...(currentUrl ? { url: currentUrl } : {})
+      });
+      
+      const res = await fetch(`/api/media/get?${queryParams}`);
+      
+      if (!res.ok) {
+        throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
+      }
+      
+      const newUrlData = await res.json();
+      signedUrlCache.set(parsedUrl.href, newUrlData.url);
+      signedUrlInProgress.delete(parsedUrl.href);
+      setUrl(newUrlData.url);
+    } catch (err) {
+      console.error("Error fetching signed URL for audio:", err);
+      signedUrlInProgress.delete(audioUrl);
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const debouncedFetchSignedUrl = useMemo(
+    () => debounce((audioUrl: string) => fetchSignedUrl(audioUrl), 300),
+    []
+  );
+
+  useEffect(() => {
+    const initializeAudio = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const audioUrl = value;
+
+        try {
+          const parsedUrl = new URL(audioUrl);
+
+          if (parsedUrl.hostname === "storage.googleapis.com") {
+            const cachedUrl = signedUrlCache.get(audioUrl);
+            if (cachedUrl) {
+              setUrl(cachedUrl);
+              setLoading(false);
+              return;
+            }
+
+            if (signedUrlInProgress.has(audioUrl)) {
+              const checkInterval = setInterval(() => {
+                const cachedResult = signedUrlCache.get(audioUrl);
+                if (cachedResult) {
+                  setUrl(cachedResult);
+                  setLoading(false);
+                  clearInterval(checkInterval);
+                }
+              }, 100);
+              return;
+            }
+
+            signedUrlInProgress.add(audioUrl);
+            await fetchSignedUrl(audioUrl);
+          } else {
+            setUrl(audioUrl);
+            setLoading(false);
+          }
+        } catch (parseError) {
+          // If not a full URL, it could be a direct link, so we try to use it
+          setUrl(audioUrl);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error("Error in AudioPlayer initialization:", err);
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    initializeAudio();
+  }, [value]);
+
+  const handleAudioError = useCallback((e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    const audioEl = e.target as HTMLAudioElement;
+    if (audioEl.src && audioEl.src.includes('storage.googleapis.com')) {
+      const originalUrl = value;
+      signedUrlCache.delete(originalUrl);
+      setLoading(true);
+      setError(null);
+      debouncedFetchSignedUrl(originalUrl);
+    } else {
+        setError(new Error("Failed to load audio source."));
+    }
+  }, [value, debouncedFetchSignedUrl]);
+
+  if (loading) {
+    return <span className="text-xs text-muted-foreground">Loading audio...</span>;
+  }
+
+  if (error || !url) {
+    console.error("[AudioPlayer] Rendering error state:", error);
+    return <span className="text-xs text-destructive">Error loading audio</span>;
+  }
+
+  return (
+    <audio
+      controls
+      src={url}
+      onError={handleAudioError}
+      className={`w-full ${className || ''}`}
+    >
+      Your browser does not support the audio element.
+    </audio>
+  );
+};
+
 export const ImageDisplay = ({ value, className }: { value: string; className?: string }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +185,7 @@ export const ImageDisplay = ({ value, className }: { value: string; className?: 
         ...(currentUrl ? { url: currentUrl } : {})
       });
       
-      const res = await fetch(`/api/image/get?${queryParams}`);
+      const res = await fetch(`/api/media/get?${queryParams}`);
       
       if (!res.ok) {
         throw new Error(`Failed to fetch signed URL: ${res.statusText}`);
@@ -199,11 +327,6 @@ export const isMatrix = (value: any) => isList(value) && value.every(row => Arra
 export function isURLImage(value: string): boolean {
   try {
     const url = new URL(value);
-    
-    // Automatically return true for Google Cloud Storage URLs
-    if (url.hostname === 'storage.googleapis.com') {
-      return true;
-    }
 
     // Check for typical image file extensions
     const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'];
@@ -308,6 +431,26 @@ export function isPdf(value: any): boolean {
   if (typeof value !== 'string') return false;
   const pdfRegex = /\.pdf(\?.*)?$/i;  // matches "myfile.pdf?version=123" and .PDF
   return pdfRegex.test(value.trim());
+}
+
+/**
+ * Check if a value is an audio link/path.
+ * Detects strings ending with common audio extensions, with optional query parameters.
+ */
+export function isAudio(value: any): boolean {
+  if (typeof value !== 'string' || value.trim() === '') return false;
+  
+  const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'];
+  const checkPath = (path: string) => audioExtensions.some(ext => path.toLowerCase().endsWith(ext));
+
+  try {
+    const url = new URL(value);
+    // For GCS, we rely on the extension.
+    return checkPath(url.pathname);
+  } catch (e) {
+    // Not a full URL, might be a relative path.
+    return checkPath(value.trim());
+  }
 }
 
 /**

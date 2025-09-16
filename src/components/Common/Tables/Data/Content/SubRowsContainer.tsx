@@ -1,11 +1,9 @@
 import React, { ReactNode, Dispatch, SetStateAction } from "react";
 import { Row, Cell, Table, useReactTable } from "@tanstack/react-table";
 import { StateProps } from "@/types/dataTable";
-import { TableRow, TableCell, TableBody, Table as TableUI } from "@/components/UI/table";
 import DataTableRow from "./Row";
 import { LogProps, GroupedLogProps } from "@/types/interfaces/logs";
 import { RowExpandingProps } from "../Buttons/RowExpanding";
-import styles from "./SubRowsContainer.module.css";
 import { GroupLoadMoreProps } from "../Buttons/GroupLoadMore";
 
 interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
@@ -13,6 +11,7 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
     subRows: Row<TData>[];
     table: Table<TData>;
     state: StateProps;
+    setRowSizing: (updater: (old: {[key: string]: number}) => {[key: string]: number}) => void;
     setExpandingRowId: (id: string | null) => void;
     expandingRowId: string | null;
     RowExpanding?: (props: RowExpandingProps) => ReactNode;
@@ -31,7 +30,7 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
     columnCount: number;
 
     // GroupLoadMore component and props
-    GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps>> | null;
+    GroupLoadMore?: React.ComponentType<Partial<GroupLoadMoreProps> & { position?: "before" | "after" }> | null;
     interactive?: boolean;
     
     // Bidirectional loading support
@@ -44,17 +43,20 @@ interface SubRowsContainerProps<TData extends LogProps | GroupedLogProps> {
         pagesInMemory: number;
         maxPagesInMemory: number;
     };
+
+    rightmostColumnId: string
 }
 
 /**
- * SubRowsContainer handles rendering subRows within a scrollable container
- * and manages GroupLoadMore placement at the end of subRows
+ * SubRowsContainer handles rendering subRows and the GroupLoadMore component
+ * directly into the parent table's flow.
  */
 export default function SubRowsContainer<TData extends LogProps | GroupedLogProps>({
     parentRow,
     subRows,
     table,
     state,
+    setRowSizing,
     setExpandingRowId,
     expandingRowId,
     RowExpanding,
@@ -75,18 +77,17 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
     interactive = true,
     bidirectionalEnabled = false,
     bidirectionalInfo,
+    rightmostColumnId,
 }: SubRowsContainerProps<TData>) {
-    // Remove scroll-related refs and state since we're not creating a scrolling context
     
-    // Create a nested table instance that inherits column pinning from parent
+    // Create a nested table instance to pass correct options down, but without rendering a new table element
     const nestedTable = useReactTable({
         ...table.options,
         data: subRows.map(row => row.original),
     });
 
-    // Recursively render subRows and their own subRows as regular table rows
+    // Recursively render subRows and their own subRows as a flat list of table rows
     const renderSubRow = (row: Row<TData>): ReactNode => {
-        // Get this row's children if any
         const rowSubRows = subRows.filter(subRow => {
             const subRowParentId = (subRow as any).parentId;
             return subRowParentId === row.id;
@@ -99,6 +100,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                     row={row}
                     table={nestedTable}
                     state={state}
+                    setRowSizing={setRowSizing}
                     setExpandingRowId={setExpandingRowId}
                     expandingRowId={expandingRowId}
                     RowExpanding={RowExpanding}
@@ -123,6 +125,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                         subRows={rowSubRows}
                         table={nestedTable}
                         state={state}
+                        setRowSizing={setRowSizing}
                         setExpandingRowId={setExpandingRowId}
                         expandingRowId={expandingRowId}
                         RowExpanding={RowExpanding}
@@ -139,6 +142,7 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
                         isAnimating={isAnimating}
                         setDraggingColumnPinner={setDraggingColumnPinner}
                         columnCount={columnCount}
+                        rightmostColumnId={rightmostColumnId}
                         GroupLoadMore={GroupLoadMore}
                         interactive={interactive}
                         bidirectionalEnabled={bidirectionalEnabled}
@@ -155,65 +159,38 @@ export default function SubRowsContainer<TData extends LogProps | GroupedLogProp
         return subRowParentId === parentRow.id;
     });
 
-    // Don't render if no subRows
-    if (!subRows.length) {
+    // Don't render anything if there are no direct sub-rows to display.
+    if (directChildren.length === 0) {
         return null;
     }
 
+    // Render as a fragment to inject rows directly into the parent table's body
     return (
         <>
-            <TableRow key={`${parentRow.id}-subrows-container`}>
-                <TableCell colSpan={parentRow.getVisibleCells().length} className="p-0">
-                    {/* Custom scrollable container with native scrollbar styled to match shadcn */}
-                    <div 
-                        className={`relative w-full overflow-y-auto overflow-x-hidden max-h-[calc(100vh-350px)] ${styles.customScrollbar}`}
-                        style={{
-                            // CSS Custom Properties for scrollbar styling
-                            '--scrollbar-width': '10px',
-                            '--scrollbar-track': 'transparent',
-                            '--scrollbar-thumb': 'hsl(var(--border))',
-                            '--scrollbar-thumb-hover': 'hsl(var(--border))',
-                        } as React.CSSProperties}
-                    >
-                        <TableUI 
-                            className={`LogsTable-${parentRow.id} w-full caption-bottom text-sm border-separate border-spacing-0`}
-                            style={{ 
-                                width: nestedTable.getTotalSize(),
-                                minWidth: nestedTable.getTotalSize(),
-                                tableLayout: 'fixed',
-                                overflowX: 'visible'
-                            }}
-                        >
-                            <TableBody className="contents">
-                                {/* GroupLoadMore for Load Previous - render BEFORE subrows */}
-                                {GroupLoadMore && bidirectionalEnabled && (
-                                    <GroupLoadMore
-                                        key={`${parentRow.id}-before`}
-                                        groupId={parentRow.id}
-                                        colSpan={columnCount}
-                                        interactive={interactive}
-                                        position="before"
-                                    />
-                                )}
-                                
-                                {/* Render direct children and their nested subRows */}
-                                {directChildren.map(renderSubRow)}
-                                
-                                {/* GroupLoadMore for Load More - render AFTER subrows */}
-                                {GroupLoadMore && (
-                                    <GroupLoadMore
-                                        key={`${parentRow.id}-after`}
-                                        groupId={parentRow.id}
-                                        colSpan={columnCount}
-                                        interactive={interactive}
-                                        position="after"
-                                    />
-                                )}
-                            </TableBody>
-                        </TableUI>
-                    </div>
-                </TableCell>
-            </TableRow>
+            {/* GroupLoadMore for Load Previous - render BEFORE subrows */}
+            {GroupLoadMore && bidirectionalEnabled && (
+                <GroupLoadMore
+                    key={`${parentRow.id}-before`}
+                    groupId={parentRow.id}
+                    colSpan={columnCount}
+                    interactive={interactive}
+                    position="before"
+                />
+            )}
+            
+            {/* Render direct children and their nested subRows */}
+            {directChildren.map(renderSubRow)}
+            
+            {/* GroupLoadMore for Load More - render AFTER subrows */}
+            {GroupLoadMore && (
+                <GroupLoadMore
+                    key={`${parentRow.id}-after`}
+                    groupId={parentRow.id}
+                    colSpan={columnCount}
+                    interactive={interactive}
+                    position="after"
+                />
+            )}
         </>
     );
-} 
+}

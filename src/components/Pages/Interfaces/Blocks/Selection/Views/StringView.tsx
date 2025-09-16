@@ -161,7 +161,7 @@ const EditableStringField = ({
         <div>
           {isMultiLine ? (
             <textarea 
-              className="w-full border rounded p-1 text-sm font-mono"
+              className="w-full border rounded p-1 text-body font-mono"
               rows={4}
               disabled
               {...inputProps}
@@ -171,7 +171,7 @@ const EditableStringField = ({
               style={{
                 backgroundImage: "repeating-linear-gradient(-45deg, color-mix(in srgb, var(--foreground) 20%, transparent) 0 1px, transparent 1px 6px)"
               }}
-              className="w-full border rounded p-1 text-sm font-mono"
+              className="w-full border rounded p-1 text-body font-mono"
               type="text"
               disabled 
               {...inputProps}
@@ -183,13 +183,13 @@ const EditableStringField = ({
         {isMultiLine ? (
           <textarea 
             rows={4} 
-            className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+            className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
             {...inputProps}
           />
         ) : (
           <input 
             type="text"
-              className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+              className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
             {...inputProps}
           />
         )}
@@ -251,7 +251,7 @@ export default function StringView({
                     {!nested &&
                     <div className="flex items-center gap-1 mb-1">
                         <RowBadge rowNumbers={group.rows} mode="none" />
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption text-muted-foreground">
                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                         </span>
                     </div>}
@@ -287,7 +287,7 @@ export default function StringView({
       <div className="space-y-4">
         {!versionEmpty && (
           <div className="space-y-2">
-            <p className="font-semibold">Version</p>
+            <p className="text-title">Version</p>
             {baseVerStr ? (
               <div className="flex border rounded p-2 relative group">
                 <div className="mt-1 mb-1">
@@ -305,7 +305,7 @@ export default function StringView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
@@ -313,7 +313,7 @@ export default function StringView({
         {baseStr ? (
           <div className="space-y-2">
             {!versionEmpty && (
-              <p className="font-semibold">Value</p>
+              <p className="text-title">Value</p>
             )}
             <div className="flex border rounded p-2 relative group max-w-full overflow-hidden">
               <div className="mt-1 mb-1 w-full overflow-x-auto">
@@ -332,7 +332,7 @@ export default function StringView({
             </div>
           </div>
         ) : (
-          <p className="italic text-sm text-muted-foreground">No value</p>
+          <p className="italic text-body text-muted-foreground">No value</p>
         )}
       </div>
     );
@@ -372,7 +372,7 @@ export default function StringView({
             <div key={i} className="p-3 space-y-4">
               {!versionEmpty && (
                 <div className="space-y-2">
-                  <p className="font-semibold">Version</p>
+                  <p className="text-title">Version</p>
                   {versionGroups.map((vg, j) => {
                     const verText = vg.text;
                     return (
@@ -396,7 +396,7 @@ export default function StringView({
                             )}
                           </div>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground border rounded">
+                          <p className="italic text-body text-muted-foreground border rounded">
                             No version
                           </p>
                         )}
@@ -408,7 +408,7 @@ export default function StringView({
 
               <div className="space-y-2">
                 {!versionEmpty && (
-                  <p className="font-semibold">Value</p>
+                  <p className="text-title">Value</p>
                 )}
                 <div className="border rounded p-2 relative group max-w-full overflow-hidden">
                   <RowBadge rowNumbers={rowNums} mode="none" />
@@ -427,7 +427,7 @@ export default function StringView({
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm italic text-muted-foreground">
+                    <p className="text-body italic text-muted-foreground">
                       No data
                     </p>
                   )}
@@ -472,7 +472,7 @@ export default function StringView({
           <div key={i} className="space-y-4">
             {!versionEmpty && (
               <div className="space-y-2">
-                <p className="font-semibold">Version</p>
+                <p className="text-title">Version</p>
                 {versionGroups.map((vg, j) => {
                   const verText = vg.text;
                   let oldVal = baseVerStr;
@@ -487,7 +487,7 @@ export default function StringView({
                   return (
                     <div key={j} className="space-y-2">
                       <div className="border rounded p-2">
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-2 text-caption">
                           <RowBadge
                             rowNumbers={[baseLogIndex]}
                             mode={oldVal !== newVal ? "delete" : "none"}
@@ -521,10 +521,10 @@ export default function StringView({
 
             <div className="space-y-2">
               {!versionEmpty && (
-                <p className="font-semibold">String Diff</p>
+                <p className="text-title">String Diff</p>
               )}
             <div className="border rounded p-2 max-w-full overflow-hidden">
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-caption">
                 <RowBadge rowNumbers={[baseLogIndex]} mode={baseBadgeMode} />
                 <RowBadge
                   rowNumbers={rowNums}

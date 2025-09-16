@@ -20,6 +20,7 @@ import {
   isTimestamp,
   isChat,
   isPdf,
+  isAudio,
 } from "@/utils/interfaces/selection/selection";
 import {
   gatherAllSubPaths,
@@ -48,6 +49,7 @@ import PdfView from "./PdfView";
 import { LogsActions } from "@/types/interfaces/grid";
 import { LogProps } from "@/types/interfaces/logs";
 import { Span } from "@/types/interfaces/traces";
+import AudioView from "./AudioView";
 
 /*────────────────────────────────────────────────────────────────────────────
   unifyType => merges base + comps => single type. If multiple distinct => "string."
@@ -114,7 +116,9 @@ function pickView(props: LogComparisonProps & {
   if (isPdf(value)) {
     return <PdfView {...props} />;
   }
-
+  if (isAudio(value)) {
+    return <AudioView {...props} />;
+  }
   return <StringView {...props} nested={true}/>;
 }
 
@@ -460,7 +464,7 @@ function renderNoDiffMode(
                       <div key={gIdx}>
                         <div className="flex items-center gap-1 mb-1">
                           <RowBadge rowNumbers={group.rows} mode="none" />
-                           <span className="text-xs text-muted-foreground">
+                           <span className="text-caption text-muted-foreground">
                              {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                            </span>
                         </div>

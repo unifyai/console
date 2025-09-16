@@ -152,7 +152,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
         if (currentTabData.id) {
           await tab_actions.updateById(currentTabData.id, {
             name: checkpointedTabData.name,
-            global_context: checkpointedTabData.global_context || "",
+            context: checkpointedTabData.context || "",
             color: checkpointedTabData.color,
             active: true,
             visible: checkpointedTabData.visible,

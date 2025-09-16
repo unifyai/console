@@ -6,8 +6,7 @@ import { LogsActions, FieldsActions, ProjectsActions, ContextActions, GranularTi
 import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { useTileSync } from "@/contexts/hooks/tile/sync";
-import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showErrorToast, showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 const RefreshLogs = ({ 
   tileId, 
@@ -108,7 +107,13 @@ const RefreshLogs = ({
         null, null, null, null, null, null, null, null, null
       )
       .then(latest => {
-        if (isMounted.current) setLastUpdated(latest);
+        if (isMounted.current) {
+          if (latest && typeof latest === 'object' && (latest as any).detail) {
+            // It's an error object, don't update timestamp.
+            return;
+          }
+          setLastUpdated(latest);
+        }
       })
       .catch(err => {
         if (err.name !== 'AbortError') {
@@ -141,7 +146,7 @@ const RefreshLogs = ({
     setIsManualFetching(true);
     
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         async () => {
           // Get latest timestamp first
           const latest = await logsActions.getLatest(
@@ -154,6 +159,14 @@ const RefreshLogs = ({
             groupSortingExpression,
             null, null, null, null, null, null, null, null, null
           );
+
+          if (latest && typeof latest === 'object' && (latest as any).detail && (latest as any).detail.startsWith("Context '") && (latest as any).detail.endsWith("' not found")) {
+            if (syncedTileDataActions) {
+              showSuccessToast("Context not found", "Attempting to open table without context.");
+              await syncedTileDataActions.setContext(undefined);
+            }
+            return;
+          }
 
           const latestTs = new Date(latest).getTime();
           const lastCheckTs = lastUpdated ? new Date(lastUpdated).getTime() : 0;
@@ -174,9 +187,9 @@ const RefreshLogs = ({
           }
         },
         {
-          loading: "Refreshing logs...",
-          success: "Logs refreshed successfully!",
-          error: "Failed to refresh logs."
+          loadingMessage: "Refreshing logs...",
+          successMessage: "Logs refreshed successfully!",
+          errorMessage: "Failed to refresh logs."
         }
       );
     } catch (error: any) {
@@ -190,26 +203,38 @@ const RefreshLogs = ({
     }
   };
 
-  const isRefreshing = isFetching || isManualFetching;
-  const icon = isRefreshing ? <RefreshCw className="animate-spin text-green"/> 
-    : loaded
-    ? <Check className="text-green"/>
-    : <RefreshCw/>;
+  const isAutoUpdating = tileDataState?.auto_update === "true";
+  const isManualSpinning = isFetching || isManualFetching;
+
+  const getIcon = () => {
+    if (isAutoUpdating) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (isManualSpinning) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (loaded) {
+      return <Check className="text-green" />;
+    }
+    return <RefreshCw />;
+  };
+  
+  const icon = getIcon();
 
   const manualRefreshButton = (
     <ActionButton 
       variant="outline"
       className="rounded-lg h-8"
       icon={icon}
-      tooltip={isRefreshing ? "Refreshing logs.." : "Refresh logs"}
+      tooltip={isAutoUpdating ? "Auto-refreshing..." : isManualSpinning ? "Refreshing logs..." : "Refresh logs"}
       onClick={onManualClick}
-      disabled={tileDataState?.auto_update === "true"}
+      disabled={isAutoUpdating}
     />
   );
 
   const autoRefresh = (
     <ActionButton 
-      variant={tileDataState?.auto_update === "true" ? "primary" : "outline"} 
+      variant={isAutoUpdating ? "primary" : "outline"} 
       className="rounded-lg" 
       icon={<Timer />} 
       tooltip={"Auto refresh every 5s"} 

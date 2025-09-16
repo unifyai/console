@@ -2,31 +2,51 @@
 
 import { useKeyPressEvent } from "react-use";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
-import { useState, useCallback } from "react";
-import { ResponseProps } from "@/types/common";
-import { GroupedLogProps, LogFieldsProps, LogProps } from "@/types/interfaces/logs";
+import { useState, useCallback, useRef } from "react";
+import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
 import { getPartAfterFirstUnderscore } from "@/utils/interfaces/selection/selection";
 import { processContext, sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { maybeFlattenGroupedLogs } from "@/utils/interfaces/table/grouping";
-import { useRouter } from "next/navigation";
+import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
+import { ProjectsActions, ContextActions, FieldsActions, LogsActions } from "@/types/interfaces/grid";
 
-const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, columnContext, setPending }: {
-	project: string,
+const DeleteCells = ({ projectId, tabId, tileId, selectedCells, logs, context, columnContext, setPending, projectsActions, logsActions, contextActions, fieldsActions }: {
+	projectId: string,
+	tabId: string,
+	tileId: string,
 	selectedCells: string[],
 	logs: LogProps[] | GroupedLogProps[],
-	deleteLogFields: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>,
 	context: string | undefined,
 	columnContext: string | undefined,
-    setPending: (pending: boolean) => void
+    setPending: (pending: boolean) => void,
+	projectsActions: ProjectsActions,
+	logsActions: LogsActions,
+	contextActions: ContextActions,
+	fieldsActions: FieldsActions
 }) => {
 
-	const router = useRouter();
-    const onDelete = () => {
-        router.refresh();
-        setPending(true);
-    }
-
+	
 	const [showDialog, setShowDialog] = useState(false);
+	const pendingRef = useRef(false);
+	
+	// Use the table auto-update hook to get manual refresh functionality
+	const { manualRefresh } = useTableAutoUpdateQuery(
+		tileId,
+		tabId,
+		projectId,
+		pendingRef.current,
+		logsActions,
+		projectsActions,
+		contextActions,
+		fieldsActions,
+	);
+
+    const onDelete = async () => {
+        // Set table pending state and use manual refresh
+        setPending(true);
+        await manualRefresh();
+        setPending(false); // Only clear pending after manual refresh completes
+    }
 
 	const flattenedLogs = maybeFlattenGroupedLogs(logs);
 	const deletableCells = selectedCells.filter(cell => {
@@ -60,7 +80,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 		columnContext ? processContext("merge", columnContext, sanitizeId(getPartAfterFirstUnderscore(cell))) : sanitizeId(getPartAfterFirstUnderscore(cell))
 	])
 
-	const args = fieldsToDelete.length > 0 ? [project, context, fieldsToDelete, 'all'] : [];
+	const args = fieldsToDelete.length > 0 ? [projectId, context, fieldsToDelete] : [];
 
 	// Show remove-from-context only if every selected row has all its fields selected
 	const selectedIds = Array.from(new Set(deletableCells.map(cell => cell.split('_')[0] as string)));
@@ -81,7 +101,7 @@ const DeleteCells = ({ project, selectedCells, logs, deleteLogFields, context, c
 
 	return (showDialog &&
 		<DeleteDialog
-			deletingFunction={deleteLogFields}
+			deletingFunction={logsActions.delete}
 			args={args}
 			type="log entries"
 			showDialog={showDialog}

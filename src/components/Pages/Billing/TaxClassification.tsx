@@ -7,7 +7,7 @@ import { Badge } from "../../UI/badge";
 import { Alert, AlertDescription } from "../../UI/alert";
 import { Separator } from "../../UI/separator";
 import { Edit, Building, User, MapPin, FileText, CheckCircle, AlertCircle } from "lucide-react";
-import TaxClassificationForm from "../../TaxClassification/TaxClassificationForm";
+import TaxClassificationForm from "../TaxClassification/TaxClassificationForm";
 import { TaxClassificationFormData, UserBusinessStatusResponse } from "@/types/user";
 
 const TaxClassification = () => {
@@ -145,8 +145,8 @@ const TaxClassification = () => {
     return (
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="text-2xl">Tax Classification</CardTitle>
-          <CardDescription>Loading tax information...</CardDescription>
+          <CardTitle className="text-h3">Tax Classification</CardTitle>
+          <CardDescription className="text-body">Loading tax information...</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -156,8 +156,8 @@ const TaxClassification = () => {
     return (
       <Card className="w-full">
         <CardHeader>
-          <CardTitle className="text-2xl">Edit Tax Classification</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-h3">Edit Tax Classification</CardTitle>
+          <CardDescription className="text-body">
             Update your tax classification and business information
           </CardDescription>
         </CardHeader>
@@ -177,12 +177,14 @@ const TaxClassification = () => {
               variant="outline" 
               onClick={handleCancel}
               disabled={saving}
+              className="text-body"
             >
               Cancel
             </Button>
             <Button 
               onClick={() => formRef.current?.submit()}
               disabled={!isFormValid || saving}
+              className="text-body"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
@@ -197,8 +199,8 @@ const TaxClassification = () => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-2xl">Tax Classification</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-h3">Tax Classification</CardTitle>
+            <CardDescription className="text-body">
               Your account tax classification and business information
             </CardDescription>
           </div>
@@ -229,7 +231,7 @@ const TaxClassification = () => {
               <User className="w-5 h-5 text-primary" />
             )}
             <div>
-              <p className="font-medium">Account Type</p>
+              <p className="text-label">Account Type</p>
               <div className="flex items-center space-x-2">
                 <Badge variant={businessStatus?.account_type === 'business' ? 'default' : 'secondary'}>
                   {businessStatus?.account_type === 'business' ? 'Business' : 'Individual'}
@@ -246,14 +248,14 @@ const TaxClassification = () => {
             <>
               <Separator />
               <div className="space-y-3">
-                <h4 className="font-medium text-lg">Business Information</h4>
+                <h4 className="text-title">Business Information</h4>
                 
                 {businessStatus.business_name && (
                   <div className="flex items-start space-x-3">
                     <Building className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Business Name</p>
-                      <p className="font-medium">{businessStatus.business_name}</p>
+                      <p className="text-caption">Business Name</p>
+                      <p className="text-body text-strong">{businessStatus.business_name}</p>
                     </div>
                   </div>
                 )}
@@ -262,8 +264,8 @@ const TaxClassification = () => {
                   <div className="flex items-start space-x-3">
                     <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Business Type</p>
-                      <p className="font-medium capitalize">{businessStatus.business_type.replace('_', ' ')}</p>
+                      <p className="text-caption">Business Type</p>
+                      <p className="text-body text-strong capitalize">{businessStatus.business_type.replace('_', ' ')}</p>
                     </div>
                   </div>
                 )}
@@ -272,8 +274,8 @@ const TaxClassification = () => {
                   <div className="flex items-start space-x-3">
                     <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Tax ID ({businessStatus.tax_jurisdiction})</p>
-                      <p className="font-medium">{businessStatus.tax_id}</p>
+                      <p className="text-caption">Tax ID ({businessStatus.tax_jurisdiction})</p>
+                      <p className="text-body text-strong">{businessStatus.tax_id}</p>
                     </div>
                   </div>
                 )}
@@ -282,8 +284,8 @@ const TaxClassification = () => {
                   <div className="flex items-start space-x-3">
                     <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Business Address</p>
-                      <div className="font-medium">
+                      <p className="text-caption">Business Address</p>
+                      <div className="text-body text-strong">
                         <p>{businessStatus.business_address.address_line1}</p>
                         {businessStatus.business_address.address_line2 && (
                           <p>{businessStatus.business_address.address_line2}</p>

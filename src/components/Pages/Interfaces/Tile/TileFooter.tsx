@@ -18,7 +18,7 @@ const TileFooter: React.FC<TileFooterProps> = ({ tileId, tabId }) => {
 
   /* Example of potential future content:
   return (
-    <footer className="flex items-center justify-between p-2 border-t text-xs text-muted-foreground">
+    <footer className="flex items-center justify-between p-2 border-t text-caption text-muted-foreground">
       <div>Status: OK</div>
     </footer>
   );

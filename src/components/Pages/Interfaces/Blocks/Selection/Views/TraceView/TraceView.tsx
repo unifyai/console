@@ -29,7 +29,7 @@ import NumberView from "../NumberView";
 import TimestampView from "../TimestampView";
 import ExecutionTimeView from "../ExecutionTimeView";
 
-import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat } from "@/utils/interfaces/selection/selection";
+import { isDict, isList, isMatrix, isImage, isNumber, isTimestamp, isChat, AudioPlayer, isAudio } from "@/utils/interfaces/selection/selection";
 import { gatherAllSubPaths } from "@/utils/interfaces/selection/pathUtils";
 
 import { LogComparisonProps } from "../types";
@@ -193,6 +193,9 @@ function pickView(
   }
   if (isImage(baseVal)) {
     return <ImageView {...commonProps} />;
+  }
+  if (isAudio(baseVal)) {
+    return <AudioPlayer {...commonProps} />;
   }
   if (isMatrix(baseVal)) {
     return <MatrixView {...commonProps} />;
@@ -555,7 +558,7 @@ function PatchDetailPanel({
 
   // Early return AFTER all hooks are declared (including findSpanById)
   if (!node.baseSpanRef && !node.targetSpanRef) {
-    return <p className="italic text-sm">No base or target data</p>;
+    return <p className="italic text-body">No base or target data</p>;
   }
 
   const mainSpan = node.baseSpanRef || node.targetSpanRef;
@@ -709,7 +712,7 @@ function findSpanByNameInRow(
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="font-bold text-sm">{node.name}</p>
+          <p className="text-title">{node.name}</p>
           {node.baseSpanRef?.id && (
             <CopyButton
               content={node.baseSpanRef?.id ?? ""}
@@ -780,7 +783,7 @@ function findSpanByNameInRow(
             const content = (
               <div className="flex flex-col gap-2">
                 <div>
-                  <p className="font-semibold text-sm mb-2">Cost ($)</p>
+                  <p className="text-title mb-2">Cost ($)</p>
                   <div className="border border-muted p-2 rounded">
                     <NumberView
                       value={bCost}
@@ -800,7 +803,7 @@ function findSpanByNameInRow(
                   </div>
                 </div>
                 <div>
-                  <p className="font-semibold text-sm mb-2">Cost including cache ($)</p>
+                  <p className="text-title mb-2">Cost including cache ($)</p>
                   <div className="border border-muted p-2 rounded">
                     <NumberView
                       value={bCostIncCache}
@@ -1223,7 +1226,7 @@ function CollapsiblePatchLineNode({
           </div>
         )}
 
-        <span className="font-medium text-sm w-3">
+        <span className="text-body text-strong w-3">
           {node.marker === " " ? "" : node.marker}
         </span>
 
@@ -1234,12 +1237,12 @@ function CollapsiblePatchLineNode({
           {timeLabel && timeData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {timeLabel}
                 </span>
               </HoverCardTrigger>
               <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="space-y-1 text-caption text-muted-foreground">
                   <p className="font-semibold">{timeData.title}</p>
                   {timeData.baseTime !== undefined && (
                     <p>Base Execution Time: {(() => {
@@ -1267,12 +1270,12 @@ function CollapsiblePatchLineNode({
           {tokenLabel && tokenData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {tokenLabel}
                 </span>
               </HoverCardTrigger>
               <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="space-y-1 text-caption text-muted-foreground">
                   <p className="font-semibold">{tokenData.title}</p>
                   {tokenData.baseTotalTokens > 0 && (
                     <div>
@@ -1328,12 +1331,12 @@ function CollapsiblePatchLineNode({
           {costLabel && costData && (
             <HoverCard>
               <HoverCardTrigger asChild>
-                <span className={`ml-2 text-xs ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
+                <span className={`ml-2 text-caption ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'} underline cursor-pointer`}>
                   {costLabel}
                 </span>
               </HoverCardTrigger>
               <HoverCardContent className="p-2 w-fit">
-                <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="space-y-1 text-caption text-muted-foreground">
                   <p className="font-semibold">{costData.title}</p>
                   {costData.baseCost !== undefined && (
                     <p>
@@ -1981,12 +1984,12 @@ export default function UnifiedTraceView({
                   {!baseTraceDone && (
                     <div className="flex items-center gap-2 px-2 py-1">
                       <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Streaming…</span>
+                      <span className="text-caption text-muted-foreground">Streaming…</span>
                     </div>
                   )}
                   {rowIndexes.length > 1 && (
                     <div className="p-2 border-t border-muted flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-semibold block">
+                      <span className="text-caption text-muted-foreground text-strong block">
                         Compare with:
                       </span>
                       <Combobox

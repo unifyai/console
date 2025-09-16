@@ -68,7 +68,7 @@ const ColumnDelete = ({
     }
 
     const sanitizedField = columnContext ? processContext("merge", columnContext, sanitizeId(column)) : sanitizeId(column)
-	const args = [project, context, [[null, sanitizedField]], "all"]
+	const args = [project, context, [[null, sanitizedField]]]
 
     const dialog = (showDialog &&
 		<DeleteDialog

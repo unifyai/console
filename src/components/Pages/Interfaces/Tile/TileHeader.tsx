@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, CopyPlus, Grip, X, Braces, Grid2x2, Palette, Loader2 } from "lucide-react";
+import { Maximize2, EyeOff, CopyPlus, Grip, X, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -17,7 +17,14 @@ import { getTileHeaderRef } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { useTileSync } from "@/contexts/hooks/tile/sync/useTileSync";
 import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
+import { Input } from "@/components/UI/input";
+import { Button } from "@/components/UI/button";
+import { useRenameContextQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
+import ContextTreePicker from "@/components/Common/Dropdowns/ContextTreePicker";
+import { useListContextsQuery } from "@/hooks/Interfaces/Query/useContextsQuery";
 
 const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActions, logsActions, contextActions, projectsActions, fieldsActions}: {
     tileId: string;
@@ -32,9 +39,12 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     projectsActions: ProjectsActions;
     fieldsActions: FieldsActions;
 }) => {
-    const { meta: tileMetaState, data: tileDataState, ui: tileUIState} = useTile(tileId, tabId);
-    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId);
+    const { meta: tileMetaState, data: tileDataState, ui: tileUIState, uiActions: tileUIActions} = useTile(tileId, tabId);
+    const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
     const { data: tabDataState} = useTabData(tabId, interfaceId);
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
     
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
@@ -51,9 +61,11 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     const syncedTileUIActions = syncedTileActions?.ui ?? null;
 
     const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-    const disabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
+    const disabled = tabUIState?.pending || tabUIState?.resetting;
 
     const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+    // Global focus pane state to hide button when already in focus mode
+    const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
 
     // Get the header ref from our registry
     const headerRef = getTileHeaderRef(tileId);
@@ -72,6 +84,12 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     
     // Dialog state for tile deletion
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+    // Context popover states
+
+    const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
+    const contextNames = (listContextsQuery.data || []).map(c => c.name);
+    const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
     
     // Function to handle tile deletion
     const handleDeleteTile = async () => {
@@ -104,10 +122,21 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
         if (!path) return "";
         const parts = path.split('/');
         if (parts.length > 2) {
-            return `${parts[0]}/.../${parts[parts.length - 1]}`;
+            return `.../${parts[parts.length - 1]}`;
         }
         return path;
     };
+
+    // Grab interface primary to support hierarchy fallback
+    const interfacePrimary = useMemo(() => {
+        if (typeof window === 'undefined') return '#2a862a';
+        const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
+        if (el) {
+            const col = getComputedStyle(el).getPropertyValue('--primary').trim();
+            return col || '#2a862a';
+        }
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    }, []);
 
     return (
         <header ref={headerRef} className={"group/header relative flex w-full h-12 min-h-[3rem] items-center border-b bg-card py-1 px-2 overflow-x-auto command-scrollbar"}>
@@ -127,62 +156,40 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     syncedTileMetaActions={syncedTileActions?.meta}
                     syncedTableTileActions={syncedTileActions?.tableTileActions}
                     tabUIActions={tabUIActions}
-                    isEditMode={tabUIState?.edit || false}
+                    isEditMode={isEditMode || false}
                     onOpenChange={setIsPopoverOpen}
                 >
                     <div
-                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-sm font-medium text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
+                        className="flex-shrink-0 cursor-pointer rounded px-2 py-1 text-label text-[color:var(--foreground)] transition-colors hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
                     >
                         {tileName}{tileUIState?.loading && <Loader2 className="animate-spin ml-2 inline-block" size={16} />}
                     </div>
                 </TileInfoPalette>
-                {context && tileType == "Table" && <ContextSelector
-                    tileId={tileId}
-                    tabId={tabId}
-                    interfaceId={interfaceId}
-                    projectId={projectId}
-                    context={tabDataState?.globalContext}
-                    logsActions={logsActions}
-                    contextActions={contextActions}
-                    button={
-                        <Tooltip content={`Context: ${context}`}>
-                            <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
-                                <Braces size={16} />
-                                <span className="truncate">{truncatePath(context)}</span>
-                            </Badge>
-                        </Tooltip>
-                    }
-                    setPending={tabUIActions.setPending}
-                    tileActions={tileActions}
-                    projectsActions={projectsActions}
-                    fieldsActions={fieldsActions}
-                />}
-                {(columnContext) && tileType == "Table" && <ContextSelector
-                    tileId={tileId}
-                    tabId={tabId}
-                    interfaceId={interfaceId}
-                    projectId={projectId}
-                    context={tabDataState?.globalContext}
-                    logsActions={logsActions}
-                    contextActions={contextActions}
-                    button={<Tooltip content={`Column context: ${columnContext}`}>
-                        <Badge variant="primary" className="flex max-w-[150px] gap-1 text-sm font-normal" role="button" aria-label="Open Menu" tabIndex={0}>
+
+                {columnContext && tileType == "Table" && (
+                    <Tooltip content={`Column context: ${columnContext}`}>
+                        <Badge variant="primary" className="flex items-center max-w-[150px] gap-1 font-normal cursor-pointer" aria-label="Open Menu" tabIndex={0}>
                             <Grid2x2 size={16} />
                             <span className="truncate">{truncatePath(columnContext)}</span>
+                            <ActionButton
+                                icon={<X size={12} />}
+                                onClick={() => {
+                                    syncedTileActions?.data?.setColumnContext("");
+                                }}
+                                tooltip="Clear column context"
+                                className="h-2 w-2 mt-2"
+                                variant="ghost"
+                            />
                         </Badge>
-                    </Tooltip>}
-                    setPending={tabUIActions.setPending}
-                    tileActions={tileActions}
-                    projectsActions={projectsActions}
-                    fieldsActions={fieldsActions}
-                />}
+                    </Tooltip>
+                )}
             </div>
 
             {/* Right part: Action buttons */}
             <div 
-                className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${tabUIState?.edit ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
+                className={`flex items-center gap-1 ml-auto pl-4 flex-shrink-0 transition-opacity duration-200 ${isEditMode ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'}`}
             >
-                {!tabUIState?.edit && (
+                {!isEditMode && !focusPaneOpen && (
                 <ActionButton
                     className="cursor-pointer"
                     onClick={() => {
@@ -199,7 +206,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                 />
                 )}
                 
-                {tabUIState?.edit && (
+                {isEditMode && (
                     <>
                         <ActionButton
                             className="cursor-pointer"
@@ -218,7 +225,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                             size="icon"
                         />
                         <ColorPicker
-                            value={resolveColorHierarchy(tileUIState?.color, tabUIState?.color)}
+                            value={resolveColorHierarchy(tileUIState?.color, tabUIState?.color, interfacePrimary)}
                             onChange={(color) => syncedTileUIActions?.setColor(color)}
                             useDialog={true}
                             showReset={true}
@@ -261,6 +268,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                 setShowDialog={setShowDeleteDialog}
                 onDelete={() => {}}
             />
+            {/* Removed context delete dialog */}
         </header>
     )
 }

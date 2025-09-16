@@ -149,7 +149,7 @@ const EditableTimestampField = ({
       <input
         type="text"
         placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
-        className="w-full border rounded p-1 text-sm font-mono"
+        className="w-full border rounded p-1 text-body font-mono"
         {...inputProps}
         value={draft}
         disabled
@@ -158,7 +158,7 @@ const EditableTimestampField = ({
   : <input
       type="text"
       placeholder="e.g., YYYY-MM-DDTHH:mm:ssZ or RFC2822"
-      className="w-full border rounded p-1 text-sm font-mono bg-input text-foreground"
+      className="w-full border rounded p-1 text-body font-mono bg-input text-foreground"
       {...inputProps}
       value={draft}
     />
@@ -217,7 +217,7 @@ export default function TimestampView({
                     {!nested &&
                     <div className="flex items-center gap-1 mb-1">
                         <RowBadge rowNumbers={group.rows} mode="none" />
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-caption text-muted-foreground">
                             {group.rows.length > 1 ? `(${group.rows.length} logs)` : ""}
                         </span>
                     </div>}
@@ -252,7 +252,7 @@ export default function TimestampView({
       <div className="space-y-4">
         {!versionEmpty && (
           <div className="space-y-2">
-            <p className="font-semibold text-sm">Version</p>
+            <p className="text-title">Version</p>
             {baseVer ? (
               <div className="flex relative p-2 border rounded group">
                 <div>
@@ -270,19 +270,19 @@ export default function TimestampView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
 
         <div className="space-y-2">
-          {!versionEmpty && <p className="font-semibold text-sm">Value</p>}
+          {!versionEmpty && <p className="text-title">Value</p>}
           <div className="flex border rounded p-2 relative group">
             <div>
               {displayMode === "markdown" ? (
                 <MarkdownRenderer>{formatHumanReadable(baseStr)}</MarkdownRenderer>
               ) : (
-                <p className="text-sm whitespace-pre-wrap">{formatHumanReadable(baseStr)}</p>
+                <p className="text-body whitespace-pre-wrap">{formatHumanReadable(baseStr)}</p>
               )}
             </div>
             <CopyButton
@@ -322,7 +322,7 @@ export default function TimestampView({
             <div key={idx} className="p-3 space-y-4">
               {!versionEmpty && (
                 <div>
-                  <p className="font-semibold text-sm mb-4">Version</p>
+                  <p className="text-title mb-4">Version</p>
                   <div className="space-y-2">
                     {verGroups.map((vg, j) => (
                       <div key={j} className="border rounded p-2 relative group">
@@ -336,7 +336,7 @@ export default function TimestampView({
                             )}
                           </div>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground pt-2">
+                          <p className="italic text-body text-muted-foreground pt-2">
                             No version
                           </p>
                         )}
@@ -347,7 +347,7 @@ export default function TimestampView({
               )}
 
               {!versionEmpty && (
-                <p className="font-semibold text-sm">Value</p>
+                <p className="text-title">Value</p>
               )}
               <div className="relative border rounded p-2 group">
                 <RowBadge rowNumbers={rowNumbers} mode="none" />
@@ -356,7 +356,7 @@ export default function TimestampView({
                   content={tsVal}
                   copyMessage="Copied timestamp!"
                 />
-                <p className="text-sm mt-1 mb-1">{formatHumanReadable(tsVal)}</p>
+                <p className="text-body mt-1 mb-1">{formatHumanReadable(tsVal)}</p>
               </div>
             </div>
           );
@@ -398,7 +398,7 @@ export default function TimestampView({
             {/* Param versions if not empty */}
             {!versionEmpty && (
               <div className="space-y-2">
-                <p className="font-semibold text-sm">Version</p>
+                <p className="text-title">Version</p>
                 {verGroups.map((vg, j) => (
                     <div key={j} className="border rounded p-2 relative group">
                       <RowBadge rowNumbers={vg.rows} mode="none" />
@@ -411,7 +411,7 @@ export default function TimestampView({
                           )}
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground pt-2">
+                        <p className="italic text-body text-muted-foreground pt-2">
                           No version
                         </p>
                       )}
@@ -422,13 +422,13 @@ export default function TimestampView({
 
             <div className="flex flex-col gap-2">
               {!versionEmpty && (
-                <p className="font-semibold text-sm">Value</p>
+                <p className="text-title">Value</p>
               )}
               <div className="flex items-center gap-2">
                 {/* Base block */}
                 <div className="relative border p-2 rounded group">
                   <RowBadge rowNumbers={[baseLogIndex]} mode="none" />
-                  <p className="mt-4 text-sm">{formatHumanReadable(baseStr)}</p>
+                  <p className="mt-4 text-body">{formatHumanReadable(baseStr)}</p>
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={baseStr}
@@ -442,7 +442,7 @@ export default function TimestampView({
                 {/* Comparable block */}
                 <div className="relative border p-2 rounded group">
                   <RowBadge rowNumbers={rowNumbers} mode="none" />
-                  <p className="mt-4 text-sm">{formatHumanReadable(compStr)}</p>
+                  <p className="mt-4 text-body">{formatHumanReadable(compStr)}</p>
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={compStr}
@@ -455,8 +455,8 @@ export default function TimestampView({
 
                 {/* Difference block */}
                 <div className="relative border p-2 rounded min-w-24 group">
-                  <p className="font-semibold text-sm">Diff</p>
-                  <p className="mt-4 text-sm">{diff}</p>
+                  <p className="text-title">Diff</p>
+                  <p className="mt-4 text-body">{diff}</p>
                   <CopyButton
                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     content={diff}

@@ -310,7 +310,7 @@ const ProjectButtons = ({
                                                 onKeyDown={(e) => e.key === "Enter" && handleRenameProject()}
                                                 placeholder="Enter new project name"
                                             />
-                                            {renameError && <p className="text-xs text-destructive">{renameError}</p>}
+                                            {renameError && <p className="text-caption text-destructive">{renameError}</p>}
                                         </div>
                                     }
                                     footer={

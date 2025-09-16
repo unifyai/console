@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { ReactNode, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/UI/dialog";
 import { Pipette, Plus, RotateCcw } from "lucide-react";
@@ -195,9 +196,12 @@ const ColorPicker: React.FC<TColorPicker> = ({
     return (
       <Dialog>
         <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent className="w-fit max-w-none">
-          <ColorPickerContent />
-        </DialogContent>
+        {typeof window !== 'undefined' && createPortal(
+          <DialogContent className="w-fit max-w-none">
+            <ColorPickerContent />
+          </DialogContent>,
+          document.body
+        )}
       </Dialog>
     );
   }

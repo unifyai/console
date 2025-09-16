@@ -81,7 +81,7 @@ function CodeBlock({
   const isDark = theme === "dark";
   return (
     <code
-      className={className}
+      className={(className ? className + " " : "") + "font-mono"}
       style={{
         display: "inline",
         backgroundColor: isDark ? "rgba(47, 49, 54, 0.6)" : "rgba(240, 240, 240, 0.7)",
@@ -89,7 +89,6 @@ function CodeBlock({
         padding: "0.2em 0.4em",
         borderRadius: "3px",
         fontSize: "85%",
-        fontFamily: "\"Fira Code\", \"Fira Mono\", Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
         whiteSpace: "pre-wrap",
         border: isDark ? "1px solid var(--border)" : "none",
       }}

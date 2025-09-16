@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Balance from "./Balance";
 import AutomaticRefill from "./Refill";
 import TaxClassification from "./TaxClassification";
+import Subscriptions from "./Subscriptions";
 import { Separator } from "../../UI/separator";
 import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
@@ -127,8 +128,8 @@ const Main = () => {
   return (
     <div className="space-y-6 p-8 w-fit">
       <div>
-        <h1 className="text-4xl font-bold text-foreground">Billing</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-h1 text-foreground">Billing</h1>
+        <p className="text-subtitle">
           Manage your credits balance and payment preferences.
         </p>
       </div>
@@ -154,6 +155,10 @@ const Main = () => {
         </div>
       ) : (
         <>
+
+          <Subscriptions/>          
+          
+          <Separator/>
           {billingEligibility && !billingEligibility.can_enable_monthly_billing ? (
             <Alert variant="default">
               <AlertCircle className="h-4 w-4" />
@@ -175,6 +180,7 @@ const Main = () => {
               <AutomaticRefill />
             </>
           )}
+          
         </>
       )}
     </div>

@@ -98,7 +98,7 @@ const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl">Account Balance</CardTitle>
+          <CardTitle className="text-h3">Account Balance</CardTitle>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -119,7 +119,7 @@ const Balance = ({ billingEligibility, autoRechargeEnabled }: BalanceProps) => {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <CardDescription className="text-xl">
+        <CardDescription className="text-body">
           {loading || isRefreshing ? (
             "Loading balance..."
           ) : (

@@ -96,7 +96,10 @@ export function buildProjectStateForStore(
     activeProjectId: projectId,
     projectsById: {
       [String(projectId)]: project
-    }
+    },
+    // Seed contexts slice with project contexts and default (no default chosen yet)
+    projectContexts: { [String(projectId)]: (contexts as Context[]).map(c => c.name) },
+    projectDefaultContext: { [String(projectId)]: null },
   };
 }
 

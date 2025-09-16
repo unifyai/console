@@ -64,7 +64,7 @@ function renderMenuItem(item: NavItem, isActive: boolean, isSubItem: boolean = f
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="ml-2 group-data-[collapsible=icon]:hidden">
+          <span className="ml-2 group-data-[collapsible=icon]:hidden select-none">
             {item.title}
           </span>
         </Link>
@@ -111,7 +111,7 @@ function renderCollapsibleMenuItemHeader(
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <span className="ml-2 group-data-[collapsible=icon]:hidden">
+            <span className="ml-2 group-data-[collapsible=icon]:hidden select-none">
               {item.title}
             </span>
           </Link>
@@ -203,7 +203,7 @@ export default function NavMenu() {
   }, []); 
 
   const navItemsFromList = NavListSource();
-  const teamItem = navItemsFromList.find(item => item.title === "Team");
+  const assistantsItem = navItemsFromList.find(item => item.title === "Assistants");
   const interfacesMainItem = navItemsFromList.find(item => item.title === "Interfaces");
   const billingItem = navItemsFromList.find(item => item.title === "Billing");
 
@@ -363,7 +363,7 @@ export default function NavMenu() {
                       isDragging ? "bg-transparent text-primary" 
                       : isProjectActive ? "text-primary-foreground" : ""
                     }`} />}
-                    <span className={`ml-2 group-data-[collapsible=icon]:hidden truncate ${
+                    <span className={`ml-2 group-data-[collapsible=icon]:hidden truncate select-none ${
                       isDragging ? "bg-transparent" 
                       : isProjectActive ? "text-primary-foreground" : ""
                     }`}>
@@ -412,7 +412,7 @@ export default function NavMenu() {
 
       <SidebarContent className="list-none flex flex-col h-full mt-2">
         <div className="flex-grow px-0.5">
-          {teamItem && renderMenuItem(teamItem, isActive(teamItem))}
+          {assistantsItem && renderMenuItem(assistantsItem, isActive(assistantsItem))}
           
           {interfacesMainItem && (
             <>

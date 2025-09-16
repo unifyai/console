@@ -67,7 +67,7 @@ const DefaultProject = ({
     const {
         code: demoCode,
         gif: demoGif,
-        link: demoLink,
+        link: externalLink,
         description: demoDescription,
         derived_columns: demoDerivedColumns,
         interface: demoInterface,
@@ -195,7 +195,7 @@ const DefaultProject = ({
                                                 node={node}
                                                 nodeName={name}
                                                 isTopLevel={true}
-                                                showRoot={false}
+                                                selectableNodes={Object.keys(demos)}
                                                 prefix={undefined}
                                                 attr={demo || undefined}
                                                 setter={(d: string) => setDemo(d)}
@@ -209,7 +209,7 @@ const DefaultProject = ({
                                 <Badge variant="primary">{demo.replaceAll("/", " / ")}</Badge>
                             </div>}
                         </div>
-                        <div className="text-sm font-semibold w-[600px]">
+                        <div className="text-body text-strong w-[600px]">
                             {demoDescription}
                         </div>
                         <div className="flex flex-col gap-1 border p-1 rounded-lg">
@@ -230,7 +230,7 @@ const DefaultProject = ({
                         <CodeBlock
                             code={demoCode}
                             language="python"
-                            demoLink={demoLink}
+                            externalLink={externalLink}
                             pending={isPending}
                             create={create}
                             onRun={(_: string) => storeDemo()}

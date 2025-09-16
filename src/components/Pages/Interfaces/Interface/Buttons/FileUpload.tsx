@@ -481,10 +481,10 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                 <input {...getInputProps()} disabled={isUploading} />
                                 <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
                                     <Upload className="size-10 text-muted-foreground" aria-hidden="true" />
-                                    <p className="font-medium text-muted-foreground">
+                                    <p className="text-strong text-muted-foreground">
                                         {isDragActive ? "Drop the file here" : "Drag 'n' drop a file here, or click to select"}
                                     </p>
-                                    <div className="flex flex-col gap-1 text-sm text-muted-foreground/70 justify-start">
+                                    <div className="flex flex-col gap-1 text-body text-muted-foreground/70 justify-start">
                                         <span>Supported:</span>
                                         <ul className="ml-2"> 
                                             <li>-.csv, with column names listed on the first line</li>
@@ -502,7 +502,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                 {/* File Info Bar */}
                                 <div className="flex items-center gap-2 border p-2 rounded-md bg-muted/50">
                                     <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                    <span className="text-sm font-medium truncate flex-1" title={file.name}>{file.name}</span>
+                                    <span className="text-body text-strong truncate flex-1" title={file.name}>{file.name}</span>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -519,18 +519,18 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                 <div className="flex gap-4 flex-1 overflow-hidden">
                                     {/* Column Switches */}
                                     <div className="flex flex-col gap-3 border rounded-md p-3 overflow-y-auto max-w-[220px]"> {/* Increased width slightly */}
-                                        <p className="font-semibold text-sm mb-2">Map Columns</p>
+                                        <p className="text-title mb-2">Map Columns</p>
                                         {parsedData.headers.map(header => (
                                             <div key={header} className="flex items-center justify-between gap-2">
-                                                <Label htmlFor={`switch-${header}`} className="text-sm truncate flex-1 cursor-pointer" title={header}>
+                                                <Label htmlFor={`switch-${header}`} className="text-body truncate flex-1 cursor-pointer" title={header}>
                                                     {header}
                                                 </Label>
                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                     <Label
                                                         htmlFor={`switch-${header}`}
                                                         className={cn(
-                                                            "text-xs cursor-pointer",
-                                                            columnTypes[header] === 'param' ? 'text-primary font-medium' : 'text-muted-foreground'
+                                                            "text-caption cursor-pointer",
+                                                            columnTypes[header] === 'param' ? 'text-primary text-strong' : 'text-muted-foreground'
                                                         )}
                                                     >
                                                         Param
@@ -545,9 +545,9 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                                     <Label
                                                         htmlFor={`switch-${header}`}
                                                         className={cn(
-                                                             "text-xs cursor-pointer",
-                                                             columnTypes[header] === 'entry' ? 'text-primary font-medium' : 'text-muted-foreground'
-                                                        )}
+                                                             "text-caption cursor-pointer",
+                                                             columnTypes[header] === 'entry' ? 'text-primary text-strong' : 'text-muted-foreground'
+                                                         )}
                                                         >
                                                          Entry
                                                      </Label>
@@ -558,12 +558,12 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
 
                                     {/* Table Preview */}
                                     <div className="flex-1 border rounded-md overflow-hidden flex flex-col">
-                                        <p className="font-semibold text-sm p-3 border-b">
+                                        <p className="text-title p-3 border-b">
                                             File Preview (up to {MAX_PREVIEW_ROWS} rows shown)
                                         </p>
                                         {/* Scrollable area for table, limiting visible height */}
                                         <ScrollArea className="flex-1 h-[300px]"> {/* Adjust h-[...] as needed for ~5 rows visibility */}
-                                            <Table className="text-xs relative"> {/* Add relative for sticky header */}
+                                            <Table className="text-caption relative"> {/* Add relative for sticky header */}
                                                 {/* Two-level table header */}
                                                 <TableHeader className="sticky top-0 bg-background z-10">
                                                      {/* Parent Headers */}
@@ -630,7 +630,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                             <ScrollBar orientation="horizontal"/>
                                         </ScrollArea>
                                         {parsedData.rows.length > MAX_PREVIEW_ROWS && (
-                                            <p className="text-xs text-muted-foreground p-2 border-t text-center">
+                                            <p className="text-caption text-muted-foreground p-2 border-t text-center">
                                                 Showing first {MAX_PREVIEW_ROWS} of {parsedData.rows.length} total rows.
                                             </p>
                                         )}
@@ -644,7 +644,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                     {error && (
                         <div className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-md flex items-center gap-2 mb-4"> {/* Added mb-4 */}
                             <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                            <p className="text-sm flex-1">{error}</p>
+                            <p className="text-body flex-1">{error}</p>
                             <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto flex-shrink-0" onClick={() => setError(null)}>
                                 <X className="h-4 w-4" />
                             </Button>
@@ -682,11 +682,11 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                         <CommandList>
                                             <CommandEmpty>
                                                 {contextInputValue.trim() ? (
-                                                    <div className="py-6 text-center text-sm">
+                                                    <div className="py-6 text-center text-body">
                                                     {`No context found. Type to create "${contextInputValue}".`}
                                                     </div>
                                                 ) : (
-                                                    <div className="py-6 text-center text-sm">
+                                                    <div className="py-6 text-center text-body">
                                                     No contexts found.
                                                     </div>
                                                 )}
@@ -715,7 +715,7 @@ export function FileUpload({ project, logsActions, contexts, customOpen, setCust
                                     </Command>
                                 </PopoverContent>
                             </Popover>
-                            {!project && <p className="text-xs text-destructive mt-1">Select a project first.</p>}
+                            {!project && <p className="text-caption text-destructive mt-1">Select a project first.</p>}
                         </div>
                     </div>
                 </>

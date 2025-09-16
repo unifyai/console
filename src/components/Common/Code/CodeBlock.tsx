@@ -12,7 +12,7 @@ const CodeBlock = ({
     code,
     output,
     language,
-    demoLink,
+    externalLink,
     pending,
     complete,
     create,
@@ -20,12 +20,11 @@ const CodeBlock = ({
     readOnly,
     setTempCode,
     onRun,
-    onSave,
 }: {
     code: string;
     output?: string;
     language: string | undefined;
-    demoLink?: string;
+    externalLink?: string;
     pending: boolean;
     complete?: boolean;
     create: string | null;
@@ -33,47 +32,25 @@ const CodeBlock = ({
     readOnly?: boolean;
     setTempCode?: (code: string) => void;
     onRun: (code: string) => void;
-    onSave?: (value: string | undefined) => void;
 }) => {
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                if (!readOnly && onSave) {
-                    onSave(code);
-                }
-            }
-        };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [code, readOnly, onSave]);
-
-    return (<>
-        <div className="absolute z-10 top-2 right-3 py-1 rounded-md flex gap-1 text-[var(--white-smoke)]">
-            {demoLink && <Link href={`https://docs.unify.ai/${demoLink}`} target="_blank">
-                <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
-            </Link>}
-            <ActionButton
-                icon={(pending || create != null)
-                    ? <Loader2 className="animate-spin" />
-                    : <Play />
-                }
-                tooltip={"Run demo"}
-                onClick={() => onRun(code)}
-                disabled={disabled || pending}
-            />
-            {!readOnly && <ActionButton
-                icon={<Save />}
-                tooltip={"Save"}
-                onClick={() => {
-                    if (onSave != undefined)
-                        onSave(code);
-                }}
-            />}
-            <CopyButton content={code} copyMessage="Copied!" />
-        </div>
-        <div className={`h-full w-full ${!readOnly ? "p-4" : ""}`}>
+    return (
+        <div className={`relative h-full w-full flex gap-3`}>
+            <div className="absolute top-2 right-5 z-10">
+                {externalLink && <Link href={`https://docs.unify.ai/${externalLink}`} target="_blank">
+                    <ActionButton icon={<ExternalLink />} tooltip={"Learn more"} />
+                </Link>}
+                <ActionButton
+                    icon={(pending || create != null)
+                        ? <Loader2 className="animate-spin" />
+                        : <Play />
+                    }
+                    tooltip={"Run"}
+                    onClick={() => onRun(code)}
+                    disabled={disabled || pending}
+                />
+                <CopyButton content={code} copyMessage="Copied!" />
+            </div>
             {(readOnly || language != "python") ? <Editor
                 options={{
                     minimap: { enabled: false },
@@ -166,7 +143,7 @@ const CodeBlock = ({
                 </div>}
             />}
         </div>
-    </>);
+    );
 }
 
 export default CodeBlock;

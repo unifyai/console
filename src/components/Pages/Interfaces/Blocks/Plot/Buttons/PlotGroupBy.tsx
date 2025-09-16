@@ -80,7 +80,7 @@ const PlotGroupBy = ({
                 <AccordionItem key={table} value={`group-${table}`} className="border-b-0">
                     {/* Table Name Trigger */}
                     <AccordionTrigger
-                        className="text-md font-semibold text-muted-foreground hover:no-underline justify-start py-1 px-1"
+                        className="text-label text-muted-foreground hover:no-underline justify-start py-1 px-1"
                         disabled={loading || !interactive}
                     >
                     {table}

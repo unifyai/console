@@ -5,7 +5,7 @@ import { Switch } from "@/components/UI/switch";
 import { TbEaseInOutControlPoints } from "react-icons/tb";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 
-const triggerStyles = "flex flex-1 items-center gap-2 py-1 text-md font-medium hover:underline rounded transition-colors cursor-pointer";
+const triggerStyles = "flex flex-1 items-center gap-2 py-1 text-label hover:underline rounded transition-colors cursor-pointer";
 
 const PlotRegression = ({
   interactive = true,

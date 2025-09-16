@@ -8,8 +8,7 @@ import { useTileMeta } from "../useTileMeta";
 import { usePatchSpecializedTileQueryOptimistic } from "@/hooks/Interfaces/Query/usePatchSpecializedTileQueryOptimistic";
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { usePatchSpecializedTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { showErrorToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showErrorToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 /**
  * Debug flag for state syncing logging
@@ -130,7 +129,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update - plotTypeMutation uses simple interface
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => plotTypeMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -139,9 +138,9 @@ export function usePlotTileSync(
           actions: granularTileActions,
         }),
         {
-          loading: "Updating plot type...",
-          success: "Plot type updated!",
-          error: `Failed to set plot type for ${tileName}`,
+          loadingMessage: "Updating plot type...",
+          successMessage: "Plot type updated!",
+          errorMessage: `Failed to set plot type for ${tileName}`,
         }
       );
     } catch (error) {
@@ -216,7 +215,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => xAxisMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -235,9 +234,9 @@ export function usePlotTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Updating X-axis...",
-          success: "X-axis updated!",
-          error: `Failed to set X-axis for ${tileName}`,
+          loadingMessage: "Updating X-axis...",
+          successMessage: "X-axis updated!",
+          errorMessage: `Failed to set X-axis for ${tileName}`,
         }
       );
     } catch (error) {
@@ -269,7 +268,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => yAxisMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -288,9 +287,9 @@ export function usePlotTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Updating Y-axis...",
-          success: "Y-axis updated!",
-          error: `Failed to set Y-axis for ${tileName}`,
+          loadingMessage: "Updating Y-axis...",
+          successMessage: "Y-axis updated!",
+          errorMessage: `Failed to set Y-axis for ${tileName}`,
         }
       );
     } catch (error) {
@@ -322,7 +321,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => plotGroupByMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -341,9 +340,9 @@ export function usePlotTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Updating group by...",
-          success: "Group by updated!",
-          error: `Failed to set group-by for ${tileName}`,
+          loadingMessage: "Updating group by...",
+          successMessage: "Group by updated!",
+          errorMessage: `Failed to set group-by for ${tileName}`,
         }
       );
     } catch (error) {
@@ -372,7 +371,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update - plotGroupByColorsMutation uses simple interface
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => plotGroupByColorsMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -381,9 +380,9 @@ export function usePlotTileSync(
           actions: granularTileActions,
         }),
         {
-          loading: "Updating colors...",
-          success: "Colors updated!",
-          error: `Failed to set group-by colors for ${tileName}`,
+          loadingMessage: "Updating colors...",
+          successMessage: "Colors updated!",
+          errorMessage: `Failed to set group-by colors for ${tileName}`,
         }
       );
     } catch (error) {
@@ -415,7 +414,7 @@ export function usePlotTileSync(
 
     // 2) Optimistic server update
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         () => plotAggregateMutation.mutateAsync({
           tab_id: tabId,
           name: tileName,
@@ -434,9 +433,9 @@ export function usePlotTileSync(
           fieldsActions: fieldsActions as FieldsActions,
         }),
         {
-          loading: "Updating aggregate...",
-          success: "Aggregate updated!",
-          error: `Failed to set aggregate property for ${tileName}`,
+          loadingMessage: "Updating aggregate...",
+          successMessage: "Aggregate updated!",
+          errorMessage: `Failed to set aggregate property for ${tileName}`,
         }
       );
     } catch (error) {

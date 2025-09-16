@@ -58,8 +58,17 @@ import SelectionPanel from "@/components/Pages/Interfaces/Blocks/Selection/Selec
 import { showErrorToast } from "@/components/Common/Toasts/notifications";
 
 import { useTile, useTileItem } from "@/contexts/hooks/tile";
+import { useTab } from "@/contexts/hooks/tab";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { maybeFlattenGroupedLogs } from "@/utils/interfaces/table/grouping";
 import { useTableDataQueryWithTracking } from "@/hooks/Interfaces/Query/useTableDataQuery";
+
+// Focus pane and tab UI hooks (must be before any early returns)
+const useFocusHelpers = (tabId: string) => {
+  const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
+  const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+  return { tabUIState, tabUIActions, setFocusPaneOpen };
+};
 
 /*******************************************************************************
  * Main "Selection" Component
@@ -129,6 +138,8 @@ export default function Selection({
   const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
 
   const sortedLogs = useMemo(() => [...logs], [logs]);
+
+  const { tabUIState, tabUIActions, setFocusPaneOpen } = useFocusHelpers(tabId);
 
   const selectedCells = useMemo(() => {
     const arr = selection_ ? selection_.split(",") : [];
@@ -350,6 +361,12 @@ export default function Selection({
       }
 
       try {
+        const entriesKeys = Object.keys(entriesUpdate || {});
+        const paramsKeys = Object.keys(paramsUpdate || {});
+        if ((!entriesKeys.length) && (!paramsKeys.length)) return;
+      } catch (_) {}
+
+      try {
         const response = await logsActions.update(
           projectId,
           context,
@@ -391,6 +408,7 @@ export default function Selection({
   /*******************************************************************************
    * Main component render
    ******************************************************************************/
+  // hooks already retrieved above
   return (
     <div className="flex flex-col w-full h-full overflow-hidden bg-background rounded-md">
       {/* Main content: multiple panels */}
@@ -440,6 +458,9 @@ export default function Selection({
                 logsActions={logsActions}
                 updateLogsByRowIds={updateLogsByRowIds}
                 context={context}
+                tabUIState={tabUIState}
+                tabUIActions={tabUIActions}
+                setFocusPaneOpen={setFocusPaneOpen}
               />
             </React.Fragment>
           );

@@ -17,13 +17,13 @@ export function LabeledCheckbox ({label, description, id, checked, onCheckedChan
       <div className="grid leading-none">
         <label
           htmlFor="terms1"
-          className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${descriptionOnHover ? 'peer' : ''}`}
+          className={`text-label leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${descriptionOnHover ? 'peer' : ''}`}
         >
           {label}
         </label>
         {description && (
           <div className={`overflow-hidden transition-all duration-300 ${descriptionOnHover ? 'max-h-0 peer-hover:max-h-[100px]' : 'max-h-[100px]'}`}>
-            <p className="text-sm text-muted-foreground pt-1">
+            <p className="text-caption text-muted-foreground pt-1">
               {description}
             </p>
           </div>

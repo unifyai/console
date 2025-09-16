@@ -966,5 +966,53 @@ export default [
     "gender": "male",
     "language": "hi",
     "provider": "elevenlabs",
+  },
+  {
+    "voice_id": "shimmer",
+    "name": "Multilingual Female Professional 1", // Original: Shimmer
+    "description": "A young, female voice that sounds professional.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "marin",
+    "name": "Multilingual Female Dynamic 1", // Original: Marin
+    "description": "A young, female dynamic voice.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "coral",
+    "name": "Multilingual Female Dynamic 2", // Original: Coral
+    "description": "A female voice beaming with enthusiasm.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "cedar",
+    "name": "Multilingual Male Neutral 1", // Original: Cedar
+    "description": "A young, neutral male voice.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "ash",
+    "name": "Multilingual Male Grave 1", // Original: Ash
+    "description": "A male voice with a heavy grain.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "alloy",
+    "name": "Multilingual Female Smooth 1", // Original: Alloy
+    "description": "A confident-sounding mature female voice.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
   }
 ]

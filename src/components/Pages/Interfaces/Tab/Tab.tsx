@@ -10,6 +10,7 @@ import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
 import { Tile } from "@/contexts/slices/selectors/tile";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 // Import the new dependency management system
 import { useDependencyAwareSortedTilesForTab } from "@/utils/interfaces/tileDependencies/dependencyManager";
@@ -56,6 +57,9 @@ const Tab = ({
 
   const { data: tabDataState, dataActions: tabDataActions } = useTabData(tabId, interfaceId);
   const { ui: tabUIState, uiActions: tabUIActions } = useTabUI(tabId, interfaceId);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
@@ -122,7 +126,7 @@ const Tab = ({
     }
   };
 
-  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting || anyTileLoading;
+  const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting;
 
   // Build the list of tiles to render using the new dependency-aware system
   const tilesToRender = useMemo(() => {
@@ -174,7 +178,13 @@ const Tab = ({
     fileActions,
     projectsActions,
   ]);
-  
+
+  // ------------------------------------------------------------------
+  // Compute tab-level colour override (if any)
+  // ------------------------------------------------------------------
+  const tabColor = tabUIState?.color ?? null;
+  const tabStyle = tabColor ? ({ '--primary': tabColor, '--accent': tabColor } as React.CSSProperties) : undefined;
+
   // Show loading state if tab data is not yet available
   if (!tabDataState || !tabUIState) {
     return (
@@ -187,47 +197,50 @@ const Tab = ({
   const newCols = { lg: 12 * widthFactor, md: 12 * widthFactor, sm: 12 * widthFactor, xs: 12 * widthFactor, xxs: 12 * widthFactor };
 
   return (
-    <ResponsiveReactGridLayout
+    <div style={tabStyle} data-tab-color>
+      <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
-        className="layout interactive-grid flex-1 mx-1"
+        className="layout interactive-grid flex-1 mx-1 w-full"
+        style={{ width: '100%', minWidth: 0 }}
         cols={newCols}
         rowHeight={105 / heightFactor}
         margin={[0, 0]}
         containerPadding={[0, 0]}
-        isDraggable={tabUIState?.edit && !dragResizeDisabled}
-        isResizable={tabUIState?.edit && !dragResizeDisabled}
+        isDraggable={isEditMode && !dragResizeDisabled}
+        isResizable={isEditMode && !dragResizeDisabled}
         draggableHandle=".drag"
         resizeHandles={["e", "w", "s", "n", "se", "sw", "ne", "nw"]}
         compactType={null}
         preventCollision={true}
-    >
-      {tilesToRender.map(({ tileId, tile, element }) => {
-        if (!tile.visible) return null;
+      >
+        {tilesToRender.map(({ tileId, tile, element }) => {
+          if (!tile.visible) return null;
 
-        return (
-          <div
-            key={tile.id}
-            data-grid={{
-              i: tile.id,
-              x: tile.position.x * widthFactor,
-              y: tile.position.y * heightFactor,
-              w: tile.position.width * widthFactor,
-              h: tile.position.height * heightFactor,
-              minW: typeof tile.minW === 'number' ? tile.minW * widthFactor : undefined,
-              minH: typeof tile.minH === 'number' ? tile.minH * heightFactor : undefined,
-              moved: tile.moved,
-              static: tile.static,
-            }}
-            className="relative group"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Dependency-aware tile renderer */}
-            {element}
+          return (
+            <div
+              key={tile.id}
+              data-grid={{
+                i: tile.id,
+                x: tile.position.x * widthFactor,
+                y: tile.position.y * heightFactor,
+                w: tile.position.width * widthFactor,
+                h: tile.position.height * heightFactor,
+                minW: typeof tile.minW === 'number' ? tile.minW * widthFactor : undefined,
+                minH: typeof tile.minH === 'number' ? tile.minH * heightFactor : undefined,
+                moved: tile.moved,
+                static: tile.static,
+              }}
+              className="relative group"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Dependency-aware tile renderer */}
+              {element}
 
-          </div>
-        );
-      })}
-    </ResponsiveReactGridLayout>
+            </div>
+          );
+        })}
+      </ResponsiveReactGridLayout>
+    </div>
   );
 };
 

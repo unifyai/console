@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { DoublePanels } from "../../../../Common/Body/DoublePanels";
+import { useMemo, useState } from "react";
 import { ScrollArea } from "../../../../UI/scroll-area";
 import ActionButton from "../../../../Common/Buttons/Action";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
@@ -15,6 +14,7 @@ import { useTab } from "@/contexts/hooks/tab";
 import { useStoreApiContext, useStoreContext } from "@/contexts/providers/StoreProvider";
 import { selectTilesForTab } from "@/contexts/selectors/tile";
 import { Tile } from "@/contexts/slices/selectors/tile";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "../../../../UI/resizable";
 
 const FocusDialog = ({
     tabIdOrName,
@@ -43,34 +43,90 @@ const FocusDialog = ({
     projectsActions: ProjectsActions,
     fileActions: FileActions,
 }) => {
-    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions, dataActions: tabDataActions } = useTab(tabIdOrName, interfaceId);
+    const { meta: tabMetaState, ui: tabUIState, uiActions: tabUIActions } = useTab(tabIdOrName, interfaceId);
     const tabId = tabMetaState?.id || "";
 
     const storeApi = useStoreApiContext();
     const state = storeApi.getState();
     const tiles = selectTilesForTab(state, tabId);
 
-    const safeFocusedTileNames = useMemo(() => 
-        tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames) : [undefined, undefined], 
-        [tabUIState?.focusedTileNames]
-    );
+    const focusedTileNames = tabUIState?.focusedTileNames ? Array.from(tabUIState.focusedTileNames) : [undefined, undefined];
+    
+    // Initialize focusedTiles based on focusedTileNames
+    const initialFocusedTiles = useMemo(() => {
+        const tiles_: Array<Tile | undefined> = [];
+        for (const tileName of focusedTileNames) {
+            if (tileName) {
+                const tile = tiles.find(t => t.name === tileName);
+                if (tile) {
+                    tiles_.push(tile);
+                }
+            }
+        }
+        // Only set one tile if that's what was requested
+        if (tiles_.length === 0 && focusedTileNames[0]) {
+            const firstTile = tiles.find(t => t.name === focusedTileNames[0]);
+            if (firstTile) {
+                return [firstTile];
+            }
+        }
+        return tiles_.length > 0 ? tiles_ : [];
+    }, [focusedTileNames.join(','), tiles]);
+    
+    const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTiles);
 
     const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
 
-    const focusedTiles: [Tile | undefined, Tile | undefined] = safeFocusedTileNames.map(
-        focusedTileName => {
-            const index = tiles.findIndex(tile => tile.name === focusedTileName);
-            const tile = index !== -1 ? tiles[index] : undefined;
-            return index !== -1 ? tile : undefined;
+    const handleAddSplit = () => {
+        // Maximum panes = min(total tiles, UI limit of 4)
+        const maxPanes = Math.min(tiles.length, 4);
+
+        // Stop if we already reached the maximum allowed panes.
+        if (focusedTiles.length >= maxPanes) return;
+
+        // Also stop if there are no unselected tiles left.
+        const remainingTiles = tiles.filter(t => !focusedTiles.map(ft => ft?.name).includes(t.name));
+        if (remainingTiles.length === 0) return;
+
+        setFocusedTiles([...focusedTiles, undefined]);
+    };
+
+    const handleRemoveTile = (idx: number) => {
+        const newTiles = [...focusedTiles];
+        newTiles.splice(idx, 1);
+        setFocusedTiles(newTiles);
+        if (idx === 0) {
+            // keep global state in sync for highlighting logic
+            tabUIActions?.setFocusedTileNames([undefined, undefined]);
         }
-    ) as [Tile | undefined, Tile | undefined];
+        if (newTiles.length === 0) {
+            setFocusPaneOpen(false);
+        }
+    };
 
-    const focusedTilesToRender = focusedTiles.map((tile: Tile | undefined, idx: number) => {
-        if (!tile) return null;
+    const handleSelectTile = (tile: Tile, idx: number) => {
+        const newTiles = [...focusedTiles];
+        newTiles[idx] = tile;
+        setFocusedTiles(newTiles);
+        if (idx === 0) {
+            tabUIActions?.setFocusedTileNames([tile.name, undefined]);
+        }
+    };
 
-        return (
-            tile
-                ? <div className="h-full relative pt-2">
+    const availableTiles = tiles.filter(t => !focusedTiles.map(ft => ft?.name).includes(t.name));
+
+    const TileSlot = (tile: Tile | undefined, idx: number) => (
+        tile ? (
+            <div className="w-full h-full relative flex flex-col overflow-hidden">
+                <div className="absolute top-3 right-3 z-10">
+                    <ActionButton
+                        tooltip="Remove split"
+                        icon={<X />}
+                        variant="outline"
+                        onClick={() => handleRemoveTile(idx)}
+                    />
+                </div>
+                <div className="w-full h-full p-2 overflow-hidden relative isolate">
                     <TileCard
                         tileId={tile.id}
                         tabId={tabMetaState?.id || ""}
@@ -86,60 +142,125 @@ const FocusDialog = ({
                         fileActions={fileActions}
                         projectsActions={projectsActions}
                     />
-                    <div className={"w-full px-2 transition-all absolute -top-1 flex justify-between " + (tabUIState?.edit ? "h-28" : "h-10")}>
-                        <div>
-                            <Badge variant="primary">{tile.name}</Badge>
-                        </div>
-                        <div className="mb-auto">
-                            <ActionButton
-                                className="remove cursor-pointer hover:z-10"
-                                onClick={() => {
-                                    const newFocusedTileNames = [...safeFocusedTileNames];
-                                    newFocusedTileNames[idx] = undefined;
-                                    tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
-                                    if (newFocusedTileNames[0] == undefined && newFocusedTileNames[1] == undefined)
-                                        setFocusPaneOpen(false);
-                                }}
-                                icon={<X />}
-                                tooltip="Remove from focus pane"
-                                variant="outline"
-                            />
-                        </div>
-                    </div>
                 </div>
-                : <div className="h-full w-full flex justify-center items-center">
-                    <div className="w-fit">
-                        <BaseDropdown
-                            button={<ActionButton
-                                tooltip="Select tile"
-                                icon={<Plus />}
-                                variant="outline"
-                                size="default"
-                            />}
-                        >
-                            {tiles.filter(tile => !safeFocusedTileNames.includes(tile.name)).map((tile, idx_) => <DropdownMenuItem
-                                key={idx_}
-                                onSelect={() => {
-                                    const newFocusedTileNames = [...safeFocusedTileNames];
-                                    newFocusedTileNames[idx] = tile.name;
-                                    tabUIActions?.setFocusedTileNames(newFocusedTileNames as [string | undefined, string | undefined]);
-                                }}
-                                className="w-64 flex justify-between items-center"
-                            >
-                                    <span>{tile.name}</span>{tile.type ? icons[tile.type as keyof typeof icons] : ""}
-                            </DropdownMenuItem>)}
-                        </BaseDropdown>
-                    </div>
+            </div>
+        ) : (
+            <div className="h-full w-full flex items-center justify-center p-2 relative">
+                {/* Allow the user to remove an empty split */}
+                <div className="absolute top-3 right-3 z-10">
+                    <ActionButton
+                        tooltip="Remove split"
+                        icon={<X />}
+                        variant="outline"
+                        onClick={() => handleRemoveTile(idx)}
+                    />
                 </div>
+
+                {availableTiles.length > 0 ? (
+                    <BaseDropdown
+                        button={<ActionButton tooltip="Select tile" icon={<Plus />} variant="outline" size="default" />}
+                    >
+                        {availableTiles.map((t, i) => (
+                            <DropdownMenuItem key={i} onSelect={() => handleSelectTile(t, idx)} className="w-64 flex justify-between items-center">
+                                <span>{t.name}</span>{t.type ? icons[t.type as keyof typeof icons] : ""}
+                            </DropdownMenuItem>
+                        ))}
+                    </BaseDropdown>
+                ) : (
+                    <ActionButton
+                        tooltip="No tiles available"
+                        icon={<Plus />}
+                        variant="outline"
+                        size="default"
+                        disabled
+                    />
+                )}
+            </div>
+        )
+    );
+
+    const PanelContent = (tile: Tile | undefined, idx: number) => (
+        <div className="w-full h-full overflow-hidden animate-in fade-in-0 zoom-in-95 duration-300">
+            {TileSlot(tile, idx)}
+        </div>
+    );
+
+    const renderPanels = () => {
+        const count = focusedTiles.length;
+        if (count === 1) return (
+            <div className="w-full h-full overflow-hidden">
+                {PanelContent(focusedTiles[0], 0)}
+            </div>
         );
-    });
+        if (count === 2) return (
+            <ResizablePanelGroup direction="horizontal" className="w-full h-full gap-1 min-w-0 min-h-0">
+                <ResizablePanel minSize={20}>{PanelContent(focusedTiles[0], 0)}</ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel minSize={20}>{PanelContent(focusedTiles[1], 1)}</ResizablePanel>
+            </ResizablePanelGroup>
+        );
+        if (count === 3) return (
+            <ResizablePanelGroup direction="horizontal" className="w-full h-full gap-1 min-w-0 min-h-0">
+                <ResizablePanel minSize={20}>{PanelContent(focusedTiles[0], 0)}</ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel minSize={20}>
+                    <ResizablePanelGroup direction="vertical" className="h-full gap-1 min-w-0 min-h-0">
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[1], 1)}</ResizablePanel>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[2], 2)}</ResizablePanel>
+                    </ResizablePanelGroup>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        );
+        if (count >= 4) return (
+            <ResizablePanelGroup direction="vertical" className="w-full h-full gap-1 min-w-0 min-h-0">
+                <ResizablePanel minSize={20}>
+                    <ResizablePanelGroup direction="horizontal" className="h-full gap-1 min-w-0 min-h-0">
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[0], 0)}</ResizablePanel>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[1], 1)}</ResizablePanel>
+                    </ResizablePanelGroup>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel minSize={20}>
+                    <ResizablePanelGroup direction="horizontal" className="h-full gap-1 min-w-0 min-h-0">
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[2], 2)}</ResizablePanel>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel minSize={20}>{PanelContent(focusedTiles[3], 3)}</ResizablePanel>
+                    </ResizablePanelGroup>
+                </ResizablePanel>
+            </ResizablePanelGroup>
+        );
+        return null;
+    };
 
     return (
-        <DoublePanels
-            isLoading={false}
-            first={<ScrollArea className="h-full"><div className="p-2">{focusedTilesToRender[0]}</div></ScrollArea>}
-            second={<ScrollArea className="h-full"><div className="p-2">{focusedTilesToRender[1]}</div></ScrollArea>}
-        />
+        <div className="w-full h-full flex flex-col box-border">
+            {/* Toolbar */}
+            <div className="flex items-center gap-4 p-2 border-b bg-background/80">
+                <h2 className="text-title">Focus Mode</h2>
+                <ActionButton
+                    tooltip="Add split screen"
+                    icon={<Plus />}
+                    variant="outline"
+                    onClick={handleAddSplit}
+                    disabled={
+                        /* Disable when we've reached either the UI max (4) or the number of available tiles */
+                        focusedTiles.length >= Math.min(tiles.length, 4) || availableTiles.length === 0
+                    }
+                />
+                {/* <ActionButton
+                    tooltip="Close focus mode"
+                    icon={<X />}
+                    variant="ghost"
+                    onClick={() => setFocusPaneOpen(false)}
+                /> */}
+            </div>
+            {/* Content */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+                {renderPanels()}
+            </div>
+        </div>
     );
 };
 

@@ -33,16 +33,35 @@ export const createContext = async (apiKey: string) => {
     };
 };
 
-// delete context
+// delete context (supports nested names)
 export const deleteContext = async (apiKey: string) => {
     return async (project: string, context: string) => {
         "use server";
 
+        const encoded = encodeURIComponent(context);
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/context/${project}/${encodeURIComponent(context)}`,
+            `${process.env.NEXTAUTH_URL}/api/context/${project}/${encoded}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey }
+            }
+        );
+        return await response.json();
+    };
+};
+
+// rename context (supports nested names)
+export const renameContext = async (apiKey: string) => {
+    return async (project: string,  current_name: string, new_name: string) => {
+        "use server";
+
+        const encoded = encodeURIComponent(current_name);
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/context/${project}/${encoded}`,
+            {
+                method: "PATCH",
+                headers: { apiKey: apiKey },
+                body: JSON.stringify({ name: new_name })
             }
         );
         return await response.json();

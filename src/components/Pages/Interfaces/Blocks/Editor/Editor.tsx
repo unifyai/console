@@ -6,15 +6,19 @@ import { Input } from "@/components/UI/input";
 import { fileTypes } from "@/constants/logs";
 import { CodeActions, FileActions } from "@/types/interfaces/grid";
 import { useTabData } from "@/contexts/hooks/tab";
+import { useTileMeta } from "@/contexts/hooks/tile";
 import { useTiles } from "@/contexts/hooks";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import { useEditorTileSync } from "@/contexts/hooks/tile/sync";
 import { GranularTileActions, ProjectsActions, ContextActions, LogsActions, FieldsActions } from "@/types/interfaces/grid";
 import ActionButton from "@/components/Common/Buttons/Action";
 import FileDirectory from "@/components/Shared/Tree/Directory/FileDirectory";
-import { FilePlus, FolderPlus, Trash2, Plus } from "lucide-react";
+import { FilePlus, FolderPlus, Trash2, Plus, Save, Maximize2 } from "lucide-react";
 import { FileEntry } from "@/types/interfaces/grid";
 import EditableSecret from "@/components/Common/Code/EditableSecret";
+import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 const Editor = ({
     tileId,
@@ -52,9 +56,18 @@ const Editor = ({
         fieldsActions
     );
     const { data: tabData } = useTabData(tabId, interfaceId);
+    const { meta: tileMetaState } = useTileMeta(tileId, tabId);
     const tileIds = tabData?.tileIds;
     const tiles = useTiles(tileIds, ["type", "editorTile.file_name", "editorTile.file_type", "editorTile.content"]);
     const editorTiles = tiles.filter((tile) => tile.type == "Editor");
+    // Access tab state for focus pane button
+    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
+    const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+    const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
+
     // Maintain list of file entries (name + type). Content is fetched lazily on demand
     const [allFiles, setAllFiles] = useState<FileEntry[]>([]);
     const [loadingFiles, setLoadingFiles] = useState(false);
@@ -260,9 +273,24 @@ const Editor = ({
         await handleUpload({ [`.env`]: newContent });
     };
 
+    /* Handle saving */
+    const readOnly = false;
+    const onSave = async (value: string | undefined) => {
+        if (value !== undefined) {
+            const path = `${tempFileName}.${tempFileType}`;
+            if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
+                await handleRename(selectedPath, path, value);
+            }
+            editorTileActions?.setContent(value);
+            await handleUpload({ [path]: value });
+            setSelectedPath(path);
+            setSaved(true);
+        }
+    }
+
     return (
         <div className="w-full h-full flex flex-col">
-            <div className="flex flex-row items-center ml-4 text-sm gap-1">
+            <div className="flex flex-row items-center ml-4 my-2 text-body gap-1">
                 <Tooltip content="File Name" side="top">
                     <Input
                         value={tempFileName}
@@ -272,7 +300,7 @@ const Editor = ({
                             editorTileActions?.setFileName(e.target.value)
                         }}
                         placeholder="File Name"
-                        className="text-sm w-24"
+                        className="text-body w-24"
                     />
                 </Tooltip>
                 .
@@ -284,7 +312,7 @@ const Editor = ({
                         editorTileActions?.setFileType(e.target.value);
                     }}
                     placeholder="File Type"
-                    className="text-sm w-24"
+                    className="text-body w-24"
                     />
                 </Tooltip>
                 <div className="flex flex-row gap-1 mr-2">
@@ -397,9 +425,33 @@ const Editor = ({
                             }
                         }}
                     />
+                    <ActionButton
+                        icon={<Save size={16} />}
+                        variant="ghost"
+                        tooltip="Save To File"
+                        onClick={() => onSave(tempCode)}
+                    />
+                    {!isEditMode && !focusPaneOpen && (
+                        <ActionButton
+                            icon={<Maximize2 size={16} />}
+                            variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileMetaState?.name) ? "primary" : "outline"}
+                            tooltip="Open in focus pane"
+                            onClick={() => {
+                                const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+                                const tileName = tileMetaState?.name;
+                                if (tileName && !focusedTileNames.includes(tileName)) {
+                                  tabUIActions?.setFocusedTileNames([
+                                    tileName,
+                                    focusedTileNames[0] || focusedTileNames[1],
+                                  ] as [string | undefined, string | undefined]);
+                                }
+                                setFocusPaneOpen(true);
+                            }}
+                        />
+                    )}
                 </div>
-                {uploading && <div className="text-sm text-muted-foreground">Uploading...</div>}
-                {saved && <div className="text-primary text-sm font-semibold">File saved!</div>}
+                {uploading && <div className="text-body text-muted-foreground">Uploading...</div>}
+                {saved && <div className="text-primary text-body text-strong">File saved!</div>}
             </div>
             {tempFileType !== "env" ? (
             <CodeBlock
@@ -446,19 +498,7 @@ const Editor = ({
                         setOutput("Failed to run code");
                     }
                 }}
-                readOnly={false}
-                onSave={async (value: string | undefined) => {
-                    if (value !== undefined) {
-                        const path = `${tempFileName}.${tempFileType}`;
-                        if (selectedPath && allFiles.find((f) => f.name === selectedPath) && selectedPath !== path) {
-                            await handleRename(selectedPath, path, value);
-                        }
-                        editorTileActions?.setContent(value);
-                        await handleUpload({ [path]: value });
-                        setSelectedPath(path);
-                        setSaved(true);
-                    }
-                }}
+                readOnly={readOnly}
             />
             ) : (
               <div className="flex flex-col p-4 gap-2 overflow-auto">

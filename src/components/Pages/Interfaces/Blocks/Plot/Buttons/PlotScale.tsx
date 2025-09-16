@@ -77,12 +77,12 @@ const PlotScale = ({interactive = true, plotType, scaleX, scaleY, setScaleX, set
                     return (
                         <AccordionItem key={axis} value={`scale-${axis.toLowerCase()}`} className="border-b-0">
                         <AccordionTrigger
-                            className="text-md font-semibold text-muted-foreground hover:no-underline justify-start py-1 px-1 data-[state=closed]:opacity-100" // Keep opacity when closed
+                            className="text-label text-muted-foreground hover:no-underline justify-start py-1 px-1 data-[state=closed]:opacity-100" // Keep opacity when closed
                             disabled={disabled}
                         >
                             {triggerText}
-                            {disabled && options.length > 1 && <span className="text-xs font-normal ml-1">(Setter Unavailable)</span>}
-                            {disabled && options.length === 1 && <span className="text-xs font-normal ml-1">(Log Unavailable)</span>}
+                            {disabled && options.length > 1 && <span className="text-caption font-normal ml-1">(Setter Unavailable)</span>}
+                            {disabled && options.length === 1 && <span className="text-caption font-normal ml-1">(Log Unavailable)</span>}
                         </AccordionTrigger>
                         <AccordionContent className="pl-4 pb-1 space-y-1">
                             {/* Render buttons only if not disabled (multiple options exist) */}
@@ -100,11 +100,11 @@ const PlotScale = ({interactive = true, plotType, scaleX, scaleY, setScaleX, set
                             ))}
                             {/* Show static text if disabled but multiple options were technically possible */}
                             {disabled && options.length > 1 && (
-                                    <p className="text-sm text-muted-foreground px-2 py-1">Scale selection unavailable.</p>
+                                    <p className="text-body text-muted-foreground px-2 py-1">Scale selection unavailable.</p>
                             )}
                             {/* Show static text if only one option available */}
                             {disabled && options.length === 1 && (
-                                <p className="text-sm text-muted-foreground px-2 py-1">{options[0]} (Log scale not available)</p>
+                                <p className="text-body text-muted-foreground px-2 py-1">{options[0]} (Log scale not available)</p>
                             )}
                         </AccordionContent>
                         </AccordionItem>

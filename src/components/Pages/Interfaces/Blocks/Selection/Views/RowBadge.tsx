@@ -152,9 +152,7 @@ export default function RowBadge({
 
   return (
     <Tooltip content={hoverText}>
-      <span
-        className={`row-badge rounded text-xs px-1 py-0.5 font-semibold ${colorClasses}`}
-      >
+      <span className={`row-badge rounded text-caption px-1 py-0.5 text-strong ${colorClasses}`}>
         [{label}]
       </span>
     </Tooltip>

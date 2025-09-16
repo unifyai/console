@@ -7,9 +7,11 @@ import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
 import { useTabUI } from '@/contexts/hooks/tab';
+// Removed unused tab UI import – tile component no longer needs to know tab colour directly
+// (it inherits via CSS variables from the Tab wrapper).
 import { ExpandProvider } from "@/contexts/ExpandContext";
 import { getTileHeaderRef, getTileCardRef } from '@/utils/interfaces/refRegistry';
-import { resolveColorHierarchy } from "@/utils/interfaces/plots/common";
+// import removed: resolveColorHierarchy now unused after colour hierarchy refactor
 
 // Dynamically import components
 const LogsTable = lazy(() => import("@/components/Pages/Interfaces/Blocks/Table/Table"));
@@ -52,7 +54,9 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   const { meta: tileMetaState } = useTileMeta(tileId, tabId);
   const { ui: tileUIState } = useTileUI(tileId, tabId);
   const { ui: tabUIState } = useTabUI(tabId);
+  // Tab UI no longer required here – colour inheritance handled by CSS cascade.
 
+  // Access focus pane control
   // Get refs from registry
   const tileHeaderRef = getTileHeaderRef(tileId);
   const tileCardRef = getTileCardRef(tileId);
@@ -60,8 +64,11 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // Extract required data
   const { type: tileType } = tileMetaState || {};
     
-  // Resolve color using hierarchical precedence
-  const resolvedColor = resolveColorHierarchy(tileUIState?.color, tabUIState?.color);
+  // Interface primary computation removed – hierarchy resolution is handled by pickers when needed.
+
+  // Only apply an override when the tile itself has an explicit colour. If the tile has
+  // no colour set we fall back to the tab → project hierarchy via CSS custom properties.
+  const tileColor = tileUIState?.color ?? null;
 
   // Update tile primary and secondary colors
   // Node: Need to update buttons and tile content separately 
@@ -69,24 +76,24 @@ const Tile: React.FC<TileProps> = ({ tileId, tabId, interfaceId, projectId, acti
   // interferes with ref manipulation
   useEffect(() => {
       if (tileHeaderRef && tileHeaderRef.current) {
-          if (resolvedColor) {
-              tileHeaderRef.current.style.setProperty("--primary", resolvedColor);
-              tileHeaderRef.current.style.setProperty("--accent", resolvedColor);
+          if (tileColor) {
+              tileHeaderRef.current.style.setProperty("--primary", tileColor);
+              tileHeaderRef.current.style.setProperty("--accent", tileColor);
           } else {
               tileHeaderRef.current.style.removeProperty("--primary");
               tileHeaderRef.current.style.removeProperty("--accent");
           }
       }
       if (tileCardRef && tileCardRef.current) {
-          if (resolvedColor) {
-              tileCardRef.current.style.setProperty("--primary", resolvedColor);
-              tileCardRef.current.style.setProperty("--accent", resolvedColor);
+          if (tileColor) {
+              tileCardRef.current.style.setProperty("--primary", tileColor);
+              tileCardRef.current.style.setProperty("--accent", tileColor);
           } else {
               tileCardRef.current.style.removeProperty("--primary");
               tileCardRef.current.style.removeProperty("--accent");
           }
       }
-  }, [resolvedColor, tileHeaderRef, tileCardRef]);
+  }, [tileColor, tileHeaderRef, tileCardRef]);
 
   switch (tileType) {
     case "Table":

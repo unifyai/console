@@ -93,7 +93,7 @@ function PdfFrame({ url }: { url: string }) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
         <AlertCircle className="w-10 h-10 text-yellow-500 mb-4" />
-        <h3 className="text-lg font-medium mb-2">Content Security Policy Restriction</h3>
+        <h3 className="text-title mb-2">Content Security Policy Restriction</h3>
         <p className="mb-4">This PDF cannot be embedded due to security restrictions set by the website.</p>
         <a 
           href={url} 
@@ -113,7 +113,7 @@ function PdfFrame({ url }: { url: string }) {
         <div className="absolute inset-0 flex items-center justify-center bg-background/80">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading PDF...</p>
+            <p className="text-body text-muted-foreground">Loading PDF...</p>
           </div>
         </div>
       )}
@@ -234,7 +234,7 @@ export default function PdfView({
 
   // Helper to create the PDF URL display with inspect and copy buttons
   const PdfUrlDisplay = ({ url, label }: { url: string; label?: string }) => (
-    <div className="text-sm break-all">
+    <div className="text-body break-all">
       <a
         onClick={() => openPdf(url, label)}
         className="text-primary hover:underline cursor-pointer"
@@ -251,7 +251,7 @@ export default function PdfView({
     return (
       <button
         onClick={() => openMultiplePdfs(pdfs)}
-        className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors text-sm group"
+        className="mt-4 flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors text-body group"
       >
         <FileText className="h-4 w-4" />
         <span className="group-hover:underline">View all Selected PDFs</span>
@@ -267,7 +267,7 @@ export default function PdfView({
       return (
         <div className="p-3">
           <div className="border rounded p-2">
-            <p className="italic text-sm text-muted-foreground">No PDF</p>
+            <p className="italic text-body text-muted-foreground">No PDF</p>
           </div>
         </div>
       );
@@ -342,7 +342,7 @@ export default function PdfView({
           <div key={idx} className="p-3 space-y-4">
             {!versionEmpty && (
               <>
-                <p className="font-semibold text-sm">Version</p>
+                <p className="text-title">Version</p>
                 <div className="space-y-2">
                   {verGroups.map((vg, j) => (
                     <div key={j} className="border rounded p-2 relative group">
@@ -352,7 +352,7 @@ export default function PdfView({
                           <MarkdownRenderer>{vg.versionText}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground pt-2">No version</p>
+                        <p className="italic text-body text-muted-foreground pt-2">No version</p>
                       )}
                     </div>
                   ))}
@@ -362,7 +362,7 @@ export default function PdfView({
 
             {/* The PDF link */}
             <div className="space-y-2">
-              {!versionEmpty && <p className="font-semibold text-sm">PDF</p>}
+              {!versionEmpty && <p className="text-title">PDF</p>}
               <div className="border rounded p-2 relative group">
                 <RowBadge rowNumbers={rows} mode="none" />
                 <div className="pr-16 mt-3">

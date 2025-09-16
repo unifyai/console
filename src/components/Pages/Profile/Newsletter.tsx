@@ -31,8 +31,8 @@ const NewsletterPreferences = ({ subscriptions, handleSubscriptionChange }: {
 
   return (
     <div className="mt-4">
-      <p className="font-bold">Newsletter Preferences</p>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-4">
+      <p className="text-title">Newsletter Preferences</p>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-4 text-body">
           {newsletters.map((newsletter) => (
             <div 
               key={newsletter.id} 
@@ -49,11 +49,11 @@ const NewsletterPreferences = ({ subscriptions, handleSubscriptionChange }: {
               <div className="flex-1 min-w-0">
                 <Label 
                   htmlFor={newsletter.id} 
-                  className="font-semibold cursor-pointer text-lg text-gray-900 dark:text-gray-100"
+                  className="text-title cursor-pointer"
                 >
                   {newsletter.name}
                 </Label>
-                <p className="text-base text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">
+                <p className="text-body mt-2 leading-relaxed text-muted-foreground">
                   {newsletter.description}
                 </p>
               </div>

@@ -371,7 +371,7 @@ export function useCommand(args: UseCommandArgs) {
     debugLog("[deleteProjectLogs] Starting logs deletion for project:", name);
     try {
       // Passing null for context and empty array for ids_and_fields to delete all logs in project.
-      const result = await logsActions.delete(name, null, [], null);
+      const result = await logsActions.delete(name, null, []);
       debugLog("[deleteProjectLogs] Logs deletion completed for project:", name);
       return result as ResponseProps;
     } catch (error) {
@@ -386,7 +386,7 @@ export function useCommand(args: UseCommandArgs) {
     debugLog("[deleteProjectLogsAndContexts] Starting logs and contexts deletion for project:", name);
     try {
       // 1. Delete all logs
-      await logsActions.delete(name, null, [], null);
+      await logsActions.delete(name, null, []);
       debugLog("[deleteProjectLogsAndContexts] Logs deleted for project:", name);
 
       // 2. Get all contexts

@@ -47,14 +47,14 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
         </SyntaxHighlighter>
       </div>
     ) : (
-      <code className={className} {...props}>
+      <code className={className + " font-mono"} {...props}>
         {children}
       </code>
     );
   };
 
   return (
-    <div className={"prose w-full " + (darkOnly ? "text-sm" : "")}>
+    <div className={("prose max-w-none " + (darkOnly ? "text-body" : "")).trim()}>
       <Markdown
         components={{ code: CodeBlock as any }}
       >

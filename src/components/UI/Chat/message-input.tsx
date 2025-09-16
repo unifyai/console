@@ -128,7 +128,7 @@ export function MessageInput({
         onPaste={onPaste}
         onKeyDown={onKeyDown}
         className={cn(
-          "w-full grow resize-none rounded-xl border border-input bg-background p-3 pr-24 text-sm ring-offset-background transition-[border] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+          "w-full grow resize-none rounded-xl border border-input bg-background p-3 pr-24 text-body ring-offset-background transition-[border] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
           showFileList && "pb-16",
           className
         )}
@@ -219,7 +219,7 @@ function FileUploadOverlay({ isDragging }: FileUploadOverlayProps) {
     <AnimatePresence>
       {isDragging && (
         <motion.div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center space-x-2 rounded-xl border border-dashed border-border bg-background text-sm text-muted-foreground"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center space-x-2 rounded-xl border border-dashed border-border bg-background text-body text-muted-foreground"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -255,7 +255,7 @@ const ImageFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
     return (
       <motion.div
         ref={ref}
-        className="relative flex max-w-[200px] rounded-md border p-1.5 pr-2 text-xs"
+        className="relative flex max-w-[200px] rounded-md border p-1.5 pr-2 text-caption"
         layout
         initial={{ opacity: 0, y: "100%" }}
         animate={{ opacity: 1, y: 0 }}
@@ -291,7 +291,7 @@ const GenericFilePreview = React.forwardRef<HTMLDivElement, FilePreviewProps>(
     return (
       <motion.div
         ref={ref}
-        className="relative flex max-w-[200px] rounded-md border p-1.5 pr-2 text-xs"
+        className="relative flex max-w-[200px] rounded-md border p-1.5 pr-2 text-caption"
         layout
         initial={{ opacity: 0, y: "100%" }}
         animate={{ opacity: 1, y: 0 }}

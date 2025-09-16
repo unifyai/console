@@ -56,6 +56,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         get:            await projects.getProjects(apiKey),
         create:         await projects.createProject(apiKey),
         rename:         await projects.renameProject(apiKey),
+        update:         await projects.patchProject(apiKey),
         delete:         await projects.deleteProject(apiKey),
         exportTemplate: await projects.exportProjectAsTemplate(apiKey),
         importTemplate: await projects.importProjectFromTemplate(apiKey)
@@ -83,7 +84,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     const contextActions = {
         get:    await contexts.getContexts(apiKey),
         create: await contexts.createContext(apiKey),
-        delete: await contexts.deleteContext(apiKey)
+        delete: await contexts.deleteContext(apiKey),
+        rename: await contexts.renameContext(apiKey)
     };
 
     const codeActions = {
@@ -196,6 +198,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         <Main
             project={searchParams?.project as string | null}
             interface_={searchParams?.interface as string | null}
+            searchParams={searchParams}
             actions={
                 {
                     projectsActions,

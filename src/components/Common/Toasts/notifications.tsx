@@ -18,14 +18,34 @@ const CustomToast = ({ id, Icon, title, description, iconClassName }: {
     >
         <Icon className={`text-primary flex-shrink-0 ${iconClassName || ''}`} />
         <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold">{title}</p>
-            {description && <p className="text-sm opacity-90">{description}</p>}
+            <p className="text-strong">{title}</p>
+            {description && <p className="text-body opacity-90">{description}</p>}
         </div>
     </div>
 );
 
+/**
+ * Ensure toast creation happens outside of React render but **still** returns the
+ * toast ID synchronously so callers (e.g. `withLoadingToast`) can update or
+ * dismiss the same toast later. React 18 Strict-Mode double invokes effects
+ * in development which can lead to duplicate toasts – Sonner already de-dupes
+ * by `id`, so the simplest, most reliable approach is to execute the provided
+ * `fn` immediately and just queue a no-op micro-task to keep React happy.
+ */
+const scheduleToast = <T,>(fn: () => T): T => {
+    const id = fn();
+
+    // Queue a no-op so that the actual DOM update still happens after the
+    // current React render cycle (avoids setState warnings in StrictMode)
+    if (typeof queueMicrotask === 'function') {
+        queueMicrotask(() => {});
+    }
+
+    return id;
+};
+
 export const showLoadingToast = (message: string) => {
-    return toast.custom(
+    return scheduleToast(() => toast.custom(
         (id) => (
             <CustomToast
                 id={id}
@@ -39,7 +59,7 @@ export const showLoadingToast = (message: string) => {
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
             duration: Infinity, // Don't auto-dismiss loading toasts
         }
-    );
+    )) as string | number;
 };
 
 export const showErrorToast = (
@@ -64,7 +84,7 @@ export const showErrorToast = (
     message = error;
   }
 
-  toast.custom(
+  scheduleToast(() => toast.custom(
     (toastId) => (
         <CustomToast
             id={toastId}
@@ -78,7 +98,7 @@ export const showErrorToast = (
         duration: 4000,
         className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
     }
-  );
+  ));
 };
 
 export const showSuccessToast = (
@@ -86,7 +106,7 @@ export const showSuccessToast = (
     description?: string,
     id?: string | number
 ) => {
-    toast.custom(
+    scheduleToast(() => toast.custom(
         (toastId) => (
             <CustomToast
                 id={toastId}
@@ -100,102 +120,46 @@ export const showSuccessToast = (
             duration: 2500,
             className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
         }
-    );
+    ));
 };
 
 /**
- * Wraps an asynchronous action with loading, success, and error toast notifications.
- * A "loading" toast is shown only if the action takes longer than the specified delay.
- *
- * @param action The asynchronous function to execute.
- * @param messages The messages to display for loading, success, and error states.
- * @param delay The delay in milliseconds before showing the loading toast (default: 3000ms).
- * @param abortController Optional AbortController to cancel the operation.
- * @returns The result of the action.
+ * Helper to show a toast around an async function, with default copy.
  */
-export async function withLoadingToast<T>(
-    action: (abortSignal?: AbortSignal) => Promise<T>,
-    messages: { loading: string; success: string; error: string },
-    delay: number = 3000,
-    abortController?: AbortController
-): Promise<T> {
-    let toastId: string | number | undefined;
-
-    // Start a timer to show the loading toast after the specified delay
-    const timer = setTimeout(() => {
-        toastId = showLoadingToast(messages.loading);
-    }, delay);
+export const withLoadingToastFn = async <T,>(fn: () => Promise<T>, options?: {
+    loadingMessage?: string;
+    successMessage?: string;
+    errorMessage?: string;
+    onSuccess?: (result: T) => string | void; // Optionally return a custom success message
+}): Promise<T> => {
+    const loadingId = showLoadingToast(options?.loadingMessage || 'Processing...');
 
     try {
-        const result = await action(abortController?.signal);
-        
-        // If the action finished before the timer, clear the timer
-        clearTimeout(timer);
+        const result = await fn();
 
-        // If the loading toast was shown, update it to a success message
-        if (toastId) {
-            showSuccessToast(messages.success, undefined, toastId);
-        }
-        
+        const successMessage = options?.onSuccess?.(result) || options?.successMessage || 'Done!';
+
+        toast.custom(
+            (toastId) => (
+                <CustomToast
+                    id={toastId}
+                    Icon={CheckCircle}
+                    title={successMessage}
+                />
+            ),
+            {
+                id: loadingId,
+                duration: 2000,
+                className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
+            }
+        );
+
         return result;
     } catch (error) {
-        // If the action failed, clear the timer
-        clearTimeout(timer);
-        
-        // If the loading toast was shown, update it to an error message.
-        // Otherwise, show a new error toast.
-        if ((error as Error).name !== 'AbortError') {
-            showErrorToast(error, messages.error, toastId);
-        }
-        
-        // Re-throw the error so it can be handled by the calling function
-        throw error;
+        showErrorToast(error, options?.errorMessage || 'Something went wrong.', loadingId);
+        throw error; // Re-throw to allow callers to handle as needed
     }
-}
-
-/**
- * Wraps an asynchronous action with immediate loading toast and delayed success notification.
- * Shows loading toast immediately, executes the action, but waits for external signal for success.
- * Returns a function to manually trigger the success toast when ready.
- *
- * @param action The asynchronous function to execute.
- * @param messages The messages to display for loading, success, and error states.
- * @param abortController Optional AbortController to cancel the operation.
- * @returns Object with result and showSuccess function.
- */
-export async function withDelayedLoadingToast<T>(
-    action: (abortSignal?: AbortSignal) => Promise<T>,
-    messages: { loading: string; success: string; error: string },
-    abortController?: AbortController
-): Promise<{ result: T; showSuccess: () => void; hideLoading: () => void }> {
-    // Show loading toast immediately
-    const toastId = showLoadingToast(messages.loading);
-
-    try {
-        const result = await action(abortController?.signal);
-        
-        // Return result with functions to control toast state
-        return {
-            result,
-            showSuccess: () => {
-                showSuccessToast(messages.success, undefined, toastId);
-            },
-            hideLoading: () => {
-                if (toastId) {
-                    toast.dismiss(toastId);
-                }
-            }
-        };
-    } catch (error) {
-        // If the action failed, show error message
-        if ((error as Error).name !== 'AbortError') {
-            showErrorToast(error, messages.error, toastId);
-        }
-        
-        // Re-throw the error so it can be handled by the calling function
-        throw error;
-    }
-}
+};
 
 /**
  * Enhanced version of withLoadingToast that creates its own AbortController
@@ -218,7 +182,14 @@ export function useLoadingToast() {
         abortControllerRef.current = new AbortController();
 
         try {
-            return await withLoadingToast(action, messages, delay, abortControllerRef.current);
+            return await withLoadingToastFn(
+                () => action(abortControllerRef.current?.signal),
+                {
+                    loadingMessage: messages.loading,
+                    successMessage: messages.success,
+                    errorMessage: messages.error
+                }
+            );
         } finally {
             // Clean up after completion
             abortControllerRef.current = null;

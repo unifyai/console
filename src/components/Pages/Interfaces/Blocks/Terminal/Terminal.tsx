@@ -21,7 +21,10 @@ import { useTabData } from "@/contexts/hooks/tab/useTabData";
 import BaseDropdown from "@/components/Common/Dropdowns/Base";
 import ActionButton from "@/components/Common/Buttons/Action";
 import { DropdownMenuItem } from "@/components/UI/dropdown-menu";
-import { Play, Square } from "lucide-react";
+import { Play, Square, Maximize2 } from "lucide-react";
+import { useTab } from "@/contexts/hooks/tab";
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
+import { useStoreContext } from "@/contexts/providers/StoreProvider";
 
 interface TerminalProps {
   tileId: string;
@@ -68,6 +71,14 @@ export default function Terminal({
   const tiles = useTiles(tileIds, ["type", "terminalTile.shell_type"]);
   const terminalTiles = tiles.filter((tile) => tile.type == "Terminal");
 
+  // Focus pane button support
+  const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId);
+  const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+  const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
+
 
   /* -------------------------------------------------- state / refs */
   const [started, setStarted] = useState(false);
@@ -83,7 +94,7 @@ export default function Terminal({
     if (started) return;
 
     /* xterm setup */
-    const term = new XTerm({ fontFamily: "monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
+    const term = new XTerm({ fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current!);
@@ -233,11 +244,29 @@ export default function Terminal({
             onClick={stopTerminal}
           />
         )}
+        {!isEditMode && !focusPaneOpen && (
+          <ActionButton
+            icon={<Maximize2 className="h-4 w-4" />}
+            variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tiles.find(t=>t.id===tileId)?.name) ? "primary" : "outline"}
+            tooltip="Open in focus pane"
+            onClick={() => {
+              const focusedTileNames = tabUIState?.focusedTileNames || [undefined, undefined];
+              const tileName = tiles.find(t=>t.id===tileId)?.name;
+              if (tileName && !focusedTileNames.includes(tileName)) {
+                tabUIActions?.setFocusedTileNames([
+                  tileName,
+                  focusedTileNames[0] || focusedTileNames[1],
+                ] as [string | undefined, string | undefined]);
+              }
+              setFocusPaneOpen(true);
+            }}
+          />
+        )}
       </div>
 
       {/* ----- terminal area ----- */}
       <div className="flex-1 overflow-hidden">
-        <div ref={containerRef} className="w-full h-full" />
+        <div ref={containerRef} className="w-full h-full font-mono" />
       </div>
     </div>
   );

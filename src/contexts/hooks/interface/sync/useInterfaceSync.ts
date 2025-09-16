@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/interfaces/grid";
-import { useCreateTabQuery, useUpdateTabQuery,  useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
+import { useCreateTabQuery, useUpdateTabQuery, useUpdateTabByIdQuery, useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
 import { useInterface } from "../useInterface";
 import { InterfaceDataActions } from "../useInterfaceData";
 import { InterfaceUIActions } from "../useInterfaceUI";
@@ -82,7 +82,32 @@ export function useInterfaceSync(
   const updateInterfaceMutation = useUpdateInterfaceUnifiedQuery();
   const createTabMutation = useCreateTabQuery();
   const updateTabMutation = useUpdateTabQuery();
+  const updateTabByIdMutation = useUpdateTabByIdQuery();
   const deleteTabMutation = useDeleteTabQuery();
+
+  // Helper: propagate interface context to tabs/tiles without explicit context
+  const propagateInterfaceContext = async (context?: string | null) => {
+    if (!interfaceId || !interfaceActions || !tabActions || !context) return;
+    try {
+      // Get all tabs for this interface
+      const listTabsFn = await tabActions.list;
+      const tabs = await listTabsFn(interfaceId);
+      if (Array.isArray(tabs)) {
+        for (const tab of tabs) {
+          // If tab has no context, set it
+          if (!tab.context || tab.context === "") {
+            await updateTabByIdMutation.mutateAsync({
+              id: tab.id as string,
+              data: { context },
+              actions: tabActions
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to propagate interface context:", e);
+    }
+  };
   
   /**
    * Add a new tab to an interface with a generated UUID

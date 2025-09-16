@@ -12,7 +12,7 @@ import { clearCanvas } from "./canvas";
 import { clearFixedTooltip } from "./tooltip";
 import { PlotActions } from "@/contexts/hooks/tile/usePlotTile";
 import { PlotTile } from "@/contexts/slices/selectors/plotTile";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 /**
  * Main function orchestrating the drawing of different plot types (Scatter, Bar, Histogram, Line) within a specified SVG container.
@@ -92,7 +92,7 @@ export const drawPlot = async (
     plotTileActions?: PlotActions | null,
     plotTileState?: PlotTile | null
 ) => {
-    await withLoadingToast(
+    await withLoadingToastFn(
         async () => {
             // Update svg dimensions
             svg
@@ -264,9 +264,9 @@ export const drawPlot = async (
             }
         },
         {
-            loading: "Rendering plot...",
-            success: "Plot rendered successfully!",
-            error: "Failed to render plot."
+            loadingMessage: "Rendering plot...",
+            successMessage: "Plot rendered successfully!",
+            errorMessage: "Failed to render plot."
         }
     );
 };

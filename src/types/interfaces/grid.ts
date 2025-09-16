@@ -305,7 +305,7 @@ export interface BaseTabTemplateSchema {
     visible?: boolean;
     active?: boolean;
     order?: number;
-    global_context?: string;
+    context?: string;
     color?: string;
 }
 
@@ -337,6 +337,7 @@ export interface TabData extends BaseTabSchema {
 export interface BaseInterfaceTemplateSchema {
     name: string;
     color?: string;
+    context?: string;
 }
 
 // Template schema for a detached interface
@@ -363,6 +364,7 @@ export interface BaseInterfaceSchema extends BaseInterfaceTemplateSchema {
 export interface InterfaceData extends BaseInterfaceSchema {
     tabs?: TabData[];
     active_tab_id?: string;
+    context?: string;
 }
 
 // Template schema for multiple interfaces from a project
@@ -419,8 +421,9 @@ export interface UpdateTabRequest {
     visible?: boolean;
     active?: boolean;
     order?: number;
-    global_context?: string;
+    context?: string;
     color?: string;
+    icon?: string;
 }
 
 export interface CreateInterfaceRequest extends BaseInterfaceTemplateSchema {
@@ -432,6 +435,8 @@ export interface UpdateInterfaceRequest {
     name?: string;
     active_tab_id?: string;
     color?: string;
+    icon?: string;
+    context?: string;
 }
 
 // Validation schemas
@@ -561,6 +566,7 @@ export interface ProjectsActions {
     get: () => Promise<string[]>,
     create: (name: string) => Promise<ResponseProps>,
     rename: (name: string, newName: string) => Promise<ResponseProps>,
+    update: (name: string, data: { icon?: string }) => Promise<ResponseProps>,
     delete: (name: string) => Promise<ResponseProps>,
     exportTemplate: (params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }>,
     importTemplate: (template: ProjectTemplateSchema, options: Omit<ImportProjectTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>
@@ -621,7 +627,7 @@ export interface LogsActions {
         metricName: string,
         keyNames: string[]
     ) => Promise<{ [key: string]: number } | { [key:string]: { [key: string]: { [key: string]: number } } }>;
-    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps, source_type: string | null) => Promise<ResponseProps>;
+    delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
     update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
 }
 
@@ -638,7 +644,8 @@ export interface FieldsActions {
 export interface ContextActions {
     get: (project: string) => Promise<Context[]>,
     create: (name: string, project: string) => Promise<ResponseProps>,
-    delete: (project: string, context: string) => Promise<ResponseProps>
+    delete: (project: string, context: string) => Promise<ResponseProps>,
+    rename: (project: string, current_name: string, new_name: string) => Promise<ResponseProps>
 }
 
 export interface TabActions {

@@ -32,15 +32,13 @@ export const getPrimaryColorFromNode = (node: Element | null): string => {
  * @returns {string} The resolved color value, with CSS --primary as ultimate fallback
  */
 export const resolveColorHierarchy = (
-    primaryColor: string | null | undefined, 
-    secondaryColor: string | null | undefined
+  ...colors: (string | null | undefined)[]
 ): string => {
-    if (primaryColor && primaryColor.trim() !== '') {
-        return primaryColor;
+  for (const c of colors) {
+    if (c && typeof c === 'string' && c.trim() !== '') {
+      return c.trim();
     }
-    if (secondaryColor && secondaryColor.trim() !== '') {
-        return secondaryColor;
-    }
-    // Fallback to CSS primary color
-    return getPrimaryColorFromNode(null);
+  }
+  // Fallback to CSS primary colour currently in scope (root)
+  return getPrimaryColorFromNode(null);
 };

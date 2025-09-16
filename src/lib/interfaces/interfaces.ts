@@ -111,8 +111,8 @@ export const getInterfaceByName = async (apiKey: string) => {
             return { error: `Failed to get interface: ${response.status}` };
         }
         
-        const interfaces = await response.json();
-        return interfaces.length > 0 ? interfaces[0] : null;
+        const data = await response.json();
+        return data;
     };
 };
 
@@ -185,7 +185,14 @@ export const createNewInterface = async (apiKey: string) => {
         );
         
         if (!response.ok) {
-            return { error: `Failed to create interface: ${response.status}` };
+            try {
+                const err = await response.json();
+                const detail = typeof err === 'string' ? err : (err?.detail || err?.message || JSON.stringify(err));
+                return { error: `Failed to create interface: ${response.status}`, detail };
+            } catch {
+                const text = await response.text();
+                return { error: `Failed to create interface: ${response.status}`, detail: text };
+            }
         }
         
         return await response.json();
@@ -207,7 +214,14 @@ export const updateInterfaceByName = async (apiKey: string) => {
         );
         
         if (!response.ok) {
-            return { error: `Failed to update interface: ${response.status}` };
+            try {
+                const err = await response.json();
+                const detail = typeof err === 'string' ? err : (err?.detail || err?.message || JSON.stringify(err));
+                return { error: `Failed to update interface: ${response.status}`, detail };
+            } catch {
+                const text = await response.text();
+                return { error: `Failed to update interface: ${response.status}`, detail: text };
+            }
         }
         
         return await response.json();
@@ -233,7 +247,14 @@ export const updateInterfaceById = async (apiKey: string) => {
         );
         
         if (!response.ok) {
-            return { error: `Failed to update interface: ${response.status}` };
+            try {
+                const err = await response.json();
+                const detail = typeof err === 'string' ? err : (err?.detail || err?.message || JSON.stringify(err));
+                return { error: `Failed to update interface: ${response.status}`, detail };
+            } catch {
+                const text = await response.text();
+                return { error: `Failed to update interface: ${response.status}`, detail: text };
+            }
         }
         
         return await response.json();

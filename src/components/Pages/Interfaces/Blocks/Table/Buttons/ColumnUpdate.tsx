@@ -157,7 +157,7 @@ const ColumnUpdate = ({
 
     // Subcomponents
     const warning = (error: string) => 
-                    <p className="flex justify-start text-sm text-destructive">{error}</p>
+                    <p className="flex justify-start text-body text-destructive">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text="Apply" onClick={() => onSubmit()} icon={updateLoading && <LoaderCircle className="animate-spin text-white"/>}/>
                     </div>
@@ -193,7 +193,7 @@ const ColumnUpdate = ({
                     rounded-sm 
                     px-2 
                     py-1.5 
-                    text-sm 
+                    text-body 
                     outline-none 
                     transition-colors 
                     focus:bg-accent 

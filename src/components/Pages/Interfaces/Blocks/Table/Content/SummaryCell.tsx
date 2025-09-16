@@ -83,36 +83,6 @@ const SummaryCell = ({
 		}
 	}, [isMetricsLoading, isFetching, queryMetrics]);
 
-	// Pre-calculate checks for active and over states
-	const isInActiveGroup = draggingColumns.active.ids?.includes(column.id);
-	const isInOverGroup = draggingColumns.over.ids?.includes(column.id);
-  
-	// Consolidate into a single flag for overall dragging state
-	const isPartOfDraggingState = isInActiveGroup || isInOverGroup;
-  
-	// For dragging columns that are parents, use the transform/transition from the parent dragging state
-	const isColumnDragging = isDragging || isPartOfDraggingState;
-	const isParentColumn = column.columnDef.meta?.isParent;
-
-	// Determine the applied transform
-	const appliedTransform: Transform | null = isDragging
-		? transform : isInActiveGroup ? draggingColumns.active.transform ?? null : isInOverGroup
-		? draggingColumns.over.transform ?? null : isParentColumn ? null : transform;
-
-	const appliedTransition = "width transform 0.2s ease-in-out";
-
-	const isPinned = column.getIsPinned();
-	const style: CSSProperties = {
-		cursor: "default",
-		opacity: isColumnDragging ? 0.8 : 1,
-		position: isPinned ? "sticky" : "relative",
-		left: isPinned === "left" ? `${column.getStart("left")}px` : undefined,
-		right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
-		transform: CSS.Translate.toString(appliedTransform), // translate instead of transform to avoid squishing
-		transition: appliedTransition,
-		width: `calc(var(--header-${column.id}-size) * 1px)`,
-		zIndex: isColumnDragging || isPinned ? 1 : 0,
-	};
     const metricTooltip = `${tileDataState?.metric || metric} ${["dict", "list", "tuple", "str"].includes(column.columnDef.meta?.dataType!) ? "length" : "value"}`;
 
 	// Show loading if:
@@ -134,17 +104,15 @@ const SummaryCell = ({
 	}
 
 	return (
-		<>
-			<TableCell style={style} ref={setNodeRef}>
-				<Tooltip content={metricTooltip}>
-					{shouldShowLoading ? (
-						<div className="h-4 w-16 bg-muted rounded animate-pulse" />
-					) : (
-						logEntryMetric
-					)}
-				</Tooltip>
-			</TableCell>
-		</>
+		<Tooltip content={metricTooltip}>
+			<div className="w-full overflow-hidden text-ellipsis whitespace-nowrap">
+			{shouldShowLoading ? (
+				<div className="h-4 w-16 bg-muted rounded animate-pulse" />
+			) : (
+				logEntryMetric
+			)}
+			</div>
+		</Tooltip>
 	);
 };
 

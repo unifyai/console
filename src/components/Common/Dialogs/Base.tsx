@@ -19,6 +19,8 @@ interface BaseDialogOwnProps {
     description?: string;
     open?: boolean;
     disabled?: boolean;
+    /** When true, the dialog cannot be closed via ESC key, outside click or the ✕ button */
+    disableClose?: boolean;
     triggerClassName?: string;
     context?: string;
     setOpen?: (open: boolean) => void;
@@ -36,6 +38,7 @@ export default function BaseDialog({
     open,
     disabled,
     triggerClassName,
+    disableClose,
     context,
     setOpen,
     onOpen,
@@ -60,14 +63,20 @@ export default function BaseDialog({
       {body}
 
       {footer &&
-          <DialogFooter>
+          <DialogFooter className="w-full">
               {footer}
           </DialogFooter>
       }
     </>
+    const interactionHandlers = disableClose ? {
+        onInteractOutside: (e: any) => e.preventDefault(),
+        onEscapeKeyDown: (e: any) => e.preventDefault()
+    } : {};
+
+    const extraProps = { ...interactionHandlers, hideClose: disableClose } as any;
     const dialogContent = (context === "tile")
-    ? <TileDialogContent {...restContentProps}>{dialogContentChildren}</TileDialogContent> 
-    : <DialogContent {...restContentProps}>{dialogContentChildren}</DialogContent>
+    ? <TileDialogContent {...restContentProps} {...extraProps}>{dialogContentChildren}</TileDialogContent> 
+    : <DialogContent {...restContentProps} {...extraProps}>{dialogContentChildren}</DialogContent>
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogTrigger disabled={disabled} className={triggerClassName}>

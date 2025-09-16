@@ -75,7 +75,7 @@ const EditTileName = ({
         }}>
             <DialogContent className="w-72">
                 <div className="mt-6 flex flex-col gap-2">
-                    {readOnly && <div className="text-sm text-muted-foreground">Please wait while tiles are loading...</div>}
+                    {readOnly && <div className="text-body text-muted-foreground">Please wait while tiles are loading...</div>}
                     <div className="flex gap-2">
                         <Input
                             placeholder={readOnly ? tabUIState?.editTile : "Enter new tile name..."}
@@ -102,7 +102,7 @@ const EditTileName = ({
                         />
                     </div>
                     {errorMsg && (
-                        <div className="text-sm text-destructive pl-1">{errorMsg}</div>
+                        <div className="text-body text-destructive pl-1">{errorMsg}</div>
                     )}
                 </div>
             </DialogContent>

@@ -269,7 +269,7 @@ export default function TimelineViewButton({
       return (
         <div className="bg-background border border-border p-2 rounded-md shadow-md max-w-xs">
           {/* Operation name - from the bar label */}
-          <p className="font-medium border-b border-border pb-1 mb-2">{label}</p>
+          <p className="text-title border-b border-border pb-1 mb-2">{label}</p>
           
           {/* Trace details */}
           {validTraces.map(({ traceIndex, start, length, end }) => (
@@ -279,11 +279,11 @@ export default function TimelineViewButton({
                   className="w-3 h-3 rounded-full" 
                   style={{ backgroundColor: colorPalette[traceIndex % colorPalette.length] }}
                 />
-                <p className="text-sm font-semibold">
+                <p className="text-body text-strong">
                   {traceNames[traceIndex] || `Trace ${traceIndex + 1}`}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-x-2 text-xs">
+              <div className="grid grid-cols-2 gap-x-2 text-caption">
                 <p>Start: {start.toFixed(3)}s</p>
                 <p>End: {end.toFixed(3)}s</p>
                 <p className="col-span-2 font-medium">
@@ -459,7 +459,7 @@ export default function TimelineViewButton({
           {/* Enhanced Zoom Controls - Fixed position */}
           <div className="mt-2 px-2 pb-3 border-b border-border">
             <div className="flex space-x-2 items-center px-3 py-1.5 bg-background border border-border rounded-md shadow-sm w-fit">
-              <span className="text-xs text-muted-foreground mr-1">Zoom:</span>
+              <span className="text-caption text-muted-foreground mr-1">Zoom:</span>
               <div className="flex items-center">
                 <input
                   type="text"
@@ -467,10 +467,10 @@ export default function TimelineViewButton({
                   onChange={handleCustomZoomChange}
                   onBlur={applyCustomZoom}
                   onKeyDown={(e) => e.key === 'Enter' && applyCustomZoom()}
-                  className="w-12 h-6 text-xs px-1 border border-input rounded-sm mr-1 text-center"
+                  className="w-12 h-6 text-caption px-1 border border-input rounded-sm mr-1 text-center"
                   aria-label="Zoom percentage"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
+                <span className="text-caption text-muted-foreground">%</span>
               </div>
               <button 
                 onClick={handleZoomIn} 

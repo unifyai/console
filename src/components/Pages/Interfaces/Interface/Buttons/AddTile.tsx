@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useTab } from "@/contexts/hooks/tab";
 import { useMemo } from "react";
 import { useTabSync } from "@/contexts/hooks/tab/sync";
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 const AddTile = ({
     tabId,
@@ -22,6 +23,9 @@ const AddTile = ({
 }) => {
     // Get tab data and actions using useTab hook with granular access
     const { ui: tabUIState, exists } = useTab(tabId, interfaceId);
+    
+    // Get global UI mode settings
+    const { isEditMode } = useGlobalUIMode();
 
     // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
     const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
@@ -39,10 +43,10 @@ const AddTile = ({
     return (
         <ActionButton
             className="backdrop-blur-sm bg-background/90 border border-border/50 shadow-md transition-all"
-            tooltip={(!tabUIState?.edit || !project) ? "Select a project first" : "Add new tile"}
+            tooltip={(!isEditMode || !project) ? "Select a project first" : "Add new tile"}
             icon={<Plus />}
             variant="outline"
-            disabled={!tabUIState?.edit || !project || !exists || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
+            disabled={!isEditMode || !project || !exists || tabUIState?.pending || tabUIState?.resetting || anyTileLoading}
             onClick={() => {
                 let initialIndex = items.length;
                 while (items.some(item => item.name == "Tile_" + initialIndex))

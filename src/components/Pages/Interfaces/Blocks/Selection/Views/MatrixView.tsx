@@ -138,7 +138,7 @@ export default function MatrixView({
                 />
               </div>
             ) : (
-              <p className="italic text-sm text-muted-foreground">No version</p>
+              <p className="italic text-body text-muted-foreground">No version</p>
             )}
           </div>
         )}
@@ -207,7 +207,7 @@ export default function MatrixView({
                           <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                         </div>
                       ) : (
-                        <p className="italic text-sm text-muted-foreground">
+                        <p className="italic text-body text-muted-foreground">
                           No version
                         </p>
                       )}
@@ -217,8 +217,8 @@ export default function MatrixView({
               )}
 
               <div className="space-y-2">
-                <p className="font-semibold">Matrix</p>
-                <div className="flex items-center gap-2 text-xs">
+                <p className="text-title">Matrix</p>
+                <div className="flex items-center gap-2 text-caption">
                   <RowBadge rowNumbers={rowNums} mode="none" />
                 </div>
                 <div className="border rounded p-2 relative group">
@@ -299,7 +299,7 @@ export default function MatrixView({
 
                     return (
                       <div key={j} className="p-3 space-y-2 border rounded">
-                        <div className="flex items-center gap-1 text-xs">
+                        <div className="flex items-center gap-1 text-caption">
                           {baseInRows && <RowBadge rowNumbers={[baseLogIndex]} mode={oldMode} />}
                           {!!compRows.length && <RowBadge rowNumbers={compRows} mode={newMode} />}
                         </div>
@@ -308,7 +308,7 @@ export default function MatrixView({
                             <MarkdownRenderer>{vg.text}</MarkdownRenderer>
                           </div>
                         ) : (
-                          <p className="italic text-sm text-muted-foreground">
+                          <p className="italic text-body text-muted-foreground">
                             No version
                           </p>
                         )}
@@ -340,14 +340,14 @@ export default function MatrixView({
               </div>
               {isValidMatrix(value) && isValidMatrix(compMat) && (
                 <div className="flex flex-col gap-4">
-                  <p className="font-semibold text-xs">Side-by-side Details</p>
+                  <p className="text-caption text-strong">Side-by-side Details</p>
                   <div className="flex gap-8">
                     <div>
-                      <p className="text-xs italic mb-1">Base Matrix</p>
+                      <p className="text-caption italic mb-1">Base Matrix</p>
                       <MatrixDisplay value={value} />
                     </div>
                     <div>
-                      <p className="text-xs italic mb-1">
+                      <p className="text-caption italic mb-1">
                         Comparison Matrix (Rows {grp.rows.join(", ")})
                       </p>
                       <MatrixDisplay value={compMat} />

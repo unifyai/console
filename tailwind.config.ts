@@ -100,6 +100,29 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: [
+          "var(--font-sans)",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Noto Sans",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "DejaVu Sans Mono",
+          "monospace",
+        ],
+      },
     },
     data: {
       selected: 'selected~="true"',
@@ -108,5 +131,6 @@ module.exports = {
   darkMode: "class",
   plugins: [
     require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
   ],
 };

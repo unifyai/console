@@ -1,7 +1,7 @@
 import { NavItem } from "@/types/navigation";
 import {
   LayoutDashboard, // For Interfaces
-  Users,           // For Team
+  Users,           // For Assistants
   CreditCard,      // For Billing
   ChartLine,       // For the static Usage project link (though defined in NavMenu)
 } from "lucide-react";
@@ -9,11 +9,11 @@ import {
 const NavList = (): NavItem[] => {
   // Defines the main navigation items that will be structured in NavMenu
   return [
-    // Temporarily hide Team page
+    // Temporarily hide Assistants page
     // {
-    //   title: "Team",
+    //   title: "Assistants",
     //   icon: Users,
-    //   href: "/team",
+    //   href: "/assistants",
     // },
     {
       title: "Interfaces",

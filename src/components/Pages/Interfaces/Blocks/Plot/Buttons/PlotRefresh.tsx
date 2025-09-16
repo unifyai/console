@@ -10,8 +10,7 @@ import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpda
 import { useTileSync } from "@/contexts/hooks/tile/sync";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTileData } from "@/contexts/hooks/tile/useTileData";
-import { showLoadingToast, showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
-import { withLoadingToast } from "@/components/Common/Toasts/notifications";
+import { showSuccessToast, withLoadingToastFn } from "@/components/Common/Toasts/notifications";
 
 // Helper function to fetch latest timestamps for plot tables
 function fetchLatestTimestamps(
@@ -193,7 +192,7 @@ const PlotRefresh = ({
     setIsManualFetching(true);
 
     try {
-      await withLoadingToast(
+      await withLoadingToastFn(
         async () => {
           // Get current plot arguments from cache
           const plotArguments = queryClient.getQueryData<PlotArguments>(["plotArguments", tabId]) || {} as PlotArguments;
@@ -216,9 +215,9 @@ const PlotRefresh = ({
           }
         },
         {
-          loading: "Refreshing plot data...",
-          success: "Plot data refreshed successfully!",
-          error: "Failed to refresh plot data."
+          loadingMessage: "Refreshing plot data...",
+          successMessage: "Plot data refreshed successfully!",
+          errorMessage: "Failed to refresh plot data."
         }
       );
     } catch (error: any) {
@@ -232,26 +231,41 @@ const PlotRefresh = ({
     }
   };
 
-  const isRefreshing = isFetching || isManualFetching;
-  const icon = isRefreshing
-    ? <RefreshCw className="animate-spin text-green"/> 
-    : loaded
-    ? <Check className="text-green"/>
-    : <RefreshCw/>;
+  const isAutoUpdating = tileDataState?.auto_update === "true";
+  const isManualSpinning = isFetching || isManualFetching;
+
+  const getIcon = () => {
+    if (isAutoUpdating) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (isManualSpinning) {
+      return <RefreshCw className="animate-spin text-green" />;
+    }
+    if (loaded) {
+      return <Check className="text-green" />;
+    }
+    return <RefreshCw />;
+  };
+
+  const getTooltip = () => {
+    if (isAutoUpdating) return "Auto-refreshing plot logs...";
+    if (isManualSpinning) return "Refreshing plot logs...";
+    return "Refresh plot logs";
+  };
 
   const manualRefreshButton = (
     <ActionButton 
       className="rounded-sm h-8"
-      icon={icon}
-      tooltip={isRefreshing ? "Refreshing plot logs.." : tileDataState?.auto_update === "true" ? "Auto refreshing plot logs.." : "Refresh plot logs"}
+      icon={getIcon()}
+      tooltip={getTooltip()}
       onClick={onManualClick}
-      disabled={tileDataState?.auto_update === "true"}
+      disabled={isAutoUpdating}
     />
   );
 
   const autoRefresh = (
     <ActionButton 
-      variant={tileDataState?.auto_update === "true" ? "primary" : "ghost"}
+      variant={isAutoUpdating ? "primary" : "ghost"}
       className="rounded-sm"
       icon={<Timer />}
       tooltip={"Auto refresh every 5s"}

@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes'
 import "@/styles/globals.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "yet-another-react-lightbox/styles.css";
+import { fontSans, fontMono } from "@/styles/fonts";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${fontSans.variable} ${fontMono.variable}`}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}

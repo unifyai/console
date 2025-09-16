@@ -13,6 +13,7 @@ import { ContextActions, GranularTileActions, FieldsActions, LogsActions, Projec
 
 import { PlotActions } from '@/contexts/hooks/tile/usePlotTile';
 import { TileDataActions } from '@/contexts/hooks';
+import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { PlotTile } from '@/contexts/slices/selectors/plotTile';
 
 import PlotType from './Buttons/PlotType';
@@ -26,7 +27,10 @@ import PlotRegression from './Buttons/PlotRegression';
 import PlotRefresh from './Buttons/PlotRefresh';
 import PlotReset from './Buttons/PlotReset';
 import PlotZoom from './Buttons/PlotZoom';
+import ActionButton from '@/components/Common/Buttons/Action';
+import { Maximize2 } from 'lucide-react';
 import { ColorSchemePicker } from '@/components/Common/Misc/ColorSchemePicker';
+import { useStoreContext } from '@/contexts/providers/StoreProvider';
 
 
 const PlotSettings = ({
@@ -70,7 +74,12 @@ const PlotSettings = ({
   fieldsActions,
   plotTileState,
   plotTileActions,
-  tileDataActions
+  tileDataActions,
+  showSettings,
+  tabUIState,
+  tabUIActions,
+  setFocusPaneOpen,
+  tileName
 }: {
   /* Statuses */
   interactive: boolean;
@@ -144,8 +153,18 @@ const PlotSettings = ({
   /* UI state actions */
   plotTileActions: PlotActions | null;
   tileDataActions: TileDataActions | null;
+  /* Focus pane helpers */
+  showSettings: boolean;
+  tabUIState: any;
+  tabUIActions: any;
+  setFocusPaneOpen: (open:boolean)=>void;
+  tileName: string | undefined;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const focusPaneOpen = useStoreContext(state=>state.focusPaneOpen);
+  
+  // Get global UI mode settings
+  const { isEditMode } = useGlobalUIMode();
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
@@ -189,7 +208,7 @@ const PlotSettings = ({
   return (
     <div 
       ref={settingsRef}
-      className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-12'}`}
+      className={`relative flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out ${showSettings ? (isOpen ? 'w-64' : 'w-12') : 'w-0 opacity-0 pointer-events-none'}`}
     >
       {/* Settings Content Area */}
       <div className={`flex-1 flex flex-col overflow-hidden ${isOpen ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200 delay-100`}>
@@ -309,7 +328,7 @@ const PlotSettings = ({
             {/* Fixed Tooltip and Grouping Key */}
             <div className="flex flex-col gap-2 px-3 pb-4">
               {/* Fixed Tooltip Container */}
-              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-sm transition-all duration-200 ease-in-out ${
+              <div className={`fixedPlotTooltip relative border border-dashed rounded-md hidden text-caption transition-all duration-200 ease-in-out ${
                 isTooltipMinimized 
                   ? 'h-10 overflow-hidden px-2 py-1' 
                   : 'p-3'
@@ -345,6 +364,25 @@ const PlotSettings = ({
                 value={plotTileState?.plot_group_by_colors ?? undefined}
                 onChange={(scheme) => plotTileActions?.setPlotGroupByColors(scheme)}
                 useDialog={true}
+              />
+            )}
+            {!isEditMode && !focusPaneOpen && (
+              <ActionButton
+                tooltip="Open in focus pane"
+                side="left"
+                icon={<Maximize2 className="h-4 w-4" />}
+                variant={focusPaneOpen && (tabUIState?.focusedTileNames || [undefined, undefined]).includes(tileName) ? "primary" : undefined}
+                disabled={false}
+                onClick={() => {
+                  const focused = tabUIState?.focusedTileNames || [undefined, undefined];
+                  if (tileName && !focused.includes(tileName)) {
+                    tabUIActions?.setFocusedTileNames([
+                      tileName,
+                      focused[0] || focused[1],
+                    ] as [string | undefined, string | undefined]);
+                  }
+                  setFocusPaneOpen(true);
+                }}
               />
             )}
             <PlotZoom

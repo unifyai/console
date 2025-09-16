@@ -78,7 +78,8 @@ const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setSh
             <ActionButton
               tooltip={removeLabel}
               text={removeLabel}
-              variant="secondary"
+              variant="warning"
+              disabled={loading}
               onClick={() => {
                 setError(false);
                 setLoading(true);

@@ -81,8 +81,8 @@ export function ColorSchemePicker({
                     key={scheme.name}
                     onClick={() => handleSchemeSelect(scheme.name)}
                     className={cn(
-                        "flex items-center justify-between w-full text-left p-2 rounded-md hover:bg-accent cursor-pointer text-sm",
-                        value === scheme.name && "bg-accent font-semibold",
+                        "flex items-center justify-between w-full text-left p-2 rounded-md hover:bg-accent cursor-pointer text-body",
+                        value === scheme.name && "bg-accent text-strong",
                         rowClassName
                     )}
                     aria-label={`Select ${scheme.displayName} color scheme`}
@@ -117,7 +117,7 @@ export function ColorSchemePicker({
                 </DialogTrigger>
                 <DialogContent className="w-[25rem] max-h-[30rem] overflow-auto">
                     <div className="pb-4">
-                        <h3 className="text-lg font-semibold mb-4">Select Color Scheme</h3>
+                        <h3 className="text-title mb-4">Select Color Scheme</h3>
                         {colorSchemeContent}
                     </div>
                 </DialogContent>
