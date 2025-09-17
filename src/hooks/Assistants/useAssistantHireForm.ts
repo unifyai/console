@@ -33,8 +33,6 @@ export function useAssistantHireForm(
     };
     const defaultVoice = getDefaultVoiceForProvider();
 
-    const initialLocalPart = "new-assistant";
-    const initialEmail = `${initialLocalPart}${EMAIL_DOMAIN_WITH_AT}`;
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
     const [isLoadingCountries, setIsLoadingCountries] = React.useState(true);
     const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
@@ -43,7 +41,8 @@ export function useAssistantHireForm(
         mode: 'onSubmit',
         defaultValues: {
             first_name: '', surname: '', age: null, region: 'United States', about: '',
-            email: initialEmail,
+            email: null,
+            isEmailAdded: false,
             emailManuallyEdited: false,
             user_phone: '',
             user_phone_isVerified: false,
@@ -339,18 +338,16 @@ export function useAssistantHireForm(
     }, [setValue, handleMediaRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries, getValues]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
-        const defaultFirstName = values?.first_name || '';
-        const defaultSurname = values?.surname || '';
-        const defaultLocalPart = (defaultFirstName && defaultSurname) ? `${defaultFirstName}-${defaultSurname}`.toLowerCase().replace(/[^a-z0-9-]/g, '') : 'new-assistant';
         const initialCountry = values?.country || (availablePhoneCountries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE) ? FALLBACK_DEFAULT_COUNTRY_CODE : availablePhoneCountries[0]?.code);
 
         reset({
-            first_name: defaultFirstName,
-            surname: defaultSurname,
+            first_name: values?.first_name || '',
+            surname: values?.surname || '',
             age: values?.age || null,
             region: values?.region || 'United States',
             about: values?.about || '',
-            email: values?.email || `${defaultLocalPart}${EMAIL_DOMAIN_WITH_AT}`,
+            email: values?.email || null,
+            isEmailAdded: values?.isEmailAdded || false,
             emailManuallyEdited: values?.emailManuallyEdited || false,
             user_phone: values?.user_phone || '',
             user_phone_isVerified: false,
@@ -418,7 +415,8 @@ export function useAssistantHireForm(
             user_phone_isVerified: !!assistant.user_phone,
             social_accounts: socialAccounts,
             isPhoneNumberAdded: !!assistant.phone,
-            email: assistant.email || '',
+            email: assistant.email || null,
+            isEmailAdded: !!assistant.email,
             emailManuallyEdited: true, // Assume existing email was set
 
             // Voice
@@ -448,6 +446,13 @@ export function useAssistantHireForm(
 
         try {
             // Validations
+            if (data.isEmailAdded) {
+                const emailValue = data.email;
+                if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+                    setError("email", { type: "manual", message: `Valid email is required.` });
+                    throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+                }
+            }
             if (data.isPhoneNumberAdded) {
                 if (data.user_phone && !data.user_phone_isVerified) {
                     setError("user_phone", { type: "manual", message: "Your phone number must be verified." });
@@ -464,6 +469,17 @@ export function useAssistantHireForm(
 
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
+
+            if (data.isEmailAdded) {
+                if (data.email !== editingAssistant.email) {
+                    payload.email = data.email || null;
+                }
+            } else { // Email was removed
+                if (editingAssistant.email !== null) {
+                    payload.email = null;
+                }
+            }
+
             if (data.isPhoneNumberAdded) {
                 if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
             }
@@ -551,20 +567,22 @@ export function useAssistantHireForm(
                 setError("region", { type: "manual", message: "Missing assistant region." });
                 throw new Error("Missing assistant region.");
             }
-            if (!data.country) {
-                setError("country", {type: "manual", message: "Phone number country is required."});
-                throw new Error("Phone number country is required.");
-            }
-            const emailValue = data.email;
-            if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-                setError("email", { type: "manual", message: `Valid email is required.` });
-                throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
-            }
-            if (fetchedAssistantEmails.includes(emailValue)) {
-                setError("email", { type: "manual", message: "This email is already in use." });
-                throw new Error("Email already in use.");
+            if (data.isEmailAdded) {
+                const emailValue = data.email;
+                if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+                    setError("email", { type: "manual", message: `Valid email is required.` });
+                    throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+                }
+                if (fetchedAssistantEmails.includes(emailValue)) {
+                    setError("email", { type: "manual", message: "This email is already in use." });
+                    throw new Error("Email already in use.");
+                }
             }
             if (data.isPhoneNumberAdded) {
+                if (!data.country) {
+                    setError("country", {type: "manual", message: "Phone number country is required."});
+                    throw new Error("Phone number country is required.");
+                }
                 if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
                     setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
                     throw new Error("Valid international phone number is required");
@@ -639,13 +657,14 @@ export function useAssistantHireForm(
 
             const userPhonePayload = data.isPhoneNumberAdded ? data.user_phone : null;
             const countryPayload = data.isPhoneNumberAdded ? data.country : null;
+            const emailPayload = data.isEmailAdded ? data.email as string | null : null;
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id,
-                data.email, userPhonePayload, countryPayload,
+                emailPayload, userPhonePayload, countryPayload,
                 user_whatsapp_number,
                 undefined
             );
@@ -697,17 +716,20 @@ export function useAssistantHireForm(
             return;
         }
 
-        const currentEmail = getValues("email");
-        if (!currentEmail || currentEmail.startsWith('@')) {
-            setError("email", { type: "manual", message: "Email local part cannot be empty." });
-            toast.error("Email local part cannot be empty.");
-            return;
+        if (getValues("isEmailAdded")) {
+            const currentEmail = getValues("email");
+            if (!currentEmail || currentEmail.startsWith('@')) {
+                setError("email", { type: "manual", message: "Email local part cannot be empty." });
+                toast.error("Email local part cannot be empty.");
+                return;
+            }
+            if (fetchedAssistantEmails.includes(currentEmail)) {
+                setError("email", { type: "manual", message: "This email is already in use." });
+                toast.error("This email is already in use. Please choose another.");
+                return;
+            }
         }
-        if (fetchedAssistantEmails.includes(currentEmail)) {
-            setError("email", { type: "manual", message: "This email is already in use." });
-            toast.error("This email is already in use. Please choose another.");
-            return;
-        }
+
 
         if (getValues("isPhoneNumberAdded")) {
             if (!getValues("user_phone_isVerified")) {
