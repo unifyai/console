@@ -6,7 +6,7 @@ import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
-import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant, AssistantPreset, Voice } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
 import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail, Settings, Laptop } from 'lucide-react';
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { getCountryFlag } from '@/utils/assistants/country-utils';
 import { EMAIL_DOMAIN_WITH_AT, PRIMARY_VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -192,6 +193,7 @@ export function HireForm({
 
     const isEmailAdded = useWatch({ control, name: 'isEmailAdded' });
     const isPhoneNumberAdded = useWatch({ control, name: 'isPhoneNumberAdded' });
+    const fastMode = useWatch({ control, name: 'fast_mode' });
 
     const handleAddEmail = () => {
         setValue('isEmailAdded', true, { shouldDirty: true });
@@ -429,6 +431,46 @@ export function HireForm({
     }, []);
 
     const shouldAutoplayVideo = !!videoPreviewUrl && !playedVideoUrls.has(videoPreviewUrl) && !isEditMode;
+    
+    React.useEffect(() => {
+        const isPristine = getValues("isPresetPristine");
+        const currentPreset = getValues("currentPreset");
+
+        if (!isPristine || !currentPreset) return;
+
+        const targetProvider = fastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
+        const fallbackProvider = fastMode ? PRIMARY_VOICE_PROVIDER : "openai";
+
+        const voiceId = currentPreset.voice_ids[targetProvider] ?? currentPreset.voice_ids[fallbackProvider];
+        const finalProvider = voiceId === currentPreset.voice_ids[fallbackProvider] ? fallbackProvider : targetProvider;
+
+        if (!voiceId) return;
+
+        const voiceDetails = (voicePresetsConstant as Voice[]).find(v => v.voice_id === voiceId && v.provider === finalProvider);
+        if (!voiceDetails) return;
+
+        // Update voice fields
+        setValue("voice_id", voiceDetails.voice_id);
+        setValue("voice_name", voiceDetails.name);
+        setValue("voice_description", voiceDetails.description);
+        setValue("voice_language", voiceDetails.language as SupportedLanguage);
+        setValue("voice_gender", voiceDetails.gender as Gender);
+        setValue("voice_provider", voiceDetails.provider);
+
+        // Update video
+        setValue("videoPreviewUrl", null); // Clear old video to show loading
+        assistantActions.photo.downloadPresetVideo(currentPreset.first_name, currentPreset.surname, finalProvider)
+            .then(res => {
+                if (res.signedUrl) {
+                    setValue("videoPreviewUrl", res.signedUrl);
+                    setValue("video_source_voice_id", voiceId);
+                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.first_name}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`);
+                    // Prevent autoplay by adding the new URL to the played list
+                    setPlayedVideoUrls(prev => new Set(prev).add(res.signedUrl!));
+                }
+            });
+
+    }, [fastMode, getValues, setValue, assistantActions.photo]);
 
     return (
     <FormProvider {...formMethods}>

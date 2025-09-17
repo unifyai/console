@@ -39,6 +39,7 @@ export interface PresetsPanelProps {
   availableLanguages: string[];
 
   onToggleView?: () => void;
+  isFastMode: boolean;
 }
 
 export function PresetsPanel({
@@ -63,6 +64,7 @@ export function PresetsPanel({
   onLanguageFilterChange,
   availableLanguages,
   onToggleView,
+  isFastMode,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
 
@@ -185,7 +187,7 @@ export function PresetsPanel({
             </Select>
           </div>
           <div>
-            <Select value={languageFilter} onValueChange={onLanguageFilterChange} disabled={availableLanguages.length <= 1}>
+            <Select value={languageFilter} onValueChange={onLanguageFilterChange} disabled={availableLanguages.length <= 1 || isFastMode}>
               <SelectTrigger className="h-8 text-caption">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
@@ -210,6 +212,7 @@ export function PresetsPanel({
                 key={`${preset.first_name}-${preset.surname}-${index}`} 
                 preset={preset}
                 onSelect={onPresetSelect}
+                isFastMode={isFastMode}
               />
             ))
           ) : (

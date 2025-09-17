@@ -210,10 +210,15 @@ export default function Main({
     
     // --- Voice Options  ---
     const hireFormRegion = hireFormMethods.watch("region");
+    const hireFormFastMode = hireFormMethods.watch("fast_mode") as boolean;
     const preferredLanguage = React.useMemo(() => getLangCodeForRegion(hireFormRegion), [hireFormRegion]);
     const allDisplayableVoices = React.useMemo(() => {
-        // Sort the voices here in Main.tsx using useMemo
-        const sorted = [...unsortedVoices];
+        const voicesToFilter = unsortedVoices;
+        const filteredByProvider = hireFormFastMode
+            ? voicesToFilter.filter(v => v.provider === 'openai')
+            : voicesToFilter.filter(v => v.provider !== 'openai');
+        
+        const sorted = [...filteredByProvider];
         sorted.sort((a, b) => {
             const isAPreferred = preferredLanguage && a.language === preferredLanguage;
             const isBPreferred = preferredLanguage && b.language === preferredLanguage;
@@ -224,7 +229,7 @@ export default function Main({
             return (a.name || '').localeCompare(b.name || '');
         });
         return sorted;
-    }, [unsortedVoices, preferredLanguage]);    
+    }, [unsortedVoices, preferredLanguage, hireFormFastMode]);    
 
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
@@ -239,7 +244,6 @@ export default function Main({
         let presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
         if (presetsToUse.length > 0) {
             const randomIndex = Math.floor(Math.random() * presetsToUse.length);
-            presetsToUse = presetsToUse.filter(p => !p.voice_ids["openai"]) // Don't pick openai-voice presets as initial presets
             selectPresetForHireForm(presetsToUse[randomIndex]);
         }
 
@@ -457,6 +461,7 @@ export default function Main({
                     onRequestAccess={requestHiringAccess}
                     availableSocialPlatforms={availableSocialPlatforms}
                     isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                    isFastMode={hireFormFastMode}
                 >
                     <HireForm
                         assistants={assistants}
@@ -497,6 +502,7 @@ export default function Main({
                         languageFilter={presetLanguageFilter}
                         onLanguageFilterChange={setPresetLanguageFilter}
                         availableLanguages={availableLanguages}
+                        isFastMode={hireFormFastMode}
                         layoutMode="split" // Dummy prop
                         setLayoutMode={() => {}} // Dummy prop
                     />

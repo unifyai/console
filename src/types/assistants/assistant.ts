@@ -113,10 +113,12 @@ export type AssistantFormData =
       voice_provider?: "cartesia" | "elevenlabs" | "openai";
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
+      currentPreset?: AssistantPreset | null;
       social_accounts?: SocialAccount[];
       isPhoneNumberAdded?: boolean;
       operating_system?: 'ubuntu' | 'windows' | 'macos';
       design_include_bio?: boolean;
+      fast_mode?: boolean;
     };
 
 export interface PhotoUploadResponse {
@@ -203,7 +205,6 @@ export interface GenerateSpeechPayload {
     cartesia_sample_rate?: number;
     cartesia_bit_rate?: number;
     elevenlabs_optimize_streaming_latency?: number;
-    elevenlabs_voice_settings_stability?: number;
     elevenlabs_voice_settings_similarity_boost?: number;
 }
 

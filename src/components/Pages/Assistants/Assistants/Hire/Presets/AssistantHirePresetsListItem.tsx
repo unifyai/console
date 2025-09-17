@@ -10,9 +10,10 @@ type ImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
 interface PresetListItemProps {
   preset: AssistantPreset;
   onSelect: (preset: AssistantPreset) => void;
+  isFastMode: boolean;
 }
 
-export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
+export function PresetListItem({ preset, onSelect, isFastMode }: PresetListItemProps) {
   const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>("loading");
 
   const displayName = `${preset.first_name} ${preset.surname}`;
@@ -58,7 +59,7 @@ export function PresetListItem({ preset, onSelect }: PresetListItemProps) {
            <span>{preset.region}</span>
            <span className="text-caption text-muted-foreground">Language:</span>
            <span className="flex items-center gap-1.5">
-               {preset.language ? getLanguageLabel(preset.language) : '-'}
+               {isFastMode ? "Multilingual" : (preset.language ? getLanguageLabel(preset.language) : '-')}
            </span>
         </div>
          <p className="text-caption text-muted-foreground line-clamp-2"> {/* Show snippet */}

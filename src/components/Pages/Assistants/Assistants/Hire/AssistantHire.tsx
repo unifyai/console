@@ -40,6 +40,7 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     formMethods: UseFormReturn<AssistantFormData>;
     availableSocialPlatforms: AvailableSocialPlatform[];
     isLoadingSocialPlatforms: boolean;
+    isFastMode: boolean;
 }
 
 export function AssistantHire ({
@@ -63,6 +64,7 @@ export function AssistantHire ({
     availableSocialPlatforms,
     isLoadingSocialPlatforms,
     formMethods,
+    isFastMode,
 }: AssistantHireProps) {
     const [hireForm, presetsPanel] = React.Children.toArray(children);
     const [rightPanelView, setRightPanelView] = React.useState<'presets' | 'chat'>('presets');
@@ -324,6 +326,7 @@ export function AssistantHire ({
                                                 setLayoutMode: setLayoutMode,
                                                 onClose: () => setIsAssistantPresetsOpen(false),
                                                 onToggleView: handleToggleView,
+                                                isFastMode: isFastMode,
                                             })
                                         ) : (
                                             <AssistantHireChatPanel

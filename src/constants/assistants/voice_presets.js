@@ -1014,5 +1014,61 @@ export default [
     "gender": "female",
     "language": "multi",
     "provider": "openai",
+  },
+  {
+    "voice_id": "ballad",
+    "name": "Multilingual Male Dynamic 1", // Original: Ballad
+    "description": "A young, enthusiastic male voice.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "echo",
+    "name": "Multilingual Male Neutral 2", // Original: Echo
+    "description": "A slow-paced, regular male voice.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "fable",
+    "name": "Multilingual Female Professional 2", // Original: Fable
+    "description": "A slow-paced, mature female voice.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "nova",
+    "name": "Multilingual Female Neutral 1", // Original: Nova
+    "description": "A regular, female voice.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "sage",
+    "name": "Multilingual Female Neutral 2", // Original: Sage
+    "description": "A neutral, young female voice.",
+    "gender": "female",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "onyx",
+    "name": "Multilingual Female Grave 2", // Original: Onyx
+    "description": "A deep, wise-sounding male voice.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
+  },
+  {
+    "voice_id": "verse",
+    "name": "Multilingual Male Dynamic 2", // Original: Verse
+    "description": "A young, dynamic-sounding male voice.",
+    "gender": "male",
+    "language": "multi",
+    "provider": "openai",
   }
 ]

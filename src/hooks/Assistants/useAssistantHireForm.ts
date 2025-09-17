@@ -69,10 +69,12 @@ export function useAssistantHireForm(
             voice_exists: false,
             isPresetPristine: false,
             presetOriginalValues: null,
+            currentPreset: null,
             isPhoneNumberAdded: false,
             operating_system: 'ubuntu',
             video_source_voice_id: null,
             design_include_bio: false,
+            fast_mode: false,
         },
     });
 
@@ -138,16 +140,13 @@ export function useAssistantHireForm(
 
     const watchedFields = watch([
         "first_name", "surname", "age", "region", "about",
-        "voice_id", "voice_provider",
-        "photoFile", "profile_photo_url",
+        "voice_id", "photoFile", "profile_photo_url",
         "presetOriginalValues", "country"
-        // videoUrl is handled more directly for pristine state after preset selection
     ]);
     React.useEffect(() => {
         const [
             firstName, surname, age, region, about,
-            voiceId, voiceProvider,
-            photoFile, profilePhotoUrl,
+            voiceId, photoFile, profilePhotoUrl,
             originalValues, country
         ] = watchedFields;
 
@@ -165,15 +164,19 @@ export function useAssistantHireForm(
             return;
         }
 
+        const currentPreset = getValues("currentPreset");
+        const isVoicePristine = currentPreset
+            ? (voiceId === currentPreset.voice_ids.openai || voiceId === currentPreset.voice_ids[PRIMARY_VOICE_PROVIDER])
+            : (voiceId === originalValues.voice_id);
+
         let isPristine =
             firstName === originalValues.first_name &&
             surname === originalValues.surname &&
             age === originalValues.age &&
             (region ?? '') === (originalValues.region ?? '') &&
             country === originalValues.country &&
-            voiceId === originalValues.voice_id &&
-            (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url)) &&
-            voiceProvider === PRIMARY_VOICE_PROVIDER;
+            isVoicePristine &&
+            (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url));
 
         if (getValues("isPresetPristine") && !isPristine) {
             setValue("isPresetPristine", false);
@@ -221,6 +224,9 @@ export function useAssistantHireForm(
 
     const selectPreset = React.useCallback((preset: AssistantPreset) => {
         handleMediaRemove();
+        const isFastMode = getValues("fast_mode");
+
+        setValue("currentPreset", preset);
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
@@ -260,33 +266,28 @@ export function useAssistantHireForm(
         setValue("email", `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
         setValue("emailManuallyEdited", false);
 
-        // Determine the voice_id based on PRIMARY_VOICE_PROVIDER, or OpenAi if an OpenAI voice
-        const presetVoiceProvider = preset.voice_ids["openai"] ? "openai" : PRIMARY_VOICE_PROVIDER;
-        const providerSpecificVoiceId = preset.voice_ids["openai"] || preset.voice_ids[PRIMARY_VOICE_PROVIDER] || null;
+        // Determine the voice_id based on fast_mode or PRIMARY_VOICE_PROVIDER
+        const preferredProvider = isFastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
+        const fallbackProvider = isFastMode ? PRIMARY_VOICE_PROVIDER : "openai";
 
+        const providerSpecificVoiceId = preset.voice_ids[preferredProvider] ?? preset.voice_ids[fallbackProvider] ?? null;
+        const finalProvider = providerSpecificVoiceId === preset.voice_ids[fallbackProvider] ? fallbackProvider : preferredProvider;
+        
         // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
         let selectedPresetVoiceDetails: VoiceOption | undefined = (voicePresetsConstant as VoiceOption[]).find(
-            vp => vp.voice_id === providerSpecificVoiceId && (vp.provider === presetVoiceProvider)
+            vp => vp.voice_id === providerSpecificVoiceId && (vp.provider === finalProvider)
         );
 
         if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
-            // Fallback if voice ID is in preset but not in voice_presets.js for that provider
-            // This should ideally not happen if data is consistent.
             console.warn(`Voice ID ${providerSpecificVoiceId} found in assistant preset but not in voice_presets.js. Using fallback.`);
             selectedPresetVoiceDetails = {
-                voice_id: providerSpecificVoiceId,
-                name: "Preset Voice",
-                description: "Preset voice",
-                gender: preset.gender === 'male' ? 'male' : 'female', // Infer from assistant preset
-                language: 'en', // Default language
-                provider: presetVoiceProvider,
-                is_preset: true,
-                isUserVoiceInOrchestra: false,
+                voice_id: providerSpecificVoiceId, name: "Preset Voice", description: "Preset voice",
+                gender: preset.gender === 'male' ? 'male' : 'female', language: 'en', provider: finalProvider,
+                is_preset: true, isUserVoiceInOrchestra: false,
             };
         } else if (!selectedPresetVoiceDetails) {
-            // If no specific voice ID for the provider, or if it's null, use the default voice for the provider
-            selectedPresetVoiceDetails = defaultVoice as VoiceOption; // Cast because defaultVoice is Voice
-            if(selectedPresetVoiceDetails) { // Ensure defaultVoice itself is valid
+            selectedPresetVoiceDetails = defaultVoice as VoiceOption;
+            if(selectedPresetVoiceDetails) {
                  selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
                  selectedPresetVoiceDetails.is_preset = true;
             }
@@ -318,12 +319,12 @@ export function useAssistantHireForm(
         };
         setValue("presetOriginalValues", originalValues);
         setValue("videoPreviewUrl", null);
-        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, presetVoiceProvider)
+        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, finalProvider)
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoPreviewUrl", res.signedUrl);
                     setValue("video_source_voice_id", providerSpecificVoiceId);
-                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${presetVoiceProvider.toLowerCase()}.mp4`);
+                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${finalProvider.toLowerCase()}.mp4`);
                 } else {
                     setValue("isPresetPristine", false);
                 }
@@ -375,6 +376,7 @@ export function useAssistantHireForm(
             voice_provider: values?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
             isPresetPristine: false,
             presetOriginalValues: null,
+            currentPreset: null,
             operating_system: 'ubuntu',
             design_include_bio: false,
         });
