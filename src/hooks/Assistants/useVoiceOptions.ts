@@ -100,7 +100,7 @@ export function useVoiceOptions(
 
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
-            const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id);
+            const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id, voiceToDelete.provider);
             if (deleteResult.detail) { 
                 console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
                 toast.error(`Error deleting voice}`, { id: toastId });

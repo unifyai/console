@@ -3,6 +3,8 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/c
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 import { ChatMessage } from "./chat";
 
+export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
+
 // New type for the pre_hire_chat payload
 export interface PreHireChatMessage {
   message_id: number;
@@ -28,6 +30,7 @@ export interface Assistant {
   gender?: 'male' | 'female';
   // Voice fields
   voice_id: string | null; // Provider Voice ID
+  voice_provider: VoiceProvider | null;
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -56,7 +59,7 @@ export interface AssistantStatus {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'> // voice_id removed from Omit
   & {
       gender?: 'male' | 'female';
       country: string;
@@ -83,7 +86,7 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'email'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'email' | 'voice_provider'>
   & {
       email?: string | null;
       isEmailAdded?: boolean;
@@ -110,7 +113,7 @@ export type AssistantFormData =
       voice_gender?: CartesiaGender;
       voice_language?: SupportedLanguage | "multi";
       voice_exists?: boolean;
-      voice_provider?: "cartesia" | "elevenlabs" | "openai";
+      voice_provider?: VoiceProvider;
       isPresetPristine?: boolean;
       presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
       currentPreset?: AssistantPreset | null;
@@ -174,6 +177,7 @@ export interface AssistantUpdatePayload {
     email?: string | null;
     user_whatsapp_number?: string | null;
     voice_id?: string | null;
+    voice_provider?: VoiceProvider | null;
     country?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
@@ -258,6 +262,7 @@ export interface AssistantActions {
         profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
         email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null,
+        voice_provider: VoiceProvider | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
@@ -278,7 +283,7 @@ export interface AssistantActions {
     "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>;
     register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
-    delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
+    delete: (voice_id: string, provider: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
     preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;

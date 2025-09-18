@@ -392,7 +392,7 @@ export function useAssistantHireForm(
         if (assistant.user_whatsapp_number) {
             socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isInitial: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
         }
-        const assistantVoiceDetails = registeredVoices.find(v => v.voice_id === assistant.voice_id);
+        const assistantVoiceDetails = registeredVoices.find(v => v.voice_id === assistant.voice_id && v.provider === assistant.voice_provider);
         reset({
             ...getValues(),
 
@@ -427,7 +427,7 @@ export function useAssistantHireForm(
             voice_description: assistantVoiceDetails?.description,
             voice_gender: assistantVoiceDetails?.gender,
             voice_language: assistantVoiceDetails?.language,
-            voice_provider: assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
+            voice_provider: assistant.voice_provider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
             voice_exists: !!assistantVoiceDetails, 
 
             // Advanced
@@ -471,6 +471,7 @@ export function useAssistantHireForm(
 
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
+            if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
 
             if (data.isEmailAdded) {
                 if (data.email !== editingAssistant.email) {
@@ -630,10 +631,10 @@ export function useAssistantHireForm(
                  finalVideoUrlToSend = data.profile_video_url ?? null;
             }
 
+            const voice_provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
             if (!data.voice_exists && data.voice_id) {
-                const provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
                 const voiceCreationResponse = await assistantActions.voice.register(
-                    data.voice_id, provider, data.voice_name, data.voice_description || data.voice_name,
+                    data.voice_id, voice_provider, data.voice_name, data.voice_description || data.voice_name,
                     data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
                 );
                 if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) {
@@ -668,6 +669,7 @@ export function useAssistantHireForm(
                 data.about, data.voice_id,
                 emailPayload, userPhonePayload, countryPayload,
                 user_whatsapp_number,
+                voice_provider,
                 undefined
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {

@@ -6,8 +6,16 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: { voiceId: string } }
 ) {
+    const provider = request.nextUrl.searchParams.get("provider");
+    if (!provider) {
+        return new Response(JSON.stringify({ detail: "Missing 'provider' query parameter." }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     return await fetch(
-        `${baseUrl}/assistant/voice/${params.voiceId}`, 
+        `${baseUrl}/assistant/voice/${params.voiceId}?provider=${provider}`, 
         {
             method: "DELETE",
             headers: {

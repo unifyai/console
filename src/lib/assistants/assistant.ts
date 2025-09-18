@@ -172,6 +172,7 @@ export const createAssistant = async (apiKey: string) => {
         profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
         email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null,
+        voice_provider: string | null,
         pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
@@ -194,6 +195,7 @@ export const createAssistant = async (apiKey: string) => {
                         profile_video,
                         about,
                         voice_id,
+                        voice_provider,
                         email,
                         user_phone,
                         country,

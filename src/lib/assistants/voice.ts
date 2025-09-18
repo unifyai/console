@@ -38,10 +38,10 @@ export const registerVoice = async (apiKey: string) => {
 };
 
 export const deleteVoice = async (apiKey: string) => {
-    return async (voice_id: string): Promise<ResponseProps> => {
+    return async (voice_id: string, provider: string): Promise<ResponseProps> => {
         "use server";
         try {
-            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${voice_id}`, { method: "DELETE", headers: { apiKey: apiKey }});
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/${voice_id}?provider=${provider}`, { method: "DELETE", headers: { apiKey: apiKey }});
             if (!response.ok && response.status !== 404) { 
                  const data = await response.json().catch(() => ({}));
                 return { detail: data.detail || `Failed to delete voice: ${response.statusText}` };
