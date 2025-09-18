@@ -308,20 +308,6 @@ export default [
     }
   },
   {
-    "first_name": "Yetunde",
-    "surname": "Akinwale",
-    "age": 45,
-    "gender": "female",
-    "about": "A competent and organized professional with years of experience. I manage responsibilities effectively and maintain a positive attitude, contributing reliably to team efforts and adapting as needed.",
-    "region": "Nigeria",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/32.jpg",
-    "voice_ids": {
-      "cartesia": "694f9389-aac1-45b6-b726-9d9369183238", // Sarah (en, female, "natural and expressive... wide range of conversational use cases")
-      "elevenlabs": "",
-      "openai": "nova"
-    }
-  },
-  {
     "first_name": "Rafael",
     "surname": "Souza",
     "age": 25,
@@ -490,20 +476,6 @@ export default [
     }
   },
   {
-    "first_name": "Maria",
-    "surname": "Lopez",
-    "age": 50,
-    "gender": "female",
-    "about": "An experienced and resilient professional known for dedication and a strong work ethic. I confidently handle responsibilities and strive to contribute positively in collaborative environments.",
-    "region": "Philippines",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/53.jpg",
-    "voice_ids": {
-      "cartesia": "a8136a0c-9642-497a-882d-8d591bdcb2fa", // American Narrator Lady (en, female, "clear, expressive, and captivating voice")
-      "elevenlabs": "",
-      "openai": "shimmer"
-    }
-  },
-  {
     "first_name": "Orion",
     "surname": "Silver",
     "age": 45,
@@ -542,20 +514,6 @@ export default [
     "voice_ids": {
       "cartesia": "bf32f849-7bc9-4b91-8c62-954588efcc30", // Chinese Lisa (zh, female, "casual female Chinese conversational voice")
       "elevenlabs": "zrHiDhphv9ZnVXBqCLjz", // Mimi (en, female, young, childish, swedish accent) -> Mapped to zh.
-      "openai": "fable"
-    }
-  },
-  {
-    "first_name": "Angela",
-    "surname": "Brown",
-    "age": 50,
-    "gender": "female",
-    "about": "A highly experienced and dependable professional committed to excellence. I am a strong collaborator, always willing to share knowledge and contribute positively to team objectives.",
-    "region": "United States",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/51.jpg",
-    "voice_ids": {
-      "cartesia": "d7e54830-4754-4b17-952c-bcdb7e80a2fb", // Tori (en, female, "A slow, female American narrator.")
-      "elevenlabs": "",
       "openai": "fable"
     }
   },
@@ -767,20 +725,6 @@ export default [
       "cartesia": "38aabb6a-f52b-4fb0-a3d1-988518f4dc06", // Alina (de, female, "warm, engaging German voice... smooth, friendly tone")
       "elevenlabs": "SAz9YHcvj6GT2YYXdXww", // River (en -> de, female relaxed neutral voice)
       "openai": "sage"
-    }
-  },
-  {
-    "first_name": "Sakura",
-    "surname": "Kimura",
-    "age": 23,
-    "gender": "female",
-    "about": "A bright and dedicated individual with a passion for learning. I thrive in collaborative settings and am eager to apply my skills and contribute fresh perspectives to achieve team objectives.",
-    "region": "Japan",
-    "profile_photo": "https://cdn.jsdelivr.net/gh/faker-js/assets-person-portrait/female/512/31.jpg",
-    "voice_ids": {
-      "cartesia": "0cd0cde2-3b93-42b5-bcb9-f214a591aa29", // Young Shy Japanese Woman (ja, female, "bright and cheerful Japanese female voice with a youthful, playful tone")
-      "elevenlabs": "",
-      "openai": "marin"
     }
   },
   {
