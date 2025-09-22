@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount, PreHireChatMessage } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount, PreHireChatMessage, UserLocalDesktop } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -13,8 +13,8 @@ import { ChatMessage } from '@/types/assistants/chat';
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
     registeredVoices: VoiceOption[],
-    onHireSuccess?: (newAssistant: Assistant, chatHistory?: ChatMessage[]) => void,
-    onUpdateSuccess?: () => void,
+    onHireSuccess?: (newAssistant: Assistant, formData: AssistantFormData, chatHistory?: ChatMessage[]) => void,
+    onUpdateSuccess?: (updatedPayload: Partial<AssistantUpdatePayload>) => void,
     isDialogOpen?: boolean,
     availableSocialPlatforms: AvailableSocialPlatform[] = []
 ) {
@@ -71,6 +71,7 @@ export function useAssistantHireForm(
             presetOriginalValues: null,
             currentPreset: null,
             isPhoneNumberAdded: false,
+            setup: 'remote',
             operating_system: 'ubuntu',
             video_source_voice_id: null,
             design_include_bio: false,
@@ -226,6 +227,7 @@ export function useAssistantHireForm(
         handleMediaRemove();
         const isFastMode = getValues("fast_mode");
 
+        setValue("setup", "remote");
         setValue("currentPreset", preset);
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
@@ -431,7 +433,8 @@ export function useAssistantHireForm(
             voice_exists: !!assistantVoiceDetails, 
 
             // Advanced
-            operating_system: 'ubuntu',
+            setup: assistant.user_local_desktop ? 'local' : 'remote',
+            operating_system: (assistant.user_local_desktop as UserLocalDesktop | null) || 'ubuntu',
         });
         setShowInsufficientFundsHint(false);
     }, [reset, getValues]);
@@ -495,6 +498,11 @@ export function useAssistantHireForm(
             const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
             if (user_whatsapp_number !== editingAssistant.user_whatsapp_number) payload.user_whatsapp_number = user_whatsapp_number;
 
+            const setupValue = data.setup === 'local' ? data.operating_system : null;
+            if (setupValue !== (editingAssistant.user_local_desktop || null)) {
+                payload.user_local_desktop = setupValue;
+            }
+
             // Image/Video upload logic
             if (data.photoFile) {
                 const formData = new FormData();
@@ -528,7 +536,7 @@ export function useAssistantHireForm(
             }
 
             toastIdRef.current = undefined;
-            if (onUpdateSuccess) onUpdateSuccess();
+            if (onUpdateSuccess) onUpdateSuccess(payload);
 
         } catch (error: any) {
              const isRHFError = !!(hireFormMethods.formState.errors.user_phone || hireFormMethods.formState.errors.social_accounts);
@@ -662,21 +670,22 @@ export function useAssistantHireForm(
             const countryPayload = data.isPhoneNumberAdded ? data.country : null;
             const emailPayload = data.isEmailAdded ? data.email as string | null : null;
 
+            const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
+
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, finalVideoUrlToSend,
-                data.about, data.voice_id,
+                data.about, data.voice_id, voice_provider,
                 emailPayload, userPhonePayload, countryPayload,
-                user_whatsapp_number,
-                voice_provider,
+                user_whatsapp_number, user_local_desktop_payload,
                 undefined
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
-                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, chatHistory);
+                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, chatHistory);
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);

@@ -813,42 +813,63 @@ export function HireForm({
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <Laptop className="h-4 w-4 text-muted-foreground mb-1" />
-                                        <Label htmlFor="operating_system">Assistant&apos;s Operating System</Label>
-                                    </div>
-                                    <Controller
-                                        name="operating_system"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
-                                                <SelectTrigger id="operating_system">
-                                                    <SelectValue placeholder="Select an OS..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ubuntu">
-                                                        <div className="flex items-center gap-2">
-                                                            <FaUbuntu className="h-4 w-4" />
-                                                            <span>Ubuntu</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="windows" disabled>
-                                                        <div className="flex items-center gap-2">
-                                                            <FaWindows className="h-4 w-4" />
-                                                            <span>Windows - Coming Soon</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="macos" disabled>
-                                                        <div className="flex items-center gap-2">
-                                                            <FaApple className="h-4 w-4" />
-                                                            <span>MacOS - Coming Soon</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    />
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                       <div className="flex items-center gap-2">
+                                           <Laptop className="h-4 w-4 text-muted-foreground mb-1" />
+                                           <Label htmlFor="operating_system">Assistant&apos;s Setup</Label>
+                                           <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                       </div>
+                                       <Controller
+                                           name="setup"
+                                           control={control}
+                                           render={({ field }) => (
+                                               <div className="space-y-2">
+                                                   <div className={cn("flex items-center space-x-2 rounded-md border p-3 cursor-pointer", field.value === 'remote' && "border-primary")} onClick={() => field.onChange('remote')}>
+                                                       <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'remote' && "border-primary")}>
+                                                           {field.value === 'remote' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                       </div>
+                                                       <Label htmlFor="setup-remote" className="font-normal text-body cursor-pointer">Remote - Use a virtual machine</Label>
+                                                   </div>
+                                                   <div className={cn("flex flex-col space-y-3 rounded-md border p-3 cursor-pointer", field.value === 'local' && "border-primary")} onClick={() => field.onChange('local')}>
+                                                       <div className="flex items-center space-x-2">
+                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", field.value === 'local' && "border-primary")}>
+                                                               {field.value === 'local' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                           </div>
+                                                           <Label htmlFor="setup-local" className="font-normal text-body cursor-pointer">Local - Connect to your desktop</Label>
+                                                       </div>
+                                                       {field.value === 'local' && (
+                                                           <Controller
+                                                               name="operating_system"
+                                                               control={control}
+                                                               render={({ field: osField }) => (
+                                                                   <div className="pl-6 space-y-2">
+                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('ubuntu'); }}>
+                                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'ubuntu' && "border-primary")}>
+                                                                               {osField.value === 'ubuntu' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                                           </div>
+                                                                           <FaUbuntu className="h-4 w-4" />
+                                                                           <Label htmlFor="os-ubuntu" className="font-normal text-body cursor-pointer">Ubuntu</Label>
+                                                                       </div>
+                                                                       <div className="flex items-center space-x-2 text-muted-foreground cursor-not-allowed">
+                                                                           <div className="w-4 h-4 rounded-full border border-muted-foreground/50"></div>
+                                                                           <FaWindows className="h-4 w-4" />
+                                                                           <Label htmlFor="os-windows" className="font-normal text-body cursor-not-allowed">Windows - Coming Soon</Label>
+                                                                       </div>
+                                                                       <div className="flex items-center space-x-2 text-muted-foreground cursor-not-allowed">
+                                                                           <div className="w-4 h-4 rounded-full border border-muted-foreground/50"></div>
+                                                                           <FaApple className="h-4 w-4" />
+                                                                           <Label htmlFor="os-macos" className="font-normal text-body cursor-not-allowed">MacOS - Coming Soon</Label>
+                                                                       </div>
+                                                                   </div>
+                                                               )}
+                                                           />
+                                                       )}
+                                                   </div>
+                                               </div>
+                                           )}
+                                       />
+                                   </div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
