@@ -183,17 +183,17 @@ export default function Main({
         setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
         handleShowProfile(newAssistant.agent_id);
         refreshHiringProfile();
-        //if (formData.setup === 'local' && formData.operating_system) {
-        //    setSetupInstructions({ os: formData.operating_system, isOpen: true });
-        //}
+        if (formData.setup === 'local' && formData.operating_system) {
+            setSetupInstructions({ os: formData.operating_system, isOpen: true });
+        }
     }, [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]);
 
     const handleUpdateSuccess = React.useCallback((updatedPayload: Partial<AssistantUpdatePayload>) => {
         refreshAssistants(false);
         setAssistantToEdit(null);
-        //if (updatedPayload.user_local_desktop) {
-        //    setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
-        //}
+        if (updatedPayload.user_local_desktop) {
+            setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
+        }
     }, [refreshAssistants]);
     
     // --- Combined Hire/Edit Form Hook ---
@@ -581,11 +581,11 @@ export default function Main({
 
             </FormProvider>
 
-            {/* <AssistantHireLocalSetupInstructionsDialog
+            <AssistantHireLocalSetupInstructionsDialog
                 isOpen={setupInstructions?.isOpen || false}
                 os={setupInstructions?.os || 'ubuntu'}
                 onClose={() => setSetupInstructions(null)}
-            /> */}
+            />
         </>
     );
 }

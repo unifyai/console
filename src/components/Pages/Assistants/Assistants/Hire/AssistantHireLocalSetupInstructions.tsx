@@ -8,8 +8,10 @@ import {
   DialogTitle,
 } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { ClipboardCopy, Laptop } from 'lucide-react';
-import { toast } from 'sonner';
+import { Laptop, WifiOff } from 'lucide-react';
+import { Skeleton } from '@/components/UI/skeleton';
+import Markdown from 'react-markdown';
+import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface AssistantHireLocalSetupInstructionsDialogProps {
     isOpen: boolean;
@@ -17,66 +19,96 @@ interface AssistantHireLocalSetupInstructionsDialogProps {
     os: string;
 }
 
-const CodeBlock: React.FC<{ command: string }> = ({ command }) => {
-    const handleCopy = () => {
-        navigator.clipboard.writeText(command);
-        toast.success("Command copied to clipboard!");
-    };
-
-    return (
-        <div className="bg-muted p-3 rounded-md font-mono text-caption flex items-center justify-between">
-            <pre className="overflow-x-auto"><code>{command}</code></pre>
-            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={handleCopy}>
-                <ClipboardCopy className="h-4 w-4" />
-            </Button>
-        </div>
-    );
-};
+const LoadingSkeleton = () => (
+    <div className="space-y-3">
+        <Skeleton className="h-4 w-1/2 bg-muted" />
+        <Skeleton className="h-4 w-full bg-muted" />
+        <Skeleton className="h-4 w-full bg-muted" />
+        <Skeleton className="h-10 w-full bg-muted mt-2" />
+        <Skeleton className="h-4 w-4/5 bg-muted" />
+    </div>
+);
 
 export function AssistantHireLocalSetupInstructionsDialog({ isOpen, onClose, os }: AssistantHireLocalSetupInstructionsDialogProps) {
+    const [content, setContent] = React.useState<string | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
 
-    const renderInstructions = () => {
-        switch (os) {
-            case 'ubuntu':
-                return (
-                    <div className="space-y-2">
-                        <p className="text-body text-muted-foreground">
-                            To connect your assistant to your local Ubuntu machine, please run the following command in your terminal:
-                        </p>
-                        <CodeBlock command="curl -sSL https://get.unify.ai/desktop | bash" />
-                        <p className="text-caption text-muted-foreground pt-2">
-                            This script will download and run the Unify Desktop installer. Follow the on-screen prompts to complete the setup.
-                        </p>
-                    </div>
-                );
-            case 'windows':
-            case 'macos':
-                return (
-                    <p className="text-body text-muted-foreground">
-                        Support for {os === 'windows' ? 'Windows' : 'macOS'} is coming soon. You can switch to a Remote setup in the assistant&apos;s edit settings for now.
-                    </p>
-                );
-            default:
-                return <p className="text-body text-muted-foreground">Unknown operating system selected.</p>;
+    const branch = os === "windows" ? "win" : os
+
+    React.useEffect(() => {
+        if (!isOpen) {
+            return;
         }
+
+        const fetchInstructions = async () => {
+            setIsLoading(true);
+            setError(null);
+            setContent(null);
+
+            // Construct the URL for the raw README.md file
+            const readmeUrl = `https://raw.githubusercontent.com/unifyai/unify-desktop-assistant/${branch}/README.md`;
+
+            try {
+                const response = await fetch(readmeUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch instructions (status: ${response.status})`);
+                }
+                const textContent = await response.text();
+                setContent(textContent);
+            } catch (err) {
+                console.error("Failed to fetch setup instructions:", err);
+                setError(`Could not load setup instructions for ${os}. Please check the repository or try again later.`);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchInstructions();
+    }, [isOpen, os]);
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <LoadingSkeleton />;
+        }
+
+        if (error) {
+            return (
+                <div className="flex flex-col items-center justify-center text-center text-destructive">
+                    <WifiOff className="h-8 w-8 mb-2" />
+                    <p className="text-body">{error}</p>
+                </div>
+            );
+        }
+
+        if (content) {
+            return (
+                 // Use Tailwind's typography plugin for nice default markdown styling
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <Markdown>{content}</Markdown>
+                </div>
+            );
+        }
+        
+        return null; // Should not be reached if logic is sound
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Laptop className="h-5 w-5" />
                         Local Desktop Setup Instructions
                     </DialogTitle>
                     <DialogDescription>
-                        Follow these steps to complete your assistant&apos;s local setup.
+                        Follow these steps to complete your assistant&apos;s local setup for {os}.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4">
-                    {renderInstructions()}
-                </div>
+                <ScrollArea className="max-h-[60vh] my-4 pr-4">
+                    {renderContent()}
+                </ScrollArea>
 
                 <DialogFooter>
                     <Button onClick={onClose}>Done</Button>
