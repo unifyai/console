@@ -47,6 +47,7 @@ import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/interfaces/table
 import ContextSelector from "./Content/ContextSelector";
 import ContextTreePicker from "@/components/Common/Dropdowns/ContextTreePicker";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { deselectFromClickOutside } from "@/hooks/Interfaces/useCellSelection";
@@ -906,47 +907,69 @@ const LogsTable = ({
   const { interface: interfaceObj } = useInterface(interfaceId, projectId);
   const inheritedContext = (item?.context || context_ || (interfaceObj as any)?.context || null);
 
-  const contextSelectorButton = (inOverlay: boolean) => projectId ? (
-    <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Button variant={inheritedContext ? "primary" : "outline"} size={inOverlay ? "default" : "sm"} className={inOverlay ? "" : "h-7"}>
-          <FolderTree className="h-4 w-4 mr-2"/>
-          {inOverlay ? "Context" : "Context"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-96 z-50 p-0">
-        <ContextTreePicker
+  const onPickContext = (ctx: string) => {
+    const s = (storeApi.getState() as any);
+    const tileIdResolved = tileId;
+    // Optimistic clear or set
+    s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+    s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+    // Also update legacy synced actions to reflect immediately
+    syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, "");
+  };
+
+  const onClearContext = () => {
+      const s = (storeApi.getState() as any);
+      const tileIdResolved = tileId;
+      s.setContextOptimistic?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+      s.enqueueContextSync?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+      syncedTileActions?.data?.setContextAndColumnContext(undefined, "");
+  };
+
+  const treePicker = (onPick: (ctx: string) => void) => (
+      <ContextTreePicker
           contexts={(listContextsQuery.data || []).map(c => c.name)}
           current={item?.context || null}
           basePrefix={(context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || undefined) as any}
           inherited={!item?.context ? (context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || null) : null}
-          onPick={(ctx) => {
-            const s = (storeApi.getState() as any);
-            const tileIdResolved = tileId;
-            // Optimistic clear or set
-            s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
-            s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
-            // Also update legacy synced actions to reflect immediately
-            syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, "");
-
-          }}
+          onPick={onPick}
           className="w-full"
           projectId={projectId || undefined}
           contextActions={contextActions}
           hideClear
-        />
-        <div className="flex items-center justify-between p-2 border-t border-border">
-          <Button variant="outline" size="sm" onClick={() => {
-            const s = (storeApi.getState() as any);
-            const tileIdResolved = tileId;
-            s.setContextOptimistic?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
-            s.enqueueContextSync?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
-            syncedTileActions?.data?.setContextAndColumnContext(undefined, "");
-          }}>Clear selection</Button>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => setTableContextPopoverOpen(false)}>Cancel</Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      />
+  );
+
+  const contextSelectorForPopover = projectId ? (
+      <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
+          <PopoverTrigger asChild>
+              <Button variant={inheritedContext ? "primary" : "outline"} size="sm" className="h-7">
+                  <FolderTree className="h-4 w-4 mr-2"/>
+                  Context
+              </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 z-50 p-0">
+              {treePicker((ctx) => {
+                  onPickContext(ctx);
+                  setTableContextPopoverOpen(false);
+              })}
+              <div className="flex items-center justify-between p-2 border-t border-border">
+                  <Button variant="outline" size="sm" onClick={onClearContext}>Clear selection</Button>
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={() => setTableContextPopoverOpen(false)}>Cancel</Button>
+              </div>
+          </PopoverContent>
+      </Popover>
+  ) : null;
+  
+  const contextSelectorForOverlay = projectId ? (
+      <div className="w-full h-full pt-8">
+          {treePicker((ctx) => {
+              onPickContext(ctx);
+              setOverlayDismissed(true);
+          })}
+          <div className="flex items-center justify-between p-2 border-t border-border mt-2">
+              <Button variant="outline" size="sm" onClick={onClearContext}>Clear selection</Button>
+          </div>
+      </div>
   ) : null;
 
   const createLogRedirectButton = <Button
@@ -1089,7 +1112,7 @@ const LogsTable = ({
                   currentTable={item?.name || ""}
                   tableArguments={tableArguments}
               />
-              {contextSelectorButton(false)}
+              {contextSelectorForPopover}
           </div>
         </div>
 
@@ -1279,8 +1302,9 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? contextSelectorButton(true) : createLogRedirectButton}
-                withPulse={overlayMode === "context" ? true : false}
+                actionButton={createLogRedirectButton}
+                contextSelectorContent={overlayMode === "context" ? contextSelectorForOverlay : undefined}
+                withPulse={overlayMode === "context" ? false : true}
               />
             )}
               {/* <div className="min-w-max w-full"> */}
