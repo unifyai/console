@@ -450,16 +450,22 @@ const LogsTable = ({
   ), [columnIDs, hiddenList, defaultHidden]);
 
   // Toggle handler for updating hiddenColumns from visibility map
-  const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => {
+  const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => { 
+    // Cancel any in-flight auto-update queries to prevent overwrites
+    const autoUpdateQueryKey = ["tableDataItem", "autoUpdate", tileId];
+    queryClient.cancelQueries({ queryKey: autoUpdateQueryKey });
+
     const hidden = Object.keys(v).filter((k) => !v[k]);
-    tableTileActions?.setHiddenColumns(
-      hidden.length
-        ? hidden.join(",")
-        : hidden.length === 0
-          ? ""
-          : undefined
-    );
-  }, [tableTileActions]);
+
+    // Apply the optimistic UI update
+    tableTileActions?.setHiddenColumns( 
+       hidden.length
+         ? hidden.join(",")
+         : hidden.length === 0
+           ? ""
+           : undefined
+     );
+  }, [tableTileActions, tileId, queryClient]);
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = useCallback((filtersObj: FiltersByColumn) => {
