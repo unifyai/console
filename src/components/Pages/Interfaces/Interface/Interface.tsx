@@ -105,6 +105,7 @@ const Interface = ({
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
+  const [interfaceLoadFailures, setInterfaceLoadFailures] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const lastNoticeKeyRef = useRef<string | null>(null);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
@@ -214,7 +215,14 @@ const Interface = ({
     // When the interface param changes (navigation completes), hide the loader.
     setIsSwitchingInterface(false);
     setLoadingMessage('Loading...');
+    setLoadingProjectName(null);
+    setLoadingInterfaceId(null);    
   }, [interfaceQueryParam]);
+
+  useEffect(() => {
+    // Reset failure count when the project changes
+    setInterfaceLoadFailures(0);
+   }, [projectQueryParam]);  
 
   useEffect(() => {
     // Trigger tab bar entrance animation after mount
@@ -471,6 +479,7 @@ const Interface = ({
         } catch (err) {
           console.error("Error in interface selection/creation:", err);
           setIsSwitchingInterface(false);
+          setInterfaceLoadFailures(prev => prev + 1);
           showErrorToast('Failed to load interface. Please try again.');
         }
       };
@@ -586,6 +595,25 @@ const Interface = ({
       updateTabMutation.reset();
     }
   }, [activeTabName, createTabMutation, updateTabMutation]);
+
+  // Add a useEffect to handle repeated interface load failures
+  useEffect(() => {
+    if (interfaceLoadFailures >= 3) {
+        // Reset counter to prevent loop if user navigates back to the same project
+        setInterfaceLoadFailures(0);
+        
+        // Show a more persistent error message
+        showErrorToast('Failed to load interface after 3 attempts.', 'Returning to project selection.');
+        
+        // Navigate back to project selection screen
+        const newParams = new URLSearchParams(window.location.search);
+        newParams.delete('project');
+        newParams.delete('interface');
+        newParams.set('selectProject', 'true');
+        
+        router.push(`/interfaces?${newParams.toString()}`);
+    }
+   }, [activeTabName, createTabMutation, updateTabMutation]);
 
   // Render the active tab based on streaming query
   const renderActiveTab = () => {
@@ -835,10 +863,13 @@ const Interface = ({
       
       {/* Main Content Area */}
       {effectiveShowProjectSelection ? (
-        /* Project Selection Screen - Full viewport centered */
-        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
-          <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
-            <div className="text-center mb-8 pt-4">
+        /* Project Selection Screen - Full viewport, left-aligned */
+        <div
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300"
+          style={{ left: 'var(--interface-nav-width, 256px)' }}
+        >
+          <div className="w-full p-8 flex flex-col h-full">
+            <div className="text-left mb-8">
               <h1 className="text-h2 mb-2">Select a Project</h1>
               <p className="text-subtitle">Choose a project to continue working on your interfaces.</p>
             </div>
@@ -900,10 +931,13 @@ const Interface = ({
           </div>
         </div>
       ) : showInterfaceSelection ? (
-        /* Interface Selection Screen - Full viewport centered */
-        <div className="fixed inset-0 top-10 flex flex-col bg-background z-10">
-          <div className="max-w-xl w-full mx-auto p-6 flex flex-col h-full">
-            <div className="text-center mb-8 pt-4">
+        /* Interface Selection Screen - Full viewport, left-aligned */
+        <div
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300"
+          style={{ left: 'var(--interface-nav-width, 256px)' }}
+        >
+          <div className="w-full p-8 flex flex-col h-full">
+            <div className="text-left mb-8">
               <h1 className="text-h2 mb-2">Select an Interface</h1>
               <p className="text-subtitle">Choose an interface for the {projectQueryParam} project.</p>
             </div>
@@ -1251,7 +1285,7 @@ const Interface = ({
             setFocusPaneOpen(false);
             tabUIActions?.setFocusedTileNames([undefined, undefined]);
           }}>
-                            <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
+            <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
               <DialogTitle className="sr-only">Focus Mode</DialogTitle>
               <DialogDescription className="sr-only">View and interact with multiple tiles in focus mode</DialogDescription>
               <Suspense fallback={<SkeletonLoader />}>
