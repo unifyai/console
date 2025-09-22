@@ -1927,23 +1927,17 @@ export default function InterfaceNav({
         )}
         
         {/* Header with Breadcrumb Navigation and Toggle */}
-        {!isCompletelyHidden && (
+        {!isCompletelyHidden && isCollapsed && (
           <div className={cn(
-            "flex items-center border-b animate-in fade-in slide-in-from-top-2 duration-300",
-            isCollapsed ? "justify-center p-2" : "justify-between p-2 gap-2 min-w-0"
+            "flex items-center justify-center p-2 border-b"
           )}>
-            {!isCollapsed && <span className="text-caption text-muted-foreground animate-in fade-in duration-200 truncate select-none uppercase tracking-wider">Interfaces</span>}
             <Button
               size="icon"
               variant="ghost"
               onClick={toggleSidebar}
-              className={cn("h-7 w-7 flex-shrink-0", !isCollapsed && "ml-auto")}
+              className="h-7 w-7"
             >
-              {isCollapsed ? (
-                <PanelLeft className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
+              <PanelLeft className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -1953,7 +1947,17 @@ export default function InterfaceNav({
           <div className="p-3 space-y-2.5 animate-in fade-in slide-in-from-left-2 duration-300 overflow-x-hidden">
             {/* Projects */}
             <div className="space-y-1.5">
-              <label className="text-label text-muted-foreground select-none">Project:</label>
+              <div className="flex items-center justify-between">
+                <label className="text-label text-muted-foreground select-none">Project:</label>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={toggleSidebar}
+                  className="h-7 w-7 flex-shrink-0"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </div>
               <div className="flex items-center gap-1 w-full min-w-0">
                 <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
                   <PopoverTrigger asChild>

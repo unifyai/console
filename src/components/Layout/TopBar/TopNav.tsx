@@ -71,7 +71,7 @@ export default function TopNav() {
 
   return (
     <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
-      <div className="h-full px-4 flex items-center justify-between">
+      <div className="h-full px-3.5 flex items-center justify-between">
         {/* Logo + Nav */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
@@ -82,7 +82,7 @@ export default function TopNav() {
               className={`h-5 w-5 object-contain transition-opacity duration-300`}
               />
           </Link>
-          <div className="mx-3 h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
+          <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
             {/* Assistants - Direct Link */}

@@ -854,7 +854,7 @@ const Interface = ({
                       key={project}
                       onClick={() => {
                         setLoadingProjectName(project);
-                        setLoadingMessage(`Loading ${project} project...`);
+                        setLoadingMessage(`Loading project...`);
                         setIsSwitchingInterface(true);
                         setSelectProjectParam(null);
                         setProjectQueryParam(project);
@@ -926,7 +926,7 @@ const Interface = ({
                         key={iface.id}
                         onClick={() => {
                           setLoadingInterfaceId(iface.id);
-                          setLoadingMessage(`Loading ${iface.name} interface...`);
+                          setLoadingMessage(`Loading interface...`);
                           setIsSwitchingInterface(true);
                           const newParams = new URLSearchParams(window.location.search);
                           newParams.set('interface', iface.name);
@@ -1107,9 +1107,7 @@ const Interface = ({
               >
               {tabNames.length === 0 ? (
                 (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
-                  <div className="flex justify-center">
-                    <Loader2 className="animate-spin my-36" />
-                  </div>
+                  null
                 ) : !projectQueryParam && !interfaceQueryParam ? (
                   hasAssistantsProject ? (
                     <Suspense fallback={<div className="flex justify-center"><Loader2 className="animate-spin my-36" /></div>}>

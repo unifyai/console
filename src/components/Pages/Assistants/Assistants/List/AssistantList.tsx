@@ -62,7 +62,7 @@ export function AssistantList({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        variant="outline"
+                                        variant={isFolded ? "ghost" : "outline"}
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={onOpenHireDialog}
@@ -121,7 +121,7 @@ export function AssistantList({
             </div>
 
             {/* Content Area: Loading Skeletons, Error, or List */}
-            <ScrollArea className="flex-1 p-2">
+            <ScrollArea className="flex-1 p-1">
                 <div className={cn(
                     "space-y-1 pt-2",
                     isFolded && "flex flex-col items-center space-y-3"
