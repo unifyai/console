@@ -41,6 +41,7 @@ export interface Assistant {
   user_whatsapp_number: string | null;
   // Advanced fields
   user_local_desktop?: UserLocalDesktop | null;
+  desktop_url?: string | null;
   // Contract fields
   weekly_limit: number | null;
   max_parallel: number | null;

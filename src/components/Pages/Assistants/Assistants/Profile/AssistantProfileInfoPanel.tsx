@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, ExternalLink } from "lucide-react";
+import { Mail, Phone, PenLine, Check, Laptop } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
@@ -51,9 +51,11 @@ const ContactItem: React.FC<{
         <TooltipProvider delayDuration={100}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={onClick}>
-                        {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        <span className={`truncate text-caption ${textClassName}`}>{value || '-'}</span>
+                    <div className="grid grid-cols-[auto_1fr] items-center gap-2 cursor-pointer" onClick={onClick}>
+                        <div className="flex-shrink-0">
+                            {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
+                        </div>
+                        <span className={`truncate min-w-0 text-caption ${textClassName}`}>{value || '-'}</span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
@@ -180,7 +182,7 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                 </div>
 
                 {/* About Section */}
-                <div className="pt-4 group">
+                <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
                     <div className="text-caption prose max-w-none prose-p:my-1">
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
@@ -212,6 +214,16 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                         <ContactItem value={"Coming Soon"} tooltip={`Schedule a Zoom meeting and invite ${assistant.first_name}`} icon={<BiLogoZoom className="h-4 w-4 flex-shrink-0"/>}/>
                     </div>
                 </div>
+
+                {/* Setup Section */}
+                {assistant.desktop_url && 
+                    <div className="pt-4 group/assistant-setup">
+                        <h3 className="text-title">My Setup</h3>
+                        <div className="text-caption my-1">
+                            <ContactItem value={assistant.desktop_url} tooltip={"Url of your local desktop configuration"} icon={<Laptop className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
+                        </div>
+                    </div>
+                }                
             </ScrollArea>
         </div>
     );
