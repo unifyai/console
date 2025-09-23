@@ -177,7 +177,7 @@ function renderSidebarIcon(iconStr: string | undefined | null, className: string
   const defaultIcons: Record<string, string> = {
     project: 'folder',      // Default project icon
     interface: 'layout-grid', // Default interface icon
-    tab: 'file-text'        // Default tab icon
+    tab: 'dot'        // Default tab icon
   };
   
   // Ensure we have a valid type
@@ -1979,7 +1979,7 @@ export default function InterfaceNav({
                       {!projectTreeLoading && !projectTreeFetching && (
                         <CommandEmpty>No project found.</CommandEmpty>
                       )}
-                      <CommandGroup>
+                      <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
                         {projectTreeError ? (
                           <div className="p-3 text-center">
                             <p className="text-body text-destructive mb-2">Failed to load projects</p>
@@ -2132,7 +2132,7 @@ export default function InterfaceNav({
                         {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
                           <CommandEmpty>No interface found.</CommandEmpty>
                         )}
-                        <CommandGroup>
+                        <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
                           {(projectTreeLoading || projectTreeFetching) ? (
                             <div className="p-1">
                               <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading interfaces...</div>
@@ -2895,7 +2895,7 @@ export default function InterfaceNav({
       )}
       
       {/* Floating Add Tile button when Edit Mode is ON */}
-      {isEditMode && (
+      {isEditMode && projectId && interfaceId && (
         <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
           <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
             <ActionButton

@@ -282,6 +282,7 @@ const DataTableCell = ({
               if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
             }}
             autoFocus
+            onBlur={() => isEditing ? setIsEditing(false) : null}
           />
         </div>
       );
@@ -321,6 +322,7 @@ const DataTableCell = ({
             if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
           }}
           autoFocus
+          onBlur={() => isEditing ? setIsEditing(false) : null}
         />
       </div>
     );

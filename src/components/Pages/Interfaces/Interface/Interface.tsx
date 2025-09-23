@@ -865,85 +865,74 @@ const Interface = ({
       {effectiveShowProjectSelection ? (
         /* Project Selection Screen - Full viewport, left-aligned */
         <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300"
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
           style={{ left: 'var(--interface-nav-width, 256px)' }}
         >
-          <div className="w-full p-8 flex flex-col h-full">
-            <div className="text-left mb-8">
-              <h1 className="text-h2 mb-2">Select a Project</h1>
-              <p className="text-subtitle">Choose a project to continue working on your interfaces.</p>
-            </div>
-            
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-2 pb-6">
-                {projects?.map((project) => {
-                  const projectData = projectTree?.find(p => p.project === project);
-                  const icon = projectData?.icon;
-                  const isLoading = loadingProjectName === project;
-                  return (
-                    <button
-                      key={project}
-                      onClick={() => {
-                        setLoadingProjectName(project);
-                        setLoadingMessage(`Loading project...`);
-                        setIsSwitchingInterface(true);
-                        setSelectProjectParam(null);
-                        setProjectQueryParam(project);
-                      }}
-                      disabled={isLoading || loadingProjectName !== null}
-                      className={cn(
-                        "w-full p-3 text-left border border-border rounded-lg transition-all duration-200 group",
-                        isLoading 
-                          ? "bg-muted cursor-not-allowed opacity-75" 
-                          : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+          <div className="w-full max-w-sm p-4">
+              <div className="text-center mb-6">
+                  <h1 className="text-lg font-medium">Select a project</h1>
+                  <p className="text-sm text-muted-foreground">Choose a project from the list below</p>
+              </div>
+              <ScrollArea className="flex-1 pr-4">
+                <div className="space-y-1 pb-6 max-h-[250px]">
+                  {projects?.map((project) => {
+                    const projectData = projectTree?.find(p => p.project === project);
+                    const icon = projectData?.icon;
+                    const isLoading = loadingProjectName === project;
+                    return (
+                      <button
+                        key={project}
+                        onClick={() => {
+                          setLoadingProjectName(project);
+                          setLoadingMessage(`Loading project...`);
+                          setIsSwitchingInterface(true);
+                          setSelectProjectParam(null);
+                          setProjectQueryParam(project);
+                        }}
+                        disabled={isLoading || loadingProjectName !== null}
+                        className={cn(
+                          "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
                           isLoading 
-                            ? "bg-muted" 
-                            : "bg-primary/10 group-hover:bg-primary-foreground/20"
-                        )}>
+                            ? "cursor-not-allowed opacity-50" 
+                            : "hover:bg-primary hover:text-primary-foreground"
+                        )}
+                      >
                           {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           ) : (
-                            <span className="text-primary group-hover:text-primary-foreground">
+                            <span className="text-muted-foreground group-hover:text-primary-foreground">
                               {renderIcon(icon, "h-4 w-4", "folder")}
                             </span>
                           )}
-                        </div>
-                        <span className={cn(
-                          "font-medium",
-                          isLoading && "text-muted-foreground"
-                        )}>{project}</span>
-                      </div>
-                    </button>
-                  );
-                }) || (
-                  <div className="text-center text-body text-muted-foreground py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p>Loading projects...</p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
+                          <span className={cn(
+                              "text-sm",
+                              isLoading && "text-muted-foreground"
+                          )}>{project}</span>
+                      </button>
+                    );
+                  }) || (
+                    <div className="text-center text-body text-muted-foreground py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p>Loading projects...</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
           </div>
         </div>
       ) : showInterfaceSelection ? (
         /* Interface Selection Screen - Full viewport, left-aligned */
         <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300"
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
           style={{ left: 'var(--interface-nav-width, 256px)' }}
         >
-          <div className="w-full p-8 flex flex-col h-full">
-            <div className="text-left mb-8">
-              <h1 className="text-h2 mb-2">Select an Interface</h1>
-              <p className="text-subtitle">Choose an interface for the {projectQueryParam} project.</p>
+          <div className="w-full max-w-sm p-4">
+            <div className="text-center mb-6">
+              <h1 className="text-lg font-medium">Select an Interface</h1>
+              <p className="text-sm text-muted-foreground">Choose an interface for the selected project.</p>
             </div>
-            
             <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-2 pb-6">
+              <div className="space-y-1 pb-6 max-h-[250px]">
                 {isLoadingInterfacesForSelection ? (
                   <div className="text-center text-body text-muted-foreground py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
@@ -969,41 +958,23 @@ const Interface = ({
                         }}
                         disabled={isLoading || loadingInterfaceId !== null}
                         className={cn(
-                          "w-full p-3 text-left border border-border rounded-lg transition-all duration-200 group",
+                          "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
                           isLoading 
-                            ? "bg-muted cursor-not-allowed opacity-75" 
-                            : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                              ? "cursor-not-allowed opacity-50" 
+                              : "hover:bg-primary hover:text-primary-foreground"
                         )}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                            isLoading 
-                              ? "bg-muted" 
-                              : "bg-primary/10 group-hover:bg-primary-foreground/20"
-                          )}>
-                            {isLoading ? (
+                          {isLoading ? (
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            ) : (
-                              <span className="text-primary group-hover:text-primary-foreground">
-                                {renderIcon(icon, "h-4 w-4", "layout-grid")}
+                          ) : (
+                              <span className="text-muted-foreground group-hover:text-primary-foreground">
+                                  {renderIcon(icon, "h-4 w-4", "layout-grid")}
                               </span>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-strong block">{iface.name}</span>
-                            {iface.updated_at && (
-                              <span className={cn(
-                                "text-caption",
-                                isLoading 
-                                  ? "text-muted-foreground" 
-                                  : "text-muted-foreground group-hover:text-primary-foreground/70"
-                              )}>
-                                {isLoading ? 'Loading...' : `Last updated: ${new Date(iface.updated_at).toLocaleDateString()}`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                          )}
+                          <span className={cn(
+                              "text-sm",
+                              isLoading && "text-muted-foreground"
+                          )}>{iface.name}</span>
                       </button>
                     );
                   })
