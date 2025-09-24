@@ -851,15 +851,19 @@ export function HireForm({
                                                                            <FaUbuntu className="h-4 w-4" />
                                                                            <Label htmlFor="os-ubuntu" className="font-normal text-body cursor-pointer">Ubuntu</Label>
                                                                        </div>
-                                                                       <div className="flex items-center space-x-2 text-muted-foreground cursor-not-allowed">
-                                                                           <div className="w-4 h-4 rounded-full border border-muted-foreground/50"></div>
+                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('windows'); }}>
+                                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'windows' && "border-primary")}>
+                                                                               {osField.value === 'windows' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                                           </div>
                                                                            <FaWindows className="h-4 w-4" />
-                                                                           <Label htmlFor="os-windows" className="font-normal text-body cursor-not-allowed">Windows - Coming Soon</Label>
+                                                                           <Label htmlFor="os-windows" className="font-normal text-body cursor-pointer">Windows</Label>
                                                                        </div>
-                                                                       <div className="flex items-center space-x-2 text-muted-foreground cursor-not-allowed">
-                                                                           <div className="w-4 h-4 rounded-full border border-muted-foreground/50"></div>
+                                                                       <div className="flex items-center space-x-2 cursor-pointer" onClick={(e) => { e.stopPropagation(); osField.onChange('macos'); }}>
+                                                                           <div className={cn("w-4 h-4 rounded-full border border-muted-foreground flex items-center justify-center", osField.value === 'macos' && "border-primary")}>
+                                                                               {osField.value === 'macos' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                                           </div>
                                                                            <FaApple className="h-4 w-4" />
-                                                                           <Label htmlFor="os-macos" className="font-normal text-body cursor-not-allowed">MacOS - Coming Soon</Label>
+                                                                           <Label htmlFor="os-macos" className="font-normal text-body cursor-pointer">MacOS</Label>
                                                                        </div>
                                                                    </div>
                                                                )}
