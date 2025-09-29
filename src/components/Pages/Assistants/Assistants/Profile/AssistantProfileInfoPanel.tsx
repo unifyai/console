@@ -168,15 +168,15 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                         )}
                     </Popover>
 
-                    <div className="grid grid-cols-2 gap-y-1 py-0.5 text-caption flex-1">
-                        <span>First Name</span>
-                        <span>{assistant.first_name}</span>
-                        <span>Last Name</span>
-                        <span>{assistant.surname}</span>
-                        <span>Age</span>
-                        <span>{assistant.age ?? 'N/A'}</span>
-                        <span>Region</span>
-                        <span>{assistant.region ?? 'N/A'}</span>
+                    <div className="grid grid-cols-2 gap-y-1 py-0.5 flex-1">
+                        <span className="text-caption">First Name</span>
+                        <span className="text-body">{assistant.first_name}</span>
+                        <span className="text-caption">Last Name</span>
+                        <span className="text-body">{assistant.surname}</span>
+                        <span className="text-caption">Age</span>
+                        <span className="text-body">{assistant.age ?? 'N/A'}</span>
+                        <span className="text-caption">Region</span>
+                        <span className="text-body">{assistant.region ?? 'N/A'}</span>
                     </div>
                     
                 </div>

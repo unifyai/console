@@ -37,7 +37,7 @@ export default function ColumnRename({
 
   const trigger = renderMode === "menuItem" ? (
     <DropdownMenuItem
-      className="flex items-center gap-2 cursor-pointer"
+      className="flex items-center gap-2 cursor-pointer text-body-sm"
       onSelect={(e) => e.preventDefault()}
     >
       <div
@@ -71,6 +71,7 @@ export default function ColumnRename({
           onKeyDown={(e) => {
             if (e.key === "Enter") doRename();
           }}
+          className="text-body-sm"
         />
       }
       footer={

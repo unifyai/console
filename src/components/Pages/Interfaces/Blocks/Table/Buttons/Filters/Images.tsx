@@ -91,7 +91,7 @@ const ImageColumnFilter = ({
                 rounded-sm
                 px-2
                 py-1.5
-                text-body
+                text-body-sm
                 outline-none
                 transition-colors
                 focus:bg-accent

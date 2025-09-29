@@ -49,7 +49,7 @@ const CellPopover = ({cell, flatLogs, paramsValues, isCellExpanded, setExpandedC
         const stringifiedContent = typeof content === 'object' && content !== null
             ? JSON.stringify(content, null, 2)
             : String(content ?? '');
-        displayContent = <Markdown className="prose dark:prose-invert max-w-none">{stringifiedContent}</Markdown>;
+        displayContent = <Markdown className="prose dark:prose-invert max-w-none text-body-sm">{stringifiedContent}</Markdown>;
 
     } else {
         // --- Content for Regular Cells (Use flatLogs and paramsValues) ---
@@ -71,7 +71,7 @@ const CellPopover = ({cell, flatLogs, paramsValues, isCellExpanded, setExpandedC
             const stringifiedContent = typeof content === 'object' && content !== null
                 ? JSON.stringify(content, null, 2)
                 : String(content ?? '');
-            displayContent = <Markdown className="prose dark:prose-invert max-w-none">{stringifiedContent}</Markdown>;
+            displayContent = <Markdown className="prose dark:prose-invert max-w-none text-body-sm">{stringifiedContent}</Markdown>;
         }
     }
 

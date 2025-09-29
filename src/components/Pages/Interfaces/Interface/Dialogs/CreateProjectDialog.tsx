@@ -111,7 +111,7 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
       body={
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="project-name">Project Name</Label>
+            <Label htmlFor="project-name" className="text-label">Project Name</Label>
             <Input
               id="project-name"
               value={projectName}
@@ -126,7 +126,7 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
             </p>
           </div>
           <div className="space-y-2">
-            <Label>Project Icon</Label>
+            <Label className="text-label">Project Icon</Label>
             <IconSelector 
               value={projectIcon as any} 
               onValueChange={setProjectIcon} 
@@ -143,6 +143,7 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
+            className="h-8"
           >
             Cancel
           </Button>
@@ -151,9 +152,10 @@ export const CreateProjectDialog = React.memo(function CreateProjectDialog({
             onClick={handleSubmit}
             loading={isSubmitting}
             disabled={!projectName.trim() || !!validationError}
+            className="h-8"
           />
         </div>
       }
     />
   )
-}) 
+})

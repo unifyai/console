@@ -148,7 +148,7 @@ export function DateTimeRangeSelector ({startDate, endDate, onDateRangeChange, c
                     selected={date}
                     onSelect={handleDateChange}
                     className="rounded-md border"
-                    classNames={{ day_today: "text-primary font-bold" }}
+                    classNames={{ day_today: "text-primary font-medium" }}
                     initialFocus
                 />
 

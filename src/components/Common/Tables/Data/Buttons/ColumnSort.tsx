@@ -30,7 +30,7 @@ const ColumnSort = (({
 
     /* Display loader when data updates */
     const sorting = column.getIsSorted();
-    const spinnerColor = sorting ? "white" : "primary";
+    const spinnerColor = sorting ? "primary-foreground" : "primary";
     useEffect(() => {
         setSortingDirection(sorting);
     }, [sorting, setSortingDirection])
@@ -41,7 +41,7 @@ const ColumnSort = (({
         setSortLoading(true)
     }
     const menuItem = 
-    <DropdownMenuItem onClick={onMenuItemClick} className="flex items-center gap-2 cursor-pointer">
+    <DropdownMenuItem onClick={onMenuItemClick} className="flex items-center gap-2 cursor-pointer text-body-sm">
         {direction === "asc" ? <SortAsc className="h-4 w-4"/> : <SortDesc className="h-4 w-4"/>}
         {direction === "asc" ? <span>Sort ascending</span> : <span>Sort descending</span>}
     </DropdownMenuItem>
@@ -78,7 +78,7 @@ const ColumnSort = (({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-gray-400 text-white opacity-0 group-hover:opacity-100 hover:bg-gray-500 transition-opacity"
+            className="absolute -top-1 -right-1 h-3 w-3 flex items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity"
           >
             <X className="h-2 w-2" />
           </button>

@@ -31,7 +31,7 @@ const PrimaryButton = ({ onClick, label, isLoading = false, disabled = false, su
   return (
     <>
       <BaseButton
-        className={`px-7 py-3 w-fit ${className}`}
+        className={`px-3 py-1 w-fit ${className}`}
         disabled={disabled || isLoading}
         type={type}
         text={isLoading ? "Loading..." : label}

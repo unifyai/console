@@ -16,12 +16,12 @@ interface TaskDeadlineFilterProps {
 }
 
 const deadlineOptions = [
-    { value: 'all', label: "All Deadlines", icon: Filter },
-    { value: 'overdue', label: "Overdue", icon: CalendarDays, iconClassName: "text-red-500" },
-    { value: 'today', label: "Today", icon: CalendarDays, iconClassName: "text-blue-500" },
-    { value: 'tomorrow', label: "Tomorrow", icon: CalendarDays, iconClassName: "text-green-500" },
-    { value: 'this_week', label: "This Week", icon: CalendarDays, iconClassName: "text-purple-500" },
-    { value: 'no_deadline', label: "No Deadline", icon: CalendarDays, iconClassName: "text-gray-400" },
+    { value: 'all', label: "All Deadlines", icon: Filter, iconClassName: "" },
+    { value: 'overdue', label: "Overdue", icon: CalendarDays, iconClassName: "text-destructive" },
+    { value: 'today', label: "Today", icon: CalendarDays, iconClassName: "text-primary" },
+    { value: 'tomorrow', label: "Tomorrow", icon: CalendarDays, iconClassName: "text-primary" },
+    { value: 'this_week', label: "This Week", icon: CalendarDays, iconClassName: "text-secondary" },
+    { value: 'no_deadline', label: "No Deadline", icon: CalendarDays, iconClassName: "text-muted-foreground" },
 ];
 
 export function TaskDeadlineFilter({

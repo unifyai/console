@@ -108,7 +108,7 @@ export default function InterfaceSelector({
   return (
     <div className="w-full h-screen flex flex-col items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="mt-4 text-muted-foreground">Setting up your workspace...</p>
+      <p className="mt-4 text-body text-muted">Setting up your workspace...</p>
     </div>
   );
 }

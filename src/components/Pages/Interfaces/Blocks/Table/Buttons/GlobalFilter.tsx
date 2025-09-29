@@ -75,7 +75,7 @@ const GlobalFilter = ({ interactive, commonFilter, setCommonFilter, logs, curren
             setLoading(true);
         }}
     const filterDisabled = !interactive || loading
-    const filterClassName = "rounded-none rounded-tr-md rounded-br-md p-2 h-8"
+    const filterClassName = "rounded-none rounded-tr-md rounded-br-md p-2 h-8 text-body-sm"
     const filterInput = <Input placeholder={placeholder} value={value} onInput={onInput} onKeyDown={onKeyDown} disabled={filterDisabled} className={filterClassName}/>
     
     /* Close button */

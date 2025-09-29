@@ -267,7 +267,7 @@ const DataTableCell = ({
 
   const renderEditor = () => {
     const overlayCls = "absolute inset-0 flex items-center";
-    const commonCls = "w-full h-full px-2 py-0 text-body bg-background text-foreground outline-none border-0 focus:ring-0 focus:outline-none box-border";
+    const commonCls = "w-full h-full px-2 py-0 text-body-sm bg-background text-foreground outline-none border-0 focus:ring-0 focus:outline-none box-border";
     // Choose widget per dataType
     if (dataType === "number") {
       return (
@@ -340,7 +340,7 @@ const DataTableCell = ({
     }
 
     return (
-      <div className="overflow-hidden text-nowrap text-ellipsis truncate ..." onDoubleClick={(e) => { maybeStartOrBlock(e); }}>
+      <div className="overflow-hidden text-nowrap text-ellipsis truncate text-body-sm ..." onDoubleClick={(e) => { maybeStartOrBlock(e); }}>
         {shouldShowGrouping 
           ? (properties.includes(columnID) &&
             <div className="flex flex-row gap-2 items-center text-left truncate ... overflow-hidden">
@@ -389,7 +389,7 @@ const DataTableCell = ({
       style={style}
       tabIndex={0}  // Needed to ensure the table is focusable and the keyboard actions are working
       ref={setNodeRef}
-      className={`group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
+      className={`p-1 group/cell relative select-none ${isNewCell ? 'animate-fade-accent' : ''}`}
     >
       {content}
 

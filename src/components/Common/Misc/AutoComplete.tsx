@@ -49,8 +49,8 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
           role="combobox"
           aria-expanded={effectiveOpen}
           className={cn(
-            `h-8 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200`,
-            displayMode === 'icon' ? 'w-8 px-2 justify-center' : 'w-[200px] px-3 justify-between',
+            `h-7 backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200`,
+            displayMode === 'icon' ? 'w-7 px-2 justify-center' : 'w-[200px] px-2 justify-between',
             className
           )}
           disabled={disabled}
@@ -71,7 +71,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
             <Loader2 className="animate-spin" />
           </div> :
           <Command>
-            <CommandInput placeholder={`Search ${type}...`} className="h-10 bg-transparent border-none [&_[cmdk-input-wrapper]]:border-none" disabled={disabled} />
+            <CommandInput placeholder={`Search ${type}...`} className="bg-transparent border-none [&_[cmdk-input-wrapper]]:border-none" disabled={disabled} />
             <CommandList>
               <CommandEmpty>{`No ${type} found.`}</CommandEmpty>
               <CommandGroup>
@@ -86,7 +86,7 @@ export default function AutoComplete ({items, type, defaultValue, onSelect, isOp
                       onSelect(item.label);
                       handleOpenChange(false)
                     }}
-                    className="h-10 cursor-pointer"
+                    className="h-8 cursor-pointer text-body-sm"
                   >
                     {item.icon && <div className="mr-2">{item.icon}</div>}
                     {item.label}

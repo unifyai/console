@@ -110,7 +110,7 @@ const ColumnGroupSort = (({
         setGroupSorting(newGroupSorting)
     }
     const menuItem = 
-    <DropdownMenuItem onClick={onMenuItemClick} className="flex items-center cursor-pointer">
+    <DropdownMenuItem onClick={onMenuItemClick} className="flex items-center cursor-pointer text-body-sm">
         <div className="scale-[0.6] -translate-x-1">
             {direction === "asc" ? <GArrowUp className="translate(-2,0)"/> : <GArrowDown className="translate(-2,0)"/>}
         </div>

@@ -93,12 +93,12 @@ const ContextContent = ({
                     placeholder="Search contexts..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8"
+                    className="h-8 text-body-sm"
                 />
             </div>
 
             {empty && (
-                <div className="text-center text-body py-2 px-2">
+                <div className="text-center text-body-sm py-2 px-2">
                     {searchQuery ? "No contexts match your search." : "No contexts found."}
                 </div>
             )}

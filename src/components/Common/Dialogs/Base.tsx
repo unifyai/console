@@ -52,9 +52,9 @@ export default function BaseDialog({
     const dialogContentChildren = 
     <>
       <DialogHeader>
-        {title && <DialogTitle>{title}</DialogTitle>}
+        {title && <DialogTitle className="text-h3">{title}</DialogTitle>}
         {description &&
-            <DialogDescription>
+            <DialogDescription className="text-body">
                 {description}
             </DialogDescription>
         }

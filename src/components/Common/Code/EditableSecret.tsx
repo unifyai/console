@@ -19,7 +19,7 @@ export default function EditableSecret({ value, onSave, conceal = true, classNam
   return editing ? (
     <Input
       ref={inputRef}
-      className={`${className} px-1 text-sm`}
+      className={`${className} px-1 text-body-sm`}
       value={temp}
       onChange={(e) => setTemp(e.target.value)}
       onBlur={commit}
@@ -32,7 +32,7 @@ export default function EditableSecret({ value, onSave, conceal = true, classNam
       <Input
         readOnly
         value={conceal ? "***" : value}
-        className={`${className} px-1 text-sm cursor-pointer`}
+        className={`${className} px-1 text-body-sm cursor-pointer`}
         onClick={() => setEditing(true)}
       />
     </Tooltip>

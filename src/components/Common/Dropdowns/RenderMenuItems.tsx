@@ -37,14 +37,14 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
         <div className="flex w-full items-center justify-between gap-2 text-start">
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 {loading ? (
-                    <Loader2 size={15} className="animate-spin flex-shrink-0" />
+                    <Loader2 size={12} className="animate-spin flex-shrink-0" />
                 ) : attr === nonRootNodePath ? (
-                    <Check size={15} className="flex-shrink-0 text-primary" />
+                    <Check size={12} className="flex-shrink-0 text-primary" />
                 ) : (
                     <div className="w-4 flex-shrink-0" />
                 )}
                 <Tooltip content={displayText} side="top">
-                    {truncatedText}
+                    <span className="text-body-sm">{truncatedText}</span>
                 </Tooltip>
             </div>
             <div className="flex-shrink-0">
@@ -60,7 +60,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
                 onSelect={() => (
                     (nonRootNodePath !== attr) ? setter(nonRootNodePath) : setter("")
                 )}
-                className="flex w-full justify-between items-center cursor-pointer gap-2"
+                className="flex w-full justify-between items-center cursor-pointer gap-2 text-body-sm"
                 disabled={loading}
             >
                 <Content />
@@ -74,7 +74,7 @@ const RenderMenuItems = ({ node, nodeName, isTopLevel, attr, prefix, setter, isC
         <DropdownMenuGroup>
             <DropdownMenuSub defaultOpen={isParentOfSelected}>
                 <DropdownMenuSubTrigger
-                    className={`flex w-full items-center gap-2 hover:text-white data-[state=open]:text-white ${isSelectable ? 'cursor-pointer' : 'cursor-default'}`}
+                    className={`flex w-full items-center gap-2 hover:text-accent-foreground data-[state=open]:text-accent-foreground text-body-sm ${isSelectable ? 'cursor-pointer' : 'cursor-default'}`}
                     disabled={loading}
                     onClick={(e) => {
                         if (isSelectable) {

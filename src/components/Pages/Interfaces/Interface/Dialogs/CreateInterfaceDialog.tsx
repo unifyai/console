@@ -72,7 +72,7 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
       body={
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="interface-name">Interface Name</Label>
+            <Label htmlFor="interface-name" className="text-label">Interface Name</Label>
             <Input
               id="interface-name"
               value={interfaceName}
@@ -86,7 +86,7 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Interface Icon</Label>
+            <Label className="text-label">Interface Icon</Label>
             <IconSelector 
               value={interfaceIcon as any} 
               onValueChange={setInterfaceIcon} 
@@ -103,6 +103,7 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
+            className="h-8"
           >
             Cancel
           </Button>
@@ -111,9 +112,10 @@ export const CreateInterfaceDialog = React.memo(function CreateInterfaceDialog({
             onClick={handleSubmit}
             loading={isSubmitting}
             disabled={!interfaceName.trim()}
+            className="h-8"
           />
         </div>
       }
     />
   )
-}) 
+})

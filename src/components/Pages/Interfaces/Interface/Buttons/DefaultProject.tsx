@@ -162,7 +162,7 @@ const DefaultProject = ({
 
     return <>
         <div className="h-[94vh] flex flex-col gap-4 items-center">
-            <div className="mt-4 flex justify-center font-semibold">
+            <div className="mt-4 flex justify-center text-strong">
                 {create && isPending
                     ? "Creating the project, please wait..."
                     : "Please select a project, create a project or select a demo below"

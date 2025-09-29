@@ -47,7 +47,7 @@ const MarkdownRender = ({ content, darkOnly }: { content: string, darkOnly?: boo
         </SyntaxHighlighter>
       </div>
     ) : (
-      <code className={className + " font-mono"} {...props}>
+      <code className={className + " text-mono"} {...props}>
         {children}
       </code>
     );

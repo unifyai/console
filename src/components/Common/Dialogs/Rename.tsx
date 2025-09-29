@@ -84,7 +84,7 @@ export default function RenameDialog ({ path, paths, fileDir, fileName, type, re
                         <Input disabled placeholder={fileName} />
                         <FormEntry form={form} name="newName" label="New Name" description={`New ${type} name`}/>
                     </>
-    const body =    success ? messages["success"] : error ? messages["error"] : Fields;
+    const body =    <div className="text-body">{success ? messages["success"] : error ? messages["error"] : Fields}</div>;
     const footer =  success 
         ? null 
         : error

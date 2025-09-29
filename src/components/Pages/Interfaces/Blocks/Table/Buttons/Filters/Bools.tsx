@@ -239,7 +239,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
-                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer text-body-sm" 
                     onClick={() => {
                         const newFilters = [...filters]
                         newFilters.push({key: filters.length, mode: "is", join: method === "And" ? "&&" : "||", value: ""})
@@ -257,7 +257,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
             {["And", "Or"].map((method, index) => 
                 <DropdownMenuItem 
                     key={index}
-                    className="p-2 hover:text-white hover:bg-primary cursor-pointer" 
+                    className="p-2 hover:text-white hover:bg-primary cursor-pointer text-body-sm" 
                     onClick={() => {
                         const newFilters = [...filters]
                         const join = method === "And" ? "&&" : "||"
@@ -273,7 +273,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
         <BaseButton 
             text={capitalizeFirstLetter(filter.value)} 
             variant="outline" 
-            className="rounded-none rounded-tr-lg rounded-br-lg w-full font-normal text-body"
+            className="rounded-none rounded-tr-lg rounded-br-lg w-full font-normal text-body-sm"
             onKeyDown={onEnter}
             onClick={() => {
                 const newFilters = [...filters]
@@ -319,12 +319,12 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
              <Tabs value={filterMode} onValueChange={(v) => handleTabChange(v as any)} className="w-full">
                 <TabsList className="inline-flex">
                      <Tooltip content={warningMessage} side="top">
-                        <TabsTrigger value="structured" disabled={!!warningMessage} className="flex gap-2 items-center">
+                        <TabsTrigger value="structured" disabled={!!warningMessage} className="flex gap-2 items-center text-body-sm">
                             <ListTree className="w-4 h-4"/>
                             Structured Mode
                         </TabsTrigger>
                     </Tooltip>
-                    <TabsTrigger value="expression" className="flex gap-2 items-center">
+                    <TabsTrigger value="expression" className="flex gap-2 items-center text-body-sm">
                         <TbMathFunction className="w-4 h-4"/>
                         Expression Mode
                     </TabsTrigger>
@@ -384,7 +384,7 @@ const BooleanColumnFilter = ({ interactive, column, columnFilters, setColumnFilt
                     rounded-sm
                     px-2
                     py-1.5
-                    text-sm
+                    text-body-sm
                     outline-none
                     transition-colors
                     focus:bg-accent

@@ -71,7 +71,7 @@ const DeleteDialog = ({ args, type, deletingFunction, variant, showDialog, setSh
     }
 
     const title =   tooltip + " ?"
-    const body =    success ? messages["success"] : error ? messages["error"] : messages["warning"];
+    const body =    <div className="text-body">{success ? messages["success"] : error ? messages["error"] : messages["warning"]}</div>;
     const footer = success ? null : (
         <div className="flex items-center gap-2">
           {removeLabel && (

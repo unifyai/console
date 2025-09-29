@@ -58,11 +58,11 @@ const SelectionCommand = ({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    className={`h-8 px-3 w-[200px] justify-between truncate backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200 ${triggerClassName}`}
+                    className={`h-7 px-2 w-[200px] justify-between truncate backdrop-blur-sm bg-background/90 border border-border/50 shadow-md hover:bg-accent hover:text-accent-foreground transition-all duration-200 ${triggerClassName}`}
                     disabled={loading}
                 >
                      <Tooltip content={displayValue}>
-                        <span className="truncate">{displayValue}</span>
+                        <span className="truncate text-body-sm">{displayValue}</span>
                     </Tooltip>
                     {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
                 </Button>
@@ -74,13 +74,12 @@ const SelectionCommand = ({
                             placeholder={`Search ${type}...`}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="h-8"
                             // Prevent dropdown from closing when clicking input
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>
                     {filteredItems.length === 0 ? (
-                        <div className="text-center text-body py-2 px-2">No results found.</div>
+                        <div className="text-center text-body-sm py-1.5 px-2">No results found.</div>
                     ) : (
                         <div className="max-h-60 overflow-y-auto">
                            {Object.entries(tree.children).sort((a, b) => a[0].localeCompare(b[0])).map(([name, node], idx) => (

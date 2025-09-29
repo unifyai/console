@@ -64,7 +64,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     const button =  <SettingButton icon={<Plus/>} onClick={onOpen} tooltip={tooltip} disabled={disabled} text={text} variant={variant}/>
     
     const title = tooltip
-    const body =    success ? messages["success"] : error ? messages["error"] : Fields;
+    const body =    <div className="text-body">{success ? messages["success"] : error ? messages["error"] : Fields}</div>;
     const footer =  success 
         ? null 
         : error 

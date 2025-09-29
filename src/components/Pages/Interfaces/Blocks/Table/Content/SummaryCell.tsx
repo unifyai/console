@@ -105,7 +105,7 @@ const SummaryCell = ({
 
 	return (
 		<Tooltip content={metricTooltip}>
-			<div className="w-full overflow-hidden text-ellipsis whitespace-nowrap">
+			<div className="w-full overflow-hidden text-ellipsis whitespace-nowrap text-body-sm">
 			{shouldShowLoading ? (
 				<div className="h-4 w-16 bg-muted rounded animate-pulse" />
 			) : (

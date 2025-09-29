@@ -870,8 +870,8 @@ const Interface = ({
         >
           <div className="w-full max-w-sm p-4">
               <div className="text-center mb-6">
-                  <h1 className="text-lg font-medium">Select a project</h1>
-                  <p className="text-sm text-muted-foreground">Choose a project from the list below</p>
+                  <h1 className="text-h3">Select a project</h1>
+                  <p className="text-subtitle">Choose a project from the list below</p>
               </div>
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-1 pb-6 max-h-[250px]">
@@ -905,7 +905,7 @@ const Interface = ({
                             </span>
                           )}
                           <span className={cn(
-                              "text-sm",
+                              "text-body",
                               isLoading && "text-muted-foreground"
                           )}>{project}</span>
                       </button>
@@ -928,8 +928,8 @@ const Interface = ({
         >
           <div className="w-full max-w-sm p-4">
             <div className="text-center mb-6">
-              <h1 className="text-lg font-medium">Select an Interface</h1>
-              <p className="text-sm text-muted-foreground">Choose an interface for the selected project.</p>
+              <h1 className="text-h3">Select an Interface</h1>
+              <p className="text-subtitle">Choose an interface for the selected project.</p>
             </div>
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-1 pb-6 max-h-[250px]">
@@ -972,7 +972,7 @@ const Interface = ({
                               </span>
                           )}
                           <span className={cn(
-                              "text-sm",
+                              "text-body",
                               isLoading && "text-muted-foreground"
                           )}>{iface.name}</span>
                       </button>

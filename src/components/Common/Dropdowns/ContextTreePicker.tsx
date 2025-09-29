@@ -118,7 +118,6 @@ export default function ContextTreePicker({
 					placeholder="Search contexts..."
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
-					className="h-8"
 				/>
 			</div>
 			<div className="max-h-80 overflow-auto p-2">
@@ -138,7 +137,7 @@ export default function ContextTreePicker({
 				<div className="px-2 py-1 border-t border-border">
 					<button
 						type="button"
-						className="text-body h-7 px-2 rounded hover:bg-accent"
+						className="text-body-sm h-6 px-2 rounded hover:bg-accent"
 						onClick={() => onPick("")}
 					>
 						Clear selection
@@ -205,15 +204,15 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 	// Leaf row
 	if (!hasKids) {
 		return (
-			<div className="relative h-7">
+			<div className="relative h-6">
 				<button
 					type="button"
-					className={`flex w-full min-w-0 items-center gap-2 px-2 h-7 rounded hover:bg-muted ${isSelected ? "bg-primary/10" : ""}`}
+					className={`flex w-full min-w-0 items-center gap-2 px-2 h-6 rounded hover:bg-muted ${isSelected ? "bg-primary/10" : ""}`}
 					style={{ marginLeft: indent + BULLET_OFFSET }}
 					onClick={() => onPick(isSelected ? "" : fullPath)}
 				>
 					<span className={`h-2 w-2 rounded-full ${isHighlighted ? "bg-primary" : "bg-muted"}`} />
-					<span className="truncate text-body leading-7">{label}</span>
+					<span className="truncate text-body-sm leading-6">{label}</span>
 				</button>
 			</div>
 		);
@@ -223,8 +222,8 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 	return (
 		<div className="relative">
 			<AccordionItem value={fullPath} className="border-0">
-				<div className="relative h-7">
-					<AccordionTrigger hideChevron={false} className="py-0 h-7 text-body hover:no-underline">
+				<div className="relative h-6">
+					<AccordionTrigger hideChevron={false} className="py-0 h-6 text-body hover:no-underline">
 						<div
 							className="flex w-full items-center gap-2 px-2 rounded hover:bg-muted"
 							style={{ marginLeft: indent + BULLET_OFFSET }}
@@ -238,7 +237,7 @@ function TreeRow({ node, depth, current, onPick }: { node: TreeNode; depth: numb
 									onPick(isSelected ? "" : fullPath);
 								}}
 							/>
-							<span className="truncate text-body leading-7">{label}</span>
+							<span className="truncate text-body-sm leading-6">{label}</span>
 						</div>
 					</AccordionTrigger>
 				</div>

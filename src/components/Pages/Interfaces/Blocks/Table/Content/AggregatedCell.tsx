@@ -137,7 +137,7 @@ const AggregatedCell = ({
     const shouldShowLoading = isGroupLoading || isQueryLoading;
 
     return (
-      <div className="h-[25px] overflow-hidden text-center truncate ...">
+      <div className="h-[25px] overflow-hidden text-center truncate ... text-body-sm">
         {!cell.getIsPlaceholder() && isNotUtilColumn ?
           shouldShowLoading 
           ? <div className="h-4 bg-muted rounded animate-pulse mt-1"/>

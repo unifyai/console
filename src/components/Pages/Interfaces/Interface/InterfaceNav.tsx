@@ -269,7 +269,7 @@ const SortableTab = React.memo(function SortableTab({
         {...listeners}
         onClick={() => onTabClick(tab)}
         className={cn(
-          "flex-1 min-w-0 flex items-center gap-2 py-2 text-body rounded-md transition-all cursor-pointer overflow-hidden",
+          "flex-1 min-w-0 flex items-center gap-2 py-1.5 text-body-sm rounded-md transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
           isActive
             ? "text-primary text-strong hover:bg-black/5 dark:hover:bg-white/5"
@@ -315,7 +315,7 @@ const SortableTab = React.memo(function SortableTab({
               {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
             </div>
             <span 
-              className="text-body block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
+              className="text-body-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
               title={tab.name}
               onDoubleClick={(e) => {
                 e.stopPropagation()
@@ -345,33 +345,33 @@ const SortableTab = React.memo(function SortableTab({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-            <DropdownMenuItem onSelect={() => onSaveTab(tab)}>
+            <DropdownMenuItem onSelect={() => onSaveTab(tab)} className="text-body-sm">
               <Save className="h-4 w-4 mr-2" />
               Save Tab
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onResetTab(tab)}>
+            <DropdownMenuItem onSelect={() => onResetTab(tab)} className="text-body-sm">
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset Tab
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onRenameTab(tab)}>
+            <DropdownMenuItem onSelect={() => onRenameTab(tab)} className="text-body-sm">
               <Edit3 className="h-4 w-4 mr-2" />
               Rename
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onChangeTabIcon(tab)}>
+            <DropdownMenuItem onSelect={() => onChangeTabIcon(tab)} className="text-body-sm">
               <Settings className="h-4 w-4 mr-2" />
               Change Icon
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onChangeTabColor(tab)}>
+            <DropdownMenuItem onSelect={() => onChangeTabColor(tab)} className="text-body-sm">
               <Palette className="h-4 w-4 mr-2" />
               Change Color
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onSetTabContext(tab)}>
+            <DropdownMenuItem onSelect={() => onSetTabContext(tab)} className="text-body-sm">
               <FolderTree className="h-4 w-4 mr-2" />
               Set Tab Context
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onDeleteTab(tab)} className="text-destructive">
+            <DropdownMenuItem onSelect={() => onDeleteTab(tab)} className="text-destructive text-body-sm">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </DropdownMenuItem>
@@ -1948,7 +1948,7 @@ export default function InterfaceNav({
             {/* Projects */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-label text-muted-foreground select-none">Project:</label>
+                <label className="text-body-sm text-muted-foreground select-none">Project:</label>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -1964,11 +1964,11 @@ export default function InterfaceNav({
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="flex-1 min-w-0 justify-between h-8"
+                      className="flex-1 min-w-0 justify-between h-8 text-body-sm"
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                         {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
-                        <span className="truncate text-body">{selectedProject || "Select project"}</span>
+                        <span className="truncate">{selectedProject || "Select project"}</span>
                       </div>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -2014,7 +2014,7 @@ export default function InterfaceNav({
                                 key={project.project}
                                 value={project.project}
                                 onSelect={() => handleProjectChange(project.project)}
-                                className={cn(isSelected && !isLoading && "text-primary")}
+                                className={cn("text-body-sm", isSelected && !isLoading && "text-primary")}
                               >
                                 <div className="flex items-center gap-2 min-w-0 w-full">
                                   {isLoading ? (
@@ -2045,58 +2045,58 @@ export default function InterfaceNav({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                    <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)}>
+                    <DropdownMenuItem onSelect={() => setCreateProjectOpen(true)} className="text-body-sm">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Project
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }} className="text-body-sm">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Interface
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setRenameProjectOpen(true) }}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setRenameProjectOpen(true) }} className="text-body-sm">
                       <Edit3 className="h-4 w-4 mr-2" />
                       Rename Project
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setNewProjectIconEdit(currentProjectData?.icon || 'folder'); setProjectIconOpen(true) }}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setNewProjectIconEdit(currentProjectData?.icon || 'folder'); setProjectIconOpen(true) }} className="text-body-sm">
                       <Settings className="h-4 w-4 mr-2" />
                       Change Icon
                     </DropdownMenuItem>
                     {interfaceId && (
                       <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem className="text-body-sm">
                           <Palette className="h-4 w-4 mr-2" />
                           Set Project Color
                         </DropdownMenuItem>
                       </ColorPicker>
                     )}
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => setProjectContextOpen(true)}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => setProjectContextOpen(true)} className="text-body-sm">
                       <FolderTree className="h-4 w-4 mr-2" />
                       Set Project Context
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }} className="text-body-sm">
                       <Upload className="h-4 w-4 mr-2" />
                       Import Interface
                     </DropdownMenuItem>
                     {selectedProject !== 'Usage' && (
-                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setFileUploadOpen(true) }}>
+                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setFileUploadOpen(true) }} className="text-body-sm">
                         <FileInput className="h-4 w-4 mr-2" />
                         Upload Logs
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => handleToggleFavourite()}>
+                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => handleToggleFavourite()} className="text-body-sm">
                       <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
                       {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={async () => { setProjectsRefreshing(true); await refetchProjectTree(); setProjectsRefreshing(false) }}>
+                    <DropdownMenuItem onSelect={async () => { setProjectsRefreshing(true); await refetchProjectTree(); setProjectsRefreshing(false) }} className="text-body-sm">
                       <RefreshCw className={cn("h-4 w-4 mr-2", projectsRefreshing && "animate-spin")} />
                       {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
                     </DropdownMenuItem>
                     {selectedProject !== 'Usage' && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setDeleteProjectOpen(true) }} className="text-destructive">
+                        <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setDeleteProjectOpen(true) }} className="text-destructive text-body-sm">
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Project
                         </DropdownMenuItem>
@@ -2110,18 +2110,18 @@ export default function InterfaceNav({
             {/* Interfaces */}
             {currentInterfaces.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-label text-muted-foreground select-none">Interface:</label>
+                <label className="text-body-sm text-muted-foreground select-none">Interface:</label>
                 <div className="flex items-center gap-1 w-full min-w-0">
                   <Popover open={interfacePopoverOpen} onOpenChange={setInterfacePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
-                        className="flex-1 min-w-0 justify-between h-8"
+                        className="flex-1 min-w-0 justify-between h-8 text-body-sm"
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                           {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                          <span className="truncate text-body">{currentInterface?.name || "Select interface"}</span>
+                          <span className="truncate">{currentInterface?.name || "Select interface"}</span>
                         </div>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
@@ -2159,7 +2159,7 @@ export default function InterfaceNav({
                                   key={iface.name}
                                   value={iface.name}
                                   onSelect={() => handleInterfaceChange(iface.name)}
-                                  className={cn(isSelected && !isLoading && "text-primary")}
+                                  className={cn("text-body-sm", isSelected && !isLoading && "text-primary")}
                                 >
                                   <div className="flex items-center gap-2 min-w-0 w-full">
                                     {isLoading ? (
@@ -2190,48 +2190,48 @@ export default function InterfaceNav({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSaveInterfaceOpen(true) } }}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSaveInterfaceOpen(true) } }} className="text-body-sm">
                         <Save className="h-4 w-4 mr-2" />
                         Save Interface
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setSaveAsNewInterfaceOpen(true) } }}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setSaveAsNewInterfaceOpen(true) } }} className="text-body-sm">
                         <div className="h-4 w-4 mr-2 relative">
                           <Save className="h-4 w-4" />
                           <Plus className="h-2.5 w-2.5 absolute -top-1 -right-1 rounded-full bg-background text-foreground" />
                         </div>
                         Save as New Int...
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }}>
+                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }} className="text-body-sm">
                         <Plus className="h-4 w-4 mr-2" />
                         Create Interface
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setRenameInterfaceOpen(true) } }}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setRenameInterfaceOpen(true) } }} className="text-body-sm">
                         <Edit3 className="h-4 w-4 mr-2" />
                         Rename Interface
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setNewInterfaceIcon(currentInterface.icon || 'layout-grid'); setInterfaceIconOpen(true) } }}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setNewInterfaceIcon(currentInterface.icon || 'layout-grid'); setInterfaceIconOpen(true) } }} className="text-body-sm">
                         <Settings className="h-4 w-4 mr-2" />
                         Change Icon
                       </DropdownMenuItem>
                       {interfaceId && (
                         <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem className="text-body-sm">
                             <Palette className="h-4 w-4 mr-2" />
                             Set Interface Color
                           </DropdownMenuItem>
                         </ColorPicker>
                       )}
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }} className="text-body-sm">
                         <Download className="h-4 w-4 mr-2" />
                         Export as Template
                       </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => setInterfaceContextOpen(true)}>
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => setInterfaceContextOpen(true)} className="text-body-sm">
                         <FolderTree className="h-4 w-4 mr-2" />
                         Set Interface Context
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive">
+                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive text-body-sm">
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete Interface
                       </DropdownMenuItem>
@@ -2255,7 +2255,7 @@ export default function InterfaceNav({
             {!isCollapsed && (
               <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
                 <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
-                  <label className="text-label text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
+                  <label className="text-body-sm text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
                   {interfaceId && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -2463,7 +2463,7 @@ export default function InterfaceNav({
         {!isCollapsed && !isCompletelyHidden && showModeControls && (
           <div className="px-2 py-1.5 space-y-1.5 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-x-hidden">
             <div className="flex items-center justify-between gap-1.5">
-              <label className="text-label flex items-center gap-1 min-w-0 select-none">
+              <label className="text-body-sm flex items-center gap-1 min-w-0 select-none">
                 <Hammer className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')} />
                   <span className="truncate">Edit Mode</span>
                 </label>
@@ -2471,7 +2471,7 @@ export default function InterfaceNav({
               </div>
 
             <div className="flex items-center justify-between gap-1.5">
-              <label className="text-label flex items-center gap-1 min-w-0 select-none">
+              <label className="text-body-sm flex items-center gap-1 min-w-0 select-none">
                 <SquareMousePointer className={cn('h-3.5 w-3.5 flex-shrink-0', isCommandMode && 'text-primary')} />
                 <span className="truncate">Dashboard Mode</span>
               </label>
@@ -2546,7 +2546,7 @@ export default function InterfaceNav({
           title="Rename Tab"
           body={
             <div className="space-y-2 pt-4">
-              <Label htmlFor="tab-rename">New Tab Name</Label>
+              <Label htmlFor="tab-rename" className="text-body-sm">New Tab Name</Label>
               <Input
                 id="tab-rename"
                 value={newTabName}
@@ -2558,13 +2558,14 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setRenameTabOpen(false)}>
+              <Button variant="outline" onClick={() => setRenameTabOpen(false)} className="h-8">
                 Cancel
               </Button>
               <SubmitButton
                 text="Rename"
                 onClick={handleRenameTab}
                 loading={isRenamingTab}
+                className="h-8"
               />
             </div>
           }
@@ -2584,10 +2585,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setDeleteTabOpen(false)}>
+              <Button variant="outline" onClick={() => setDeleteTabOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteTab} disabled={isDeletingTab}>
+              <Button variant="destructive" onClick={handleDeleteTab} disabled={isDeletingTab} className="h-8">
                 {isDeletingTab && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
               </Button>
@@ -2616,10 +2617,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setTabColorOpen(false)}>
+              <Button variant="outline" onClick={() => setTabColorOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button onClick={handleSaveTabColor} disabled={isSavingTabColor}>
+              <Button onClick={handleSaveTabColor} disabled={isSavingTabColor} className="h-8">
                 {isSavingTabColor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -2642,10 +2643,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setProjectIconOpen(false)}>
+              <Button variant="outline" onClick={() => setProjectIconOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button onClick={handleSaveProjectIcon} disabled={isSavingProjectIcon}>
+              <Button onClick={handleSaveProjectIcon} disabled={isSavingProjectIcon} className="h-8">
                 {isSavingProjectIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -2667,10 +2668,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setInterfaceIconOpen(false)}>
+              <Button variant="outline" onClick={() => setInterfaceIconOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button onClick={handleSaveInterfaceIcon} disabled={isSavingInterfaceIcon}>
+              <Button onClick={handleSaveInterfaceIcon} disabled={isSavingInterfaceIcon} className="h-8">
                 {isSavingInterfaceIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -2692,10 +2693,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setTabIconOpen(false)}>
+              <Button variant="outline" onClick={() => setTabIconOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button onClick={handleSaveTabIcon} disabled={isSavingTabIcon}>
+              <Button onClick={handleSaveTabIcon} disabled={isSavingTabIcon} className="h-8">
                 {isSavingTabIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -2725,10 +2726,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setDeleteProjectOpen(false)}>
+              <Button variant="outline" onClick={() => setDeleteProjectOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeletingProject}>
+              <Button variant="destructive" onClick={handleDeleteProject} disabled={isDeletingProject} className="h-8">
                 {isDeletingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
               </Button>
@@ -2753,7 +2754,7 @@ export default function InterfaceNav({
           title="Rename Interface"
           body={
             <div className="space-y-2 pt-4">
-              <Label htmlFor="interface-rename">New Interface Name</Label>
+              <Label htmlFor="interface-rename" className="text-body-sm">New Interface Name</Label>
               <Input
                 id="interface-rename"
                 value={newInterfaceName}
@@ -2765,13 +2766,14 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setRenameInterfaceOpen(false)}>
+              <Button variant="outline" onClick={() => setRenameInterfaceOpen(false)} className="h-8">
                 Cancel
               </Button>
               <SubmitButton
                 text="Rename"
                 onClick={handleRenameInterface}
                 loading={isRenamingInterface}
+                className="h-8"
               />
             </div>
           }
@@ -2791,10 +2793,10 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setDeleteInterfaceOpen(false)}>
+              <Button variant="outline" onClick={() => setDeleteInterfaceOpen(false)} className="h-8">
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleDeleteInterface} disabled={isDeletingInterface}>
+              <Button variant="destructive" onClick={handleDeleteInterface} disabled={isDeletingInterface} className="h-8">
                 {isDeletingInterface && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete
               </Button>
@@ -2811,7 +2813,7 @@ export default function InterfaceNav({
           title="Save as New Interface"
           body={
             <div className="space-y-2 pt-4">
-              <Label htmlFor="new-interface-name">New Interface Name</Label>
+              <Label htmlFor="new-interface-name" className="text-body-sm">New Interface Name</Label>
               <Input
                 id="new-interface-name"
                 value={saveAsNewInterfaceName}
@@ -2826,13 +2828,14 @@ export default function InterfaceNav({
           }
           footer={
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setSaveAsNewInterfaceOpen(false)}>
+              <Button variant="outline" onClick={() => setSaveAsNewInterfaceOpen(false)} className="h-8">
                 Cancel
               </Button>
               <SubmitButton
                 text="Create Copy"
                 onClick={handleSaveAsNewInterface}
                 loading={isSavingAsNewInterface}
+                className="h-8"
               />
             </div>
           }
@@ -2996,4 +2999,4 @@ export default function InterfaceNav({
       )}
     </TooltipProvider>
   )
-} 
+}

@@ -7,12 +7,12 @@ export const EmptyTable = () => {
 		<Table>
 			<TableHeader>
 				<TableRow>
-					<TableHead className="bg-[#F5F4F4] text-center py-2">Logs</TableHead>
+					<TableHead className="bg-[#F5F4F4] text-center py-2 text-label">Logs</TableHead>
 				</TableRow>
 			</TableHeader>
 			<TableBody>
 				<TableRow>
-					<TableCell className="h-[21px] text-center text-gray-500 py-2 EmptyLogsTable">
+					<TableCell className="h-[21px] text-center text-muted-foreground py-2 EmptyLogsTable text-body-sm">
 						Select a project to display your logs.
 					</TableCell>
 				</TableRow>

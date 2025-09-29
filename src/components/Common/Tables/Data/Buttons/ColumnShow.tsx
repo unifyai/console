@@ -152,12 +152,12 @@ const ColumnShow = ({ table, header, columnVisibility, setColumnVisibility, colu
 
     // Sub components
     const columnButtonLabel = "Add Column";
-    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<Plus/>} variant="primary"/>
+    const columnButton = <ActionButton tooltip={columnButtonLabel} icon={<Plus className="h-4 w-4" />} variant="primary"/>
     const hidden =  <DropdownMenuGroup>
                         {hiddenColumns.map((column, index) =>
                             <DropdownMenuItem key={index} onClick={() => {
                                 displayColumn(column);
-                            }}>
+                            }} className="text-body-sm">
                                 {/* Display only the last "/" joined string of the column ID */}
                                 {/* e.g. "params/param1/param2" -> "param1/param2" */}
                                 {sanitizeId(column).split("/").slice(-2).join("/")}

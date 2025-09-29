@@ -69,7 +69,7 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
             onSelect={handleDateChange}
             className="rounded-md border"
             classNames={{
-              day_today: "text-primary font-bold",
+              day_today: "text-primary font-medium",
             }}
             initialFocus
             numberOfMonths={2}

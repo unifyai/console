@@ -223,7 +223,7 @@ const ColumnCreate = ({
 
     // Subcomponents
     const column = <Input 
-        className="w-1/2 min-w-[100px]" 
+        className="w-1/2 min-w-[100px] text-body-sm" 
         onClick={(event) => event.stopPropagation()} 
         placeholder={"Enter a column name.."} 
         value={commonRoot + name} 
@@ -238,7 +238,7 @@ const ColumnCreate = ({
     const entry = <FormulaInput options={options} value={expression} setValue={handleExpression} onEnter={onEnter} className="left-8"/>
     
     const warning = (error: string) => 
-                    <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-body text-destructive overflow-x-auto max-w-[300px]">{error}</p>
+                    <p style={{"scrollbar-width": "thin"} as React.CSSProperties} className="flex justify-start text-body-sm text-destructive overflow-x-auto max-w-[300px]">{error}</p>
     const submit =  <div className="flex justify-end">
                         <SubmitButton text={loading ? "Creating column" : "Create"} onClick={() => onSubmit()} icon={loading && <LoaderCircle className="animate-spin text-white"/>} />
                     </div>
@@ -255,7 +255,7 @@ const ColumnCreate = ({
 
         <div className="flex flex-col h-full">
             <DropdownMenuLabel className="text-label text-strong">Derived expression</DropdownMenuLabel>
-            <DropdownMenuLabel className="text-body">
+            <DropdownMenuLabel className="text-body-sm">
                 <p>Enter a mathematical expression to evaluate. You can use any entry column name as variable.</p>
             </DropdownMenuLabel>
             {entry}
@@ -283,7 +283,7 @@ const ColumnCreate = ({
                     rounded-sm 
                     px-2 
                     py-1.5 
-                    text-body 
+                    text-body-sm
                     outline-none 
                     transition-colors 
                     focus:bg-accent 

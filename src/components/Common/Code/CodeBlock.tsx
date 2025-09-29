@@ -96,7 +96,7 @@ const CodeBlock = ({
                 />}
                 second={<div className="pt-2 h-full w-full flex flex-col gap-2">
                     <div className="flex gap-4 items-center">
-                        <div className="font-semibold text-gray-400">Output</div>
+                        <div className="text-label text-strong text-muted-foreground">Output</div>
                         {pending && <Loader2 className="animate-spin" />}
                         {complete && <Check />}
                     </div>

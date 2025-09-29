@@ -11,7 +11,7 @@ import { ChevronDown, LoaderCircle } from "lucide-react";
 import { GroupedLogProps, LogProps } from "@/types/interfaces/logs";
 import { showLoadingToast, showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { useTableMetricsQuery, useInvalidateTableMetrics } from "@/hooks/Interfaces/Query/useTableDataQuery";
-import { useTileData } from "@/contexts/hooks";
+import { useTileData } from "@/contexts/hooks/tile/useTileData";
 import { LogsActions } from "@/types/interfaces/grid";
 
 const ColumnMetrics = ({
@@ -126,7 +126,7 @@ const ColumnMetrics = ({
     return (
         <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={(loading || isMetricsLoading || isFetching) ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading || isMetricsLoading || isFetching} variant="ghost" size="sm" className="px-1.5 h-7" />} open={interactive ? undefined : false}>
             {metrics.map((metric_, index) =>
-                <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)}>
+                <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)} className="text-body-sm">
                     {metric_}
                 </DropdownMenuCheckboxItem>
             )}
