@@ -61,6 +61,8 @@ async function createTerminal(
     terminal.write(`cd "${cwd}"\n`);
   }
 
+  terminal.write("clear\n");
+
   const sessionId = randomUUID();
   terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: "" });
 
