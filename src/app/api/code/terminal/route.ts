@@ -93,6 +93,9 @@ function buildGDriveMountScript(params: {
   const script = `
 set -e
 set -o pipefail
+set +x
+export RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS='${process.env.RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS}'
+set -x
 
 export RCLONE_IMPERSONATE_EMAIL="${assistantEmail}"
 EMAIL="$RCLONE_IMPERSONATE_EMAIL"
@@ -104,16 +107,18 @@ if ! command -v rclone >/dev/null 2>&1; then
 fi
 
 mkdir -p "$HOME/.config/rclone"
+# Ensure rclone.conf exists and is empty
+: > "$HOME/.config/rclone/rclone.conf"
 # Build rclone.conf using env-based auth only, with unique remote names per user
 REMOTE_BASE_NAME="gdrive_${userLocal}"
-cat >> "$HOME/.config/rclone/rclone.conf" <<EOF
-[$REMOTE_BASE_NAME]
-type = drive
-scope = drive
-impersonate = $EMAIL
-env_auth = true
-
-EOF
+{
+  echo "[$REMOTE_BASE_NAME]"
+  echo "type = drive"
+  echo "scope = drive"
+  echo "impersonate = $EMAIL"
+  echo "env_auth = true"
+  echo ""
+} >> "$HOME/.config/rclone/rclone.conf"
 chmod 600 "$HOME/.config/rclone/rclone.conf"
 
 # Ensure jq exists (required); if missing, abort with a clear message
@@ -179,7 +184,8 @@ async function setupGDriveMount(sessionId: string, assistantEmail: string, mount
   const script = buildGDriveMountScript({ assistantEmail, userLocal, mountBase });
   // Run script non-interactively via bash -lc; do not block the request
   // Escape newlines safely by using a here-doc
-  const command = `bash -lc 'set -e; tmpfile=$(mktemp); cat >"$tmpfile" <<"EOS"\n${script}\nEOS\n bash "$tmpfile" || true; rm -f "$tmpfile"'`;
+  const scriptB64 = Buffer.from(script, "utf-8").toString("base64");
+  const command = `bash -lc 'set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; echo "[gdrive] running setup..."; bash "$tmpfile"; rc=$?; echo "[gdrive] setup exit=$rc"; rm -f "$tmpfile"; exit $rc'\n`;
   await runCommand(sessionId, command);
 
   const updated = terminalStore.get(sessionId);
@@ -310,6 +316,8 @@ export async function POST(req: NextRequest) {
           console.error("[terminal] failed to fetch assistant emails", e);
         }
 
+        console.log("assistantEmail", assistantEmail);
+
         if (assistantEmail) {
           const localPart = assistantEmail.split("@")[0] || "user";
           const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -319,9 +327,14 @@ export async function POST(req: NextRequest) {
           } catch (e) {
             console.error("[terminal] gdrive mount setup error", e);
           }
+          runCommand(sessionId, "history -c\n");
+          runCommand(sessionId, "clear\n");
           return Response.json({ session_id: sessionId, shell, cwd, mount_base: mountBase });
         }
       }
+
+      runCommand(sessionId, "history -c\n");
+      runCommand(sessionId, "clear\n");
       return Response.json({ session_id: sessionId, shell, cwd });
     } catch (err: any) {
       console.error("[terminal] create error", err);

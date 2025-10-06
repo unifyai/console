@@ -31,7 +31,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ detail }, { status: response.status });
     }
 
-    const assistants = Array.isArray(data) ? data : [];
+    const assistants = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.info)
+      ? (data as any).info
+      : Array.isArray((data as any)?.results)
+      ? (data as any).results
+      : [];
     const emailsSet = new Set<string>();
     const emails: string[] = [];
     for (const a of assistants) {
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest) {
         emails.push(email);
       }
     }
-
+    console.log("emails", emails);
     return NextResponse.json({ emails });
   } catch (err) {
     console.error("[/api/assistant/emails] GET error", err);
