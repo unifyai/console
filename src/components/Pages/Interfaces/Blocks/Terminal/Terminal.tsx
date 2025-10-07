@@ -138,10 +138,7 @@ export default function Terminal({
           if (cmd) history.unshift(cmd);
           histIdx = -1;
           bufferRef.current = "";
-          if (cmd) {
-            // @ts-ignore
-            const res = await codeActions.runTerminal(sessionId.current, cmd + "\n");
-          }
+          await codeActions.runTerminal(sessionId.current, cmd ? cmd + "\n" : "\n");
           // prompt();
           break;
         // case "\u0003":
