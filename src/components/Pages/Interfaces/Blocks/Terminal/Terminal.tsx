@@ -94,7 +94,13 @@ export default function Terminal({
     if (started) return;
 
     /* xterm setup */
-    const term = new XTerm({ fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
+    const term = new XTerm({
+      fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+      theme: { background: "#1e1e1e" },
+      cursorBlink: true,
+      // Prevent descenders/underscores from being clipped by providing extra vertical room
+      lineHeight: 1.5,
+    });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current!);
