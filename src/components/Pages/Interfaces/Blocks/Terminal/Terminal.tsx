@@ -121,8 +121,12 @@ export default function Terminal({
     /* input handling identical as before */
     const history: string[] = [];
     let histIdx = -1;
-    const redraw = () => {
-      term.write("\x1b[2K\r$ ");
+    const redraw = (prevBuffer: string) => {
+      // Erase previous buffer using backspaces, then write the new buffer
+      if (prevBuffer && prevBuffer.length > 0) {
+        const erase = "\b \b".repeat(prevBuffer.length);
+        term.write(erase);
+      }
       term.write(bufferRef.current);
     };
     term.onData(async (data: string) => {
@@ -145,12 +149,22 @@ export default function Terminal({
         case "\u007F":
           if (bufferRef.current.length) { bufferRef.current=bufferRef.current.slice(0,-1); term.write("\b \b"); }
           break;
-        // case "\u001b[A":
-        //   if (history.length){ histIdx=Math.min(histIdx+1,history.length-1); buffer=history[histIdx]??""; redraw(); }
-        //   break;
-        // case "\u001b[B":
-        //   if (history.length&&histIdx>=0){ histIdx=Math.max(histIdx-1,-1); buffer=histIdx===-1?"":history[histIdx]??""; redraw(); }
-        //   break;
+        case "\u001b[A":
+          if (history.length){
+            const prev = bufferRef.current;
+            histIdx = Math.min(histIdx + 1, history.length - 1);
+            bufferRef.current = history[histIdx] ?? "";
+            redraw(prev);
+          }
+          break;
+        case "\u001b[B":
+          if (history.length && histIdx >= 0){
+            const prev = bufferRef.current;
+            histIdx = Math.max(histIdx - 1, -1);
+            bufferRef.current = histIdx === -1 ? "" : (history[histIdx] ?? "");
+            redraw(prev);
+          }
+          break;
         default:
           bufferRef.current+=data; term.write(data);
       }
