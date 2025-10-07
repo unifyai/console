@@ -88,6 +88,8 @@ export default function Terminal({
   const termRef = useRef<XTerm>();
   const fitRef = useRef<FitAddon>();
   const sessionId = useRef<string>();
+  const pendingTabRef = useRef<boolean>(false);
+  const preTabBufferRef = useRef<string>("");
 
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
@@ -109,6 +111,15 @@ export default function Terminal({
     termRef.current = term;
     fitRef.current = fit;
     setStarted(true);
+
+    // Ensure Tab key stays in the terminal and doesn't move browser focus
+    term.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        return true; // allow xterm to emit onData("\t")
+      }
+      return true;
+    });
 
     const resizeObserver = new ResizeObserver(() => fit.fit());
     resizeObserver.observe(containerRef.current!);
@@ -139,7 +150,7 @@ export default function Terminal({
       if (!sessionId.current) return;
       switch (data) {
         case "\r":
-          const cmd = bufferRef.current.trim();
+          const cmd = bufferRef.current.trim().replace(preTabBufferRef.current.trim(), "");
           if (cmd) history.unshift(cmd);
           histIdx = -1;
           // Remove the locally-echoed input so the remote PTY echo replaces it (avoids duplication)
@@ -148,6 +159,9 @@ export default function Terminal({
             term.write(erase);
           }
           bufferRef.current = "";
+
+          term.write(preTabBufferRef.current);
+          preTabBufferRef.current = "";
           await codeActions.runTerminal(sessionId.current, cmd ? cmd + "\n" : "\n");
           // prompt();
           break;
@@ -171,6 +185,17 @@ export default function Terminal({
             bufferRef.current = histIdx === -1 ? "" : (history[histIdx] ?? "");
             redraw(prev);
           }
+          break;
+        case "\t":
+          // Send current buffer followed by a tab to trigger shell completion
+          // Erase locally typed input to avoid duplicated echo; buffer will be updated from output
+          if (bufferRef.current.length) {
+            const erase = "\b \b".repeat(bufferRef.current.length);
+            term.write(erase);
+          }
+          preTabBufferRef.current = bufferRef.current;
+          pendingTabRef.current = true;
+          await codeActions.runTerminal(sessionId.current, bufferRef.current + "\t");
           break;
         default:
           bufferRef.current+=data; term.write(data);
@@ -211,8 +236,16 @@ export default function Terminal({
         // @ts-ignore helper exists
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
-          termRef.current.write(res.output.replaceAll("/project/sandbox", ""));
-          termRef.current.write(bufferRef.current);
+          const out = res.output.replaceAll("/project/sandbox", "");
+          termRef.current.write(out);
+
+          if (pendingTabRef.current) {
+            bufferRef.current = out;
+            preTabBufferRef.current = out;
+            pendingTabRef.current = false;
+          } else {
+            termRef.current.write(bufferRef.current);
+          }
         }
       } catch {}
     }, 2000);
