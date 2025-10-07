@@ -139,10 +139,14 @@ export default function Terminal({
       if (!sessionId.current) return;
       switch (data) {
         case "\r":
-          term.write("\r\n");
           const cmd = bufferRef.current.trim();
           if (cmd) history.unshift(cmd);
           histIdx = -1;
+          // Remove the locally-echoed input so the remote PTY echo replaces it (avoids duplication)
+          if (bufferRef.current.length) {
+            const erase = "\b \b".repeat(bufferRef.current.length);
+            term.write(erase);
+          }
           bufferRef.current = "";
           await codeActions.runTerminal(sessionId.current, cmd ? cmd + "\n" : "\n");
           // prompt();
