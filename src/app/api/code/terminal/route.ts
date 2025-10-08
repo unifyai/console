@@ -45,7 +45,7 @@ async function ensureSandbox(userId: string) {
 async function createTerminal(
   userId: string,
   shell: string = "bash",
-  cwd: string = "/project/sandbox"
+  cwd: string = "/project/workspace"
 ) {
   const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
   const sandboxId = await ensureSandbox(userId);
@@ -57,7 +57,7 @@ async function createTerminal(
     terminal.write("zsh\n");
   }
 
-  if (cwd !== "/project/sandbox") {
+  if (cwd !== "/project/workspace") {
     terminal.write(`cd "${cwd}"\n`);
   }
 
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const userId = body.user_id as string | undefined;
     const shell = (body.shell as string | undefined) ?? "bash";
-    const cwd  = (body.cwd  as string | undefined) ?? "/project/sandbox";
+    const cwd  = (body.cwd  as string | undefined) ?? "/project/workspace";
 
     if (!userId) return Response.json({ detail: "Missing user_id" }, { status: 400 });
 

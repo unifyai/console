@@ -206,7 +206,7 @@ const Editor = ({
             // @ts-ignore helper exists
             const res = await codeActions.get(`${projectId}/${tempFileName}.${tempFileType}`);
             if (res?.output) {
-              setOutput(res.output.replaceAll("/project/sandbox/", ""));
+              setOutput(res.output.replaceAll("/project/workspace/", ""));
               if (res.done) setPending(false);
             } else if (res?.done) {
               setOutput("Script execution completed.");

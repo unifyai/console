@@ -236,7 +236,7 @@ export default function Terminal({
         // @ts-ignore helper exists
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
-          const out = res.output.replaceAll("/project/sandbox", "");
+          const out = res.output.replaceAll("/project/workspace", "");
           termRef.current.write(out);
 
           if (pendingTabRef.current) {

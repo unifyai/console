@@ -88,7 +88,7 @@ export const getCodeOutput = async (apiKey: string) => {
 export const createTerminalSession = async (apiKey: string, userId: string) => {
     return async (
         shell: string = "bash",
-        cwd: string = "/project/sandbox"
+        cwd: string = "/project/workspace"
     ) => {
         "use server";
 
