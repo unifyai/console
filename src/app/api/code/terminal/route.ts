@@ -65,7 +65,7 @@ async function createTerminal(
     terminal.write(`cd "${cwd}"\n`);
   }
 
-  // terminal.write("clear\n");
+  terminal.write("clear\n");
 
   const sessionId = randomUUID();
   terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: "" });
@@ -100,6 +100,8 @@ async function cleanupMounts(sessionId: string) {
   const command = buildGDriveCleanupCommand(mountBase);
   try {
     await runCommand(sessionId, command);
+    // Wait for cleanup to finish before killing the terminal
+    await new Promise((resolve) => setTimeout(resolve, 20_000));
   } catch (_) {
     // ignore cleanup errors
   }
@@ -172,7 +174,7 @@ export async function POST(req: NextRequest) {
     const userId = body.user_id as string | undefined;
     const shell = (body.shell as string | undefined) ?? "bash";
     const cwd  = (body.cwd  as string | undefined) ?? "/project/workspace";
-    const mountGdrive = (body.mount_gdrive as boolean | undefined) ?? true;
+    const mountGdrive = (body.mount_gdrive as boolean | undefined) ?? cwd.includes("Assistants");
 
     if (!userId) return Response.json({ detail: "Missing user_id" }, { status: 400 });
 
@@ -209,14 +211,10 @@ export async function POST(req: NextRequest) {
           } catch (e) {
             console.error("[terminal] gdrive mount setup error", e);
           }
-          runCommand(sessionId, "history -c\n");
-          runCommand(sessionId, "clear\n");
           return Response.json({ session_id: sessionId, shell, cwd, mount_base: mountBase });
         }
       }
 
-      runCommand(sessionId, "history -c\n");
-      runCommand(sessionId, "clear\n");
       return Response.json({ session_id: sessionId, shell, cwd });
     } catch (err: any) {
       console.error("[terminal] create error", err);

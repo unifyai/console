@@ -205,7 +205,11 @@ export default function Terminal({
 
   const stopTerminal = async () => {
     termRef.current?.reset();
-    termRef.current?.write("Stopping terminal...\r\n");
+    if (projectId.includes("Assistants")) {
+      termRef.current?.write("Syncing GDrives then stopping terminal...\r\n");
+    } else {
+      termRef.current?.write("Stopping terminal...\r\n");
+    }
     if (sessionId.current) {
       // @ts-ignore
       const sid = sessionId.current;
