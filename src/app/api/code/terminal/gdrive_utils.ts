@@ -45,9 +45,9 @@ REMOTE_NAMES=()
 MOUNT_NAMES=()
 
 REMOTE_NAMES+=("$REMOTE_BASE_NAME")
-MOUNT_NAMES+=("gdrive")
+MOUNT_NAMES+=("My_Drive")
 REMOTE_NAMES+=("${'${REMOTE_BASE_NAME}'}_shared")
-MOUNT_NAMES+=("gdrive_shared")
+MOUNT_NAMES+=("Shared_with_me")
 
 # Append per-shared-drive sections (avoid subshell so array mutations persist)
 while IFS=$'\t' read -r DRIVE_ID DRIVE_NAME; do
@@ -64,7 +64,7 @@ while IFS=$'\t' read -r DRIVE_ID DRIVE_NAME; do
     echo ""
   } >> "$HOME/.config/rclone/rclone.conf"
   REMOTE_NAMES+=("${'${REMOTE_NAME}'}")
-  MOUNT_NAMES+=("${'${SAFE_NAME}'}_drive")
+  MOUNT_NAMES+=("${'${SAFE_NAME}'}_Team_Drive")
 done < <(echo "$DRIVES_JSON" | jq -r '.[] | [.id, .name] | @tsv')
 
 # Mount all remotes
@@ -129,7 +129,6 @@ while IFS=' ' read -r REMOTE MP; do
     [ -n "$REMOTE" ] || continue
     [ -n "$MP" ] || continue
     if [ -d "$MP" ]; then
-    echo "[gdrive] bisync $MP -> $REMOTE:"
     rclone bisync "$MP" "$REMOTE:" || true
     rm -rf "$MP" || true
     fi
