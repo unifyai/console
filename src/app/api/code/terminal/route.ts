@@ -16,7 +16,7 @@ type TerminalEntry = {
   sandbox: any; // CodeSandbox Session type (not exported)
   terminal: any; // CodeSandbox Terminal type (not exported)
   outputBuffer: string;
-  mountBase?: string;
+  mountBases?: string[];
   mountPoints?: string[];
 };
 
@@ -80,24 +80,24 @@ async function createTerminal(
 }
 
 
-async function setupGDriveMount(sessionId: string, assistantEmail: string, mountBase: string) {
+async function setupGDriveMount(sessionId: string, assistantEmails: string[], mountBases: string[]) {
   const entry = terminalStore.get(sessionId);
   if (!entry) throw new Error("Invalid session_id");
 
-  const command = buildGDriveMountCommand(assistantEmail, mountBase);
+  const command = buildGDriveMountCommand(assistantEmails, mountBases);
   await runCommand(sessionId, command);
 
   const updated = terminalStore.get(sessionId);
   if (updated) {
-    updated.mountBase = mountBase;
+    updated.mountBases = mountBases;
   }
 }
 
 async function cleanupMounts(sessionId: string) {
   const entry = terminalStore.get(sessionId);
   if (!entry) return;
-  const mountBase = entry.mountBase || "google_drives";
-  const command = buildGDriveCleanupCommand(mountBase);
+  const mountBases = entry.mountBases || ["google_drives"];
+  const command = buildGDriveCleanupCommand(mountBases);
   try {
     await runCommand(sessionId, command);
     // Wait for cleanup to finish before killing the terminal
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       const { sessionId } = await createTerminal(userId, shell, cwd);
       if (mountGdrive) {
         // Fetch assistant emails internally
-        let assistantEmail: string | undefined;
+        let assistantEmails: string[] = [];
         try {
           const emailsRes = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/emails`, {
             method: "GET",
@@ -194,24 +194,27 @@ export async function POST(req: NextRequest) {
           if (emailsRes.ok) {
             const data = await emailsRes.json();
             const emails: string[] = data?.emails || [];
-            assistantEmail = emails.find((e: string) => typeof e === 'string' && e.includes('@'));
+            assistantEmails = emails;
+            // assistantEmail = emails.find((e: string) => typeof e === 'string' && e.includes('@'));
           }
         } catch (e) {
           console.error("[terminal] failed to fetch assistant emails", e);
         }
 
-        console.log("assistantEmail", assistantEmail);
+        console.log("assistantEmails", assistantEmails);
 
-        if (assistantEmail) {
-          const localPart = assistantEmail.split("@")[0] || "user";
-          const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, "_");
-          const mountBase = `google_drives/${safeLocal}`;
+        if (assistantEmails.length > 0) {
+          const mountBases = assistantEmails.map((email: string) => {
+            const localPart = email.split("@")[0] || "user";
+            const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, "_");
+            return `google_drives/${safeLocal}`;
+          });
           try {
-            await setupGDriveMount(sessionId, assistantEmail, mountBase);
+            await setupGDriveMount(sessionId, assistantEmails, mountBases);
           } catch (e) {
             console.error("[terminal] gdrive mount setup error", e);
           }
-          return Response.json({ session_id: sessionId, shell, cwd, mount_base: mountBase });
+          return Response.json({ session_id: sessionId, shell, cwd, mount_bases: mountBases });
         }
       }
 

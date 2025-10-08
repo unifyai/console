@@ -12,13 +12,10 @@ rm -f "$HOME/.config/rclone/rclone.conf"
 touch "$HOME/.config/rclone/rclone.conf"
 chmod 600 "$HOME/.config/rclone/rclone.conf"
 
-# Prepare remote and mount name lists
-REMOTE_NAMES=()
-MOUNT_NAMES=()
 `;
 }
 
-export function buildAssistantMount(email: string, userLocal: string) {
+export function buildAssistantMount(email: string, userLocal: string, mountBase: string) {
   return `
 # Build rclone.conf using env-based auth only, with unique remote names per user
 REMOTE_BASE_NAME="gdrive_${userLocal}"
@@ -43,7 +40,10 @@ REMOTE_BASE_NAME="gdrive_${userLocal}"
 # Query shared drives for this user's remote
 DRIVES_JSON=$(rclone backend drives "$REMOTE_BASE_NAME:" || echo "[]")
 
-# Add to remote and mount name lists
+# Prepare per-assistant remote and mount name lists
+REMOTE_NAMES=()
+MOUNT_NAMES=()
+
 REMOTE_NAMES+=("$REMOTE_BASE_NAME")
 MOUNT_NAMES+=("gdrive")
 REMOTE_NAMES+=("${'${REMOTE_BASE_NAME}'}_shared")
@@ -65,20 +65,7 @@ echo "$DRIVES_JSON" | jq -r '.[] | [.id, .name] | @tsv' | while IFS=$'\t' read -
   } >> "$HOME/.config/rclone/rclone.conf"
   REMOTE_NAMES+=("${'${REMOTE_NAME}'}")
   MOUNT_NAMES+=("${'${SAFE_NAME}'}_drive")
-done`;
-}
-
-export function buildGDriveMountScript(params: {
-  assistantEmail: string;
-  userLocal: string;
-  mountBase: string;
-}) {
-  const { assistantEmail, userLocal, mountBase } = params;
-
-  const script = `
-${buildScriptHeader()}
-
-${buildAssistantMount(assistantEmail, userLocal)}
+done
 
 # Mount all remotes
 MOUNT_BASE="${mountBase}"
@@ -104,41 +91,72 @@ for IDX in "${'${!REMOTE_NAMES[@]}'}"; do
   fi
 done
 `;
+}
+
+export function buildGDriveMountScript(params: {
+  assistantEmails: string[];
+  userLocals: string[];
+  mountBases: string[];
+}) {
+  const { assistantEmails, userLocals, mountBases } = params;
+
+  const blocks = assistantEmails.map((email, idx) => {
+    const local = userLocals[idx];
+    const base = mountBases[idx];
+    return buildAssistantMount(email, local, base);
+  }).join("\n");
+
+  const script = `
+${buildScriptHeader()}
+
+${blocks}
+`;
 
   return script;
 }
 
-export function buildGDriveCleanupScript(mountBase: string) {
+export function buildAssistantMountCleanup(mountBase: string) {
   return `
 MOUNT_BASE="${mountBase}"
 
 REMOTE_MAP_FILE="$MOUNT_BASE/.remote_map"
 if [ ! -f "$REMOTE_MAP_FILE" ]; then
-  echo "No remote map found at $REMOTE_MAP_FILE; skipping cleanup"
-  exit 0
+    echo "No remote map found at $REMOTE_MAP_FILE; skipping cleanup"
+    exit 0
 fi
 
 while IFS=' ' read -r REMOTE MP; do
-  [ -n "$REMOTE" ] || continue
-  [ -n "$MP" ] || continue
-  if [ -d "$MP" ]; then
+    [ -n "$REMOTE" ] || continue
+    [ -n "$MP" ] || continue
+    if [ -d "$MP" ]; then
     echo "[gdrive] bisync $MP -> $REMOTE:"
     rclone bisync "$MP" "$REMOTE:" || true
     rm -rf "$MP" || true
-  fi
+    fi
 done < "$REMOTE_MAP_FILE"
+
+rm -rf "$MOUNT_BASE"
 `;
 }
 
-export function buildGDriveMountCommand(assistantEmail: string, mountBase: string) {
-  const userLocal = (assistantEmail.split("@")[0] || "user").replace(/[^a-zA-Z0-9_-]/g, "_");
-  const script = buildGDriveMountScript({ assistantEmail, userLocal, mountBase });
-  const scriptB64 = Buffer.from(script, "utf-8").toString("base64");
-  return `set -e; export RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS='${process.env.RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS}'; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile" & clear\n`;
+export function buildGDriveCleanupScript(mountBases: string[]) {
+    const blocks = mountBases.map((base) => {
+      return buildAssistantMountCleanup(base);
+    }).join("\n");
+  return `
+${blocks}
+`;
 }
 
-export function buildGDriveCleanupCommand(mountBase: string) {
-  const cleanupScript = buildGDriveCleanupScript(mountBase);
+export function buildGDriveMountCommand(assistantEmails: string[], mountBases: string[]) {
+  const userLocals = (assistantEmails.map((email: string) => (email.split("@")[0] || "user").replace(/[^a-zA-Z0-9_-]/g, "_")));
+  const script = buildGDriveMountScript({ assistantEmails, userLocals, mountBases });
+  const scriptB64 = Buffer.from(script, "utf-8").toString("base64");
+  return `set -e; export RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS='${process.env.RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS}'; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile"; rm -f "$tmpfile"; clear\n`;
+}
+
+export function buildGDriveCleanupCommand(mountBases: string[]) {
+  const cleanupScript = buildGDriveCleanupScript(mountBases);
   const scriptB64 = Buffer.from(cleanupScript, "utf-8").toString("base64");
   return `set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile"; rm -f "$tmpfile"\n`;
 }
