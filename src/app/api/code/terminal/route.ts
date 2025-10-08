@@ -86,6 +86,7 @@ async function setupGDriveMount(sessionId: string, assistantEmails: string[], mo
 
   const command = buildGDriveMountCommand(assistantEmails, mountBases);
   await runCommand(sessionId, command);
+  await new Promise((resolve) => setTimeout(resolve, 15_000));
 
   const updated = terminalStore.get(sessionId);
   if (updated) {
@@ -101,7 +102,7 @@ async function cleanupMounts(sessionId: string) {
   try {
     await runCommand(sessionId, command);
     // Wait for cleanup to finish before killing the terminal
-    await new Promise((resolve) => setTimeout(resolve, 20_000));
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
   } catch (_) {
     // ignore cleanup errors
   }

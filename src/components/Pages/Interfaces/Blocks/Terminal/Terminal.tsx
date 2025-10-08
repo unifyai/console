@@ -126,7 +126,11 @@ export default function Terminal({
 
     try {
       // @ts-ignore global actions
-      term.write("Starting terminal...\r\n");
+      if (projectId.includes("Assistants")) {
+        term.write("Syncing GDrives and starting terminal...\r\n");
+      } else {
+        term.write("Starting terminal...\r\n");
+      }
       const { session_id } = await codeActions.createTerminal(shell, projectId);
       term.reset();
       sessionId.current = session_id;
