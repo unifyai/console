@@ -16,6 +16,7 @@ import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
+import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
     const user = await getCurrentUser();
@@ -63,6 +64,11 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
             listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
             verifySocialAccount: await verifySocialAccount(adminKey),
+        },
+        "secret": {
+            get: await getSecrets(apiKey),
+            create: await createSecret(apiKey),
+            delete: await deleteSecret(apiKey),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),

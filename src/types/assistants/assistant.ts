@@ -2,6 +2,7 @@ import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 import { ChatMessage } from "./chat";
+import { SecretActions } from "./secret";
 
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
 
@@ -305,6 +306,7 @@ export interface AssistantActions {
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
     verifySocialAccount: (platform: string, account_identifier: string) => Promise<{ verification_code: string; sent_at: string; } | ResponseProps>;
     },
+    "secret": SecretActions;
     "approval": {
     getProfile: () => Promise<HiringProfileData | ResponseProps>
     requestAccess: () => Promise<AssistantHiringApprovalResponse>;

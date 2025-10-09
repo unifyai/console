@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, Laptop } from "lucide-react";
+import { Mail, Phone, PenLine, Check } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
@@ -214,16 +214,6 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                         <ContactItem value={"Coming Soon"} tooltip={`Schedule a Zoom meeting and invite ${assistant.first_name}`} icon={<BiLogoZoom className="h-4 w-4 flex-shrink-0"/>}/>
                     </div>
                 </div>
-
-                {/* Setup Section */}
-                {assistant.desktop_url && 
-                    <div className="pt-4 group/assistant-setup">
-                        <h3 className="text-title">My Setup</h3>
-                        <div className="text-caption my-1">
-                            <ContactItem value={assistant.desktop_url} tooltip={"Url of your local desktop configuration"} icon={<Laptop className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        </div>
-                    </div>
-                }                
             </ScrollArea>
         </div>
     );

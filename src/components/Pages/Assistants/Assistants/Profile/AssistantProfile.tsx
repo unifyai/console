@@ -1,10 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check, ChevronRight } from "lucide-react";
-import { SiGooglemeet } from "react-icons/si";
-import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import { BiLogoZoom } from "react-icons/bi";
-import { WhatsApp } from '@mui/icons-material';
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -24,6 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
+import { AssistantResourcesManager } from './AssistantResourcesManager';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -64,7 +61,6 @@ const AccordionTriggerWithButtons = React.forwardRef<
     </AccordionTrigger>
 ));
 AccordionTriggerWithButtons.displayName = AccordionTrigger.displayName;
-
 
 export function AssistantProfilePanel({
     assistant,
@@ -108,7 +104,7 @@ export function AssistantProfilePanel({
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                 <div className="h-full flex flex-col w-full bg-background">
                     
-                    <Accordion type="multiple" defaultValue={["profile", "chat"]} className="w-full flex-1 flex flex-col min-h-0">
+                    <Accordion type="multiple" defaultValue={["profile", "resources", "chat"]} className="w-full flex-1 flex flex-col min-h-0">
                         {/* Profile Section */}
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
@@ -141,6 +137,27 @@ export function AssistantProfilePanel({
                                     assistant={assistant} 
                                     onOpenPhoneEditDialog={onOpenPhoneEditDialog} 
                                     onOpenEmailEditDialog={onOpenEmailEditDialog}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Manage Resources Section */}
+                        <AccordionItem value="resources">
+                             <AccordionTriggerWithButtons
+                                className="text-title"
+                            >
+                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                    <Briefcase className="h-4 w-4" />
+                                    <span className="text-body">{`Manage ${assistant.first_name}'s resources`}</span>
+                                </div>
+                            </AccordionTriggerWithButtons>
+                            <AccordionContent
+                                outerClassName="data-[state=open]:flex flex-col flex-1 min-h-0 p-0"
+                                className="p-4 flex-1 min-h-0"
+                            >
+                                <AssistantResourcesManager 
+                                    assistant={assistant} 
+                                    assistantActions={assistantActions} 
                                 />
                             </AccordionContent>
                         </AccordionItem>
