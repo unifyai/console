@@ -88,8 +88,7 @@ export default function Terminal({
   const termRef = useRef<XTerm>();
   const fitRef = useRef<FitAddon>();
   const sessionId = useRef<string>();
-  const pendingTabRef = useRef<boolean>(false);
-  const preTabBufferRef = useRef<string>("");
+  const pendingEnterRef = useRef<boolean>(false);
 
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
@@ -139,71 +138,33 @@ export default function Terminal({
       term.write("Failed to start terminal session\r\n");
     }
 
-    /* input handling identical as before */
-    const history: string[] = [];
-    let histIdx = -1;
-    const redraw = (prevBuffer: string) => {
-      // Erase previous buffer using backspaces, then write the new buffer
-      if (prevBuffer && prevBuffer.length > 0) {
-        const erase = "\b \b".repeat(prevBuffer.length);
-        term.write(erase);
-      }
-      term.write(bufferRef.current);
-    };
+    // Local buffer + send on Enter (basic behavior)
     term.onData(async (data: string) => {
-      if (!sessionId.current) return;
-      switch (data) {
-        case "\r":
-          const cmd = bufferRef.current.trim().replace(preTabBufferRef.current.trim(), "");
-          if (cmd) history.unshift(cmd);
-          histIdx = -1;
-          // Remove the locally-echoed input so the remote PTY echo replaces it (avoids duplication)
-          if (bufferRef.current.length) {
-            const erase = "\b \b".repeat(bufferRef.current.length);
-            term.write(erase);
-          }
-          bufferRef.current = "";
+      if (!sessionId.current || !termRef.current) return;
 
-          term.write(preTabBufferRef.current);
-          preTabBufferRef.current = "";
-          await codeActions.runTerminal(sessionId.current, cmd ? cmd + "\n" : "\n");
-          // prompt();
-          break;
-        // case "\u0003":
-        //   term.write("^C"); buffer=""; prompt(); break;
-        case "\u007F":
-          if (bufferRef.current.length) { bufferRef.current=bufferRef.current.slice(0,-1); term.write("\b \b"); }
-          break;
-        case "\u001b[A":
-          if (history.length){
-            const prev = bufferRef.current;
-            histIdx = Math.min(histIdx + 1, history.length - 1);
-            bufferRef.current = history[histIdx] ?? "";
-            redraw(prev);
-          }
-          break;
-        case "\u001b[B":
-          if (history.length && histIdx >= 0){
-            const prev = bufferRef.current;
-            histIdx = Math.max(histIdx - 1, -1);
-            bufferRef.current = histIdx === -1 ? "" : (history[histIdx] ?? "");
-            redraw(prev);
-          }
-          break;
-        case "\t":
-          // Send current buffer followed by a tab to trigger shell completion
-          // Erase locally typed input to avoid duplicated echo; buffer will be updated from output
-          if (bufferRef.current.length) {
-            const erase = "\b \b".repeat(bufferRef.current.length);
-            term.write(erase);
-          }
-          preTabBufferRef.current = bufferRef.current;
-          pendingTabRef.current = true;
-          await codeActions.runTerminal(sessionId.current, bufferRef.current + "\t");
-          break;
-        default:
-          bufferRef.current+=data; term.write(data);
+      // Enter: send the buffered command plus newline; do not echo locally
+      if (data === "\r") {
+        const cmd = bufferRef.current;
+        bufferRef.current = "";
+        // Move to a new line locally so the prompt/output starts at column 0
+        term.write("\r\n");
+        await codeActions.runTerminal(sessionId.current, cmd + "\n");
+        pendingEnterRef.current = true;
+        return;
       }
+
+      // Backspace: update local buffer and visually erase one char
+      if (data === "\u007F") {
+        if (bufferRef.current.length) {
+          bufferRef.current = bufferRef.current.slice(0, -1);
+          term.write("\b \b");
+        }
+        return;
+      }
+
+      // Normal character: append to buffer and echo locally
+      bufferRef.current += data;
+      term.write(data);
     });
   };
 
@@ -245,18 +206,19 @@ export default function Terminal({
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
           const out = res.output.replaceAll("/project/workspace", "");
-          termRef.current.write(out);
-
-          if (pendingTabRef.current) {
-            bufferRef.current = out;
-            preTabBufferRef.current = out;
-            pendingTabRef.current = false;
+          // Normalize newlines to CRLF so cursor returns to column 0 on xterm
+          const toCRLF = (s: string) => s.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+          if (pendingEnterRef.current) {
+            const parts = out.split(/\r?\n/);
+            const adjusted = parts.slice(1).join("\n");
+            termRef.current.write(toCRLF(adjusted));
+            pendingEnterRef.current = false;
           } else {
-            termRef.current.write(bufferRef.current);
+            termRef.current.write(toCRLF(out));
           }
         }
       } catch {}
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(id);
   }, [started, codeActions]);
