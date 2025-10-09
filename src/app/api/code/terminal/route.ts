@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { CodeSandbox } from "@codesandbox/sdk";
 import { randomUUID } from "crypto";
-import { buildGDriveMountCommand, buildGDriveCleanupCommand } from "./gdrive_utils";
+import { buildGDriveMountCommand, buildGDriveCleanupCommand, buildGDriveMountSyncCommand } from "./gdrive_utils";
 
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
@@ -87,6 +87,9 @@ async function setupGDriveMount(sessionId: string, assistantEmails: string[], mo
   const command = buildGDriveMountCommand(assistantEmails, mountBases);
   await runCommand(sessionId, command);
   await new Promise((resolve) => setTimeout(resolve, 20_000));
+
+  const syncCommand = buildGDriveMountSyncCommand(mountBases);
+  await runCommand(sessionId, syncCommand);
 
   const updated = terminalStore.get(sessionId);
   if (updated) {
@@ -196,13 +199,10 @@ export async function POST(req: NextRequest) {
             const data = await emailsRes.json();
             const emails: string[] = data?.emails || [];
             assistantEmails = emails;
-            // assistantEmail = emails.find((e: string) => typeof e === 'string' && e.includes('@'));
           }
         } catch (e) {
           console.error("[terminal] failed to fetch assistant emails", e);
         }
-
-        console.log("assistantEmails", assistantEmails);
 
         if (assistantEmails.length > 0) {
           const mountBases = assistantEmails.map((email: string) => {

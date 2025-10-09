@@ -12,6 +12,8 @@ rm -f "$HOME/.config/rclone/rclone.conf"
 touch "$HOME/.config/rclone/rclone.conf"
 chmod 600 "$HOME/.config/rclone/rclone.conf"
 
+rm -rf google_drives
+mkdir -p google_drives
 `;
 }
 
@@ -85,7 +87,7 @@ for IDX in "${'${!REMOTE_NAMES[@]}'}"; do
   rm -rf "$MOUNT_DIR"
   mkdir -p "$MOUNT_DIR"
   if rclone sync "$REMOTE:" "$MOUNT_DIR"; then
-    rclone bisync "$MOUNT_DIR" "$REMOTE:" --resync
+    rclone bisync "$REMOTE:" "$MOUNT_DIR" --resync
     echo "$MOUNT_DIR" >> "$MOUNT_POINTS_FILE"
     echo "$REMOTE $MOUNT_DIR" >> "$REMOTE_MAP_FILE"
   fi
@@ -115,6 +117,40 @@ ${blocks}
   return script;
 }
 
+export function buildAssistantMountSync(mountBase: string) {
+    return `
+MOUNT_BASE="${mountBase}"
+
+REMOTE_MAP_FILE="$MOUNT_BASE/.remote_map"
+if [ ! -f "$REMOTE_MAP_FILE" ]; then
+    echo "No remote map found at $REMOTE_MAP_FILE; skipping sync"
+    exit 0
+fi
+
+while IFS=' ' read -r REMOTE MP; do
+    [ -n "$REMOTE" ] || continue
+    [ -n "$MP" ] || continue
+  if [ -d "$MP" ]; then
+    if ! rclone bisync "$REMOTE:" "$MP" --force >/dev/null 2>&1; then
+      rclone bisync "$REMOTE:" "$MP" --resync-mode newer || true
+    fi
+  fi
+done < "$REMOTE_MAP_FILE"
+`;
+}
+
+export function buildGDriveMountSyncScript(mountBases: string[]) {
+  const blocks = mountBases.map((base) => {
+    return buildAssistantMountSync(base);
+  }).join("\n");
+  return `
+while :; do
+${blocks}
+sleep 30
+done
+`;
+}
+
 export function buildAssistantMountCleanup(mountBase: string) {
   return `
 MOUNT_BASE="${mountBase}"
@@ -129,7 +165,7 @@ while IFS=' ' read -r REMOTE MP; do
     [ -n "$REMOTE" ] || continue
     [ -n "$MP" ] || continue
     if [ -d "$MP" ]; then
-    rclone bisync "$MP" "$REMOTE:" || true
+    rclone bisync "$REMOTE:" "$MP" || true
     rm -rf "$MP" || true
     fi
 done < "$REMOTE_MAP_FILE"
@@ -160,4 +196,8 @@ export function buildGDriveCleanupCommand(mountBases: string[]) {
   return `set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile"; rm -f "$tmpfile"\n`;
 }
 
-
+export function buildGDriveMountSyncCommand(mountBases: string[]) {
+  const syncScript = buildGDriveMountSyncScript(mountBases);
+  const scriptB64 = Buffer.from(syncScript, "utf-8").toString("base64");
+  return `set -e; tmpfile=$(mktemp); echo "${scriptB64}" | base64 -d > "$tmpfile"; bash "$tmpfile" & clear\n`;
+}
