@@ -47,7 +47,6 @@ export async function GET(request: NextRequest) {
         emails.push(email);
       }
     }
-    console.log("emails", emails);
     return NextResponse.json({ emails });
   } catch (err) {
     console.error("[/api/assistant/emails] GET error", err);
