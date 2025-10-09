@@ -146,9 +146,17 @@ export default function Terminal({
       if (data === "\r") {
         const cmd = bufferRef.current;
         bufferRef.current = "";
+
         // Move to a new line locally so the prompt/output starts at column 0
         term.write("\r\n");
-        await codeActions.runTerminal(sessionId.current, cmd + "\n");
+
+        // Block rclone usage
+        const isBlocked = cmd.trim().toLowerCase().includes("rclone");
+        if (isBlocked) {
+          term.write("rclone is not allowed\r\n");
+        }
+
+        await codeActions.runTerminal(sessionId.current, isBlocked ? "\n" : cmd + "\n");
         pendingEnterRef.current = true;
         return;
       }
