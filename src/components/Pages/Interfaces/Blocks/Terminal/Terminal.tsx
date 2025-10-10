@@ -89,6 +89,8 @@ export default function Terminal({
   const fitRef = useRef<FitAddon>();
   const sessionId = useRef<string>();
   const pendingEnterRef = useRef<boolean>(false);
+  const historyRef = useRef<string[]>([]);
+  const histIdxRef = useRef<number>(-1); // -1 means current input
 
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
@@ -156,8 +158,15 @@ export default function Terminal({
           term.write("rclone is not allowed\r\n");
         }
 
+        if (!isBlocked) {
+          const trimmed = cmd.trim();
+          if (trimmed.length) {
+            historyRef.current.push(trimmed);
+          }
+        }
         await codeActions.runTerminal(sessionId.current, isBlocked ? "\n" : cmd + "\n");
         pendingEnterRef.current = true;
+        histIdxRef.current = -1; // reset browsing index
         return;
       }
 
@@ -176,6 +185,59 @@ export default function Terminal({
             term.write(" ");
             term.write(`\x1b[${term.cols}C`);
           }
+        }
+        return;
+      }
+
+      // Helper to erase the current buffer from the screen honoring wraps
+      const eraseCurrentBuffer = () => {
+        const len = bufferRef.current.length;
+        if (!len) return;
+        const t = termRef.current;
+        if (!t) return;
+        for (let i = 0; i < len; i++) {
+          const cursorX = t.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            t.write("\b \b");
+          } else {
+            t.write("\x1b[A");
+            t.write(`\x1b[${t.cols}C`);
+            t.write(" ");
+            t.write(`\x1b[${t.cols}C`);
+          }
+        }
+      };
+
+      // History: Up arrow
+      if (data === "\u001b[A") {
+        const hist = historyRef.current;
+        if (!hist.length) return;
+        if (histIdxRef.current === -1) {
+          histIdxRef.current = hist.length - 1;
+        } else if (histIdxRef.current > 0) {
+          histIdxRef.current -= 1;
+        }
+        eraseCurrentBuffer();
+        bufferRef.current = hist[histIdxRef.current] ?? "";
+        term.write(bufferRef.current);
+        return;
+      }
+
+      // History: Down arrow
+      if (data === "\u001b[B") {
+        const hist = historyRef.current;
+        if (!hist.length) return;
+        if (histIdxRef.current === -1) return; // already at current input
+        if (histIdxRef.current < hist.length - 1) {
+          histIdxRef.current += 1;
+          eraseCurrentBuffer();
+          bufferRef.current = hist[histIdxRef.current] ?? "";
+          term.write(bufferRef.current);
+        } else {
+          // Move back to empty current input
+          histIdxRef.current = -1;
+          eraseCurrentBuffer();
+          bufferRef.current = "";
         }
         return;
       }
