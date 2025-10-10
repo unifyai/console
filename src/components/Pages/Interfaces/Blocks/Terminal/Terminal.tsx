@@ -144,8 +144,13 @@ export default function Terminal({
     term.onData(async (data: string) => {
       if (!sessionId.current || !termRef.current) return;
 
+      // Strip xterm bracketed paste markers from local buffer to avoid prompt corruption
+      // \x1b[200~ ... \x1b[201~
+      let ch = data.replace(/\x1b\[200~/g, '').replace(/\x1b\[201~/g, '');
+      if (!ch) return;
+
       // Enter: send the buffered command plus newline; do not echo locally
-      if (data === "\r") {
+      if (ch === "\r") {
         const cmd = bufferRef.current;
         bufferRef.current = "";
 
@@ -171,8 +176,9 @@ export default function Terminal({
       }
 
       // Backspace: update local buffer and visually erase one char
-      if (data === "\u007F") {
+      if (ch === "\u007F") {
         if (bufferRef.current.length > 0) {
+          // console.log("\n\n\nbufferRef.current", bufferRef.current.trim(), "\n\n\n");
           bufferRef.current = bufferRef.current.slice(0, -1);
           const term = termRef.current;
           const cursorX = term?.buffer?.active?.cursorX ?? 0;
@@ -209,7 +215,7 @@ export default function Terminal({
       };
 
       // History: Up arrow
-      if (data === "\u001b[A") {
+      if (ch === "\u001b[A") {
         const hist = historyRef.current;
         if (!hist.length) return;
         if (histIdxRef.current === -1) {
@@ -224,7 +230,7 @@ export default function Terminal({
       }
 
       // History: Down arrow
-      if (data === "\u001b[B") {
+      if (ch === "\u001b[B") {
         const hist = historyRef.current;
         if (!hist.length) return;
         if (histIdxRef.current === -1) return; // already at current input
@@ -243,8 +249,8 @@ export default function Terminal({
       }
 
       // Normal character: append to buffer and echo locally
-      bufferRef.current += data;
-      term.write(data);
+      bufferRef.current += ch;
+      term.write(ch);
     });
   };
 
