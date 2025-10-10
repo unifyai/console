@@ -163,9 +163,19 @@ export default function Terminal({
 
       // Backspace: update local buffer and visually erase one char
       if (data === "\u007F") {
-        if (bufferRef.current.length) {
+        if (bufferRef.current.length > 0) {
           bufferRef.current = bufferRef.current.slice(0, -1);
-          term.write("\b \b");
+          const term = termRef.current;
+          const cursorX = term?.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            term.write("\b \b");
+          } else {
+            // Wrapped to previous row: move up a line and to the last column, then erase
+            term.write("\x1b[A");
+            term.write(`\x1b[${term.cols}C`);
+            term.write(" ");
+            term.write(`\x1b[${term.cols}C`);
+          }
         }
         return;
       }
