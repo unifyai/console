@@ -91,6 +91,9 @@ export default function Terminal({
   const pendingEnterRef = useRef<boolean>(false);
   const historyRef = useRef<string[]>([]);
   const histIdxRef = useRef<number>(-1); // -1 means current input
+  const pendingTabRef = useRef<boolean>(false);
+  const preTabBufferRef = useRef<string>("");
+  const pendingBackspaceRef = useRef<boolean>(false);
 
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
@@ -151,7 +154,7 @@ export default function Terminal({
 
       // Enter: send the buffered command plus newline; do not echo locally
       if (ch === "\r") {
-        const cmd = bufferRef.current;
+        const cmd = preTabBufferRef.current + bufferRef.current;
         bufferRef.current = "";
 
         // Move to a new line locally so the prompt/output starts at column 0
@@ -169,7 +172,8 @@ export default function Terminal({
             historyRef.current.push(trimmed);
           }
         }
-        await codeActions.runTerminal(sessionId.current, isBlocked ? "\n" : cmd + "\n");
+        await codeActions.runTerminal(sessionId.current, isBlocked ? "\n" : cmd.replace(preTabBufferRef.current, "") + "\n");
+        preTabBufferRef.current = "";
         pendingEnterRef.current = true;
         histIdxRef.current = -1; // reset browsing index
         return;
@@ -178,7 +182,6 @@ export default function Terminal({
       // Backspace: update local buffer and visually erase one char
       if (ch === "\u007F") {
         if (bufferRef.current.length > 0) {
-          // console.log("\n\n\nbufferRef.current", bufferRef.current.trim(), "\n\n\n");
           bufferRef.current = bufferRef.current.slice(0, -1);
           const term = termRef.current;
           const cursorX = term?.buffer?.active?.cursorX ?? 0;
@@ -191,6 +194,21 @@ export default function Terminal({
             term.write(" ");
             term.write(`\x1b[${term.cols}C`);
           }
+        } else if (preTabBufferRef.current.length > 0) {
+          preTabBufferRef.current = preTabBufferRef.current.slice(0, -1);
+          const term = termRef.current;
+          const cursorX = term?.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            term.write("\b \b");
+          } else {
+            // Wrapped to previous row: move up a line and to the last column, then erase
+            term.write("\x1b[A");
+            term.write(`\x1b[${term.cols}C`);
+            term.write(" ");
+            term.write(`\x1b[${term.cols}C`);
+          }
+          pendingBackspaceRef.current = true;
+          await codeActions.runTerminal(sessionId.current, ch);
         }
         return;
       }
@@ -248,6 +266,14 @@ export default function Terminal({
         return;
       }
 
+      // Tab: trigger shell completion; send only a tab and reconcile echo on poll
+      if (ch === "\t") {
+        preTabBufferRef.current += bufferRef.current;
+        pendingTabRef.current = true;
+        await codeActions.runTerminal(sessionId.current, bufferRef.current + "\t");
+        return;
+      }
+
       // Normal character: append to buffer and echo locally
       bufferRef.current += ch;
       term.write(ch);
@@ -299,6 +325,16 @@ export default function Terminal({
             const adjusted = parts.slice(1).join("\n");
             termRef.current.write(toCRLF(adjusted));
             pendingEnterRef.current = false;
+          } else if (pendingTabRef.current) {
+            const parts = out.split(/\r?\n/);
+            const tabPart = parts.at(0)?.replace(bufferRef.current, "") ?? "";
+            termRef.current.write(toCRLF(tabPart));
+            preTabBufferRef.current += tabPart;
+            bufferRef.current = "";
+            pendingTabRef.current = false;
+          } else if (pendingBackspaceRef.current) {
+            pendingBackspaceRef.current = false;
+            return;
           } else {
             termRef.current.write(toCRLF(out));
           }
