@@ -186,11 +186,11 @@ export default function Main({
         }
     }, [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]);
 
-    const handleUpdateSuccess = React.useCallback((updatedPayload: Partial<AssistantUpdatePayload>) => {
+    const handleUpdateSuccess = React.useCallback((updatedPayload?: Partial<AssistantUpdatePayload>) => {
         refreshAssistants(false);
         setAssistantToEdit(null);
         setContactManagerAssistant(null);
-        if (updatedPayload.user_local_desktop) {
+        if (updatedPayload?.user_local_desktop) {
             setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
         }
     }, [refreshAssistants]);
@@ -541,6 +541,7 @@ export default function Main({
                         availablePhoneCountries={availablePhoneCountries}
                         isLoadingCountries={isLoadingCountries}
                         availableSocialPlatforms={availableSocialPlatforms}
+                        onSuccess={handleUpdateSuccess}
                     />
                 )}
             </FormProvider>

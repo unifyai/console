@@ -301,6 +301,7 @@ export interface AssistantActions {
         updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
     },
     "contact": {
+    delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;

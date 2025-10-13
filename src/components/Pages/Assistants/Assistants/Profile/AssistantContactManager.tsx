@@ -262,6 +262,7 @@ interface AssistantContactManagerProps {
     availablePhoneCountries: AvailablePhoneCountry[];
     isLoadingCountries: boolean;
     availableSocialPlatforms: AvailableSocialPlatform[];
+    onSuccess: () => void;
 }
 
 export function AssistantContactManager({
@@ -276,6 +277,7 @@ export function AssistantContactManager({
     availablePhoneCountries,
     isLoadingCountries,
     availableSocialPlatforms,
+    onSuccess,
 }: AssistantContactManagerProps) {
     const { register, setValue, formState: { errors }, getValues, control } = formMethods;
     
@@ -287,6 +289,11 @@ export function AssistantContactManager({
         creationCost,
         isCreateButtonDisabled,
         showCreateButton,
+        showDeleteButton,
+        confirmDelete,
+        setConfirmDelete,
+        isDeleting,
+        handleProceedDelete,
     } = useAssistantContactManager({
         assistant,
         formMethods: formMethods as any, 
@@ -294,13 +301,29 @@ export function AssistantContactManager({
         availableSocialPlatforms,
         allAssistantEmails,
         isOpen,
+        assistantActions,
+        onSuccess,
     });
 
     const rhfCountry = useWatch({ control, name: 'country' });
 
+    const handleDialogClose = (open: boolean) => {
+        if (!isSubmitting && !isDeleting) {
+            if (!open) {
+                onClose();
+            }
+        }
+    }
+
+    const handleInteractOutside = (e: React.MouseEvent) => {
+        if (isSubmitting || isDeleting) {
+            e.preventDefault();
+        }
+    }
+
     return (
-        <Dialog open={isOpen} onOpenChange={!isSubmitting ? onClose : () => {}}>
-            <DialogContent onInteractOutside={(e) => { if (isSubmitting) e.preventDefault(); }}>
+        <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+            <DialogContent onInteractOutside={handleInteractOutside as any}>
                 <DialogHeader>
                     <DialogTitle className="text-title">Update Contact</DialogTitle>
                     <DialogDescription className="text-subtitle">
@@ -308,104 +331,130 @@ export function AssistantContactManager({
                     </DialogDescription>
                 </DialogHeader>
 
-                <Tabs defaultValue="email" className="w-full pt-4" onValueChange={(value) => setActiveTab(value)}>
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="email"><Mail className="h-4 w-4 mr-2" /> Email</TabsTrigger>
-                        <TabsTrigger value="phone"><Phone className="h-4 w-4 mr-2" /> Phone</TabsTrigger>
-                        <TabsTrigger value="whatsapp"><WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }}/> WhatsApp</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="email" className="py-4">
-                        {assistant.email ? (
-                            <div>
-                                <Label>Email Address</Label>
-                                <Input value={assistant.email} readOnly disabled className="mt-1" />
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <Label htmlFor="email_local_part">Email address</Label>
-                                <div className="flex items-center rounded-md">
-                                    <Input
-                                        id="email_local_part" type="text" value={emailLocalPart}
-                                        onChange={handleLocalPartChange} placeholder="new-assistant"
-                                        className="flex-1 max-w-[250px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none h-9"
-                                        disabled={isSubmitting}
-                                    />
-                                    <span className="px-3 py-2 bg-muted text-muted-foreground text-caption rounded-r-md border-l border-input select-none h-9 flex items-center">{EMAIL_DOMAIN_WITH_AT}</span>
+                {confirmDelete ? (
+                    <div className="py-8 text-center">
+                        <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+                        <h3 className="mt-4 text-lg font-medium">Are you sure?</h3>
+                        <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
+                            Deleting the {confirmDelete} contact method is irreversible. You can add a new one again at any time.
+                        </p>
+                    </div>
+                ) : (
+                    <Tabs value={activeTab} className="w-full pt-4" onValueChange={(value) => setActiveTab(value as any)}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="email"><Mail className="h-4 w-4 mr-2" /> Email</TabsTrigger>
+                            <TabsTrigger value="phone"><Phone className="h-4 w-4 mr-2" /> Phone</TabsTrigger>
+                            <TabsTrigger value="whatsapp"><WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }}/> WhatsApp</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="email" className="py-4">
+                            {assistant.email ? (
+                                <div>
+                                    <Label>Email Address</Label>
+                                    <Input value={assistant.email} readOnly disabled className="mt-1" />
                                 </div>
-                                <input type="hidden" {...register("email", {
-                                    validate: (value) => {
-                                        if (getValues("isEmailAdded")) {
-                                            if (!value || !value.endsWith(EMAIL_DOMAIN_WITH_AT) || value.startsWith('@')) return "A valid email is required.";
-                                            if (allAssistantEmails.includes(value) && value !== assistant.email) return "This email is already taken.";
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label htmlFor="email_local_part">Email address</Label>
+                                    <div className="flex items-center rounded-md">
+                                        <Input
+                                            id="email_local_part" type="text" value={emailLocalPart}
+                                            onChange={handleLocalPartChange} placeholder="new-assistant"
+                                            className="flex-1 max-w-[250px] focus-visible:ring-0 focus-visible:ring-offset-0 rounded-r-none h-9"
+                                            disabled={isSubmitting}
+                                        />
+                                        <span className="px-3 py-2 bg-muted text-muted-foreground text-caption rounded-r-md border-l border-input select-none h-9 flex items-center">{EMAIL_DOMAIN_WITH_AT}</span>
+                                    </div>
+                                    <input type="hidden" {...register("email", {
+                                        validate: (value) => {
+                                            if (getValues("isEmailAdded")) {
+                                                if (!value || !value.endsWith(EMAIL_DOMAIN_WITH_AT) || value.startsWith('@')) return "A valid email is required.";
+                                                if (allAssistantEmails.includes(value) && value !== assistant.email) return "This email is already taken.";
+                                            }
+                                            return true;
                                         }
-                                        return true;
-                                    }
-                                })} />
-                                {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
-                            </div>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="phone" className="py-4">
-                        {assistant.phone ? (
-                             <div>
-                                <Label>Assistant Phone Number</Label>
-                                <Input value={assistant.phone} readOnly disabled className="mt-1" />
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
+                                    })} />
+                                    {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="phone" className="py-4">
+                            {assistant.phone ? (
+                                <div>
+                                    <Label>Assistant Phone Number</Label>
+                                    <Input value={assistant.phone} readOnly disabled className="mt-1" />
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex flex-row gap-2 items-center pb-1">
+                                            <Label htmlFor="country">Assistant Phone Country</Label>
+                                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                        </div>
+                                        <Select value={rhfCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("country", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
+                                            <SelectTrigger id="country" {...register("country", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
+                                                <SelectValue placeholder={isLoadingCountries ? "Loading countries..." : "Select country..."} />
+                                            </SelectTrigger>
+                                            <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
+                                        </Select>
+                                        {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
+                                    </div>
+                                    <div>
+                                        <div className="flex flex-row gap-2 items-center pb-1">
+                                            <Label htmlFor="user_phone">Your Phone</Label>
+                                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                        </div>
+                                        <PhoneVerificationSection assistantActions={assistantActions} />
+                                    </div>
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="whatsapp" className="py-4">
+                            {assistant.assistant_whatsapp_number ? (
+                                <div>
+                                    <Label>WhatsApp Number</Label>
+                                    <Input value={assistant.assistant_whatsapp_number} readOnly disabled className="mt-1" />
+                                </div>
+                            ) : (
                                 <div>
                                     <div className="flex flex-row gap-2 items-center pb-1">
-                                        <Label htmlFor="country">Assistant Phone Country</Label>
-                                        <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <Label htmlFor="user_whatsapp">Your WhatsApp Number</Label>
+                                        <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the WhatsApp number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
                                     </div>
-                                    <Select value={rhfCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("country", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
-                                        <SelectTrigger id="country" {...register("country", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
-                                            <SelectValue placeholder={isLoadingCountries ? "Loading countries..." : "Select country..."} />
-                                        </SelectTrigger>
-                                        <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
-                                    </Select>
-                                    {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
+                                    <WhatsAppVerificationSection assistantActions={assistantActions} cost={creationCost} />
                                 </div>
-                                <div>
-                                    <div className="flex flex-row gap-2 items-center pb-1">
-                                        <Label htmlFor="user_phone">Your Phone</Label>
-                                        <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
-                                    </div>
-                                    <PhoneVerificationSection assistantActions={assistantActions} />
-                                </div>
-                            </div>
-                        )}
-                    </TabsContent>
-                    <TabsContent value="whatsapp" className="py-4">
-                        {assistant.assistant_whatsapp_number ? (
-                            <div>
-                                <Label>WhatsApp Number</Label>
-                                <Input value={assistant.assistant_whatsapp_number} readOnly disabled className="mt-1" />
-                            </div>
-                        ) : (
-                             <div>
-                                <div className="flex flex-row gap-2 items-center pb-1">
-                                    <Label htmlFor="user_whatsapp">Your WhatsApp Number</Label>
-                                    <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the WhatsApp number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
-                                </div>
-                                <WhatsAppVerificationSection assistantActions={assistantActions} cost={creationCost} />
-                            </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                )}
 
                 <DialogFooter>
-                    {showCreateButton && (
+                    {confirmDelete ? (
+                         <div className="w-full flex justify-end items-center gap-2">
+                            <Button variant="outline" onClick={() => setConfirmDelete(null)} disabled={isDeleting}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" onClick={handleProceedDelete} disabled={isDeleting}>
+                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Proceed
+                            </Button>
+                        </div>
+                    ) : showDeleteButton ? (
+                        <div className="w-full flex justify-end items-center">
+                             <Button variant="destructive" onClick={() => setConfirmDelete(activeTab as any)} disabled={isSubmitting}>
+                                Delete
+                            </Button>
+                        </div>
+                    ) : showCreateButton ? (
                         <div className="w-full flex justify-between items-center">
                             <p className="text-body text-muted-foreground">
-                                Contact creation cost: <span className="text-strong text-foreground">{creationCost.toFixed(2)} Credits</span>
+                                Cost: <span className="text-strong text-foreground">{creationCost.toFixed(2)} Credits</span>
                             </p>
                             <Button onClick={onSubmit} disabled={isCreateButtonDisabled}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 Create
                             </Button>
                         </div>
-                    )}
+                    ) : null}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

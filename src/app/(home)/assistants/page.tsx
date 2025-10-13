@@ -8,7 +8,7 @@ import {
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
 import { getTranscripts, updateTranscripts } from "@/lib/assistants/chat";
-import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount } from "@/lib/assistants/contact";
+import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
 import { ActivityLogActions } from "@/types/assistants/activity";
@@ -60,6 +60,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             updateTranscripts: await updateTranscripts(apiKey),
         },
         "contact": {
+            delete: await deleteAssistantContact(apiKey),
             listAllAssistantEmails: await listAllAssistantEmails(adminKey),
             listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
             listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
