@@ -9,6 +9,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/h
 
 interface AssistantListItemProps {
     assistant: Assistant;
+    status: AssistantStatus | null;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
@@ -17,6 +18,7 @@ interface AssistantListItemProps {
 
 export function AssistantListItem({
     assistant,
+    status,
     isSelected,
     onShowProfile,
     onShowActivityLog,
@@ -35,7 +37,7 @@ export function AssistantListItem({
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
-    const isOnline = true;
+    const isOnline = status?.running === true;
 
     if (isFolded) {
         return (
@@ -52,7 +54,7 @@ export function AssistantListItem({
                             <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
                             <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        {status !== undefined && (
+                        {status !== null && (
                             <span
                                 className={cn(
                                     "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
@@ -110,7 +112,7 @@ export function AssistantListItem({
                                 <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
                                 <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            {status !== undefined && (
+                            {status !== null && (
                                 <span
                                     className={cn(
                                         "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",

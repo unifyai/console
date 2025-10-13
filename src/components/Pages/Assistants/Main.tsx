@@ -72,10 +72,10 @@ export default function Main({
     } = useAssistants(assistantActions); 
 
     // --- Assistant Status Polling ---
-    // const { statuses: assistantStatuses } = useAssistantStatus(
-    //     assistants,
-    //     assistantActions.assistant.status
-    // );
+    const { statuses: assistantStatuses } = useAssistantStatus(
+        assistants,
+        assistantActions.assistant.status
+    );
 
     // --- Task Filters & Data ---
     const {
@@ -348,6 +348,7 @@ export default function Main({
                 <div className={cn("h-full transition-all duration-300 ease-in-out relative border-r", assistantListWidth, "flex-shrink-0")}>
                     <AssistantList
                         assistants={assistants}
+                        assistantStatuses={assistantStatuses}
                         assistantError={assistantError}
                         isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
                         error={assistantError}
