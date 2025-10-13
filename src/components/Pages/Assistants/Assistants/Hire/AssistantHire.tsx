@@ -38,8 +38,6 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
     isLoadingUserApproval: boolean; 
     onRequestAccess: () => Promise<boolean | void>;
     formMethods: UseFormReturn<AssistantFormData>;
-    availableSocialPlatforms: AvailableSocialPlatform[];
-    isLoadingSocialPlatforms: boolean;
     isFastMode: boolean;
 }
 
@@ -61,8 +59,6 @@ export function AssistantHire ({
     userApprovalStatus,
     isLoadingUserApproval, 
     onRequestAccess,
-    availableSocialPlatforms,
-    isLoadingSocialPlatforms,
     formMethods,
     isFastMode,
 }: AssistantHireProps) {
@@ -84,7 +80,6 @@ export function AssistantHire ({
     }, [isHireDialogOpen]);
 
     const { watch, getValues } = useFormContext<AssistantFormData>();
-    const socialAccounts = watch("social_accounts", []) || [];
     const watchedConfigFields = watch(["first_name", "surname", "age", "region", "about"]);
 
     const assistantConfigKey = React.useMemo(() => {
@@ -93,15 +88,7 @@ export function AssistantHire ({
         return `${first_name || ''}-${surname || ''}-${age || 'N/A'}-${region || ''}-${about || ''}`;
     }, [watchedConfigFields]);
 
-    const totalOnboardingFee = React.useMemo(() => {
-        const socialCosts = socialAccounts
-            .filter(acc => acc.isVerified)
-            .reduce((sum, acc) => {
-                const platformInfo = availableSocialPlatforms.find(p => p.name === acc.platform);
-                return sum + (platformInfo?.cost || ASSISTANT_ONBOARDING_FEE); // Fallback cost
-            }, 0);
-        return ASSISTANT_ONBOARDING_FEE + socialCosts;
-    }, [socialAccounts, availableSocialPlatforms]);
+    const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
 
     const handlePresetSelect = (preset: AssistantPreset) => {
         const originalOnPresetSelect = (presetsPanel as React.ReactElement<any>).props.onPresetSelect;
@@ -122,8 +109,8 @@ export function AssistantHire ({
     const handleToggleView = () => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets');
 
     const isUserApproved = userApprovalStatus === "approved";
-    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !!isProcessingPhoto || !isUserApproved || isLoadingUserApproval || isLoadingSocialPlatforms;
-    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval || isLoadingSocialPlatforms ; 
+    const isPrimaryActionDisabled = isHireSubmitting || !!isProcessingVoice || !!isProcessingPhoto || !isUserApproved || isLoadingUserApproval;
+    const isOverallDialogBusy = isPrimaryActionDisabled || isCheckingBalance || isLoadingUserApproval; 
 
     const handleDialogClose = (open: boolean) => {
         if (!isOverallDialogBusy) {
@@ -158,7 +145,6 @@ export function AssistantHire ({
         if (isHireSubmitting) return "Hiring..."; 
         if (isProcessingVoice) return "Processing Voice...";
         if (isProcessingPhoto) return "Processing Photo...";
-        if (isLoadingSocialPlatforms) return "Loading data...";
         return "Hire Assistant";
     };
 
@@ -394,7 +380,7 @@ export function AssistantHire ({
                                     className="h-8" 
                                     disabled={isPrimaryActionDisabled}
                                 >
-                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isProcessingPhoto || isLoadingSocialPlatforms) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {(isLoadingUserApproval || isCheckingBalance || isHireSubmitting || isProcessingVoice || isProcessingPhoto) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     {hireButtonLabel()}
                                 </Button>
                             </PopoverTrigger>

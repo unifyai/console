@@ -15,8 +15,7 @@ export function useAssistantHireForm(
     registeredVoices: VoiceOption[],
     onHireSuccess?: (newAssistant: Assistant, formData: AssistantFormData, chatHistory?: ChatMessage[]) => void,
     onUpdateSuccess?: (updatedPayload: Partial<AssistantUpdatePayload>) => void,
-    isDialogOpen?: boolean,
-    availableSocialPlatforms: AvailableSocialPlatform[] = []
+    isDialogOpen?: boolean
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
 
@@ -248,26 +247,6 @@ export function useAssistantHireForm(
         setValue("user_phone_verificationError", null);
         setValue("social_accounts", []);
 
-        const presetCountryIsValid = availablePhoneCountries.find(c => c.code === preset.country);
-        setValue("country", presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE), { shouldValidate: true });
-
-        const cleanFname = preset.first_name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        const cleanSname = preset.surname?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-        
-        let baseLocalPart = "new-assistant";
-        if (cleanFname && cleanSname) baseLocalPart = `${cleanFname}-${cleanSname}`;
-        else if (cleanFname) baseLocalPart = cleanFname;
-        else if (cleanSname) baseLocalPart = cleanSname;
-        let finalLocalPart = baseLocalPart;
-        let counter = 1;
-        while (fetchedAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
-            // Ensure the generated email is unique
-            finalLocalPart = `${baseLocalPart}-${counter}`;
-            counter++;
-        }
-        setValue("email", `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true });
-        setValue("emailManuallyEdited", false);
-
         // Determine the voice_id based on fast_mode or PRIMARY_VOICE_PROVIDER
         const preferredProvider = isFastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
         const fallbackProvider = isFastMode ? PRIMARY_VOICE_PROVIDER : "openai";
@@ -317,7 +296,7 @@ export function useAssistantHireForm(
             voice_id: selectedPresetVoiceDetails.voice_id,
             video_source_voice_id: providerSpecificVoiceId,
             profile_photo_url: preset.profile_photo,
-            country: presetCountryIsValid ? preset.country : (availablePhoneCountries[0]?.code || FALLBACK_DEFAULT_COUNTRY_CODE),
+            country: preset.country || FALLBACK_DEFAULT_COUNTRY_CODE,
         };
         setValue("presetOriginalValues", originalValues);
         setValue("videoPreviewUrl", null);
@@ -338,30 +317,28 @@ export function useAssistantHireForm(
 
         clearErrors();
         setShowInsufficientFundsHint(false);
-    }, [setValue, handleMediaRemove, clearErrors, defaultVoice, assistantActions.photo, availablePhoneCountries, getValues]);
+    }, [setValue, handleMediaRemove, clearErrors, defaultVoice, assistantActions.photo, getValues, registeredVoices]);
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
-        const initialCountry = values?.country || (availablePhoneCountries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE) ? FALLBACK_DEFAULT_COUNTRY_CODE : availablePhoneCountries[0]?.code);
-
         reset({
             first_name: values?.first_name || '',
             surname: values?.surname || '',
             age: values?.age || null,
             region: values?.region || 'United States',
             about: values?.about || '',
-            email: values?.email || null,
-            isEmailAdded: values?.isEmailAdded || false,
-            emailManuallyEdited: values?.emailManuallyEdited || false,
-            user_phone: values?.user_phone || '',
+            email: null,
+            isEmailAdded: false,
+            emailManuallyEdited: false,
+            user_phone: '',
             user_phone_isVerified: false,
             user_phone_isVerifying: false,
             user_phone_verificationCodeSent: null,
             user_phone_verificationSentAt: null,
             user_phone_verificationAttempts: 0,
             user_phone_verificationError: null,
-            user_whatsapp_number: values?.user_whatsapp_number || null,
+            user_whatsapp_number: null,
             social_accounts: [],
-            country: initialCountry,
+            country: FALLBACK_DEFAULT_COUNTRY_CODE,
             photoFile: null,
             videoFile: null,
             profile_photo_url: null,
@@ -383,7 +360,7 @@ export function useAssistantHireForm(
             design_include_bio: false,
         });
         setShowInsufficientFundsHint(false);
-    }, [reset, defaultVoice, availablePhoneCountries]);
+    }, [reset, defaultVoice]);
 
     /* ----------------------------
         Editing exsiting assistant
@@ -437,7 +414,7 @@ export function useAssistantHireForm(
             operating_system: (assistant.user_local_desktop as UserLocalDesktop | null) || 'ubuntu',
         });
         setShowInsufficientFundsHint(false);
-    }, [reset, getValues]);
+    }, [reset, getValues, registeredVoices]);
 
     const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
         if (!editingAssistant) {
@@ -578,40 +555,10 @@ export function useAssistantHireForm(
                 setError("region", { type: "manual", message: "Missing assistant region." });
                 throw new Error("Missing assistant region.");
             }
-            if (data.isEmailAdded) {
-                const emailValue = data.email;
-                if (!emailValue || !emailValue.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-                    setError("email", { type: "manual", message: `Valid email is required.` });
-                    throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
-                }
-                if (fetchedAssistantEmails.includes(emailValue)) {
-                    setError("email", { type: "manual", message: "This email is already in use." });
-                    throw new Error("Email already in use.");
-                }
-            }
-            if (data.isPhoneNumberAdded) {
-                if (!data.country) {
-                    setError("country", {type: "manual", message: "Phone number country is required."});
-                    throw new Error("Phone number country is required.");
-                }
-                if (!data.user_phone || !/^\+[1-9]\d{7,14}$/.test(data.user_phone)) {
-                    setError("user_phone", { type: "manual", message: "Valid international phone number is required."});
-                    throw new Error("Valid international phone number is required");
-                }
-                if (!data.user_phone_isVerified) {
-                    setError("user_phone", { type: "manual", message: "Your phone number must be verified."});
-                    throw new Error("Your phone number must be verified. Or, remove the phone number selection to hire without a phone number.");
-                }
-            }
+            
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
                 setError("voice_id", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
-            }
-
-            // Social accounts validation
-            if (data.social_accounts && data.social_accounts.some(acc => !acc.isVerified)) {
-                toast.error("All added social accounts must be verified before hiring.");
-                throw new Error("Unverified social accounts.");
             }
 
             // Registering voices / uploading custom photos/videos
@@ -650,26 +597,6 @@ export function useAssistantHireForm(
                 }
             }
             
-            // Transform chat history for logging
-            /* const preHireChatPayload: PreHireChatMessage[] | undefined = chatHistory
-                ?.map((msg, index) => ({
-                    message_id: index,
-                    medium: "unify_chat" as const,
-                    sender_id: msg.role === 'user' ? 1 : 0,
-                    receiver_ids: [msg.role === 'user' ? 0 : 1],
-                    timestamp: msg.timestamp.toISOString(),
-                    content: msg.content,
-                    exchange_id: 0 as const,
-                })); */
-
-
-            const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
-            const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
-
-            const userPhonePayload = data.isPhoneNumberAdded ? data.user_phone : null;
-            const countryPayload = data.isPhoneNumberAdded ? data.country : null;
-            const emailPayload = data.isEmailAdded ? data.email as string | null : null;
-
             const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
 
             // Loading message updated to finalizing hire
@@ -677,8 +604,7 @@ export function useAssistantHireForm(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id, voice_provider,
-                emailPayload, userPhonePayload, countryPayload,
-                user_whatsapp_number, user_local_desktop_payload,
+                null, null, null, null, user_local_desktop_payload,
                 undefined
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
@@ -729,34 +655,6 @@ export function useAssistantHireForm(
             return;
         }
 
-        if (getValues("isEmailAdded")) {
-            const currentEmail = getValues("email");
-            if (!currentEmail || currentEmail.startsWith('@')) {
-                setError("email", { type: "manual", message: "Email local part cannot be empty." });
-                toast.error("Email local part cannot be empty.");
-                return;
-            }
-            if (fetchedAssistantEmails.includes(currentEmail)) {
-                setError("email", { type: "manual", message: "This email is already in use." });
-                toast.error("This email is already in use. Please choose another.");
-                return;
-            }
-        }
-
-
-        if (getValues("isPhoneNumberAdded")) {
-            if (!getValues("user_phone_isVerified")) {
-                toast.error("A verified phone number must be provided to give the assistant a number. Otherwise, remove the phone number selection to skip this step.");
-                return;
-            }
-        }
-
-        const socialAccounts = getValues("social_accounts") || [];
-        if (socialAccounts.some(acc => !acc.isVerified)) {
-            toast.error("All added social accounts must be verified before hiring.");
-            return;
-        }
-
         setIsCheckingBalance(true);
         setShowInsufficientFundsHint(false);
         toastIdRef.current = toast.loading("Checking your balance...");
@@ -784,14 +682,7 @@ export function useAssistantHireForm(
             }
 
             const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
-
-            const socialCosts = socialAccounts
-                .filter(acc => acc.isVerified)
-                .reduce((sum, acc) => {
-                    const platformInfo = availableSocialPlatforms.find(p => p.name === acc.platform);
-                    return sum + (platformInfo?.cost || ASSISTANT_ONBOARDING_FEE);
-                }, 0);
-            const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE + socialCosts;
+            const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
 
 
             if (currentBalance < totalOnboardingFee) {

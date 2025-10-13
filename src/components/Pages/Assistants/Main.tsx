@@ -33,9 +33,8 @@ import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantEditPhone } from './Assistants/Edit/AssistantEditPhone';
-import { AssistantEditEmail } from './Assistants/Edit/AssistantEditEmail';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
+import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
 
 
 interface MainProps {
@@ -124,8 +123,7 @@ export default function Main({
     // --- Dialogs & Forms ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
-    const [assistantForPhoneEdit, setAssistantForPhoneEdit] = React.useState<Assistant | null>(null);
-    const [assistantForEmailEdit, setAssistantForEmailEdit] = React.useState<Assistant | null>(null);
+    const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(null);
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
@@ -191,6 +189,7 @@ export default function Main({
     const handleUpdateSuccess = React.useCallback((updatedPayload: Partial<AssistantUpdatePayload>) => {
         refreshAssistants(false);
         setAssistantToEdit(null);
+        setContactManagerAssistant(null);
         if (updatedPayload.user_local_desktop) {
             setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
         }
@@ -213,7 +212,7 @@ export default function Main({
         availablePhoneCountries,
         isLoadingCountries,
         onNewMediaReady,
-    } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
+    } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit || !!contactManagerAssistant);
     
     // --- Voice Options  ---
     const hireFormRegion = hireFormMethods.watch("region");
@@ -264,16 +263,11 @@ export default function Main({
         loadAssistantForEdit(assistant);
         setAssistantToEdit(assistant);
     }, [loadAssistantForEdit]);
-
-    const handleOpenPhoneEditDialog = React.useCallback((assistant: Assistant) => {
-        loadAssistantForEdit(assistant); // Load data into the form
-        setAssistantForPhoneEdit(assistant);
-    }, [loadAssistantForEdit]);
-
-    const handleOpenEmailEditDialog = React.useCallback((assistant: Assistant) => {
-        loadAssistantForEdit(assistant); // Load data into the form
-        setAssistantForEmailEdit(assistant);
-    }, [loadAssistantForEdit]);
+    
+    const handleOpenContactManager = (assistant: Assistant) => {
+        loadAssistantForEdit(assistant);
+        setContactManagerAssistant(assistant);
+    };
 
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
@@ -384,8 +378,7 @@ export default function Main({
                                 onClose={handleProfileClose}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
                                 onEdit={handleOpenEditDialog}
-                                onOpenPhoneEditDialog={handleOpenPhoneEditDialog}
-                                onOpenEmailEditDialog={handleOpenEmailEditDialog}
+                                onOpenContactManager={handleOpenContactManager}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
                                 isFirstView={isFirstViewAfterHire}
@@ -466,23 +459,15 @@ export default function Main({
                     userApprovalStatus={userHiringApprovalStatus}
                     isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
                     onRequestAccess={requestHiringAccess}
-                    availableSocialPlatforms={availableSocialPlatforms}
-                    isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                     isFastMode={hireFormFastMode}
                 >
                     <HireForm
                         assistants={assistants}
                         formMethods={hireFormMethods}
-                        isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
+                        isSubmitting={isFormSubmitting || isLoadingEmails}
                         assistantActions={assistantActions}
                         onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                         onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
-                        allAssistantEmails={fetchedAssistantEmails}
-                        isLoadingEmails={isLoadingEmails}
-                        availablePhoneCountries={availablePhoneCountries}
-                        isLoadingCountries={isLoadingCountries}
-                        availableSocialPlatforms={availableSocialPlatforms}
-                        isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                         allDisplayableVoices={allDisplayableVoices}
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
@@ -534,12 +519,6 @@ export default function Main({
                             assistantActions={assistantActions}
                             onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                             onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
-                            allAssistantEmails={fetchedAssistantEmails}
-                            isLoadingEmails={isLoadingEmails}
-                            availablePhoneCountries={availablePhoneCountries}
-                            isLoadingCountries={isLoadingCountries}
-                            availableSocialPlatforms={availableSocialPlatforms}
-                            isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                             allDisplayableVoices={allDisplayableVoices}
                             isLoadingUserVoices={isLoadingUserVoices}
                             fetchUserVoices={fetchUserVoices}
@@ -549,36 +528,21 @@ export default function Main({
                         />
                     </AssistantEdit>
                 )}
-                {assistantForPhoneEdit && (
-                    <AssistantEditPhone
-                        isOpen={!!assistantForPhoneEdit}
-                        onClose={() => setAssistantForPhoneEdit(null)}
-                        assistant={assistantForPhoneEdit}
+                {contactManagerAssistant && (
+                    <AssistantContactManager
+                        isOpen={!!contactManagerAssistant}
+                        onClose={() => setContactManagerAssistant(null)}
+                        assistant={contactManagerAssistant}
                         formMethods={hireFormMethods}
                         onSubmit={initiateUpdate}
                         isSubmitting={isFormSubmitting}
                         assistantActions={assistantActions}
-                        onSuccess={() => {
-                            setAssistantForPhoneEdit(null);
-                        }}
-                    />
-                )}
-
-                {assistantForEmailEdit && (
-                    <AssistantEditEmail
-                        isOpen={!!assistantForEmailEdit}
-                        onClose={() => setAssistantForEmailEdit(null)}
-                        assistant={assistantForEmailEdit}
-                        formMethods={hireFormMethods}
-                        onSubmit={initiateUpdate}
-                        isSubmitting={isFormSubmitting}
                         allAssistantEmails={fetchedAssistantEmails}
-                        onSuccess={() => {
-                            setAssistantForEmailEdit(null);
-                        }}
+                        availablePhoneCountries={availablePhoneCountries}
+                        isLoadingCountries={isLoadingCountries}
+                        availableSocialPlatforms={availableSocialPlatforms}
                     />
                 )}
-
             </FormProvider>
 
             <AssistantHireLocalSetupInstructionsDialog

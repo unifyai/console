@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -28,8 +28,7 @@ interface AssistantProfilePanelProps {
     onClose: () => void;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
-    onOpenPhoneEditDialog: (assistant: Assistant) => void;
-    onOpenEmailEditDialog: (assistant: Assistant) => void;
+    onOpenContactManager: (assistant: Assistant) => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
@@ -68,8 +67,7 @@ export function AssistantProfilePanel({
     onClose,
     onDeleteAssistant,
     onEdit,
-    onOpenPhoneEditDialog,
-    onOpenEmailEditDialog,
+    onOpenContactManager,
     chatHistories,
     setChatHistories,
     isFirstView,
@@ -135,8 +133,6 @@ export function AssistantProfilePanel({
                             >
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
-                                    onOpenPhoneEditDialog={onOpenPhoneEditDialog} 
-                                    onOpenEmailEditDialog={onOpenEmailEditDialog}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -158,6 +154,7 @@ export function AssistantProfilePanel({
                                 <AssistantResourcesManager 
                                     assistant={assistant} 
                                     assistantActions={assistantActions} 
+                                    onOpenContactManager={onOpenContactManager}
                                 />
                             </AccordionContent>
                         </AccordionItem>

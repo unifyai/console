@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Laptop, KeyRound, Check } from "lucide-react";
+import { Laptop, KeyRound, Check, Contact } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface AssistantResourcesManagerProps {
     assistant: Assistant;
     assistantActions: AssistantActions;
+    onOpenContactManager: (assistant: Assistant) => void;
 }
 
 const ContactItem: React.FC<{
@@ -60,7 +61,7 @@ const ContactItem: React.FC<{
 };
 
 
-export function AssistantResourcesManager({ assistant, assistantActions }: AssistantResourcesManagerProps) {
+export function AssistantResourcesManager({ assistant, assistantActions, onOpenContactManager }: AssistantResourcesManagerProps) {
     const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
     const assistantContext = `${assistant.first_name}${assistant.surname}`;
 
@@ -76,6 +77,12 @@ export function AssistantResourcesManager({ assistant, assistantActions }: Assis
                         isCopyable
                     />
                 }
+                <ContactItem
+                    value="Update contact"
+                    tooltip="Update contact details for this assistant"
+                    icon={<Contact className="h-4 w-4 flex-shrink-0" />}
+                    handleClick={() => onOpenContactManager(assistant)}
+                />
                 <ContactItem
                     value="Manage secrets"
                     tooltip="Manage secrets for this assistant"

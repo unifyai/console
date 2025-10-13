@@ -15,8 +15,6 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
-    onOpenPhoneEditDialog: (assistant: Assistant) => void;
-    onOpenEmailEditDialog: (assistant: Assistant) => void;
 }
 
 const ContactItem: React.FC<{ 
@@ -66,7 +64,7 @@ const ContactItem: React.FC<{
     );
 };
 
-export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, onOpenEmailEditDialog }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -186,32 +184,6 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                     <h3 className="text-title">About Me</h3>
                     <div className="text-caption prose max-w-none prose-p:my-1">
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
-                    </div>
-                </div>
-
-                {/* Contacts Section */}
-                <div className="pt-4 group/assistant-contact">
-                    <h3 className="text-title">My Contact</h3>
-                    <div className="grid grid-flow-col grid-rows-3 auto-cols-fr gap-2 my-1 text-caption">
-                        {assistant.email ? (
-                            <ContactItem value={assistant.email} tooltip="Copy Email" icon={<Mail className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <ContactItem value={"Add Email"} tooltip="Add Email Address" icon={<Mail className="h-4 w-4 flex-shrink-0"/>} handleClick={() => onOpenEmailEditDialog(assistant)}/>
-                        )}
-                        {assistant.phone ? (
-                            <ContactItem value={assistant.phone} tooltip="Copy Phone" icon={<Phone className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <ContactItem value={"Add Number"} tooltip="Add Phone Number" icon={<Phone className="h-4 w-4 flex-shrink-0"/>} handleClick={() => onOpenPhoneEditDialog(assistant)}/>
-                        )}
-
-                        {assistant.assistant_whatsapp_number ? (
-                            <ContactItem value={assistant.assistant_whatsapp_number} tooltip="Copy WhatsApp" icon={<WhatsApp className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <div/>
-                        )}
-                        <ContactItem value={"Start Meet"} tooltip={`Schedule a Google Meet meeting and invite ${assistant.first_name}`} icon={<SiGooglemeet className="h-4 w-4 flex-shrink-0"/>} handleClick={handleStartMeet} textClassName="underline"/>
-                        <ContactItem value={"Coming Soon"} tooltip={`Schedule a Microsoft Teams meeting and invite ${assistant.first_name}`} icon={<BiLogoMicrosoftTeams className="h-4 w-4 flex-shrink-0"/>}/>
-                        <ContactItem value={"Coming Soon"} tooltip={`Schedule a Zoom meeting and invite ${assistant.first_name}`} icon={<BiLogoZoom className="h-4 w-4 flex-shrink-0"/>}/>
                     </div>
                 </div>
             </ScrollArea>
