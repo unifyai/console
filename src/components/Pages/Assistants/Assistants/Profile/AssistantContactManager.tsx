@@ -75,6 +75,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                             setValue('user_phone_isVerified', false, { shouldDirty: true });
                         }
                         if (errors.user_phone) clearErrors('user_phone');
+                        setValue('isPhoneNumberAdded', true, { shouldDirty: true });
                     }
                 })} />
                 {isPhoneVerified ? (
