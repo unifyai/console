@@ -10,13 +10,8 @@ export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
 
 // Type for the pre_hire_chat payload
 export interface PreHireChatMessage {
-  message_id: number;
-  medium: "unify_chat";
-  sender_id: 0 | 1; // 0 for assistant, 1 for user
-  receiver_ids: (0 | 1)[]; // 0 for assistant, 1 for user
-  timestamp: string; // ISO 8601 format
-  content: string;
-  exchange_id: 0;
+  role: "user" | "assistant";
+  msg: string;
 }
 
 // Assistant profile types

@@ -4,7 +4,7 @@ import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset,
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
-import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
+import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
@@ -598,6 +598,7 @@ export function useAssistantHireForm(
             }
             
             const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
+            const formattedPreHireChat = chatHistory?.map(({ role, content }) => ({ role, msg: content }));
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
@@ -605,7 +606,7 @@ export function useAssistantHireForm(
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id, voice_provider,
                 null, null, null, null, user_local_desktop_payload,
-                undefined
+                formattedPreHireChat
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
