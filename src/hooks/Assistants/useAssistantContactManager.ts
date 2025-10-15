@@ -99,19 +99,22 @@ export function useAssistantContactManager({
 
     const isCreateButtonDisabled = React.useMemo(() => {
         if (isSubmitting) return true;
-        if (!isDirty) return true;
-
+    
         switch(activeTab) {
             case 'email':
-                return !rhfIsEmailAdded || !!errors.email;
+                // Button should be enabled if email is added, there are no errors, and the local part is not empty
+                return !rhfIsEmailAdded || !!errors.email || !emailLocalPart;
             case 'phone':
-                return !rhfIsPhoneNumberAdded || !rhfUserPhoneIsVerified;
+                // Button should be enabled if a phone number is being added AND it's verified.
+                const phoneValue = getValues('user_phone');
+                return !rhfIsPhoneNumberAdded || !rhfUserPhoneIsVerified || !phoneValue;
             case 'whatsapp':
+                // Button should be enabled if the account exists, has an identifier, and is verified.
                 return !whatsAppAccount || !whatsAppAccount.identifier || !whatsAppAccount.isVerified;
             default:
                 return true;
         }
-    }, [isSubmitting, isDirty, activeTab, rhfIsEmailAdded, errors.email, rhfIsPhoneNumberAdded, rhfUserPhoneIsVerified, whatsAppAccount]);
+    }, [isSubmitting, activeTab, rhfIsEmailAdded, errors.email, emailLocalPart, rhfIsPhoneNumberAdded, rhfUserPhoneIsVerified, whatsAppAccount, getValues]);
 
     const showCreateButton =
       (activeTab === 'email' && !assistant.email) ||
