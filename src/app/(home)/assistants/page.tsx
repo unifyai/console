@@ -7,7 +7,7 @@ import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
-import { getTranscripts, updateTranscripts } from "@/lib/assistants/chat";
+import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
 import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
@@ -58,6 +58,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         "chat": {
             getTranscripts: await getTranscripts(apiKey),
             updateTranscripts: await updateTranscripts(apiKey),
+            message: await messageAssistant(apiKey),
         },
         "contact": {
             delete: await deleteAssistantContact(apiKey),

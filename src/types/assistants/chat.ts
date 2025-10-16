@@ -21,3 +21,9 @@ export interface ChatCompletionRequest {
   temperature?: number | null;
   stop?: string | string[] | null;
 }
+
+export interface UnifyMessage {
+    assistant_id: number;
+    contact_id: number;
+    message: string;
+}

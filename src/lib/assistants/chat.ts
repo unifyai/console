@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/user/user";
-import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage } from "@/types/assistants/chat";
+import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage, UnifyMessage } from "@/types/assistants/chat";
 import { ResponseProps } from "@/types/common";
 import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
 
@@ -12,8 +12,9 @@ export const getTranscripts = async (apiKey: string) => {
             const project = "Assistants";
             const context = `${assistantContext}/Transcripts`;
             const limit = 50;
+            const filter_expr = `medium == "unify_message" and (sender_id == 1 or sender_id == 0)`;
             
-            const url = `${process.env.NEXTAUTH_URL}/api/logs?project=${project}&context=${context}&&limit=${limit}`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=${project}&context=${context}&limit=${limit}&filter_expr=${encodeURIComponent(filter_expr)}`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -126,6 +127,30 @@ export const updateTranscripts = async (apiKey: string) => {
         } catch (error) {
              console.error(`[updateTranscripts] CATCH block error for context '${assistantContext}':`, error);
              const message = error instanceof Error ? error.message : "Unknown error updating history.";
+            return { detail: message };
+        }
+    };
+};
+
+export const messageAssistant = async (apiKey: string) => {
+    return async (payload: UnifyMessage): Promise<ResponseProps & { info?: string }> => {
+        "use server";
+        try {
+            const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/message`, {
+                method: "POST",
+                headers: {
+                    apiKey: apiKey,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                return { detail: data.detail || `Failed to send message: ${response.statusText}` };
+            }
+            return data as ResponseProps & { info?: string };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown error sending message.";
             return { detail: message };
         }
     };

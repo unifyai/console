@@ -1,7 +1,7 @@
 import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
-import { ChatMessage } from "./chat";
+import { ChatMessage, UnifyMessage } from "./chat";
 import { SecretActions } from "./secret";
 
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
@@ -294,6 +294,7 @@ export interface AssistantActions {
     "chat": {
         getTranscripts: (assistantContext: string) => Promise<ChatMessage[] | ResponseProps>;
         updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
+        message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     },
     "contact": {
     delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;
