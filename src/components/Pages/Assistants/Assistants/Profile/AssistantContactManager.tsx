@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/UI/tabs";
 import { Button } from "@/components/UI/button";
 import { Input } from "@/components/UI/input";
 import { Label } from "@/components/UI/label";
-import { Loader2, Mail, Phone, CheckCircle2, AlertCircle, Send, Info } from 'lucide-react';
+import { Loader2, Mail, Phone, CheckCircle2, AlertCircle, Send, Info, Copy, Check } from 'lucide-react';
 import { Assistant, AssistantFormData, AssistantActions, AvailablePhoneCountry, AvailableSocialPlatform } from '@/types/assistants/assistant';
 import { UseFormReturn, useFormContext, useWatch, useFieldArray } from "react-hook-form";
 import { EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
@@ -266,6 +266,38 @@ interface AssistantContactManagerProps {
     onSuccess: () => void;
 }
 
+const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+    const [isCopied, setIsCopied] = React.useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(value);
+        setIsCopied(true);
+        toast.success(`Copied ${label} to clipboard!`);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    return (
+        <div>
+            <Label>{label}</Label>
+            <div className="flex items-center gap-2 mt-1">
+                <Input value={value} readOnly disabled />
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button type="button" variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={handleCopy}>
+                                {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Copy {label.toLowerCase()}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
+        </div>
+    );
+};
+
 export function AssistantContactManager({
     isOpen,
     onClose,
@@ -349,10 +381,7 @@ export function AssistantContactManager({
                         </TabsList>
                         <TabsContent value="email" className="py-4">
                             {assistant.email ? (
-                                <div>
-                                    <Label>Email Address</Label>
-                                    <Input value={assistant.email} readOnly disabled className="mt-1" />
-                                </div>
+                                <DisplayContactField label="Email Address" value={assistant.email} />
                             ) : (
                                 <div className="space-y-2">
                                     <Label htmlFor="email_local_part">Email address</Label>
@@ -380,10 +409,7 @@ export function AssistantContactManager({
                         </TabsContent>
                         <TabsContent value="phone" className="py-4">
                             {assistant.phone ? (
-                                <div>
-                                    <Label>Assistant Phone Number</Label>
-                                    <Input value={assistant.phone} readOnly disabled className="mt-1" />
-                                </div>
+                                <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
                             ) : (
                                 <div className="space-y-4">
                                     <div>
@@ -411,10 +437,7 @@ export function AssistantContactManager({
                         </TabsContent>
                         <TabsContent value="whatsapp" className="py-4">
                             {assistant.assistant_whatsapp_number ? (
-                                <div>
-                                    <Label>WhatsApp Number</Label>
-                                    <Input value={assistant.assistant_whatsapp_number} readOnly disabled className="mt-1" />
-                                </div>
+                                <DisplayContactField label="WhatsApp Number" value={assistant.assistant_whatsapp_number} />
                             ) : (
                                 <div>
                                     <div className="flex flex-row gap-2 items-center pb-1">
