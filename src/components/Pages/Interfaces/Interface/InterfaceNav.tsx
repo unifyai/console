@@ -177,7 +177,7 @@ function renderSidebarIcon(iconStr: string | undefined | null, className: string
   const defaultIcons: Record<string, string> = {
     project: 'folder',      // Default project icon
     interface: 'layout-grid', // Default interface icon
-    tab: 'dot'        // Default tab icon
+    tab: 'square'        // Default tab icon
   };
   
   // Ensure we have a valid type
@@ -204,7 +204,7 @@ function renderSidebarIcon(iconStr: string | undefined | null, className: string
   }
   
   // Just render the icon directly
-  return <Icon name={icon as any} className={className} />;
+  return <Icon name={icon as any} className={className}/>;
 }
 
 // Sortable Tab Component (hoisted and memoized to avoid remounts during sidebar resize)
@@ -287,7 +287,7 @@ const SortableTab = React.memo(function SortableTab({
                   onChangeTabIcon(tab)
                 }}
               >
-                {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
+                {renderSidebarIcon(tab.icon, "h-3 w-3", "tab")}
                 {isTabLoading && (
                   <div className="absolute -top-1 -right-1">
                     <div className="h-2 w-2 bg-primary rounded-full animate-pulse" />
@@ -312,7 +312,7 @@ const SortableTab = React.memo(function SortableTab({
                 onChangeTabIcon(tab)
               }}
             >
-              {renderSidebarIcon(tab.icon, "h-4 w-4", "tab")}
+              {renderSidebarIcon(tab.icon, "h-3 w-3", "tab")}
             </div>
             <span 
               className="text-body-sm block max-w-full min-w-0 w-0 flex-1 overflow-hidden truncate text-left select-none" 
@@ -2412,7 +2412,7 @@ export default function InterfaceNav({
                               "flex items-center gap-2 py-2",
                               isCollapsed ? "px-2 justify-center" : "px-3"
                             )}>
-                              {renderSidebarIcon(activeTab.icon, "h-4 w-4", "tab")}
+                              {renderSidebarIcon(activeTab.icon, "h-3 w-3", "tab")}
                               {!isCollapsed && <span className="text-body text-strong select-none">{activeTab.name}</span>}
                             </div>
                           </div>
