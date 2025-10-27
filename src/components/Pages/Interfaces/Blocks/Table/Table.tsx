@@ -78,6 +78,7 @@ import { getDeep, setDeep } from "@/utils/objectPath";
 import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
+import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -1280,6 +1281,55 @@ const LogsTable = ({
     };
   }, [pageScrollContainerRef]);
 
+  // New refs and state for "Load More" button positioning
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableMenuRef = useRef<HTMLDivElement>(null);
+  const [loadMoreStyle, setLoadMoreStyle] = useState<React.CSSProperties>({});
+  const [isLoadMoreVisible, setIsLoadMoreVisible] = useState(true);
+  
+  const tileDimensions = useDimensionsTracker(containerRef); // containerRef is the tile's main div
+  const tableDimensions = useDimensionsTracker(tableContainerRef); // will be on the table's wrapper
+  const scrollAreaDimensions = useDimensionsTracker(scrollAreaRef); // on the ScrollArea component
+  const tableMenuDimensions = useDimensionsTracker(tableMenuRef); // on the menu's wrapper
+
+  useEffect(() => {
+      const tileWidth = tileDimensions.width;
+      const tableWidth = tableDimensions.width;
+      const tableHeight = tableDimensions.height;
+      const scrollAreaHeight = scrollAreaDimensions.height;
+      const menuHeight = tableMenuDimensions.height;
+      
+      // Ensure we have valid dimensions to work with before calculating
+      if (tileWidth > 0 && scrollAreaHeight > 0 && tableHeight > 0) {
+          // If the full table height is greater than the available scroll area,
+          // it means the table is overflowing and scrolling. In this case, hide the button.
+          if (tableHeight > scrollAreaHeight) {
+              setIsLoadMoreVisible(false);
+          } else {
+              // Otherwise, the table fits, so show the button and calculate its position.
+              setIsLoadMoreVisible(true);
+              
+              // --- Vertical Position ---
+              // Position it 10px below the actual rendered table.
+              const top = menuHeight + tableHeight + 10;
+
+              // --- Horizontal Position ---
+              // Center it relative to the narrower of the tile or the table.
+              const centeringWidth = Math.min(tileWidth, tableWidth);
+              const left = centeringWidth / 2;
+
+              setLoadMoreStyle({
+                  position: 'absolute',
+                  top: `${top}px`,
+                  left: `${left}px`,
+                  transform: 'translateX(-50%)',
+                  zIndex: 40, // Ensure it's above the table but can be below other UI elements
+              });
+          }
+      }
+  }, [tileDimensions, tableDimensions, scrollAreaDimensions, tableMenuDimensions]);
+
+
   return (
     <div
       ref={containerRef}
@@ -1292,8 +1342,10 @@ const LogsTable = ({
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col min-h-0">
-          {tableMenu}
+        <div className="w-full h-full flex flex-col min-h-0 relative">
+          <div ref={tableMenuRef}>
+            {tableMenu}
+          </div>
           <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 pr-3 relative min-h-0">
             {showOverlay && (
               <EmptyTableOverlay
@@ -1305,7 +1357,7 @@ const LogsTable = ({
               />
             )}
               {/* <div className="min-w-max w-full"> */}
-            <div className="min-w-0 w-fit pr-4 pb-2">
+            <div className="min-w-0 w-fit pr-4 pb-2" ref={tableContainerRef}>
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
@@ -1670,10 +1722,18 @@ const LogsTable = ({
                 <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
               )}
               </div>
-            {/* </div> */}
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>
+           {/* Absolutely positioned LoadMore button */}
+           {effectiveHasNextPage && !infiniteLogsQuery.isFetchingNextPage && isLoadMoreVisible && (
+            <div style={loadMoreStyle}>
+              <LoadMore
+                onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
+                interactive={interactive}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
