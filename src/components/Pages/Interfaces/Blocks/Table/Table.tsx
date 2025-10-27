@@ -960,18 +960,6 @@ const LogsTable = ({
       </Popover>
   ) : null;
   
-  const contextSelectorForOverlay = projectId ? (
-      <div className="w-full h-full pt-8">
-          {treePicker((ctx) => {
-              onPickContext(ctx);
-              setOverlayDismissed(true);
-          })}
-          <div className="flex items-center justify-between p-2 border-t border-border mt-2">
-              <Button variant="outline" size="sm" onClick={onClearContext}>Clear selection</Button>
-          </div>
-      </div>
-  ) : null;
-
   const createLogRedirectButton = <Button
     onClick={(e) => {
         e.stopPropagation();
@@ -980,6 +968,16 @@ const LogsTable = ({
   >
     Learn how to create logs
     <ExternalLink className="h-4 w-4" />
+  </Button>
+
+  const selectContextButton = <Button
+    onClick={(e) => {
+        e.stopPropagation();
+        setTableContextPopoverOpen(true);
+    }}
+  >
+    <FolderTree className="h-4 w-4 mr-2"/>
+    Select a Context
   </Button>
 
   // Empty table overlay display and content
@@ -1302,9 +1300,8 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={createLogRedirectButton}
-                contextSelectorContent={overlayMode === "context" ? contextSelectorForOverlay : undefined}
-                withPulse={overlayMode === "context" ? false : true}
+                actionButton={overlayMode === "context" ? selectContextButton : createLogRedirectButton}
+                withPulse={true}
               />
             )}
               {/* <div className="min-w-max w-full"> */}
