@@ -1,15 +1,10 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
 
 export async function POST(request: NextRequest) {
     try {
-        const user = await getCurrentUser();
-        if (!user) {
-            return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
-        }
 
         const body = await request.json();
         const { assistantId, agentName, roomName } = body;
