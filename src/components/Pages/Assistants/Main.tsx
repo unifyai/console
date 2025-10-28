@@ -35,6 +35,12 @@ import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
+import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
+import { Room } from 'livekit-client';
+import { RoomContext } from '@livekit/components-react';
+import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
+import { User } from 'next-auth';
+import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
 
 
 interface MainProps {
@@ -42,6 +48,7 @@ interface MainProps {
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
+    user: User | null;
 }
 
 export default function Main({
@@ -49,6 +56,7 @@ export default function Main({
     assistantActions, 
     activityLogActions,
     oneTimeToken,
+    user,
 }: MainProps) {
     // --- UI Panel Management ---
     const {
@@ -133,6 +141,66 @@ export default function Main({
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
     const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
 
+    // --- Call Management ---
+    const room = React.useMemo(() => new Room(), []);
+    const { 
+        isConnecting: isConnectingCall, 
+        isConnected: isCallConnected, 
+        activeCallAssistant, 
+        connect: startCall, 
+        disconnect: hangUpCall,
+        isSpeakerMuted,
+        toggleSpeakerMute,
+        isWaitingForAssistant,
+        connectionError,
+        retryConnection,
+    } = useAssistantCall(room, assistantActions);
+    const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
+    const [isCallMinimized, setIsCallMinimized] = React.useState(false);
+
+    const handleStartCall = React.useCallback(async (assistant: Assistant) => {
+        if (isCallConnected || isConnectingCall) {
+            if (activeCallAssistant?.agent_id === assistant.agent_id) {
+                setIsCommunicationDialogOpen(true);
+                setIsCallMinimized(false);
+            } else {
+                toast.info("A call is already in progress with another assistant.");
+            }
+            return;
+        }
+        setIsCommunicationDialogOpen(true);
+        setIsCallMinimized(false);
+        await startCall(assistant);
+    }, [isCallConnected, isConnectingCall, startCall, activeCallAssistant]);
+
+    const handleHangUp = React.useCallback(async () => {
+        await hangUpCall();
+        setIsCommunicationDialogOpen(false);
+        setIsCallMinimized(false);
+    }, [hangUpCall]);
+
+    const handleMinimizeCall = React.useCallback(() => {
+        setIsCommunicationDialogOpen(false);
+        setIsCallMinimized(true);
+    }, []);
+    
+    const handleExpandCall = React.useCallback(() => {
+        if (activeCallAssistant) {
+            setIsCommunicationDialogOpen(true);
+            setIsCallMinimized(false);
+        }
+    }, [activeCallAssistant]);
+
+    // Close dialog if connection fails during setup or is disconnected remotely
+    React.useEffect(() => {
+        if (connectionError) return; // Don't close if there's an error the user needs to see
+
+        if (!isConnectingCall && !isCallConnected && (isCommunicationDialogOpen || isCallMinimized)) {
+            setIsCommunicationDialogOpen(false);
+            setIsCallMinimized(false);
+        }
+    }, [isConnectingCall, isCallConnected, isCommunicationDialogOpen, isCallMinimized, connectionError]);
+
     React.useEffect(() => {
         setIsLoadingSocialPlatforms(true);
         assistantActions.contact.listAvailableSocialPlatforms()
@@ -172,7 +240,7 @@ export default function Main({
         fetchUserVoices,
         deleteUserVoice
     } = useVoiceOptions(assistantActions.voice);
-
+    
     // --- Callbacks for form success ---
     const handleHireSuccess = React.useCallback((newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
         refreshAssistants(false);
@@ -359,6 +427,8 @@ export default function Main({
                         onOpenHireDialog={handleOpenHireDialog}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
+                        activeCallAssistantId={activeCallAssistant?.agent_id || null}
+                        onHangUp={handleHangUp}
                     />
                 </div>
 
@@ -385,6 +455,10 @@ export default function Main({
                                 isFirstView={isFirstViewAfterHire}
                                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
                                 onFirstViewCompleted={() => setNewlyHiredInfo(null)}
+                                onStartCall={handleStartCall}
+                                activeCallAssistantId={activeCallAssistant?.agent_id || null}
+                                isCallConnected={isCallConnected}
+                                isConnectingCall={isConnectingCall}
                             />
                         </motion.div>
                     )}
@@ -440,7 +514,7 @@ export default function Main({
                 </div>
             </div>
 
-            {/* Dialogs */}
+            {/* Dialogs and Overlays */}
             <FormProvider {...hireFormMethods}>
                 <AssistantHire
                     formMethods={hireFormMethods}
@@ -552,6 +626,40 @@ export default function Main({
                 os={setupInstructions?.os || 'ubuntu'}
                 onClose={() => setSetupInstructions(null)}
             />
+
+            {activeCallAssistant && (
+                <RoomContext.Provider value={room}>
+                    <AssistantCommunicationDialog
+                        isOpen={isCommunicationDialogOpen}
+                        onClose={handleHangUp}
+                        onMinimize={handleMinimizeCall}
+                        assistant={activeCallAssistant}
+                        assistantActions={assistantActions}
+                        room={room}
+                        chatHistories={profileChatHistories}
+                        setChatHistories={setProfileChatHistories}
+                        isConnecting={isConnectingCall}
+                        user={user}
+                        isWaitingForAssistant={isWaitingForAssistant}
+                        connectionError={connectionError}
+                        onRetry={retryConnection}
+                    />
+                    {isCallMinimized && (
+                         <AssistantCommunicationMinimized
+                            assistant={activeCallAssistant}
+                            room={room}
+                            onHangUp={handleHangUp}
+                            onExpand={handleExpandCall}
+                            isSpeakerMuted={isSpeakerMuted}
+                            onToggleSpeaker={toggleSpeakerMute}
+                            isConnecting={isConnectingCall}
+                            isWaitingForAssistant={isWaitingForAssistant}
+                            connectionError={connectionError}
+                            onRetry={retryConnection}
+                        />
+                    )}
+                </RoomContext.Provider>
+            )}
         </>
     );
 }

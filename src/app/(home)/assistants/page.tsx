@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
 import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
+import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
     const user = await getCurrentUser();
@@ -77,6 +78,10 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             claimToken: await claimAssistantHiringToken(apiKey),
             requestAccess: await requestAssistantHiringAccess(apiKey)
 
+        },
+        "call": {
+            getConnectionDetails: await getCallConnectionDetails(apiKey),
+            dispatchToCall: await dispatchAssistantToCall(apiKey),
         }
     }
 
@@ -96,6 +101,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
                 taskActions={taskActions}
                 activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
+                user={user}
             />
         </div>
     );

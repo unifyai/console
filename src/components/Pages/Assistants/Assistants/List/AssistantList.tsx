@@ -22,6 +22,8 @@ interface AssistantListProps {
     onOpenHireDialog: () => void;
     isFolded: boolean;
     onToggleFold: () => void;
+    activeCallAssistantId: string | null;
+    onHangUp: () => void;
 }
 
 export function AssistantList({
@@ -37,6 +39,8 @@ export function AssistantList({
     onOpenHireDialog,
     isFolded,
     onToggleFold,
+    activeCallAssistantId,
+    onHangUp,
 }: AssistantListProps) {
 
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -145,7 +149,7 @@ export function AssistantList({
                                 key={assistant.agent_id}
                                 assistant={assistant}
                                 status={assistantStatuses.get(assistant.agent_id) || null}
-                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id} // Highlight if selected for profile OR activity
+                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id}
                                 onShowProfile={onShowProfile}
                                 onShowActivityLog={onShowActivityLog}
                                 isFolded={isFolded}
