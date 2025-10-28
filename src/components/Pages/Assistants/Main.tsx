@@ -48,7 +48,7 @@ interface MainProps {
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
-    user: User | null;
+    userMeta: { image: string | null | undefined };
 }
 
 export default function Main({
@@ -56,7 +56,7 @@ export default function Main({
     assistantActions, 
     activityLogActions,
     oneTimeToken,
-    user,
+    userMeta,
 }: MainProps) {
     // --- UI Panel Management ---
     const {
@@ -639,7 +639,7 @@ export default function Main({
                         chatHistories={profileChatHistories}
                         setChatHistories={setProfileChatHistories}
                         isConnecting={isConnectingCall}
-                        user={user}
+                        userImage={userMeta.image}
                         isWaitingForAssistant={isWaitingForAssistant}
                         connectionError={connectionError}
                         onRetry={retryConnection}

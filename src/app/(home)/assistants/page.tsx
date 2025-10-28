@@ -101,7 +101,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
                 taskActions={taskActions}
                 activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
-                user={user}
+                userMeta={{image: user.image}}
             />
         </div>
     );

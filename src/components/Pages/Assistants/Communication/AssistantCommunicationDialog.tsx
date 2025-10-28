@@ -263,7 +263,7 @@ interface AssistantCommunicationDialogProps {
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isConnecting: boolean;
-    user: User | null;
+    userImage: string | null | undefined;
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
@@ -279,7 +279,7 @@ export function AssistantCommunicationDialog({
     chatHistories,
     setChatHistories,
     isConnecting,
-    user,
+    userImage,
     isWaitingForAssistant,
     connectionError,
     onRetry,
@@ -302,7 +302,7 @@ export function AssistantCommunicationDialog({
                     setChatHistories={setChatHistories}
                     assistantActions={assistantActions}
                     isConnecting={isConnecting}
-                    userImage={user?.image}
+                    userImage={userImage}
                     isWaitingForAssistant={isWaitingForAssistant}
                     connectionError={connectionError}
                     onRetry={onRetry}
