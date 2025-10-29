@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -34,6 +34,10 @@ interface AssistantProfilePanelProps {
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
+    onStartCall: (assistant: Assistant) => void;
+    activeCallAssistantId: string | null;
+    isCallConnected: boolean;
+    isConnectingCall: boolean;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -73,11 +77,31 @@ export function AssistantProfilePanel({
     isFirstView,
     preHireChat,
     onFirstViewCompleted,
+    onStartCall,
+    activeCallAssistantId,
+    isCallConnected,
+    isConnectingCall,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
     const [isChatMaximized, setIsChatMaximized] = React.useState(false);
 
+    const isInThisCall = activeCallAssistantId === assistant.agent_id;
+    const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
+    const isCallButtonDisabled = isAnotherCallActive;
+
+    const callButtonTooltip = 
+        isInThisCall && isConnectingCall ? "Connecting call..." :
+        isInThisCall ? "Return to call" :
+        isAnotherCallActive ? "Another call is in progress" :
+        "Start a call";
+
+    const handleCallButtonClick = () => {
+        if (!isCallButtonDisabled) {
+            onStartCall(assistant);
+        }
+    };
+    
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
     const handleDeleteConfirm = async () => {
@@ -164,18 +188,32 @@ export function AssistantProfilePanel({
                             <AccordionTriggerWithButtons
                                 className="text-title"
                                 buttonSlot={
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsChatMaximized(true)}>
-                                                    <Maximize2 className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Maximize Chat</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <div className="flex items-center gap-1">
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={handleCallButtonClick} disabled={isCallButtonDisabled}>
+                                                        {(isInThisCall && isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>{callButtonTooltip}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsChatMaximized(true)}>
+                                                        <Maximize2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>Maximize Chat</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                 }
                             >
                                 <div className='flex gap-2 items-center text-muted-foreground'>

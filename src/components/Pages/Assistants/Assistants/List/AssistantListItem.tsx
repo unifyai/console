@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { MessageSquare, Phone, Mail, Contact, History } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from "@/lib/utils";
 import type { Assistant, AssistantStatus } from "@/types/assistants/assistant";
-import ActionButton from '../../../../Common/Buttons/Action';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
 
 interface AssistantListItemProps {
@@ -40,29 +39,33 @@ export function AssistantListItem({
     const isOnline = status?.running === true;
 
     if (isFolded) {
+        const content = (
+            <div
+                className={cn(
+                    "relative cursor-pointer rounded-full",
+                    isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                )}
+                onClick={handleProfileClick}
+            >
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+                    <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {status !== null && (
+                    <span
+                        className={cn(
+                            "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
+                            isOnline ? "bg-green-500" : "bg-gray-400"
+                        )}
+                    />
+                )}
+            </div>
+        );
+
         return (
             <HoverCard openDelay={200} closeDelay={100}>
                 <HoverCardTrigger asChild>
-                    <div
-                        className={cn(
-                            "relative cursor-pointer rounded-full",
-                            isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        )}
-                        onClick={handleProfileClick}
-                    >
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                            <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        {status !== null && (
-                            <span
-                                className={cn(
-                                    "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
-                                    isOnline ? "bg-green-500" : "bg-gray-400"
-                                )}
-                            />
-                        )}
-                    </div>
+                    {content}
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80" side="right" align="start">
                      <div className="flex justify-between space-x-4">

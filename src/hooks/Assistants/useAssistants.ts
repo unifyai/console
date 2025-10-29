@@ -43,7 +43,7 @@ export function useAssistants(
                 throw new Error(`Invalid response format received for assistants: ${detail}`);
             }
 
-            const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name && a.surname);
+            const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name);
             if (validAssistants.length !== listResult.length) {
                 console.warn("Some assistant data was incomplete and filtered out.");
             }

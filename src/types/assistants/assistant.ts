@@ -3,6 +3,7 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/c
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
 import { ChatMessage, UnifyMessage } from "./chat";
 import { SecretActions } from "./secret";
+import { ConnectionDetails } from "./call";
 
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
 
@@ -308,5 +309,9 @@ export interface AssistantActions {
     getProfile: () => Promise<HiringProfileData | ResponseProps>
     requestAccess: () => Promise<AssistantHiringApprovalResponse>;
     claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
+    },
+    "call": {
+      getConnectionDetails: (assistantId: string, assistantName: string) => Promise<ConnectionDetails | ResponseProps>;
+      dispatchToCall: (assistantId: string, assistantName: string, roomName: string) => Promise<ResponseProps>;
     }
 }
