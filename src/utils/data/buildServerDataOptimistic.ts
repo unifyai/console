@@ -35,6 +35,7 @@ export type OptimisticUpdateDependencies = {
   contextActions: ContextActions;
   fieldsActions: FieldsActions;
   logsActions: LogsActions;
+  signal?: AbortSignal;
 };
 
 /**
@@ -65,7 +66,7 @@ export async function fetchProjectsContextsFields(
   tableTilesData: TileData[],
   options: OptimisticUpdateOptions
 ): Promise<ProjectContextFieldsResult> {
-  const { queryClient, projectId, projectsActions, contextActions, fieldsActions } = dependencies;
+  const { queryClient, projectId, projectsActions, contextActions, fieldsActions, signal } = dependencies;
   const { refetchProjects = false, refetchContexts = false, refetchFields = true } = options;
 
   // Build or fetch projects and contexts
@@ -75,7 +76,8 @@ export async function fetchProjectsContextsFields(
     refetchProjects,
     refetchContexts,
     projectsActions,
-    contextActions
+    contextActions,
+    signal
   );
 
   // Build or fetch fields for all table tiles

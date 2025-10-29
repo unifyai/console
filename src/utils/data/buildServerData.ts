@@ -29,6 +29,7 @@ export async function fetchOrBuildProjectsAndContexts(
   refetchContexts: boolean,
   projectsActions: ProjectsActions,
   contextActions: ContextActions,
+  signal?: AbortSignal,
 ) {
     let projects: string[] = [];
     let contexts: Context[] = [];
@@ -50,7 +51,7 @@ export async function fetchOrBuildProjectsAndContexts(
         const tContexts = performance.now();
         await queryClient.fetchQuery({
             queryKey: ["contexts", projectId],
-            queryFn: () => contextActions.get(projectId),
+            queryFn: () => (contextActions.get as any)(projectId, signal as AbortSignal),
         });
         perfLog(
           `[perf] fetchOrBuildProjectsAndContexts – fetchContexts: ${(

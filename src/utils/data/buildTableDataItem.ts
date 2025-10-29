@@ -181,27 +181,45 @@ export async function fetchAndBuildTableDataItem(
   const useGroupPagination = !!groupingExpression;
   
   const tGetLogs = performance.now();
-  const logsData: LogsResponseProps = await logsActions.get(
-    projectId,
-    tile.context || null,
-    tile.column_context || null,
-    filterExpression,
-    sortingExpression,
-    groupingExpression,
-    groupSortingExpression,
-    null,
-    null,
-    null,
-    useGroupPagination ? null : limit, // Regular limit (not used for groups)
-    useGroupPagination ? null : offset, // Regular offset (not used for groups)
-    useGroupPagination ? group_limit : null, // Group limit (used for groups)
-    useGroupPagination ? group_offset : null, // Group offset (used for groups)
-    useGroupPagination ? 0 : null, // Group depth (used for groups)
-    null,
-    null,
-    null, 
-    signal
-  );
+  let logsData: LogsResponseProps;
+  try {
+    // Single-attempt fetch; upstream timeouts are handled by the route AbortController as well
+    logsData = await logsActions.get(
+      projectId,
+      tile.context || null,
+      tile.column_context || null,
+      filterExpression,
+      sortingExpression,
+      groupingExpression,
+      groupSortingExpression,
+      null,
+      null,
+      null,
+      useGroupPagination ? null : limit, // Regular limit (not used for groups)
+      useGroupPagination ? null : offset, // Regular offset (not used for groups)
+      useGroupPagination ? group_limit : null, // Group limit (used for groups)
+      useGroupPagination ? group_offset : null, // Group offset (used for groups)
+      useGroupPagination ? 0 : null, // Group depth (used for groups)
+      null,
+      null,
+      null,
+      signal
+    );
+  } catch (err: any) {
+    // Gracefully surface a minimal item so the tile can display Retry
+    return {
+      columnContexts: [],
+      fields,
+      totalCount: 0,
+      entriesProperties: [],
+      paramsProperties: [],
+      logs: [],
+      params: {} as any,
+      isLoading: false,
+      error: err?.message || 'Failed to fetch logs',
+      newCells: [],
+    } as TableDataItem;
+  }
   const tGetLogsEnd = performance.now();
   perfLog(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
 
