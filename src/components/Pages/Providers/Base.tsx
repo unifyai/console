@@ -10,7 +10,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <>
       <NextUIProvider className="flex flex-col h-full flex-1">
         <SidebarProvider>
-          <SessionProvider>
+          <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
             <QueryProvider>
               {children}
             </QueryProvider>
@@ -23,7 +23,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
 
-          gtag('config', 'G-XXXXXXXXXX');
+          gtag('config', 'G-XXXXXXXXXX', {
+            send_page_view: false,
+            // Prevent automatic page view tracking on query parameter changes
+            // We'll manually track only meaningful navigation events
+          });
           `}
       </Script>
     </>
