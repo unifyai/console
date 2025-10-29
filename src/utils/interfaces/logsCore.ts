@@ -26,6 +26,7 @@ export interface CoreLogFetchParams {
   parentId?: string | null;
   dataTypes?: { [key: string]: string };
   fields?: LogFieldsResponseProps;
+  signal?: AbortSignal;
 }
 
 /**
@@ -78,7 +79,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     groupingValue,
     parentId,
     dataTypes,
-    fields
+    fields,
+    signal
   } = params;
 
   let effectiveFilterExpression = filterExpression;
@@ -123,7 +125,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     useGroupPagination ? 0 : null, // group_depth (used for groups)
     null, // return_ids_only
     null, // randomize
-    Date.now().toString()
+    Date.now().toString(),
+    signal as AbortSignal
   );
 
   // Convert raw logs to appropriate format
