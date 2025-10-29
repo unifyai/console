@@ -1,6 +1,7 @@
 "use server";
 
 import { getServerSession } from "next-auth/next";
+import { cache } from "react";
 import authOptions from "@/app/api/auth/[...nextauth]/options";
 import {OrchestraAdminClient} from "@/lib/orchestra/orchestra-client";
 import { Storage } from "@google-cloud/storage";
@@ -16,6 +17,8 @@ import { ConstructionOutlined } from "@mui/icons-material";
  * @returns The session information as a Session object if available,
  * otherwise null.
  */
+export const getServerSessionCached = cache(() => getServerSession(authOptions));
+
 export async function getSession() {
   if (process.env.ON_PREM) {
     const sessionResponse = await fetch(
@@ -24,6 +27,7 @@ export async function getSession() {
     const sessionInfo = (await sessionResponse.json()) as Session;
     return sessionInfo;
   } else {
+    // Avoid caching here to ensure per-request cookies (e.g., console_auth) are respected
     const session = await getServerSession(authOptions);
     return session;
   }

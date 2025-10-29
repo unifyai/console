@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
-import { getSession } from '@/lib/user/user'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image';
 
 // Removed favourites handling
@@ -33,6 +33,7 @@ export default function TopNav() {
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
 
   const router = useRouter()
+  const { data: session } = useSession();
 
   const handleSignOut = async () => {
     // Prevent the dropdown from closing before signOut completes
@@ -40,26 +41,19 @@ export default function TopNav() {
     router.push('/login')
   }
 
-  // Fetch user session data
+  // Populate user info from session provider
   useEffect(() => {
-    (async () => {
-      try {
-        const sessionData = await getSession()
-        const userName = sessionData?.user?.name || "Profile"
-        const imageUrl = sessionData?.user?.image || ""
-        setProfileName(userName)
-        const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
-        setAvatarJSX(
-          <Avatar className="h-6 w-6">
-            <AvatarImage src={imageUrl} alt="User Avatar"/>
-            <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
-          </Avatar>
-        )
-      } catch (err) {
-        console.error("Failed to fetch user info", err)
-      }
-    })()
-  }, [])
+    const userName = session?.user?.name || "Profile";
+    const imageUrl = session?.user?.image || "";
+    setProfileName(userName)
+    const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
+    setAvatarJSX(
+      <Avatar className="h-6 w-6">
+        <AvatarImage src={imageUrl} alt="User Avatar"/>
+        <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
+      </Avatar>
+    )
+  }, [session])
 
   // Removed favourites fetching effect
 
