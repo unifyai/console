@@ -1,4 +1,5 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -19,36 +20,72 @@ export async function GET(request: NextRequest) {
         endpoint = "/interfaces/list";
     }
     
-    // Let the backend handle the routing based on the query parameters
-    return await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
-                "accept": "application/json",
-            },
-            cache: "no-store"
-        },
-    );
+    try {
+      // Let the backend handle the routing based on the query parameters
+      const apiKey = await getApiKeyFromRequest(request);
+      const controller = new AbortController();
+      const ttl = setTimeout(() => controller.abort(), 30000);
+      const startedAt = Date.now();
+      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+      const res = await fetch(
+          `${baseUrl}${endpoint}${url.search}`,
+          {
+              method: "GET",
+              headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "accept": "application/json",
+                  "x-correlation-id": correlationId,
+              },
+              cache: "no-store",
+              signal: controller.signal,
+          },
+      );
+      clearTimeout(ttl);
+      if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/interface", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      }
+      return res;
+    } catch (e: any) {
+      const msg = e?.message || "Request failed";
+      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}${endpoint}${url.search}: ${msg}` }, { status });
+    }
 }
 
 export async function PUT(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
     
-    // Pass all query parameters to allow both ID and path-based updates
-    return await fetch(
-        `${baseUrl}/interfaces/${url.search}`,
-        {
-            method: "PUT",
-            headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
-        },
-    );
+    try {
+      // Pass all query parameters to allow both ID and path-based updates
+      const apiKey = await getApiKeyFromRequest(request);
+      const controller = new AbortController();
+      const ttl = setTimeout(() => controller.abort(), 30000);
+      const startedAt = Date.now();
+      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+      const res = await fetch(
+          `${baseUrl}/interfaces/${url.search}`,
+          {
+              method: "PUT",
+              headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  "x-correlation-id": correlationId,
+              },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+          },
+      );
+      clearTimeout(ttl);
+      if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/interface", method: "PUT", upstream: `${baseUrl}/interfaces/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      }
+      return res;
+    } catch (e: any) {
+      const msg = e?.message || "Request failed";
+      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}/interfaces/${url.search}: ${msg}` }, { status });
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -69,32 +106,68 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
 
-    // For POST, we always create a new resource, so the endpoint is fixed
-    return await fetch(
-        `${baseUrl}${endpoint}`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body)
-        },
-    );
+    try {
+      // For POST, we always create a new resource, so the endpoint is fixed
+      const apiKey = await getApiKeyFromRequest(request);
+      const controller = new AbortController();
+      const ttl = setTimeout(() => controller.abort(), 30000);
+      const startedAt = Date.now();
+      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+      const res = await fetch(
+          `${baseUrl}${endpoint}`,
+          {
+              method: "POST",
+              headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  "x-correlation-id": correlationId,
+              },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+          },
+      );
+      clearTimeout(ttl);
+      if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/interface", method: "POST", upstream: `${baseUrl}${endpoint}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      }
+      return res;
+    } catch (e: any) {
+      const msg = e?.message || "Request failed";
+      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}${endpoint}: ${msg}` }, { status });
+    }
 }
 
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
     
-    // Pass all query parameters to allow both ID and path-based deletion
-    return await fetch(
-        `${baseUrl}/interfaces/${url.search}`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
-                "accept": "application/json",
-            }
-        },
-    );
+    try {
+      // Pass all query parameters to allow both ID and path-based deletion
+      const apiKey = await getApiKeyFromRequest(request);
+      const controller = new AbortController();
+      const ttl = setTimeout(() => controller.abort(), 30000);
+      const startedAt = Date.now();
+      const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+      const res = await fetch(
+          `${baseUrl}/interfaces/${url.search}`,
+          {
+              method: "DELETE",
+              headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "accept": "application/json",
+                  "x-correlation-id": correlationId,
+              },
+              signal: controller.signal,
+          },
+      );
+      clearTimeout(ttl);
+      if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/interface", method: "DELETE", upstream: `${baseUrl}/interfaces/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+      }
+      return res;
+    } catch (e: any) {
+      const msg = e?.message || "Request failed";
+      const status = /AbortError|aborted/i.test(msg) ? 504 : 502;
+      return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'} calling ${baseUrl}/interfaces/${url.search}: ${msg}` }, { status });
+    }
 }

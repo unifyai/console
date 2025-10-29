@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,17 +21,29 @@ export async function GET(request: NextRequest) {
     }
     
     // Let the backend handle the routing based on the query parameters
-    return await fetch(
+    const apiKey = await getApiKeyFromRequest(request);
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}${endpoint}${url.search}`,
         {
             method: "GET",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "accept": "application/json",
+                "x-correlation-id": correlationId,
             },
-            cache: "no-store"
+            cache: "no-store",
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+      console.warn(JSON.stringify({ route: "/api/tab", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function POST(request: NextRequest) {
@@ -50,68 +63,116 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
+    const apiKey = await getApiKeyFromRequest(request);
     // For POST, we always create a new resource, so the endpoint is fixed
-    return await fetch(
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}${endpoint}`,
         {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "x-correlation-id": correlationId,
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+      console.warn(JSON.stringify({ route: "/api/tab", method: "POST", upstream: `${baseUrl}${endpoint}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function PUT(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
+    const apiKey = await getApiKeyFromRequest(request);
     
     // Pass all query parameters to allow both ID and parent+name updates
-    return await fetch(
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/tab/${url.search}`,
         {
             method: "PUT",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "x-correlation-id": correlationId,
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+      console.warn(JSON.stringify({ route: "/api/tab", method: "PUT", upstream: `${baseUrl}/tab/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
+    const apiKey = await getApiKeyFromRequest(request);
     
     // Pass all query parameters to allow both ID and parent+name deletion
-    return await fetch(
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/tab/${url.search}`,
         {
             method: "DELETE",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "accept": "application/json",
-            }
+                "x-correlation-id": correlationId,
+            },
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+      console.warn(JSON.stringify({ route: "/api/tab", method: "DELETE", upstream: `${baseUrl}/tab/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
+    const apiKey = await getApiKeyFromRequest(request);
     
     // Pass all query parameters to allow both ID and parent+name updates
-    return await fetch(
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/tab/${url.search}`,
         {
             method: "PATCH",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "x-correlation-id": correlationId,
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+      console.warn(JSON.stringify({ route: "/api/tab", method: "PATCH", upstream: `${baseUrl}/tab/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }

@@ -1,53 +1,90 @@
 import { NextRequest } from "next/server";
+import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
-    return await fetch(
+    const apiKey = await getApiKeyFromRequest(request);
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/logs${url.search}`,
         {
             method: "GET",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "accept": "application/json",
-            }
+                "x-correlation-id": correlationId,
+            },
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/logs", method: "GET", upstream: `${baseUrl}/logs${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function DELETE(request: NextRequest) {
     const body = await request.json();
-    return await fetch(
+    const apiKey = await getApiKeyFromRequest(request);
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/logs?delete_empty_logs=True`,
         {
             method: "DELETE",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "x-correlation-id": correlationId,
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/logs", method: "DELETE", upstream: `${baseUrl}/logs?delete_empty_logs=True`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
-    return await fetch(
+    const apiKey = await getApiKeyFromRequest(request);
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/logs`,
         {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
+                "x-correlation-id": correlationId,
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal,
         },
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/logs", method: "POST", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
 
 export async function PUT(request: NextRequest) {
-    const apiKey = request.headers.get("apiKey");
+    const apiKey = await getApiKeyFromRequest(request);
 
     let body;
     try {
@@ -60,16 +97,27 @@ export async function PUT(request: NextRequest) {
         });
     }
 
-    return await fetch(
+    const controller = new AbortController();
+    const ttl = setTimeout(() => controller.abort(), 30000);
+    const startedAt = Date.now();
+    const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    const res = await fetch(
         `${baseUrl}/logs`,
         {
             method: "PUT",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json",
-                "accept": "application/json"
+                "accept": "application/json",
+                "x-correlation-id": correlationId
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: controller.signal
         }
     );
+    clearTimeout(ttl);
+    if (!res.ok) {
+        console.warn(JSON.stringify({ route: "/api/logs", method: "PUT", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+    }
+    return res;
 }
