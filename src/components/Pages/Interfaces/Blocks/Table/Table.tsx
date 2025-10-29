@@ -1321,6 +1321,18 @@ const LogsTable = ({
                         overflowY: "visible",
                       }}
                     >
+                    {error && (
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/30 px-2 py-1 rounded">
+                        <span className="text-caption">{String(error)}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => infiniteLogsQuery.refetch()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    )}
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
                         interactive={interactive}

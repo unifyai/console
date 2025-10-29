@@ -129,40 +129,10 @@ export default async function Main({
     projectCount: minimalGlobalState.projects?.length 
   });
 
-  // Project contexts
+  // Project contexts (deferred to client bootstrap)
   let contexts: Context[] = [];
-  
-  if (currentProject) {
-    await qc.prefetchQuery({
-      queryKey: ["contexts", currentProject],
-      queryFn: () => actions.contextActions.get(currentProject),
-    });
-    
-    // Get contexts from cache
-    contexts = qc.getQueryData<Context[]>(["contexts", currentProject]) || [];
-    debugLog("[Main.server] Loaded contexts for project:", currentProject, "contexts:", contexts.length);
-  }
 
-  // Get or create devbox
-  let devbox = null;
-  try {
-    if (currentProject) {
-      await qc.prefetchQuery({
-        queryKey: ["devbox"],
-      queryFn: () => actions.devboxActions.get(),
-    });
-    devbox = qc.getQueryData(["devbox"]) || null;
-    debugLog("[Main.server] Devbox status:", devbox ? "exists" : "not found");
-
-    // If devbox is not found, create it
-    if (!devbox) {
-      await actions.devboxActions.create();
-      debugLog("[Main.server] Created new devbox");
-      }
-    }
-  } catch (error) {
-    console.error("[Main.server] Error creating devbox:", error);
-  }
+  // Devbox creation is deferred to client to keep SSR light
 
   // Get interfaces
   let interfaces: InterfaceData[] = [];
@@ -276,9 +246,9 @@ export default async function Main({
     stateSlices.push(interfaceStateSlice);
     debugLog("[Main.server] Interface state slice built");
 
-    // Build tab and tile state slices
+    // Build tab and tile state slices (prefetch tiles only for active tab)
     if (tabs.length > 0) {
-      debugLog("[Main.server] Building tab and tile state slices for", tabs.length, "tabs");
+      debugLog("[Main.server] Building tab and tile state slices (active tab tiles only) for", tabs.length, "tabs");
       const allTabData: TabData[] = [];
       const allTileData: TileData[] = [];
       const isActiveFlags: boolean[] = [];
@@ -291,30 +261,34 @@ export default async function Main({
         if (!tabId) continue;
 
         try {
-          await qc.prefetchQuery({
-            queryKey: ["tiles", tabId],
-            queryFn: () => actions.tileActions.list(tabId, undefined, false)
-          });
-          const tabTiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
-          debugLog("[Main.server] Loaded tiles for tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
-          
+          const isActive = tabId === currentInterface.active_tab_id;
           allTabData.push(tab);
+          isActiveFlags.push(isActive);
 
-          if (tabId === currentInterface.active_tab_id) {
-            isActiveFlags.push(true);
-            debugLog("[Main.server] Tab", tab.name, "is active");
+          if (isActive) {
+            await qc.prefetchQuery({
+              queryKey: ["tiles", tabId],
+              queryFn: () => actions.tileActions.list(tabId, undefined, false)
+            });
+            const rawTiles = qc.getQueryData(["tiles", tabId]);
+            const tabTiles: TileData[] = Array.isArray(rawTiles) ? (rawTiles as TileData[]) : [];
+            if (!Array.isArray(rawTiles)) {
+              console.warn(`[Main.server] Tiles cache for tab ${tab.name} is not an array; skipping tiles for this tab.`);
+            } else {
+              debugLog("[Main.server] Loaded tiles for ACTIVE tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
+            }
+
+            tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
+            tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
+            tabTiles.forEach(tile => {
+              allTileData.push(tile);
+              tabIdsForTiles.push(tabId);
+            });
           } else {
-            isActiveFlags.push(false);
+            // Defer non-active tab tiles to client to keep navigation light
+            tileIdsPerTab.push([]);
+            tileNamesPerTab.push([]);
           }
-
-          tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
-          tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
-          
-          tabTiles.forEach(tile => {
-            allTileData.push(tile);
-            tabIdsForTiles.push(tabId);
-          });
-          
         } catch (error) {
           console.warn(`[Main.server] Could not build state for tab ${tab.name}:`, error);
         }

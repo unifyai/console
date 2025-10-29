@@ -10,7 +10,7 @@ import ActionButton from "../../../Common/Buttons/Action";
 import { Button } from "../../../UI/button";
 import { Icon } from "../../../UI/icon-picker";
 import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
-import InterfaceButtons from "./Buttons/InterfaceButtons";
+// InterfaceButtons is loaded lazily to reduce initial JS
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
@@ -22,7 +22,7 @@ import AutoComplete from '../../../Common/Misc/AutoComplete';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
 import { Command } from '@/contexts/slices/selectors/commands';
 import { iconMap } from '@/constants/logs';
-import { Toaster } from 'sonner';
+import dynamic from 'next/dynamic';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Interfaces/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
@@ -47,13 +47,28 @@ import {
   createCompleteDefaultInterface,
 } from "@/utils/interfaces/interfaceSelector"
 
+function getUniqueDefaultInterfaceName(baseProject: string, actions: GranularInterfaceActions) {
+  // This is a small wrapper to keep call sites consistent if we later centralize naming
+  // We cannot query synchronously here; the real uniqueness check is handled server-side.
+  // Keep a deterministic prefix; server can add suffixes as needed.
+  return Promise.resolve('Default');
+}
+
 export const PageScrollContext = React.createContext<React.RefObject<HTMLDivElement> | null>(null);
+export const InterfaceNavContext = React.createContext<{
+  isNavigating: boolean;
+  beginNavigation: () => number;
+  setProject: (project: string | null, options?: { openProjectSelection?: boolean; openInterfaceSelection?: boolean }) => void;
+  setInterface: (projectId: string, interfaceName: string) => Promise<void>;
+}>({ isNavigating: false, beginNavigation: () => 0, setProject: () => {}, setInterface: async () => {} });
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
 const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
 const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
+const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
+const Toaster = dynamic(() => import('sonner').then(m => m.Toaster), { ssr: false });
 
 /**
  * Debug flag for tab prefetching indicators
@@ -108,7 +123,13 @@ const Interface = ({
   const [interfaceLoadFailures, setInterfaceLoadFailures] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const lastNoticeKeyRef = useRef<string | null>(null);
+  const navTokenRef = useRef(0);
+  const beginNavigation = useCallback(() => { navTokenRef.current += 1; return navTokenRef.current; }, []);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
+  const queryClient = useQueryClient();
+  // Global bootstrap error overlay state
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [bootstrapRetryToken, setBootstrapRetryToken] = useState(0);
 
   // Seed contexts on project change
   const activeProjectId = projectQueryParam || null;
@@ -118,7 +139,6 @@ const Interface = ({
     if (contextsQuery.data && Array.isArray(contextsQuery.data)) {
       const s = storeApi.getState() as any;
       s.setProjectContexts?.(activeProjectId, contextsQuery.data.map((c: any) => c.name));
-      // Do not overwrite existing projectDefaultContext; only set if undefined
       if (s.projectDefaultContext?.[activeProjectId] === undefined) {
         s.setProjectDefaultContext?.(activeProjectId, null);
       }
@@ -145,7 +165,7 @@ const Interface = ({
   
   // Auto-select interface when none is specified
   const shouldAutoSelectInterface = !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
-  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces } = useListInterfacesQuery(
+  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces, isError: isErrorInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
     shouldAutoSelectInterface ? projectQueryParam : null,
     interfaceActions
   );
@@ -189,8 +209,47 @@ const Interface = ({
     }
   }, [shouldAutoShowProjectSelection, selectProjectParam, setSelectProjectParam]);
   
+  // Bootstrap batch for project change
+  const { data: bootstrapData } = useQuery({
+    queryKey: ['bootstrap', projectQueryParam, bootstrapRetryToken],
+    queryFn: async () => {
+      if (!projectQueryParam) return null;
+      const res = await fetch(`/api/bootstrap?project=${encodeURIComponent(projectQueryParam)}`);
+      if (!res.ok) throw new Error('Failed to bootstrap');
+      return res.json();
+    },
+    enabled: !!projectQueryParam,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  // Warm caches after bootstrap
+  useEffect(() => {
+    const data: any = bootstrapData as any;
+    if (!data || !projectQueryParam) return;
+    try {
+      if (Array.isArray(data.projectsTree)) {
+        queryClient.setQueryData(['projects', 'tree'], data.projectsTree);
+      }
+      if (Array.isArray(data.interfaces)) {
+        queryClient.setQueryData(['interfaces', projectQueryParam, false], data.interfaces);
+        queryClient.setQueryData(['interfaces', projectQueryParam], data.interfaces);
+      }
+      if (Array.isArray(data.contexts)) {
+        queryClient.setQueryData(['contexts', projectQueryParam], data.contexts);
+        // Seed store contexts if not already present
+        const s = storeApi.getState() as any;
+        s.setProjectContexts?.(projectQueryParam, data.contexts.map((c: any) => c.name));
+        if (s.projectDefaultContext?.[projectQueryParam] === undefined) {
+          s.setProjectDefaultContext?.(projectQueryParam, null);
+        }
+      }
+    } catch {}
+  }, [bootstrapData, projectQueryParam, queryClient]);
+
   // Fetch project tree with icons
-  const { data: projectTree = [] } = useQuery<
+  const { data: projectTree = [], isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
     Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
@@ -199,17 +258,20 @@ const Interface = ({
       if (!res.ok) throw new Error('Failed to fetch project tree')
       return res.json()
     },
+    initialData: Array.isArray((bootstrapData as any)?.projectsTree) ? (bootstrapData as any)?.projectsTree : undefined,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: true,
+    retry: false,
   });
   
   // Get interfaces from projectTree for selection screen (faster than separate API call)
-  const currentProjectData = projectTree?.find(p => p.project === projectQueryParam);
+  const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
+  const currentProjectData = safeProjectTree.find(p => p.project === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
-  const isLoadingInterfacesForSelection = showInterfaceSelection && !projectTree.length;
+  const isLoadingInterfacesForSelection = showInterfaceSelection && safeProjectTree.length === 0;
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
@@ -317,6 +379,12 @@ const Interface = ({
       logsActions,
       projectsActions,
       contextActions,
+    },
+    {
+      enableNonActivePrefetch: !isSwitchingInterface,
+      prefetchMode: 'light',
+      deferMs: 1200,
+      concurrency: 1,
     }
   );
 
@@ -422,12 +490,12 @@ const Interface = ({
     };
   }, [debouncedTabSwitch]);
 
-  const queryClient = useQueryClient();
+  
 
   // Auto-select interface when none is specified
   useEffect(() => {
     // Add delay and additional check to prevent race conditions
-    if (!shouldAutoSelectInterface || isLoadingInterfaces || !projectQueryParam || preventAutoSelect) return;
+    if (!shouldAutoSelectInterface || isLoadingInterfaces || isErrorInterfaces || !projectQueryParam || preventAutoSelect) return;
 
     // Debounce the auto-selection to ensure URL params have settled
     const timer = setTimeout(() => {
@@ -439,9 +507,11 @@ const Interface = ({
 
       const selectOrCreateInterface = async () => {
         try {
+          const tokenAtStart = navTokenRef.current;
           setLoadingMessage('Loading interfaces...');
           setIsSwitchingInterface(true);
 
+          // Only create a default interface if the list call completed and confirmed empty
           if (projectInterfaces.length > 0) {
             // If interfaces exist, find the most recently updated one and redirect.
             const sortedInterfaces = [...projectInterfaces].sort((a, b) => {
@@ -454,27 +524,30 @@ const Interface = ({
             if (latestInterface) {
               const searchParams = new URLSearchParams(window.location.search);
               const newUrl = createInterfaceUrl(searchParams, latestInterface.name);
-              router.push(newUrl);
+              if (tokenAtStart === navTokenRef.current) {
+                router.push(newUrl);
+              }
             }
-          } else if (projectQueryParam !== 'Usage') {
-            // If no interfaces exist, create a default one and then redirect.
-            const newInterface = await createCompleteDefaultInterface({
-              queryClient,
-              project: projectQueryParam,
-              interfaceActions,
-              tabActions,
-              tileActions,
-              baseName: "Default"
-            });
+          } else if (!isErrorInterfaces) {
+            // Explicitly empty and not an error => safe to create a default
+            setLoadingMessage('Creating default interface...');
+            const newInterface = await interfaceActions.create(
+              projectQueryParam,
+              await getUniqueDefaultInterfaceName(projectQueryParam, interfaceActions),
+              undefined
+            );
 
             if (newInterface && newInterface.name) {
               const searchParams = new URLSearchParams(window.location.search);
               const newUrl = createInterfaceUrl(searchParams, newInterface.name);
-              router.push(newUrl);
+              if (tokenAtStart === navTokenRef.current) {
+                router.push(newUrl);
+              }
             }
           } else {
-            // For the special "Usage" project we simply stay on the project view with no interfaces.
+            // Error fetching interfaces: do not auto-create; show selection overlay instead
             setIsSwitchingInterface(false);
+            setSelectInterfaceParam('true');
           }
         } catch (err) {
           console.error("Error in interface selection/creation:", err);
@@ -488,7 +561,7 @@ const Interface = ({
     }, 500); // 500ms delay to let URL params settle
 
     return () => clearTimeout(timer);
-  }, [shouldAutoSelectInterface, isLoadingInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
+  }, [shouldAutoSelectInterface, isLoadingInterfaces, isErrorInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
   
   // Don't clean up selection params - they should persist until user makes a choice
   // This prevents auto-selection from re-triggering after deselection
@@ -498,12 +571,15 @@ const Interface = ({
     if (!isSwitchingInterface) return;
 
     const timer = setTimeout(() => {
-      // Abort any long-running queries
+      // Invalidate any pending navigations
+      beginNavigation();
+
+      // Abort any long-running queries (network-level via AbortSignal in queryFns)
       queryClient.cancelQueries({ predicate: (q: any) => {
         const key0 = q.queryKey?.[0] as string;
         return [
           'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
-          'tabs', 'tiles', 'tab', 'tile'
+          'tabs', 'tiles', 'tab', 'tile', 'tabCompleteData', 'logs'
         ].includes(key0);
       }});
       
@@ -513,7 +589,7 @@ const Interface = ({
     }, 90000); // 90 seconds
 
     return () => clearTimeout(timer);
-  }, [isSwitchingInterface, queryClient]);
+  }, [isSwitchingInterface, queryClient, beginNavigation]);
 
   // Function to hide overlay
   const hideOverlay = () => {
@@ -541,6 +617,17 @@ const Interface = ({
       tabUIActions?.setPending(false);
     }
   }, [tabStreamingQuery?.activeTab.data, tabUIState?.pending, tabUIActions]);
+
+  // Cancel heavy queries immediately when switching interface
+  useEffect(() => {
+    if (!isSwitchingInterface) return;
+    queryClient.cancelQueries({
+      predicate: (q: any) => {
+        const k0 = q?.queryKey?.[0] as string;
+        return k0 === 'tabCompleteData' || k0 === 'logs';
+      }
+    });
+  }, [isSwitchingInterface, queryClient]);
 
   // Full refresh handler used by sidebar refresh button
   const handleInterfaceRefresh = async () => {
@@ -827,6 +914,40 @@ const Interface = ({
 
   return (
   <PageScrollContext.Provider value={pageScrollContainerRef}>
+  <InterfaceNavContext.Provider value={{
+    isNavigating: isSwitchingInterface,
+    beginNavigation,
+    setProject: (project, opts) => {
+      const token = beginNavigation();
+      const newParams = new URLSearchParams(window.location.search);
+      if (!project) {
+        newParams.delete('project');
+        newParams.delete('interface');
+        newParams.delete('tab');
+        if (opts?.openProjectSelection) newParams.set('selectProject', 'true');
+        router.push(`/interfaces?${newParams.toString()}`);
+        return;
+      }
+      newParams.set('project', project);
+      newParams.delete('tab');
+      if (opts?.openInterfaceSelection) {
+        newParams.delete('interface');
+        newParams.set('selectInterface', 'true');
+      }
+      // Route via single source
+      const url = `/interfaces?${newParams.toString()}`;
+      router.push(url);
+    },
+    setInterface: async (projectId, interfaceName) => {
+      const token = beginNavigation();
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.set('project', projectId);
+      newParams.set('interface', interfaceName);
+      newParams.delete('selectInterface');
+      newParams.delete('tab');
+      router.push(`/interfaces?${newParams.toString()}`);
+    }
+  }}>
 
     <div className="w-full h-full relative overflow-hidden">
       {/* New Interface Navigation Sidebar */}
@@ -876,7 +997,7 @@ const Interface = ({
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-1 pb-6 max-h-[250px]">
                   {projects?.map((project) => {
-                    const projectData = projectTree?.find(p => p.project === project);
+                    const projectData = safeProjectTree.find(p => p.project === project);
                     const icon = projectData?.icon;
                     const isLoading = loadingProjectName === project;
                     return (
@@ -1250,6 +1371,27 @@ const Interface = ({
           />
         </Suspense>
 
+        {/* Bootstrap/global fetch error overlay */}
+        {isProjectTreeError && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-destructive">⚠️</div>
+                <div className="flex-1">
+                  <div className="font-medium mb-1">Failed to load projects</div>
+                  <div className="text-sm text-muted-foreground mb-3 break-words">
+                    {projectTreeErrorObj instanceof Error ? projectTreeErrorObj.message : 'Please check your connection and try again.'}
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => window.location.reload()}>Reload</Button>
+                    <Button onClick={() => refetchProjectTree()}>Retry</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Focus Dialog */}
         {focusPaneOpen && (
           <Dialog open={true} onOpenChange={() => {
@@ -1356,6 +1498,7 @@ const Interface = ({
         </div>
       )}
     </div>
+  </InterfaceNavContext.Provider>
   </PageScrollContext.Provider>
   );
 };
