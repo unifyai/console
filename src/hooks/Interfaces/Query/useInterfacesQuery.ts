@@ -13,12 +13,24 @@ export function useListInterfacesQuery(
 ) {
   return useQuery({
     queryKey: ['interfaces', projectId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!projectId) return [];
-      const result = await actions.list(projectId);
-      return Array.isArray(result) ? result : [];
+      // Support action signatures with optional AbortSignal (2 or 3 args)
+      const listFn: any = (actions as any).list;
+      const result = listFn.length >= 3
+        ? await listFn(projectId, false, signal as AbortSignal)
+        : await listFn(projectId, false);
+      if (!Array.isArray(result)) {
+        const anyResult = result as any;
+        const detail = (anyResult && (anyResult.error || anyResult.detail)) || 'Failed to list interfaces';
+        throw new Error(detail);
+      }
+      return result as any[];
     },
     enabled: !!projectId,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 }
 
