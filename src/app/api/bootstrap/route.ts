@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const project = url.searchParams.get("project") || undefined;
-  const apiKey = await getApiKeyFromRequest(request);
+  
+  const apiKeyOrError = await requireApiKey(request);
+  if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+  const apiKey = apiKeyOrError;
 
   const controller = new AbortController();
-  const ttl = setTimeout(() => controller.abort(), 30000);
+  const ttl = setTimeout(() => controller.abort(), 90000); // 90s timeout - bootstrap aggregates multiple slow endpoints
   try {
     const headers = {
       "Authorization": `Bearer ${apiKey}`,
@@ -71,8 +74,15 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json(responseBody, { status: 200 });
-  } catch (e) {
-    return NextResponse.json({ error: "Bootstrap failed" }, { status: 500 });
+  } catch (e: any) {
+    const msg = e?.message || "Bootstrap failed";
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    console.error('[/api/bootstrap] Error:', msg, e);
+    return NextResponse.json({ 
+      error: "Bootstrap failed", 
+      detail: msg,
+      project 
+    }, { status });
   } finally {
     clearTimeout(ttl);
   }

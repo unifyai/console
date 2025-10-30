@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
-  const apiKey = await getApiKeyFromRequest(request);
+  const apiKeyOrError = await requireApiKey(request);
+  if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+  const apiKey = apiKeyOrError;
+  
   try {
     const url = `${baseUrl}/projects/tree`;
     const startedAt = Date.now();
@@ -35,7 +38,10 @@ export async function GET(request: NextRequest) {
       // Enable edge caching with short TTL and SWR
       "Cache-Control": "s-maxage=60, stale-while-revalidate=120",
     } });
-  } catch (e) {
-    return NextResponse.json({ detail: "Failed to fetch project tree" }, { status: 500 });
+  } catch (e: any) {
+    const msg = e?.message || "Failed to fetch project tree";
+    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+    console.error('[/api/projects/tree] Error:', msg);
+    return NextResponse.json({ detail: msg }, { status });
   }
 } 

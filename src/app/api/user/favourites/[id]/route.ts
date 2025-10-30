@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 import { updateFavourite, deleteFavourite } from "@/lib/interfaces/favourites";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKey = await getApiKeyFromRequest(req);
-    if (!apiKey) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const apiKeyOrError = await requireApiKey(req);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const body = await req.json();
     const updateFav = await updateFavourite(apiKey);
     const updated = await updateFav(Number(params.id), body);
@@ -18,8 +20,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKey = await getApiKeyFromRequest(req);
-    if (!apiKey) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const apiKeyOrError = await requireApiKey(req);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const deleteFav = await deleteFavourite(apiKey);
     const success = await deleteFav(Number(params.id));
     return NextResponse.json({ success }, { status: success ? 200 : 500 });

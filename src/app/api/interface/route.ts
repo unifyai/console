@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
         endpoint = "/interfaces/list";
     }
     
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     try {
-      // Let the backend handle the routing based on the query parameters
-      const apiKey = await getApiKeyFromRequest(request);
       const controller = new AbortController();
       const ttl = setTimeout(() => controller.abort(), 30000);
       const startedAt = Date.now();
@@ -56,9 +58,11 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
     
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     try {
-      // Pass all query parameters to allow both ID and path-based updates
-      const apiKey = await getApiKeyFromRequest(request);
       const controller = new AbortController();
       const ttl = setTimeout(() => controller.abort(), 30000);
       const startedAt = Date.now();

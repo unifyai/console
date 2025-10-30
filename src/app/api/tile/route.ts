@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -20,30 +20,42 @@ export async function GET(request: NextRequest) {
         endpoint = "/tile/list";
     }
     
-    // Let the backend handle the routing based on the query parameters
-    const apiKey = await getApiKeyFromRequest(request);
+    // Auth check
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const controller = new AbortController();
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    const res = await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
-        {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-                "x-correlation-id": correlationId,
+    
+    try {
+        const res = await fetch(
+            `${baseUrl}${endpoint}${url.search}`,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "accept": "application/json",
+                    "x-correlation-id": correlationId,
+                },
+                cache: "no-store",
+                signal: controller.signal
             },
-            cache: "no-store",
-            signal: controller.signal
-        },
-    );
-    clearTimeout(ttl);
-    if (!res.ok) {
-      console.warn(JSON.stringify({ route: "/api/tile", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        );
+        clearTimeout(ttl);
+        if (!res.ok) {
+          console.warn(JSON.stringify({ route: "/api/tile", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        }
+        return res;
+    } catch (e: any) {
+        clearTimeout(ttl);
+        const msg = e?.message || "Request failed";
+        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+        console.error(JSON.stringify({ route: "/api/tile", method: "GET", upstream: `${baseUrl}${endpoint}${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
+        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
     }
-    return res;
 }
 
 export async function POST(request: NextRequest) {
@@ -63,88 +75,121 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json();
-    const apiKey = await getApiKeyFromRequest(request);
-    // For POST, we always create a new resource, so the endpoint is fixed
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const controller = new AbortController();
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    const res = await fetch(
-        `${baseUrl}${endpoint}`,
-        {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "x-correlation-id": correlationId,
+    
+    try {
+        const res = await fetch(
+            `${baseUrl}${endpoint}`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "x-correlation-id": correlationId,
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal
             },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        },
-    );
-    clearTimeout(ttl);
-    if (!res.ok) {
-      console.warn(JSON.stringify({ route: "/api/tile", method: "POST", upstream: `${baseUrl}${endpoint}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        );
+        clearTimeout(ttl);
+        if (!res.ok) {
+          console.warn(JSON.stringify({ route: "/api/tile", method: "POST", upstream: `${baseUrl}${endpoint}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        }
+        return res;
+    } catch (e: any) {
+        clearTimeout(ttl);
+        const msg = e?.message || "Request failed";
+        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+        console.error(JSON.stringify({ route: "/api/tile", method: "POST", upstream: `${baseUrl}${endpoint}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
+        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
     }
-    return res;
 }
 
 export async function PUT(request: NextRequest) {
     const body = await request.json();
     const url = new URL(request.url);
-    const apiKey = await getApiKeyFromRequest(request);
     
-    // Pass all query parameters to allow both ID and parent+name updates
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const controller = new AbortController();
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    const res = await fetch(
-        `${baseUrl}/tile/${url.search}`,
-        {
-            method: "PUT",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "x-correlation-id": correlationId,
+    
+    try {
+        const res = await fetch(
+            `${baseUrl}/tile/${url.search}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "x-correlation-id": correlationId,
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal
             },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        },
-    );
-    clearTimeout(ttl);
-    if (!res.ok) {
-      console.warn(JSON.stringify({ route: "/api/tile", method: "PUT", upstream: `${baseUrl}/tile/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        );
+        clearTimeout(ttl);
+        if (!res.ok) {
+          console.warn(JSON.stringify({ route: "/api/tile", method: "PUT", upstream: `${baseUrl}/tile/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        }
+        return res;
+    } catch (e: any) {
+        clearTimeout(ttl);
+        const msg = e?.message || "Request failed";
+        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+        console.error(JSON.stringify({ route: "/api/tile", method: "PUT", upstream: `${baseUrl}/tile/${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
+        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
     }
-    return res;
 }
 
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
-    const apiKey = await getApiKeyFromRequest(request);
     
-    // Pass all query parameters to allow both ID and parent+name deletion
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const controller = new AbortController();
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    const res = await fetch(
-        `${baseUrl}/tile/${url.search}`,
-        {
-            method: "DELETE",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "accept": "application/json",
-                "x-correlation-id": correlationId,
+    
+    try {
+        const res = await fetch(
+            `${baseUrl}/tile/${url.search}`,
+            {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "accept": "application/json",
+                    "x-correlation-id": correlationId,
+                },
+                signal: controller.signal
             },
-            signal: controller.signal
-        },
-    );
-    clearTimeout(ttl);
-    if (!res.ok) {
-      console.warn(JSON.stringify({ route: "/api/tile", method: "DELETE", upstream: `${baseUrl}/tile/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        );
+        clearTimeout(ttl);
+        if (!res.ok) {
+          console.warn(JSON.stringify({ route: "/api/tile", method: "DELETE", upstream: `${baseUrl}/tile/${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        }
+        return res;
+    } catch (e: any) {
+        clearTimeout(ttl);
+        const msg = e?.message || "Request failed";
+        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+        console.error(JSON.stringify({ route: "/api/tile", method: "DELETE", upstream: `${baseUrl}/tile/${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
+        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
     }
-    return res;
 }
 
 export async function PATCH(request: NextRequest) {
@@ -163,28 +208,39 @@ export async function PATCH(request: NextRequest) {
         endpoint = "/tile/specialized";
     }
 
-    const apiKey = await getApiKeyFromRequest(request);
-    // Pass all query parameters to allow both ID and parent+name updates
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     const controller = new AbortController();
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    const res = await fetch(
-        `${baseUrl}${endpoint}${url.search}`,
-        {
-            method: "PATCH",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "x-correlation-id": correlationId,
+    
+    try {
+        const res = await fetch(
+            `${baseUrl}${endpoint}${url.search}`,
+            {
+                method: "PATCH",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "x-correlation-id": correlationId,
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal
             },
-            body: JSON.stringify(body),
-            signal: controller.signal
-        },
-    );
-    clearTimeout(ttl);
-    if (!res.ok) {
-      console.warn(JSON.stringify({ route: "/api/tile", method: "PATCH", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        );
+        clearTimeout(ttl);
+        if (!res.ok) {
+          console.warn(JSON.stringify({ route: "/api/tile", method: "PATCH", upstream: `${baseUrl}${endpoint}${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+        }
+        return res;
+    } catch (e: any) {
+        clearTimeout(ttl);
+        const msg = e?.message || "Request failed";
+        const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
+        console.error(JSON.stringify({ route: "/api/tile", method: "PATCH", upstream: `${baseUrl}${endpoint}${url.search}`, error: msg, latencyMs: Date.now() - startedAt, correlationId }));
+        return NextResponse.json({ detail: `Upstream ${status === 504 ? 'timeout' : 'error'}: ${msg}` }, { status });
     }
-    return res;
 }
