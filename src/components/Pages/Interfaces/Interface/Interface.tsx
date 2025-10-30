@@ -743,6 +743,9 @@ const Interface = ({
     }
    }, [activeTabName, createTabMutation, updateTabMutation]);
 
+  // Track if tab retry is in progress using ref to avoid re-renders
+  const isRetryingTabRef = useRef(false);
+
   // Render the active tab based on streaming query - memoized to prevent infinite loops
   const renderActiveTab = useCallback(() => {
     if (!activeTabId || !projectQueryParam) {
@@ -777,9 +780,19 @@ const Interface = ({
             </p>
             <Button
               onClick={() => {
-                if (tabStreamingQuery?.refreshTabData && activeTabName) {
-                  tabStreamingQuery.refreshTabData(activeTabName, { refetchFields: true });
-                }
+                if (isRetryingTabRef.current) return; // Prevent multiple rapid clicks
+                isRetryingTabRef.current = true;
+                
+                // Just invalidate the query and let React Query refetch automatically
+                queryClient.invalidateQueries({
+                  queryKey: ["tabCompleteData", interfaceId, activeTabName, projectQueryParam],
+                  refetchType: 'active'
+                });
+                
+                // Reset guard after 2 seconds
+                setTimeout(() => {
+                  isRetryingTabRef.current = false;
+                }, 2000);
               }}
               className="w-full max-w-xs"
             >
@@ -815,7 +828,7 @@ const Interface = ({
         </Suspense>
       </div>
     );
-  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions]);
+  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions, queryClient]);
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {

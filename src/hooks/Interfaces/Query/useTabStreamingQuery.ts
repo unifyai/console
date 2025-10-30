@@ -504,48 +504,37 @@ export function useTabStreamingQuery(
 
     debugLog(`[refreshTabData] Refreshing tab data for: ${tabName}`);
     
-    // Find the tab to get its ID
-    const state = storeApi.getState();
-    const tab = selectTabByName(state, interfaceId, tabName);
-    if (!tab || !tab.id) {
-      console.error(`[refreshTabData] Tab ${tabName} not found or missing ID`);
-      return null;
-    }
-    
-    // Invalidate existing cache
-    queryClient.invalidateQueries({
+    // Simply invalidate and let React Query refetch automatically
+    // This prevents double-fetching and reduces server action spam
+    await queryClient.invalidateQueries({
       queryKey: ["tabCompleteData", interfaceId, tabName, projectId]
     });
 
-    // Build fresh data
-    const completeData = await buildCompleteTabData(
-      interfaceId,
-      tab.id,
-      tabName,
-      projectId,
-      {
-        tabActions: actions.tabActions,
-        tileActions: actions.tileActions,
-        fieldsActions: actions.fieldsActions,
-        logsActions: actions.logsActions,
-        projectsActions: actions.projectsActions,
-        contextActions: actions.contextActions,
-      },
-      {
-        refetchProjects: options?.refetchProjects ?? false,
-        refetchContexts: options?.refetchContexts ?? false,
-        refetchFields: options?.refetchFields ?? true,
-        updateCache: true,
-      }
-    );
-
-    // Set correct active state based on whether this is the currently active tab
-    if (completeData && completeData.tabData) {
-      completeData.tabData.active = tabName === activeTabName;
+    // Also invalidate related caches if requested
+    if (options?.refetchFields) {
+      await queryClient.invalidateQueries({
+        queryKey: ["fields", projectId],
+        refetchType: 'active'
+      });
+    }
+    
+    if (options?.refetchContexts) {
+      await queryClient.invalidateQueries({
+        queryKey: ["contexts", projectId],
+        refetchType: 'active'
+      });
     }
 
-    return completeData;
-  }, [queryClient, interfaceId, projectId, actions, buildCompleteTabData, activeTabName]);
+    if (options?.refetchProjects) {
+      await queryClient.invalidateQueries({
+        queryKey: ["projects"],
+        refetchType: 'active'
+      });
+    }
+
+    // Return the fresh data from the cache after React Query refetches
+    return queryClient.getQueryData<CompleteTabData>(["tabCompleteData", interfaceId, tabName, projectId]) || null;
+  }, [queryClient, interfaceId, projectId]);
 
   return {
     // Active tab data
