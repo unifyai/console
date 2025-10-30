@@ -77,6 +77,11 @@ export function useTabStreamingQuery(
   const [prefetchConcurrency, setPrefetchConcurrency] = useState(1);
   const lastActivityRef = useRef<number>(Date.now());
 
+  // Network connection detection for adaptive concurrency
+  const connection: any = typeof navigator !== 'undefined' ? (navigator as any).connection : null;
+  const saveData = connection?.saveData === true;
+  const effectiveType = connection?.effectiveType as string | undefined;
+
   const {
     enableNonActivePrefetch = true,
     prefetchMode = 'light',
@@ -176,7 +181,9 @@ export function useTabStreamingQuery(
     },
     enabled: !!(interfaceId && activeTabName && projectId && stableActiveTabName === activeTabName),
     staleTime: Infinity,        // Never mark as stale automatically
-    gcTime: Infinity,           // Never garbage collect
+    gcTime: 15 * 60 * 1000,     // Garbage collect after 15 minutes to prevent unbounded memory
+    retry: 1,                   // Retry once on failure
+    retryDelay: 1500,           // 1.5s delay before retry
     refetchOnMount: false,      // Don't refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnReconnect: false,  // Don't refetch when network reconnects
@@ -189,11 +196,23 @@ export function useTabStreamingQuery(
     [allTabs, activeTabName]
   );
 
+  // Prioritize non-active tabs by proximity to the active tab for better UX
+  const prioritizedNonActiveTabs = useMemo(() => {
+    if (!activeTabName) return nonActiveTabs;
+    const indexByName = new Map(allTabs.map((t, i) => [t.name!, i]));
+    const activeIdx = indexByName.get(activeTabName) ?? 0;
+    return [...nonActiveTabs].sort((a, b) => {
+      const ai = indexByName.get(a.name!) ?? 0;
+      const bi = indexByName.get(b.name!) ?? 0;
+      return Math.abs(ai - activeIdx) - Math.abs(bi - activeIdx);
+    });
+  }, [nonActiveTabs, allTabs, activeTabName]);
+
   // Calculate which tabs should be in the current prefetch queue
   const prefetchQueue = useMemo(() => {
     if (!prefetchReady || !enableNonActivePrefetch) return [] as TabData[];
 
-    const unprefetchedTabs = nonActiveTabs.filter(tab => 
+    const unprefetchedTabs = prioritizedNonActiveTabs.filter(tab => 
       !prefetchedTabs.has(tab.name!) && !currentlyPrefetching.has(tab.name!) && !failedPrefetchTabs.has(tab.name!)
     );
     const effectiveConcurrency = Math.max(0, Math.min(concurrency ?? MAX_CONCURRENT_PREFETCH, prefetchConcurrency));
@@ -202,11 +221,11 @@ export function useTabStreamingQuery(
     
     // Combine currently prefetching tabs with new tabs to add
     const currentQueue = Array.from(currentlyPrefetching)
-      .map(name => nonActiveTabs.find(tab => tab.name === name))
+      .map(name => prioritizedNonActiveTabs.find(tab => tab.name === name))
       .filter(Boolean) as TabData[];
       
     return [...currentQueue, ...tabsToAdd];
-  }, [prefetchReady, enableNonActivePrefetch, nonActiveTabs, prefetchedTabs, currentlyPrefetching, failedPrefetchTabs, concurrency]);
+  }, [prefetchReady, enableNonActivePrefetch, prioritizedNonActiveTabs, prefetchedTabs, currentlyPrefetching, failedPrefetchTabs, concurrency, prefetchConcurrency]);
 
   // Update currently prefetching set when queue changes
   useEffect(() => {
@@ -246,21 +265,46 @@ export function useTabStreamingQuery(
   }, []);
 
   // Idle-time ramp: gradually increase prefetch concurrency when idle; drop to 1 on activity
+  // Also respects network constraints (Data Saver, 2g/3g)
   useEffect(() => {
     if (!enableNonActivePrefetch) return;
+    
+    // Determine max concurrency based on network conditions
+    const networkMaxConcurrency = saveData || /2g|3g/.test(effectiveType || '') 
+      ? 1 
+      : (concurrency ?? MAX_CONCURRENT_PREFETCH);
+    
     const interval = setInterval(() => {
       const now = Date.now();
       const idleForMs = now - lastActivityRef.current;
       const isVisible = typeof document === 'undefined' ? true : document.visibilityState === 'visible';
       const idle = isVisible && idleForMs > 2000 && isFetchingAny === 0;
       if (idle) {
-        setPrefetchConcurrency(prev => Math.min((concurrency ?? MAX_CONCURRENT_PREFETCH), Math.max(1, prev + 1)));
+        setPrefetchConcurrency(prev => Math.min(networkMaxConcurrency, Math.max(1, prev + 1)));
       } else {
         setPrefetchConcurrency(prev => (prev > 1 ? 1 : prev));
       }
     }, 1500);
     return () => clearInterval(interval);
-  }, [enableNonActivePrefetch, isFetchingAny, concurrency]);
+  }, [enableNonActivePrefetch, isFetchingAny, concurrency, saveData, effectiveType]);
+
+  // Backoff and retry failed prefetches when idle
+  useEffect(() => {
+    if (!enableNonActivePrefetch || failedPrefetchTabs.size === 0) return;
+    const timers: NodeJS.Timeout[] = [];
+    failedPrefetchTabs.forEach((name) => {
+      const timer = setTimeout(() => {
+        debugLog(`[useTabStreamingQuery] Retrying failed prefetch for tab: ${name}`);
+        setFailedPrefetchTabs(prev => {
+          const next = new Set(prev);
+          next.delete(name); // Remove from failed set so it can be re-queued
+          return next;
+        });
+      }, 8000); // 8 second backoff
+      timers.push(timer);
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [failedPrefetchTabs, enableNonActivePrefetch]);
 
   // Prefetch tabs in the current queue
   const prefetchQueries = useQueries({
@@ -306,9 +350,11 @@ export function useTabStreamingQuery(
         return completeData;
       },
       enabled: !!(interfaceId && projectId && tab.name),
-      staleTime: Infinity,
+      staleTime: 10 * 60 * 1000, // 10 minutes for prefetch
       refetchOnWindowFocus: false,
       refetchOnMount: false,
+      retry: 0, // Don't retry prefetch failures immediately
+      networkMode: 'always' as const, // Always attempt prefetch even if offline
     }))
   });
 

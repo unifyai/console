@@ -91,6 +91,7 @@ export async function fetchOrBuildFields(
   projectId: string,
   refetchFields: boolean,
   fieldsActions: FieldsActions,
+  signal?: AbortSignal,
 ) {
   if (refetchFields) {
     const tFields = performance.now();
@@ -99,7 +100,7 @@ export async function fetchOrBuildFields(
         const tField = performance.now();
         await queryClient.fetchQuery({
           queryKey: ["fields", projectId, tile.context ?? null],
-          queryFn: () => fieldsActions.get(projectId, tile.context ?? null),
+          queryFn: ({ signal: querySignal }) => fieldsActions.get(projectId, tile.context ?? null, signal || querySignal as AbortSignal),
         });
         perfLog(
           `[perf] fetchOrBuildFields – fetchField: ${(

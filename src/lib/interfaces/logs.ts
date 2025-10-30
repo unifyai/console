@@ -140,13 +140,13 @@ export const updateLogs = async (apiKey: string) => {
 
 // get log fields
 export const getLogFields = async (apiKey: string) => {
-    return async (project: string, context: string | null) => {
+    return async (project: string, context: string | null, signal?: AbortSignal) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
             + (context ? `&context=${context}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, signal }
         );
         return await response.json();
     };

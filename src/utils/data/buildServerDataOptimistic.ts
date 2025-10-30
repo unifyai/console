@@ -86,7 +86,8 @@ export async function fetchProjectsContextsFields(
     tableTilesData,
     projectId,
     refetchFields,
-    fieldsActions
+    fieldsActions,
+    signal
   );
 
   return {

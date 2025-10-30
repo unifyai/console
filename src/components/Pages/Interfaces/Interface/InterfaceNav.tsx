@@ -168,6 +168,11 @@ interface InterfaceNavProps {
   syncedInterfaceUIActions?: {
     setActiveTab: (tabIdOrName: string | null) => void
   } | null
+  // Project tree data passed from parent to avoid duplicate fetching
+  projectTree: Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
+  refetchProjectTree: () => Promise<any>
+  // Optional: hover prefetch callback
+  onHoverPrefetchTab?: (tabName: string) => void
 }
 
 
@@ -222,6 +227,7 @@ interface SortableTabProps {
   onChangeTabColor: (tab: ProjectTab) => void;
   onSetTabContext: (tab: ProjectTab) => void;
   onDeleteTab: (tab: ProjectTab) => void;
+  onHoverPrefetch?: (tab: ProjectTab) => void;
 }
 
 const SortableTab = React.memo(function SortableTab({
@@ -237,6 +243,7 @@ const SortableTab = React.memo(function SortableTab({
   onChangeTabColor,
   onSetTabContext,
   onDeleteTab,
+  onHoverPrefetch,
 }: SortableTabProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   
@@ -269,6 +276,7 @@ const SortableTab = React.memo(function SortableTab({
         {...attributes}
         {...listeners}
         onClick={() => onTabClick(tab)}
+        onMouseEnter={() => onHoverPrefetch?.(tab)}
         className={cn(
           "flex-1 min-w-0 flex items-center gap-2 py-1.5 text-body-sm rounded-md transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
@@ -408,7 +416,10 @@ export default function InterfaceNav({
   onRefresh,
   refreshStatus,
   fieldsActions,
-  syncedInterfaceUIActions
+  syncedInterfaceUIActions,
+  projectTree,
+  refetchProjectTree,
+  onHoverPrefetchTab
 }: InterfaceNavProps) {
 
   // Initialize sidebar state from cookies
@@ -557,57 +568,25 @@ export default function InterfaceNav({
   const setFileUploadOpen = useStoreContext((state) => state.setFileUploadOpen)
   const storeAddTab = useStoreContext((state) => state.addTab)
   
-  // Fetch project tree using React Query for better caching
-  const { data: projectTree = [], isLoading: projectTreeLoading, isFetching: projectTreeFetching, isError: projectTreeError, refetch: refetchProjectTree, failureCount: projectTreeFailureCount } = useQuery<
-    Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
-  >({
-    queryKey: ['projects', 'tree'],
-    queryFn: async () => {
-      try {
-        const res = await fetch('/api/projects/tree')
-        
-        if (!res.ok) {
-          // Try to get error message from response
-          let errorMessage = `Failed to fetch project tree: ${res.status}`
-          try {
-            const errorData = await res.json()
-            if (errorData.detail) {
-              errorMessage = errorData.detail
-            }
-          } catch {
-            // Ignore JSON parse errors, use default message
-          }
-          throw new Error(errorMessage)
-        }
-        
-        const data = await res.json()
-        
-        // Validate response is actually an array
-        if (!Array.isArray(data)) {
-          console.error('Invalid project tree response:', data)
-          throw new Error('Invalid project tree format')
-        }
-        
-        return data
-      } catch (error) {
-        console.error('Failed to fetch project tree:', error)
-        throw error instanceof Error ? error : new Error('Failed to fetch project tree')
-      }
-    },
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: true,
-    retry: false,
-  })
-  
+  // Project tree is now passed from parent to avoid duplicate fetching
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : []
   
   // Fetch contexts for file upload
-  const { data: contextsData = [] } = useListContextsQuery(selectedProject, contextActions)
+  const { data: contextsData = [], isError: isContextsError, error: contextsErrorObj } = useListContextsQuery(selectedProject, contextActions)
   // Ensure contexts is always an array, even if query returns error object
   const contexts = useMemo(() => Array.isArray(contextsData) ? contextsData : [], [contextsData])
+
+  // Show error notification for context failures (non-blocking) - only once per project
+  const contextsErrorShownRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (isContextsError && selectedProject && !contextsErrorShownRef.current.has(selectedProject)) {
+      contextsErrorShownRef.current.add(selectedProject)
+      showErrorToast(
+        'Failed to load contexts',
+        'Context selection and file upload may not work properly.'
+      )
+    }
+  }, [isContextsError, selectedProject])
   
   // Update selected project and interface based on props
   useEffect(() => {
@@ -1929,29 +1908,11 @@ export default function InterfaceNav({
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <Command>
                       <CommandInput placeholder="Search projects..." />
-                      {!projectTreeLoading && !projectTreeFetching && (
+                      {safeProjectTree.length === 0 && (
                         <CommandEmpty>No project found.</CommandEmpty>
                       )}
                       <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                        {projectTreeError ? (
-                          <div className="p-3 text-center">
-                            <p className="text-body text-destructive mb-2">Failed to load projects</p>
-                            <Button size="sm" variant="ghost" onClick={() => { refetchProjectTree() }}>
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                              Retry
-                            </Button>
-                          </div>
-                        ) : (projectTreeLoading || projectTreeFetching) ? (
-                          <div className="p-1">
-                            <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading projects...</div>
-                            {[1, 2, 3].map((i) => (
-                              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
-                                <div className="h-4 w-4 bg-muted animate-pulse rounded" />
-                                <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
-                              </div>
-                            ))}
-                          </div>
-                        ) : safeProjectTree.length === 0 ? (
+                        {safeProjectTree.length === 0 ? (
                           <div className="p-3 text-center text-body text-muted-foreground">
                             <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -2082,21 +2043,11 @@ export default function InterfaceNav({
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <Command>
                         <CommandInput placeholder="Search interfaces..." />
-                        {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
+                        {currentInterfaces.length > 0 && (
                           <CommandEmpty>No interface found.</CommandEmpty>
                         )}
                         <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                          {(projectTreeLoading || projectTreeFetching) ? (
-                            <div className="p-1">
-                              <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading interfaces...</div>
-                              {[1, 2].map((i) => (
-                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
-                                  <div className="h-4 w-4 bg-muted animate-pulse rounded" />
-                                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${80 + i * 10}%` }} />
-                                </div>
-                              ))}
-                            </div>
-                          ) : currentInterfaces.length === 0 ? (
+                          {currentInterfaces.length === 0 ? (
                             <div className="p-3 text-center text-body text-muted-foreground">
                               <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
@@ -2342,6 +2293,7 @@ export default function InterfaceNav({
                             onChangeTabColor={onChangeTabColor}
                             onSetTabContext={onSetTabContext}
                             onDeleteTab={onDeleteTab}
+                            onHoverPrefetch={(t) => onHoverPrefetchTab?.(t.name)}
                           />
                         ))}
                       </div>

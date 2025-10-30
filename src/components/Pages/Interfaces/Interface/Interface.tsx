@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
-import { Loader2, Search, Plus } from "lucide-react";
+import { Loader2, Search, Plus, RefreshCw } from "lucide-react";
 import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent } from "../../../UI/tabs";
@@ -145,6 +145,16 @@ const Interface = ({
       }
     }
   }, [activeProjectId, contextsQuery.data, storeApi]);
+
+  // Show error notification for context failures (non-blocking)
+  useEffect(() => {
+    if (contextsQuery.isError && activeProjectId) {
+      showErrorToast(
+        'Failed to load contexts',
+        'Some features may be unavailable. Context selection will not work until this is resolved.'
+      );
+    }
+  }, [contextsQuery.isError, activeProjectId]);
   
   // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
   const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
@@ -211,7 +221,7 @@ const Interface = ({
   }, [shouldAutoShowProjectSelection, selectProjectParam, setSelectProjectParam]);
   
   // Bootstrap batch for project change
-  const { data: bootstrapData } = useQuery({
+  const { data: bootstrapData, isError: isBootstrapError, error: bootstrapErrorObj, refetch: refetchBootstrap } = useQuery({
     queryKey: ['bootstrap', projectQueryParam],  // Removed bootstrapRetryToken to prevent unnecessary refetches
     queryFn: async () => {
       if (!projectQueryParam) return null;
@@ -496,12 +506,18 @@ const Interface = ({
   const handleTabChange = useCallback((value: string | undefined) => {
     if (!value) return;
     
+    // Block tab switching during mutations to prevent state desync
+    if (createTabMutation.isPending || updateTabMutation.isPending || saveTabWithTilesMutation.isPending) {
+      console.log('[Interface] Blocking tab switch - mutation in progress');
+      return;
+    }
+    
     // Set pending tab change immediately for UI feedback
     setPendingTabChange(value);
     
     // Debounce the actual tab switch
     debouncedTabSwitch(value);
-  }, [debouncedTabSwitch]);
+  }, [debouncedTabSwitch, createTabMutation.isPending, updateTabMutation.isPending, saveTabWithTilesMutation.isPending]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -574,7 +590,9 @@ const Interface = ({
           console.error("Error in interface selection/creation:", err);
           setIsSwitchingInterface(false);
           setInterfaceLoadFailures(prev => prev + 1);
-          showErrorToast('Failed to load interface. Please try again.');
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
+          showErrorToast('Failed to load interface', errorMsg);
+          setLoadingMessage('Loading...');
         }
       };
 
@@ -729,6 +747,34 @@ const Interface = ({
       return (
         <div className="flex items-center justify-center h-full">
           Please select a tab
+        </div>
+      );
+    }
+
+    // Check for streaming errors
+    if (tabStreamingQuery?.activeTab.isError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-6 max-w-md mx-auto text-center">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-h4 mb-2">Failed to Load Tab</h3>
+          <p className="text-body text-muted-foreground mb-4">
+            {tabStreamingQuery.activeTab.error?.message || 'Unable to load tab data. The server may be unavailable.'}
+          </p>
+          <Button
+            onClick={() => {
+              if (tabStreamingQuery?.refreshTabData && activeTabName) {
+                tabStreamingQuery.refreshTabData(activeTabName, { refetchFields: true });
+              }
+            }}
+            className="w-full max-w-xs"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry Loading Tab
+          </Button>
         </div>
       );
     }
@@ -1001,10 +1047,115 @@ const Interface = ({
         onAddTile={handleSidebarAddTile}
         fieldsActions={fieldsActions}
         syncedInterfaceUIActions={syncedInterfaceUIActions}
+        projectTree={safeProjectTree}
+        refetchProjectTree={refetchProjectTree}
+        onHoverPrefetchTab={tabStreamingQuery.prefetchTab}
       />
       
       {/* Main Content Area */}
-      {effectiveShowProjectSelection ? (
+      {isBootstrapError && projectQueryParam ? (
+        /* Bootstrap Error Screen - Critical data failed to load */
+        <div
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
+          style={{ left: 'var(--interface-nav-width, 256px)' }}
+        >
+          <div className="w-full max-w-md p-6">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h1 className="text-h3 mb-2">Failed to Load Project</h1>
+                <p className="text-body text-muted-foreground mb-2">
+                  Unable to load project data for <span className="font-semibold">{projectQueryParam}</span>.
+                </p>
+                <p className="text-caption text-muted-foreground mb-6">
+                  {bootstrapErrorObj instanceof Error ? bootstrapErrorObj.message : 'The server timed out or is unavailable.'}
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Button
+                  onClick={() => {
+                    setIsSwitchingInterface(true);
+                    setLoadingMessage('Retrying...');
+                    refetchBootstrap();
+                  }}
+                  className="w-full"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry Connection
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setProjectQueryParam(null);
+                    setSelectProjectParam('true');
+                  }}
+                  className="w-full"
+                >
+                  Choose Different Project
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
+        /* Interface Error Screen - Show when interface fetch fails */
+        <div
+          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
+          style={{ left: 'var(--interface-nav-width, 256px)' }}
+        >
+          <div className="w-full max-w-md p-6">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h1 className="text-h3 mb-2">Connection Error</h1>
+                <p className="text-body text-muted-foreground mb-6">
+                  Unable to communicate with the server. The request timed out or the server is unavailable.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Button
+                  onClick={() => {
+                    setIsSwitchingInterface(true);
+                    setLoadingMessage('Retrying...');
+                    refetchInterfaces();
+                  }}
+                  className="w-full"
+                  disabled={isLoadingInterfaces}
+                >
+                  {isLoadingInterfaces ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Retry Connection
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectInterfaceParam('true');
+                  }}
+                  className="w-full"
+                >
+                  Select Interface Manually
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : effectiveShowProjectSelection ? (
         /* Project Selection Screen - Full viewport, left-aligned */
         <div
           className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
@@ -1150,7 +1301,9 @@ const Interface = ({
                             router.push(`/interfaces?${newParams.toString()}`);
                           }
                         } catch (error) {
-                          showErrorToast('Failed to create interface');
+                          const errorMsg = error instanceof Error ? error.message : 'Failed to create interface';
+                          showErrorToast('Failed to create interface', errorMsg);
+                          setLoadingMessage('Loading...');
                         } finally {
                           setIsSwitchingInterface(false);
                         }
