@@ -569,7 +569,10 @@ export default function InterfaceNav({
   const storeAddTab = useStoreContext((state) => state.addTab)
   
   // Project tree is now passed from parent to avoid duplicate fetching
-  const safeProjectTree = Array.isArray(projectTree) ? projectTree : []
+  // Wrap in useMemo for stable reference to prevent unnecessary re-renders
+  const safeProjectTree = useMemo(() => {
+    return Array.isArray(projectTree) ? projectTree : [];
+  }, [projectTree]);
   
   // Fetch contexts for file upload
   const { data: contextsData = [], isError: isContextsError, error: contextsErrorObj } = useListContextsQuery(selectedProject, contextActions)
@@ -688,8 +691,10 @@ export default function InterfaceNav({
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   })
   
-  // Ensure currentTabs is always an array, even if query returns error object  
-  const currentTabs = Array.isArray(currentTabsData) ? currentTabsData : [];
+  // Ensure currentTabs is always an array with stable reference to prevent drag-drop library loops
+  const currentTabs = useMemo(() => {
+    return Array.isArray(currentTabsData) ? currentTabsData : [];
+  }, [currentTabsData]);
   
   // Tabs loading should check both isLoading (initial) and isFetching (refetch/retry)
   const loadingTabs = tabsLoading || tabsFetching

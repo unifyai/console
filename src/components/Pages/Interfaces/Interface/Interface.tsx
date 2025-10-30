@@ -146,9 +146,11 @@ const Interface = ({
     }
   }, [activeProjectId, contextsQuery.data, storeApi]);
 
-  // Show error notification for context failures (non-blocking)
+  // Show error notification for context failures (non-blocking) - only once per project
+  const contextsErrorShownRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (contextsQuery.isError && activeProjectId) {
+    if (contextsQuery.isError && activeProjectId && !contextsErrorShownRef.current.has(activeProjectId)) {
+      contextsErrorShownRef.current.add(activeProjectId);
       showErrorToast(
         'Failed to load contexts',
         'Some features may be unavailable. Context selection will not work until this is resolved.'
@@ -741,8 +743,8 @@ const Interface = ({
     }
    }, [activeTabName, createTabMutation, updateTabMutation]);
 
-  // Render the active tab based on streaming query
-  const renderActiveTab = () => {
+  // Render the active tab based on streaming query - memoized to prevent infinite loops
+  const renderActiveTab = useCallback(() => {
     if (!activeTabId || !projectQueryParam) {
       return (
         <div className="flex items-center justify-center h-full">
@@ -803,7 +805,7 @@ const Interface = ({
         </Suspense>
       </div>
     );
-  };
+  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions]);
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
@@ -1077,12 +1079,19 @@ const Interface = ({
               </div>
               <div className="space-y-3">
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (isSwitchingInterface) return; // Prevent double-click
                     setIsSwitchingInterface(true);
                     setLoadingMessage('Retrying...');
-                    refetchBootstrap();
+                    try {
+                      await refetchBootstrap();
+                    } finally {
+                      setIsSwitchingInterface(false);
+                      setLoadingMessage('Loading...');
+                    }
                   }}
                   className="w-full"
+                  disabled={isSwitchingInterface}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Retry Connection
@@ -1122,15 +1131,21 @@ const Interface = ({
               </div>
               <div className="space-y-3">
                 <Button
-                  onClick={() => {
+                  onClick={async () => {
+                    if (isLoadingInterfaces || isSwitchingInterface) return; // Prevent double-click
                     setIsSwitchingInterface(true);
                     setLoadingMessage('Retrying...');
-                    refetchInterfaces();
+                    try {
+                      await refetchInterfaces();
+                    } finally {
+                      setIsSwitchingInterface(false);
+                      setLoadingMessage('Loading...');
+                    }
                   }}
                   className="w-full"
-                  disabled={isLoadingInterfaces}
+                  disabled={isLoadingInterfaces || isSwitchingInterface}
                 >
-                  {isLoadingInterfaces ? (
+                  {isLoadingInterfaces || isSwitchingInterface ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Retrying...
