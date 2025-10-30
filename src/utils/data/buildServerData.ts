@@ -38,7 +38,19 @@ export async function fetchOrBuildProjectsAndContexts(
         const tProjects = performance.now();
         await queryClient.fetchQuery({
             queryKey: ["projects"],
-            queryFn: () => projectsActions.get(),
+            queryFn: async ({ signal }) => {
+              // Call API route directly instead of server action
+              const res = await fetch('/api/projects', {
+                method: 'GET',
+                signal: signal as AbortSignal,
+                cache: 'no-store',
+              });
+              if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ detail: `Projects ${res.status}` }));
+                throw new Error(errorData.detail || `Failed to fetch projects: ${res.status}`);
+              }
+              return res.json();
+            },
         });
         perfLog(
           `[perf] fetchOrBuildProjectsAndContexts – fetchProjects: ${(
@@ -51,7 +63,19 @@ export async function fetchOrBuildProjectsAndContexts(
         const tContexts = performance.now();
         await queryClient.fetchQuery({
             queryKey: ["contexts", projectId],
-            queryFn: () => (contextActions.get as any)(projectId, signal as AbortSignal),
+            queryFn: async ({ signal: querySignal }) => {
+              // Call API route directly instead of server action
+              const res = await fetch(`/api/context/${encodeURIComponent(projectId)}`, {
+                method: 'GET',
+                signal: signal || querySignal as AbortSignal,
+                cache: 'no-store',
+              });
+              if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ detail: `Contexts ${res.status}` }));
+                throw new Error(errorData.detail || `Failed to fetch contexts: ${res.status}`);
+              }
+              return res.json();
+            },
         });
         perfLog(
           `[perf] fetchOrBuildProjectsAndContexts – fetchContexts: ${(
@@ -100,7 +124,22 @@ export async function fetchOrBuildFields(
         const tField = performance.now();
         await queryClient.fetchQuery({
           queryKey: ["fields", projectId, tile.context ?? null],
-          queryFn: ({ signal: querySignal }) => fieldsActions.get(projectId, tile.context ?? null, signal || querySignal as AbortSignal),
+          queryFn: async ({ signal: querySignal }) => {
+            // Call API route directly instead of server action to avoid POST /interfaces spam
+            // Server actions don't handle concurrent calls or AbortSignal well
+            const context = tile.context ?? null;
+            const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
+            const res = await fetch(url, {
+              method: 'GET',
+              signal: signal || querySignal as AbortSignal,
+              cache: 'no-store',
+            });
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({ detail: `Fields ${res.status}` }));
+              throw new Error(errorData.detail || `Failed to fetch fields: ${res.status}`);
+            }
+            return res.json();
+          },
         });
         perfLog(
           `[perf] fetchOrBuildFields – fetchField: ${(
