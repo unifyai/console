@@ -753,32 +753,42 @@ const Interface = ({
       );
     }
 
-    // Check for streaming errors
+    // Check for streaming errors (ignore cancellation errors)
     if (tabStreamingQuery?.activeTab.isError) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full p-6 max-w-md mx-auto text-center">
-          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-            <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+      const error = tabStreamingQuery.activeTab.error as any;
+      const errorMsg = error?.message || '';
+      const isCancellation = 
+        error?.name === 'AbortError' || 
+        error?.name === 'CancelledError' ||
+        /abort|cancelled|connection closed/i.test(errorMsg);
+
+      // Don't show error UI for cancellations (expected when switching tabs)
+      if (!isCancellation) {
+        return (
+          <div className="flex flex-col items-center justify-center h-full p-6 max-w-md mx-auto text-center">
+            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-h4 mb-2">Failed to Load Tab</h3>
+            <p className="text-body text-muted-foreground mb-4">
+              {errorMsg || 'Unable to load tab data. The server may be unavailable.'}
+            </p>
+            <Button
+              onClick={() => {
+                if (tabStreamingQuery?.refreshTabData && activeTabName) {
+                  tabStreamingQuery.refreshTabData(activeTabName, { refetchFields: true });
+                }
+              }}
+              className="w-full max-w-xs"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry Loading Tab
+            </Button>
           </div>
-          <h3 className="text-h4 mb-2">Failed to Load Tab</h3>
-          <p className="text-body text-muted-foreground mb-4">
-            {tabStreamingQuery.activeTab.error?.message || 'Unable to load tab data. The server may be unavailable.'}
-          </p>
-          <Button
-            onClick={() => {
-              if (tabStreamingQuery?.refreshTabData && activeTabName) {
-                tabStreamingQuery.refreshTabData(activeTabName, { refetchFields: true });
-              }
-            }}
-            className="w-full max-w-xs"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Retry Loading Tab
-          </Button>
-        </div>
-      );
+        );
+      }
     }
 
     return (

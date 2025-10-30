@@ -21,6 +21,17 @@ export function AuthErrorBoundary({ children }: { children: React.ReactNode }) {
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type === 'updated' && event.action.type === 'error') {
         const error = event.action.error as any;
+        const errorMsg = error?.message || '';
+        
+        // Ignore cancellation errors (AbortError, "Connection closed", etc.)
+        // These are expected when requests are cancelled and should not trigger error UI
+        if (
+          error?.name === 'AbortError' || 
+          error?.name === 'CancelledError' ||
+          /abort|cancelled|connection closed/i.test(errorMsg)
+        ) {
+          return; // Silently ignore cancellations
+        }
         
         // Check if this is a 401 auth error
         if (error?.status === 401 || error?.response?.status === 401) {
