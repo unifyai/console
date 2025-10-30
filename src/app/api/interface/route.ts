@@ -110,9 +110,12 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
 
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     try {
       // For POST, we always create a new resource, so the endpoint is fixed
-      const apiKey = await getApiKeyFromRequest(request);
       const controller = new AbortController();
       const ttl = setTimeout(() => controller.abort(), 30000);
       const startedAt = Date.now();
@@ -145,9 +148,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     const url = new URL(request.url);
     
+    const apiKeyOrError = await requireApiKey(request);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
     try {
       // Pass all query parameters to allow both ID and path-based deletion
-      const apiKey = await getApiKeyFromRequest(request);
       const controller = new AbortController();
       const ttl = setTimeout(() => controller.abort(), 30000);
       const startedAt = Date.now();
