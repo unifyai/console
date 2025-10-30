@@ -4,6 +4,7 @@ import { SessionProvider } from "./SessionProvider";
 import QueryProvider from "./QueryProvider";
 import { NextUIProvider } from "@nextui-org/react";
 import { SidebarProvider } from "@/components/UI/sidebar"
+import { AuthErrorBoundary } from "@/components/Common/Auth/AuthErrorBoundary";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,11 +13,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
           <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
             <QueryProvider>
-              {children}
+              <AuthErrorBoundary>
+                {children}
+              </AuthErrorBoundary>
             </QueryProvider>
           </SessionProvider>
         </SidebarProvider>
       </NextUIProvider>
+      {/* GTM temporarily disabled - was interfering with SPA navigation
       <Script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX" />
       <Script id="ganalytics">{`
           window.dataLayer = window.dataLayer || [];
@@ -25,11 +29,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
           gtag('config', 'G-XXXXXXXXXX', {
             send_page_view: false,
-            // Prevent automatic page view tracking on query parameter changes
-            // We'll manually track only meaningful navigation events
+            // Disable all automatic tracking to prevent interference with SPA navigation
+            page_location: window.location.origin + window.location.pathname,  // Only track path, not query params
+            custom_map: {},
+            allow_enhanced_measurement: false,  // Disable scroll, click, file download tracking
           });
           `}
       </Script>
+      */}
     </>
   );
 }
