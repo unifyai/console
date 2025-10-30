@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 
-const ASSISTANT_JOIN_TIMEOUT = 30000; // 30 seconds
+const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
 
 export function useAssistantCall(
     room: Room,
@@ -136,10 +136,8 @@ export function useAssistantCall(
     
     React.useEffect(() => {
         const onParticipantConnected = () => {
-            if (room.numParticipants >= 2) {
-                setIsWaitingForAssistant(false);
-                clearAssistantJoinTimeout();
-            }
+            setIsWaitingForAssistant(false);
+            clearAssistantJoinTimeout();
         };
 
         room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
