@@ -164,7 +164,7 @@ const LogsTable = ({
   } = useTableDataQueryWithTracking(tileId, tabId);
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-  const availableContexts = listContextsQuery.data || [];
+  const availableContexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
 
   // Use the existing table data item as single source of truth
   const {

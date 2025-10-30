@@ -231,6 +231,11 @@ export default async function Main({
       });
       
       tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
+      // Ensure tabs is actually an array before trying to map
+      if (!Array.isArray(tabs)) {
+        console.warn("[Main.server] Tabs data is not an array, got:", typeof tabs, tabs);
+        tabs = [];
+      }
       debugLog("[Main.server] Loaded tabs for interface:", interfaceId, "tabs:", tabs.map(t => t.name));
     }
 

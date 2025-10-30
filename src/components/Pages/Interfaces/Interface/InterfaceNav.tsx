@@ -605,7 +605,9 @@ export default function InterfaceNav({
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : []
   
   // Fetch contexts for file upload
-  const { data: contexts = [] } = useListContextsQuery(selectedProject, contextActions)
+  const { data: contextsData = [] } = useListContextsQuery(selectedProject, contextActions)
+  // Ensure contexts is always an array, even if query returns error object
+  const contexts = useMemo(() => Array.isArray(contextsData) ? contextsData : [], [contextsData])
   
   // Update selected project and interface based on props
   useEffect(() => {
@@ -811,20 +813,14 @@ export default function InterfaceNav({
   
   const handleTabClick = useCallback((tab: ProjectTab) => {
     // Use the interface sync action to switch tabs instantly
+    // The parent component's setTabQueryParam (with shallow: true) handles URL updates
     if (syncedInterfaceUIActions?.setActiveTab) {
+      console.log('[InterfaceNav] Client-side tab switch to:', tab.name)
       syncedInterfaceUIActions.setActiveTab(tab.name)
-      
-      // Also update URL for consistency (without triggering navigation)
-      const newParams = new URLSearchParams(searchParams.toString())
-      newParams.set('tab', tab.name)
-      window.history.replaceState(null, '', `?${newParams.toString()}`)
     } else {
-      // Fallback to URL navigation if sync actions not available
-      const newParams = new URLSearchParams(searchParams.toString())
-      newParams.set('tab', tab.name)
-      navigateTab(`?${newParams.toString()}`)
+      console.warn('[InterfaceNav] Sync actions not available - tab switch may not work')
     }
-  }, [syncedInterfaceUIActions, searchParams, navigateTab])
+  }, [syncedInterfaceUIActions])
   
   const handleCreateTab = useCallback(async (tabName: string, tabIcon?: string) => {
     if (!interfaceId) throw new Error('No active interface')

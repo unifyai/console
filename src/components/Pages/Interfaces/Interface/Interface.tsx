@@ -109,9 +109,10 @@ const Interface = ({
 }: InterfaceComponentProps) => {
 
   const router = useRouter();
-  // Query params - no more tab param needed
+  // Query params - project/interface use deep routing (trigger server), tab uses shallow (client-only)
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
+  const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: true });  // Shallow for instant switching
   const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
   const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
   const [noticeParam, setNoticeParam] = useQueryState("notice", { shallow: false });
@@ -211,17 +212,22 @@ const Interface = ({
   
   // Bootstrap batch for project change
   const { data: bootstrapData } = useQuery({
-    queryKey: ['bootstrap', projectQueryParam, bootstrapRetryToken],
+    queryKey: ['bootstrap', projectQueryParam],  // Removed bootstrapRetryToken to prevent unnecessary refetches
     queryFn: async () => {
       if (!projectQueryParam) return null;
       const res = await fetch(`/api/bootstrap?project=${encodeURIComponent(projectQueryParam)}`);
-      if (!res.ok) throw new Error('Failed to bootstrap');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || 'Failed to bootstrap');
+      }
       return res.json();
     },
     enabled: !!projectQueryParam,
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    retry: 1,
+    staleTime: 5 * 60 * 1000,  // 5 minutes - bootstrap data doesn't change often
+    gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache longer
+    refetchOnMount: false,       // Don't refetch if we have cached data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    retry: 2,                    // Retry twice on failure
   });
 
   // Warm caches after bootstrap
@@ -327,7 +333,21 @@ const Interface = ({
   const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
   const activeTabName = activeTab?.name || null;
-  const setTabQueryParamFromSync = syncedInterfaceUIActions?.setActiveTab || (() => {});
+  
+  // Wrapper that updates both Zustand store AND URL (shallow)
+  const setTabQueryParamFromSync = useCallback((tabName: string | null) => {
+    if (tabName && syncedInterfaceUIActions?.setActiveTab) {
+      syncedInterfaceUIActions.setActiveTab(tabName);
+    }
+    setTabQueryParam(tabName);  // Update URL with shallow routing (no server re-render)
+  }, [syncedInterfaceUIActions, setTabQueryParam]);
+
+  // Sync URL when active tab changes in store (e.g. from sidebar navigation)
+  useEffect(() => {
+    if (activeTabName && activeTabName !== tabQueryParam) {
+      setTabQueryParam(activeTabName);
+    }
+  }, [activeTabName, tabQueryParam, setTabQueryParam]);
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -382,9 +402,9 @@ const Interface = ({
     },
     {
       enableNonActivePrefetch: !isSwitchingInterface,
-      prefetchMode: 'light',
+      prefetchMode: 'full',  // Prefetch complete data so tabs are ready
       deferMs: 1200,
-      concurrency: 1,
+      concurrency: 2,  // Prefetch 2 tabs concurrently
     }
   );
 

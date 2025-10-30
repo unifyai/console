@@ -85,7 +85,7 @@ export function useTabStreamingQuery(
   } = options || {};
 
   // Get all tabs for the interface via API route (cancelable + cacheable)
-  const { data: allTabs = [] } = useQuery<TabData[]>({
+  const { data: allTabsData = [] } = useQuery<TabData[]>({
     queryKey: ["tabs", interfaceId],
     queryFn: async ({ signal }) => {
       try {
@@ -113,6 +113,9 @@ export function useTabStreamingQuery(
     refetchOnReconnect: false,
     refetchInterval: false,
   });
+  
+  // Ensure allTabs is always an array, even if query fails and returns error object
+  const allTabs = useMemo(() => Array.isArray(allTabsData) ? allTabsData : [], [allTabsData]);
 
   // Debounce active tab to avoid firing on rapid switches
   const [stableActiveTabName, setStableActiveTabName] = useState<string | null>(activeTabName ?? null);
@@ -166,7 +169,7 @@ export function useTabStreamingQuery(
           refetchContexts: false,
           refetchFields: true,
           updateCache: true,
-          skipTileData: true,
+          skipTileData: false,  // Load full data for active tab
           signal: signal as AbortSignal,
         }
       );
@@ -412,8 +415,8 @@ export function useTabStreamingQuery(
                 refetchContexts: false,
                 refetchFields: true,
                 updateCache: true,
-                skipTileData: true,
-                listTiles: false,
+                skipTileData: false,  // Load full data for manual prefetch too
+                listTiles: true,
               }
             );
 

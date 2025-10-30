@@ -85,7 +85,7 @@ const InterfaceTabs = ({
     
     // Use React Query to fetch contexts
     const listContextsQuery = useListContextsQuery(project || null, contextActions);
-    const contexts = listContextsQuery.data || [];
+    const contexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
 
     // Streaming integration for instant tab switching (when enabled)
     const { prefetchedTabs } = useTabStreamingQuery(
