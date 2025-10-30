@@ -45,36 +45,22 @@ export function useTabRouterRefresh(
         externalPendingSetters = [] 
       } = opts;
       
-      counter.current += 1;
+      console.log('[useTabRouterRefresh] ⚠️ Router refresh disabled - using optimistic updates only');
+      
+      // DISABLED: router.refresh() triggers expensive RSC refetches
+      // With optimistic updates + React Query, we don't need server re-renders
+      // Just clear the pending states immediately
+      if (clearPending) uiActions?.setPending(false);
+      if (clearDataPending) uiActions?.setDataPending(false);
 
-      startTransition(() => {
-        router.refresh();
-      });
-
-      // react-18: a micro-task after *every* transition flush
-      Promise.resolve().then(() => {
-        if (!isPending) {
-          counter.current -= 1;
-
-          if (counter.current === 0) {
-            // Add a short delay before clearing UI states for smoother transitions
-            setTimeout(() => {
-              // last one finished – clear the requested flags
-              if (clearPending) uiActions?.setPending(false);
-              if (clearDataPending) uiActions?.setDataPending(false);
-
-              // Clear external pending states if provided
-              if (externalPendingSetters && externalPendingSetters.length > 0) {
-                for (const setter of externalPendingSetters) {
-                  setter(false);
-                }
-              }
-            }, 300);
-          }
+      // Clear external pending states if provided
+      if (externalPendingSetters && externalPendingSetters.length > 0) {
+        for (const setter of externalPendingSetters) {
+          setter(false);
         }
-      });
+      }
     },
-    [router, isPending, uiActions]
+    [uiActions]
   );
 
   return refreshRouter;
