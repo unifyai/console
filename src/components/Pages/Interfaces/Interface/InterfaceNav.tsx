@@ -665,7 +665,7 @@ export default function InterfaceNav({
   }, [interfaceId])
   
   // Fetch tabs for the current interface using React Query
-  const { data: currentTabs = [], isLoading: tabsLoading, isFetching: tabsFetching, isError: tabsError, error: tabsErrorDetails, refetch: refetchTabs } = useQuery<ProjectTab[]>({
+  const { data: currentTabsData = [], isLoading: tabsLoading, isFetching: tabsFetching, isError: tabsError, error: tabsErrorDetails, refetch: refetchTabs } = useQuery<ProjectTab[]>({
     queryKey: ['tabs', interfaceId],
     queryFn: async () => {
       if (!interfaceId) return []
@@ -708,6 +708,9 @@ export default function InterfaceNav({
     retry: 3, // Retry failed requests 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   })
+  
+  // Ensure currentTabs is always an array, even if query returns error object  
+  const currentTabs = Array.isArray(currentTabsData) ? currentTabsData : [];
   
   // Tabs loading should check both isLoading (initial) and isFetching (refetch/retry)
   const loadingTabs = tabsLoading || tabsFetching

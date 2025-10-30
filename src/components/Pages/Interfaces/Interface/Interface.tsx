@@ -548,8 +548,8 @@ const Interface = ({
                 router.push(newUrl);
               }
             }
-          } else if (!isErrorInterfaces) {
-            // Explicitly empty and not an error => safe to create a default
+          } else if (!isErrorInterfaces && Array.isArray(projectInterfaces) && projectInterfaces.length === 0) {
+            // Explicitly empty array and not an error => safe to create a default
             setLoadingMessage('Creating default interface...');
             const newInterface = await interfaceActions.create(
               projectQueryParam,
@@ -565,7 +565,8 @@ const Interface = ({
               }
             }
           } else {
-            // Error fetching interfaces: do not auto-create; show selection overlay instead
+            // Error fetching interfaces OR invalid data: do not auto-create; show selection overlay instead
+            console.error('[Interface] Cannot auto-create - error state or invalid data:', { isErrorInterfaces, projectInterfaces });
             setIsSwitchingInterface(false);
             setSelectInterfaceParam('true');
           }
