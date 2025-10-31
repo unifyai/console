@@ -816,6 +816,15 @@ const Interface = ({
       );
     }
 
+    // Show loading state while tab is being fetched
+    if (tabStreamingQuery?.activeTab.isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <SkeletonLoader />
+        </div>
+      );
+    }
+
     // Check for streaming errors (ignore cancellation errors)
     if (tabStreamingQuery?.activeTab.isError) {
       const error = tabStreamingQuery.activeTab.error as any;
