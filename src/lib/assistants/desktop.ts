@@ -40,7 +40,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                     {
                         method: "GET",
                         headers: {
-                            apiKey: sharedUnifyKey
+                            apiKey: sharedUnifyKey // Use the shared key for the internal proxy request
                         },
                         cache: 'no-store'
                     },
@@ -49,6 +49,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
 
                 if (response.status === 404) {
                     if (attempt === MAX_LIVEVIEW_URL_RETRIES) {
+                        console.warn(`[getLiveviewUrl] Max retries reached. No active session found for assistant ${assistant_id} (404 Not Found).`);
                         return { detail: "No active session found for this assistant. Please try again in a moment." };
                     }
                     await sleep(LIVEVIEW_URL_RETRY_DELAY_MS);
@@ -85,6 +86,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                 }
             }
             
+            console.warn(`[getLiveviewUrl] No logs with a valid 'liveview_url' found for assistant ${assistant_id} after ${MAX_LIVEVIEW_URL_RETRIES} attempts. The assistant might still be starting up.`);
             return { detail: "Could not find an active remote control session. The assistant might still be starting up." };
 
         } catch (error) {

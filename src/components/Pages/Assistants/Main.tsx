@@ -154,6 +154,11 @@ export default function Main({
         isWaitingForAssistant,
         connectionError,
         retryConnection,
+        // Destructure new remote control state and functions
+        isRemoteControlActive,
+        liveviewUrl,
+        isRemoteControlLoading,
+        toggleRemoteControl,
     } = useAssistantCall(room, assistantActions);
     const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
     const [isCallMinimized, setIsCallMinimized] = React.useState(false);
@@ -643,6 +648,10 @@ export default function Main({
                         isWaitingForAssistant={isWaitingForAssistant}
                         connectionError={connectionError}
                         onRetry={retryConnection}
+                        isRemoteControlActive={isRemoteControlActive}
+                        liveviewUrl={liveviewUrl}
+                        isRemoteControlLoading={isRemoteControlLoading}
+                        toggleRemoteControl={toggleRemoteControl}
                     />
                     {isCallMinimized && (
                          <AssistantCommunicationMinimized

@@ -20,6 +20,12 @@ export function useAssistantCall(
     const [connectionError, setConnectionError] = React.useState<string | null>(null);
     const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
+    // --- Remote Control State (Moved from useAssistantDesktop) ---
+    const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
+    const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
+    const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
+
+
     const toggleSpeakerMute = React.useCallback(() => {
         setIsSpeakerMuted(prev => !prev);
     }, []);
@@ -30,6 +36,11 @@ export function useAssistantCall(
             assistantJoinTimeoutRef.current = null;
         }
     }, []);
+    
+    const stopRemoteControl = React.useCallback(() => {
+        setIsRemoteControlActive(false);
+        setLiveviewUrl(null);
+    }, []);
 
     const onDisconnected = React.useCallback(() => {
         setIsConnected(false);
@@ -39,8 +50,9 @@ export function useAssistantCall(
         setConnectionDetails(null);
         setActiveCallAssistant(null);
         setIsSpeakerMuted(false);
+        stopRemoteControl(); // Clean up remote control state
         clearAssistantJoinTimeout();
-    }, [clearAssistantJoinTimeout]);
+    }, [clearAssistantJoinTimeout, stopRemoteControl]);
 
     const connect = React.useCallback(async (assistant: Assistant) => {
         if (room.state !== 'disconnected') {
@@ -106,10 +118,11 @@ export function useAssistantCall(
     
     const disconnect = React.useCallback(async () => {
         clearAssistantJoinTimeout();
+        stopRemoteControl();
         if (room.state !== 'disconnected') {
             await room.disconnect();
         }
-    }, [room, clearAssistantJoinTimeout]);
+    }, [room, clearAssistantJoinTimeout, stopRemoteControl]);
 
     const retryConnection = React.useCallback(async () => {
         const assistantToRetry = activeCallAssistant;
@@ -125,6 +138,7 @@ export function useAssistantCall(
         setIsConnecting(false);
         setIsWaitingForAssistant(false);
         setConnectionError(null);
+        stopRemoteControl();
         clearAssistantJoinTimeout();
 
         // Re-attach the handler for subsequent, normal disconnects
@@ -132,7 +146,34 @@ export function useAssistantCall(
 
         // Start the connection process again with the same assistant
         connect(assistantToRetry);
-    }, [activeCallAssistant, room, connect, onDisconnected, clearAssistantJoinTimeout]);
+    }, [activeCallAssistant, room, connect, onDisconnected, clearAssistantJoinTimeout, stopRemoteControl]);
+
+    const toggleRemoteControl = React.useCallback(async () => {
+        if (!activeCallAssistant) return;
+
+        if (isRemoteControlActive) {
+            stopRemoteControl();
+            return;
+        }
+
+        setIsRemoteControlLoading(true);
+        const toastId = toast.loading("Starting remote control session...");
+        
+        try {
+            const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agent_id);
+            if (result.liveviewUrl) {
+                setLiveviewUrl(result.liveviewUrl);
+                setIsRemoteControlActive(true);
+                toast.success("Remote control session started.", { id: toastId });
+            } else {
+                 throw new Error("Could not retrieve session URL.");
+            }
+        } catch (e: any) {
+            toast.error(e.message, { id: toastId });
+        } finally {
+            setIsRemoteControlLoading(false);
+        }
+    }, [isRemoteControlActive, stopRemoteControl, assistantActions.desktop, activeCallAssistant]);
     
     React.useEffect(() => {
         const onParticipantConnected = () => {
@@ -162,5 +203,10 @@ export function useAssistantCall(
         isWaitingForAssistant,
         connectionError,
         retryConnection,
+        // Remote control exports
+        isRemoteControlActive,
+        liveviewUrl,
+        isRemoteControlLoading,
+        toggleRemoteControl,
     };
 }

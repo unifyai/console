@@ -17,7 +17,6 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { User } from 'next-auth';
 import { Button } from '@/components/UI/button';
-import { useAssistantDesktop } from '@/hooks/Assistants/useAssistantDesktop';
 
 interface AssistantCommunicationDialogContentProps {
     assistant: Assistant;
@@ -31,9 +30,29 @@ interface AssistantCommunicationDialogContentProps {
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
+    isRemoteControlActive: boolean;
+    liveviewUrl: string | null;
+    isRemoteControlLoading: boolean;
+    toggleRemoteControl: () => void;
 }
 
-const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ assistant, onHangUp, onMinimize, chatHistories, setChatHistories, assistantActions, isConnecting, userImage, isWaitingForAssistant, connectionError, onRetry }) => {
+const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ 
+    assistant, 
+    onHangUp, 
+    onMinimize, 
+    chatHistories, 
+    setChatHistories, 
+    assistantActions, 
+    isConnecting, 
+    userImage, 
+    isWaitingForAssistant, 
+    connectionError, 
+    onRetry,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
+}) => {
     const room = React.useContext(RoomContext);
     if (!room) throw new Error("AssistantCommunicationDialogContent must be used within a RoomContext");
 
@@ -42,20 +61,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     const micToggle = useTrackToggle({ source: Track.Source.Microphone });
     const camToggle = useTrackToggle({ source: Track.Source.Camera });
     const screenShareToggle = useTrackToggle({ source: Track.Source.ScreenShare });
-
-    const {
-        isRemoteControlActive,
-        liveviewUrl,
-        isLoading: isRemoteControlLoading,
-        toggleRemoteControl,
-        stopRemoteControl,
-    } = useAssistantDesktop({ desktopActions: assistantActions.desktop });
-
-    React.useEffect(() => {
-        return () => {
-            stopRemoteControl();
-        };
-    }, [stopRemoteControl]);
 
     const screenShareTracks = useTracks([Track.Source.ScreenShare]);
     const screenShareTrack = screenShareTracks?.[0];
@@ -267,7 +272,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onToggleTranscriptions={() => handleToggleSidePanel('transcriptions')}
                 isRemoteControlActive={isRemoteControlActive}
                 isRemoteControlLoading={isRemoteControlLoading}
-                onToggleRemoteControl={() => toggleRemoteControl(assistant.agent_id)}
+                onToggleRemoteControl={toggleRemoteControl}
             />
         </>
     );
@@ -287,6 +292,10 @@ interface AssistantCommunicationDialogProps {
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
+    isRemoteControlActive: boolean;
+    liveviewUrl: string | null;
+    isRemoteControlLoading: boolean;
+    toggleRemoteControl: () => void;
 }
 
 export function AssistantCommunicationDialog({
@@ -303,6 +312,10 @@ export function AssistantCommunicationDialog({
     isWaitingForAssistant,
     connectionError,
     onRetry,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
 }: AssistantCommunicationDialogProps) {
 
     if (!isOpen) return null;
@@ -326,6 +339,10 @@ export function AssistantCommunicationDialog({
                     isWaitingForAssistant={isWaitingForAssistant}
                     connectionError={connectionError}
                     onRetry={onRetry}
+                    isRemoteControlActive={isRemoteControlActive}
+                    liveviewUrl={liveviewUrl}
+                    isRemoteControlLoading={isRemoteControlLoading}
+                    toggleRemoteControl={toggleRemoteControl}
                 />
             </DialogContent>
         </Dialog>
