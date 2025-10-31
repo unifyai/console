@@ -606,30 +606,17 @@ const Interface = ({
   // Don't clean up selection params - they should persist until user makes a choice
   // This prevents auto-selection from re-triggering after deselection
 
-  // Safety timeout: hide switching overlay and cancel queries if navigation stalls
-  useEffect(() => {
-    if (!isSwitchingInterface) return;
-
-    const timer = setTimeout(() => {
-      // Invalidate any pending navigations
-      beginNavigation();
-
-      // Abort any long-running queries (network-level via AbortSignal in queryFns)
-      queryClient.cancelQueries({ predicate: (q: any) => {
-        const key0 = q.queryKey?.[0] as string;
-        return [
-          'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
-          'tabs', 'tiles', 'tab', 'tile', 'tabCompleteData', 'logs'
-        ].includes(key0);
-      }});
-      
-      // Hide the overlay and show an error
-      setIsSwitchingInterface(false);
-      showErrorToast('Navigation timed out. Please try again.', 'Failed to load the selected interface.');
-    }, 90000); // 90 seconds
-
-    return () => clearTimeout(timer);
-  }, [isSwitchingInterface, queryClient, beginNavigation]);
+  // NOTE: We intentionally do NOT have a UI-level navigation timeout here.
+  // Timeouts are managed at the request level (30-90s in API routes) where they
+  // can actually abort the HTTP requests. UI-level timeouts create false failures
+  // where the user sees "timeout" but the request completes anyway.
+  // 
+  // Proper error handling is implemented at each data layer:
+  // - Bootstrap: shows blocking error screen with retry button
+  // - Interface load: shows blocking error screen with retry button  
+  // - Tab load: shows inline error with retry button
+  //
+  // This approach ensures users only see real errors, not fake timeouts.
 
   // Function to hide overlay
   const hideOverlay = () => {
