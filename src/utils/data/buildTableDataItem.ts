@@ -220,6 +220,15 @@ export async function fetchAndBuildTableDataItem(
 
     logsData = await res.json();
   } catch (err: any) {
+    const errorMsg = err?.message || 'Failed to fetch logs';
+    console.error('[buildTableDataItem] Logs fetch failed:', {
+      tileId: tile.id,
+      tileName: tile.name,
+      error: errorMsg,
+      statusCode: err?.status,
+      isTimeout: errorMsg.includes('timeout') || errorMsg.includes('504')
+    });
+    
     // Gracefully surface a minimal item so the tile can display Retry
     return {
       columnContexts: [],
@@ -230,7 +239,7 @@ export async function fetchAndBuildTableDataItem(
       logs: [],
       params: {} as any,
       isLoading: false,
-      error: err?.message || 'Failed to fetch logs',
+      error: errorMsg,
       newCells: [],
     } as TableDataItem;
   }

@@ -477,8 +477,16 @@ const Interface = ({
 
   // Track tab switching state for loading overlay
   useEffect(() => {
+    console.log('[TAB SWITCH] URL param changed:', {
+      tabQueryParam,
+      activeTabName,
+      needsSwitch: tabQueryParam && activeTabName !== tabQueryParam,
+      willShowOverlay: tabQueryParam && activeTabName !== tabQueryParam
+    });
+    
     // Show loading when tab query param changes but active tab hasn't switched yet
     if (tabQueryParam && activeTabName !== tabQueryParam) {
+      console.log('[TAB SWITCH] Setting isSwitchingTab = true');
       setIsSwitchingTab(true);
     }
   }, [tabQueryParam, activeTabName]);
@@ -488,7 +496,17 @@ const Interface = ({
     const isReady = tabStreamingQuery?.activeTab.data && !tabStreamingQuery.activeTab.isLoading;
     const hasError = tabStreamingQuery?.activeTab.isError;
     
+    console.log('[TAB SWITCH] Data state changed:', {
+      hasData: !!tabStreamingQuery?.activeTab.data,
+      isLoading: tabStreamingQuery?.activeTab.isLoading,
+      isError: tabStreamingQuery?.activeTab.isError,
+      isReady,
+      hasError,
+      willHideOverlay: isReady || hasError
+    });
+    
     if (isReady || hasError) {
+      console.log('[TAB SWITCH] Setting isSwitchingTab = false');
       setIsSwitchingTab(false);
     }
   }, [tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.isError]);
@@ -808,7 +826,18 @@ const Interface = ({
 
   // Render the active tab based on streaming query - memoized to prevent infinite loops
   const renderActiveTab = useCallback(() => {
+    console.log('[TAB RENDER] renderActiveTab called:', {
+      activeTabId,
+      activeTabName,
+      projectQueryParam,
+      hasStreamingQuery: !!tabStreamingQuery,
+      streamingData: !!tabStreamingQuery?.activeTab.data,
+      streamingLoading: tabStreamingQuery?.activeTab.isLoading,
+      streamingError: tabStreamingQuery?.activeTab.isError
+    });
+    
     if (!activeTabId || !projectQueryParam) {
+      console.log('[TAB RENDER] No activeTabId or project - showing "select tab" message');
       return (
         <div className="flex items-center justify-center h-full">
           Please select a tab
@@ -818,6 +847,7 @@ const Interface = ({
 
     // Show loading state while tab is being fetched
     if (tabStreamingQuery?.activeTab.isLoading) {
+      console.log('[TAB RENDER] Tab is loading - showing skeleton');
       return (
         <div className="flex items-center justify-center h-full">
           <SkeletonLoader />
@@ -876,6 +906,7 @@ const Interface = ({
     // Check if we have tab data - if not, show helpful message
     const tabData = tabStreamingQuery?.activeTab.data;
     if (!tabData && !tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.isError) {
+      console.log('[TAB RENDER] No tab data - showing "No Tab Data" screen');
       return (
         <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
           <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
@@ -906,6 +937,12 @@ const Interface = ({
       );
     }
 
+    console.log('[TAB RENDER] Rendering Tab component with data:', {
+      tabDataExists: !!tabData,
+      tileCount: tabData?.tilesData?.length || 0,
+      tabName: activeTabName
+    });
+    
     return (
       <div className="w-full h-full">
         <Suspense fallback={

@@ -180,8 +180,19 @@ const LogsTable = ({
   } = tableDataItem;
 
   // Show error UI if data fetch failed
+  console.log('[TILE ERROR CHECK]', {
+    tileId,
+    tileName,
+    hasError: !!error,
+    errorType: typeof error,
+    errorValue: error,
+    isLoading: isTableDataLoading,
+    willShowErrorUI: error && typeof error === 'string' && !isTableDataLoading
+  });
+  
   if (error && typeof error === 'string' && !isTableDataLoading) {
     const isTimeout = error.includes('timeout') || error.includes('504');
+    console.log('[TILE ERROR] Showing error UI for tile:', { tileId, tileName, error, isTimeout });
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
         <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -199,6 +210,7 @@ const LogsTable = ({
         </div>
         <Button 
           onClick={() => {
+            console.log('[TILE ERROR] Retry button clicked - invalidating caches');
             // Invalidate both the table data and fields cache to force a fresh fetch
             queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
             queryClient.invalidateQueries({ queryKey: ['fields', projectId, item?.context ?? null] });
