@@ -18,6 +18,10 @@ export function useListTabsQuery(
       return actions.list(interface_id);
     },
     enabled: !!interface_id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false, // Don't refetch on network reconnect
   });
 }
 

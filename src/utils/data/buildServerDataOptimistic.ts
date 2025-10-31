@@ -206,7 +206,7 @@ export async function buildOptimisticPlotDataItem(
   fieldsArray: LogFieldsResponseProps[],
   options: OptimisticUpdateOptions = {}
 ): Promise<PlotDataItem> {
-  const { queryClient, projectId } = dependencies;
+  const { queryClient, projectId, signal } = dependencies;
   const { updateCache = true } = options;
 
   // Check cache first
@@ -222,7 +222,8 @@ export async function buildOptimisticPlotDataItem(
     plotArguments,
     fieldsArray,
     projectId,
-    null as any // logsActions no longer used - kept for signature compatibility
+    null as any, // logsActions no longer used - kept for signature compatibility
+    signal
   );
 
   // Update cache

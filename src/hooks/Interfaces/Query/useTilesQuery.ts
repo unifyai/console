@@ -21,6 +21,10 @@ export function useListTilesQuery(
       return actions.list(tab_id, type || undefined);
     },
     enabled: !!tab_id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false, // Don't refetch on network reconnect
   });
 }
 

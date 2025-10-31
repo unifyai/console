@@ -3,6 +3,7 @@ import _ from "lodash";
 import { formatNumber } from "./formatNumber";
 import { processContext } from "./table/columnOperations";
 import { LogsActions, TableGroupedMetrics } from "@/types/interfaces/grid";
+import { sanitizeKey } from "@/app/(home)/interfaces/utils";
 import { Row } from "@tanstack/react-table";
 import { maybeConvertRawToGroupedLogs } from "./table/grouping";
 import { TreeNode } from "@/types/common";
@@ -158,10 +159,11 @@ export const getColumnMetrics = async (
   
   // Call API route directly instead of server action
   const metricName = metric ? metric : "mean";
+  const sanitizedColumns = fullColumns.map(sanitizeKey);
   const params = new URLSearchParams();
   params.set('project', project!);
   if (context) params.set('context', context);
-  params.set('key', JSON.stringify(fullColumns));
+  params.set('key', JSON.stringify(sanitizedColumns));
   if (filterExpression) params.set('filter_expr', filterExpression);
   if (groupingExpression) params.set('group_by', JSON.stringify(groupingExpression.split(",")));
   

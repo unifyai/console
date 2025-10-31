@@ -3,6 +3,7 @@ import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, Gro
 import { LogsActions } from "@/types/interfaces/grid";
 import { processContext } from "@/utils/interfaces/table/columnOperations";
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/interfaces/common";
+import { sanitizeKey } from "@/app/(home)/interfaces/utils";
 
 /**
  * Debug flag for performance logging
@@ -29,7 +30,8 @@ export async function buildPlotDataItem(
   plotArguments: PlotArguments, 
   fields: LogFieldsResponseProps[],
   projectId: string,
-  logsActions: LogsActions
+  logsActions: LogsActions,
+  signal?: AbortSignal
 ): Promise<PlotDataItem> {
   // Identify which tables are used in this plot by name
   const usedTableNames = getUsedTableNames(plotTile);
@@ -47,7 +49,8 @@ export async function buildPlotDataItem(
     fields,
     plotFields,
     projectId,
-    logsActions
+    logsActions,
+    signal
   );
   const tFetchPlotDataByTableEnd = performance.now();
   perfLog(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
@@ -148,7 +151,8 @@ async function fetchPlotDataByTable(
   fields: LogFieldsResponseProps[],
   plotFields: LogFieldsResponseProps,
   projectId: string,
-  logsActions: LogsActions
+  logsActions: LogsActions,
+  signal?: AbortSignal
 ) {
   const plotDataPromises = usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
@@ -206,7 +210,7 @@ async function fetchPlotDataByTable(
         
         // Call API route directly instead of server action
         const metricName = metric ? metric : "mean";
-        const keyNames = subset ? subset.split("&") : [];
+        const keyNames = subset ? subset.split("&").map(sanitizeKey) : [];
         const params = new URLSearchParams();
         params.set('project', projectId);
         if (context) params.set('context', context);
@@ -216,6 +220,7 @@ async function fetchPlotDataByTable(
         
         const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
           method: 'GET',
+          signal: signal as AbortSignal,
           cache: 'no-store',
         });
         
@@ -246,6 +251,7 @@ async function fetchPlotDataByTable(
 
         const logsRes = await fetch(`/api/logs?${params.toString()}`, {
           method: 'GET',
+          signal: signal as AbortSignal,
           cache: 'no-store',
         });
         
