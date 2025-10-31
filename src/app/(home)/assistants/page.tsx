@@ -18,6 +18,7 @@ import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
 import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
 import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
+import { getLiveviewUrl } from "@/lib/assistants/desktop";
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
     const user = await getCurrentUser();
@@ -82,6 +83,9 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         "call": {
             getConnectionDetails: await getCallConnectionDetails(apiKey),
             dispatchToCall: await dispatchAssistantToCall(apiKey),
+        },
+        "desktop": {
+            getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
         }
     }
 
