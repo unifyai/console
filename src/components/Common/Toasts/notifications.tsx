@@ -68,13 +68,27 @@ export const showErrorToast = (
   id?: string | number
 ) => {
   const errorMessage = (error as Error)?.message || '';
+  
+  // Ignore cancellations (these are expected, not errors)
   if ((error as Error).name === 'AbortError' || errorMessage.includes('Connection closed')) {
     return;
   }
+  
   console.error("API Error:", error);
 
   let message = defaultMessage;
-  if (error instanceof Error) {
+  let title = "Error";
+  
+  // Special handling for timeout errors (504 Gateway Timeout)
+  if (errorMessage.includes('timeout') || errorMessage.includes('504')) {
+    title = "Request Timeout";
+    // Check if it's an upstream timeout from our API routes
+    if (errorMessage.includes('Upstream timeout')) {
+      message = "The server is taking longer than usual. This may indicate Orchestra is under heavy load.";
+    } else {
+      message = errorMessage || "The request timed out. Please try again.";
+    }
+  } else if (error instanceof Error) {
     if (error.message.includes("Failed to fetch")) {
       message = "Network request failed. Please check your connection.";
     } else {
@@ -89,13 +103,13 @@ export const showErrorToast = (
         <CustomToast
             id={toastId}
             Icon={Info}
-            title="Error"
+            title={title}
             description={message}
         />
     ),
     {
         id,
-        duration: 4000,
+        duration: errorMessage.includes('timeout') || errorMessage.includes('504') ? 6000 : 4000, // Longer duration for timeouts
         className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
     }
   ));

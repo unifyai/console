@@ -178,7 +178,7 @@ const Interface = ({
   
   // Auto-select interface when none is specified
   const shouldAutoSelectInterface = !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
-  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces, isError: isErrorInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
+  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces, isError: isErrorInterfaces, error: interfacesError, refetch: refetchInterfaces } = useListInterfacesQuery(
     shouldAutoSelectInterface ? projectQueryParam : null,
     interfaceActions
   );
@@ -290,6 +290,32 @@ const Interface = ({
   const interfacesForSelection = currentProjectData?.interfaces || [];
   const isLoadingInterfacesForSelection = showInterfaceSelection && safeProjectTree.length === 0;
 
+  // Show toast notification for project tree errors (non-blocking, for dropdowns)
+  const projectTreeErrorShownRef = useRef(false);
+  useEffect(() => {
+    if (isProjectTreeError && !projectTreeErrorShownRef.current) {
+      projectTreeErrorShownRef.current = true;
+      const errorMsg = (projectTreeErrorObj as any)?.message || '';
+      
+      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
+        showErrorToast(
+          'Project tree timed out',
+          'Project/interface selection may be limited until this resolves.'
+        );
+      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
+        showErrorToast(
+          'Failed to load project tree',
+          'Project/interface selection may be limited.'
+        );
+      }
+    }
+    
+    // Reset on success
+    if (!isProjectTreeError && projectTreeErrorShownRef.current) {
+      projectTreeErrorShownRef.current = false;
+    }
+  }, [isProjectTreeError, projectTreeErrorObj]);
+
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
     setIsSwitchingInterface(false);
@@ -302,6 +328,35 @@ const Interface = ({
     // Reset failure count when the project changes
     setInterfaceLoadFailures(0);
    }, [projectQueryParam]);  
+
+  // Show toast notification for interface list errors (timeout-aware)
+  const interfacesErrorShownRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isErrorInterfaces && projectQueryParam) {
+      const errorKey = `${projectQueryParam}-interfaces`;
+      if (interfacesErrorShownRef.current === errorKey) return;
+      
+      interfacesErrorShownRef.current = errorKey;
+      const errorMsg = (interfacesError as any)?.message || '';
+      
+      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
+        showErrorToast(
+          'Interface list timed out',
+          'Orchestra is taking longer than usual to respond. Retrying automatically...'
+        );
+      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
+        showErrorToast(
+          'Failed to load interfaces',
+          errorMsg || 'Unable to fetch interface list.'
+        );
+      }
+    }
+    
+    // Reset on project change or success
+    if (!isErrorInterfaces || !projectQueryParam) {
+      interfacesErrorShownRef.current = null;
+    }
+  }, [isErrorInterfaces, projectQueryParam, interfacesError]);
 
   useEffect(() => {
     // Trigger tab bar entrance animation after mount

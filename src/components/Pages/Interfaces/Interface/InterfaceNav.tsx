@@ -697,6 +697,32 @@ export default function InterfaceNav({
     return Array.isArray(currentTabsData) ? currentTabsData : [];
   }, [currentTabsData]);
   
+  // Show toast notification for tab list errors (timeout-aware)
+  const tabsErrorShownRef = useRef(false);
+  useEffect(() => {
+    if (tabsError && !tabsErrorShownRef.current) {
+      tabsErrorShownRef.current = true;
+      const errorMsg = (tabsErrorDetails as any)?.message || '';
+      
+      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
+        showErrorToast(
+          'Tab list timed out',
+          'The server took too long to load tabs. Retrying automatically...'
+        );
+      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
+        showErrorToast(
+          'Failed to load tabs',
+          errorMsg || 'Unable to fetch tab list.'
+        );
+      }
+    }
+    
+    // Reset on success
+    if (!tabsError && tabsErrorShownRef.current) {
+      tabsErrorShownRef.current = false;
+    }
+  }, [tabsError, tabsErrorDetails]);
+  
   // Tabs loading should check both isLoading (initial) and isFetching (refetch/retry)
   const loadingTabs = tabsLoading || tabsFetching
   
