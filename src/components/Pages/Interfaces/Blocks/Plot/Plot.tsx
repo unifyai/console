@@ -91,6 +91,39 @@ const LogsPlot = ({
     // Init logs and handle local updates
     const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
 
+    // Show error UI if data fetch failed
+    const plotError = (plotDataItem as any)?.error;
+    if (plotError && typeof plotError === 'string' && !isPlotDataLoading) {
+        const isTimeout = plotError.includes('timeout') || plotError.includes('504');
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 className="text-h4 mb-2">Failed to Load Plot Data</h3>
+                    <p className="text-body text-muted-foreground max-w-md">
+                        {isTimeout 
+                            ? 'The request timed out. Orchestra may be under heavy load or experiencing issues.'
+                            : plotError}
+                    </p>
+                </div>
+                <Button 
+                    onClick={() => {
+                        // Invalidate plot data to force a fresh fetch
+                        queryClient.invalidateQueries({ queryKey: ['plotDataItem', tileId] });
+                        // Also invalidate related table data that the plot depends on
+                        queryClient.invalidateQueries({ queryKey: ['fields', projectId] });
+                    }}
+                >
+                    Retry Loading Data
+                </Button>
+            </div>
+        );
+    }
+
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);
     let containerRef = useRef<HTMLDivElement>(null);

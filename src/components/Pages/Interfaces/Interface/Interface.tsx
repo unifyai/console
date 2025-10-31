@@ -119,6 +119,7 @@ const Interface = ({
   const [missingParam, setMissingParam] = useQueryState("missing", { shallow: false });
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
+  const [isSwitchingTab, setIsSwitchingTab] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   const [interfaceLoadFailures, setInterfaceLoadFailures] = useState(0);
@@ -473,6 +474,24 @@ const Interface = ({
       concurrency: 2,  // Prefetch 2 tabs concurrently
     }
   );
+
+  // Track tab switching state for loading overlay
+  useEffect(() => {
+    // Show loading when tab query param changes but active tab hasn't switched yet
+    if (tabQueryParam && activeTabName !== tabQueryParam) {
+      setIsSwitchingTab(true);
+    }
+  }, [tabQueryParam, activeTabName]);
+
+  // Hide loading when tab data is ready or errors
+  useEffect(() => {
+    const isReady = tabStreamingQuery?.activeTab.data && !tabStreamingQuery.activeTab.isLoading;
+    const hasError = tabStreamingQuery?.activeTab.isError;
+    
+    if (isReady || hasError) {
+      setIsSwitchingTab(false);
+    }
+  }, [tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.isError]);
 
   // Sidebar state for proper positioning
   const isMobile = useIsMobile();
@@ -1622,6 +1641,19 @@ const Interface = ({
             status={overlayState.status}
             onComplete={hideOverlay}
           />
+
+          {/* Tab Switching Overlay */}
+          {isSwitchingTab && (
+            <div 
+              className="absolute inset-0 bg-background/60 backdrop-blur-sm z-40 flex items-center justify-center"
+              style={{ left: 'var(--interface-nav-width, 256px)' }}
+            >
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="text-body text-muted-foreground">Loading tab...</div>
+              </div>
+            </div>
+          )}
         </Suspense>
 
         {/* Bootstrap/global fetch error overlay */}
