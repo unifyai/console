@@ -116,8 +116,15 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         rename: await files.renameFile(apiKey, userId),
     };
 
-    // Favourites actions
-    const initialFavourites = await favourites.getFavourites(apiKey);
+    // Favourites actions - gracefully handle failures
+    let initialFavourites = [];
+    try {
+        initialFavourites = await favourites.getFavourites(apiKey);
+    } catch (error) {
+        console.error('[InterfacesPage] Failed to fetch favourites:', error);
+        // Continue without favourites rather than crashing the page
+    }
+    
     const favouritesActions = {
         create: await favourites.createFavourite(apiKey),
         delete: await favourites.deleteFavourite(apiKey),
