@@ -1429,23 +1429,19 @@ export default function InterfaceNav({
     }
   }
   
+  // Load interface color from currentInterface (no server action needed - data already available)
   useEffect(() => {
-    const loadInterfaceColor = async () => {
-      if (!interfaceId) return
-      try {
-        const iface = await interfaceActions.get({ interface_id: interfaceId })
-        if (iface && typeof iface.color === 'string' && iface.color.trim() !== '') {
-          setThemeColor(iface.color.trim())
-        } else {
-          setThemeColor('')
-        }
-      } catch (err) {
-        console.error('Failed to fetch interface colour', err)
-      }
+    if (!currentInterface) {
+      setThemeColor('');
+      return;
     }
-
-    loadInterfaceColor()
-  }, [interfaceId, interfaceActions])
+    
+    if (typeof currentInterface.color === 'string' && currentInterface.color.trim() !== '') {
+      setThemeColor(currentInterface.color.trim());
+    } else {
+      setThemeColor('');
+    }
+  }, [currentInterface])
   
   useEffect(() => {
     if (typeof window === 'undefined') return
