@@ -27,8 +27,6 @@ export async function fetchOrBuildProjectsAndContexts(
   projectId: string,
   refetchProjects: boolean,
   refetchContexts: boolean,
-  projectsActions: ProjectsActions,
-  contextActions: ContextActions,
   signal?: AbortSignal,
 ) {
     let projects: string[] = [];
@@ -114,7 +112,6 @@ export async function fetchOrBuildFields(
   tiles: TileData[],
   projectId: string,
   refetchFields: boolean,
-  fieldsActions: FieldsActions,
   signal?: AbortSignal,
 ) {
   if (refetchFields) {
@@ -172,9 +169,7 @@ export async function fetchOrBuildProjectsContextsFields(
   refetchProjects: boolean,
   refetchContexts: boolean,
   refetchFields: boolean,
-  projectsActions: ProjectsActions,
-  contextActions: ContextActions,
-  fieldsActions: FieldsActions,
+  signal?: AbortSignal,
 ) {
   const tStart = performance.now();
   const { projects, contexts } = await fetchOrBuildProjectsAndContexts(
@@ -182,8 +177,7 @@ export async function fetchOrBuildProjectsContextsFields(
     projectId,
     refetchProjects,
     refetchContexts,
-    projectsActions,
-    contextActions
+    signal
   );
   perfLog(
     `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildProjectsAndContexts: ${(
@@ -196,7 +190,7 @@ export async function fetchOrBuildProjectsContextsFields(
     tiles,
     projectId,
     refetchFields,
-    fieldsActions
+    signal
   );
   perfLog(
     `[perf] fetchOrBuildProjectsContextsFields – fetchOrBuildFields: ${(

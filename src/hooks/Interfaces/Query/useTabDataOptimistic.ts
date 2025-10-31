@@ -194,15 +194,11 @@ export function useTabDataOptimistic() {
         } as CompleteTabData;
       }
 
-      // Create shared dependencies object
+      // Create shared dependencies object (actions removed - now using API routes)
       const dependencies: OptimisticUpdateDependencies = {
         queryClient,
         projectId,
         tabId: finalTabId,
-        projectsActions: actions.projectsActions,
-        contextActions: actions.contextActions,
-        fieldsActions: actions.fieldsActions,
-        logsActions: actions.logsActions,
         signal,
       };
 

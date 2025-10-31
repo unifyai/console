@@ -196,9 +196,7 @@ export function usePatchTileQueryOptimistic() {
         queryClient,
         projectId,
         refetchProjects,
-        refetchContexts,
-        projectsActions,
-        contextActions
+        refetchContexts
       );
       perfLog(
         `[perf] onMutate(${name}) – fetchOrBuildProjectsAndContexts: ${(
@@ -235,8 +233,7 @@ export function usePatchTileQueryOptimistic() {
         queryClient,
         tableTilesData,
         projectId,
-        refetchFields,
-        fieldsActions
+        refetchFields
       );
       perfLog(
         `[perf] onMutate(${name}) – fetchOrBuildFields: ${(

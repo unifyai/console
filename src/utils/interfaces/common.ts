@@ -155,9 +155,27 @@ export const getColumnMetrics = async (
   let fullColumns = columns
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
-  return await logsActions.getMetrics(
-    project!, context!, filterExpression, groupingExpression, metric ? metric : "mean", fullColumns
-  );
+  
+  // Call API route directly instead of server action
+  const metricName = metric ? metric : "mean";
+  const params = new URLSearchParams();
+  params.set('project', project!);
+  if (context) params.set('context', context);
+  params.set('key', JSON.stringify(fullColumns));
+  if (filterExpression) params.set('filter_expr', filterExpression);
+  if (groupingExpression) params.set('group_by', JSON.stringify(groupingExpression.split(",")));
+  
+  const res = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: `Metrics ${res.status}` }));
+    throw new Error(errorData.detail || `Failed to fetch metrics: ${res.status}`);
+  }
+  
+  return res.json();
 }
 
 export const getLogsDetails = async (

@@ -111,8 +111,8 @@ export function useTabStreamingQuery(
       }
     },
     enabled: !!interfaceId,
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 2 * 60 * 1000, // 2 minutes - tabs list
+    gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

@@ -183,28 +183,42 @@ export async function fetchAndBuildTableDataItem(
   const tGetLogs = performance.now();
   let logsData: LogsResponseProps;
   try {
-    // Single-attempt fetch; upstream timeouts are handled by the route AbortController as well
-    logsData = await logsActions.get(
-      projectId,
-      tile.context || null,
-      tile.column_context || null,
-      filterExpression,
-      sortingExpression,
-      groupingExpression,
-      groupSortingExpression,
-      null,
-      null,
-      null,
-      useGroupPagination ? null : limit, // Regular limit (not used for groups)
-      useGroupPagination ? null : offset, // Regular offset (not used for groups)
-      useGroupPagination ? group_limit : null, // Group limit (used for groups)
-      useGroupPagination ? group_offset : null, // Group offset (used for groups)
-      useGroupPagination ? 0 : null, // Group depth (used for groups)
-      null,
-      null,
-      null,
-      signal
-    );
+    // Call API route directly instead of server action to avoid POST /interfaces spam
+    // Build query string with all parameters
+    const params = new URLSearchParams();
+    params.set('project', projectId);
+    if (tile.context) params.set('context', tile.context);
+    if (tile.column_context) params.set('column_context', tile.column_context);
+    if (filterExpression) params.set('filter_expr', filterExpression);
+    if (sortingExpression) params.set('sorting', sortingExpression);
+    if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+    
+    // Handle grouping (can be multiple values)
+    if (groupingExpression) {
+      groupingExpression.split(",").forEach(expr => {
+        params.append('group_by', expr.trim());
+      });
+    }
+    
+    // Pagination params
+    if (!useGroupPagination && limit !== null) params.set('limit', limit.toString());
+    if (!useGroupPagination && offset !== null) params.set('offset', offset.toString());
+    if (useGroupPagination && group_limit !== null) params.set('group_limit', group_limit.toString());
+    if (useGroupPagination && group_offset !== null) params.set('group_offset', group_offset.toString());
+    if (useGroupPagination) params.set('group_depth', '0');
+
+    const res = await fetch(`/api/logs?${params.toString()}`, {
+      method: 'GET',
+      signal: signal as AbortSignal,
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: `Logs ${res.status}` }));
+      throw new Error(errorData.detail || `Failed to fetch logs: ${res.status}`);
+    }
+
+    logsData = await res.json();
   } catch (err: any) {
     // Gracefully surface a minimal item so the tile can display Retry
     return {

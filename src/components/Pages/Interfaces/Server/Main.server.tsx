@@ -138,12 +138,12 @@ export default async function Main({
   let interfaces: InterfaceData[] = [];
   if (currentProject) {
     await qc.prefetchQuery({
-      queryKey: ["interfaces", currentProject, false],
+      queryKey: ["interfaces", currentProject],
       queryFn: () => actions.interfaceActions.list(currentProject, false),
     });
 
     // Get interfaces from cache
-    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject, false]);
+    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject]);
     interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
     debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
   }

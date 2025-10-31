@@ -251,7 +251,6 @@ const Interface = ({
         queryClient.setQueryData(['projects', 'tree'], data.projectsTree);
       }
       if (Array.isArray(data.interfaces)) {
-        queryClient.setQueryData(['interfaces', projectQueryParam, false], data.interfaces);
         queryClient.setQueryData(['interfaces', projectQueryParam], data.interfaces);
       }
       if (Array.isArray(data.contexts)) {
@@ -281,8 +280,8 @@ const Interface = ({
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: true,
-    retry: false,
+    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
+    retry: 2, // Retry twice on failure
   });
   
   // Get interfaces from projectTree for selection screen (faster than separate API call)

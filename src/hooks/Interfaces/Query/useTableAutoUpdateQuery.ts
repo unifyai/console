@@ -78,10 +78,7 @@ export function useTableAutoUpdateQuery(
       projectId,
       false,
       true,
-      true,
-      projectsActions,
-      contextActions,
-      fieldsActions
+      true
     );
     perfLog(
       `[perf] useTableAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(

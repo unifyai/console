@@ -203,38 +203,57 @@ async function fetchPlotDataByTable(
         && grouping
       ) {
         const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(plotTile.plot_tile?.plot_aggregate.split(".")[1]) + 1);
-        const metrics = await logsActions.getMetrics(
-          projectId, 
-          context ?? null, 
-          filterExpression, 
-          groupFields.join(","), 
-          metric ? metric : "mean",
-          subset ? subset.split("&") : []
-        );
+        
+        // Call API route directly instead of server action
+        const metricName = metric ? metric : "mean";
+        const keyNames = subset ? subset.split("&") : [];
+        const params = new URLSearchParams();
+        params.set('project', projectId);
+        if (context) params.set('context', context);
+        params.set('key', JSON.stringify(keyNames));
+        if (filterExpression) params.set('filter_expr', filterExpression);
+        params.set('group_by', JSON.stringify(groupFields));
+        
+        const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        
+        if (!metricsRes.ok) {
+          throw new Error(`Failed to fetch metrics: ${metricsRes.status}`);
+        }
+        
+        const metrics = await metricsRes.json();
     
         data.logs = convertMetricsToLogs(
           groupFields, 
-          metric ? metric : "mean", 
+          metricName, 
           tableFields, 
           metrics as GroupedMetrics
         );
     
       }
       else if (subset) {
-        const rawData = await logsActions.get(
-          projectId, 
-          context ?? null, 
-          columnContext ?? null, 
-          filterExpression, 
-          null, null, null, null,
-          subset, 
-          null, 
-          1000,               // Limit to 1000 detapoints
-          null, null, null, null, null,
-          "True",             // Randomize
-          Date.now().toString()
-        );
+        // Call API route directly instead of server action
+        const params = new URLSearchParams();
+        params.set('project', projectId);
+        if (context) params.set('context', context);
+        if (columnContext) params.set('column_context', columnContext);
+        if (filterExpression) params.set('filter_expr', filterExpression);
+        if (subset) params.set('from_fields', subset);
+        params.set('limit', '1000');
+        params.set('randomize', 'True');
 
+        const logsRes = await fetch(`/api/logs?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        
+        if (!logsRes.ok) {
+          throw new Error(`Failed to fetch plot logs: ${logsRes.status}`);
+        }
+
+        const rawData = await logsRes.json();
         data = replaceParamsIndicesWithValues(rawData);
       }
     }

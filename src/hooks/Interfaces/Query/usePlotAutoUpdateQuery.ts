@@ -86,10 +86,7 @@ export function usePlotAutoUpdateQuery(
       projectId,
       false,
       true,
-      true,
-      projectsActions,
-      contextActions,
-      fieldsActions
+      true
     );
     perfLog(
       `[perf] usePlotAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(

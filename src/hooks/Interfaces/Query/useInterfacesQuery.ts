@@ -28,9 +28,12 @@ export function useListInterfacesQuery(
       return result as any[];
     },
     enabled: !!projectId,
-    retry: false,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2, // Retry twice on failure
     refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    refetchOnMount: false,
+    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
   });
 }
 

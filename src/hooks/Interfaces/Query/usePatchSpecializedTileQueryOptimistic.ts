@@ -158,9 +158,7 @@ T extends TileType
         queryClient,
         projectId,
         refetchProjects,
-        refetchContexts,
-        projectsActions,
-        contextActions
+        refetchContexts
       );
       const projects = projectsAndContexts.projects;
       const contexts = projectsAndContexts.contexts;
@@ -191,8 +189,7 @@ T extends TileType
         queryClient,
         tableTilesData,
         projectId,
-        refetchFields,
-        fieldsActions
+        refetchFields
       );
       
       // Get existing table and plot arguments from cache

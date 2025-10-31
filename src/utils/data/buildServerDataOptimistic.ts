@@ -26,15 +26,12 @@ import { IStoreState } from "@/contexts/store";
 
 /**
  * Common dependencies needed for optimistic updates
+ * Note: Actions removed - we now call API routes directly for reads
  */
 export type OptimisticUpdateDependencies = {
   queryClient: ReturnType<typeof useQueryClient>;
   projectId: string;
   tabId: string;
-  projectsActions: ProjectsActions;
-  contextActions: ContextActions;
-  fieldsActions: FieldsActions;
-  logsActions: LogsActions;
   signal?: AbortSignal;
 };
 
@@ -66,7 +63,7 @@ export async function fetchProjectsContextsFields(
   tableTilesData: TileData[],
   options: OptimisticUpdateOptions
 ): Promise<ProjectContextFieldsResult> {
-  const { queryClient, projectId, projectsActions, contextActions, fieldsActions, signal } = dependencies;
+  const { queryClient, projectId, signal } = dependencies;
   const { refetchProjects = false, refetchContexts = false, refetchFields = true } = options;
 
   // Build or fetch projects and contexts
@@ -75,8 +72,6 @@ export async function fetchProjectsContextsFields(
     projectId,
     refetchProjects,
     refetchContexts,
-    projectsActions,
-    contextActions,
     signal
   );
 
@@ -86,7 +81,6 @@ export async function fetchProjectsContextsFields(
     tableTilesData,
     projectId,
     refetchFields,
-    fieldsActions,
     signal
   );
 
@@ -153,7 +147,7 @@ export async function buildOptimisticTableDataItem(
   tableArguments?: TableArguments,
   options: OptimisticUpdateOptions = {}
 ): Promise<TableDataItem> {
-  const { queryClient, projectId, tabId, logsActions } = dependencies;
+  const { queryClient, projectId, tabId, signal } = dependencies;
   const { updateCache = true } = options;
 
   // Check cache first
@@ -165,16 +159,16 @@ export async function buildOptimisticTableDataItem(
   // At this point, there should be no infinite query keys for this tile
   const infiniteQueryKeys: string[] = [];
 
-  // Build table data item using existing utility
+  // Build table data item using existing utility (logsActions no longer needed - uses API routes)
   const tableDataItem = await fetchAndBuildTableDataItem(
     tileData,
     fields,
     projectId,
-    logsActions,
+    null as any, // logsActions no longer used - kept for signature compatibility
     queryClient,
     infiniteQueryKeys,
     undefined, // previousLogs
-    undefined, // signal
+    signal,
   );
 
   // Update available fields in the tableArguments (if we have tableArguments for this tile)
@@ -212,7 +206,7 @@ export async function buildOptimisticPlotDataItem(
   fieldsArray: LogFieldsResponseProps[],
   options: OptimisticUpdateOptions = {}
 ): Promise<PlotDataItem> {
-  const { queryClient, projectId, logsActions } = dependencies;
+  const { queryClient, projectId } = dependencies;
   const { updateCache = true } = options;
 
   // Check cache first
@@ -221,14 +215,14 @@ export async function buildOptimisticPlotDataItem(
     return cachedPlotDataItem;
   }
 
-  // Build plot data item using existing utility
+  // Build plot data item using existing utility (logsActions no longer needed - uses API routes)
   const plotDataItem = await buildPlotDataItem(
     tileData,
     tableTiles,
     plotArguments,
     fieldsArray,
     projectId,
-    logsActions
+    null as any // logsActions no longer used - kept for signature compatibility
   );
 
   // Update cache
