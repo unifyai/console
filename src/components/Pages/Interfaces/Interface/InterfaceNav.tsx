@@ -1429,19 +1429,41 @@ export default function InterfaceNav({
     }
   }
   
-  // Load interface color from currentInterface (no server action needed - data already available)
+  // Load interface color via React Query (not server action)
   useEffect(() => {
-    if (!currentInterface) {
-      setThemeColor('');
-      return;
+    const loadInterfaceColor = async () => {
+      if (!interfaceId) {
+        setThemeColor('');
+        return;
+      }
+      
+      try {
+        // Check if interface data is in the cache first
+        const cachedInterface = queryClient.getQueryData(['interface-by-id', interfaceId]) as any;
+        if (cachedInterface && typeof cachedInterface.color === 'string') {
+          setThemeColor(cachedInterface.color.trim() || '');
+          return;
+        }
+        
+        // If not in cache, fetch via API route (not server action)
+        const res = await fetch(`/api/interface?interface_id=${interfaceId}&checkpoint=false`);
+        if (res.ok) {
+          const iface = await res.json();
+          if (iface && typeof iface.color === 'string' && iface.color.trim() !== '') {
+            setThemeColor(iface.color.trim());
+            // Cache the result
+            queryClient.setQueryData(['interface-by-id', interfaceId], iface);
+          } else {
+            setThemeColor('');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch interface color', err);
+      }
     }
-    
-    if (typeof currentInterface.color === 'string' && currentInterface.color.trim() !== '') {
-      setThemeColor(currentInterface.color.trim());
-    } else {
-      setThemeColor('');
-    }
-  }, [currentInterface])
+
+    loadInterfaceColor();
+  }, [interfaceId, queryClient])
   
   useEffect(() => {
     if (typeof window === 'undefined') return
