@@ -182,7 +182,6 @@ const LogsTable = ({
   // Show error UI if data fetch failed
   console.log('[TILE ERROR CHECK]', {
     tileId,
-    tileName,
     hasError: !!error,
     errorType: typeof error,
     errorValue: error,
@@ -192,7 +191,7 @@ const LogsTable = ({
   
   if (error && typeof error === 'string' && !isTableDataLoading) {
     const isTimeout = error.includes('timeout') || error.includes('504');
-    console.log('[TILE ERROR] Showing error UI for tile:', { tileId, tileName, error, isTimeout });
+    console.log('[TILE ERROR] Showing error UI for tile:', { tileId, error, isTimeout });
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
         <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
