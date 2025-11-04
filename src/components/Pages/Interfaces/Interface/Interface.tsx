@@ -939,8 +939,9 @@ const Interface = ({
 
     console.log('[TAB RENDER] Rendering Tab component with data:', {
       tabDataExists: !!tabData,
-      tileCount: tabData?.tilesData?.length || 0,
-      tabName: activeTabName
+      tileCount: tabData?.tiles?.length || 0,
+      tabName: activeTabName,
+      actualTilesArray: tabData?.tiles
     });
     
     return (
