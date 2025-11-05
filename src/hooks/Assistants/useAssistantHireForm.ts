@@ -517,7 +517,7 @@ export function useAssistantHireForm(
 
         } catch (error: any) {
              const isRHFError = !!(hireFormMethods.formState.errors.user_phone || hireFormMethods.formState.errors.social_accounts);
-             if (!isRHFError) toast.error(`${error.message}. Update aborted.`, { id: toastIdRef.current });
+             if (!isRHFError) toast.error(`An error occurred while updating. Please try again.`, { id: toastIdRef.current });
              else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
 
              toastIdRef.current = undefined;
@@ -631,7 +631,7 @@ export function useAssistantHireForm(
             );
 
             if (!isRHFError) {
-                 toast.error(`${error.message}. Hiring aborted.`,  { id: toastIdRef.current });
+                 toast.error(`an error occurred during the hiring process. Please try again.`,  { id: toastIdRef.current });
             } else {
                  if(toastIdRef.current) toast.dismiss(toastIdRef.current);
             }

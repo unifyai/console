@@ -102,7 +102,7 @@ export function useAssistantCall(
 
         } catch (e: any) {
             console.error("Failed to connect to LiveKit room", e);
-            toast.error(`Failed to start call: ${e.message}`);
+            toast.error(`Failed to start call. Please try again.`);
             setError(`Failed to start call: ${e.message}`);
             setIsConnected(false);
             setActiveCallAssistant(null);
@@ -169,7 +169,8 @@ export function useAssistantCall(
                  throw new Error("Could not retrieve session URL.");
             }
         } catch (e: any) {
-            toast.error(e.message, { id: toastId });
+            console.error("[useAssistantCall] Toggle remote control failed:", e.message);
+            toast.error("Could not start remote control session. Please try again.", { id: toastId });
         } finally {
             setIsRemoteControlLoading(false);
         }

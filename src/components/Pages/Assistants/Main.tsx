@@ -41,6 +41,7 @@ import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { User } from 'next-auth';
 import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
+import { Z_VERSION_ERROR } from 'zlib';
 
 
 interface MainProps {
@@ -213,11 +214,14 @@ export default function Main({
                 if (Array.isArray(result)) {
                     setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
                 } else {
-                    toast.error((result as ResponseProps).detail || "Could not fetch social platforms.");
+                    const backendError = (result as ResponseProps).detail || "Could not fetch social platforms.";
+                    console.error("[Main.tsx] Error fetching social platforms:", backendError);
+                    toast.error("Failed to fetch social platforms.");
                     setAvailableSocialPlatforms([]);
                 }
             })
             .catch(err => {
+                console.error("[Main.tsx] An unexpected error occurred while fetching social platforms:", err);
                 toast.error("Failed to fetch social platforms.");
                 setAvailableSocialPlatforms([]);
             })

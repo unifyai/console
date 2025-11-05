@@ -173,7 +173,7 @@ export function useAssistantProfileChat(
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error("Failed to get profile chat response:", errorMessage);
 
-            let displayError = `Sorry, I couldn't get a response. ${errorMessage}`;
+            let displayError = `Sorry, I couldn't get a response.`;
             if (errorMessage.includes("INSUFFICIENT_CREDITS")) {
                 displayError = `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}`;
             }

@@ -74,7 +74,8 @@ export function useAssistantSecrets(
             toast.success("Secret deleted.", { id: toastId });
             await fetchSecrets(); // Refresh the list
         } catch (err: any) {
-            toast.error(`Failed to delete secret: ${err.message}`, { id: toastId });
+            console.error("[useAssistantSecrets] Delete Error:", err.message);
+            toast.error(`Failed to delete secret. Please try again.`, { id: toastId });
         }
     };
 
@@ -91,7 +92,8 @@ export function useAssistantSecrets(
             toast.success("Secret created.", { id: toastId });
             await fetchSecrets(); // Refresh and select the first secret
         } catch (err: any) {
-            toast.error(`Failed to create secret: ${err.message}`, { id: toastId });
+            console.error("[useAssistantSecrets] Create Error:", err.message);
+            toast.error(`Failed to create secret. Please try again.`, { id: toastId });
         } finally {
             setIsSubmitting(false);
         }

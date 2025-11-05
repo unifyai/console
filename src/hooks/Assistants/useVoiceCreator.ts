@@ -155,7 +155,7 @@ export function useVoiceCreator(
             if (backendResponse && (backendResponse as ResponseProps).detail) {
                 const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
                 console.error(`Error creating voice: ${errorDetail}`);
-                toast.error(`Error creating voice: ${errorDetail}`, { id: toastId, duration: 7000 });
+                toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
             } 
             else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
                 const voiceDataFromBackend = backendResponse as VoiceOption;

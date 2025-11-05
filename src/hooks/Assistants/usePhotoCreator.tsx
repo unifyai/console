@@ -436,9 +436,10 @@ export function usePhotoCreator(
                         stopPolling();
                         if (toastIdRef.current) {
                             if (currentStatus.status === 'failed') {
-                                toast.error(`Animation failed: ${currentStatus.error || "Unknown reason"}`, { id: toastIdRef.current, duration: 5000 });
+                                console.error("[usePhotoCreator] Animation poll failed:", currentStatus.error);
+                                toast.error(`Animation failed. Please try again.`, { id: toastIdRef.current, duration: 5000 });
                             } else {
-                                toast.info("Animation was canceled on the server.", { id: toastIdRef.current, duration: 5000 });
+                                toast.info("Animation was canceled.", { id: toastIdRef.current, duration: 5000 });
                             }
                         }
                         toastIdRef.current = undefined;
@@ -459,7 +460,10 @@ export function usePhotoCreator(
             pollIntervalRef.current = setTimeout(poll, ANIMATION_POLLING_INTERVAL);
     
         } catch (error: any) {
-            if(toastIdRef.current) toast.error(error.message, { id: toastIdRef.current });
+            if(toastIdRef.current) {
+                console.error("[usePhotoCreator] Animate Error:", error.message);
+                toast.error("Failed to start animation. Please try again.", { id: toastIdRef.current });
+            }
             toastIdRef.current = undefined;
             setIsProcessing(false);
         }
