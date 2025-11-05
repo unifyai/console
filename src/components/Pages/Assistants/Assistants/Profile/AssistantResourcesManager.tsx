@@ -13,7 +13,7 @@ interface AssistantResourcesManagerProps {
 const ContactItem: React.FC<{
     value: string;
     icon: React.ReactNode;
-    tooltip: string;
+    tooltip?: string;
     isCopyable?: boolean,
     copyValue?: string;
     handleClick?: () => void,
@@ -41,16 +41,24 @@ const ContactItem: React.FC<{
         handleClick && handleClick();
     }
 
+    const content = (
+        <div className="grid grid-cols-[auto_1fr] w-fit items-center gap-2 cursor-pointer group" onClick={onClick}>
+            <div className="flex-shrink-0 text-[color:var(--muted-foreground)] group-hover:text-[color:var(--foreground)] transition-colors duration-200">
+                {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
+            </div>
+            <span className={`truncate min-w-0 text-caption text-[color:var(--muted-foreground)] group-hover:text-[color:var(--foreground)] transition-colors duration-200 ${textClassName}`}>{value || '-'}</span>
+        </div>
+    );
+
+    if (!tooltip) {
+        return content;
+    }
+
     return (
         <TooltipProvider delayDuration={100}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="grid grid-cols-[auto_1fr] items-center gap-2 cursor-pointer" onClick={onClick}>
-                        <div className="flex-shrink-0">
-                            {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        </div>
-                        <span className={`truncate min-w-0 text-caption ${textClassName}`}>{value || '-'}</span>
-                    </div>
+                    {content}
                 </TooltipTrigger>
                 <TooltipContent side="top">
                     <p>{tooltip}</p>
@@ -79,13 +87,11 @@ export function AssistantResourcesManager({ assistant, assistantActions, onOpenC
                 }
                 <ContactItem
                     value="Update contact"
-                    tooltip="Update contact details for this assistant"
                     icon={<Contact className="h-4 w-4 flex-shrink-0" />}
                     handleClick={() => onOpenContactManager(assistant)}
                 />
                 <ContactItem
                     value="Manage secrets"
-                    tooltip="Manage secrets for this assistant"
                     icon={<KeyRound className="h-4 w-4 flex-shrink-0" />}
                     handleClick={() => setIsSecretsManagerOpen(true)}
                 />
