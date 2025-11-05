@@ -30,7 +30,7 @@ export function useAssistantProfileChat(
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
 
-        const hasBeenInitialized = (chatHistories[assistantId]?.length || 0) > 0;
+        const hasBeenInitialized = chatHistories[assistantId] !== undefined;
 
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
@@ -135,11 +135,6 @@ export function useAssistantProfileChat(
             timestamp: new Date(),
         };
 
-        const currentMessages = [...messages, newUserMessage];
-        setChatHistories(prev => ({ ...prev, [assistantId]: currentMessages }));
-        setInputValue('');
-        setIsLoading(true);
-
         const assistantResponseId = uuidv4();
         const assistantPlaceholder: ChatMessage = {
             id: assistantResponseId,
@@ -147,7 +142,17 @@ export function useAssistantProfileChat(
             content: '',
             timestamp: new Date()
         };
-        setChatHistories(prev => ({ ...prev, [assistantId]: [...prev[assistantId], assistantPlaceholder] }));
+
+        setChatHistories(prev => {
+            const currentHistory = prev[assistantId] || [];
+            return {
+                ...prev,
+                [assistantId]: [...currentHistory, newUserMessage, assistantPlaceholder]
+            };
+        });
+
+        setInputValue('');
+        setIsLoading(true);
 
         try {
             const response = await assistantActions.chat.message({

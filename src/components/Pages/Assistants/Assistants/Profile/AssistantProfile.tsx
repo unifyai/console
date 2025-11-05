@@ -222,7 +222,7 @@ export function AssistantProfilePanel({
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent
-                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0"
+                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0 data-[state=closed]:hidden"
                                 className="p-0 flex-1 min-h-0 flex"
                             >
                                 <AssistantProfileChatPanel 
