@@ -317,7 +317,7 @@ export default function Terminal({
         // @ts-ignore helper exists
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
-          const out = res.output.replaceAll("/project/workspace", "");
+          const out = res.output.replaceAll("/project/sandbox", "");
           // Normalize newlines to CRLF so cursor returns to column 0 on xterm
           const toCRLF = (s: string) => s.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
           if (pendingEnterRef.current) {
