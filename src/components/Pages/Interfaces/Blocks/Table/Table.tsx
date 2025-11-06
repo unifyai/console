@@ -181,54 +181,6 @@ const LogsTable = ({
     isLoading: isTableDataLoading,
   } = tableDataItem;
 
-  // Show error UI if data fetch failed
-  if (error && typeof error === 'string' && !isTableDataLoading) {
-    const isTimeout = error.includes('timeout') || error.includes('504');
-    console.log('[TILE ERROR]', { tileId, error, isTimeout });
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-        {isRetrying ? (
-          <div className="flex items-center justify-center gap-3">
-            <Loader2 className="animate-spin" />
-            <span className="text-body">Retrying…</span>
-          </div>
-        ) : (
-          <>
-            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-              <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
-              <p className="text-body text-muted-foreground max-w-md">
-                {isTimeout 
-                  ? 'The request timed out. Orchestra may be under heavy load or experiencing issues.'
-                  : error}
-              </p>
-            </div>
-            <Button 
-              onClick={async () => {
-                try {
-                  setIsRetrying(true);
-                  await queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
-                  await queryClient.invalidateQueries({ queryKey: ['fields', projectId, context_ ?? null] });
-                } finally {
-                  // Let loading state switch to normal spinner via isTableDataLoading;
-                  // keep retrying spinner briefly in case cache is fast
-                  setTimeout(() => setIsRetrying(false), 300);
-                }
-              }}
-              disabled={isRetrying}
-            >
-              Retry Loading Data
-            </Button>
-          </>
-        )}
-      </div>
-    );
-  }
-
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
   const tileName = tileMetaState?.name || "";
   const sortingExpression = tableArguments?.[tileName]?.getLogs_parameters?.sorting || null;
@@ -1031,6 +983,10 @@ const LogsTable = ({
     Select a Context
   </Button>
 
+  // Show error UI if data fetch failed - moved after all hooks
+  const showError = error && typeof error === 'string' && !isTableDataLoading;
+  const isTimeout = error?.includes('timeout') || error?.includes('504');
+
   // Empty table overlay display and content
   const showOverlay =
     !showSpinner &&
@@ -1386,8 +1342,47 @@ const LogsTable = ({
       className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
-      {/* If truly pending or logs not present, show a spinner */}
-      {showSpinner ? (
+      {/* Show error UI if data fetch failed */}
+      {showError ? (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+          {isRetrying ? (
+            <div className="flex items-center justify-center gap-3">
+              <Loader2 className="animate-spin" />
+              <span className="text-body">Retrying…</span>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
+                <p className="text-body text-muted-foreground max-w-md">
+                  {isTimeout 
+                    ? 'The request timed out. Orchestra may be under heavy load or experiencing issues.'
+                    : error}
+                </p>
+              </div>
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsRetrying(true);
+                    await queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
+                    await queryClient.invalidateQueries({ queryKey: ['fields', projectId, context_ ?? null] });
+                  } finally {
+                    setTimeout(() => setIsRetrying(false), 300);
+                  }
+                }}
+                disabled={isRetrying}
+              >
+                Retry Loading Data
+              </Button>
+            </>
+          )}
+        </div>
+      ) : showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
           <Loader2 className="animate-spin my-36" />
         </div>

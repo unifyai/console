@@ -12,7 +12,7 @@ import * as favourites from "@/lib/interfaces/favourites";
 
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/interfaces/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions, Favourite } from "@/types/interfaces/grid";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 import Main from "@/components/Pages/Interfaces/Server/Main.server";
 import { SearchParams } from "nuqs";
@@ -113,7 +113,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     };
 
     // Favourites actions - gracefully handle failures
-    let initialFavourites = [];
+    let initialFavourites: Favourite[] = [];
     try {
         initialFavourites = await favourites.getFavourites(apiKey);
     } catch (error) {

@@ -85,6 +85,11 @@ export function useInterfaceSync(
   const updateTabByIdMutation = useUpdateTabByIdQuery();
   const deleteTabMutation = useDeleteTabQuery();
 
+  // Refs for debouncing active tab persistence (must be at hook top-level)
+  const persistTimerRef = useRef<any>(null);
+  const lastScheduledRef = useRef<string | null>(null);
+  const lastPersistedRef = useRef<string | null>(null);
+
   // Helper: propagate interface context to tabs/tiles without explicit context
   const propagateInterfaceContext = async (context?: string | null) => {
     if (!interfaceId || !interfaceActions || !tabActions || !context) return;
@@ -241,16 +246,6 @@ export function useInterfaceSync(
       interfaceUIActions.setActiveTab(tabIdOrName);
 
       // 2) Debounced server persistence to avoid spamming on rapid switches
-      // Track last scheduled and last persisted tab ids
-      const persistTimerRef = (wrapSetActiveTab as any)._persistTimerRef as React.MutableRefObject<any> || useRef<any>(null);
-      const lastScheduledRef = (wrapSetActiveTab as any)._lastScheduledRef as React.MutableRefObject<string | null> || useRef<string | null>(null);
-      const lastPersistedRef = (wrapSetActiveTab as any)._lastPersistedRef as React.MutableRefObject<string | null> || useRef<string | null>(null);
-
-      // Attach refs to function (stable across renders without re-creating outer hooks)
-      (wrapSetActiveTab as any)._persistTimerRef = persistTimerRef;
-      (wrapSetActiveTab as any)._lastScheduledRef = lastScheduledRef;
-      (wrapSetActiveTab as any)._lastPersistedRef = lastPersistedRef;
-
       // If nothing to persist or same as last persisted/scheduled, skip
       if (!tabId) return;
       if (lastPersistedRef.current === tabId) {
