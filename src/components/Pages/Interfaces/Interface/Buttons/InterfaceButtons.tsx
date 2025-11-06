@@ -5,14 +5,10 @@ import { Hammer, SquareMousePointer, Settings, Plus, Pen, Trash2, Upload, Downlo
 import { Switch } from "@/components/UI/switch";
 import { Label } from "@/components/UI/label";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import AddTile from "./AddTile";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTab } from "@/contexts/hooks/tab";
-import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
-import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
 import { useListInterfacesQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
@@ -39,7 +35,6 @@ const InterfaceButtons = ({
     disabled,
     setOverlayState,
     setIsSwitchingInterface,
-    hideAddTileButton = false,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
@@ -55,7 +50,6 @@ const InterfaceButtons = ({
         status: 'loading' | 'success' | 'error' | null;
     }>>;
     setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>;
-    hideAddTileButton?: boolean;
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -63,18 +57,6 @@ const InterfaceButtons = ({
 
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
-    const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-
-    // Tab states and actions with granular access
-    const {
-        meta: tabMetaState,
-        ui: tabUIState,
-        uiActions: tabUIActions,
-    } = useTab(tabIdOrName || "", interfaceId);
-    const tabId = tabMetaState?.id || null;
-    
-    // Get global UI mode settings
-    const { isEditMode } = useGlobalUIMode();
 
     // Fetch interfaces for the current project
     const { data: interfacesData, isLoading: isLoadingInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
@@ -311,17 +293,7 @@ const InterfaceButtons = ({
 
     return (
         <div className="flex items-center gap-2">
-            
-            {/* Add Tile Button (edit mode only) */}
-            {!hideAddTileButton && tabId && isEditMode && <AddTile
-                tabId={tabId}
-                interfaceId={interfaceId}
-                project={project}
-                anyTileLoading={anyTileLoading}
-                tabActions={tabActions} 
-                tileActions={tileActions}
-            />}
-
+            {/* Add Tile button removed - use the floating button in the bottom left instead */}
         </div>
     );
 };
