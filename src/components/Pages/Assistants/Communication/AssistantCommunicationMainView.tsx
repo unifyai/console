@@ -4,7 +4,8 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/UI/button';
 
 interface AssistantCommunicationMainViewProps {
     assistantName: string;
@@ -15,6 +16,10 @@ interface AssistantCommunicationMainViewProps {
     isRemoteControlActive?: boolean;
     remoteControlUrl?: string | null;
     avatarContainerClassName?: string;
+    isLoading?: boolean;
+    loadingMessage?: string;
+    connectionError?: string | null;
+    onRetry?: () => void;
 }
 
 export function AssistantCommunicationMainView({
@@ -26,8 +31,36 @@ export function AssistantCommunicationMainView({
     isRemoteControlActive = false,
     remoteControlUrl = null,
     avatarContainerClassName,
+    isLoading = false,
+    loadingMessage = "Connecting...",
+    connectionError,
+    onRetry,
 }: AssistantCommunicationMainViewProps) {
     const fallback = assistantName ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase() : "A";
+
+    if (isLoading) {
+        return (
+            <div className={cn("flex flex-col items-center justify-center text-center p-4", className)}>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="mt-4 text-sm text-muted-foreground">{loadingMessage}</p>
+            </div>
+        );
+    }
+    
+    if (connectionError) {
+        return (
+            <div className="flex flex-col items-center justify-center p-4 text-center">
+                <AlertTriangle className="h-8 w-8 text-destructive mb-4" />
+                <h3 className="text-lg font-semibold text-foreground">Connection Issue</h3>
+                <p className="mt-2 text-body text-muted-foreground">{connectionError}</p>
+                {onRetry && (
+                     <div className="mt-6">
+                        <Button onClick={onRetry}>Retry</Button>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     if (isRemoteControlActive) {
         return (
@@ -51,8 +84,8 @@ export function AssistantCommunicationMainView({
     return (
         <div className={cn("relative flex flex-col items-center justify-center text-center", className || "w-48 h-48")}>
             {/* Pulsating Circle */}
-            <div className={`absolute w-full h-full rounded-full border-2 border-primary transition-all duration-300 ${isSpeaking ? 'animate-pulse scale-110' : 'scale-100 opacity-50'}`} />
-            <div className={`absolute w-[90%] h-[90%] rounded-full bg-primary/10 transition-all duration-300 ${isSpeaking ? 'animate-pulse' : ''}`} />
+            <div className={`absolute h-full aspect-square rounded-full border-2 border-primary transition-all duration-300 ${isSpeaking ? 'animate-pulse scale-110' : 'scale-100 opacity-50'}`} />
+            <div className={`absolute h-[90%] aspect-square rounded-full bg-primary/10 transition-all duration-300 ${isSpeaking ? 'animate-pulse' : ''}`} />
 
             {/* Video or Avatar */}
             <div className={cn("z-10 border-4 border-background rounded-full overflow-hidden flex items-center justify-center", avatarContainerClassName || "w-32 h-32")}>

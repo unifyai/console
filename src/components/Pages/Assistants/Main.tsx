@@ -650,6 +650,7 @@ export default function Main({
                         isConnecting={isConnectingCall}
                         userImage={userMeta.image}
                         isWaitingForAssistant={isWaitingForAssistant}
+                        isCallConnected={isCallConnected}
                         connectionError={connectionError}
                         onRetry={retryConnection}
                         isRemoteControlActive={isRemoteControlActive}
@@ -666,6 +667,7 @@ export default function Main({
                             isSpeakerMuted={isSpeakerMuted}
                             onToggleSpeaker={toggleSpeakerMute}
                             isConnecting={isConnectingCall}
+                            isCallConnected={isCallConnected}
                             isWaitingForAssistant={isWaitingForAssistant}
                             connectionError={connectionError}
                             onRetry={retryConnection}

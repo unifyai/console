@@ -10,7 +10,8 @@ import {
     Maximize2,
     Volume2,
     VolumeX,
-    Loader2
+    Loader2,
+    AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -32,6 +33,7 @@ interface AssistantCommunicationMinimizedProps {
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
+    isCallConnected: boolean;
 }
 
 const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; className?: string; [key: string]: any; }> =
@@ -39,9 +41,12 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
         <TooltipProvider delayDuration={100}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} {...props}>
-                        {children}
-                    </Button>
+                    {/* This span allows hover events for the tooltip even when the button is disabled. */}
+                    <span>
+                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} {...props}>
+                            {children}
+                        </Button>
+                    </span>
                 </TooltipTrigger>
                 <TooltipContent side="top">
                     <p>{tooltip}</p>
@@ -51,24 +56,27 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
     );
 
 
-const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'room'>> = ({ assistant, onHangUp, onExpand, isSpeakerMuted, onToggleSpeaker, isConnecting, isWaitingForAssistant, connectionError, onRetry }) => {
+const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'room'>> = ({ assistant, onHangUp, onExpand, isSpeakerMuted, onToggleSpeaker, isConnecting, isWaitingForAssistant, connectionError, onRetry, isCallConnected }) => {
     const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
     const micToggle = useTrackToggle({ source: Track.Source.Microphone });
     const camToggle = useTrackToggle({ source: Track.Source.Camera });
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const showLoadingState = isConnecting || isWaitingForAssistant;
+    const loadingMessage = isConnecting ? "Connecting..." : `Waiting for ${assistant.first_name}...`;
 
     if (connectionError) {
         return (
-            <div className="flex flex-col items-center justify-center h-full w-full text-center">
-                <p className="text-xs text-destructive mb-3 px-2">{`Failed to connect with ${assistant.first_name}`}</p>
+            <div className="flex flex-col items-center justify-center h-full w-full text-center relative p-2">
+                <AlertTriangle className="h-4 w-4 text-destructive mb-1" />
+                <p className="text-xs text-muted-foreground mb-1.5 px-1 text-center">{connectionError}</p>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={onHangUp} className="h-8" onPointerDown={(e) => e.stopPropagation()}>Leave</Button>
-                    <Button size="sm" onClick={onRetry} className="h-8" onPointerDown={(e) => e.stopPropagation()}>Retry</Button>
+                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onHangUp(); }} className="h-7" onPointerDown={(e) => e.stopPropagation()}>Leave</Button>
+                    <Button size="sm" onClick={(e) => { e.stopPropagation(); onRetry(); }} className="h-7" onPointerDown={(e) => e.stopPropagation()}>Retry</Button>
                 </div>
-                 {/* Expand Button */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Expand Button */}
+                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <ControlButton tooltip="Expand View" onClick={onExpand}>
                         <Maximize2 className="h-4 w-4" />
                     </ControlButton>
@@ -77,40 +85,44 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
         );
     }
 
-    if (isConnecting || isWaitingForAssistant) {
-        const message = isConnecting ? "Connecting..." : `Waiting...`;
-        return (
-            <div className="flex flex-col items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="mt-2 text-xs text-muted-foreground">{message}</p>
-            </div>
-        );
-    }
-
     return (
         <>
             {/* Main View */}
             <AssistantCommunicationMainView
-                className="w-24 h-24 mb-3"
+                className="w-full h-full mb-3 flex-1"
                 avatarContainerClassName="w-20 h-20"
                 assistantName={displayName}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
                 videoTrack={agentVideoTrack}
+                isLoading={showLoadingState}
+                loadingMessage={loadingMessage}
             />
 
             {/* Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
                 <ControlButton tooltip="Hang Up" className="bg-destructive hover:bg-destructive" onClick={onHangUp}>
                     <PhoneOff className="h-4 w-4" />
                 </ControlButton>
-                <ControlButton tooltip={micToggle.enabled ? "Mute Mic" : "Unmute Mic"} {...micToggle.buttonProps}>
+                <ControlButton 
+                    tooltip={!isCallConnected ? "Available after connecting" : (micToggle.enabled ? "Mute Mic" : "Unmute Mic")} 
+                    {...micToggle.buttonProps}
+                    disabled={!isCallConnected || micToggle.buttonProps.disabled} 
+                >
                     {micToggle.enabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
                 </ControlButton>
-                <ControlButton tooltip={isSpeakerMuted ? "Unmute Speaker" : "Mute Speaker"} onClick={onToggleSpeaker}>
+                <ControlButton 
+                    tooltip={!isCallConnected ? "Available after connecting" : (isSpeakerMuted ? "Unmute Speaker" : "Mute Speaker")} 
+                    onClick={onToggleSpeaker}
+                    disabled={!isCallConnected}
+                >
                     {isSpeakerMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </ControlButton>
-                <ControlButton tooltip={camToggle.enabled ? "Turn Off Camera" : "Turn On Camera"} {...camToggle.buttonProps}>
+                <ControlButton 
+                    tooltip={!isCallConnected ? "Available after connecting" : (camToggle.enabled ? "Turn Off Camera" : "Turn On Camera")}
+                    {...camToggle.buttonProps}
+                    disabled={!isCallConnected || camToggle.buttonProps.disabled} 
+                >
                     {camToggle.enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
                 </ControlButton>
             </div>

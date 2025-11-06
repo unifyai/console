@@ -40,6 +40,7 @@ interface AssistantCommunicationControlsProps {
     isRemoteControlActive: boolean;
     onToggleRemoteControl: () => void;
     isRemoteControlLoading: boolean;
+    isConnectionEstablished: boolean;
 }
 
 const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; className?: string; [key: string]: any; }> =
@@ -47,9 +48,12 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
         <TooltipProvider delayDuration={100}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground", className)} {...props}>
-                        {children}
-                    </Button>
+                    {/* This span allows hover events for the tooltip even when the button is disabled. */}
+                    <span>
+                        <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground", className)} {...props}>
+                            {children}
+                        </Button>
+                    </span>
                 </TooltipTrigger>
                 <TooltipContent side="top">
                     <p>{tooltip}</p>
@@ -74,6 +78,7 @@ export function AssistantCommunicationControls({
     isRemoteControlActive,
     onToggleRemoteControl,
     isRemoteControlLoading,
+    isConnectionEstablished,
 }: AssistantCommunicationControlsProps) {
     return (
         <div className="flex-shrink-0 h-20 px-6 flex items-center justify-between bg-background border-t">
@@ -82,10 +87,18 @@ export function AssistantCommunicationControls({
                  <ControlButton tooltip="Hang up" className="bg-destructive/10 hover:bg-destructive/20 text-destructive" onClick={onHangUp}>
                     <PhoneOff className="h-5 w-5" />
                 </ControlButton>
-                <ControlButton tooltip={isMicOn ? "Mute microphone" : "Unmute microphone"} {...micButtonProps}>
+                <ControlButton 
+                    tooltip={!isConnectionEstablished ? "Available after connecting" : (isMicOn ? "Mute microphone" : "Unmute microphone")} 
+                    {...micButtonProps}
+                    disabled={!isConnectionEstablished || micButtonProps.disabled}
+                >
                     {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </ControlButton>
-                <ControlButton tooltip={isCameraOn ? "Turn off camera" : "Turn on camera"} {...cameraButtonProps}>
+                <ControlButton 
+                    tooltip={!isConnectionEstablished ? "Available after connecting" : (isCameraOn ? "Turn off camera" : "Turn on camera")} 
+                    {...cameraButtonProps}
+                    disabled={!isConnectionEstablished || cameraButtonProps.disabled}
+                >
                     {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                 </ControlButton>
             </div>
@@ -93,11 +106,22 @@ export function AssistantCommunicationControls({
             {/* Center Controls */}
             <div className="flex items-center gap-3">
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                         <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
-                            <ScreenShare className="h-5 w-5" />
-                        </Button>
-                    </DropdownMenuTrigger>
+                    <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground" disabled={!isConnectionEstablished}>
+                                            <ScreenShare className="h-5 w-5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>{!isConnectionEstablished ? "Available after assistant joins" : "Share content"}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <DropdownMenuContent side="top">
                         <DropdownMenuItem className="cursor-pointer" onSelect={onToggleScreenShare} disabled={isScreenShareToggleDisabled}>
                            {isScreenShareOn ? 'Stop Sharing Screen' : 'Share Your Screen'}
@@ -107,9 +131,9 @@ export function AssistantCommunicationControls({
                 </DropdownMenu>
 
                 <ControlButton
-                    tooltip={isRemoteControlActive ? "Stop remote control" : "Take over workspace"}
+                    tooltip={!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Stop remote control" : "Take over workspace")}
                     onClick={onToggleRemoteControl}
-                    disabled={isRemoteControlLoading}
+                    disabled={isRemoteControlLoading || !isConnectionEstablished}
                     className={cn(isRemoteControlActive && "text-primary bg-primary/10 hover:bg-primary/20")}
                 >
                     {isRemoteControlLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Computer className="h-5 w-5" />}

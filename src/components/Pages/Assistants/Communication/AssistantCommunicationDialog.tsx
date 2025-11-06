@@ -34,6 +34,7 @@ interface AssistantCommunicationDialogContentProps {
     liveviewUrl: string | null;
     isRemoteControlLoading: boolean;
     toggleRemoteControl: () => void;
+    isCallConnected: boolean;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ 
@@ -52,6 +53,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     liveviewUrl,
     isRemoteControlLoading,
     toggleRemoteControl,
+    isCallConnected,
 }) => {
     const room = React.useContext(RoomContext);
     if (!room) throw new Error("AssistantCommunicationDialogContent must be used within a RoomContext");
@@ -82,7 +84,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     });
 
     React.useEffect(() => {
-        if (isConnecting) return; // Don't run device logic while connecting
+        if (!isCallConnected) return;
         const getDevices = async () => {
             const videoDevs = await Room.getLocalDevices('videoinput');
             const audioDevs = await Room.getLocalDevices('audioinput');
@@ -98,7 +100,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         const handleDevicesChanged = () => getDevices();
         navigator.mediaDevices.addEventListener('devicechange', handleDevicesChanged);
         return () => navigator.mediaDevices.removeEventListener('devicechange', handleDevicesChanged);
-    }, [room, isConnecting]);
+    }, [room, isCallConnected]);
 
     const handleVideoDeviceChange = async (deviceId: string) => {
         setSelectedVideoDevice(deviceId);
@@ -131,38 +133,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         setActiveSidePanel(current => current === panel ? null : panel);
     };
 
-    if (connectionError) {
-        return (
-            <>
-                <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} />
-                <div className="flex-1 flex flex-col items-center justify-center bg-background/80 p-4 text-center">
-                    <AlertTriangle className="h-8 w-8 text-destructive mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground">Connection Issue</h3>
-                    <p className="mt-2 text-body text-muted-foreground">{connectionError}</p>
-                    <div className="mt-6 flex items-center gap-4">
-                        <Button variant="outline" onClick={onHangUp}>Leave</Button>
-                        <Button onClick={onRetry}>Retry</Button>
-                    </div>
-                </div>
-            </>
-        );
-    }
-
-    if (isConnecting || isWaitingForAssistant) {
-        const message = isConnecting
-            ? "Setting up a connection..."
-            : `Waiting for ${assistant.first_name} to join...`;
-
-        return (
-            <div className="flex flex-col h-full">
-                <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} />
-                <div className="flex-1 flex flex-col items-center justify-center bg-background/80">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="mt-4 text-body text-muted-foreground">{message}</p>
-                </div>
-            </div>
-        );
-    }
+    const showLoadingState = isConnecting || isWaitingForAssistant;
+    const loadingMessage = isConnecting
+        ? "Setting up a connection..."
+        : `Waiting for ${assistant.first_name} to join...`;
 
     return (
         <>
@@ -187,9 +161,13 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 videoTrack={agentVideoTrack}
                                 isRemoteControlActive={isRemoteControlActive}
                                 remoteControlUrl={liveviewUrl}
+                                isLoading={showLoadingState}
+                                loadingMessage={loadingMessage}
+                                connectionError={connectionError}
+                                onRetry={onRetry}
                             />
                             <AnimatePresence>
-                                {isUserViewVisible && (
+                                {isUserViewVisible && !isConnecting && (
                                     <motion.div
                                         key="user-view-pip" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                                         transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -207,7 +185,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                             </AnimatePresence>
                         </>
                     )}
-                     {!isUserViewMaximized && !isUserViewVisible && (
+                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
                          <motion.div
                              key="user-view-minimized" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                              transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -273,6 +251,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isRemoteControlActive={isRemoteControlActive}
                 isRemoteControlLoading={isRemoteControlLoading}
                 onToggleRemoteControl={toggleRemoteControl}
+                isConnectionEstablished={isCallConnected}
             />
         </>
     );
@@ -296,6 +275,7 @@ interface AssistantCommunicationDialogProps {
     liveviewUrl: string | null;
     isRemoteControlLoading: boolean;
     toggleRemoteControl: () => void;
+    isCallConnected: boolean;
 }
 
 export function AssistantCommunicationDialog({
@@ -316,6 +296,7 @@ export function AssistantCommunicationDialog({
     liveviewUrl,
     isRemoteControlLoading,
     toggleRemoteControl,
+    isCallConnected,
 }: AssistantCommunicationDialogProps) {
 
     if (!isOpen) return null;
@@ -343,6 +324,7 @@ export function AssistantCommunicationDialog({
                     liveviewUrl={liveviewUrl}
                     isRemoteControlLoading={isRemoteControlLoading}
                     toggleRemoteControl={toggleRemoteControl}
+                    isCallConnected={isCallConnected}
                 />
             </DialogContent>
         </Dialog>
