@@ -101,7 +101,13 @@ export function useTabStreamingQuery(
         });
         if (!res.ok) throw new Error(`Tabs ${res.status}`);
         const json = await res.json();
-        return Array.isArray(json) ? json : [];
+        const arr = Array.isArray(json) ? json : [];
+        debugLog("[useTabStreamingQuery] Loaded tabs list", {
+          interfaceId,
+          count: Array.isArray(arr) ? arr.length : 0,
+          names: Array.isArray(arr) ? arr.map((t: any) => t?.name) : []
+        });
+        return arr;
       } catch (e: any) {
         const msg = String(e?.message || e);
         if ((signal as AbortSignal | undefined)?.aborted || /Abort|aborted|Connection closed/i.test(msg)) {
@@ -125,7 +131,10 @@ export function useTabStreamingQuery(
   // Debounce active tab to avoid firing on rapid switches
   const [stableActiveTabName, setStableActiveTabName] = useState<string | null>(activeTabName ?? null);
   useEffect(() => {
-    const t = setTimeout(() => setStableActiveTabName(activeTabName ?? null), 250);
+    const t = setTimeout(() => {
+      setStableActiveTabName(activeTabName ?? null);
+      debugLog('[useTabStreamingQuery] stableActiveTabName updated', { activeTabName, stableActiveTabName: activeTabName ?? null });
+    }, 250);
     return () => clearTimeout(t);
   }, [activeTabName]);
 
@@ -139,6 +148,10 @@ export function useTabStreamingQuery(
       }
     });
   }, [activeTabName, queryClient]);
+
+  // Determine whether active query should be enabled
+  const enabledActive = !!(interfaceId && activeTabName && projectId && stableActiveTabName === activeTabName);
+  debugLog('[useTabStreamingQuery] Active query enabled check', { enabled: enabledActive, interfaceId, activeTabName, stableActiveTabName, projectId });
 
   // Stream data for the active tab using optimistic builder
   const activeTabQuery = useQuery<CompleteTabData>({
@@ -155,6 +168,10 @@ export function useTabStreamingQuery(
       }
 
       debugLog("[useTabStreamingQuery] Active tab:", activeTab);
+      debugLog("[useTabStreamingQuery] Active build options", {
+        skipTileData: false,
+        listTiles: true
+      });
 
       return buildCompleteTabData(
         interfaceId,
@@ -179,16 +196,95 @@ export function useTabStreamingQuery(
         }
       );
     },
-    enabled: !!(interfaceId && activeTabName && projectId && stableActiveTabName === activeTabName),
-    staleTime: Infinity,        // Never mark as stale automatically
+    enabled: enabledActive,
+    staleTime: Infinity,        // Never mark as stale automatically (success path)
     gcTime: 15 * 60 * 1000,     // Garbage collect after 15 minutes to prevent unbounded memory
-    retry: 1,                   // Retry once on failure
-    retryDelay: 1500,           // 1.5s delay before retry
+    retry: 3,                   // Be more resilient to transient timeouts
+    retryDelay: (attempt) => Math.min(2000 * Math.pow(2, attempt - 1), 20000),
     refetchOnMount: false,      // Don't refetch when component mounts
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnReconnect: false,  // Don't refetch when network reconnects
     refetchInterval: false,     // No periodic refetching
   });
+
+  // Hydrate Zustand store with tiles when an active tab full build completes
+  useEffect(() => {
+    const data = activeTabQuery.data;
+    if (!data || data.mode !== 'full') return;
+    const tabId = data.tabData?.id;
+    if (!tabId) return;
+
+    const tiles = Array.isArray(data.tiles) ? data.tiles : [];
+    if (tiles.length === 0) return;
+
+    // Use store actions to initialize any missing tiles and attach to the tab
+    const state = storeApi.getState();
+    const initTile = state.initTile; // (tabId, tileId, initialState)
+    if (!initTile) return;
+
+    try {
+      tiles.forEach((t) => {
+        if (!t?.id) return;
+        // initTile is idempotent (skips if exists); provide minimal initial state
+        initTile(String(tabId), String(t.id), {
+          id: String(t.id),
+          name: t.name,
+          type: t.type,
+          position: t.position as any,
+          minW: (t as any)?.minW,
+          minH: (t as any)?.minH,
+          visible: (t as any)?.visible ?? true,
+          tabId: String(tabId),
+        } as any);
+      });
+      // Seed React Query tiles list to satisfy any listTiles consumers without refetch
+      try {
+        queryClient.setQueryData(["tiles", String(tabId), null], tiles);
+        queryClient.setQueryData(["tiles", String(tabId)], tiles);
+      } catch (_) {}
+      debugLog('[useTabStreamingQuery] Hydrated tiles into store for tab', { tabId, count: tiles.length });
+    } catch (e) {
+      console.warn('[useTabStreamingQuery] Failed to hydrate tiles into store', e);
+    }
+  }, [activeTabQuery.data, storeApi, queryClient]);
+
+  // Auto-refetch guard: if user re-activates a tab that previously failed or has no data, force a refetch once
+  useEffect(() => {
+    if (!enabledActive || !activeTabName || !projectId) return;
+    const key = ["tabCompleteData", interfaceId, activeTabName, projectId] as const;
+    const state = queryClient.getQueryState(key as any);
+    const data = queryClient.getQueryData(key as any) as CompleteTabData | undefined;
+    const needsRefetch = (state?.status === 'error') || (!data && !activeTabQuery.isLoading);
+    if (needsRefetch) {
+      debugLog('[useTabStreamingQuery] Forcing refetch on activation due to prior error/empty', { activeTabName });
+      queryClient.invalidateQueries({ queryKey: key as any, refetchType: 'active' });
+    }
+  }, [enabledActive, activeTabName, interfaceId, projectId, activeTabQuery.isLoading, queryClient]);
+
+  // Exponential backoff auto-retry when the active tab errors
+  const errorRetryAttemptsRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    if (!enabledActive || !activeTabName) return;
+    if (!activeTabQuery.isError) return;
+    // Backoff schedule per-tab
+    const attempts = errorRetryAttemptsRef.current[activeTabName] || 0;
+    if (attempts >= 4) return;
+    const delay = Math.min(2000 * Math.pow(2, attempts), 20000);
+    debugLog('[useTabStreamingQuery] Scheduling auto-retry for active tab', { activeTabName, attempts: attempts + 1, delay });
+    const timer = setTimeout(() => {
+      // Prefer refetch over invalidate to preserve backoff semantics
+      (activeTabQuery as any).refetch?.();
+    }, delay);
+    errorRetryAttemptsRef.current[activeTabName] = attempts + 1;
+    return () => clearTimeout(timer);
+  }, [enabledActive, activeTabName, activeTabQuery.isError]);
+
+  // Reset retry counter on success or when switching tabs
+  useEffect(() => {
+    if (activeTabQuery.data && activeTabName) {
+      delete errorRetryAttemptsRef.current[activeTabName];
+    }
+  }, [activeTabQuery.data, activeTabName]);
 
   // Get non-active tabs that need prefetching
   const nonActiveTabs = useMemo(() => 
@@ -309,13 +405,19 @@ export function useTabStreamingQuery(
   // Prefetch tabs in the current queue
   const prefetchQueries = useQueries({
     queries: prefetchQueue.map(tab => ({
-      queryKey: ["tabCompleteData", interfaceId, tab.name, projectId],
+      // Use separate key for light prefetch to avoid cache collision with full active builds
+      queryKey: ["tabCompleteDataLight", interfaceId, tab.name, projectId],
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         if (!tab.name || !projectId || !tab.id) {
           throw new Error("Missing required parameters for tab prefetching");
         }
 
         debugLog(`[useTabStreamingQuery] Starting prefetch for tab: ${tab.name} (non-active)`);
+        debugLog("[useTabStreamingQuery] Prefetch build options", {
+          prefetchMode,
+          skipTileData: prefetchMode !== 'full',
+          listTiles: prefetchMode === 'full'
+        });
         
       const completeData = await buildCompleteTabData(
           interfaceId,
@@ -405,22 +507,27 @@ export function useTabStreamingQuery(
       "tabCompleteData", interfaceId, tabName, projectId
     ]);
     
-    if (cachedData) {
-      // Tab data is already cached, switching will be instant
-      debugLog(`[switchTab] Tab ${tabName} is cached - instant switch available`);
+    // Only treat as instant if we have a full build; light prefetch doesn't count
+    const isInstant = !!(cachedData && cachedData.mode === 'full');
+    
+    if (isInstant) {
+      // Tab data is already cached with full tiles, switching will be instant
+      debugLog(`[switchTab] Tab ${tabName} is cached (mode=${cachedData?.mode}) - instant switch available`);
       return true;
     } else {
       // Need to fetch data, will show loading state
-      debugLog(`[switchTab] Tab ${tabName} not cached - will need to load`);
+      debugLog(`[switchTab] Tab ${tabName} not cached as full (mode=${cachedData?.mode}) - will need to load`);
       return false;
     }
   }, [queryClient, interfaceId, projectId]);
 
   // Function to get cached tab data
   const getCachedTabData = useCallback((tabName: string) => {
-    return queryClient.getQueryData<CompleteTabData>([
+    const data = queryClient.getQueryData<CompleteTabData>([
       "tabCompleteData", interfaceId, tabName, projectId
     ]);
+    // Only return full builds; light prefetch doesn't have complete data
+    return (data && data.mode === 'full') ? data : undefined;
   }, [queryClient, interfaceId, projectId]);
 
   // Function to prefetch specific tab (if not already prefetched or in queue)
@@ -544,6 +651,8 @@ export function useTabStreamingQuery(
       error: activeTabQuery.error,
       data: activeTabQuery.data,
     },
+    // During the debounce window we haven't enabled the active query yet
+    activationPending: stableActiveTabName !== activeTabName,
     
     // Prefetching state
     prefetchedTabs,

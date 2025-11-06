@@ -58,6 +58,7 @@ type TabDataActions = {
 };
 
 export type CompleteTabData = {
+  mode: 'light' | 'full';  // Indicates whether this is a lightweight prefetch or full build
   // Tab level data (from TabWrapper.server.tsx)
   tabData: TabData;
   tiles: TileData[];
@@ -121,6 +122,7 @@ export function useTabDataOptimistic() {
       listTiles = true,
     } = options;
 
+    console.log(`[buildCompleteTabData] START building tab data for: ${tabName} (ID: ${tabId})`);
     debugLog(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
     
     try {      
@@ -141,11 +143,22 @@ export function useTabDataOptimistic() {
 
       // Get or fetch tiles for the target tab
       let tilesData = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
+      console.log('[buildCompleteTabData] Tiles cache check:', {
+        tabName,
+        tabId: finalTabId,
+        cacheHit: !!tilesData,
+        cacheValue: tilesData,
+        isError: tilesData && typeof tilesData === "object" && Object.keys(tilesData).includes("error"),
+        listTiles
+      });
+      
       if (!tilesData || (typeof tilesData === "object" && Object.keys(tilesData).includes("error"))) {
         if (listTiles === false) {
+          console.log('[buildCompleteTabData] Skipping tile fetch (listTiles=false), using empty array');
           // Skip listing tiles entirely; use empty placeholders (non‑active prefetch)
           tilesData = [] as TileData[];
         } else {
+          console.log('[buildCompleteTabData] Fetching tiles from API for tab:', tabName);
           try {
             const res = await fetch(`/api/tile?tab_id=${encodeURIComponent(finalTabId)}&checkpoint=false`, {
               method: "GET",
@@ -155,17 +168,30 @@ export function useTabDataOptimistic() {
             if (!res.ok) throw new Error(`Tiles ${res.status}`);
             const json = await res.json();
             tilesData = Array.isArray(json) ? json as TileData[] : [] as TileData[];
+            console.log('[buildCompleteTabData] Fetched tiles from API:', {
+              tabName,
+              tileCount: tilesData.length,
+              tiles: tilesData.map(t => ({ id: t.id, name: t.name, type: t.type }))
+            });
           } catch (err: any) {
             const msg = String(err?.message || err);
+            console.error('[buildCompleteTabData] Tile fetch failed:', { tabName, error: msg });
             if ((signal as AbortSignal | undefined)?.aborted || /Abort|aborted|Connection closed/i.test(msg)) {
               throw new CancelledError();
             }
             throw err;
           }
           if (updateCache) {
+            console.log('[buildCompleteTabData] Caching tiles:', { tabName, tileCount: tilesData.length });
             queryClient.setQueryData(["tiles", finalTabId], tilesData);
           }
         }
+      } else {
+        console.log('[buildCompleteTabData] Using cached tiles:', {
+          tabName,
+          tileCount: Array.isArray(tilesData) ? tilesData.length : 0,
+          tilesData
+        });
       }
 
       // Filter tiles by type (matching TabWrapper.server.tsx)
@@ -179,6 +205,7 @@ export function useTabDataOptimistic() {
       if (skipTileData) {
 
         return {
+          mode: 'light',
           // Tab level data
           tabData: targetTab,
           tiles: safeTilesData,
@@ -301,6 +328,7 @@ export function useTabDataOptimistic() {
       await Promise.all(workers);
 
       return {
+        mode: 'full',
         // Tab level data
         tabData: targetTab,
         tiles: safeTilesData,
