@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/interfaces/grid";
 import { useCreateTabQuery, useUpdateTabQuery, useUpdateTabByIdQuery, useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
 import { useInterface } from "../useInterface";
@@ -240,15 +240,42 @@ export function useInterfaceSync(
       // 1) Update local state immediately (optimistic update)
       interfaceUIActions.setActiveTab(tabIdOrName);
 
-      // 2) Update server state
-      if (tabId) {
-        await updateInterfaceMutation.mutateAsync({
-          interfaceId: interfaceId,
-          data: {
-            active_tab_id: tabId
-          },
-          actions: interfaceActions as GranularInterfaceActions
-        });
+      // 2) Debounced server persistence to avoid spamming on rapid switches
+      // Track last scheduled and last persisted tab ids
+      const persistTimerRef = (wrapSetActiveTab as any)._persistTimerRef as React.MutableRefObject<any> || useRef<any>(null);
+      const lastScheduledRef = (wrapSetActiveTab as any)._lastScheduledRef as React.MutableRefObject<string | null> || useRef<string | null>(null);
+      const lastPersistedRef = (wrapSetActiveTab as any)._lastPersistedRef as React.MutableRefObject<string | null> || useRef<string | null>(null);
+
+      // Attach refs to function (stable across renders without re-creating outer hooks)
+      (wrapSetActiveTab as any)._persistTimerRef = persistTimerRef;
+      (wrapSetActiveTab as any)._lastScheduledRef = lastScheduledRef;
+      (wrapSetActiveTab as any)._lastPersistedRef = lastPersistedRef;
+
+      // If nothing to persist or same as last persisted/scheduled, skip
+      if (!tabId) return;
+      if (lastPersistedRef.current === tabId) {
+        debugLog("Active tab already persisted; skipping", tabId);
+        // proceed to cache sync below
+      } else if (lastScheduledRef.current === tabId) {
+        debugLog("Active tab persist already scheduled; skipping re-schedule", tabId);
+      } else {
+        lastScheduledRef.current = tabId;
+        if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = setTimeout(async () => {
+          try {
+            await updateInterfaceMutation.mutateAsync({
+              interfaceId: interfaceId,
+              data: { active_tab_id: tabId },
+              actions: interfaceActions as GranularInterfaceActions
+            });
+            lastPersistedRef.current = tabId;
+          } catch (e) {
+            // swallow error; UI stays consistent and a future change will retry
+          } finally {
+            lastScheduledRef.current = null;
+            persistTimerRef.current = null;
+          }
+        }, 500);
       }
 
       // 3) Update React Query cache to sync tab active states
