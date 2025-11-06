@@ -113,9 +113,13 @@ const RefreshLogs = ({
     return res.text();
   }, [projectId, tileDataState, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
 
-  // Fetch initial timestamp on mount
+  // Fetch initial timestamp on mount ONLY when auto-update is enabled
+  const didInitLatestRef = useRef(false);
   useEffect(() => {
     if (!tileDataState) return;
+    if (tileDataState.auto_update !== "true") return; // gate behind live mode
+    if (didInitLatestRef.current) return; // avoid Strict Mode double-run
+    didInitLatestRef.current = true;
     fetchLatestTimestamp()
       .then((latest) => {
         if (isMounted.current && latest && !(latest as any).detail) {
