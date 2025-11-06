@@ -123,6 +123,8 @@ import { CreateTabDialog } from './Dialogs/CreateTabDialog'
 import { RenameProjectDialog } from './Dialogs/RenameProjectDialog'
 import ContextTreePicker from '@/components/Common/Dropdowns/ContextTreePicker'
 import { InterfaceNavContext } from './Interface';
+import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
+import { useTab } from '@/contexts/hooks/tab';
 
 interface ProjectInterface {
   id: string;
@@ -543,6 +545,8 @@ export default function InterfaceNav({
   const [importInterfaceOpen, setImportInterfaceOpen] = useState(false)
   const [importProjectName, setImportProjectName] = useState<string | null>(null)
   const [isImportingInterface, setIsImportingInterface] = useState(false)
+  // Saving overlay state (blocks navigation)
+  const [isSaving, setIsSaving] = useState(false)
   
   // Drag and drop state
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
@@ -559,6 +563,10 @@ export default function InterfaceNav({
     const activeTab = selectActiveTab(state, interfaceId)
     return activeTab?.name || null
   })
+  
+  // For manual save (checkpoint): access current tab data actions and mutation
+  const { dataActions: activeTabDataActions } = useTab(activeTabName, interfaceId)
+  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, 'Manual save')
   
   // Store hooks for save/reset functionality
   const setSaveInterfaceOpen = useStoreContext((state) => state.setSaveInterfaceOpen)
@@ -2853,21 +2861,61 @@ export default function InterfaceNav({
         />, document.body
       )}
       
-      {/* Floating Add Tile button when Edit Mode is ON */}
+      {/* Floating Add Tile + Save buttons when Edit Mode is ON */}
       {isEditMode && projectId && interfaceId && (
         <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
-          <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
-            <ActionButton
-              className="h-7 px-1.5 text-caption"
-              size="sm"
-              variant="ghost"
-              onClick={onAddTile}
-              tooltip="Add new tile"
-              icon={<Plus size={12} />}
-              text="Add tile"
-            />
+          <div className="flex gap-2 pointer-events-none">
+            {/* Add tile bubble */}
+            <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
+              <ActionButton
+                className="h-7 px-1.5 text-caption"
+                size="sm"
+                variant="ghost"
+                onClick={onAddTile}
+                tooltip="Add new tile"
+                icon={<Plus size={12} />}
+                text="Add tile"
+                disabled={isSaving}
+              />
+            </div>
+            {/* Save bubble (icon only) */}
+            <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
+              <ActionButton
+                className="h-7 w-7"
+                size="icon"
+                variant="ghost"
+                onClick={async () => {
+                  const ids = (activeTabDataActions?.getTileIds?.() || []) as string[]
+                  if (!ids.length || !activeTabName) return
+                  setIsSaving(true)
+                  try {
+                    await withLoadingToastFn(async () => {
+                      await saveTabWithTilesMutation.mutateAsync({
+                        interface_id: interfaceId,
+                        tab_name: activeTabName,
+                        tile_ids: ids,
+                      })
+                    }, { loadingMessage: 'Saving…', successMessage: 'Saved', errorMessage: 'Save failed' })
+                  } catch (_) { /* toast already shown */ }
+                  finally { setIsSaving(false) }
+                }}
+                tooltip="Save changes"
+                icon={<Save className="h-3.5 w-3.5" />}
+                disabled={saveTabWithTilesMutation.isPending || isSaving}
+              />
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Fullscreen saving overlay to block navigation */}
+      {isSaving && createPortal(
+        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex items-center gap-3 bg-background border border-border rounded-md px-4 py-3 shadow-md">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-body">Saving changes…</span>
+          </div>
+        </div>, document.body
       )}
       
       {/* Set Project Context Dialog */}
