@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useTabRouterRefresh } from "./useTabRouterRefresh";
 import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/interfaces/grid";
 import { useUpdateTabUnifiedQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
@@ -78,6 +78,15 @@ export function useTabSync(
   // Get the query client
   const queryClient = useQueryClient();
 
+  // Debounce state for layout updates to avoid spamming server actions
+  const layoutDebounceTimersRef = useRef<Record<string, any>>({});
+  const pendingLayoutUpdateRef = useRef<Record<string, Partial<TileData>>>({});
+  const lastSentLayoutHashRef = useRef<Record<string, string>>({});
+  const createRetryTimersRef = useRef<Record<string, any>>({});
+  const createRetryAttemptsRef = useRef<Record<string, number>>({});
+  const updateRetryTimersRef = useRef<Record<string, any>>({});
+  const updateRetryAttemptsRef = useRef<Record<string, number>>({});
+
   /**
    * Initialize a tile with a generated UUID
    */
@@ -92,41 +101,68 @@ export function useTabSync(
       tabDataActions.initTile(tileName, {
         ...initialState,
         id: tileId,
-        name: tileName
+        name: tileName,
+        pending: true,
       });
 
       // Create the default position if not provided
       const { position, type, ...safeInitialState } = initialState;
 
       // Create the tile on the server with the generated UUID
-      const result = await createTileMutation.mutateAsync({
+      const scheduleCreateRetry = () => {
+        const attempts = createRetryAttemptsRef.current[tileId] || 0;
+        if (attempts >= 5) {
+          debugLog(`[Tile Create] Max retries reached for ${tileName} (${tileId})`);
+          return;
+        }
+        const delay = Math.min(2000 * Math.pow(2, attempts), 30000);
+        createRetryAttemptsRef.current[tileId] = attempts + 1;
+        createRetryTimersRef.current[tileId] = setTimeout(() => {
+          createTileMutation.mutate({
+            tab_id: tabId,
+            name: tileName,
+            position: position || { x: 0, y: 0, width: 4, height: 4 },
+            data: safeInitialState,
+            tile_id: tileId,
+            actions: tileActions
+          }, {
+            onSuccess: () => {
+              clearTimeout(createRetryTimersRef.current[tileId]);
+              delete createRetryTimersRef.current[tileId];
+              delete createRetryAttemptsRef.current[tileId];
+              tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+              debugLog(`Tile ${tileName} created with ID ${tileId}`);
+            },
+            onError: () => {
+              tabDataActions.updateTile(tileId, { pending: true, error: 'Save failed. Retrying…' } as any);
+              scheduleCreateRetry();
+            }
+          });
+        }, delay);
+      };
+
+      // Kick off create with retry handlers
+      createTileMutation.mutate({
         tab_id: tabId,
         name: tileName,
-        position: position || {
-          x: 0,
-          y: 0,
-          width: 4,
-          height: 4
-        },
+        position: position || { x: 0, y: 0, width: 4, height: 4 },
         data: safeInitialState,
         tile_id: tileId,
         actions: tileActions
+      }, {
+        onSuccess: () => {
+          tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+          debugLog(`Tile ${tileName} created with ID ${tileId}`);
+        },
+        onError: () => {
+          tabDataActions.updateTile(tileId, { pending: true, error: 'Save failed. Retrying…' } as any);
+          scheduleCreateRetry();
+        }
       });
-      
-      debugLog(`Tile ${tileName} created with ID ${tileId}`);
-      
-      return result;
+      return null;
     } catch (error) {
       console.error(`Failed to create tile ${tileName}:`, error);
-      
-      // Rollback local state if server creation failed
-      tabDataActions.removeTile(tileName);
-      
-      // Inform the user of the error
-      if (tabUIActions) {
-        console.error(`Failed to create tile ${tileName}: ${error}`);
-      }
-      
+      // Keep local tile and mark as pending; background retry is scheduled via mutate onError
       return null;
     }
   };
@@ -620,17 +656,45 @@ export function useTabSync(
     tabDataActions.updateTile(tileId, zustandUpdateData);
 
     // 2) Optimistic server update
-    updateTileMutation.mutate({
-      id: tileId,
-      data: updateData,
-      actions: tileActions
-    }, {
+    const scheduleUpdateRetry = () => {
+      const attempts = updateRetryAttemptsRef.current[tileId] || 0;
+      if (attempts >= 5) return;
+      const delay = Math.min(2000 * Math.pow(2, attempts), 30000);
+      updateRetryAttemptsRef.current[tileId] = attempts + 1;
+      updateRetryTimersRef.current[tileId] = setTimeout(() => {
+        updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
+          onSuccess: () => {
+            delete updateRetryAttemptsRef.current[tileId];
+            clearTimeout(updateRetryTimersRef.current[tileId]);
+            delete updateRetryTimersRef.current[tileId];
+            tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+            if (reload) refreshRouter();
+          },
+          onError: () => {
+            tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
+            scheduleUpdateRetry();
+          },
+          onSettled: () => {
+            if (reload) refreshRouter();
+          }
+        });
+      }, delay);
+    };
+
+    updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
+      onSuccess: () => {
+        tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+      },
+      onError: () => {
+        tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
+        scheduleUpdateRetry();
+      },
       onSettled: () => {
         if (reload) {
           refreshRouter();
         }
       }
-    }); 
+    });
   };
 
   /**
@@ -642,8 +706,7 @@ export function useTabSync(
     // 1) Update local state immediately
     tabDataActions.updateTileLayout(tileId, layout);
 
-    // 2) Optimistic server update
-    // Unpack the layout into Parital<TileData>
+    // 2) Debounced server update to reduce network chatter during drag/resize/layout recalcs
     const updateData: Partial<TileData> = {
       position: {
         x: layout.x,
@@ -655,12 +718,32 @@ export function useTabSync(
       minH: layout.minH,
     };
 
-    // Update the tile layout on the server
-    updateTileMutation.mutate({
-      id: tileId,
-      data: updateData,
-      actions: tileActions
-    });
+    pendingLayoutUpdateRef.current[tileId] = updateData;
+
+    const hash = JSON.stringify(updateData.position) + `|${updateData.minW}|${updateData.minH}`;
+    if (lastSentLayoutHashRef.current[tileId] === hash) {
+      return; // no-op if identical to last sent
+    }
+
+    if (layoutDebounceTimersRef.current[tileId]) {
+      clearTimeout(layoutDebounceTimersRef.current[tileId]);
+    }
+
+    layoutDebounceTimersRef.current[tileId] = setTimeout(() => {
+      const payload = pendingLayoutUpdateRef.current[tileId];
+      if (!payload) return;
+      lastSentLayoutHashRef.current[tileId] = JSON.stringify(payload.position) + `|${payload.minW}|${payload.minH}`;
+      updateTileMutation.mutate({ id: tileId, data: payload, actions: tileActions }, {
+        onError: () => {
+          // schedule one retry for layout update; subsequent layout changes will supersede
+          setTimeout(() => {
+            updateTileMutation.mutate({ id: tileId, data: payload, actions: tileActions });
+          }, 1500);
+        }
+      });
+      delete pendingLayoutUpdateRef.current[tileId];
+      delete layoutDebounceTimersRef.current[tileId];
+    }, 400);
   };
 
   /**
