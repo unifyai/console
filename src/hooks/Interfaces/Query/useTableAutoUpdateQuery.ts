@@ -138,9 +138,9 @@ export function useTableAutoUpdateQuery(
     enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
-    refetchOnWindowFocus: autoUpdate,
-    refetchOnReconnect: autoUpdate,
-    refetchOnMount: autoUpdate,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
     staleTime: 0, // Always fetch fresh data when auto-update is enabled
   });
   

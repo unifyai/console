@@ -91,36 +91,43 @@ const RefreshLogs = ({
     return () => clearTimeout(timeoutId);
   }, []);
 
+  // Helper: fetch latest timestamp via client API route (avoids server-action POST /interfaces)
+  const fetchLatestTimestamp = useCallback(async (): Promise<string> => {
+    if (!tileDataState) return "";
+    const params = new URLSearchParams();
+    params.set('project', projectId);
+    if (tileDataState.context) params.set('context', tileDataState.context);
+    if (tileDataState.column_context) params.set('column_context', tileDataState.column_context);
+    if (filterExpression) params.set('filter_expr', filterExpression);
+    if (sortingExpression) params.set('sorting', sortingExpression);
+    if (groupingExpression) {
+      groupingExpression.split(',').forEach(expr => params.append('group_by', expr.trim()));
+    }
+    if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+
+    const res = await fetch(`/api/logs/latest_timestamp?${params.toString()}`, { method: 'GET', cache: 'no-store' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ detail: `Latest timestamp ${res.status}` }));
+      throw new Error(data.detail || `Failed to get latest timestamp: ${res.status}`);
+    }
+    return res.text();
+  }, [projectId, tileDataState, filterExpression, sortingExpression, groupingExpression, groupSortingExpression]);
+
   // Fetch initial timestamp on mount
   useEffect(() => {
     if (!tileDataState) return;
-
-    logsActions
-      .getLatest(
-        projectId, 
-        tileDataState.context || null, 
-        tileDataState.column_context || null, 
-        filterExpression, 
-        sortingExpression, 
-        groupingExpression, 
-        groupSortingExpression,
-        null, null, null, null, null, null, null, null, null
-      )
-      .then(latest => {
-        if (isMounted.current) {
-          if (latest && typeof latest === 'object' && (latest as any).detail) {
-            // It's an error object, don't update timestamp.
-            return;
-          }
+    fetchLatestTimestamp()
+      .then((latest) => {
+        if (isMounted.current && latest && !(latest as any).detail) {
           setLastUpdated(latest);
         }
       })
       .catch(err => {
-        if (err.name !== 'AbortError') {
+        if ((err as any)?.name !== 'AbortError') {
           showErrorToast(err, "Failed to get initial latest timestamp.");
         }
       });
-  }, [projectId, tileDataState, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, logsActions]);
+  }, [fetchLatestTimestamp, tileDataState]);
 
   // Auto-update toggle
   const onAutoClick = () => {
@@ -149,16 +156,7 @@ const RefreshLogs = ({
       await withLoadingToastFn(
         async () => {
           // Get latest timestamp first
-          const latest = await logsActions.getLatest(
-            projectId,
-            tileDataState?.context || null,
-            tileDataState?.column_context || null,
-            filterExpression,
-            sortingExpression,
-            groupingExpression,
-            groupSortingExpression,
-            null, null, null, null, null, null, null, null, null
-          );
+          const latest = await fetchLatestTimestamp();
 
           if (latest && typeof latest === 'object' && (latest as any).detail && (latest as any).detail.startsWith("Context '") && (latest as any).detail.endsWith("' not found")) {
             if (syncedTileDataActions) {
