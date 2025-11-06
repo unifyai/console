@@ -316,5 +316,6 @@ export interface AssistantActions {
     },
     "desktop": {
         getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+        sendSystemEvent: (assistantId: string, eventType: 'pause_actor' | 'resume_actor', message: string) => Promise<ResponseProps>;
     }
 }

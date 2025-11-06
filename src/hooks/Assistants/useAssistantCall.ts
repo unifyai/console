@@ -20,10 +20,11 @@ export function useAssistantCall(
     const [connectionError, setConnectionError] = React.useState<string | null>(null);
     const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-    // --- Remote Control State (Moved from useAssistantDesktop) ---
+    // --- Remote Control State ---
     const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
     const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
     const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
+    const [isRemoteControlInteractive, setIsRemoteControlInteractive] = React.useState(false);
 
 
     const toggleSpeakerMute = React.useCallback(() => {
@@ -40,6 +41,7 @@ export function useAssistantCall(
     const stopRemoteControl = React.useCallback(() => {
         setIsRemoteControlActive(false);
         setLiveviewUrl(null);
+        setIsRemoteControlInteractive(false);
     }, []);
 
     const onDisconnected = React.useCallback(() => {
@@ -164,6 +166,7 @@ export function useAssistantCall(
             if (result.liveviewUrl) {
                 setLiveviewUrl(result.liveviewUrl);
                 setIsRemoteControlActive(true);
+                setIsRemoteControlInteractive(false); // Start in view-only mode
                 toast.success("Remote control session started.", { id: toastId });
             } else {
                  throw new Error("Could not retrieve session URL.");
@@ -176,6 +179,29 @@ export function useAssistantCall(
         }
     }, [isRemoteControlActive, stopRemoteControl, assistantActions.desktop, activeCallAssistant]);
     
+    const toggleRemoteControlInteractive = React.useCallback(async () => {
+        if (!isRemoteControlActive || !activeCallAssistant) return;
+
+        const nextState = !isRemoteControlInteractive;
+        const eventType = nextState ? 'pause_actor' : 'resume_actor';
+        const message = nextState ? 'user is taking over' : 'user is handing back control';
+
+        try {
+            const result = await assistantActions.desktop.sendSystemEvent(activeCallAssistant.agent_id, eventType, message);
+            if (result.detail) {
+                throw new Error(result.detail);
+            }
+            // Only update the state if the webhook call was successful
+            setIsRemoteControlInteractive(nextState);
+            toast.info(nextState ? "Interactive mode enabled." : "View-only mode enabled.");
+
+        } catch (e: any) {
+            console.error(`[useAssistantCall] Failed to toggle interactive mode to ${nextState}:`, e.message);
+            toast.error(`Could not ${nextState ? 'enable' : 'disable'} interactive mode.`);
+        }
+
+    }, [isRemoteControlActive, isRemoteControlInteractive, activeCallAssistant, assistantActions.desktop]);
+
     React.useEffect(() => {
         const onParticipantConnected = () => {
             setIsWaitingForAssistant(false);
@@ -209,5 +235,7 @@ export function useAssistantCall(
         liveviewUrl,
         isRemoteControlLoading,
         toggleRemoteControl,
+        isRemoteControlInteractive,
+        toggleRemoteControlInteractive,
     };
 }

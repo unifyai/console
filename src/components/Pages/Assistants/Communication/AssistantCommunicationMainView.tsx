@@ -20,6 +20,7 @@ interface AssistantCommunicationMainViewProps {
     loadingMessage?: string;
     connectionError?: string | null;
     onRetry?: () => void;
+    isInteractive?: boolean;
 }
 
 export function AssistantCommunicationMainView({
@@ -35,6 +36,7 @@ export function AssistantCommunicationMainView({
     loadingMessage = "Connecting...",
     connectionError,
     onRetry,
+    isInteractive = false,
 }: AssistantCommunicationMainViewProps) {
     const fallback = assistantName ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase() : "A";
 
@@ -64,13 +66,19 @@ export function AssistantCommunicationMainView({
 
     if (isRemoteControlActive) {
         return (
-            <div className="w-full h-full bg-black flex items-center justify-center">
+            <div className="w-full h-full bg-black flex items-center justify-center relative">
                 {remoteControlUrl ? (
-                    <iframe
-                        src={remoteControlUrl}
-                        className="w-full h-full border-0"
-                        title="Assistant Remote Desktop"
-                    />
+                    <>
+                        <iframe
+                            src={remoteControlUrl}
+                            className="w-full h-full border-0"
+                            title="Assistant Remote Desktop"
+                        />
+                        {/* Add overlay to block pointer events when not interactive */}
+                        {!isInteractive && (
+                            <div className="absolute inset-0 bg-transparent cursor-not-allowed" title="Enable interactive mode to take control" />
+                        )}
+                    </>
                 ) : (
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-8 w-8 animate-spin" />

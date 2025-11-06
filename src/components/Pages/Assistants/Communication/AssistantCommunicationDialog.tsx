@@ -34,6 +34,8 @@ interface AssistantCommunicationDialogContentProps {
     liveviewUrl: string | null;
     isRemoteControlLoading: boolean;
     toggleRemoteControl: () => void;
+    isRemoteControlInteractive: boolean;
+    toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
 }
 
@@ -53,6 +55,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     liveviewUrl,
     isRemoteControlLoading,
     toggleRemoteControl,
+    isRemoteControlInteractive,
+    toggleRemoteControlInteractive,
     isCallConnected,
 }) => {
     const room = React.useContext(RoomContext);
@@ -161,6 +165,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 videoTrack={agentVideoTrack}
                                 isRemoteControlActive={isRemoteControlActive}
                                 remoteControlUrl={liveviewUrl}
+                                isInteractive={isRemoteControlInteractive}
                                 isLoading={showLoadingState}
                                 loadingMessage={loadingMessage}
                                 connectionError={connectionError}
@@ -251,6 +256,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isRemoteControlActive={isRemoteControlActive}
                 isRemoteControlLoading={isRemoteControlLoading}
                 onToggleRemoteControl={toggleRemoteControl}
+                isRemoteControlInteractive={isRemoteControlInteractive}
+                onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
                 isConnectionEstablished={isCallConnected}
             />
         </>
@@ -275,6 +282,8 @@ interface AssistantCommunicationDialogProps {
     liveviewUrl: string | null;
     isRemoteControlLoading: boolean;
     toggleRemoteControl: () => void;
+    isRemoteControlInteractive: boolean;
+    toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
 }
 
@@ -296,6 +305,8 @@ export function AssistantCommunicationDialog({
     liveviewUrl,
     isRemoteControlLoading,
     toggleRemoteControl,
+    isRemoteControlInteractive,
+    toggleRemoteControlInteractive,
     isCallConnected,
 }: AssistantCommunicationDialogProps) {
 
@@ -324,6 +335,8 @@ export function AssistantCommunicationDialog({
                     liveviewUrl={liveviewUrl}
                     isRemoteControlLoading={isRemoteControlLoading}
                     toggleRemoteControl={toggleRemoteControl}
+                    isRemoteControlInteractive={isRemoteControlInteractive}
+                    toggleRemoteControlInteractive={toggleRemoteControlInteractive}
                     isCallConnected={isCallConnected}
                 />
             </DialogContent>

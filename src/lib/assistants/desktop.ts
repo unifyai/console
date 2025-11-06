@@ -96,3 +96,50 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
         }
     };
 };
+
+export const sendSystemEvent = async () => {
+    return async (assistantId: string, eventType: 'pause_actor' | 'resume_actor', message: string): Promise<ResponseProps> => {
+        "use server";
+        
+        const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+        if (!ADMIN_KEY) {
+            console.error("[sendSystemEvent] Server configuration error: ORCHESTRA_ADMIN_KEY is not set.");
+            return { detail: "Server configuration error." };
+        }
+
+        const orchestraUrl = process.env.ORCHESTRA_URL || "";
+        const isStaging = orchestraUrl.includes("staging");
+
+        const baseWebhookUrl = "https://us-central1-gcp-project-runtime.cloudfunctions.net/unity-system-event-webhook";
+        const webhookUrl = isStaging ? `${baseWebhookUrl}-staging` : baseWebhookUrl;
+
+        const payload = {
+            assistant_id: parseInt(assistantId), // The webhook likely expects an integer ID
+            event_type: eventType,
+            message: message,
+        };
+
+        try {
+            const webhookResponse = await fetch(webhookUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${ADMIN_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!webhookResponse.ok) {
+                const errorText = await webhookResponse.text();
+                console.error(`[sendSystemEvent] Webhook error (${webhookResponse.status}): ${errorText}`);
+                return { detail: `Failed to send system event: ${errorText}` };
+            }
+
+            return { info: "System event sent successfully." };
+
+        } catch (error: any) {
+            console.error("[sendSystemEvent] Error calling webhook:", error.message);
+            return { detail: "Failed to connect to system event service." };
+        }
+    };
+};
