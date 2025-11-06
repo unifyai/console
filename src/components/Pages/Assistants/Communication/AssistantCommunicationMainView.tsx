@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 interface AssistantCommunicationMainViewProps {
     assistantName: string;
@@ -11,6 +12,8 @@ interface AssistantCommunicationMainViewProps {
     imageUrl: string | null | undefined;
     videoTrack?: TrackReference;
     className?: string;
+    isRemoteControlActive?: boolean;
+    remoteControlUrl?: string | null;
     avatarContainerClassName?: string;
 }
 
@@ -20,9 +23,30 @@ export function AssistantCommunicationMainView({
     imageUrl,
     videoTrack,
     className,
+    isRemoteControlActive = false,
+    remoteControlUrl = null,
     avatarContainerClassName,
 }: AssistantCommunicationMainViewProps) {
     const fallback = assistantName ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase() : "A";
+
+    if (isRemoteControlActive) {
+        return (
+            <div className="w-full h-full bg-black flex items-center justify-center">
+                {remoteControlUrl ? (
+                    <iframe
+                        src={remoteControlUrl}
+                        className="w-full h-full border-0"
+                        title="Assistant Remote Desktop"
+                    />
+                ) : (
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span>Loading session...</span>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className={cn("relative flex flex-col items-center justify-center text-center", className || "w-48 h-48")}>

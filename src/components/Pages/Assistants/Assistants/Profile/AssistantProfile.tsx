@@ -146,7 +146,7 @@ export function AssistantProfilePanel({
                                     </TooltipProvider>
                                 }
                             >
-                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <User className="h-4 w-4" />
                                     <span className="text-body">{`${assistant.first_name}'s Profile`}</span>
                                 </div>
@@ -166,7 +166,7 @@ export function AssistantProfilePanel({
                              <AccordionTriggerWithButtons
                                 className="text-title"
                             >
-                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <Briefcase className="h-4 w-4" />
                                     <span className="text-body">{`Manage ${assistant.first_name}'s resources`}</span>
                                 </div>
@@ -216,13 +216,13 @@ export function AssistantProfilePanel({
                                     </div>
                                 }
                             >
-                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <MessageSquare className="h-4 w-4" />
                                     <span className="text-body">Chat with {assistant.first_name}</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent
-                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0"
+                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0 data-[state=closed]:hidden"
                                 className="p-0 flex-1 min-h-0 flex"
                             >
                                 <AssistantProfileChatPanel 

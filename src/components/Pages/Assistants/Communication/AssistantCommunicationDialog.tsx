@@ -30,9 +30,29 @@ interface AssistantCommunicationDialogContentProps {
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
+    isRemoteControlActive: boolean;
+    liveviewUrl: string | null;
+    isRemoteControlLoading: boolean;
+    toggleRemoteControl: () => void;
 }
 
-const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ assistant, onHangUp, onMinimize, chatHistories, setChatHistories, assistantActions, isConnecting, userImage, isWaitingForAssistant, connectionError, onRetry }) => {
+const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ 
+    assistant, 
+    onHangUp, 
+    onMinimize, 
+    chatHistories, 
+    setChatHistories, 
+    assistantActions, 
+    isConnecting, 
+    userImage, 
+    isWaitingForAssistant, 
+    connectionError, 
+    onRetry,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
+}) => {
     const room = React.useContext(RoomContext);
     if (!room) throw new Error("AssistantCommunicationDialogContent must be used within a RoomContext");
 
@@ -165,6 +185,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 isSpeaking={agentState === 'speaking'}
                                 imageUrl={assistantPhoto}
                                 videoTrack={agentVideoTrack}
+                                isRemoteControlActive={isRemoteControlActive}
+                                remoteControlUrl={liveviewUrl}
                             />
                             <AnimatePresence>
                                 {isUserViewVisible && (
@@ -248,6 +270,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onToggleChat={() => handleToggleSidePanel('chat')}
                 onToggleSettings={() => handleToggleSidePanel('settings')}
                 onToggleTranscriptions={() => handleToggleSidePanel('transcriptions')}
+                isRemoteControlActive={isRemoteControlActive}
+                isRemoteControlLoading={isRemoteControlLoading}
+                onToggleRemoteControl={toggleRemoteControl}
             />
         </>
     );
@@ -267,6 +292,10 @@ interface AssistantCommunicationDialogProps {
     isWaitingForAssistant: boolean;
     connectionError: string | null;
     onRetry: () => void;
+    isRemoteControlActive: boolean;
+    liveviewUrl: string | null;
+    isRemoteControlLoading: boolean;
+    toggleRemoteControl: () => void;
 }
 
 export function AssistantCommunicationDialog({
@@ -283,6 +312,10 @@ export function AssistantCommunicationDialog({
     isWaitingForAssistant,
     connectionError,
     onRetry,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
 }: AssistantCommunicationDialogProps) {
 
     if (!isOpen) return null;
@@ -306,6 +339,10 @@ export function AssistantCommunicationDialog({
                     isWaitingForAssistant={isWaitingForAssistant}
                     connectionError={connectionError}
                     onRetry={onRetry}
+                    isRemoteControlActive={isRemoteControlActive}
+                    liveviewUrl={liveviewUrl}
+                    isRemoteControlLoading={isRemoteControlLoading}
+                    toggleRemoteControl={toggleRemoteControl}
                 />
             </DialogContent>
         </Dialog>

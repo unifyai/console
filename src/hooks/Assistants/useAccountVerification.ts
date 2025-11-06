@@ -77,7 +77,7 @@ export function useAccountVerification({
         const result = await assistantActions.contact.verifySocialAccount(platform, identifier);
 
         if ('detail' in result) {
-            const errorMsg = result.detail || "Failed to send verification code.";
+            const errorMsg = "Failed to send verification code.";
             toast.error(errorMsg);
             setValue(fieldNames.verificationError, errorMsg as PathValue<AssistantFormData, typeof fieldNames.verificationError>, { shouldDirty: true });
             setValue(fieldNames.isVerifying, false as PathValue<AssistantFormData, typeof fieldNames.isVerifying>, { shouldDirty: true });

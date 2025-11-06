@@ -150,7 +150,7 @@ export function useAssistantChat(
                     return { ...prev, [configKey]: updatedHistory };
                 });
             } else {
-                toast.error(`Sorry, I couldn't get a response. ${errorMessage}`);
+                toast.error(`Sorry, I couldn't get a response. Please try again.`);
                 // Remove the empty assistant message placeholder on error
                 setHistories(prev => ({
                     ...prev,

@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const sandbox = await sdk.sandbox.create({
         title: userId,
         template: templateId,
+        hibernationTimeoutSeconds: 300,
     });
     return Response.json(sandbox);
 }

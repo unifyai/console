@@ -15,7 +15,7 @@ async function ensureSandbox(userId: string) {
   const list = await sdk.sandbox.list();
   let sandboxId = list.sandboxes.find((s: any) => s.title === userId)?.id;
   if (!sandboxId) {
-    const sandbox = await sdk.sandbox.create({ title: userId, template: templateId });
+    const sandbox = await sdk.sandbox.create({ title: userId, template: templateId, hibernationTimeoutSeconds: 300 });
     sandboxId = sandbox.id;
   }
   return sandboxId;

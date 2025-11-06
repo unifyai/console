@@ -14,6 +14,7 @@ import {
     MessageSquare,
     Settings,
     Captions,
+    Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -36,6 +37,9 @@ interface AssistantCommunicationControlsProps {
     onToggleChat: () => void;
     onToggleSettings: () => void;
     onToggleTranscriptions: () => void;
+    isRemoteControlActive: boolean;
+    onToggleRemoteControl: () => void;
+    isRemoteControlLoading: boolean;
 }
 
 const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; className?: string; [key: string]: any; }> =
@@ -67,6 +71,9 @@ export function AssistantCommunicationControls({
     onToggleChat,
     onToggleSettings,
     onToggleTranscriptions,
+    isRemoteControlActive,
+    onToggleRemoteControl,
+    isRemoteControlLoading,
 }: AssistantCommunicationControlsProps) {
     return (
         <div className="flex-shrink-0 h-20 px-6 flex items-center justify-between bg-background border-t">
@@ -99,8 +106,13 @@ export function AssistantCommunicationControls({
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <ControlButton tooltip="Take over workspace" >
-                    <Computer className="h-5 w-5" />
+                <ControlButton
+                    tooltip={isRemoteControlActive ? "Stop remote control" : "Take over workspace"}
+                    onClick={onToggleRemoteControl}
+                    disabled={isRemoteControlLoading}
+                    className={cn(isRemoteControlActive && "text-primary bg-primary/10 hover:bg-primary/20")}
+                >
+                    {isRemoteControlLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Computer className="h-5 w-5" />}
                 </ControlButton>
             </div>
 
