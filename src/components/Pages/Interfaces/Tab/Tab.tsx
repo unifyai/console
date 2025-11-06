@@ -52,6 +52,9 @@ const Tab = ({
   const widthFactor = 4;
   const heightFactor = 105;
 
+  const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
+  const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
+
   // Use granular hooks instead of a general hook
   const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
 
@@ -79,6 +82,15 @@ const Tab = ({
       maxDependencyDepth: 10
     }
   );
+
+  useEffect(() => {
+    tabLog('[Tab] Render state', {
+      tabId,
+      interfaceId,
+      tileIdsLength: tileIds.length,
+      sortedTiles: sortedTiles.map(t => ({ id: t.id, name: t.name, type: t.type }))
+    });
+  }, [tabId, interfaceId, tileIds, sortedTiles]);
 
   // Get the unregisterTileRefs function from Zustand
   const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);

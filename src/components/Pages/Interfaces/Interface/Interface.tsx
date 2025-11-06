@@ -109,14 +109,28 @@ const Interface = ({
 }: InterfaceComponentProps) => {
 
   const router = useRouter();
-  // Query params - project/interface use deep routing (trigger server), tab uses shallow (client-only)
+  // Query params - project/interface use deep routing (trigger server)
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
-  const [tabQueryParam, setTabQueryParam] = useQueryState("tab", { shallow: true });  // Shallow for instant switching
   const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
   const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
   const [noticeParam, setNoticeParam] = useQueryState("notice", { shallow: false });
   const [missingParam, setMissingParam] = useQueryState("missing", { shallow: false });
+
+  // History helpers for tab (pure client; no Next navigation)
+  const shallowSetTabInUrl = useCallback((tabName: string | null) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (tabName) url.searchParams.set('tab', tabName);
+    else url.searchParams.delete('tab');
+    // Use pushState for usable back/forward semantics
+    window.history.pushState(window.history.state, '', url.toString());
+  }, []);
+
+  const getTabFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('tab');
+  }, []);
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
   const [isSwitchingTab, setIsSwitchingTab] = useState(false);
@@ -396,25 +410,50 @@ const Interface = ({
   const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
   
   // Get current active tab name using selector - this is our source of truth
+  const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
+  const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
   const state = useStoreApiContext().getState();
   const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
   const activeTabName = activeTab?.name || null;
+  tabLog('[Interface] Active tab from store', { interfaceId, activeTabId, activeTabName });
   
-  // Wrapper that updates both Zustand store AND URL (shallow)
+  // Wrapper that updates both Zustand store AND URL (pure client)
   const setTabQueryParamFromSync = useCallback((tabName: string | null) => {
+    tabLog('[Interface] setTabQueryParamFromSync', { tabName });
     if (tabName && syncedInterfaceUIActions?.setActiveTab) {
       syncedInterfaceUIActions.setActiveTab(tabName);
     }
-    setTabQueryParam(tabName);  // Update URL with shallow routing (no server re-render)
-  }, [syncedInterfaceUIActions, setTabQueryParam]);
+    shallowSetTabInUrl(tabName); // Pure client URL update
+  }, [syncedInterfaceUIActions, shallowSetTabInUrl]);
 
-  // Sync URL when active tab changes in store (e.g. from sidebar navigation)
+  // On mount, adopt ?tab= from URL (no navigation)
   useEffect(() => {
-    if (activeTabName && activeTabName !== tabQueryParam) {
-      setTabQueryParam(activeTabName);
+    const urlTab = getTabFromUrl();
+    tabLog('[Interface] On mount URL tab detected', { urlTab, activeTabName });
+    if (urlTab && syncedInterfaceUIActions && activeTabName !== urlTab) {
+      syncedInterfaceUIActions.setActiveTab(urlTab);
     }
-  }, [activeTabName, tabQueryParam, setTabQueryParam]);
+    // Back/forward handler
+    const onPop = () => {
+      const t = getTabFromUrl();
+      tabLog('[Interface] popstate URL tab', { tab: t });
+      if (t && syncedInterfaceUIActions) {
+        syncedInterfaceUIActions.setActiveTab(t);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Always mirror active tab into URL without navigation
+  useEffect(() => {
+    if (activeTabName) {
+      tabLog('[Interface] Mirroring active tab to URL', { activeTabName });
+      shallowSetTabInUrl(activeTabName);
+    }
+  }, [activeTabName, shallowSetTabInUrl]);
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -469,47 +508,18 @@ const Interface = ({
     },
     {
       enableNonActivePrefetch: !isSwitchingInterface,
-      prefetchMode: 'full',  // Prefetch complete data so tabs are ready
+      prefetchMode: 'light',  // Keep background light; avoid contention
       deferMs: 1200,
-      concurrency: 2,  // Prefetch 2 tabs concurrently
+      concurrency: 1,  // Reduce pressure on slow backend
     }
   );
 
-  // Track tab switching state for loading overlay
+  // Drive overlay from the active tab query's loading state
   useEffect(() => {
-    console.log('[TAB SWITCH] URL param changed:', {
-      tabQueryParam,
-      activeTabName,
-      needsSwitch: tabQueryParam && activeTabName !== tabQueryParam,
-      willShowOverlay: tabQueryParam && activeTabName !== tabQueryParam
-    });
-    
-    // Show loading when tab query param changes but active tab hasn't switched yet
-    if (tabQueryParam && activeTabName !== tabQueryParam) {
-      console.log('[TAB SWITCH] Setting isSwitchingTab = true');
-      setIsSwitchingTab(true);
-    }
-  }, [tabQueryParam, activeTabName]);
-
-  // Hide loading when tab data is ready or errors
-  useEffect(() => {
-    const isReady = tabStreamingQuery?.activeTab.data && !tabStreamingQuery.activeTab.isLoading;
-    const hasError = tabStreamingQuery?.activeTab.isError;
-    
-    console.log('[TAB SWITCH] Data state changed:', {
-      hasData: !!tabStreamingQuery?.activeTab.data,
-      isLoading: tabStreamingQuery?.activeTab.isLoading,
-      isError: tabStreamingQuery?.activeTab.isError,
-      isReady,
-      hasError,
-      willHideOverlay: isReady || hasError
-    });
-    
-    if (isReady || hasError) {
-      console.log('[TAB SWITCH] Setting isSwitchingTab = false');
-      setIsSwitchingTab(false);
-    }
-  }, [tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.isError]);
+    const switching = !!tabStreamingQuery?.activeTab.isLoading;
+    tabLog('[Interface] Switching tab overlay state', { switching });
+    setIsSwitchingTab(switching);
+  }, [tabStreamingQuery?.activeTab.isLoading]);
 
   // Sidebar state for proper positioning
   const isMobile = useIsMobile();
@@ -559,7 +569,7 @@ const Interface = ({
   // Auto-select first tab if no active tab is set and tabs are available
   useEffect(() => {
     if (tabNames.length > 0 && syncedInterfaceUIActions && (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))) {
-      
+      tabLog('[Interface] Auto-selecting fallback tab', { tabNames, previousActive: activeTabName });
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
   }, [activeTabName, tabNames, syncedInterfaceUIActions]);
@@ -576,6 +586,7 @@ const Interface = ({
     
     // Check if tab data is already cached
     const isCached = tabStreamingQuery?.switchTab(value) || false;
+    tabLog('[Interface] performTabSwitch', { target: value, isCached });
     
     if (isCached) {
       // Instant switch - data is already available
@@ -598,6 +609,7 @@ const Interface = ({
   // Enhanced tab change handler with debounced switching
   const handleTabChange = useCallback((value: string | undefined) => {
     if (!value) return;
+    if (value === activeTabName) return; // No-op if already active
     
     // Block tab switching during mutations to prevent state desync
     if (createTabMutation.isPending || updateTabMutation.isPending || saveTabWithTilesMutation.isPending) {
@@ -607,10 +619,17 @@ const Interface = ({
     
     // Set pending tab change immediately for UI feedback
     setPendingTabChange(value);
+    setIsSwitchingTab(true);
+    
+    // Prefetch only if we don't already have a full cache for instant switch
+    const isCached = tabStreamingQuery.switchTab(value);
+    if (!isCached) {
+      void tabStreamingQuery.prefetchTab(value);
+    }
     
     // Debounce the actual tab switch
     debouncedTabSwitch(value);
-  }, [debouncedTabSwitch, createTabMutation.isPending, updateTabMutation.isPending, saveTabWithTilesMutation.isPending]);
+  }, [debouncedTabSwitch, createTabMutation.isPending, updateTabMutation.isPending, saveTabWithTilesMutation.isPending, tabStreamingQuery, activeTabName]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -826,18 +845,7 @@ const Interface = ({
 
   // Render the active tab based on streaming query - memoized to prevent infinite loops
   const renderActiveTab = useCallback(() => {
-    console.log('[TAB RENDER] renderActiveTab called:', {
-      activeTabId,
-      activeTabName,
-      projectQueryParam,
-      hasStreamingQuery: !!tabStreamingQuery,
-      streamingData: !!tabStreamingQuery?.activeTab.data,
-      streamingLoading: tabStreamingQuery?.activeTab.isLoading,
-      streamingError: tabStreamingQuery?.activeTab.isError
-    });
-    
     if (!activeTabId || !projectQueryParam) {
-      console.log('[TAB RENDER] No activeTabId or project - showing "select tab" message');
       return (
         <div className="flex items-center justify-center h-full">
           Please select a tab
@@ -846,8 +854,7 @@ const Interface = ({
     }
 
     // Show loading state while tab is being fetched
-    if (tabStreamingQuery?.activeTab.isLoading) {
-      console.log('[TAB RENDER] Tab is loading - showing skeleton');
+    if (tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending) {
       return (
         <div className="flex items-center justify-center h-full">
           <SkeletonLoader />
@@ -905,8 +912,7 @@ const Interface = ({
 
     // Check if we have tab data - if not, show helpful message
     const tabData = tabStreamingQuery?.activeTab.data;
-    if (!tabData && !tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.isError) {
-      console.log('[TAB RENDER] No tab data - showing "No Tab Data" screen');
+    if (!tabData && !tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.isError && !tabStreamingQuery?.activationPending) {
       return (
         <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
           <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
@@ -921,7 +927,7 @@ const Interface = ({
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setTabQueryParam(null)}>
+            <Button variant="outline" onClick={() => setTabQueryParamFromSync(null)}>
               Select Different Tab
             </Button>
             <Button onClick={() => {
@@ -937,13 +943,25 @@ const Interface = ({
       );
     }
 
-    console.log('[TAB RENDER] Rendering Tab component with data:', {
-      tabDataExists: !!tabData,
-      tileCount: tabData?.tiles?.length || 0,
+    // Guard against race condition: ensure tab data matches current active tab
+    if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
+      console.warn('[TAB RENDER] Race condition detected - tab data is stale:', {
+        dataTabName: tabData.tabData.name,
+        activeTabName,
+        ignoring: true
+      });
+      return (
+        <div className="flex items-center justify-center h-full">
+          <SkeletonLoader />
+        </div>
+      );
+    }
+
+    console.log('[TAB RENDER] Rendering Tab:', {
       tabName: activeTabName,
-      actualTilesArray: tabData?.tiles
+      tileCount: tabData?.tiles?.length || 0
     });
-    
+
     return (
       <div className="w-full h-full">
         <Suspense fallback={
@@ -968,7 +986,7 @@ const Interface = ({
         </Suspense>
       </div>
     );
-  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions, queryClient, setTabQueryParam]);
+  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions, queryClient, setTabQueryParamFromSync]);
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
@@ -1568,7 +1586,7 @@ const Interface = ({
                   disabled={saveTabWithTilesMutation.isPending}
                   setOverlayState={setOverlayState}
                   setIsSwitchingInterface={setIsSwitchingInterface}
-                  hideAddTileButton={true}
+                  hideAddTileButton={false}
                 />
               </div>
             </div>
