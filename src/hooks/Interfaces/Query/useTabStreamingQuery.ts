@@ -667,6 +667,12 @@ export function useTabStreamingQuery(
     getCachedTabData,
     prefetchTab,
     refreshTabData,
+    // Force a refetch of the active tab now (used by UI retry)
+    refetchActiveTab: async () => {
+      try {
+        await (activeTabQuery as any).refetch?.({ cancelRefetch: false });
+      } catch (_) {}
+    },
     
     // All available tabs
     allTabs,

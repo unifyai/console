@@ -888,17 +888,10 @@ const Interface = ({
               onClick={() => {
                 if (isRetryingTabRef.current) return; // Prevent multiple rapid clicks
                 isRetryingTabRef.current = true;
-                
-                // Just invalidate the query and let React Query refetch automatically
-                queryClient.invalidateQueries({
-                  queryKey: ["tabCompleteData", interfaceId, activeTabName, projectQueryParam],
-                  refetchType: 'active'
-                });
-                
+                // Force an immediate refetch of the active tab
+                void tabStreamingQuery.refetchActiveTab?.();
                 // Reset guard after 2 seconds
-                setTimeout(() => {
-                  isRetryingTabRef.current = false;
-                }, 2000);
+                setTimeout(() => { isRetryingTabRef.current = false; }, 2000);
               }}
               className="w-full max-w-xs"
             >
@@ -923,18 +916,13 @@ const Interface = ({
           <div>
             <h3 className="text-h4 mb-2">No Tab Data</h3>
             <p className="text-body text-muted-foreground max-w-md">
-              This tab exists but has no data loaded. Try refreshing or selecting a different tab.
+              This tab exists but has no data loaded. Try refreshing the tab.
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setTabQueryParamFromSync(null)}>
-              Select Different Tab
-            </Button>
             <Button onClick={() => {
-              queryClient.invalidateQueries({
-                queryKey: ["tabCompleteData", interfaceId, activeTabName, projectQueryParam],
-                refetchType: 'active'
-              });
+              // Force a refetch of the active tab query
+              void tabStreamingQuery.refetchActiveTab?.();
             }}>
               Refresh Tab
             </Button>
@@ -1030,6 +1018,8 @@ const Interface = ({
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(true);
       }
+      // Notify user of success
+      showSuccessToast('Saved changes');
       
     } catch (error) {
       console.error("Failed to save tab:", error);
@@ -1044,6 +1034,8 @@ const Interface = ({
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(false);
       }
+      // Notify user of failure without resetting UI
+      showErrorToast(error, 'Failed to save changes');
     } finally {
       // Hide loading state
       if (tabUIActions) {
@@ -1586,7 +1578,6 @@ const Interface = ({
                   disabled={saveTabWithTilesMutation.isPending}
                   setOverlayState={setOverlayState}
                   setIsSwitchingInterface={setIsSwitchingInterface}
-                  hideAddTileButton={false}
                 />
               </div>
             </div>
