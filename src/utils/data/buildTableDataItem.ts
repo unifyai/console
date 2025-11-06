@@ -221,13 +221,7 @@ export async function fetchAndBuildTableDataItem(
     logsData = await res.json();
   } catch (err: any) {
     const errorMsg = err?.message || 'Failed to fetch logs';
-    console.error('[buildTableDataItem] Logs fetch failed:', {
-      tileId: tile.id,
-      tileName: tile.name,
-      error: errorMsg,
-      statusCode: err?.status,
-      isTimeout: errorMsg.includes('timeout') || errorMsg.includes('504')
-    });
+    console.error('[buildTableDataItem] Logs fetch failed for tile:', tile.name, errorMsg);
     
     // Gracefully surface a minimal item so the tile can display Retry
     return {

@@ -38,13 +38,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     debugLog("[InterfacesPage] Received searchParams:", searchParams);
     debugLog("[InterfacesPage] Project:", searchParams?.project);
     debugLog("[InterfacesPage] Interface:", searchParams?.interface);
-    debugLog("[InterfacesPage] Tab (client-only, ignored by SSR):", searchParams?.tab);
+    debugLog("[InterfacesPage] Tab:", searchParams?.tab);
     debugLog("[InterfacesPage] All keys:", Object.keys(searchParams));
     debugLog("[InterfacesPage] Timestamp:", new Date().toISOString());
-    
-    // Filter out 'tab' parameter to prevent server re-renders on tab changes
-    // Tab routing is handled client-side with shallow routing for instant switching
-    const { tab, ...serverSearchParams } = searchParams || {};
 
     // get user and api key
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
@@ -208,9 +204,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
 
     return (
         <Main
-            project={serverSearchParams?.project as string | null}
-            interface_={serverSearchParams?.interface as string | null}
-            searchParams={serverSearchParams}
+            project={searchParams?.project as string | null}
+            interface_={searchParams?.interface as string | null}
+            searchParams={searchParams}
             actions={
                 {
                     projectsActions,

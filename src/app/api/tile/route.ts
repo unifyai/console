@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
+    // Info-level log for diagnostics
+    try {
+      console.log(JSON.stringify({ route: "/api/tile", method: "GET", endpoint: `${baseUrl}${endpoint}`, params: Object.fromEntries(searchParams as any), correlationId }));
+    } catch {}
     
     try {
         const res = await fetch(

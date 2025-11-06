@@ -309,7 +309,6 @@ const InterfaceButtons = ({
         } finally { setIsImporting(false); }
     }, [selectedFile, templateData, importInterfaceName, validateImportName, interfaceActions, project, refetchInterfaces, router]);
 
-
     return (
         <div className="flex items-center gap-2">
             
