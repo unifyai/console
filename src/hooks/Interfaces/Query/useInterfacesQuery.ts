@@ -15,17 +15,18 @@ export function useListInterfacesQuery(
     queryKey: ['interfaces', projectId],
     queryFn: async ({ signal }) => {
       if (!projectId) return [];
-      // Support action signatures with optional AbortSignal (2 or 3 args)
-      const listFn: any = (actions as any).list;
-      const result = listFn.length >= 3
-        ? await listFn(projectId, false, signal as AbortSignal)
-        : await listFn(projectId, false);
-      if (!Array.isArray(result)) {
-        const anyResult = result as any;
-        const detail = (anyResult && (anyResult.error || anyResult.detail)) || 'Failed to list interfaces';
-        throw new Error(detail);
+      // Prefer API route on the client to avoid server action round-trips (RSC fetches)
+      const res = await fetch(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
+        method: 'GET',
+        signal: signal as AbortSignal,
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ detail: `Interfaces ${res.status}` }));
+        throw new Error(data.detail || 'Failed to list interfaces');
       }
-      return result as any[];
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
     enabled: !!projectId,
     staleTime: 2 * 60 * 1000, // 2 minutes
