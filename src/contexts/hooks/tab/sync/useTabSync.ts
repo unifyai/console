@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { convertTileToTileData } from "@/contexts/utils/sliceUtils";
 import { Tile } from "@/contexts/slices/selectors/tile";
 import { useQueryClient } from "@tanstack/react-query";
+import { showErrorToast } from "@/components/Common/Toasts/notifications";
 
 /**
  * Debug flag for state syncing logging
@@ -262,7 +263,7 @@ export function useTabSync(
   /**
    * Remove a tile from a tab
    */
-  const wrapRemoveTile = (tileId: string) => {
+  const wrapRemoveTile = async (tileId: string) => {
     if (!tileId || !tabDataActions || !tileActions) return;
 
     // Get the old tile name
@@ -273,18 +274,23 @@ export function useTabSync(
     const referencedTileIds = tabDataActions.getReferencedTileIdsByName(oldTileName);
     const referencedPlotTileIds = tabDataActions.getReferencedPlotTileIdsByName(oldTileName);
 
-    // 1) Update local state immediately
-    tabDataActions.removeTile(tileId);
+    // 1) Attempt server delete first; only update local state on success
+    try {
+      await deleteTileMutation.mutateAsync({
+        id: tileId,
+        actions: tileActions
+      });
+    } catch (e) {
+      showErrorToast(e, `Failed to delete tile ${oldTileName}`);
+      return;
+    }
 
-    // 2) Optimistic server update
-    deleteTileMutation.mutate({
-      id: tileId,
-      actions: tileActions
-    });
+    // 2) Update local state after confirmed delete
+    tabDataActions.removeTile(tileId);
 
     // 3) Then update any references to this tile in other tiles
     // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
-    // Optimistically update the referenced tiles on the server
+    // Update the referenced tiles on the server
     referencedTileIds.forEach(id => {
       patchTileMutation.mutate({
         id: id,
