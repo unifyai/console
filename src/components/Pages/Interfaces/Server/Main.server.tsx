@@ -241,10 +241,22 @@ export default async function Main({
 
     // Build interface state slice
     const activeTabId = currentInterface.active_tab_id || undefined;
+    // Prefer the URL tab if present (for SSR); otherwise use server's active_tab_id
+    let forcedActiveTabId: string | undefined = undefined;
+    const spTab = (typeof searchParams?.tab === 'string') ? (searchParams!.tab as string) : undefined;
+    if (spTab && Array.isArray(tabs)) {
+      const match = tabs.find(t => t.name === spTab);
+      if (match?.id) {
+        forcedActiveTabId = match.id;
+        debugLog("[Main.server] Using tab from URL for SSR:", spTab, "ID:", forcedActiveTabId);
+      }
+    }
+    const finalActiveTabId = forcedActiveTabId ?? activeTabId;
+
     debugLog("[Main.server] Building interface state slice");
     interfaceStateSlice = buildInterfaceStateForStore(
       currentInterface, 
-      activeTabId,
+      finalActiveTabId,
       tabs.map(tab => tab.id || '') || [],
       tabs.map(tab => tab.name || '') || []
     );
@@ -266,7 +278,7 @@ export default async function Main({
         if (!tabId) continue;
 
         try {
-          const isActive = tabId === currentInterface.active_tab_id;
+          const isActive = tabId === finalActiveTabId;
           allTabData.push(tab);
           isActiveFlags.push(isActive);
 
