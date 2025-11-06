@@ -28,6 +28,7 @@ import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/dat
 import { selectProjectById } from '@/contexts/selectors/project';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 import { Tile } from '@/contexts/slices/selectors/tile';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for performance logging
@@ -385,29 +386,11 @@ export function usePatchTileQueryOptimistic() {
     },
     
     onError: (error, variables, context) => {
-      // Roll back to the previous state if there was an error
-      const { id, tab_id, name } = variables;
-      
-      if (!context) return;
-      
-      // Restore the tile data if available
-      if (context.previousTiles) {
-        queryClient.setQueryData(['tiles', tab_id], context.previousTiles);
-      }
-      
-      // Restore table arguments
-      if (context.previousTableArgs && tab_id) {
-        queryClient.setQueryData(['tableArguments', tab_id], context.previousTableArgs);
-      }
-      
-      // Restore plot arguments
-      if (context.previousPlotArgs && tab_id) {
-        queryClient.setQueryData(['plotArguments', tab_id], context.previousPlotArgs);
-      }
-      
-      // No need to restore the TableDataItem and PlotDataItem,
-      // since they'll be refetched if needed based on the restored tiles
-      
+      // Do NOT rollback local state; keep the user's changes visible.
+      showErrorToast(
+        error,
+        'Could not save changes. Your local edits are still visible. Use Save to persist.'
+      );
       console.error(`Error patching tile:`, error);
     },
     
