@@ -88,6 +88,53 @@ export function useTabSync(
   const updateRetryTimersRef = useRef<Record<string, any>>({});
   const updateRetryAttemptsRef = useRef<Record<string, number>>({});
 
+  // Feature flag for bulk operations (client-side)
+  const ENABLE_BULK = process.env.NEXT_PUBLIC_ENABLE_BULK_TILE_PATCH !== 'false';
+
+  // Helper to perform bulk tile patches with graceful fallback
+  const bulkPatchTiles = async (
+    updates: Array<{ id?: string; tab_id?: string; name?: string; updateData: Record<string, any> }>
+  ): Promise<{ results: any[]; errors: Array<{ id?: string; tab_id?: string; name?: string; error: string }> }> => {
+    if (!updates.length) return { results: [], errors: [] };
+
+    // Fallback to per-item path if bulk disabled or tileActions missing
+    if (!ENABLE_BULK || !tileActions) {
+      for (const u of updates) {
+        try {
+          if (u.id) {
+            await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
+          } else if (u.tab_id && u.name) {
+            await patchTileMutation.mutateAsync({ tab_id: u.tab_id, name: u.name, updateData: u.updateData, actions: tileActions! });
+          }
+        } catch {}
+      }
+      return { results: [], errors: [] };
+    }
+
+    try {
+      const res = await fetch('/api/tile/bulk/patch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+      });
+      const data = await res.json().catch(() => ({ results: [], errors: [{ error: 'Invalid response' }] }));
+      if (!res.ok) throw new Error(data?.detail || `Bulk ${res.status}`);
+      return data as { results: any[]; errors: Array<{ id?: string; tab_id?: string; name?: string; error: string }> };
+    } catch (e: any) {
+      // On bulk failure, fallback per-item
+      for (const u of updates) {
+        try {
+          if (u.id) {
+            await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
+          } else if (u.tab_id && u.name) {
+            await patchTileMutation.mutateAsync({ tab_id: u.tab_id, name: u.name, updateData: u.updateData, actions: tileActions! });
+          }
+        } catch {}
+      }
+      return { results: [], errors: [{ error: e?.message || 'Bulk failed' }] };
+    }
+  };
+
   // Helper to clear all timers/attempts for a given tile
   const clearTileTimers = (tileId: string) => {
     if (layoutDebounceTimersRef.current[tileId]) {
@@ -212,69 +259,36 @@ export function useTabSync(
       actions: tileActions
     });
 
-    // 3) Then update any references to this tile in other tiles
-    // Start with updating the `tile.table` property for all tiles that reference this tile by name via the `table` property
-    // Optimistically update the referenced tiles on the server
-    referencedTileIds.forEach(id => {
-      patchTileMutation.mutate({
-        id: id,
-        updateData: {
-          table: newTileName
-        },
-        actions: tileActions
-      });
+    // 3) Batch references updates into a single bulk payload
+    const updatesMap = new Map<string, Record<string, any>>();
+
+    // Update `table` references
+    referencedTileIds.forEach((id) => {
+      const prev = updatesMap.get(id) || {};
+      updatesMap.set(id, { ...prev, table: newTileName });
     });
 
-    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
-    // Update x_axis references
-    referencedPlotTileIds.xAxis.forEach(id => {
-      // Get the tile
+    // Plot axes and group_by
+    const mergePlotUpdate = (id: string, key: 'x_axis' | 'y_axis' | 'plot_group_by') => {
       const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            x_axis: tile.plotTile.x_axis // This has already been updated in the zustand renameTile action above
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
+      if (!tile?.plotTile) return;
+      const prev = updatesMap.get(id) || {};
+      const prevPlot = (prev as any).plot_tile || {};
+      updatesMap.set(id, { ...prev, plot_tile: { ...prevPlot, [key]: (tile.plotTile as any)[key] } });
+    };
+    referencedPlotTileIds.xAxis.forEach((id) => mergePlotUpdate(id, 'x_axis'));
+    referencedPlotTileIds.yAxis.forEach((id) => mergePlotUpdate(id, 'y_axis'));
+    referencedPlotTileIds.plotGroupBy.forEach((id) => mergePlotUpdate(id, 'plot_group_by'));
 
-    // Update y_axis references
-    referencedPlotTileIds.yAxis.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            y_axis: tile.plotTile.y_axis // This has already been updated in the zustand renameTile action above
-          }
-        },
-          actions: tileActions
-        });
-      }
-    });
+    const updates = Array.from(updatesMap.entries()).map(([id, updateData]) => ({ id, updateData }));
 
-    // Update plot_group_by references
-    referencedPlotTileIds.plotGroupBy.forEach(id => {
-      // Get the tile
-      const tile = tabDataActions.getPartialTile(id);
-      if (tile?.plotTile) {
-        patchTileMutation.mutate({
-          id: id,
-        updateData: {
-          plot_tile: {
-            plot_group_by: tile.plotTile.plot_group_by // This has already been updated in the zustand renameTile action above
-          }
-          },
-          actions: tileActions
-        });
+    bulkPatchTiles(updates).then(({ errors }) => {
+      if (errors?.length) {
+        console.warn('[bulkRenameTile] Partial failures:', errors.length);
       }
+      try {
+        if (tabId) queryClient.invalidateQueries({ queryKey: ['tiles', tabId] });
+      } catch {}
     });
   };
 
@@ -535,45 +549,29 @@ export function useTabSync(
       }
     });
 
-    // Update all tiles in the tab that use this context
-    const promises = tileIds.map(async (tileId: string) => {
-      // Get the tile name from our mapping
-      const tileName = tileIdToNameMap.get(tileId);
-      
-      if (tileName) {
-        // Get tile using the provided tile name
-        const tile = tabDataActions.getPartialTile(tileName);
-        
-        if (tile) {
-          const updates: { context?: string; column_context?: string } = {};
-          let needsUpdate = false;
-          
-          if (tile.context === context) {
-            updates.context = "";
-            needsUpdate = true;
-          }
-          
-          if (tile.column_context === context) {
-            updates.column_context = "";
-            needsUpdate = true;
-          }
-          
-          if (needsUpdate && tileActions) {
-            return patchTileMutation.mutateAsync({
-              tab_id: tabId,
-              name: tileName,
-              updateData: updates,
-              actions: tileActions
-            });
-          }
-        }
+    // Build bulk updates for tiles that use this context
+    const updates: Array<{ id?: string; tab_id?: string; name?: string; updateData: Record<string, any> }> = [];
+    tileIds.forEach((id: string, idx: number) => {
+      const name = tileNames[idx];
+      if (!name) return;
+      const tile = tabDataActions.getPartialTile(name);
+      if (!tile) return;
+
+      const updateData: { context?: string; column_context?: string } = {};
+      let needsUpdate = false;
+      if (tile.context === context) { updateData.context = ""; needsUpdate = true; }
+      if (tile.column_context === context) { updateData.column_context = ""; needsUpdate = true; }
+      if (needsUpdate) {
+        updates.push({ id, updateData });
       }
-      
-      return Promise.resolve();
     });
-    
-    // Wait for all updates to complete
-    await Promise.all(promises);
+
+    if (updates.length) {
+      const { errors } = await bulkPatchTiles(updates);
+      if (errors?.length) {
+        console.warn('[bulkRemoveContext] Partial failures:', errors.length);
+      }
+    }
       
     // Refresh the router to update UI with new data
     debugLog("[wrapRemoveContextFromTab] onSettled:", context);
