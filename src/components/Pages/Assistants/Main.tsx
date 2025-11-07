@@ -67,6 +67,40 @@ export default function Main({
         handleShowActivityLog, handleActivityLogClose,
     } = usePanelManager();
 
+    const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
+    const [isResizingProfile, setIsResizingProfile] = React.useState(false);
+
+    const handleProfileResizeStart = React.useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizingProfile(true);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const startWidth = profilePanelWidth;
+        const startX = e.clientX;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const newWidth = startWidth + (moveEvent.clientX - startX);
+            const minWidth = 300;
+            const maxWidth = 800;
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                setProfilePanelWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizingProfile(false);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [profilePanelWidth]);
+
+
     // --- Assistant List Fold State ---
     const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
 
@@ -444,13 +478,17 @@ export default function Main({
 
                 {/* Assistant Profile Panel */}
                 <AnimatePresence initial={false}>
-                    {isProfileOpen && profileAssistant && (
+                    {isProfileOpen && profileAssistant && [
                         <motion.div
                             key="assistant-profile"
-                            initial={{ width: "0%", opacity: 0, x: "-1%" }}
-                            animate={{ width: panelBaseWidth, opacity: 1, x: "0%" }}
-                            exit={{ width: "0%", opacity: 0, x: "-1%" }}
-                            transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: profilePanelWidth, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{
+                                type: "tween",
+                                ease: "easeInOut",
+                                duration: isResizingProfile ? 0 : 0.3
+                            }}
                             className="h-full flex-shrink-0 border-r overflow-hidden bg-background"
                         >
                             <AssistantProfilePanel
@@ -470,9 +508,20 @@ export default function Main({
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
                             />
-                        </motion.div>
-                    )}
+                        </motion.div>,
+                        <motion.div
+                            key="profile-resize-handle"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            onMouseDown={handleProfileResizeStart}
+                            className="w-1.5 h-full cursor-col-resize bg-transparent hover:bg-primary/20 active:bg-primary/40 transition-colors duration-200 flex-shrink-0"
+                            style={{ zIndex: 20 }}
+                        />
+                    ]}
                 </AnimatePresence>
+
 
                 {/* Assistant Activity Log Panel */}
                 <AnimatePresence initial={false}>
