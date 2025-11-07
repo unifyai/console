@@ -135,6 +135,66 @@ export function useTabSync(
     }
   };
 
+  // Targeted invalidation helper for tile updates
+  const invalidateAfterTileUpdate = async ({
+    id,
+    tabId,
+    priorType,
+    updateData,
+  }: {
+    id: string;
+    tabId?: string | null;
+    priorType?: string | null;
+    updateData: Partial<TileData>;
+  }) => {
+    if (!id) return;
+    try { queryClient.invalidateQueries({ queryKey: ['tile-by-id', id] }); } catch {}
+    if (tabId) {
+      try { queryClient.invalidateQueries({ queryKey: ['tiles', tabId] }); } catch {}
+      try { queryClient.invalidateQueries({ queryKey: ['tab-with-tiles-by-id', tabId] }); } catch {}
+    }
+
+    const touchesTableData =
+      ('context' in updateData) ||
+      ('column_context' in updateData) ||
+      ('filters' in updateData) ||
+      ('common_filter' in updateData) ||
+      ('grouping' in updateData) ||
+      ('metric' in updateData) ||
+      ('table_tile' in updateData) ||
+      ('auto_update' in updateData);
+
+    const touchesPlotData =
+      ('context' in updateData) ||
+      ('column_context' in updateData) ||
+      ('metric' in updateData) ||
+      ('grouping' in updateData) ||
+      ('plot_tile' in updateData);
+
+    const nextType = (updateData as any)?.type as string | undefined;
+    const effectiveType = nextType || priorType || undefined;
+
+    if (touchesTableData && effectiveType === 'Table') {
+      try { queryClient.invalidateQueries({ queryKey: ['tableDataItem', id] }); } catch {}
+      try { queryClient.invalidateQueries({ queryKey: ['tableDataItem', 'autoUpdate', id] }); } catch {}
+    }
+    if (touchesPlotData && effectiveType === 'Plot') {
+      try { queryClient.invalidateQueries({ queryKey: ['plotDataItem', id] }); } catch {}
+    }
+  };
+
+  // Decide if a structural refresh is warranted (rare)
+  const needsStructuralRefresh = (
+    priorType?: string | null,
+    nextData?: Partial<TileData>
+  ) => {
+    const nextType = nextData?.type as string | undefined;
+    if (nextType && priorType && nextType !== priorType) {
+      return true;
+    }
+    return false;
+  };
+
   // Helper to clear all timers/attempts for a given tile
   const clearTileTimers = (tileId: string) => {
     if (layoutDebounceTimersRef.current[tileId]) {
@@ -661,6 +721,7 @@ export function useTabSync(
     let setLoading = false;
 
     const tile = tabDataActions.getPartialTile(tileId);
+    const priorType = tile?.type || null;
 
     if ("type" in updateData && (updateData.type === "Table" || updateData.type === "Plot")) {
       reload = true;
@@ -709,34 +770,37 @@ export function useTabSync(
       updateRetryAttemptsRef.current[tileId] = attempts + 1;
       updateRetryTimersRef.current[tileId] = setTimeout(() => {
         updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
-          onSuccess: () => {
+          onSuccess: async () => {
             delete updateRetryAttemptsRef.current[tileId];
             clearTimeout(updateRetryTimersRef.current[tileId]);
             delete updateRetryTimersRef.current[tileId];
             tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
-            if (reload) refreshRouter();
+            await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
           },
           onError: () => {
             tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
             scheduleUpdateRetry();
           },
-          onSettled: () => {
-            if (reload) refreshRouter();
+          onSettled: async () => {
+            if (needsStructuralRefresh(priorType, updateData)) {
+              refreshRouter();
+            }
           }
         });
       }, delay);
     };
 
     updateTileMutation.mutate({ id: tileId, data: updateData, actions: tileActions }, {
-      onSuccess: () => {
+      onSuccess: async () => {
         tabDataActions.updateTile(tileId, { pending: false, error: null } as any);
+        await invalidateAfterTileUpdate({ id: tileId, tabId, priorType, updateData });
       },
       onError: () => {
         tabDataActions.updateTile(tileId, { error: 'Save failed. Retrying…' } as any);
         scheduleUpdateRetry();
       },
-      onSettled: () => {
-        if (reload) {
+      onSettled: async () => {
+        if (needsStructuralRefresh(priorType, updateData)) {
           refreshRouter();
         }
       }
