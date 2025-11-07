@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { useTabRouterRefresh } from "./useTabRouterRefresh";
 import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/interfaces/grid";
 import { useUpdateTabUnifiedQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
@@ -87,6 +87,24 @@ export function useTabSync(
   const createRetryAttemptsRef = useRef<Record<string, number>>({});
   const updateRetryTimersRef = useRef<Record<string, any>>({});
   const updateRetryAttemptsRef = useRef<Record<string, number>>({});
+
+  // Helper to clear all timers/attempts for a given tile
+  const clearTileTimers = (tileId: string) => {
+    if (layoutDebounceTimersRef.current[tileId]) {
+      clearTimeout(layoutDebounceTimersRef.current[tileId]);
+      delete layoutDebounceTimersRef.current[tileId];
+    }
+    if (createRetryTimersRef.current[tileId]) {
+      clearTimeout(createRetryTimersRef.current[tileId]);
+      delete createRetryTimersRef.current[tileId];
+    }
+    if (updateRetryTimersRef.current[tileId]) {
+      clearTimeout(updateRetryTimersRef.current[tileId]);
+      delete updateRetryTimersRef.current[tileId];
+    }
+    delete createRetryAttemptsRef.current[tileId];
+    delete updateRetryAttemptsRef.current[tileId];
+  };
 
   /**
    * Initialize a tile with a generated UUID
@@ -266,6 +284,9 @@ export function useTabSync(
   const wrapRemoveTile = async (tileId: string) => {
     if (!tileId || !tabDataActions || !tileActions) return;
 
+    // Clear any pending timers for this tile to avoid post-delete actions
+    clearTileTimers(tileId);
+
     // Get the old tile name
     const oldTileName = tabDataActions.getTileName(tileId);
 
@@ -353,6 +374,27 @@ export function useTabSync(
       }
     });
   };
+
+  // Global cleanup on unmount to prevent leaks and post-unmount updates
+  useEffect(() => {
+    return () => {
+      // Clear all layout debounce timers
+      Object.values(layoutDebounceTimersRef.current).forEach((t) => clearTimeout(t));
+      // Clear all create retry timers
+      Object.values(createRetryTimersRef.current).forEach((t) => clearTimeout(t));
+      // Clear all update retry timers
+      Object.values(updateRetryTimersRef.current).forEach((t) => clearTimeout(t));
+
+      // Reset attempts
+      createRetryAttemptsRef.current = {};
+      updateRetryAttemptsRef.current = {};
+
+      // Reset timer refs
+      layoutDebounceTimersRef.current = {};
+      createRetryTimersRef.current = {};
+      updateRetryTimersRef.current = {};
+    };
+  }, []);
 
   /**
    * Paste a copied tile with a generated UUID

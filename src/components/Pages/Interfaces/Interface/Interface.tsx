@@ -1097,61 +1097,75 @@ const Interface = ({
     }
   };
 
-  // Background worker: process context sync queue
+  // Background worker (event-driven): process context sync queue
   useEffect(() => {
     let cancelled = false;
-    let timer: any = null;
+    let draining = false;
 
-    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, attempt));
+    const MAX_ATTEMPTS = 5;
+    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, Math.max(0, attempt - 1)));
 
-    const runOnce = async () => {
-      if (cancelled) return;
-      const s = storeApi.getState() as any;
-      if (s.processingQueue) return; // avoid concurrent runs
-      const job = s.peekContextSync?.();
-      if (!job) return; // nothing to do
+    const drain = async () => {
+      if (cancelled || draining) return;
+      draining = true;
+
       try {
-        s.setProcessingQueue?.(true);
-        // Execute job against Orchestra using granular actions
-        if (job.scope === 'interface') {
-          await interfaceActions.updateById(job.targetId, { context: job.context });
-        } else if (job.scope === 'tab') {
-          await tabActions.updateById(job.targetId, { context: job.context });
-        } else if (job.scope === 'tile') {
-          await tileActions.updateById(job.targetId, { context: job.context });
+        while (!cancelled) {
+          const s = storeApi.getState() as any;
+          const job = s.peekContextSync?.();
+          if (!job) break; // queue empty
+
+          try {
+            s.setProcessingQueue?.(true);
+            if (job.scope === 'interface') {
+              await interfaceActions.updateById(job.targetId, { context: job.context });
+            } else if (job.scope === 'tab') {
+              await tabActions.updateById(job.targetId, { context: job.context });
+            } else if (job.scope === 'tile') {
+              await tileActions.updateById(job.targetId, { context: job.context });
+            }
+            s.dequeueContextSync?.();
+          } catch (e) {
+            const attempts = (job.attempts || 0) + 1;
+            s.dequeueContextSync?.();
+
+            if (attempts < MAX_ATTEMPTS) {
+              const delay = backoff(attempts);
+              s.enqueueContextSync?.(job.scope, job.targetId, job.context, {
+                ...job,
+                attempts,
+              });
+              await new Promise(r => setTimeout(r, delay));
+            } else {
+              console.warn('[context-sync] Dropping job after max attempts', job);
+            }
+          } finally {
+            s.setProcessingQueue?.(false);
+          }
         }
-        // Remove from queue after success
-        s.dequeueContextSync?.();
-      } catch (e) {
-        // Re-enqueue with incremented attempts and backoff
-        const nextAttempts = (job.attempts || 0) + 1;
-        const delay = backoff(nextAttempts);
-        // Put back at front with updated attempts and scheduled delay by just waiting
-        s.dequeueContextSync?.();
-        s.enqueueContextSync?.(job.scope, job.targetId, job.context, {
-          projectId: job.projectId,
-          interfaceId: job.interfaceId,
-          tabId: job.tabId,
-        });
-        // sleep
-        await new Promise(r => setTimeout(r, delay));
       } finally {
-        s.setProcessingQueue?.(false);
+        draining = false;
       }
     };
 
-    const pump = () => {
-      const s = storeApi.getState() as any;
-      if (!s.peekContextSync?.()) return; // nothing queued
-      runOnce().finally(() => {
-        if (!cancelled) timer = setTimeout(pump, 200); // continue draining
-      });
+    // Subscribe to store changes and trigger drain when queue becomes non-empty
+    const unsubscribe = storeApi.subscribe((state: any, prev: any) => {
+      const len = state?.contextSyncQueue?.length || 0;
+      const prevLen = prev?.contextSyncQueue?.length || 0;
+      if (len > 0 && len !== prevLen) {
+        drain();
+      }
+    });
+
+    // Kick off immediately if queue already has items
+    if ((storeApi.getState() as any).contextSyncQueue?.length > 0) {
+      drain();
+    }
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
     };
-
-    // React to queue length changes by polling quickly
-    timer = setInterval(pump, 500);
-
-    return () => { cancelled = true; if (timer) clearInterval(timer); };
   }, [storeApi, interfaceActions, tabActions, tileActions]);
 
   return (
