@@ -5,22 +5,35 @@ import fs from 'fs';
 export const dynamic = 'force-dynamic'; // Prevent caching of this route
 
 async function getPubSubClient() {
-    const credentialsPath = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
-    if (!credentialsPath) {
+    const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+    if (!credentialsValue) {
         throw new Error("COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.");
     }
-    
+
+    // First, try to parse the env var as a raw JSON string.
+    // If parsing fails, assume it's a file path.
+    let credentials;
     try {
-        const credentialsFile = fs.readFileSync(credentialsPath, 'utf8');
-        const credentials = JSON.parse(credentialsFile);
-        return new PubSub({
-            projectId: credentials.project_id,
-            credentials,
-        });
+        credentials = JSON.parse(credentialsValue);
     } catch (e) {
-        console.error("Failed to load or parse Pub/Sub credentials from:", credentialsPath, e);
-        throw new Error("Server is misconfigured for real-time communication.");
+        console.log("Could not parse COMMS_SERVICE_ACCOUNT_CREDENTIALS as JSON, treating as a file path.");
+        try {
+            const credentialsFile = fs.readFileSync(credentialsValue, 'utf8');
+            credentials = JSON.parse(credentialsFile);
+        } catch (fileError) {
+            console.error("Failed to load or parse Pub/Sub credentials from path:", credentialsValue, fileError);
+            throw new Error("Server is misconfigured for real-time communication. COMMS_SERVICE_ACCOUNT_CREDENTIALS is not valid JSON or a valid file path.");
+        }
     }
+
+    if (!credentials || !credentials.project_id) {
+         throw new Error("Invalid Pub/Sub credentials format.");
+    }
+
+    return new PubSub({
+        projectId: credentials.project_id,
+        credentials,
+    });
 }
 
 export async function GET(
