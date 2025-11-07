@@ -65,7 +65,7 @@ export function AssistantProfileChatPanel({
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
 
-    const { messages, inputValue, isLoading, handleInputChange, sendMessage } = useAssistantProfileChat(
+    const { messages, inputValue, isLoading, isAssistantReplying, handleInputChange, sendMessage } = useAssistantProfileChat(
         assistant, 
         assistantActions, 
         chatHistories, 
@@ -81,34 +81,41 @@ export function AssistantProfileChatPanel({
         if (viewport) {
             viewport.scrollTop = viewport.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, isAssistantReplying]);
 
     const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault(); // Prevents adding a new line in the input
-            // Create a synthetic event to pass to sendMessage, which expects a form event
+            event.preventDefault(); 
             const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
             sendMessage(syntheticEvent);
         }
     };
-
-    const isChatDisabled = isLoading;
 
     return (
         <div className="h-full flex flex-col w-full bg-background">
             {/* Chat Area */}
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                 <div className="space-y-4">
-                    {messages.map((msg, index) => (
+                    {messages.map((msg) => (
                         <ChatMessageBubble
                             key={msg.id}
                             message={msg.content}
                             isUser={msg.role === 'user'}
                             assistantPhoto={photoSrc}
                             assistantName={displayName}
-                            isLoading={isLoading && index === messages.length - 1 && msg.role === 'assistant'}
+                            isLoading={false}
                         />
                     ))}
+                    {isAssistantReplying && (
+                        <ChatMessageBubble
+                            key="typing-indicator"
+                            message=""
+                            isUser={false}
+                            assistantPhoto={photoSrc}
+                            assistantName={displayName}
+                            isLoading={true}
+                        />
+                    )}
                 </div>
             </ScrollArea>
 
@@ -116,16 +123,16 @@ export function AssistantProfileChatPanel({
             <form onSubmit={sendMessage} className="p-4 bg-background">
                 <div className="relative">
                      <Input
-                        placeholder={"Send a message..."}
+                        placeholder={!isLoading ? "Send a message..." : "Loading messages..."}
                         value={inputValue}
                         onChange={handleInputChange}
-                        disabled={isChatDisabled}
+                        disabled={isLoading}
                         className="pr-10 h-9"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
                      />
-                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isChatDisabled || !inputValue.trim()}>
-                        <Send className="h-4 w-4" />
+                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isLoading || !inputValue.trim()}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                      </Button>
                  </div>
             </form>

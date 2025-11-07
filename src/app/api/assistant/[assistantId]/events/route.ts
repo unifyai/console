@@ -1,0 +1,95 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PubSub } from '@google-cloud/pubsub';
+import fs from 'fs';
+
+export const dynamic = 'force-dynamic'; // Prevent caching of this route
+
+async function getPubSubClient() {
+    const credentialsPath = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
+    if (!credentialsPath) {
+        throw new Error("COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.");
+    }
+    
+    try {
+        const credentialsFile = fs.readFileSync(credentialsPath, 'utf8');
+        const credentials = JSON.parse(credentialsFile);
+        return new PubSub({
+            projectId: credentials.project_id,
+            credentials,
+        });
+    } catch (e) {
+        console.error("Failed to load or parse Pub/Sub credentials from:", credentialsPath, e);
+        throw new Error("Server is misconfigured for real-time communication.");
+    }
+}
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { assistantId: string } }
+) {
+    const { assistantId } = params;
+    
+    if (!assistantId) {
+        return new NextResponse("Assistant ID is required.", { status: 400 });
+    }
+
+    try {
+        const pubsub = await getPubSubClient();
+        const orchestraUrl = process.env.ORCHESTRA_URL || "";
+        const isStaging = orchestraUrl.includes("staging");
+        
+        const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-outbound-sub`;
+        const subscription = pubsub.subscription(subscriptionName);
+
+        const stream = new ReadableStream({
+            async start(controller) {
+                console.log(`[SSE] Starting stream for subscription: ${subscriptionName}`);
+
+                const messageHandler = (message: any) => {
+                    message.ack();
+                    const data = message.data.toString('utf8');
+                    controller.enqueue(`data: ${data}\n\n`);
+                };
+
+                const errorHandler = (error: any) => {
+                    console.error(`[SSE] Pub/Sub error on subscription ${subscriptionName}:`, error);
+                };
+
+                subscription.on('message', messageHandler);
+                subscription.on('error', errorHandler);
+
+                const [exists] = await subscription.exists();
+                if (!exists) {
+                     console.warn(`[SSE] Subscription ${subscriptionName} does not exist. The backend service may need to create it.`);
+                }
+
+                const keepAliveInterval = setInterval(() => {
+                    controller.enqueue(': keep-alive\n\n');
+                }, 20000);
+
+                request.signal.addEventListener('abort', () => {
+                    console.log(`[SSE] Client disconnected from ${subscriptionName}. Cleaning up.`);
+                    clearInterval(keepAliveInterval);
+                    subscription.removeListener('message', messageHandler);
+                    subscription.removeListener('error', errorHandler);
+                    controller.close();
+                });
+            },
+        });
+
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            },
+        });
+
+    } catch (error: any) {
+        console.error(`[SSE] Failed to set up SSE stream for assistant ${assistantId}:`, error);
+        return new NextResponse(
+            JSON.stringify({ detail: error.message || "Failed to establish real-time connection." }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+    }
+}

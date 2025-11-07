@@ -1,38 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-
 export async function POST(request: NextRequest) {
+    const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+    if (!ADMIN_KEY) {
+        console.error("[API /api/assistant/message] ORCHESTRA_ADMIN_KEY is not set.");
+        return NextResponse.json({ detail: "Server configuration error." }, { status: 500 });
+    }
+
     const apiKey = request.headers.get("apiKey");
     if (!apiKey) {
         return NextResponse.json({ detail: "API key is missing" }, { status: 401 });
     }
 
-    const requestBody = await request.json();
+    let requestBody;
+    try {
+        requestBody = await request.json();
+    } catch (error) {
+        return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { assistant_id, message } = requestBody;
+
+    if (!assistant_id || !message) {
+        return NextResponse.json({ detail: "Missing 'assistant_id' or 'message'" }, { status: 400 });
+    }
+
+    const orchestraUrl = process.env.ORCHESTRA_URL || "";
+    const is_staging = orchestraUrl.includes("staging");
+
+    const webhook_url = (
+        "https://us-central1-gcp-project-runtime.cloudfunctions.net/unify-message-webhook"
+        + (is_staging ? "-staging" : "")
+    );
+
+    const payload = { "assistant_id": assistant_id, "body": message };
 
     try {
-        const orchestraResponse = await fetch(
-            `${baseUrl}/assistant/message`,
+        const webhookResponse = await fetch(
+            webhook_url,
             {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization": `Bearer ${ADMIN_KEY}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(requestBody),
+                body: JSON.stringify(payload),
             }
         );
 
-        const responseData = await orchestraResponse.json();
-
-        if (!orchestraResponse.ok) {
-            return NextResponse.json({ detail: responseData.detail || "Upstream API error" }, { status: orchestraResponse.status });
+        if (!webhookResponse.ok) {
+            const errorText = await webhookResponse.text();
+            console.error(`[API /api/assistant/message] Webhook error (${webhookResponse.status}): ${errorText}`);
+            return NextResponse.json({ detail: `Failed to send message to assistant: ${errorText}` }, { status: webhookResponse.status });
         }
 
-        return NextResponse.json(responseData, { status: orchestraResponse.status });
+        return NextResponse.json({ info: "Message sent to assistant for processing." }, { status: 202 });
 
     } catch (error: any) {
-        console.error("[API /api/assistant/message] Error fetching Orchestra API:", error.message);
-        return NextResponse.json({ detail: "Failed to connect to backend API", errorDetails: error.message }, { status: 500 });
+        console.error("[API /api/assistant/message] Error calling webhook:", error.message);
+        return NextResponse.json({ detail: "Failed to connect to messaging service.", errorDetails: error.message }, { status: 503 });
     }
 }
