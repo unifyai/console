@@ -144,7 +144,7 @@ export function useTableAutoUpdateQuery(
   const query = useQuery<TableDataItem>({
     queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
+    enabled: !!tileId && !!tileDataState && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: false,

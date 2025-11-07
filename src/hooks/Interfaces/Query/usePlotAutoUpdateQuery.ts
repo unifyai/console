@@ -135,7 +135,7 @@ export function usePlotAutoUpdateQuery(
   const query = useQuery<PlotDataItem>({
     queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
+    enabled: !!tileId && !!tileDataState && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,
