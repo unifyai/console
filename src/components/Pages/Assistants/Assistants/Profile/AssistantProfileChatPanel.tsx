@@ -75,12 +75,27 @@ export function AssistantProfileChatPanel({
         onFirstViewCompleted
     );
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+    const prevScrollHeightRef = React.useRef<number | null>(null);
 
     React.useEffect(() => {
-        const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+        if (!viewport) return;
+
+        const prevScrollHeight = prevScrollHeightRef.current;
+        const { scrollTop, scrollHeight, clientHeight } = viewport;
+
+        // A small buffer to prevent issues with fractional pixels.
+        const scrollBuffer = 10;
+        
+        // Determine if the user was scrolled to the bottom before new messages were added.
+        // `prevScrollHeight` will be null on the first render, causing an initial scroll to bottom.
+        const wasScrolledToBottom = prevScrollHeight === null || (prevScrollHeight - scrollTop - clientHeight <= scrollBuffer);
+
+        // If new content has been added and the user was at the bottom, auto-scroll.
+        if (scrollHeight !== prevScrollHeight && wasScrolledToBottom) {
+            viewport.scrollTop = scrollHeight;
         }
+        prevScrollHeightRef.current = scrollHeight;
     }, [messages, isAssistantReplying]);
 
     const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -123,7 +138,7 @@ export function AssistantProfileChatPanel({
             <form onSubmit={sendMessage} className="p-4 bg-background">
                 <div className="relative">
                      <Input
-                        placeholder={!isLoading ? "Send a message..." : "Loading messages..."}
+                        placeholder={isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
                         disabled={isLoading}
