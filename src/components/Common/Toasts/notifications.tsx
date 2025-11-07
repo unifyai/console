@@ -62,6 +62,10 @@ export const showLoadingToast = (message: string) => {
     )) as string | number;
 };
 
+// Track recent error toasts to prevent duplicates
+const recentErrorToasts = new Map<string, number>();
+const ERROR_TOAST_DEDUPE_WINDOW = 2000; // 2 seconds
+
 export const showErrorToast = (
   error: any,
   defaultMessage: string = "An unexpected error occurred.",
@@ -82,12 +86,7 @@ export const showErrorToast = (
   // Special handling for timeout errors (504 Gateway Timeout)
   if (errorMessage.includes('timeout') || errorMessage.includes('504')) {
     title = "Request Timeout";
-    // Check if it's an upstream timeout from our API routes
-    if (errorMessage.includes('Upstream timeout')) {
-      message = "The server is taking longer than usual. This may indicate Orchestra is under heavy load.";
-    } else {
-      message = errorMessage || "The request timed out. Please try again.";
-    }
+    message = "Save timed out. Please try again.";
   } else if (error instanceof Error) {
     if (error.message.includes("Failed to fetch")) {
       message = "Network request failed. Please check your connection.";
@@ -97,6 +96,21 @@ export const showErrorToast = (
   } else if (typeof error === "string") {
     message = error;
   }
+
+  // Deduplicate: prevent showing the same error toast multiple times in quick succession
+  const dedupeKey = `${title}:${message}`;
+  const now = Date.now();
+  const lastShown = recentErrorToasts.get(dedupeKey);
+  if (lastShown && (now - lastShown) < ERROR_TOAST_DEDUPE_WINDOW) {
+    console.warn('[showErrorToast] Suppressing duplicate error toast:', dedupeKey);
+    return;
+  }
+  recentErrorToasts.set(dedupeKey, now);
+  
+  // Clean up old entries to prevent memory leak
+  setTimeout(() => {
+    recentErrorToasts.delete(dedupeKey);
+  }, ERROR_TOAST_DEDUPE_WINDOW);
 
   scheduleToast(() => toast.custom(
     (toastId) => (

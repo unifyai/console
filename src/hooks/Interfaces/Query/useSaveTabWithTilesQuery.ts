@@ -48,24 +48,30 @@ export function useSaveTabWithTilesQuery(
 
       // Then create checkpoints for all the tiles
       const tileResults: any[] = [];
-      const tileErrors: string[] = [];
+      const tileErrors: {id: string, error: string}[] = [];
 
       for (const tile_id of tile_ids) {
         try {
           const tileResult = await tile_actions.checkpointById(tile_id, description || 'Manual save');
           if (tileResult && typeof tileResult === 'object' && 'error' in tileResult) {
-            tileErrors.push(tile_id);
+            const errorMsg = tileResult.error || 'Unknown error';
+            console.warn(`Tile checkpoint failed for ${tile_id}: ${errorMsg}`);
+            tileErrors.push({id: tile_id, error: errorMsg});
           } else {
             tileResults.push(tileResult);
           }
         } catch (error) {
-          console.error(`Error creating checkpoint for tile ${tile_id}:`, error);
-          tileErrors.push(tile_id);
+          const errorMsg = (error as Error)?.message || 'Unknown error';
+          console.error(`Error creating checkpoint for tile ${tile_id}:`, errorMsg);
+          tileErrors.push({id: tile_id, error: errorMsg});
           // Continue processing other tiles even if one fails
         }
       }
 
       if (tileErrors.length > 0) {
+        // Aggregate error message with details
+        const errorDetails = tileErrors.map(e => `${e.id}: ${e.error}`).join(', ');
+        console.error('Save failed for tiles:', errorDetails);
         throw new Error(`Failed to save ${tileErrors.length} tile(s)`);
       }
 
