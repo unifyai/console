@@ -122,8 +122,7 @@ export function useTabDataOptimistic() {
       listTiles = true,
     } = options;
 
-    console.log(`[buildCompleteTabData] START building tab data for: ${tabName} (ID: ${tabId})`);
-    debugLog(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
+    debugLog(`[buildCompleteTabData] START building tab data for: ${tabName} (ID: ${tabId})`);
     
     try {      
       // Find the specific tab by tabId and tabName (not the active tab)
@@ -143,7 +142,7 @@ export function useTabDataOptimistic() {
 
       // Get or fetch tiles for the target tab
       let tilesData = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
-      console.log('[buildCompleteTabData] Tiles cache check:', {
+      debugLog('[buildCompleteTabData] Tiles cache check:', {
         tabName,
         tabId: finalTabId,
         cacheHit: !!tilesData,
@@ -154,11 +153,11 @@ export function useTabDataOptimistic() {
       
       if (!tilesData || (typeof tilesData === "object" && Object.keys(tilesData).includes("error"))) {
         if (listTiles === false) {
-          console.log('[buildCompleteTabData] Skipping tile fetch (listTiles=false), using empty array');
+          debugLog('[buildCompleteTabData] Skipping tile fetch (listTiles=false), using empty array');
           // Skip listing tiles entirely; use empty placeholders (non‑active prefetch)
           tilesData = [] as TileData[];
         } else {
-          console.log('[buildCompleteTabData] Fetching tiles from API for tab:', tabName);
+          debugLog('[buildCompleteTabData] Fetching tiles from API for tab:', tabName);
           try {
             const res = await fetch(`/api/tile?tab_id=${encodeURIComponent(finalTabId)}&checkpoint=false`, {
               method: "GET",
@@ -168,7 +167,7 @@ export function useTabDataOptimistic() {
             if (!res.ok) throw new Error(`Tiles ${res.status}`);
             const json = await res.json();
             tilesData = Array.isArray(json) ? json as TileData[] : [] as TileData[];
-            console.log('[buildCompleteTabData] Fetched tiles from API:', {
+            debugLog('[buildCompleteTabData] Fetched tiles from API:', {
               tabName,
               tileCount: tilesData.length,
               tiles: tilesData.map(t => ({ id: t.id, name: t.name, type: t.type }))
@@ -182,12 +181,12 @@ export function useTabDataOptimistic() {
             throw err;
           }
           if (updateCache) {
-            console.log('[buildCompleteTabData] Caching tiles:', { tabName, tileCount: tilesData.length });
+            debugLog('[buildCompleteTabData] Caching tiles:', { tabName, tileCount: tilesData.length });
             queryClient.setQueryData(["tiles", finalTabId], tilesData);
           }
         }
       } else {
-        console.log('[buildCompleteTabData] Using cached tiles:', {
+        debugLog('[buildCompleteTabData] Using cached tiles:', {
           tabName,
           tileCount: Array.isArray(tilesData) ? tilesData.length : 0,
           tilesData

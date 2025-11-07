@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
@@ -29,10 +30,12 @@ export async function GET(request: NextRequest) {
     const ttl = setTimeout(() => controller.abort(), 30000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
-    // Info-level log for diagnostics
-    try {
-      console.log(JSON.stringify({ route: "/api/tile", method: "GET", endpoint: `${baseUrl}${endpoint}`, params: Object.fromEntries(searchParams as any), correlationId }));
-    } catch {}
+    // Info-level log for diagnostics (guarded)
+    if (DEBUG_API) {
+      try {
+        console.log(JSON.stringify({ route: "/api/tile", method: "GET", endpoint: `${baseUrl}${endpoint}`, params: Object.fromEntries(searchParams as any), correlationId }));
+      } catch {}
+    }
     
     try {
         const res = await fetch(
