@@ -7,6 +7,7 @@ import { processContext } from "@/utils/interfaces/table/columnOperations";
 import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
 import { QueryClient } from "@tanstack/react-query";
 import { isEqual } from 'lodash';
+import { perfStart, perfEnd } from '@/lib/perf';
 
 /**
  * Debug flag for performance logging
@@ -207,11 +208,13 @@ export async function fetchAndBuildTableDataItem(
     if (useGroupPagination && group_offset !== null) params.set('group_offset', group_offset.toString());
     if (useGroupPagination) params.set('group_depth', '0');
 
+    const pFetch = perfStart(`logs-fetch:${tile.name}:${projectId}`);
     const res = await fetch(`/api/logs?${params.toString()}`, {
       method: 'GET',
       signal: signal as AbortSignal,
       cache: 'no-store',
     });
+    perfEnd(pFetch, { status: res.status });
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ detail: `Logs ${res.status}` }));
@@ -242,9 +245,11 @@ export async function fetchAndBuildTableDataItem(
 
   // Build table data item using the fetched logs data
   const tBuildTableDataItem = performance.now();
+  const pBuild = perfStart(`table-build:${tile.name}:${projectId}`);
   const tableDataItem = await buildTableDataItem(tile, fields, logsData, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
   perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
+  perfEnd(pBuild, { rows: Array.isArray(tableDataItem.logs) ? tableDataItem.logs.length : 0 });
 
   return tableDataItem;
 }

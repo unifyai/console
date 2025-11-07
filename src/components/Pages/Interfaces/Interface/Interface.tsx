@@ -20,6 +20,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
+import { useShallow } from 'zustand/react/shallow';
 import { Command } from '@/contexts/slices/selectors/commands';
 import { iconMap } from '@/constants/logs';
 import dynamic from 'next/dynamic';
@@ -221,7 +222,7 @@ const Interface = ({
   }, [showInterfaceSelection, showProjectSelection]);
   
   // Get projects from store to check if Assistants project exists
-  const projects = useStoreContext(state => state.projects);
+  const projects = useStoreContext(useShallow(state => state.projects));
   const hasAssistantsProject = projects?.includes("Assistants");
   
   // Determine if we should auto-open the project selection screen when no projects exist
@@ -476,7 +477,7 @@ const Interface = ({
   const { isEditMode, isDashboardMode, setEditMode, setDashboardMode } = useGlobalUIMode();
 
   // Command state
-  const storeCommands = useStoreContext((state) => state.commands);
+  const storeCommands = useStoreContext(useShallow((state) => state.commands));
 
   // Initialize React Query mutations for tab operations
   const createTabMutation = useCreateTabQuery();

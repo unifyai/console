@@ -14,6 +14,7 @@ import {
 import { useTabDataOptimistic, CompleteTabData } from './useTabDataOptimistic';
 import { useStoreApiContext } from "@/contexts/providers/StoreProvider";
 import { selectTabByName } from "@/contexts/selectors/tab";
+import { perfStart, perfEnd } from '@/lib/perf';
 
 /**
  * Debug flag for tab prefetching logging
@@ -173,7 +174,8 @@ export function useTabStreamingQuery(
         listTiles: true
       });
 
-      return buildCompleteTabData(
+      const p = perfStart(`tab-build:${interfaceId}:${activeTabName}`);
+      const result = await buildCompleteTabData(
         interfaceId,
         activeTab.id!,
         activeTabName,
@@ -195,6 +197,8 @@ export function useTabStreamingQuery(
           signal: signal as AbortSignal,
         }
       );
+      perfEnd(p, { tiles: Array.isArray(result?.tiles) ? result.tiles.length : 0 });
+      return result;
     },
     enabled: enabledActive,
     staleTime: Infinity,        // Never mark as stale automatically (success path)

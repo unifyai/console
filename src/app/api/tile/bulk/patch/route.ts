@@ -13,6 +13,7 @@ type UpdateItem = {
 };
 
 export async function POST(request: NextRequest) {
+  const t0 = Date.now();
   if (!ENABLE_BULK) {
     return NextResponse.json({ detail: "Bulk patch disabled" }, { status: 501 });
   }
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
         count: updates.length,
         results: results.length,
         errors: errors.length,
+        ms: Date.now() - t0,
         correlationId,
       }));
     } catch {}

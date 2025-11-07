@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect } from "react";
+import { perfStart, perfEnd } from '@/lib/perf';
 import { useTabRouterRefresh } from "./useTabRouterRefresh";
 import { GranularTabActions, GranularTileActions, TableTileData, TileData, TilePosition, TileLayout } from "@/types/interfaces/grid";
 import { useUpdateTabUnifiedQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
@@ -112,6 +113,7 @@ export function useTabSync(
     }
 
     try {
+      const p = perfStart(`bulkPatchTiles:${updates.length}`);
       const res = await fetch('/api/tile/bulk/patch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,8 +121,10 @@ export function useTabSync(
       });
       const data = await res.json().catch(() => ({ results: [], errors: [{ error: 'Invalid response' }] }));
       if (!res.ok) throw new Error(data?.detail || `Bulk ${res.status}`);
+      perfEnd(p, { results: data?.results?.length ?? 0, errors: data?.errors?.length ?? 0 });
       return data as { results: any[]; errors: Array<{ id?: string; tab_id?: string; name?: string; error: string }> };
     } catch (e: any) {
+      perfEnd(perfStart('bulkPatchTiles:error'), { error: true });
       // On bulk failure, fallback per-item
       for (const u of updates) {
         try {
