@@ -37,6 +37,7 @@ interface AssistantCommunicationDialogContentProps {
     isRemoteControlInteractive: boolean;
     toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
+    callType: 'video' | 'audio' | null;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ 
@@ -58,6 +59,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     isRemoteControlInteractive,
     toggleRemoteControlInteractive,
     isCallConnected,
+    callType,
 }) => {
     const room = React.useContext(RoomContext);
     if (!room) throw new Error("AssistantCommunicationDialogContent must be used within a RoomContext");
@@ -236,6 +238,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 setChatHistories={setChatHistories}
                                 userImage={userImage}
                                 assistantPhoto={assistantPhoto}
+                                callType={callType}
                             />
                         </motion.div>
                     )}
@@ -259,6 +262,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isRemoteControlInteractive={isRemoteControlInteractive}
                 onToggleRemoteControlInteractive={toggleRemoteControlInteractive}
                 isConnectionEstablished={isCallConnected}
+                callType={callType}
             />
         </>
     );
@@ -285,6 +289,7 @@ interface AssistantCommunicationDialogProps {
     isRemoteControlInteractive: boolean;
     toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
+    callType: 'video' | 'audio' | null;
 }
 
 export function AssistantCommunicationDialog({
@@ -308,6 +313,7 @@ export function AssistantCommunicationDialog({
     isRemoteControlInteractive,
     toggleRemoteControlInteractive,
     isCallConnected,
+    callType,
 }: AssistantCommunicationDialogProps) {
 
     if (!isOpen) return null;
@@ -338,6 +344,7 @@ export function AssistantCommunicationDialog({
                     isRemoteControlInteractive={isRemoteControlInteractive}
                     toggleRemoteControlInteractive={toggleRemoteControlInteractive}
                     isCallConnected={isCallConnected}
+                    callType={callType}
                 />
             </DialogContent>
         </Dialog>

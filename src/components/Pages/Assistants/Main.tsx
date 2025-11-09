@@ -182,6 +182,7 @@ export default function Main({
         isConnecting: isConnectingCall, 
         isConnected: isCallConnected, 
         activeCallAssistant, 
+        callType,
         connect: startCall, 
         disconnect: hangUpCall,
         isSpeakerMuted,
@@ -199,7 +200,7 @@ export default function Main({
     const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
     const [isCallMinimized, setIsCallMinimized] = React.useState(false);
 
-    const handleStartCall = React.useCallback(async (assistant: Assistant) => {
+    const handleStartCall = React.useCallback(async (assistant: Assistant, callType: 'video' | 'audio') => {
         if (isCallConnected || isConnectingCall) {
             if (activeCallAssistant?.agent_id === assistant.agent_id) {
                 setIsCommunicationDialogOpen(true);
@@ -211,7 +212,7 @@ export default function Main({
         }
         setIsCommunicationDialogOpen(true);
         setIsCallMinimized(false);
-        await startCall(assistant);
+        await startCall(assistant, callType);
     }, [isCallConnected, isConnectingCall, startCall, activeCallAssistant]);
 
     const handleHangUp = React.useCallback(async () => {
@@ -709,6 +710,7 @@ export default function Main({
                         toggleRemoteControl={toggleRemoteControl}
                         isRemoteControlInteractive={isRemoteControlInteractive}
                         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                        callType={callType}
                     />
                     {isCallMinimized && (
                          <AssistantCommunicationMinimized
@@ -723,6 +725,7 @@ export default function Main({
                             isWaitingForAssistant={isWaitingForAssistant}
                             connectionError={connectionError}
                             onRetry={retryConnection}
+                            callType={callType}
                         />
                     )}
                 </RoomContext.Provider>

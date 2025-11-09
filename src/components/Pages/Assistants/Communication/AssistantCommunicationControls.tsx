@@ -38,6 +38,7 @@ interface AssistantCommunicationControlsProps {
     isRemoteControlInteractive: boolean;
     onToggleRemoteControlInteractive: () => void;
     isConnectionEstablished: boolean;
+    callType: 'video' | 'audio' | null;
 }
 
 const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; className?: string; [key: string]: any; }> =
@@ -78,7 +79,10 @@ export function AssistantCommunicationControls({
     isRemoteControlInteractive,
     onToggleRemoteControlInteractive,
     isConnectionEstablished,
+    callType,
 }: AssistantCommunicationControlsProps) {
+    const isAudioOnly = callType === 'audio';
+
     return (
         <div className="flex-shrink-0 h-20 px-6 flex items-center justify-between bg-background border-t">
             {/* Left Controls */}
@@ -93,90 +97,96 @@ export function AssistantCommunicationControls({
                 >
                     {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </ControlButton>
-                <ControlButton 
-                    tooltip={!isConnectionEstablished ? "Available after connecting" : (isCameraOn ? "Turn off camera" : "Turn on camera")} 
-                    {...cameraButtonProps}
-                    disabled={!isConnectionEstablished || cameraButtonProps.disabled}
-                >
-                    {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-                </ControlButton>
+                {!isAudioOnly && (
+                    <ControlButton 
+                        tooltip={!isConnectionEstablished ? "Available after connecting" : (isCameraOn ? "Turn off camera" : "Turn on camera")} 
+                        {...cameraButtonProps}
+                        disabled={!isConnectionEstablished || cameraButtonProps.disabled}
+                    >
+                        {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+                    </ControlButton>
+                )}
             </div>
 
             {/* Center Controls */}
-            <div className="flex items-center gap-3">
-                <ControlButton
-                    tooltip={
-                        !isConnectionEstablished
-                            ? "Available after assistant joins"
-                            : isScreenShareOn
-                            ? "Stop sharing screen"
-                            : "Share your screen"
-                    }
-                    onClick={onToggleScreenShare}
-                    disabled={isScreenShareToggleDisabled || !isConnectionEstablished}
-                    className={cn(isScreenShareOn && "text-primary bg-primary/10 hover:bg-primary/20")}
-                >
-                    {isScreenShareToggleDisabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <ScreenShare className="h-5 w-5" />}
-                </ControlButton>
+            <div className="flex items-center justify-center flex-1 gap-3">
+                {!isAudioOnly && (
+                    <>
+                        <ControlButton
+                            tooltip={
+                                !isConnectionEstablished
+                                    ? "Available after assistant joins"
+                                    : isScreenShareOn
+                                    ? "Stop sharing screen"
+                                    : "Share your screen"
+                            }
+                            onClick={onToggleScreenShare}
+                            disabled={isScreenShareToggleDisabled || !isConnectionEstablished}
+                            className={cn(isScreenShareOn && "text-primary bg-primary/10 hover:bg-primary/20")}
+                        >
+                            {isScreenShareToggleDisabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <ScreenShare className="h-5 w-5" />}
+                        </ControlButton>
 
-                <div className={cn(
-                    "flex items-center h-10 px-1 rounded-full transition-colors border",
-                    isRemoteControlActive ? "border-border" : "border-transparent"
-                )}>
-                    <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className={cn(
-                                            "h-9 w-9 rounded-full",
-                                            isRemoteControlActive && "text-primary"
-                                        )}
-                                        onClick={onToggleRemoteControl}
-                                        disabled={isRemoteControlLoading || !isConnectionEstablished}
-                                    >
-                                        {isRemoteControlLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Computer className="h-5 w-5" />}
-                                    </Button>
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                <p>{!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Stop remote control" : "Take over workspace")}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                        <div className={cn(
+                            "flex items-center h-10 px-1 rounded-full transition-colors border",
+                            isRemoteControlActive ? "border-border" : "border-transparent"
+                        )}>
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn(
+                                                    "h-9 w-9 rounded-full",
+                                                    isRemoteControlActive && "text-primary"
+                                                )}
+                                                onClick={onToggleRemoteControl}
+                                                disabled={isRemoteControlLoading || !isConnectionEstablished}
+                                            >
+                                                {isRemoteControlLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Computer className="h-5 w-5" />}
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p>{!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Stop remote control" : "Take over workspace")}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
 
-                    {isRemoteControlActive && (
-                         <div className="h-6 w-px bg-border" />
-                    )}
+                            {isRemoteControlActive && (
+                                <div className="h-6 w-px bg-border" />
+                            )}
 
-                    {isRemoteControlActive && (
-                        <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className={cn(
-                                                "h-9 w-9 rounded-full",
-                                                isRemoteControlInteractive && "text-primary"
-                                            )}
-                                            onClick={onToggleRemoteControlInteractive}
-                                            disabled={isRemoteControlLoading}
-                                        >
-                                            {isRemoteControlInteractive ? <Pointer className="h-5 w-5" /> : <PointerOff className="h-5 w-5" />}
-                                        </Button>
-                                    </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    <p>{isRemoteControlInteractive ? "Disable mouse & keyboard control" : "Enable mouse & keyboard control"}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    )}
-                </div>
+                            {isRemoteControlActive && (
+                                <TooltipProvider delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className={cn(
+                                                        "h-9 w-9 rounded-full",
+                                                        isRemoteControlInteractive && "text-primary"
+                                                    )}
+                                                    onClick={onToggleRemoteControlInteractive}
+                                                    disabled={isRemoteControlLoading}
+                                                >
+                                                    {isRemoteControlInteractive ? <Pointer className="h-5 w-5" /> : <PointerOff className="h-5 w-5" />}
+                                                </Button>
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>{isRemoteControlInteractive ? "Disable mouse & keyboard control" : "Enable mouse & keyboard control"}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Right Controls */}

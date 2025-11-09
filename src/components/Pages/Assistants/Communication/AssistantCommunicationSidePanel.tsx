@@ -28,6 +28,7 @@ interface AssistantCommunicationSidePanelProps {
     setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     userImage?: string | null;
     assistantPhoto?: string | null;
+    callType?: 'video' | 'audio' | null;
 }
 
 export function AssistantCommunicationSidePanel({
@@ -48,37 +49,40 @@ export function AssistantCommunicationSidePanel({
     setChatHistories,
     userImage,
     assistantPhoto,
+    callType,
 }: AssistantCommunicationSidePanelProps) {
 
     const renderSettings = () => (
         <div className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="camera-select" className="text-sm font-medium flex items-center gap-2">
-                    <Video className="h-4 w-4" /> Camera
-                </Label>
-                <Select
-                    value={selectedVideoDevice}
-                    onValueChange={onVideoDeviceChange}
-                    disabled={videoDevices.length === 0}
-                >
-                    <SelectTrigger id="camera-select">
-                        <SelectValue placeholder="Select a camera..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {videoDevices.length > 0 ? (
-                            videoDevices.map(device => (
-                                <SelectItem key={device.deviceId} value={device.deviceId}>
-                                    {device.label || `Camera ${videoDevices.indexOf(device) + 1}`}
+            {callType !== 'audio' && (
+                <div className="space-y-2">
+                    <Label htmlFor="camera-select" className="text-sm font-medium flex items-center gap-2">
+                        <Video className="h-4 w-4" /> Camera
+                    </Label>
+                    <Select
+                        value={selectedVideoDevice}
+                        onValueChange={onVideoDeviceChange}
+                        disabled={videoDevices.length === 0}
+                    >
+                        <SelectTrigger id="camera-select">
+                            <SelectValue placeholder="Select a camera..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {videoDevices.length > 0 ? (
+                                videoDevices.map(device => (
+                                    <SelectItem key={device.deviceId} value={device.deviceId}>
+                                        {device.label || `Camera ${videoDevices.indexOf(device) + 1}`}
+                                    </SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="no-camera" disabled>
+                                    No cameras found
                                 </SelectItem>
-                            ))
-                        ) : (
-                            <SelectItem value="no-camera" disabled>
-                                No cameras found
-                            </SelectItem>
-                        )}
-                    </SelectContent>
-                </Select>
-            </div>
+                            )}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
             <div className="space-y-2">
                 <Label htmlFor="mic-select" className="text-sm font-medium flex items-center gap-2">
                     <Mic className="h-4 w-4" /> Microphone

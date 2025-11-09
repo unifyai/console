@@ -15,6 +15,7 @@ export function useAssistantCall(
     const [isConnected, setIsConnected] = React.useState(false);
     const [isConnecting, setIsConnecting] = React.useState(false);
     const [activeCallAssistant, setActiveCallAssistant] = React.useState<Assistant | null>(null);
+    const [callType, setCallType] = React.useState<'video' | 'audio' | null>(null);
     const [isSpeakerMuted, setIsSpeakerMuted] = React.useState(false);
     const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
     const [connectionError, setConnectionError] = React.useState<string | null>(null);
@@ -51,12 +52,13 @@ export function useAssistantCall(
         setConnectionError(null);
         setConnectionDetails(null);
         setActiveCallAssistant(null);
+        setCallType(null);
         setIsSpeakerMuted(false);
         stopRemoteControl(); // Clean up remote control state
         clearAssistantJoinTimeout();
     }, [clearAssistantJoinTimeout, stopRemoteControl]);
 
-    const connect = React.useCallback(async (assistant: Assistant) => {
+    const connect = React.useCallback(async (assistant: Assistant, type: 'video' | 'audio') => {
         if (room.state !== 'disconnected') {
             console.warn("[useAssistantCall] Connect called while room is not in disconnected state.");
             return;
@@ -64,6 +66,7 @@ export function useAssistantCall(
         if (!assistant) return;
 
         setIsConnecting(true);
+        setCallType(type);
         setActiveCallAssistant(assistant);
         setError(null);
         setConnectionError(null);
@@ -88,7 +91,7 @@ export function useAssistantCall(
             // Step 3: Connect the user's client
             await room.connect(connDetails.serverUrl, connDetails.token);
             await room.localParticipant.setMicrophoneEnabled(true);
-            await room.localParticipant.setCameraEnabled(true);
+            await room.localParticipant.setCameraEnabled(type === 'video');
             setIsConnected(true);
             setIsConnecting(false); // User is connected, now wait for assistant
 
@@ -107,6 +110,7 @@ export function useAssistantCall(
             toast.error(`Failed to start call. Please try again.`);
             setError(`Failed to start call: ${e.message}`);
             setIsConnected(false);
+            setCallType(null);
             setActiveCallAssistant(null);
             if (room.state !== 'disconnected') {
                 await room.disconnect();
@@ -121,6 +125,7 @@ export function useAssistantCall(
     const disconnect = React.useCallback(async () => {
         clearAssistantJoinTimeout();
         stopRemoteControl();
+        setCallType(null);
         if (room.state !== 'disconnected') {
             await room.disconnect();
         }
@@ -128,7 +133,8 @@ export function useAssistantCall(
 
     const retryConnection = React.useCallback(async () => {
         const assistantToRetry = activeCallAssistant;
-        if (!assistantToRetry) return;
+        const callTypeToRetry = callType;
+        if (!assistantToRetry || !callTypeToRetry) return;
 
         // Temporarily detach the main disconnect handler to prevent full UI teardown
         room.off(RoomEvent.Disconnected, onDisconnected);
@@ -147,8 +153,8 @@ export function useAssistantCall(
         room.on(RoomEvent.Disconnected, onDisconnected);
 
         // Start the connection process again with the same assistant
-        connect(assistantToRetry);
-    }, [activeCallAssistant, room, connect, onDisconnected, clearAssistantJoinTimeout, stopRemoteControl]);
+        connect(assistantToRetry, callTypeToRetry);
+    }, [activeCallAssistant, callType, room, connect, onDisconnected, clearAssistantJoinTimeout, stopRemoteControl]);
 
     const toggleRemoteControl = React.useCallback(async () => {
         if (!activeCallAssistant) return;
@@ -223,6 +229,7 @@ export function useAssistantCall(
         isConnected,
         isConnecting,
         activeCallAssistant,
+        callType,
         isSpeakerMuted,
         toggleSpeakerMute,
         connect,
