@@ -20,6 +20,7 @@ export function useAssistantCall(
     const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
     const [connectionError, setConnectionError] = React.useState<string | null>(null);
     const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const isCancelledRef = React.useRef(false);
 
     // --- Remote Control State ---
     const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
@@ -59,6 +60,8 @@ export function useAssistantCall(
     }, [clearAssistantJoinTimeout, stopRemoteControl]);
 
     const connect = React.useCallback(async (assistant: Assistant, type: 'video' | 'audio') => {
+        isCancelledRef.current = false;
+
         if (room.state !== 'disconnected') {
             console.warn("[useAssistantCall] Connect called while room is not in disconnected state.");
             return;
@@ -75,6 +78,7 @@ export function useAssistantCall(
             
             // Step 1: Get connection details for the user
             const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
+            if (isCancelledRef.current) return;
             if ('detail' in details) {
                 throw new Error(details.detail || 'Could not get call details.');
             }
@@ -84,12 +88,18 @@ export function useAssistantCall(
 
             // Step 2: Dispatch the assistant to join the room
             const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
+            if (isCancelledRef.current) return;
             if (dispatchResult.detail) {
                 throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
             }
 
             // Step 3: Connect the user's client
             await room.connect(connDetails.serverUrl, connDetails.token);
+            if (isCancelledRef.current) {
+                await room.disconnect();
+                return;
+            }
+
             await room.localParticipant.setMicrophoneEnabled(true);
             await room.localParticipant.setCameraEnabled(type === 'video');
             setIsConnected(true);
@@ -98,6 +108,7 @@ export function useAssistantCall(
             if (room.numParticipants < 2) { // Check if assistant isn't already there
                 setIsWaitingForAssistant(true);
                 assistantJoinTimeoutRef.current = setTimeout(() => {
+                    if (isCancelledRef.current) return;
                     setConnectionError(`${assistant.first_name} is taking too long to join.`);
                     setIsWaitingForAssistant(false);
                 }, ASSISTANT_JOIN_TIMEOUT);
@@ -106,30 +117,33 @@ export function useAssistantCall(
             }
 
         } catch (e: any) {
-            console.error("Failed to connect to LiveKit room", e);
-            toast.error(`Failed to start call. Please try again.`);
-            setError(`Failed to start call: ${e.message}`);
-            setIsConnected(false);
-            setCallType(null);
-            setActiveCallAssistant(null);
-            if (room.state !== 'disconnected') {
-                await room.disconnect();
+            setIsConnecting(false);
+            if (isCancelledRef.current) {
+                console.log("Connection process was cancelled by the user.");
+            } else {
+                console.error("Failed to connect to LiveKit room", e);
+                toast.error(`Failed to start call. Please try again.`);
+                setError(`Failed to start call: ${e.message}`);
             }
-        } finally {
-            if (isConnecting) {
-                setIsConnecting(false);
-            }
+            onDisconnected();
         }
-    }, [room, assistantActions.call, clearAssistantJoinTimeout, isConnecting]);
+    }, [room, assistantActions.call, clearAssistantJoinTimeout, onDisconnected]);
     
     const disconnect = React.useCallback(async () => {
+        isCancelledRef.current = true;
         clearAssistantJoinTimeout();
         stopRemoteControl();
-        setCallType(null);
+
+        if (isConnecting) {
+            setIsConnecting(false);
+        }
+        
         if (room.state !== 'disconnected') {
             await room.disconnect();
+        } else {
+            onDisconnected();
         }
-    }, [room, clearAssistantJoinTimeout, stopRemoteControl]);
+    }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
 
     const retryConnection = React.useCallback(async () => {
         const assistantToRetry = activeCallAssistant;
