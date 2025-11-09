@@ -17,6 +17,8 @@ import { ChatMessage } from '@/types/assistants/chat';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { User } from 'next-auth';
 import { Button } from '@/components/UI/button';
+import { ConnectionDetails } from '@/types/assistants/call';
+import { toast } from 'sonner';
 
 interface AssistantCommunicationDialogContentProps {
     assistant: Assistant;
@@ -38,6 +40,7 @@ interface AssistantCommunicationDialogContentProps {
     toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
     callType: 'video' | 'audio' | null;
+    connectionDetails: ConnectionDetails | null;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({ 
@@ -60,6 +63,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     toggleRemoteControlInteractive,
     isCallConnected,
     callType,
+    connectionDetails,
 }) => {
     const room = React.useContext(RoomContext);
     if (!room) throw new Error("AssistantCommunicationDialogContent must be used within a RoomContext");
@@ -88,6 +92,39 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         kind: 'audiooutput',
         room: room,
     });
+
+    const handlePopOut = () => {
+        if (!connectionDetails || !assistant || !callType) return;
+    
+        const { serverUrl, token } = connectionDetails;
+        const assistantId = assistant.agent_id;
+        const assistantName = `${assistant.first_name} ${assistant.surname}`;
+        
+        const tempKey = `call-data-${Date.now()}`;
+        const callData = {
+            serverUrl, token, callType, assistantName,
+            assistantPhoto: assistant.signedProfilePhotoUrl || assistant.profile_photo || '',
+            userImage: userImage || '',
+        };
+    
+        try {
+            localStorage.setItem(tempKey, JSON.stringify(callData));
+            localStorage.setItem('activePopOutCall', JSON.stringify({ assistantId, assistantName }));
+            window.dispatchEvent(new StorageEvent('storage', { key: 'activePopOutCall', newValue: localStorage.getItem('activePopOutCall') }));
+        } catch (e) {
+            console.error("Could not write to localStorage for pop-out call:", e);
+            // If localStorage fails, we cannot proceed as essential data is missing.
+            toast.error("Could not open call in new tab. Please try again.");
+            return;
+        }
+    
+        const url = new URL(`${window.location.origin}/assistants/call/${assistantId}`);
+        url.searchParams.set('dataKey', tempKey);
+        
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        
+        onHangUp(); 
+    };
 
     React.useEffect(() => {
         if (!isCallConnected) return;
@@ -146,7 +183,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
 
     return (
         <>
-            <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} />
+            <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} onPopOut={handlePopOut} isPopOutDisabled={!connectionDetails} />
             <div className="flex-1 flex min-h-0 relative">
                 <div className="flex-1 flex flex-col items-center justify-center relative bg-background/80">
                     {isUserViewMaximized && userTrackRef ? (
@@ -233,7 +270,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 selectedAudioOutputDevice={activeAudioOutputDeviceId}
                                 onAudioOutputDeviceChange={handleAudioOutputDeviceChange}
                                 assistant={assistant}
-                                assistantActions={assistantActions}
+                                assistantActions={{ chat: assistantActions.chat }}
                                 chatHistories={chatHistories}
                                 setChatHistories={setChatHistories}
                                 userImage={userImage}
@@ -290,6 +327,7 @@ interface AssistantCommunicationDialogProps {
     toggleRemoteControlInteractive: () => void;
     isCallConnected: boolean;
     callType: 'video' | 'audio' | null;
+    connectionDetails: ConnectionDetails | null;
 }
 
 export function AssistantCommunicationDialog({
@@ -314,6 +352,7 @@ export function AssistantCommunicationDialog({
     toggleRemoteControlInteractive,
     isCallConnected,
     callType,
+    connectionDetails,
 }: AssistantCommunicationDialogProps) {
 
     if (!isOpen) return null;
@@ -345,6 +384,7 @@ export function AssistantCommunicationDialog({
                     toggleRemoteControlInteractive={toggleRemoteControlInteractive}
                     isCallConnected={isCallConnected}
                     callType={callType}
+                    connectionDetails={connectionDetails}
                 />
             </DialogContent>
         </Dialog>

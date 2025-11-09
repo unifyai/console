@@ -23,7 +23,7 @@ interface AssistantCommunicationSidePanelProps {
     selectedAudioOutputDevice?: string;
     onAudioOutputDeviceChange?: (deviceId: string) => void;
     assistant?: Assistant;
-    assistantActions?: AssistantActions;
+    assistantActions?: Pick<AssistantActions, 'chat'>;
     chatHistories?: Record<string, ChatMessage[]>;
     setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     userImage?: string | null;

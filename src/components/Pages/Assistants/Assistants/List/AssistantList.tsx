@@ -153,6 +153,7 @@ export function AssistantList({
                                 onShowProfile={onShowProfile}
                                 onShowActivityLog={onShowActivityLog}
                                 isFolded={isFolded}
+                                isCallActive={activeCallAssistantId === assistant.agent_id}
                             />
                         ))
                     ) : searchTerm && !isFolded ? (

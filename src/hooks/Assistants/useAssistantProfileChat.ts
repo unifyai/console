@@ -9,7 +9,7 @@ const BILLING_URL = "https://console.unify.ai/billing";
 
 export function useAssistantProfileChat(
     assistant: Assistant | null,
-    assistantActions: AssistantActions,
+    assistantActions: Pick<AssistantActions, 'chat'>,
     chatHistories: Record<string, ChatMessage[]>,
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
     isFirstView?: boolean,

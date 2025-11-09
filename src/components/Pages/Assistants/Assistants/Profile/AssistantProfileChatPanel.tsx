@@ -43,7 +43,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
 
 interface AssistantProfileChatPanelProps {
     assistant: Assistant;
-    assistantActions: AssistantActions;
+    assistantActions: Pick<AssistantActions, 'chat'>;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;

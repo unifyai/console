@@ -141,6 +141,7 @@ export function useAssistantCall(
         if (room.state !== 'disconnected') {
             await room.disconnect();
         } else {
+            // If room wasn't even connecting, we still need to trigger cleanup.
             onDisconnected();
         }
     }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
@@ -239,6 +240,7 @@ export function useAssistantCall(
 
     return {
         room,
+        connectionDetails,
         error,
         isConnected,
         isConnecting,
