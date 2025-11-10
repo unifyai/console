@@ -181,12 +181,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         ? "Setting up a connection..."
         : `Waiting for ${assistant.first_name} to join...`;
 
+    const isAudioOnly = callType === 'audio';
+
     return (
         <>
             <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} onPopOut={handlePopOut} isPopOutDisabled={!connectionDetails} />
             <div className="flex-1 flex min-h-0 relative">
                 <div className="flex-1 flex flex-col items-center justify-center relative bg-background/80">
-                    {isUserViewMaximized && userTrackRef ? (
+                    {isUserViewMaximized && userTrackRef && !isAudioOnly ? (
                         <AssistantCommunicationUserView
                             imageUrl={userImage}
                             trackRef={userTrackRef}
@@ -211,7 +213,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 onRetry={onRetry}
                             />
                             <AnimatePresence>
-                                {isUserViewVisible && !isConnecting && (
+                                {isUserViewVisible && !isConnecting && !isAudioOnly && (
                                     <motion.div
                                         key="user-view-pip" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                                         transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -229,7 +231,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                             </AnimatePresence>
                         </>
                     )}
-                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
+                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && !isAudioOnly && (
                          <motion.div
                              key="user-view-minimized" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                              transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
