@@ -844,6 +844,15 @@ const Interface = ({
   // Track if tab retry is in progress using ref to avoid re-renders
   const isRetryingTabRef = useRef(false);
 
+  // Determine if we're in initial load state (before interface/tab paints)
+  const isInitialInterfaceLoad = useMemo(() => {
+    return (
+      (tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.data) ||
+      tabStreamingQuery?.activationPending ||
+      (!activeTabId && !!projectQueryParam && !!interfaceQueryParam)
+    );
+  }, [tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activationPending, activeTabId, projectQueryParam, interfaceQueryParam]);
+
   // Render the active tab based on streaming query - memoized to prevent infinite loops
   const renderActiveTab = useCallback(() => {
     if (!activeTabId || !projectQueryParam) {
@@ -1746,8 +1755,21 @@ const Interface = ({
             onComplete={hideOverlay}
           />
 
+          {/* Initial Interface Load Overlay - shows between navbar and interface paint */}
+          {isInitialInterfaceLoad && !isSwitchingTab && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm"
+              style={{ left: sidebarWidth }}
+            >
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Loading interface...</p>
+              </div>
+            </div>
+          )}
+
           {/* Tab Switching Overlay */}
-          {isSwitchingTab && (
+          {isSwitchingTab && !isInitialInterfaceLoad && (
             <div 
               className="absolute inset-0 bg-background/60 backdrop-blur-sm z-40 flex items-center justify-center"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
