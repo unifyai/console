@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { dedupedJson } from '@/lib/requestDeduper';
 import { GranularInterfaceActions, InterfaceData } from '@/types/interfaces/grid';
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -11,21 +12,31 @@ export function useListInterfacesQuery(
   projectId: string | null,
   actions: GranularInterfaceActions
 ) {
+  const eTagByProject = (useListInterfacesQuery as any)._etag || ((useListInterfacesQuery as any)._etag = new Map<string, string>());
   return useQuery({
     queryKey: ['interfaces', projectId],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal, queryKey, meta }) => {
       if (!projectId) return [];
       // Prefer API route on the client to avoid server action round-trips (RSC fetches)
-      const res = await fetch(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
+      const headers: HeadersInit = {};
+      const et = eTagByProject.get(projectId);
+      if (et) (headers as any)['If-None-Match'] = et;
+      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
         method: 'GET',
         signal: signal as AbortSignal,
         cache: 'no-store',
+        headers,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ detail: `Interfaces ${res.status}` }));
-        throw new Error(data.detail || 'Failed to list interfaces');
+      const etag = resHeaders?.etag;
+      if (etag) eTagByProject.set(projectId, etag);
+      if (status === 304) {
+        // Reuse cached data
+        return (meta as any)?.queryClient?.getQueryData(['interfaces', projectId]) || [];
       }
-      const json = await res.json();
+      if (!ok) {
+        const detail = json?.detail || `Interfaces ${status}`;
+        throw new Error(detail);
+      }
       return Array.isArray(json) ? json : [];
     },
     enabled: !!projectId,

@@ -14,6 +14,7 @@ import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 
 // Import the new dependency management system
 import { useDependencyAwareSortedTilesForTab } from "@/utils/interfaces/tileDependencies/dependencyManager";
+import { useUpdateTilesPositionsQuery } from '@/hooks/Interfaces/Query/useTilesQuery';
 
 const ResponsiveReactGridLayout = WidthProvider(Responsive);
 
@@ -67,6 +68,9 @@ const Tab = ({
   // SYNCHRONISED TAB-SPECIFIC ACTIONS (optimistic + router refresh)
   const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
   const syncedTabDataActions = syncedTabActions?.data ?? null;
+
+  // Batch persist positions at interaction end (if supported by actions)
+  const updateTilesPositionsMutation = useUpdateTilesPositionsQuery();
 
   // Get tileIds from store data only
   const tileIds = useMemo(() => {
@@ -136,6 +140,25 @@ const Tab = ({
     } else {
       tabUIActions?.setPending(false);
     }
+  };
+
+  // Persist final positions on drag/resize stop (batch) when supported
+  const persistBatchPositions = (layouts: Layout[]) => {
+    // Only proceed if the provided actions implement updateTilesPositions
+    const supportsBatch = (tileActions as any)?.updateTilesPositions;
+    if (!supportsBatch || !tabId) return;
+    try {
+      const tiles = layouts.map(l => ({
+        id: l.i,
+        position: {
+          x: Math.round(l.x / widthFactor),
+          y: Math.round(l.y / heightFactor),
+          width: Math.round(l.w / widthFactor),
+          height: Math.round(l.h / heightFactor),
+        }
+      }));
+      updateTilesPositionsMutation.mutate({ tab_id: tabId, tiles, actions: tileActions as any });
+    } catch {}
   };
 
   const dragResizeDisabled = tabUIState?.pending || tabUIState?.resetting;
@@ -212,6 +235,8 @@ const Tab = ({
     <div style={tabStyle} data-tab-color>
       <ResponsiveReactGridLayout
         onLayoutChange={onLayoutChange}
+        onDragStop={persistBatchPositions}
+        onResizeStop={persistBatchPositions}
         className="layout interactive-grid flex-1 mx-1 w-full"
         style={{ width: '100%', minWidth: 0 }}
         cols={newCols}

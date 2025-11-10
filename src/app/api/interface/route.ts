@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey } from "@/lib/auth/requireApiKey";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
 
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);

@@ -91,15 +91,27 @@ export function useTabStreamingQuery(
   } = options || {};
 
   // Get all tabs for the interface via API route (cancelable + cacheable)
+  const tabsEtagMap = (useTabStreamingQuery as any)._tabsEtag || ((useTabStreamingQuery as any)._tabsEtag = new Map<string, string>());
   const { data: allTabsData = [] } = useQuery<TabData[]>({
     queryKey: ["tabs", interfaceId],
     queryFn: async ({ signal }) => {
       try {
+        const headers: HeadersInit = {};
+        const et = tabsEtagMap.get(interfaceId);
+        if (et) (headers as any)['If-None-Match'] = et;
         const res = await fetch(`/api/tab?interface_id=${encodeURIComponent(interfaceId)}&checkpoint=false`, {
           method: "GET",
           signal: signal as AbortSignal,
           cache: "no-store",
+          headers
         });
+        const etag = res.headers.get('ETag');
+        if (etag) tabsEtagMap.set(interfaceId, etag);
+        if (res.status === 304) {
+          // Return cached data
+          const cached = queryClient.getQueryData(["tabs", interfaceId]) as TabData[] | undefined;
+          return Array.isArray(cached) ? cached : [];
+        }
         if (!res.ok) throw new Error(`Tabs ${res.status}`);
         const json = await res.json();
         const arr = Array.isArray(json) ? json : [];

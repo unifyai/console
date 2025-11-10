@@ -9,6 +9,25 @@ import { QueryClient } from "@tanstack/react-query";
 import { isEqual } from 'lodash';
 import { perfStart, perfEnd } from '@/lib/perf';
 
+// Global semaphore to cap concurrent logs fetches
+const MAX_LOGS_CONCURRENCY = 3;
+let currentLogsConcurrency = 0;
+const logsQueue: Array<() => void> = [];
+
+async function withLogsSemaphore<T>(fn: () => Promise<T>): Promise<T> {
+  if (currentLogsConcurrency >= MAX_LOGS_CONCURRENCY) {
+    await new Promise<void>(resolve => logsQueue.push(resolve));
+  }
+  currentLogsConcurrency++;
+  try {
+    return await fn();
+  } finally {
+    currentLogsConcurrency--;
+    const next = logsQueue.shift();
+    if (next) next();
+  }
+}
+
 /**
  * Debug flag for performance logging
  * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
@@ -209,11 +228,11 @@ export async function fetchAndBuildTableDataItem(
     if (useGroupPagination) params.set('group_depth', '0');
 
     const pFetch = perfStart(`logs-fetch:${tile.name}:${projectId}`);
-    const res = await fetch(`/api/logs?${params.toString()}`, {
+    const res = await withLogsSemaphore(() => fetch(`/api/logs?${params.toString()}`, {
       method: 'GET',
       signal: signal as AbortSignal,
       cache: 'no-store',
-    });
+    }));
     perfEnd(pFetch, { status: res.status });
 
     if (!res.ok) {
