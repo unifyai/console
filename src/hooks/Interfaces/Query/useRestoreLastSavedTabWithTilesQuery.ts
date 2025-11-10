@@ -46,7 +46,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
           throw new Error('Could not find the current interface');
         }
 
-        console.log('Retrieved current interface:', currentInterfaceData);
       } catch (error) {
         console.error('Error retrieving current interface:', error);
         throw new Error('Failed to retrieve current interface');
@@ -65,7 +64,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
           throw new Error('No checkpoint found for this interface');
         }
 
-        console.log('Retrieved interface checkpoint:', checkpointedInterfaceData);
       } catch (error) {
         console.error('Error retrieving interface checkpoint:', error);
         throw new Error('Failed to retrieve interface checkpoint');
@@ -91,7 +89,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
           throw new Error('Could not find current tab');
         }
 
-        console.log('Retrieved current tab:', currentTabData);
       } catch (error) {
         console.error('Error retrieving current tab:', error);
         throw new Error('Failed to retrieve current tab');
@@ -110,7 +107,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
           throw new Error('No checkpoint found for this tab');
         }
 
-        console.log('Retrieved tab checkpoint:', checkpointedTabData);
       } catch (error) {
         console.error('Error retrieving tab checkpoint:', error);
         throw new Error('Failed to retrieve tab checkpoint');
@@ -120,7 +116,6 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       let checkpointedTileList: TileData[] = [];
       try {
         checkpointedTileList = await tile_actions.list(currentTabData.id, undefined, true);
-        console.log(`Retrieved ${checkpointedTileList.length} tile checkpoints`);
       } catch (error) {
         console.error('Error retrieving tile checkpoints:', error);
         // Continue even if there are no tiles

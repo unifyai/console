@@ -614,7 +614,6 @@ const Interface = ({
     
     // Block tab switching during mutations to prevent state desync
     if (createTabMutation.isPending || updateTabMutation.isPending || saveTabWithTilesMutation.isPending) {
-      console.log('[Interface] Blocking tab switch - mutation in progress');
       return;
     }
     
@@ -943,22 +942,12 @@ const Interface = ({
 
     // Guard against race condition: ensure tab data matches current active tab
     if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
-      console.warn('[TAB RENDER] Race condition detected - tab data is stale:', {
-        dataTabName: tabData.tabData.name,
-        activeTabName,
-        ignoring: true
-      });
       return (
         <div className="flex items-center justify-center h-full">
           <SkeletonLoader />
         </div>
       );
     }
-
-    console.log('[TAB RENDER] Rendering Tab:', {
-      tabName: activeTabName,
-      tileCount: tabData?.tiles?.length || 0
-    });
 
     return (
       <div className="w-full h-full">

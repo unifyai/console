@@ -100,9 +100,6 @@ export function useUpdatePlotDataItem(tileId: string) {
   return useMutation<PlotDataItem, Error, Partial<PlotDataItem>, { previousData?: PlotDataItem }>({
     mutationFn: async (newData) => {
       // Simulating API response - in real app this would make an API call
-      console.log(`Updating plot data for tile ${tileId}:`, newData);
-      
-      // Simulating API response
       return {
         ...(queryClient.getQueryData<PlotDataItem>(["plotDataItem", tileId]) || {}),
         ...newData

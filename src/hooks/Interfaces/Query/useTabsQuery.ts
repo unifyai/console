@@ -187,30 +187,13 @@ export function useCreateTabQuery() {
       tab_id?: string;
       actions: GranularTabActions;
     }) => {
-      console.log("[useTabsQuery] Creating tab:", {
-        interface_id,
-        name,
-        data,
-        tab_id,
-        actionsType: typeof actions,
-        actionsKeys: Object.keys(actions),
-        hasCreateFn: typeof actions.create === 'function'
-      });
-      
       try {
         if (typeof actions.create !== 'function') {
-          console.error("[useTabsQuery] actions.create is not a function:", actions.create);
-          
           // Try to dynamically access the create method to work around potential serialization issues
           const createMethod = actions["create"];
-          console.log("[useTabsQuery] Trying alternative method access:", {
-            createMethodType: typeof createMethod,
-            isFunction: typeof createMethod === 'function'
-          });
           
           if (typeof createMethod === 'function') {
             const result = await (createMethod as Function)(interface_id, name, data, tab_id);
-            console.log("[useTabsQuery] Tab creation result (alternative):", result);
             return result;
           }
           
@@ -218,7 +201,6 @@ export function useCreateTabQuery() {
         }
         
         const result = await actions.create(interface_id, name, data, tab_id);
-        console.log("[useTabsQuery] Tab creation result:", result);
         return result;
       } catch (error) {
         console.error("[useTabsQuery] Error creating tab:", error);
@@ -226,7 +208,6 @@ export function useCreateTabQuery() {
       }
     },
     onSuccess: (result) => {
-      console.log("[useTabsQuery] Tab created:", result);
       // Invalidate tabs query to refetch the list
       if (result && 'interface_id' in result) {
         queryClient.invalidateQueries({ 
