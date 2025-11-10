@@ -65,8 +65,8 @@ const InterfaceButtons = ({
     );
 
     const interfaces = useMemo(() => interfacesData || [], [interfacesData]);
-    const currentInterface = useMemo(() => interfaces.find(iface => iface.id === interfaceId), [interfaces, interfaceId]);
-    const interfaceNames = useMemo(() => interfaces.map(iface => iface.name), [interfaces]);
+    const currentInterface = useMemo(() => interfaces.find((iface: any) => iface.id === interfaceId), [interfaces, interfaceId]);
+    const interfaceNames = useMemo(() => interfaces.map((iface: any) => iface.name), [interfaces]);
 
     // Dialog and dropdown states
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -154,7 +154,7 @@ const InterfaceButtons = ({
 
     const handleCreateInterface = async () => {
         if (!createName.trim()) { setCreateError("Interface name is required."); return; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === createName.trim().toLowerCase())) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === createName.trim().toLowerCase())) {
             setCreateError("An interface with this name already exists."); return;
         }
         setIsCreating(true);
@@ -185,7 +185,7 @@ const InterfaceButtons = ({
     const handleRenameInterface = async () => {
         if (!currentInterface || !renameName.trim()) { setRenameError("Interface name is required."); return; }
         if (renameName.trim() === currentInterface.name) { setRenameOpen(false); return; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === renameName.trim().toLowerCase() && iface.id !== interfaceId)) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === renameName.trim().toLowerCase() && iface.id !== interfaceId)) {
             setRenameError("An interface with this name already exists."); return;
         }
         setIsRenaming(true); setRenameError("");
@@ -263,7 +263,7 @@ const InterfaceButtons = ({
     
     const validateImportName = useCallback((name: string) => {
         if (!name.trim()) { setNameError("Interface name is required."); return false; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === name.toLowerCase())) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === name.toLowerCase())) {
             setNameError("An interface with this name already exists."); return false;
         }
         setNameError(""); return true;

@@ -55,13 +55,10 @@ export function createStore(initialState?: Partial<IStoreState>) {
     };
   });
 
-  // Wrap with devtools in non-production only
-  const withDevtools = process.env.NODE_ENV !== "production"
-    ? devtools(baseCreator, { name: "ConsoleStore" })
-    : baseCreator;
-
-  // Build a new store using `create`
-  const zustandStore = create<IStoreState>()(withDevtools);
+  // Build a new store using `create`, conditionally wrapping with devtools
+  const zustandStore = process.env.NODE_ENV !== "production"
+    ? create<IStoreState>()(devtools(baseCreator, { name: "ConsoleStore" }))
+    : create<IStoreState>()(baseCreator);
 
   // If initial state was provided, set it
   if (initialState) {
