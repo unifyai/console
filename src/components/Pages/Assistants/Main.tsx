@@ -67,6 +67,40 @@ export default function Main({
         handleShowActivityLog, handleActivityLogClose,
     } = usePanelManager();
 
+    const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
+    const [isResizingProfile, setIsResizingProfile] = React.useState(false);
+
+    const handleProfileResizeStart = React.useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizingProfile(true);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const startWidth = profilePanelWidth;
+        const startX = e.clientX;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const newWidth = startWidth + (moveEvent.clientX - startX);
+            const minWidth = 300;
+            const maxWidth = 800;
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                setProfilePanelWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizingProfile(false);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [profilePanelWidth]);
+
+
     // --- Assistant List Fold State ---
     const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
 
@@ -141,6 +175,64 @@ export default function Main({
     const [setupInstructions, setSetupInstructions] = React.useState<{ os: string; isOpen: boolean } | null>(null);
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
     const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
+    const [popOutCallAssistantId, setPopOutCallAssistantId] = React.useState<string | null>(null);
+
+    const pongTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const pongListenerRef = React.useRef<(event: StorageEvent) => void>();
+
+    const verifyAndSetPopOutState = React.useCallback(() => {
+        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
+        setPopOutCallAssistantId(null);
+
+        try {
+            const data = localStorage.getItem('activePopOutCall');
+            if (!data) return;
+
+            const popOutData = JSON.parse(data);
+            const pingId = `ping-${Date.now()}`;
+
+            pongListenerRef.current = (event: StorageEvent) => {
+                if (event.key === 'popOutCallPong' && event.newValue === pingId) {
+                    if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                    window.removeEventListener('storage', pongListenerRef.current!);
+                    setPopOutCallAssistantId(popOutData?.assistantId || null);
+                }
+            };
+
+            window.addEventListener('storage', pongListenerRef.current);
+            localStorage.setItem('popOutCallPing', pingId);
+            setTimeout(() => localStorage.removeItem('popOutCallPing'), 2000);
+
+            pongTimeoutRef.current = setTimeout(() => {
+                window.removeEventListener('storage', pongListenerRef.current!);
+                console.warn("No response from pop-out call window. Clearing stale 'activePopOutCall' localStorage entry.");
+                localStorage.removeItem('activePopOutCall');
+                setPopOutCallAssistantId(null);
+            }, 1500);
+
+        } catch (e) {
+            console.error("Error during pop-out verification, clearing state:", e);
+            localStorage.removeItem('activePopOutCall');
+            setPopOutCallAssistantId(null);
+        }
+    }, []);
+
+
+    React.useEffect(() => {
+        verifyAndSetPopOutState();
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === 'activePopOutCall') {
+                verifyAndSetPopOutState();
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
+        };
+    }, [verifyAndSetPopOutState]);
 
     // --- Call Management ---
     const room = React.useMemo(() => new Room(), []);
@@ -148,6 +240,8 @@ export default function Main({
         isConnecting: isConnectingCall, 
         isConnected: isCallConnected, 
         activeCallAssistant, 
+        callType,
+        connectionDetails,
         connect: startCall, 
         disconnect: hangUpCall,
         isSpeakerMuted,
@@ -155,29 +249,36 @@ export default function Main({
         isWaitingForAssistant,
         connectionError,
         retryConnection,
-        // Destructure new remote control state and functions
         isRemoteControlActive,
         liveviewUrl,
         isRemoteControlLoading,
         toggleRemoteControl,
+        isRemoteControlInteractive,
+        toggleRemoteControlInteractive,
     } = useAssistantCall(room, assistantActions);
     const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
     const [isCallMinimized, setIsCallMinimized] = React.useState(false);
 
-    const handleStartCall = React.useCallback(async (assistant: Assistant) => {
-        if (isCallConnected || isConnectingCall) {
-            if (activeCallAssistant?.agent_id === assistant.agent_id) {
-                setIsCommunicationDialogOpen(true);
-                setIsCallMinimized(false);
+    const handleStartCall = React.useCallback(async (assistant: Assistant, callType: 'video' | 'audio') => {
+        const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
+        if (activeCallId) {
+            if (activeCallId === assistant.agent_id) {
+                if (popOutCallAssistantId) {
+                    toast.info("Call is active in a separate tab. Close that tab to start a new call here.");
+                } else {
+                    setIsCommunicationDialogOpen(true);
+                    setIsCallMinimized(false);
+                }
             } else {
                 toast.info("A call is already in progress with another assistant.");
             }
             return;
         }
+
         setIsCommunicationDialogOpen(true);
         setIsCallMinimized(false);
-        await startCall(assistant);
-    }, [isCallConnected, isConnectingCall, startCall, activeCallAssistant]);
+        await startCall(assistant, callType);
+    }, [isCallConnected, isConnectingCall, startCall, activeCallAssistant, popOutCallAssistantId]);
 
     const handleHangUp = React.useCallback(async () => {
         await hangUpCall();
@@ -405,6 +506,7 @@ export default function Main({
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
     const activityLogPanelAssistant = React.useMemo(() => assistants.find(a => a.agent_id === activityLogAssistantId) || null, [assistants, activityLogAssistantId]);
     const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
+    const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
     
     // Determine active panel for width calculations
     const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
@@ -436,20 +538,24 @@ export default function Main({
                         onOpenHireDialog={handleOpenHireDialog}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
-                        activeCallAssistantId={activeCallAssistant?.agent_id || null}
+                        activeCallAssistantId={activeCallId}
                         onHangUp={handleHangUp}
                     />
                 </div>
 
                 {/* Assistant Profile Panel */}
                 <AnimatePresence initial={false}>
-                    {isProfileOpen && profileAssistant && (
+                    {isProfileOpen && profileAssistant && [
                         <motion.div
                             key="assistant-profile"
-                            initial={{ width: "0%", opacity: 0, x: "-1%" }}
-                            animate={{ width: panelBaseWidth, opacity: 1, x: "0%" }}
-                            exit={{ width: "0%", opacity: 0, x: "-1%" }}
-                            transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: profilePanelWidth, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{
+                                type: "tween",
+                                ease: "easeInOut",
+                                duration: isResizingProfile ? 0 : 0.3
+                            }}
                             className="h-full flex-shrink-0 border-r overflow-hidden bg-background"
                         >
                             <AssistantProfilePanel
@@ -465,13 +571,24 @@ export default function Main({
                                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
                                 onFirstViewCompleted={() => setNewlyHiredInfo(null)}
                                 onStartCall={handleStartCall}
-                                activeCallAssistantId={activeCallAssistant?.agent_id || null}
+                                activeCallAssistantId={activeCallId}
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
                             />
-                        </motion.div>
-                    )}
+                        </motion.div>,
+                        <motion.div
+                            key="profile-resize-handle"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            onMouseDown={handleProfileResizeStart}
+                            className="w-1.5 h-full cursor-col-resize bg-transparent hover:bg-primary/20 active:bg-primary/40 transition-colors duration-200 flex-shrink-0"
+                            style={{ zIndex: 20 }}
+                        />
+                    ]}
                 </AnimatePresence>
+
 
                 {/* Assistant Activity Log Panel */}
                 <AnimatePresence initial={false}>
@@ -650,12 +767,17 @@ export default function Main({
                         isConnecting={isConnectingCall}
                         userImage={userMeta.image}
                         isWaitingForAssistant={isWaitingForAssistant}
+                        isCallConnected={isCallConnected}
                         connectionError={connectionError}
                         onRetry={retryConnection}
                         isRemoteControlActive={isRemoteControlActive}
                         liveviewUrl={liveviewUrl}
                         isRemoteControlLoading={isRemoteControlLoading}
                         toggleRemoteControl={toggleRemoteControl}
+                        isRemoteControlInteractive={isRemoteControlInteractive}
+                        toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                        callType={callType}
+                        connectionDetails={connectionDetails}
                     />
                     {isCallMinimized && (
                          <AssistantCommunicationMinimized
@@ -666,9 +788,11 @@ export default function Main({
                             isSpeakerMuted={isSpeakerMuted}
                             onToggleSpeaker={toggleSpeakerMute}
                             isConnecting={isConnectingCall}
+                            isCallConnected={isCallConnected}
                             isWaitingForAssistant={isWaitingForAssistant}
                             connectionError={connectionError}
                             onRetry={retryConnection}
+                            callType={callType}
                         />
                     )}
                 </RoomContext.Provider>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone, Video } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -17,6 +17,12 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/UI/dropdown-menu";
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
@@ -34,7 +40,7 @@ interface AssistantProfilePanelProps {
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
-    onStartCall: (assistant: Assistant) => void;
+    onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => void;
     activeCallAssistantId: string | null;
     isCallConnected: boolean;
     isConnectingCall: boolean;
@@ -95,12 +101,6 @@ export function AssistantProfilePanel({
         isInThisCall ? "Return to call" :
         isAnotherCallActive ? "Another call is in progress" :
         "Start a call";
-
-    const handleCallButtonClick = () => {
-        if (!isCallButtonDisabled) {
-            onStartCall(assistant);
-        }
-    };
     
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
@@ -189,18 +189,47 @@ export function AssistantProfilePanel({
                                 className="text-title"
                                 buttonSlot={
                                     <div className="flex items-center gap-1">
-                                        <TooltipProvider delayDuration={100}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={handleCallButtonClick} disabled={isCallButtonDisabled}>
-                                                        {(isInThisCall && isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>{callButtonTooltip}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        {isInThisCall ? (
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onStartCall(assistant, 'video')} disabled={isCallButtonDisabled}>
+                                                            {(isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>{callButtonTooltip}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : (
+                                            <DropdownMenu>
+                                                <TooltipProvider delayDuration={100}>
+                                                    <Tooltip>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <TooltipTrigger asChild>
+                                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={isCallButtonDisabled}>
+                                                                    <Phone className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                        </DropdownMenuTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>{callButtonTooltip}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')}>
+                                                        <Video className="mr-2 h-4 w-4" />
+                                                        <span>Video Call</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')}>
+                                                        <Phone className="mr-2 h-4 w-4" />
+                                                        <span>Audio Call</span>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>

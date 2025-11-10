@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
-import { Phone, Mail } from "lucide-react";
+import { Phone, Mail, PhoneCall } from "lucide-react";
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from "@/lib/utils";
 import type { Assistant, AssistantStatus } from "@/types/assistants/assistant";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 
 interface AssistantListItemProps {
     assistant: Assistant;
@@ -13,6 +14,7 @@ interface AssistantListItemProps {
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
     isFolded: boolean;
+    isCallActive: boolean;
 }
 
 export function AssistantListItem({
@@ -22,6 +24,7 @@ export function AssistantListItem({
     onShowProfile,
     onShowActivityLog,
     isFolded,
+    isCallActive,
 }: AssistantListItemProps) {
 
     const handleProfileClick = (e: React.MouseEvent) => {
@@ -58,6 +61,12 @@ export function AssistantListItem({
                             isOnline ? "bg-green-500" : "bg-gray-400"
                         )}
                     />
+                )}
+                {isCallActive && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
                 )}
             </div>
         );
@@ -155,6 +164,16 @@ export function AssistantListItem({
                 </HoverCard>
                 <span className="text-body text-strong truncate">{displayName}</span>
             </div>
+            {isCallActive && (
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <PhoneCall className={cn("h-4 w-4 animate-pulse flex-shrink-0 mr-2", isSelected ? "text-primary-foreground" : "text-primary")} />
+                        </TooltipTrigger>
+                        <TooltipContent><p>In a call</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
         </div>
     );
 }

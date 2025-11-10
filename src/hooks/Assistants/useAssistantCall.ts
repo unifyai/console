@@ -15,15 +15,18 @@ export function useAssistantCall(
     const [isConnected, setIsConnected] = React.useState(false);
     const [isConnecting, setIsConnecting] = React.useState(false);
     const [activeCallAssistant, setActiveCallAssistant] = React.useState<Assistant | null>(null);
+    const [callType, setCallType] = React.useState<'video' | 'audio' | null>(null);
     const [isSpeakerMuted, setIsSpeakerMuted] = React.useState(false);
     const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
     const [connectionError, setConnectionError] = React.useState<string | null>(null);
     const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const isCancelledRef = React.useRef(false);
 
-    // --- Remote Control State (Moved from useAssistantDesktop) ---
+    // --- Remote Control State ---
     const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
     const [liveviewUrl, setLiveviewUrl] = React.useState<string | null>(null);
     const [isRemoteControlLoading, setIsRemoteControlLoading] = React.useState(false);
+    const [isRemoteControlInteractive, setIsRemoteControlInteractive] = React.useState(false);
 
 
     const toggleSpeakerMute = React.useCallback(() => {
@@ -40,6 +43,7 @@ export function useAssistantCall(
     const stopRemoteControl = React.useCallback(() => {
         setIsRemoteControlActive(false);
         setLiveviewUrl(null);
+        setIsRemoteControlInteractive(false);
     }, []);
 
     const onDisconnected = React.useCallback(() => {
@@ -49,12 +53,15 @@ export function useAssistantCall(
         setConnectionError(null);
         setConnectionDetails(null);
         setActiveCallAssistant(null);
+        setCallType(null);
         setIsSpeakerMuted(false);
         stopRemoteControl(); // Clean up remote control state
         clearAssistantJoinTimeout();
     }, [clearAssistantJoinTimeout, stopRemoteControl]);
 
-    const connect = React.useCallback(async (assistant: Assistant) => {
+    const connect = React.useCallback(async (assistant: Assistant, type: 'video' | 'audio') => {
+        isCancelledRef.current = false;
+
         if (room.state !== 'disconnected') {
             console.warn("[useAssistantCall] Connect called while room is not in disconnected state.");
             return;
@@ -62,6 +69,7 @@ export function useAssistantCall(
         if (!assistant) return;
 
         setIsConnecting(true);
+        setCallType(type);
         setActiveCallAssistant(assistant);
         setError(null);
         setConnectionError(null);
@@ -70,6 +78,7 @@ export function useAssistantCall(
             
             // Step 1: Get connection details for the user
             const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
+            if (isCancelledRef.current) return;
             if ('detail' in details) {
                 throw new Error(details.detail || 'Could not get call details.');
             }
@@ -79,20 +88,27 @@ export function useAssistantCall(
 
             // Step 2: Dispatch the assistant to join the room
             const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
+            if (isCancelledRef.current) return;
             if (dispatchResult.detail) {
                 throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
             }
 
             // Step 3: Connect the user's client
             await room.connect(connDetails.serverUrl, connDetails.token);
+            if (isCancelledRef.current) {
+                await room.disconnect();
+                return;
+            }
+
             await room.localParticipant.setMicrophoneEnabled(true);
-            await room.localParticipant.setCameraEnabled(true);
+            await room.localParticipant.setCameraEnabled(type === 'video');
             setIsConnected(true);
             setIsConnecting(false); // User is connected, now wait for assistant
 
             if (room.numParticipants < 2) { // Check if assistant isn't already there
                 setIsWaitingForAssistant(true);
                 assistantJoinTimeoutRef.current = setTimeout(() => {
+                    if (isCancelledRef.current) return;
                     setConnectionError(`${assistant.first_name} is taking too long to join.`);
                     setIsWaitingForAssistant(false);
                 }, ASSISTANT_JOIN_TIMEOUT);
@@ -101,32 +117,39 @@ export function useAssistantCall(
             }
 
         } catch (e: any) {
-            console.error("Failed to connect to LiveKit room", e);
-            toast.error(`Failed to start call. Please try again.`);
-            setError(`Failed to start call: ${e.message}`);
-            setIsConnected(false);
-            setActiveCallAssistant(null);
-            if (room.state !== 'disconnected') {
-                await room.disconnect();
+            setIsConnecting(false);
+            if (isCancelledRef.current) {
+                console.log("Connection process was cancelled by the user.");
+            } else {
+                console.error("Failed to connect to LiveKit room", e);
+                toast.error(`Failed to start call. Please try again.`);
+                setError(`Failed to start call: ${e.message}`);
             }
-        } finally {
-            if (isConnecting) {
-                setIsConnecting(false);
-            }
+            onDisconnected();
         }
-    }, [room, assistantActions.call, clearAssistantJoinTimeout, isConnecting]);
+    }, [room, assistantActions.call, clearAssistantJoinTimeout, onDisconnected]);
     
     const disconnect = React.useCallback(async () => {
+        isCancelledRef.current = true;
         clearAssistantJoinTimeout();
         stopRemoteControl();
+
+        if (isConnecting) {
+            setIsConnecting(false);
+        }
+        
         if (room.state !== 'disconnected') {
             await room.disconnect();
+        } else {
+            // If room wasn't even connecting, we still need to trigger cleanup.
+            onDisconnected();
         }
-    }, [room, clearAssistantJoinTimeout, stopRemoteControl]);
+    }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
 
     const retryConnection = React.useCallback(async () => {
         const assistantToRetry = activeCallAssistant;
-        if (!assistantToRetry) return;
+        const callTypeToRetry = callType;
+        if (!assistantToRetry || !callTypeToRetry) return;
 
         // Temporarily detach the main disconnect handler to prevent full UI teardown
         room.off(RoomEvent.Disconnected, onDisconnected);
@@ -145,8 +168,8 @@ export function useAssistantCall(
         room.on(RoomEvent.Disconnected, onDisconnected);
 
         // Start the connection process again with the same assistant
-        connect(assistantToRetry);
-    }, [activeCallAssistant, room, connect, onDisconnected, clearAssistantJoinTimeout, stopRemoteControl]);
+        connect(assistantToRetry, callTypeToRetry);
+    }, [activeCallAssistant, callType, room, connect, onDisconnected, clearAssistantJoinTimeout, stopRemoteControl]);
 
     const toggleRemoteControl = React.useCallback(async () => {
         if (!activeCallAssistant) return;
@@ -164,6 +187,7 @@ export function useAssistantCall(
             if (result.liveviewUrl) {
                 setLiveviewUrl(result.liveviewUrl);
                 setIsRemoteControlActive(true);
+                setIsRemoteControlInteractive(false); // Start in view-only mode
                 toast.success("Remote control session started.", { id: toastId });
             } else {
                  throw new Error("Could not retrieve session URL.");
@@ -176,6 +200,29 @@ export function useAssistantCall(
         }
     }, [isRemoteControlActive, stopRemoteControl, assistantActions.desktop, activeCallAssistant]);
     
+    const toggleRemoteControlInteractive = React.useCallback(async () => {
+        if (!isRemoteControlActive || !activeCallAssistant) return;
+
+        const nextState = !isRemoteControlInteractive;
+        const eventType = nextState ? 'pause_actor' : 'resume_actor';
+        const message = nextState ? 'user is taking over' : 'user is handing back control';
+
+        try {
+            const result = await assistantActions.desktop.sendSystemEvent(activeCallAssistant.agent_id, eventType, message);
+            if (result.detail) {
+                throw new Error(result.detail);
+            }
+            // Only update the state if the webhook call was successful
+            setIsRemoteControlInteractive(nextState);
+            toast.info(nextState ? "Interactive mode enabled." : "View-only mode enabled.");
+
+        } catch (e: any) {
+            console.error(`[useAssistantCall] Failed to toggle interactive mode to ${nextState}:`, e.message);
+            toast.error(`Could not ${nextState ? 'enable' : 'disable'} interactive mode.`);
+        }
+
+    }, [isRemoteControlActive, isRemoteControlInteractive, activeCallAssistant, assistantActions.desktop]);
+
     React.useEffect(() => {
         const onParticipantConnected = () => {
             setIsWaitingForAssistant(false);
@@ -193,10 +240,12 @@ export function useAssistantCall(
 
     return {
         room,
+        connectionDetails,
         error,
         isConnected,
         isConnecting,
         activeCallAssistant,
+        callType,
         isSpeakerMuted,
         toggleSpeakerMute,
         connect,
@@ -209,5 +258,7 @@ export function useAssistantCall(
         liveviewUrl,
         isRemoteControlLoading,
         toggleRemoteControl,
+        isRemoteControlInteractive,
+        toggleRemoteControlInteractive,
     };
 }
