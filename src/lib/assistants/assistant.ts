@@ -169,7 +169,8 @@ export const updateAssistant = async (apiKey: string) => {
 export const createAssistant = async (apiKey: string) => {
     return async (
         first_name: string, surname: string, age: number | null, region: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null, voice_provider: VoiceProvider | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, 
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
         email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null, 
         pre_hire_chat?: PreHireChatMessage[]
@@ -195,6 +196,7 @@ export const createAssistant = async (apiKey: string) => {
                         about,
                         voice_id,
                         voice_provider,
+                        voice_mode,
                         email,
                         user_phone,
                         country,

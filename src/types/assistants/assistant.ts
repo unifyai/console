@@ -30,6 +30,7 @@ export interface Assistant {
   // Voice fields
   voice_id: string | null; // Provider Voice ID
   voice_provider: VoiceProvider | null;
+  voice_mode: "sts" | "tts";
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -181,6 +182,7 @@ export interface AssistantUpdatePayload {
     user_whatsapp_number?: string | null;
     voice_id?: string | null;
     voice_provider?: VoiceProvider | null;
+    voice_mode?: "sts" | "tts";
     country?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
@@ -263,7 +265,8 @@ export interface AssistantActions {
     list: () => Promise<Assistant[] | ResponseProps>;
     create: (
         first_name: string, surname: string, age: number | null, region: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null, voice_provider: VoiceProvider | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, 
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
         email: string | null, user_phone: string | null, country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null, 
         preHireChat?: PreHireChatMessage[]

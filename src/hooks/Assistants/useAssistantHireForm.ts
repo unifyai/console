@@ -449,6 +449,11 @@ export function useAssistantHireForm(
             // Construct payload with only changed fields
             const payload: Partial<AssistantUpdatePayload> = {};
 
+            if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
+            if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
+            const new_voice_mode = data.fast_mode ? "sts" : "tts";
+            if (new_voice_mode !== editingAssistant.voice_mode) payload.voice_mode = new_voice_mode;
+
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
             if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
@@ -599,12 +604,13 @@ export function useAssistantHireForm(
             
             const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
             const formattedPreHireChat = chatHistory?.map(({ role, content }) => ({ role, msg: content }));
+            const voice_mode = data.fast_mode ? "sts" : "tts";
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
                 data.first_name, data.surname, ageNumber, data.region,
                 finalImageUrlToSend, finalVideoUrlToSend,
-                data.about, data.voice_id, voice_provider,
+                data.about, data.voice_id, voice_provider, voice_mode,
                 null, null, null, null, user_local_desktop_payload,
                 formattedPreHireChat
             );
