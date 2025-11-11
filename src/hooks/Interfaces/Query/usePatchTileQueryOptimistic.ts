@@ -24,7 +24,8 @@ import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { selectTilesForTab } from '@/contexts/selectors/tile';
 import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
-import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
+// Note: Avoid heavy blocking fetches inside onMutate. We rely on cache and do
+// opportunistic background prefetches where helpful.
 import { selectProjectById } from '@/contexts/selectors/project';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 import { Tile } from '@/contexts/slices/selectors/tile';
@@ -191,63 +192,60 @@ export function usePatchTileQueryOptimistic() {
         ).toFixed(2)} ms`
       );
 
-      // Build or fetch projects and contexts
-      const tProjectsAndContexts = performance.now();
-      const projectsAndContexts = await fetchOrBuildProjectsAndContexts(
-        queryClient,
-        projectId,
-        refetchProjects,
-        refetchContexts
-      );
-      perfLog(
-        `[perf] onMutate(${name}) – fetchOrBuildProjectsAndContexts: ${(
-          performance.now() - tProjectsAndContexts
-        ).toFixed(2)} ms`
-      );
-      const projects = projectsAndContexts.projects;
-      const contexts = projectsAndContexts.contexts;
+      // Avoid blocking network calls here; use cache only.
+      // If callers requested refetches, trigger them in the background without awaiting.
+      try {
+        if (refetchProjects) {
+          queryClient.prefetchQuery({
+            queryKey: ["projects"],
+            queryFn: async () => {
+              const res = await fetch('/api/projects', { method: 'GET', cache: 'no-store' });
+              if (!res.ok) throw new Error(`Projects ${res.status}`);
+              return res.json();
+            },
+          });
+        }
+        if (refetchContexts && projectId) {
+          queryClient.prefetchQuery({
+            queryKey: ["contexts", projectId],
+            queryFn: async () => {
+              const res = await fetch(`/api/context/${encodeURIComponent(projectId)}`, { method: 'GET', cache: 'no-store' });
+              if (!res.ok) throw new Error(`Contexts ${res.status}`);
+              return res.json();
+            },
+          });
+        }
+      } catch {}
 
-      // Update the contexts in the store
-      if (refetchProjects) {
-        storeApi.setState({
-          ...state,
-          projects: projects,
-        });
-      }
-
-      if (refetchContexts) {
-        storeApi.setState({
-          ...state,
-          projectsById: {
-            ...state.projectsById,
-            [projectId]: {
-              ...projectData,
-              contexts: contexts
-            }
+      // Resolve fields for table tiles from cache only to stay non-blocking
+      const fieldsArray: LogFieldsResponseProps[] = tableTilesData.map((t) =>
+        (queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, t.context ?? null]) || {}) as LogFieldsResponseProps
+      );
+      // Opportunistically prefetch missing fields in the background when asked
+      if (refetchFields) {
+        tableTilesData.forEach((t, idx) => {
+          const cached = fieldsArray[idx];
+          const context = t.context ?? null;
+          if (context && (!cached || Object.keys(cached).length === 0)) {
+            queryClient.prefetchQuery({
+              queryKey: ["fields", projectId, context],
+              queryFn: async () => {
+                const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
+                const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+                if (!res.ok) throw new Error(`Fields ${res.status}`);
+                return res.json();
+              },
+            }).catch(() => {});
           }
         });
       }
-
-      // Build or fetch fields for all table tiles
-      const tFields = performance.now();
-      const fieldsArray: LogFieldsResponseProps[] = await fetchOrBuildFields(
-        queryClient,
-        tableTilesData,
-        projectId,
-        refetchFields
-      );
-      perfLog(
-        `[perf] onMutate(${name}) – fetchOrBuildFields: ${(
-          performance.now() - tFields
-        ).toFixed(2)} ms`
-      );
 
       // Get existing table and plot arguments from cache
       const tBuildArgs = performance.now();
       const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tab_id]) || {} as TableArguments;
       const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
 
-      // Build arguments for all tiles
+      // Build arguments for all tiles using cache-only fields
       if (tableTilesData.length > 0 || plotTilesData.length > 0) {
         const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
         buildTabArguments(tilesInTabData, fieldsArray, existingTableArgs, existingPlotArgs);
