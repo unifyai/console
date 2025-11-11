@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const ADMIN_TIMEOUT_MS = Number(process.env.ORCHESTRA_ADMIN_CLIENT_TIMEOUT_MS ?? "10000");
+// Fixed timeout to prevent long hangs that block SSR.
+// Keep this conservative; adjust in code if needed rather than via env.
+const ADMIN_TIMEOUT_MS = 10_000;
 
 export const OrchestraAdminClient = axios.create({
 	baseURL: process.env.ORCHESTRA_URL + "/v0/admin",
@@ -9,7 +11,7 @@ export const OrchestraAdminClient = axios.create({
 		"Authorization": `Bearer ${process.env.ORCHESTRA_ADMIN_KEY}`
 	},
 	// Prevent long hangs that block SSR; fail fast and allow graceful fallbacks
-	timeout: Number.isFinite(ADMIN_TIMEOUT_MS) ? ADMIN_TIMEOUT_MS : 10000,
+	timeout: ADMIN_TIMEOUT_MS,
 });
 
 export async function getOrchestraUserClient(userAPIKey: string) {
