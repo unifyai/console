@@ -167,6 +167,7 @@ export default function Main({
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
     const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(null);
+    const [contactManagerInitialTab, setContactManagerInitialTab] = React.useState<'email' | 'phone' | 'whatsapp'>('email');
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
@@ -442,8 +443,9 @@ export default function Main({
         setAssistantToEdit(assistant);
     }, [loadAssistantForEdit]);
     
-    const handleOpenContactManager = (assistant: Assistant) => {
+    const handleOpenContactManager = (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp' = 'email') => {
         loadAssistantForEdit(assistant);
+        setContactManagerInitialTab(tab);
         setContactManagerAssistant(assistant);
     };
 
@@ -536,6 +538,7 @@ export default function Main({
                         onShowProfile={handleShowProfile}
                         onShowActivityLog={handleShowActivityLog}
                         onOpenHireDialog={handleOpenHireDialog}
+                        onOpenContactManager={handleOpenContactManager}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
                         activeCallAssistantId={activeCallId}
@@ -743,6 +746,7 @@ export default function Main({
                         isLoadingCountries={isLoadingCountries}
                         availableSocialPlatforms={availableSocialPlatforms}
                         onSuccess={handleUpdateSuccess}
+                        initialTab={contactManagerInitialTab}
                     />
                 )}
             </FormProvider>

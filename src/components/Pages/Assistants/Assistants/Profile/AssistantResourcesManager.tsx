@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface AssistantResourcesManagerProps {
     assistant: Assistant;
     assistantActions: AssistantActions;
-    onOpenContactManager: (assistant: Assistant) => void;
+    onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
 }
 
 const ContactItem: React.FC<{

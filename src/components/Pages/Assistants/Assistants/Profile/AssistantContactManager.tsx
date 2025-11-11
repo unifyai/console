@@ -264,6 +264,7 @@ interface AssistantContactManagerProps {
     isLoadingCountries: boolean;
     availableSocialPlatforms: AvailableSocialPlatform[];
     onSuccess: () => void;
+    initialTab?: 'email' | 'phone' | 'whatsapp';
 }
 
 const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
@@ -311,6 +312,7 @@ export function AssistantContactManager({
     isLoadingCountries,
     availableSocialPlatforms,
     onSuccess,
+    initialTab,
 }: AssistantContactManagerProps) {
     const { register, setValue, formState: { errors }, getValues, control } = formMethods;
     
@@ -336,6 +338,7 @@ export function AssistantContactManager({
         isOpen,
         assistantActions,
         onSuccess,
+        initialTab,
     });
 
     const rhfCountry = useWatch({ control, name: 'country' });

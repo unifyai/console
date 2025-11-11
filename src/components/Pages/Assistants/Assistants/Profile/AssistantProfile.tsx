@@ -34,7 +34,7 @@ interface AssistantProfilePanelProps {
     onClose: () => void;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
-    onOpenContactManager: (assistant: Assistant) => void;
+    onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
