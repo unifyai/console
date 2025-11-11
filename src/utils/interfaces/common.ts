@@ -117,27 +117,75 @@ export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedL
 /* 
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, column_context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
+export function extractLogsData(
+  logsResponse: LogsResponseProps,
+  fields: LogFieldsResponseProps,
+  column_context: string | null,
+  sorting: string | null,
+  hiddenColumns: string | undefined
+) {
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;
     const logs = extractLogs(params, rawLogs);
 
-    let [paramsProperties, entriesProperties] = [
-      Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
-      Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
-    ]
-    if (column_context){
+    // Helper: recursively collect nested keys as slash paths
+    const collectKeys = (obj: any, prefix = ""): string[] => {
+      if (!obj || typeof obj !== "object") return [];
+      const keys: string[] = [];
+      for (const k of Object.keys(obj)) {
+        const v = (obj as any)[k];
+        const next = prefix ? `${prefix}/${k}` : k;
+        keys.push(next);
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          keys.push(...collectKeys(v, next));
+        }
+      }
+      return keys;
+    };
+
+    let paramsProperties: string[];
+    let entriesProperties: string[];
+
+    if (!fields || Object.keys(fields).length === 0) {
+      // Fallback: derive columns from the first log if fields are unavailable
+      const first = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+      const rawParamsKeys = first?.params ? collectKeys(first.params) : [];
+      const rawEntriesKeys = first?.entries ? collectKeys(first.entries) : [];
+      // Build absolute keys with context
+      let absParams = rawParamsKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
+      let absEntries = rawEntriesKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
+      // Apply hidden filtering on relative keys
+      if (hiddenColumns) {
+        const hidden = new Set(hiddenColumns.split(","));
+        // Convert to relative for comparison with hidden list
+        const relParams = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
+        const relEntries = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+        paramsProperties = relParams.filter(p => !hidden.has(p));
+        entriesProperties = relEntries.filter(p => !hidden.has(p));
+      } else {
+        // Return relative keys
+        paramsProperties = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
+        entriesProperties = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+      }
+    } else {
+      // Normal path using fields metadata
       [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
-        entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
-      ]
-    }
-    if (hiddenColumns) {
-      const hidden = hiddenColumns.split(",");
-      [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => !hidden.includes(property)),
-        entriesProperties.filter(property => !hidden.includes(property))
-      ]
+        Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
+        Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
+      ];
+      if (column_context){
+        [paramsProperties, entriesProperties] = [
+          paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
+          entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
+        ];
+      }
+      if (hiddenColumns) {
+        const hidden = hiddenColumns.split(",");
+        [paramsProperties, entriesProperties] = [
+          paramsProperties.filter(property => !hidden.includes(property)),
+          entriesProperties.filter(property => !hidden.includes(property))
+        ];
+      }
     }
 
   return { entriesProperties, paramsProperties, logs, params };
