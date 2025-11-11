@@ -3,7 +3,7 @@ import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsRe
 import { buildFilterExpression } from "@/utils/interfaces/table/filters";
 import { extractLogsData } from "@/utils/interfaces/common";
 import { LogsActions } from "@/types/interfaces/grid";
-import { processContext } from "@/utils/interfaces/table/columnOperations";
+import { processContext, sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
 import { QueryClient } from "@tanstack/react-query";
 import { isEqual } from 'lodash';
@@ -212,6 +212,36 @@ export async function fetchAndBuildTableDataItem(
     if (filterExpression) params.set('filter_expr', filterExpression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+    
+    // Narrow payload: request only currently visible leaf columns when we can derive them.
+    // Fallback to full payload if we cannot reliably compute a subset.
+    try {
+      // Build candidate IDs from column order or fields; remove hidden columns, parents, and util headers
+      const orderIds = tile.table_tile?.column_order
+        ? tile.table_tile?.column_order.split(",").filter(Boolean)
+        : Object.keys(fields).map((k) => processContext("split", tile.column_context || null, k)).filter(Boolean);
+      const hiddenSet = new Set(
+        (tile.table_tile?.hidden_columns ? tile.table_tile?.hidden_columns.split(",").filter(Boolean) : []).map(sanitizeId)
+      );
+      // Remove util headers and parents (keep only leaves)
+      const idsSanitized = orderIds
+        .map((id) => sanitizeId(id))
+        .filter((id) => id && id !== "RowNumbering" && id !== "Parameters" && id !== "Entries");
+      const leafIds = idsSanitized.filter((id) => !idsSanitized.some((other) => other !== id && other.startsWith(id + "/")));
+      const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
+      // Limit the subset to a reasonable number to keep payload small
+      const MAX_SUBSET = 60;
+      const subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      if (subsetIds.length > 0) {
+        // Merge back column_context for the API
+        const subset = subsetIds
+          .map((id) => processContext("merge", tile.column_context || null, id))
+          .join("&");
+        if (subset) {
+          params.set("from_fields", subset);
+        }
+      }
+    } catch {}
     
     // Handle grouping (can be multiple values)
     if (groupingExpression) {
