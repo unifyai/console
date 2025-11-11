@@ -7,6 +7,7 @@ import {OrchestraAdminClient} from "@/lib/orchestra/orchestra-client";
 import { Storage } from "@google-cloud/storage";
 import { Session, User, UserUpdateRequest } from "@/types/user";
 import { ConstructionOutlined } from "@mui/icons-material";
+import { readConsoleCookie } from "@/lib/auth/consoleCookie";
 
 /**
  * Retrieves the current user's session information.
@@ -96,10 +97,38 @@ export async function getCurrentUser(): Promise<User | null> {
   if (process.env.ON_PREM) {
     return getOnPremUser();
   } else {
-    if (session && session.user?.email) {
-      return getUserByEmail(session.user.email);
-    }
-    else {
+    const email = session?.user?.email;
+    if (email) {
+      try {
+        // Primary path: fetch authoritative user from Orchestra
+        return await getUserByEmail(email);
+      } catch (error) {
+        console.error("[getCurrentUser] Admin lookup failed; entering degraded mode:", error);
+        // Degraded path: try to recover apiKey from cookie and synthesize minimal user
+        try {
+          const cookie = readConsoleCookie();
+          const apiKeyFromCookie = cookie?.apiKey ?? "";
+          const synthesizedUser: User = {
+            id: session?.user?.id || "unknown",
+            name: session?.user?.name || email.split("@")[0],
+            lastName: "",
+            jobTitle: "",
+            image: session?.user?.image || "",
+            email,
+            createdAt: new Date().toISOString(),
+            apiKey: apiKeyFromCookie, // empty string if unavailable; server routes can fall back to cookie
+            stripe_customer_id: "",
+            organization: { name: "", level: "" },
+            assistant_hiring_approval: null,
+            has_claimed_approval_link: "false",
+          };
+          return synthesizedUser;
+        } catch (cookieError) {
+          console.error("[getCurrentUser] Failed to synthesize user from cookie:", cookieError);
+          return null;
+        }
+      }
+    } else {
       console.error("No user email found in session");
       return null;
     }
