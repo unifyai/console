@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/UI/input";
 import { Button } from "@/components/UI/button";
 import { Skeleton } from "@/components/UI/skeleton";
@@ -85,14 +85,16 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
       <button
         key={iconName}
         className={cn(
-          "p-2 rounded-md border flex items-center justify-center transition cursor-pointer",
+          "h-10 w-10 p-2 rounded-md border flex items-center justify-center transition cursor-pointer",
           value === iconName ? "bg-accent border-primary" : "hover:bg-foreground/10"
         )}
         data-icon={iconName}
         title={iconName}
         onClick={() => onValueChange?.(iconName)}
       >
-        <Icon name={iconName} />
+        <Suspense fallback={<Skeleton className="h-5 w-5 rounded" />}>
+          <Icon name={iconName} />
+        </Suspense>
       </button>
     ),
     [onValueChange, value]
