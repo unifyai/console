@@ -192,30 +192,8 @@ export function usePatchTileQueryOptimistic() {
         ).toFixed(2)} ms`
       );
 
-      // Avoid blocking network calls here; use cache only.
-      // If callers requested refetches, trigger them in the background without awaiting.
-      try {
-        if (refetchProjects) {
-          queryClient.prefetchQuery({
-            queryKey: ["projects"],
-            queryFn: async () => {
-              const res = await fetch('/api/projects', { method: 'GET', cache: 'no-store' });
-              if (!res.ok) throw new Error(`Projects ${res.status}`);
-              return res.json();
-            },
-          });
-        }
-        if (refetchContexts && projectId) {
-          queryClient.prefetchQuery({
-            queryKey: ["contexts", projectId],
-            queryFn: async () => {
-              const res = await fetch(`/api/context/${encodeURIComponent(projectId)}`, { method: 'GET', cache: 'no-store' });
-              if (!res.ok) throw new Error(`Contexts ${res.status}`);
-              return res.json();
-            },
-          });
-        }
-      } catch {}
+      // Avoid extra network work entirely here; do not prefetch projects/contexts/fields.
+      // These are expensive and not required to rebuild the table immediately.
 
       // Resolve fields for table tiles from cache only to stay non-blocking
       const fieldsArray: LogFieldsResponseProps[] = tableTilesData.map((t) =>
