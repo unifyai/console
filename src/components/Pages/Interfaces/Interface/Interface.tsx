@@ -845,11 +845,19 @@ const Interface = ({
 
   // Determine if we're in initial load state (before interface/tab paints)
   const isInitialInterfaceLoad = useMemo(() => {
-    return (
-      (tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.data) ||
-      tabStreamingQuery?.activationPending ||
-      (!activeTabId && !!projectQueryParam && !!interfaceQueryParam)
-    );
+    // Show loader if we have project+interface but no active tab yet (very first load)
+    if (!activeTabId && !!projectQueryParam && !!interfaceQueryParam) {
+      return true;
+    }
+    // Show loader while tab query is loading and we don't have cached data
+    if (tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.data) {
+      return true;
+    }
+    // Show loader during tab activation debounce
+    if (tabStreamingQuery?.activationPending) {
+      return true;
+    }
+    return false;
   }, [tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activationPending, activeTabId, projectQueryParam, interfaceQueryParam]);
 
   // Render the active tab based on streaming query - memoized to prevent infinite loops
