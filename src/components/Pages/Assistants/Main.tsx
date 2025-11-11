@@ -49,7 +49,7 @@ interface MainProps {
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
-    userMeta: { image: string | null | undefined };
+    userMeta: { image: string | null | undefined; timezone?: string | null; };
 }
 
 export default function Main({
@@ -577,6 +577,7 @@ export default function Main({
                                 activeCallAssistantId={activeCallId}
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
+                                userTimezone={userMeta.timezone}
                             />
                         </motion.div>,
                         <motion.div

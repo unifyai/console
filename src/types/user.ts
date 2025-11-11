@@ -17,6 +17,7 @@ export interface User {
 	lastName: string;
 	jobTitle: string;
 	image: string;
+	timezone: string | null;
 	email: string;
 	createdAt: string;
 	apiKey: string;
@@ -36,6 +37,7 @@ export interface UserUpdateRequest {
 	name: string;
 	last_name: string;
 	job_title: string;
+	timezone?: string | null;
 }
 
 export type BalanceDetails = {

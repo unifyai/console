@@ -99,6 +99,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         get: await getActivitySummary(apiKey),
     }
 
+    const userMeta = { image: user.image, timezone: user.timezone };
+
     return (
         <div className="w-full h-full">
             <Main
@@ -106,7 +108,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
                 taskActions={taskActions}
                 activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
-                userMeta={{image: user.image}}
+                userMeta={userMeta}
             />
         </div>
     );

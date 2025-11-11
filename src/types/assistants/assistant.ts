@@ -26,6 +26,7 @@ export interface Assistant {
   region: string | null;
   about: string | null;
   country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
+  timezone: string | null;
   gender?: 'male' | 'female';
   // Voice fields
   voice_id: string | null; // Provider Voice ID
@@ -110,6 +111,7 @@ export type AssistantFormData =
       user_phone_verificationError?: string | null;
       user_whatsapp_number?: string | null;
       country?: string;
+      timezone?: string | null;
       voice_id?: string;
       voice_name?: string;
       voice_description?: string;
@@ -184,6 +186,7 @@ export interface AssistantUpdatePayload {
     voice_provider?: VoiceProvider | null;
     voice_mode?: "sts" | "tts";
     country?: string | null;
+    timezone?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
     user_local_desktop?: UserLocalDesktop | null;
@@ -264,11 +267,11 @@ export interface AssistantActions {
     "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
     create: (
-        first_name: string, surname: string, age: number | null, region: string | null,
+        first_name: string, surname: string, age: number | null, region: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
         voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
         email: string | null, user_phone: string | null, country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null, 
+        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;

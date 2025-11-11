@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { useAccountVerification } from '@/hooks/Assistants/useAccountVerification';
 import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows, FaApple } from "react-icons/fa";
+import { TimezoneOption, generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -73,6 +74,7 @@ export function HireForm({
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
     const fastMode = useWatch({ control, name: 'fast_mode' });
+    const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
 
     const photoPreviewUrl = watch("photoPreviewUrl");
     const videoPreviewUrl = watch("videoPreviewUrl");
@@ -322,6 +324,33 @@ export function HireForm({
                                             </Select>
                                             {errors.region && <p className="text-body text-strong text-destructive mt-1">{errors.region.message}</p>}
                                         </div>
+                                    </div>
+                                    <div className="pt-1">
+                                        <Label htmlFor="timezone">Timezone</Label>
+                                        <Controller
+                                            name="timezone"
+                                            control={control}
+                                            rules={{ required: "Timezone is required."}}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={field.value || ''}
+                                                    onValueChange={field.onChange}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <SelectTrigger id="timezone">
+                                                        <SelectValue placeholder="Select a timezone..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {timezoneOptions.map(option => (
+                                                            <SelectItem key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.timezone && <p className="text-body text-strong text-destructive mt-1">{errors.timezone.message}</p>}
                                     </div>
                                     <div className="flex flex-col w-full space-y-2 pt-1">
                                         <div className="flex flex-row gap-2 items-center">

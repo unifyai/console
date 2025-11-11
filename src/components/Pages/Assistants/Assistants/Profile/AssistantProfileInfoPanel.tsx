@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check } from "lucide-react";
+import { Mail, Phone, PenLine, Check, Info } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
@@ -12,9 +12,12 @@ import { AssistantPhotoViewer } from '../Hire/AssistantHirePhotoPreview';
 import { Skeleton } from "@/components/UI/skeleton";
 import { toast } from "sonner";
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
+import { Button } from '@/components/UI/button';
 
 interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
+    userTimezone?: string | null;
 }
 
 const ContactItem: React.FC<{ 
@@ -64,7 +67,7 @@ const ContactItem: React.FC<{
     );
 };
 
-export function AssistantProfileInfoPanel({ assistant }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant, userTimezone }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -129,6 +132,28 @@ export function AssistantProfileInfoPanel({ assistant }: AssistantProfileInfoPan
         toast.error("Video preview failed to load.");
     };
 
+    const timezoneInfo = React.useMemo(() => {
+        if (!assistant.timezone) return { friendlyName: 'Not set', relativeOffsetString: null };
+        
+        const assistantOffset = getTimezoneOffsetInMinutes(assistant.timezone);
+        const localTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const localOffset = getTimezoneOffsetInMinutes(localTimezone);
+        
+        const offsetDiffHours = (assistantOffset - localOffset) / 60;
+        
+        let relativeOffsetString: string | null = null;
+        if (offsetDiffHours !== 0) {
+            relativeOffsetString = `${offsetDiffHours > 0 ? '+' : ''}${offsetDiffHours}H`;
+        } else {
+            relativeOffsetString = 'Same as local';
+        }
+
+        const assistantUtcOffset = formatOffset(assistantOffset);
+        const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
+
+        return { friendlyName, relativeOffsetString };
+    }, [assistant.timezone, userTimezone]);
+
     return (
         <div className="h-full flex flex-col w-full bg-background">
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -166,7 +191,7 @@ export function AssistantProfileInfoPanel({ assistant }: AssistantProfileInfoPan
                         )}
                     </Popover>
 
-                    <div className="grid grid-cols-2 gap-y-1 py-0.5 flex-1">
+                    <div className="grid grid-cols-2 gap-y-0.5 pb-0.5 flex-1 max-w-md">
                         <span className="text-caption">First Name</span>
                         <span className="text-body">{assistant.first_name}</span>
                         <span className="text-caption">Last Name</span>
@@ -177,6 +202,29 @@ export function AssistantProfileInfoPanel({ assistant }: AssistantProfileInfoPan
                         <span className="text-body">{assistant.region ?? 'N/A'}</span>
                     </div>
                     
+                </div>
+                
+                {/* Timezone Section */}
+                <div className="pt-4 group/assistant-timezone">
+                    <h3 className="text-title">Timezone</h3>
+                    <div className="flex items-center justify-between max-w-sm">
+                        <span className="text-caption">{timezoneInfo.friendlyName}</span>
+                        {timezoneInfo.relativeOffsetString && (
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}>
+                                            {timezoneInfo.relativeOffsetString}
+                                            <Info className="h-3 w-3 ml-1" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Time relative to local. Click to update your timezone.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+                    </div>
                 </div>
 
                 {/* About Section */}

@@ -40,6 +40,7 @@ export function useAssistantHireForm(
         mode: 'onSubmit',
         defaultValues: {
             first_name: '', surname: '', age: null, region: 'United States', about: '',
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             email: null,
             isEmailAdded: false,
             emailManuallyEdited: false,
@@ -246,6 +247,7 @@ export function useAssistantHireForm(
         setValue("user_phone_verificationAttempts", 0);
         setValue("user_phone_verificationError", null);
         setValue("social_accounts", []);
+        setValue("timezone", preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
 
         // Determine the voice_id based on fast_mode or PRIMARY_VOICE_PROVIDER
         const preferredProvider = isFastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
@@ -326,6 +328,7 @@ export function useAssistantHireForm(
             age: values?.age || null,
             region: values?.region || 'United States',
             about: values?.about || '',
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             email: null,
             isEmailAdded: false,
             emailManuallyEdited: false,
@@ -381,6 +384,7 @@ export function useAssistantHireForm(
             age: assistant.age,
             region: assistant.region,
             about: assistant.about || '',
+            timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
             // Media
             photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profile_photo,
@@ -449,14 +453,12 @@ export function useAssistantHireForm(
             // Construct payload with only changed fields
             const payload: Partial<AssistantUpdatePayload> = {};
 
+            if (data.about !== editingAssistant.about) payload.about = data.about;
+            if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
             if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
             if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
             const new_voice_mode = data.fast_mode ? "sts" : "tts";
             if (new_voice_mode !== editingAssistant.voice_mode) payload.voice_mode = new_voice_mode;
-
-            if (data.about !== editingAssistant.about) payload.about = data.about;
-            if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
-            if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
 
             if (data.isEmailAdded) {
                 if (data.email !== editingAssistant.email) {
@@ -608,7 +610,7 @@ export function useAssistantHireForm(
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
-                data.first_name, data.surname, ageNumber, data.region,
+                data.first_name, data.surname, ageNumber, data.region, data.timezone,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id, voice_provider, voice_mode,
                 null, null, null, null, user_local_desktop_payload,

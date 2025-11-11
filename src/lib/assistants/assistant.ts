@@ -168,11 +168,11 @@ export const updateAssistant = async (apiKey: string) => {
 
 export const createAssistant = async (apiKey: string) => {
     return async (
-        first_name: string, surname: string, age: number | null, region: string | null,
+        first_name: string, surname: string, age: number | null, region: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
         voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
         email: string | null, user_phone: string | null, country: string | null,
-        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null, 
+        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
@@ -200,6 +200,7 @@ export const createAssistant = async (apiKey: string) => {
                         email,
                         user_phone,
                         country,
+                        timezone,
                         user_whatsapp_number,
                         user_local_desktop,
                         max_parallel: 10,

@@ -44,6 +44,7 @@ interface AssistantProfilePanelProps {
     activeCallAssistantId: string | null;
     isCallConnected: boolean;
     isConnectingCall: boolean;
+    userTimezone?: string | null;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -87,6 +88,7 @@ export function AssistantProfilePanel({
     activeCallAssistantId,
     isCallConnected,
     isConnectingCall,
+    userTimezone,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -157,6 +159,7 @@ export function AssistantProfilePanel({
                             >
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
+                                    userTimezone={userTimezone}
                                 />
                             </AccordionContent>
                         </AccordionItem>
