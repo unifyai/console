@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, Info } from "lucide-react";
+import { Mail, Phone, PenLine, Check, Info, Clock } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
@@ -142,11 +142,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
         const offsetDiffHours = (assistantOffset - localOffset) / 60;
         
         let relativeOffsetString: string | null = null;
-        if (offsetDiffHours !== 0) {
-            relativeOffsetString = `${offsetDiffHours > 0 ? '+' : ''}${offsetDiffHours}H`;
-        } else {
-            relativeOffsetString = 'Same as local';
-        }
+        relativeOffsetString = `${offsetDiffHours >= 0 ? '+' : ''}${offsetDiffHours}H`;
 
         const assistantUtcOffset = formatOffset(assistantOffset);
         const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
@@ -191,15 +187,15 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                         )}
                     </Popover>
 
-                    <div className="grid grid-cols-2 gap-y-0.5 pb-0.5 flex-1 max-w-md">
-                        <span className="text-caption">First Name</span>
-                        <span className="text-body">{assistant.first_name}</span>
-                        <span className="text-caption">Last Name</span>
-                        <span className="text-body">{assistant.surname}</span>
-                        <span className="text-caption">Age</span>
-                        <span className="text-body">{assistant.age ?? 'N/A'}</span>
-                        <span className="text-caption">Region</span>
-                        <span className="text-body">{assistant.region ?? 'N/A'}</span>
+                    <div className="grid grid-cols-2 gap-y-0.5 py-0.5 flex-1 max-w-xs">
+                        <span className="text-caption font-bold">First Name</span>
+                        <span className="text-caption">{assistant.first_name}</span>
+                        <span className="text-caption font-bold">Last Name</span>
+                        <span className="text-caption">{assistant.surname}</span>
+                        <span className="text-caption font-bold">Age</span>
+                        <span className="text-caption">{assistant.age ?? 'N/A'}</span>
+                        <span className="text-caption font-bold">Region</span>
+                        <span className="text-caption">{assistant.region ?? 'N/A'}</span>
                     </div>
                     
                 </div>
@@ -207,15 +203,15 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                 {/* Timezone Section */}
                 <div className="pt-4 group/assistant-timezone">
                     <h3 className="text-title">Timezone</h3>
-                    <div className="flex items-center justify-between max-w-sm">
+                    <div className="grid grid-cols-2 items-center max-w-sm">
                         <span className="text-caption">{timezoneInfo.friendlyName}</span>
                         {timezoneInfo.relativeOffsetString && (
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}>
+                                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 mr-3 text-xs gap-1" onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}>
                                             {timezoneInfo.relativeOffsetString}
-                                            <Info className="h-3 w-3 ml-1" />
+                                            <Clock className="h-3 w-3" />
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
