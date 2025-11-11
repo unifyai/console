@@ -153,6 +153,38 @@ export const getColumnMetrics = async (
   metric: string | undefined,
   logsActions: LogsActions
 ) => {
+  // Simple in-memory dedupe + TTL cache to avoid duplicate analytics calls
+  const METRICS_TTL_MS = 10_000;
+  type CacheEntry = { ts: number; data: any };
+  // Module-level singletons
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  if (!globalThis.__metricsCache) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    globalThis.__metricsCache = new Map<string, CacheEntry>();
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    globalThis.__metricsPending = new Map<string, Promise<any>>();
+  }
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const metricsCache: Map<string, CacheEntry> = globalThis.__metricsCache;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const metricsPending: Map<string, Promise<any>> = globalThis.__metricsPending;
+  const keyObj = { project, context, column_context, columns, filterExpression, groupingExpression, metric };
+  const key = JSON.stringify(keyObj);
+  const now = Date.now();
+  const cached = metricsCache.get(key);
+  if (cached && now - cached.ts < METRICS_TTL_MS) {
+    return cached.data;
+  }
+  const inflight = metricsPending.get(key);
+  if (inflight) {
+    return inflight;
+  }
+  
   let fullColumns = columns
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
@@ -166,18 +198,22 @@ export const getColumnMetrics = async (
   params.set('key', JSON.stringify(sanitizedColumns));
   if (filterExpression) params.set('filter_expr', filterExpression);
   if (groupingExpression) params.set('group_by', JSON.stringify(groupingExpression.split(",")));
-  
-  const res = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
+  const fetchPromise = fetch(`/api/logs/${metricName}?${params.toString()}`, {
     method: 'GET',
     cache: 'no-store',
+  }).then(async (res) => {
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: `Metrics ${res.status}` }));
+      throw new Error(errorData.detail || `Failed to fetch metrics: ${res.status}`);
+    }
+    const data = await res.json();
+    metricsCache.set(key, { ts: Date.now(), data });
+    return data;
+  }).finally(() => {
+    metricsPending.delete(key);
   });
-  
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ detail: `Metrics ${res.status}` }));
-    throw new Error(errorData.detail || `Failed to fetch metrics: ${res.status}`);
-  }
-  
-  return res.json();
+  metricsPending.set(key, fetchPromise);
+  return fetchPromise;
 }
 
 export const getLogsDetails = async (

@@ -1758,6 +1758,7 @@ const LogsTable = ({
                                       filterExpression={filterExpression}
                                       logsLength={logs.length}
                                       logsActions={logsActions}
+                                      enabled={showMetricsRow}
                                     />
                                   : null
                             }
