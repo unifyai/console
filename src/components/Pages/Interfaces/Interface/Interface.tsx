@@ -1765,18 +1765,7 @@ const Interface = ({
             </div>
           )}
 
-          {/* Tab Switching Overlay */}
-          {isSwitchingTab && !isInitialInterfaceLoad && (
-            <div 
-              className="absolute inset-0 bg-background/60 backdrop-blur-sm z-40 flex items-center justify-center"
-              style={{ left: 'var(--interface-nav-width, 256px)' }}
-            >
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <div className="text-body text-muted-foreground">Loading tab...</div>
-              </div>
-            </div>
-          )}
+          
         </Suspense>
 
         {/* Bootstrap/global fetch error overlay */}
