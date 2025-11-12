@@ -109,7 +109,8 @@ export async function getCurrentUser(): Promise<User | null> {
           const cookie = readConsoleCookie();
           const apiKeyFromCookie = cookie?.apiKey ?? "";
           const synthesizedUser: User = {
-            id: session?.user?.id || "unknown",
+            // NextAuth's Session.user doesn't reliably include an id; fall back to email
+            id: email || "unknown",
             name: session?.user?.name || email.split("@")[0],
             lastName: "",
             jobTitle: "",
