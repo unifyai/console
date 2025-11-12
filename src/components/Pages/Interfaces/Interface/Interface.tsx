@@ -1445,6 +1445,7 @@ const Interface = ({
                     // Interface already comes from projectTree, so icon is directly available
                     const icon = iface.icon;
                     const isLoading = loadingInterfaceId === iface.id;
+                    const isDisabled = loadingInterfaceId !== null;
                     
                     return (
                       <button
@@ -1458,10 +1459,10 @@ const Interface = ({
                           newParams.delete('selectInterface');
                           router.push(`/interfaces?${newParams.toString()}`);
                         }}
-                        disabled={isLoading}
+                        disabled={isDisabled}
                         className={cn(
                           "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
-                          isLoading 
+                          isDisabled 
                               ? "cursor-not-allowed opacity-50" 
                               : "hover:bg-primary hover:text-primary-foreground"
                         )}
