@@ -26,6 +26,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             <ThemeLoader>
               <OnboardingGuard>
+                {/* Static skeleton bar to avoid brief blank before navbar hydration */}
+                <div
+                  className="fixed top-0 left-0 right-0 h-10 bg-background/80 backdrop-blur-lg border-b border-[color:var(--border)] z-40"
+                  aria-hidden="true"
+                />
                 <Suspense
                   fallback={
                     <div className="fixed top-0 left-0 right-0 h-10 bg-background/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50 flex items-center px-3.5">
