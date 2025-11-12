@@ -160,14 +160,19 @@ const RefreshLogs = ({
       await withLoadingToastFn(
         async () => {
           // Get latest timestamp first
-          const latest = await fetchLatestTimestamp();
-
-          if (latest && typeof latest === 'object' && (latest as any).detail && (latest as any).detail.startsWith("Context '") && (latest as any).detail.endsWith("' not found")) {
-            if (syncedTileDataActions) {
-              showSuccessToast("Context not found", "Attempting to open table without context.");
-              await syncedTileDataActions.setContext(undefined);
+          let latest: string;
+          try {
+            latest = await fetchLatestTimestamp();
+          } catch (err: any) {
+            const message = (err && typeof err === 'object' && 'message' in err) ? (err as Error).message : String(err);
+            if (/Context '.*' not found/i.test(message) || /context .* not found/i.test(message)) {
+              if (syncedTileDataActions) {
+                showSuccessToast("Context not found", "Opening table without context.");
+                await syncedTileDataActions.setContext(undefined);
+              }
+              return;
             }
-            return;
+            throw err;
           }
 
           const latestTs = new Date(latest).getTime();

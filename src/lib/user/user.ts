@@ -115,6 +115,7 @@ export async function getCurrentUser(): Promise<User | null> {
             lastName: "",
             jobTitle: "",
             image: session?.user?.image || "",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
             email,
             createdAt: new Date().toISOString(),
             apiKey: apiKeyFromCookie, // empty string if unavailable; server routes can fall back to cookie
