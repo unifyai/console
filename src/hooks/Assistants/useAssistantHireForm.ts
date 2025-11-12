@@ -39,7 +39,7 @@ export function useAssistantHireForm(
     const hireFormMethods = useForm<AssistantFormData>({
         mode: 'onSubmit',
         defaultValues: {
-            first_name: '', surname: '', age: null, region: 'United States', about: '',
+            first_name: '', surname: '', age: null, nationality: 'United States', about: '',
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             email: null,
             isEmailAdded: false,
@@ -53,7 +53,7 @@ export function useAssistantHireForm(
             user_phone_verificationError: null,
             user_whatsapp_number: null,
             social_accounts: [],
-            country: FALLBACK_DEFAULT_COUNTRY_CODE,
+            phone_country: FALLBACK_DEFAULT_COUNTRY_CODE,
             photoFile: null,
             videoFile: null,
             profile_photo_url: null,
@@ -92,16 +92,16 @@ export function useAssistantHireForm(
             // Optionally set a default country from the fetched list if needed
             // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
             if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                 setValue("country", countries[0].code);
+                 setValue("phone_country", countries[0].code);
             } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
                 // Ensure the default value is set explicitly if it exists
-                setValue("country", FALLBACK_DEFAULT_COUNTRY_CODE);
+                setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
             } else if (countries.length === 0) {
                  // Handle case where no countries are returned (should be at least US from fallback in fetch)
                  const usName = getCountryName("US") || "United States";
                  const usFlag = getCountryFlag("US");
                  setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
-                 setValue("country", "US");
+                 setValue("phone_country", "US");
             }
             setIsLoadingCountries(false);
         }
@@ -140,15 +140,15 @@ export function useAssistantHireForm(
     }, [assistantActions.contact, isDialogOpen]);
 
     const watchedFields = watch([
-        "first_name", "surname", "age", "region", "about",
+        "first_name", "surname", "age", "nationality", "about",
         "voice_id", "photoFile", "profile_photo_url",
-        "presetOriginalValues", "country"
+        "presetOriginalValues", "phone_country"
     ]);
     React.useEffect(() => {
         const [
-            firstName, surname, age, region, about,
+            firstName, surname, age, nationality, about,
             voiceId, photoFile, profilePhotoUrl,
-            originalValues, country
+            originalValues, phone_country
         ] = watchedFields;
 
         if (photoFile) {
@@ -174,8 +174,8 @@ export function useAssistantHireForm(
             firstName === originalValues.first_name &&
             surname === originalValues.surname &&
             age === originalValues.age &&
-            (region ?? '') === (originalValues.region ?? '') &&
-            country === originalValues.country &&
+            (nationality ?? '') === (originalValues.nationality ?? '') &&
+            phone_country === originalValues.phone_country &&
             isVoicePristine &&
             (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url));
 
@@ -232,7 +232,7 @@ export function useAssistantHireForm(
         setValue("first_name", preset.first_name, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
-        setValue("region", preset.region ?? 'United States', { shouldValidate: true });
+        setValue("nationality", preset.nationality ?? 'United States', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
         setValue("profile_photo_url", preset.profile_photo);
         setValue("photoPreviewUrl", preset.profile_photo);
@@ -294,11 +294,11 @@ export function useAssistantHireForm(
             first_name: preset.first_name,
             surname: preset.surname,
             age: preset.age,
-            region: preset.region ?? '',
+            nationality: preset.nationality ?? '',
             voice_id: selectedPresetVoiceDetails.voice_id,
             video_source_voice_id: providerSpecificVoiceId,
             profile_photo_url: preset.profile_photo,
-            country: preset.country || FALLBACK_DEFAULT_COUNTRY_CODE,
+            phone_country: preset.phone_country || FALLBACK_DEFAULT_COUNTRY_CODE,
         };
         setValue("presetOriginalValues", originalValues);
         setValue("videoPreviewUrl", null);
@@ -326,7 +326,7 @@ export function useAssistantHireForm(
             first_name: values?.first_name || '',
             surname: values?.surname || '',
             age: values?.age || null,
-            region: values?.region || 'United States',
+            nationality: values?.nationality || 'United States',
             about: values?.about || '',
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             email: null,
@@ -341,7 +341,7 @@ export function useAssistantHireForm(
             user_phone_verificationError: null,
             user_whatsapp_number: null,
             social_accounts: [],
-            country: FALLBACK_DEFAULT_COUNTRY_CODE,
+            phone_country: FALLBACK_DEFAULT_COUNTRY_CODE,
             photoFile: null,
             videoFile: null,
             profile_photo_url: null,
@@ -382,7 +382,7 @@ export function useAssistantHireForm(
             first_name: assistant.first_name,
             surname: assistant.surname,
             age: assistant.age,
-            region: assistant.region,
+            nationality: assistant.nationality,
             about: assistant.about || '',
             timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
@@ -395,7 +395,7 @@ export function useAssistantHireForm(
             videoFile: null,
 
             // Contact
-            country: assistant.country || FALLBACK_DEFAULT_COUNTRY_CODE,
+            phone_country: assistant.phone_country || FALLBACK_DEFAULT_COUNTRY_CODE,
             user_phone: assistant.user_phone || '',
             user_phone_isVerified: !!assistant.user_phone,
             social_accounts: socialAccounts,
@@ -474,8 +474,8 @@ export function useAssistantHireForm(
                 if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
             }
 
-            if (data.country !== editingAssistant.country) {
-                payload.country = data.country;
+            if (data.phone_country !== editingAssistant.phone_country) {
+                payload.phone_country = data.phone_country;
             }
 
             const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
@@ -558,9 +558,9 @@ export function useAssistantHireForm(
                 setError("age", { type: "manual", message: "Age must be between 18 and 70." });
                 throw new Error("Invalid age provided.");
             }
-            if (!data.region) {
-                setError("region", { type: "manual", message: "Missing assistant region." });
-                throw new Error("Missing assistant region.");
+            if (!data.nationality) {
+                setError("nationality", { type: "manual", message: "Missing assistant nationality." });
+                throw new Error("Missing assistant nationality.");
             }
             
             if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
@@ -610,7 +610,7 @@ export function useAssistantHireForm(
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
-                data.first_name, data.surname, ageNumber, data.region, data.timezone,
+                data.first_name, data.surname, ageNumber, data.nationality, data.timezone,
                 finalImageUrlToSend, finalVideoUrlToSend,
                 data.about, data.voice_id, voice_provider, voice_mode,
                 null, null, null, null, user_local_desktop_payload,
@@ -635,7 +635,7 @@ export function useAssistantHireForm(
                 hireFormMethods.formState.errors.surname ||
                 hireFormMethods.formState.errors.about ||
                 hireFormMethods.formState.errors.user_phone ||
-                hireFormMethods.formState.errors.country
+                hireFormMethods.formState.errors.phone_country
             );
 
             if (!isRHFError) {

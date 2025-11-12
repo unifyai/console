@@ -23,9 +23,9 @@ export interface Assistant {
   profile_photo: string | null;
   profile_video: string | null;
   age: number | null;
-  region: string | null;
+  nationality: string | null;
   about: string | null;
-  country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
+  phone_country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
   timezone: string | null;
   gender?: 'male' | 'female';
   // Voice fields
@@ -66,7 +66,7 @@ export type AssistantPreset =
   Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'>
   & {
       gender?: 'male' | 'female';
-      country: string;
+      phone_country: string;
       voice_ids: {
           cartesia?: string | null;
           elevenlabs?: string | null;
@@ -110,7 +110,7 @@ export type AssistantFormData =
       user_phone_verificationAttempts?: number;
       user_phone_verificationError?: string | null;
       user_whatsapp_number?: string | null;
-      country?: string;
+      phone_country?: string;
       timezone?: string | null;
       voice_id?: string;
       voice_name?: string;
@@ -120,7 +120,7 @@ export type AssistantFormData =
       voice_exists?: boolean;
       voice_provider?: VoiceProvider;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'nationality' | 'voice_id' | 'profile_photo_url' | 'phone_country'> | null;
       currentPreset?: AssistantPreset | null;
       social_accounts?: SocialAccount[];
       setup?: 'remote' | 'local';
@@ -185,7 +185,7 @@ export interface AssistantUpdatePayload {
     voice_id?: string | null;
     voice_provider?: VoiceProvider | null;
     voice_mode?: "sts" | "tts";
-    country?: string | null;
+    phone_country?: string | null;
     timezone?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
@@ -267,10 +267,10 @@ export interface AssistantActions {
     "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
     create: (
-        first_name: string, surname: string, age: number | null, region: string | null, timezone: string | null,
+        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
         voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
-        email: string | null, user_phone: string | null, country: string | null,
+        email: string | null, user_phone: string | null, phone_country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;

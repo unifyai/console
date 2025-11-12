@@ -144,7 +144,7 @@ export function AssistantEditPhone({
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
     const [isLoadingCountries, setIsLoadingCountries] = React.useState(true);
 
-    const rhfCountry = useWatch({ control: formMethods.control, name: 'country' });
+    const rhfPhoneCountry = useWatch({ control: formMethods.control, name: 'phone_country' });
     const rhfUserPhone = useWatch({ control: formMethods.control, name: 'user_phone' });
     const rhfUserPhoneIsVerified = useWatch({ control: formMethods.control, name: 'user_phone_isVerified' });
     
@@ -172,7 +172,7 @@ export function AssistantEditPhone({
     };
     
     const displayName = `${assistant.first_name} ${assistant.surname}`;
-    const isUpdateButtonDisabled = isSubmitting || isLoadingCountries || !rhfUserPhone || !rhfUserPhoneIsVerified || !rhfCountry;
+    const isUpdateButtonDisabled = isSubmitting || isLoadingCountries || !rhfUserPhone || !rhfUserPhoneIsVerified || !rhfPhoneCountry;
 
     return (
         <Dialog open={isOpen} onOpenChange={!isSubmitting ? onClose : () => {}}>
@@ -187,16 +187,16 @@ export function AssistantEditPhone({
                 <div className="space-y-4 py-4">
                     <div>
                         <div className="flex flex-row gap-2 items-center pb-1">
-                            <Label htmlFor="country">Assistant Phone Country</Label>
+                            <Label htmlFor="phone_country">Assistant Phone Country</Label>
                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
                         </div>
-                        <Select value={rhfCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => setValue("country", value, { shouldValidate: true })} disabled={isSubmitting || isLoadingCountries} >
-                            <SelectTrigger id="country" {...register("country", { required: "Phone number country is required." })}>
+                        <Select value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => setValue("phone_country", value, { shouldValidate: true })} disabled={isSubmitting || isLoadingCountries} >
+                            <SelectTrigger id="phone_country" {...register("phone_country", { required: "Phone number country is required." })}>
                                 <SelectValue placeholder={isLoadingCountries ? "Loading available countries..." : "Select country..."} />
                             </SelectTrigger>
                             <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                         </Select>
-                        {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
+                        {errors.phone_country && <p className="text-body text-strong text-destructive mt-1">{errors.phone_country.message}</p>}
                     </div>
                     <div>
                         <div className="flex flex-row gap-2 items-center pb-1">

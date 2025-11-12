@@ -55,8 +55,8 @@ export function PresetListItem({ preset, onSelect, isFastMode }: PresetListItemP
            <span className="text-strong truncate">{displayName}</span>
            <span className="text-caption text-muted-foreground">Age:</span>
            <span>{preset.age}</span>
-           <span className="text-caption text-muted-foreground">Region:</span>
-           <span>{preset.region}</span>
+           <span className="text-caption text-muted-foreground">Nationality:</span>
+           <span>{preset.nationality}</span>
            <span className="text-caption text-muted-foreground">Language:</span>
            <span className="flex items-center gap-1.5">
                {isFastMode ? "Multilingual" : (preset.language ? getLanguageLabel(preset.language) : '-')}

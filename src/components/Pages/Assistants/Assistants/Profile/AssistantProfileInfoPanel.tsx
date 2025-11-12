@@ -194,8 +194,8 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                         <span className="text-caption">{assistant.surname}</span>
                         <span className="text-caption font-bold">Age</span>
                         <span className="text-caption">{assistant.age ?? 'N/A'}</span>
-                        <span className="text-caption font-bold">Region</span>
-                        <span className="text-caption">{assistant.region ?? 'N/A'}</span>
+                        <span className="text-caption font-bold">Nationality</span>
+                        <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
                     </div>
                     
                 </div>
