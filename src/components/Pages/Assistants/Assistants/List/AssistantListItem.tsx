@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { Phone, Mail, PhoneCall } from "lucide-react";
@@ -6,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Assistant, AssistantStatus } from "@/types/assistants/assistant";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/UI/hover-card";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
+import { Button } from '@/components/UI/button';
 
 interface AssistantListItemProps {
     assistant: Assistant;
@@ -13,6 +15,7 @@ interface AssistantListItemProps {
     isSelected: boolean;
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
+    onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
     isFolded: boolean;
     isCallActive: boolean;
 }
@@ -23,6 +26,7 @@ export function AssistantListItem({
     isSelected,
     onShowProfile,
     onShowActivityLog,
+    onOpenContactManager,
     isFolded,
     isCallActive,
 }: AssistantListItemProps) {
@@ -40,6 +44,44 @@ export function AssistantListItem({
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
     const isOnline = status?.running === true;
+
+    const hoverCardContent = (
+        <div className="flex justify-between space-x-4">
+            <Avatar>
+                <AvatarImage src={photoSrc ?? undefined} />
+                <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="space-y-1 flex-1">
+                <h4 className="text-title">{displayName}</h4>
+                <div className="flex items-center pt-1 text-caption text-muted-foreground">
+                    <Mail className="mr-2 h-4 w-4 opacity-70" />{" "}
+                    {assistant.email ? (
+                        <a href={`mailto:${assistant.email}`} onClick={(e) => e.stopPropagation()} className="truncate text-link">
+                            {assistant.email}
+                        </a>
+                    ) : (
+                        <Button variant="link" className="p-0 h-auto text-caption text-link" onClick={(e) => { e.stopPropagation(); onOpenContactManager(assistant, 'email'); }}>Add Email</Button>
+                    )}
+                </div>
+                <div className="flex items-center pt-1 text-caption text-muted-foreground">
+                    <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
+                    {assistant.phone ? (
+                        <span className="truncate">{assistant.phone}</span>
+                    ) : (
+                        <Button variant="link" className="p-0 h-auto text-caption text-link" onClick={(e) => { e.stopPropagation(); onOpenContactManager(assistant, 'phone'); }}>Add Phone</Button>
+                    )}
+                </div>
+                <div className="flex items-center pt-1 text-caption text-muted-foreground">
+                    <WhatsApp sx={{ fontSize: '16px', marginRight: '8px', opacity: 0.7 }} />
+                    {assistant.assistant_whatsapp_number ? (
+                        <span className="truncate">{assistant.assistant_whatsapp_number}</span>
+                    ) : (
+                        <Button variant="link" className="p-0 h-auto text-caption text-link" onClick={(e) => { e.stopPropagation(); onOpenContactManager(assistant, 'whatsapp'); }}>Add WhatsApp</Button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
     if (isFolded) {
         const content = (
@@ -77,31 +119,7 @@ export function AssistantListItem({
                     {content}
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80" side="right" align="start">
-                     <div className="flex justify-between space-x-4">
-                         <Avatar>
-                             <AvatarImage src={photoSrc ?? undefined} />
-                             <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
-                         </Avatar>
-                         <div className="space-y-1 flex-1">
-                             <h4 className="text-title">{displayName}</h4>
-                             <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                 <Mail className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                 <a href={`mailto:${assistant.email}`} className="truncate text-link">
-                                     {assistant.email}
-                                 </a>
-                             </div>
-                             <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                 <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                 <span className="truncate">{assistant.phone}</span>
-                             </div>
-                             {assistant.assistant_whatsapp_number && (
-                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                     <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                     <span className="truncate">{assistant.assistant_whatsapp_number}</span>
-                                 </div>
-                             )}
-                         </div>
-                     </div>
+                    {hoverCardContent}
                 </HoverCardContent>
             </HoverCard>
         );
@@ -135,31 +153,7 @@ export function AssistantListItem({
                         </div>
                     </HoverCardTrigger>
                     <HoverCardContent className="w-80" side="right" align="start">
-                         <div className="flex justify-between space-x-4">
-                             <Avatar>
-                                 <AvatarImage src={photoSrc ?? undefined} />
-                                 <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
-                             </Avatar>
-                             <div className="space-y-1 flex-1">
-                                 <h4 className="text-title">{displayName}</h4>
-                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                     <Mail className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                     <a href={`mailto:${assistant.email}`} className="truncate text-link">
-                                         {assistant.email}
-                                     </a>
-                                 </div>
-                                 <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                     <Phone className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                     <span className="truncate">{assistant.phone}</span>
-                                 </div>
-                                 {assistant.assistant_whatsapp_number && (
-                                     <div className="flex items-center pt-1 text-caption text-muted-foreground">
-                                         <WhatsApp className="mr-2 h-4 w-4 opacity-70" />{" "}
-                                         <span className="truncate">{assistant.assistant_whatsapp_number}</span>
-                                     </div>
-                                 )}
-                             </div>
-                         </div>
+                         {hoverCardContent}
                     </HoverCardContent>
                 </HoverCard>
                 <span className="text-body text-strong truncate">{displayName}</span>

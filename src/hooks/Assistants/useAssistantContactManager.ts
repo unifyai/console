@@ -13,6 +13,7 @@ interface UseAssistantContactManagerProps {
     isOpen: boolean;
     assistantActions: AssistantActions;
     onSuccess: () => void;
+    initialTab?: 'email' | 'phone' | 'whatsapp';
 }
 
 export function useAssistantContactManager({
@@ -24,10 +25,11 @@ export function useAssistantContactManager({
     isOpen,
     assistantActions,
     onSuccess,
+    initialTab,
 }: UseAssistantContactManagerProps) {
     const { register, setValue, formState: { errors, isDirty }, trigger, watch, getValues } = formMethods;
 
-    const [activeTab, setActiveTab] = React.useState<'email' | 'phone' | 'whatsapp'>('email');
+    const [activeTab, setActiveTab] = React.useState<'email' | 'phone' | 'whatsapp'>(initialTab || 'email');
     const [emailLocalPart, setEmailLocalPart] = React.useState('');
     const [confirmDelete, setConfirmDelete] = React.useState<'email' | 'phone' | 'whatsapp' | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
@@ -43,8 +45,11 @@ export function useAssistantContactManager({
             }
             // Reset confirm delete state when dialog opens/changes assistant
             setConfirmDelete(null);
+            if (initialTab) {
+                setActiveTab(initialTab);
+            }
         }
-    }, [isOpen, assistant, getValues]);
+    }, [isOpen, assistant, getValues, initialTab]);
 
     const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const newLocalPart = event.target.value.replace(/[@\s]/g, '');

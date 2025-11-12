@@ -30,7 +30,7 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
-import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
+import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
@@ -49,7 +49,7 @@ interface MainProps {
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
-    userMeta: { image: string | null | undefined };
+    userMeta: { image: string | null | undefined; timezone?: string | null; };
 }
 
 export default function Main({
@@ -167,6 +167,7 @@ export default function Main({
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
     const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(null);
+    const [contactManagerInitialTab, setContactManagerInitialTab] = React.useState<'email' | 'phone' | 'whatsapp'>('email');
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
@@ -334,10 +335,10 @@ export default function Main({
     const {
         displayedPresets, loadMorePresets, canLoadMorePresets, isLoadingMorePresets,
         presetAgeFilter, setPresetAgeFilter,
-        presetRegionFilter, setPresetRegionFilter,
+        presetNationalityFilter, setPresetNationalityFilter,
         presetGenderFilter, setPresetGenderFilter,
         presetLanguageFilter, setPresetLanguageFilter,
-        availableAgeBrackets, availableRegions, availableGenders,
+        availableAgeBrackets, availableNationalities, availableGenders,
         availableLanguages,
         currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
@@ -393,9 +394,9 @@ export default function Main({
     } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit || !!contactManagerAssistant);
     
     // --- Voice Options  ---
-    const hireFormRegion = hireFormMethods.watch("region");
+    const hireFormNationality = hireFormMethods.watch("nationality");
     const hireFormFastMode = hireFormMethods.watch("fast_mode") as boolean;
-    const preferredLanguage = React.useMemo(() => getLangCodeForRegion(hireFormRegion), [hireFormRegion]);
+    const preferredLanguage = React.useMemo(() => getLangCodeForNationality(hireFormNationality), [hireFormNationality]);
     const allDisplayableVoices = React.useMemo(() => {
         const voicesToFilter = unsortedVoices;
         const filteredByProvider = hireFormFastMode
@@ -420,7 +421,7 @@ export default function Main({
         resetHireFormInternal();
         setIsAssistantPresetsOpen(true);
         setPresetAgeFilter('all');
-        setPresetRegionFilter('all');
+        setPresetNationalityFilter('all');
         setPresetGenderFilter('all');
         setPresetLanguageFilter('all');
         setIsDialogBusyProcessingVoice(false);
@@ -435,15 +436,16 @@ export default function Main({
         setIsHireDialogOpen(true);
         refreshHiringProfile();
 
-    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, setPresetLanguageFilter, refreshHiringProfile]);
+    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetNationalityFilter, setPresetGenderFilter, setPresetLanguageFilter, refreshHiringProfile]);
 
     const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
         loadAssistantForEdit(assistant);
         setAssistantToEdit(assistant);
     }, [loadAssistantForEdit]);
     
-    const handleOpenContactManager = (assistant: Assistant) => {
+    const handleOpenContactManager = (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp' = 'email') => {
         loadAssistantForEdit(assistant);
+        setContactManagerInitialTab(tab);
         setContactManagerAssistant(assistant);
     };
 
@@ -536,6 +538,7 @@ export default function Main({
                         onShowProfile={handleShowProfile}
                         onShowActivityLog={handleShowActivityLog}
                         onOpenHireDialog={handleOpenHireDialog}
+                        onOpenContactManager={handleOpenContactManager}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
                         activeCallAssistantId={activeCallId}
@@ -574,6 +577,7 @@ export default function Main({
                                 activeCallAssistantId={activeCallId}
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
+                                userTimezone={userMeta.timezone}
                             />
                         </motion.div>,
                         <motion.div
@@ -686,9 +690,9 @@ export default function Main({
                         ageFilter={presetAgeFilter}
                         onAgeFilterChange={setPresetAgeFilter}
                         availableAgeBrackets={availableAgeBrackets}
-                        regionFilter={presetRegionFilter}
-                        onRegionFilterChange={setPresetRegionFilter}
-                        availableRegions={availableRegions}
+                        nationalityFilter={presetNationalityFilter}
+                        onNationalityFilterChange={setPresetNationalityFilter}
+                        availableNationalities={availableNationalities}
                         genderFilter={presetGenderFilter}
                         onGenderFilterChange={setPresetGenderFilter}
                         availableGenders={availableGenders}
@@ -743,6 +747,7 @@ export default function Main({
                         isLoadingCountries={isLoadingCountries}
                         availableSocialPlatforms={availableSocialPlatforms}
                         onSuccess={handleUpdateSuccess}
+                        initialTab={contactManagerInitialTab}
                     />
                 )}
             </FormProvider>

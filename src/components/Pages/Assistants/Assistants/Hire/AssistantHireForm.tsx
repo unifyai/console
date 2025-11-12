@@ -31,8 +31,9 @@ import { SocialAccountInput } from './SocialAccountInput';
 import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
 import { useAccountVerification } from '@/hooks/Assistants/useAccountVerification';
-import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
+import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows, FaApple } from "react-icons/fa";
+import { TimezoneOption, generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -73,6 +74,7 @@ export function HireForm({
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
     const fastMode = useWatch({ control, name: 'fast_mode' });
+    const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
 
     const photoPreviewUrl = watch("photoPreviewUrl");
     const videoPreviewUrl = watch("videoPreviewUrl");
@@ -82,8 +84,8 @@ export function HireForm({
     const firstName = watch("first_name");
     const surname = watch("surname");
     const age = watch("age");
-    const rhfRegion = watch("region");
-    const regionRef = React.useRef(rhfRegion);
+    const rhfNationality = watch("nationality");
+    const nationalityRef = React.useRef(rhfNationality);
     
     // Re-validate the other name field when one changes to give immediate feedback on the duplicate check.
     React.useEffect(() => {
@@ -100,22 +102,22 @@ export function HireForm({
 
     React.useEffect(() => {
         const isPristine = getValues("isPresetPristine");
-        // Only trigger auto-selection if the region was changed manually, not by a preset.
-        if (isPristine || regionRef.current === rhfRegion) {
-            regionRef.current = rhfRegion;
+        // Only trigger auto-selection if the nationality was changed manually, not by a preset.
+        if (isPristine || nationalityRef.current === rhfNationality) {
+            nationalityRef.current = rhfNationality;
             return;
         }
-        regionRef.current = rhfRegion;
+        nationalityRef.current = rhfNationality;
         
         if (allDisplayableVoices.length === 0) return;
         
-        const preferredLanguage = getLangCodeForRegion(rhfRegion);
+        const preferredLanguage = getLangCodeForNationality(rhfNationality);
         if (!preferredLanguage) return;
         
         const currentVoiceId = getValues("voice_id");
         const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
         
-        // If current voice already matches the new region's language, do nothing
+        // If current voice already matches the new nationality's language, do nothing
         if (currentVoice && currentVoice.language === preferredLanguage) return;
         
         // Find the best new voice: a non-preset one is preferred
@@ -131,7 +133,7 @@ export function HireForm({
             setValue("voice_provider", bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
             setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
         }
-    }, [rhfRegion, allDisplayableVoices, getValues, setValue]);
+    }, [rhfNationality, allDisplayableVoices, getValues, setValue]);
 
     const rhfVoiceId = watch("voice_id");
     const rhfVoiceLanguage = watch("voice_language");
@@ -303,14 +305,14 @@ export function HireForm({
                                         {errors.age && <p className="text-body text-strong text-destructive mt-1">{errors.age.message}</p>}
                                         </div>
                                         <div className="col-span-2 sm:col-span-1">
-                                            <Label htmlFor="region">Region</Label>
+                                            <Label htmlFor="nationality">Nationality</Label>
                                             <Select
-                                                value={rhfRegion || ''}
-                                                onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
+                                                value={rhfNationality || ''}
+                                                onValueChange={(value) => setValue("nationality", value, { shouldValidate: true })}
                                                 disabled={isSubmitting || isEditMode}
                                             >
-                                                <SelectTrigger id="region" {...register("region", { required: "Region is required." })}>
-                                                    <SelectValue placeholder="Select a region..." />
+                                                <SelectTrigger id="nationality" {...register("nationality", { required: "Nationality is required." })}>
+                                                    <SelectValue placeholder="Select a nationality..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {allCountryNames.map(countryName => (
@@ -320,8 +322,35 @@ export function HireForm({
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            {errors.region && <p className="text-body text-strong text-destructive mt-1">{errors.region.message}</p>}
+                                            {errors.nationality && <p className="text-body text-strong text-destructive mt-1">{errors.nationality.message}</p>}
                                         </div>
+                                    </div>
+                                    <div className="pt-1">
+                                        <Label htmlFor="timezone">Timezone</Label>
+                                        <Controller
+                                            name="timezone"
+                                            control={control}
+                                            rules={{ required: "Timezone is required."}}
+                                            render={({ field }) => (
+                                                <Select
+                                                    value={field.value || ''}
+                                                    onValueChange={field.onChange}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <SelectTrigger id="timezone">
+                                                        <SelectValue placeholder="Select a timezone..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {timezoneOptions.map(option => (
+                                                            <SelectItem key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.timezone && <p className="text-body text-strong text-destructive mt-1">{errors.timezone.message}</p>}
                                     </div>
                                     <div className="flex flex-col w-full space-y-2 pt-1">
                                         <div className="flex flex-row gap-2 items-center">

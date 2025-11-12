@@ -26,9 +26,9 @@ export interface PresetsPanelProps {
   onAgeFilterChange: (value: string) => void;
   availableAgeBrackets: string[];
 
-  regionFilter: string;
-  onRegionFilterChange: (value: string) => void;
-  availableRegions: string[];
+  nationalityFilter: string;
+  onNationalityFilterChange: (value: string) => void;
+  availableNationalities: string[];
 
   genderFilter: string;
   onGenderFilterChange: (value: string) => void;
@@ -54,9 +54,9 @@ export function PresetsPanel({
   ageFilter,
   onAgeFilterChange,
   availableAgeBrackets,
-  regionFilter,
-  onRegionFilterChange,
-  availableRegions,
+  nationalityFilter,
+  onNationalityFilterChange,
+  availableNationalities,
   genderFilter,
   onGenderFilterChange,
   availableGenders,
@@ -159,14 +159,14 @@ export function PresetsPanel({
             </Select>
           </div>
           <div>
-            <Select value={regionFilter} onValueChange={onRegionFilterChange} disabled={availableRegions.length <= 1}>
+            <Select value={nationalityFilter} onValueChange={onNationalityFilterChange} disabled={availableNationalities.length <= 1}>
               <SelectTrigger className="h-8 text-caption">
-                <SelectValue placeholder="Region" />
+                <SelectValue placeholder="Nationality" />
               </SelectTrigger>
               <SelectContent>
-                {availableRegions.map(region => (
-                  <SelectItem key={region} value={region} className="text-caption">
-                    {region === 'all' ? 'All Regions' : region}
+                {availableNationalities.map(nationality => (
+                  <SelectItem key={nationality} value={nationality} className="text-caption">
+                    {nationality === 'all' ? 'All Nationalities' : nationality}
                   </SelectItem>
                 ))}
               </SelectContent>

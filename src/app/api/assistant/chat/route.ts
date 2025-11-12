@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         const userName = user.name || "the user";
 
         // `messages` here is the full client-side session history
-        const { messages, assistantName, assistantAge, assistantBio, assistantRegion, assistantId, type, preHireChat } = await request.json();
+        const { messages, assistantName, assistantAge, assistantBio, assistantNationality, assistantId, type, preHireChat } = await request.json();
         const chatType: ChatRequestType = type || 'hire';
 
         // generate post hire greeting
@@ -30,10 +30,10 @@ export async function POST(request: NextRequest) {
             if (hasPreHireChat) {
                 // Case B: Hired with pre-hire chat
                 const chatHistoryString = preHireChat.map((m: any) => `${m.role === 'user' ? userName : displayName}: ${m.content}`).join('\n');
-                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired after a brief chat with them. Here is your profile: Age ${assistantAge || 'ageless'}, from ${assistantRegion || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Here is the transcript of the pre-hire chat:\n\n${chatHistoryString}\n\nBased on your profile, bio, and this prior conversation, generate a short (2-3 sentences), friendly, and enthusiastic message to ${userName} expressing your excitement to start working together.`;
+                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired after a brief chat with them. Here is your profile: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Here is the transcript of the pre-hire chat:\n\n${chatHistoryString}\n\nBased on your profile, bio, and this prior conversation, generate a short (2-3 sentences), friendly, and enthusiastic message to ${userName} expressing your excitement to start working together.`;
             } else {
                 // Case A: Hired without pre-hire chat
-                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantRegion || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
+                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
             }
 
             const greetingMessages: ChatCompletionMessage[] = [{ role: "system", content: greetingSystemPrompt }];
@@ -97,10 +97,10 @@ export async function POST(request: NextRequest) {
             
             const bio = assistantBio || "a helpful assistant capable of handling any task";
             const age = assistantAge || 'ageless';
-            const region = assistantRegion || 'an undisclosed location';
+            const nationality = assistantNationality || 'an undisclosed location';
             const displayName = assistantName.replace(/([A-Z])/g, ' $1').trim();
             
-            systemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You are ${age} years old, from ${region} and described as ${bio}. You are currently chatting with ${userName} through a web interface but you also kept note of the recent messages you've exchanged across several mediums. You may use these notes as context for the discussion but because you don't have access to all your notes and memories when talking through the web interface, ${userName} may ask you about something you don't have context for. If it's a general world knowledge question, respond normally as you would, if it's a question related to a previous interaction, explain that you don't have all your notes currently and politely suggest that you hop on a call or text via phone.`;
+            systemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You are ${age} years old, from ${nationality} and described as ${bio}. You are currently chatting with ${userName} through a web interface but you also kept note of the recent messages you've exchanged across several mediums. You may use these notes as context for the discussion but because you don't have access to all your notes and memories when talking through the web interface, ${userName} may ask you about something you don't have context for. If it's a general world knowledge question, respond normally as you would, if it's a question related to a previous interaction, explain that you don't have all your notes currently and politely suggest that you hop on a call or text via phone.`;
 
         } else { // 'hire' type
             systemPrompt = `You are an assistant named ${assistantName || 'Assistant'}, who is ${assistantAge || 'ageless'}. You are speaking with ${userName}, who is considering hiring you as a general administrative assistant. Here is a bit about yourself: ${assistantBio || 'I am a diligent and capable assistant.'}. If ${userName} asks any questions about yourself, and this is not covered in the short bio above, then please just make up a sensible response to their question. If they ask what you're able to do, then explain that you can do anything that a very competent virtual administrative assistant can do. You have your own computer with your own mouse and keyboard, your own email address and phone number, and you are a fast learner who quickly learns from on-the-job experience. If the ${userName} is interested in pursuing further, then politely (not forcefully) suggest hiring in order to hop on an introductory call. If un-impressed, then it's a zero-hour contract so it's not a big deal.`;

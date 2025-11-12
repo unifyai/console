@@ -264,6 +264,7 @@ interface AssistantContactManagerProps {
     isLoadingCountries: boolean;
     availableSocialPlatforms: AvailableSocialPlatform[];
     onSuccess: () => void;
+    initialTab?: 'email' | 'phone' | 'whatsapp';
 }
 
 const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
@@ -311,6 +312,7 @@ export function AssistantContactManager({
     isLoadingCountries,
     availableSocialPlatforms,
     onSuccess,
+    initialTab,
 }: AssistantContactManagerProps) {
     const { register, setValue, formState: { errors }, getValues, control } = formMethods;
     
@@ -336,9 +338,10 @@ export function AssistantContactManager({
         isOpen,
         assistantActions,
         onSuccess,
+        initialTab,
     });
 
-    const rhfCountry = useWatch({ control, name: 'country' });
+    const rhfPhoneCountry = useWatch({ control, name: 'phone_country' });
 
     const handleDialogClose = (open: boolean) => {
         if (!isSubmitting && !isDeleting) {
@@ -414,16 +417,16 @@ export function AssistantContactManager({
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">
-                                            <Label htmlFor="country">Assistant Phone Country</Label>
+                                            <Label htmlFor="phone_country">Assistant Phone Country</Label>
                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
                                         </div>
-                                        <Select value={rhfCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("country", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
-                                            <SelectTrigger id="country" {...register("country", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
+                                        <Select value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("phone_country", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
+                                            <SelectTrigger id="phone_country" {...register("phone_country", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
                                                 <SelectValue placeholder={isLoadingCountries ? "Loading countries..." : "Select country..."} />
                                             </SelectTrigger>
                                             <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                                         </Select>
-                                        {errors.country && <p className="text-body text-strong text-destructive mt-1">{errors.country.message}</p>}
+                                        {errors.phone_country && <p className="text-body text-strong text-destructive mt-1">{errors.phone_country.message}</p>}
                                     </div>
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">

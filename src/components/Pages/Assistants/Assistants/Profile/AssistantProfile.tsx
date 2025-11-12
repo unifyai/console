@@ -34,7 +34,7 @@ interface AssistantProfilePanelProps {
     onClose: () => void;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
-    onOpenContactManager: (assistant: Assistant) => void;
+    onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
@@ -44,6 +44,7 @@ interface AssistantProfilePanelProps {
     activeCallAssistantId: string | null;
     isCallConnected: boolean;
     isConnectingCall: boolean;
+    userTimezone?: string | null;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -87,10 +88,10 @@ export function AssistantProfilePanel({
     activeCallAssistantId,
     isCallConnected,
     isConnectingCall,
+    userTimezone,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
-    const [isChatMaximized, setIsChatMaximized] = React.useState(false);
 
     const isInThisCall = activeCallAssistantId === assistant.agent_id;
     const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -157,6 +158,7 @@ export function AssistantProfilePanel({
                             >
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
+                                    userTimezone={userTimezone}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -230,18 +232,6 @@ export function AssistantProfilePanel({
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         )}
-                                        <TooltipProvider delayDuration={100}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsChatMaximized(true)}>
-                                                        <Maximize2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>Maximize Chat</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
                                     </div>
                                 }
                             >
@@ -307,30 +297,6 @@ export function AssistantProfilePanel({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            <Dialog open={isChatMaximized} onOpenChange={setIsChatMaximized}>
-                <DialogContent className="max-w-6xl h-[80vh] flex flex-col p-0 gap-0" hideClose >
-                     <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-                        <div className="flex items-start justify-between">
-                            <DialogTitle className="text-title">Chat with {displayName}</DialogTitle>
-                            <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0 -mt-1" onClick={() => setIsChatMaximized(false)}>
-                                <Minus className="h-4 w-4" />
-                                <span className="sr-only">Minimize Chat</span>
-                            </Button>
-                        </div>
-                    </DialogHeader>
-                    <div className="flex-1 min-h-0">
-                        <AssistantProfileChatPanel 
-                            assistant={assistant} 
-                            assistantActions={assistantActions}
-                            chatHistories={chatHistories}
-                            setChatHistories={setChatHistories}
-                            isFirstView={isFirstView}
-                            preHireChat={preHireChat}
-                            onFirstViewCompleted={onFirstViewCompleted}
-                        />
-                    </div>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

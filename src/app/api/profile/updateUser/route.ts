@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
     image: formData.get("image") as string,
     name: formData.get("name") as string,
     last_name: formData.get("lastName") as string,
-    job_title: formData.get("jobTitle") as string
+    job_title: formData.get("jobTitle") as string,
+    timezone: formData.get("timezone") as string | null
   };
   
   const response = await updateUser(UserUpdateRequest);

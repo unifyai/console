@@ -63,7 +63,7 @@ export function useAssistantProfileChat(
                             assistantName: `${assistant.first_name} ${assistant.surname}`,
                             assistantAge: assistant.age,
                             assistantBio: assistant.about,
-                            assistantRegion: assistant.region,
+                            assistantNationality: assistant.nationality,
                             preHireChat: preHireChat?.map(({ role, content }) => ({ role, content }))
                         }),
                     });

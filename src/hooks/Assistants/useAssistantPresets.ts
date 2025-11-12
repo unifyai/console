@@ -22,11 +22,11 @@ export function useAssistantPresets() {
     ));
 
     const [presetAgeFilter, setPresetAgeFilter] = React.useState<string>('all');
-    const [presetRegionFilter, setPresetRegionFilter] = React.useState<string>('all');
+    const [presetNationalityFilter, setPresetNationalityFilter] = React.useState<string>('all');
     const [presetGenderFilter, setPresetGenderFilter] = React.useState<string>('all');
     const [presetLanguageFilter, setPresetLanguageFilter] = React.useState<string>('all');
 
-    const [uniquePresetRegions, setUniquePresetRegions] = React.useState<string[]>(['all']);
+    const [uniquePresetNationalities, setUniquePresetNationalities] = React.useState<string[]>(['all']);
     const [uniquePresetGenders, setUniquePresetGenders] = React.useState<string[]>(['all']);
     const [uniquePresetLanguages, setUniquePresetLanguages] = React.useState<string[]>(['all']);
 
@@ -49,10 +49,10 @@ export function useAssistantPresets() {
     }, [allAssistantPresets, allPresetVoices]);
 
     React.useEffect(() => {
-        const regions = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.region).filter(Boolean))) as string[]];
+        const nationalities = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.nationality).filter(Boolean))) as string[]];
         const genders = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.gender).filter(Boolean))) as string[]];
         const languages = ['all', ...Array.from(new Set(presetsWithLanguage.map(p => p.language).filter(Boolean))) as string[]];
-        setUniquePresetRegions(regions.sort());
+        setUniquePresetNationalities(nationalities.sort());
         setUniquePresetGenders(genders.sort((a,b) => a.localeCompare(b)));
         setUniquePresetLanguages(languages.sort());
     }, [presetsWithLanguage]);
@@ -66,8 +66,8 @@ export function useAssistantPresets() {
             const maxAge = maxAgeStr ? parseInt(maxAgeStr, 10) : Infinity;
             filtered = filtered.filter(p => p.age && p.age >= minAge && p.age <= maxAge);
         }
-        if (presetRegionFilter !== 'all' && presetRegionFilter) {
-            filtered = filtered.filter(p => p.region === presetRegionFilter);
+        if (presetNationalityFilter !== 'all' && presetNationalityFilter) {
+            filtered = filtered.filter(p => p.nationality === presetNationalityFilter);
         }
         if (presetGenderFilter !== 'all' && presetGenderFilter) {
             filtered = filtered.filter(p => p.gender?.toLowerCase() === presetGenderFilter.toLowerCase());
@@ -78,7 +78,7 @@ export function useAssistantPresets() {
 
         setCurrentFilteredPresets(filtered);
         setPresetsToShowCount(PRESETS_PAGE_LIMIT); // Reset count when filters change
-    }, [presetsWithLanguage, presetAgeFilter, presetRegionFilter, presetGenderFilter, presetLanguageFilter]);
+    }, [presetsWithLanguage, presetAgeFilter, presetNationalityFilter, presetGenderFilter, presetLanguageFilter]);
 
     React.useEffect(() => {
         setDisplayedPresets(currentFilteredPresets.slice(0, presetsToShowCount));
@@ -102,11 +102,11 @@ export function useAssistantPresets() {
         canLoadMorePresets,
         isLoadingMorePresets,
         presetAgeFilter, setPresetAgeFilter,
-        presetRegionFilter, setPresetRegionFilter,
+        presetNationalityFilter, setPresetNationalityFilter,
         presetGenderFilter, setPresetGenderFilter,
         presetLanguageFilter, setPresetLanguageFilter,
         availableAgeBrackets: PRESET_AGE_BRACKETS,
-        availableRegions: uniquePresetRegions,
+        availableNationalities: uniquePresetNationalities,
         availableGenders: uniquePresetGenders,
         availableLanguages: uniquePresetLanguages,
         currentFilteredPresets,

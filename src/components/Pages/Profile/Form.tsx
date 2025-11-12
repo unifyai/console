@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { deleteUser } from "@/lib/user/user";
 import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 
 const ProfileForm = ({user, onPrem}: {
     user: User,
@@ -29,6 +30,7 @@ const ProfileForm = ({user, onPrem}: {
     name: user.name || "",
     lastName: user.lastName || "",
     jobTitle: user.jobTitle || "",
+    timezone: user.timezone || "",
   });
   const [initialFormState, setInitialFormState] = useState({ ...formState });
   const [changeMade, setChangeMade] = useState(false);
@@ -55,6 +57,44 @@ const ProfileForm = ({user, onPrem}: {
     };
     fetchSubscriptions();
   }, []);
+
+  // Automatically set timezone for new users
+  useEffect(() => {
+    const autoUpdateTimezone = async (tz: string) => {
+        const formData = new FormData();
+        // Append all current user data to avoid blanking it out on update
+        formData.append('name', user.name || '');
+        formData.append('lastName', user.lastName || '');
+        formData.append('jobTitle', user.jobTitle || '');
+        formData.append('email', user.email || '');
+        formData.append('timezone', tz);
+
+        try {
+            const response = await fetch(`/api/profile/updateUser?userID=${user.id}`, {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                setFormState(prev => ({...prev, timezone: tz}));
+                setInitialFormState(prev => ({...prev, timezone: tz}));
+                toast.success("Your timezone has been automatically set.");
+            } else {
+                 toast.error("Could not automatically set your timezone.");
+            }
+        } catch (error) {
+            console.error("Failed to auto-update timezone:", error);
+            toast.error("Could not automatically set your timezone.");
+        }
+    };
+
+    if (!user.timezone) {
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (browserTimezone) {
+            autoUpdateTimezone(browserTimezone);
+        }
+    }
+  }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.email]);
 
   const preferencesChanged = useMemo(() => {
     if (subscriptions.length !== initialSubscriptions.length) return true;
@@ -88,6 +128,11 @@ const ProfileForm = ({user, onPrem}: {
     setChangeMade(true);
   };
 
+  const handleTimezoneChange = (value: string) => {
+    setFormState((prev) => ({ ...prev, timezone: value }));
+    setChangeMade(true);
+  };
+
   // Handle cancel
   const handleCancel = () => {
     // Reset form state to initial values
@@ -99,10 +144,13 @@ const ProfileForm = ({user, onPrem}: {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const formData = new FormData(e.currentTarget as HTMLFormElement);
+    formData.append('timezone', formState.timezone);
+
     // Update profile info
     const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {
       method: "POST",
-      body: new FormData(e.currentTarget as HTMLFormElement)
+      body: formData
     });
 
     // Update newsletter preferences
@@ -139,6 +187,7 @@ const ProfileForm = ({user, onPrem}: {
         <UserInfo
           formState={formState}
           handleInputChange={handleInputChange}
+          handleTimezoneChange={handleTimezoneChange}
           user={user}
           onPrem={onPrem}
         />

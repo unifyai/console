@@ -27,7 +27,7 @@ export const allCountryNames: string[] = [
     'Zambia', 'Zimbabwe'
 ].sort((a, b) => a.localeCompare(b));
 
-export const regionToLangMap: Record<string, SupportedLanguage> = {
+export const countryToLangMap: Record<string, SupportedLanguage> = {
     // English-speaking countries
     "Antigua and Barbuda": "en", "Australia": "en", "Bahamas": "en", "Barbados": "en", "Belize": "en", 
     "Botswana": "en", "Canada": "en", "Dominica": "en", "Eswatini": "en", "Fiji": "en", "Gambia": "en", 
