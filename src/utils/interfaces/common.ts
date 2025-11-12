@@ -9,6 +9,14 @@ import { maybeConvertRawToGroupedLogs } from "./table/grouping";
 import { TreeNode } from "@/types/common";
 import { showErrorToast } from "@/components/Common/Toasts/notifications";
 
+// Short-lived, in-process caches for metrics requests (dedupe + TTL)
+declare global {
+  // eslint-disable-next-line no-var
+  var __metricsCache: Map<string, { ts: number; data: any }> | undefined;
+  // eslint-disable-next-line no-var
+  var __metricsPending: Map<string, Promise<any>> | undefined;
+}
+
 /**
  * Debug flag for performance logging
  * Set NEXT_PUBLIC_DEBUG_PERFORMANCE=true to enable detailed performance timing logs
@@ -203,24 +211,14 @@ export const getColumnMetrics = async (
 ) => {
   // Simple in-memory dedupe + TTL cache to avoid duplicate analytics calls
   const METRICS_TTL_MS = 10_000;
-  type CacheEntry = { ts: number; data: any };
-  // Module-level singletons
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   if (!globalThis.__metricsCache) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    globalThis.__metricsCache = new Map<string, CacheEntry>();
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    globalThis.__metricsCache = new Map<string, { ts: number; data: any }>();
+  }
+  if (!globalThis.__metricsPending) {
     globalThis.__metricsPending = new Map<string, Promise<any>>();
   }
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const metricsCache: Map<string, CacheEntry> = globalThis.__metricsCache;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const metricsPending: Map<string, Promise<any>> = globalThis.__metricsPending;
+  const metricsCache = globalThis.__metricsCache!;
+  const metricsPending = globalThis.__metricsPending!;
   const keyObj = { project, context, column_context, columns, filterExpression, groupingExpression, metric };
   const key = JSON.stringify(keyObj);
   const now = Date.now();
