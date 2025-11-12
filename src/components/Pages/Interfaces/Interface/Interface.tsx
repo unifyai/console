@@ -358,7 +358,7 @@ const Interface = ({
       if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
         showErrorToast(
           'Interface list timed out',
-          'Orchestra is taking longer than usual to respond. Retrying automatically...'
+          'The service is taking longer than usual to respond. Retrying automatically...'
         );
       } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
         showErrorToast(

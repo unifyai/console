@@ -1361,7 +1361,7 @@ const LogsTable = ({
                 <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
                 <p className="text-body text-muted-foreground max-w-md">
                   {isTimeout 
-                    ? 'The request timed out. Orchestra may be under heavy load or experiencing issues.'
+                    ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
                     : error}
                 </p>
               </div>
