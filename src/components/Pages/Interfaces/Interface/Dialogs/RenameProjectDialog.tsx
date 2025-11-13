@@ -119,7 +119,7 @@ export const RenameProjectDialog = React.memo(function RenameProjectDialog({
       body={
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="project-rename">New Project Name</Label>
+            <Label htmlFor="project-rename" className="text-label">New Project Name</Label>
             <Input
               id="project-rename"
               value={projectName}
@@ -144,6 +144,7 @@ export const RenameProjectDialog = React.memo(function RenameProjectDialog({
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
+            className="h-8"
           >
             Cancel
           </Button>
@@ -152,9 +153,10 @@ export const RenameProjectDialog = React.memo(function RenameProjectDialog({
             onClick={handleSubmit}
             loading={isSubmitting}
             disabled={!projectName.trim() || !!validationError || projectName.trim() === currentName}
+            className="h-8"
           />
         </div>
       }
     />
   )
-}) 
+})

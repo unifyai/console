@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/user/user";
+import { requireApiKey } from "@/lib/auth/requireApiKey";
 import { getFavourites } from "@/lib/interfaces/favourites";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const favourites = await getFavourites(user.apiKey);
+    const apiKeyOrError = await requireApiKey(req);
+    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
+    const apiKey = apiKeyOrError;
+    
+    const favourites = await getFavourites(apiKey);
     return NextResponse.json(favourites, { status: 200 });
   } catch (err) {
     console.error("/api/user/favourites error", err);

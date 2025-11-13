@@ -347,15 +347,11 @@ export function useEnsureTabArguments(
         return { tableArguments: emptyTableArgs, plotArguments: emptyPlotArgs };
       }
 
-      // Build dependencies
+      // Build dependencies (actions removed - now using API routes for reads)
       const dependencies: OptimisticUpdateDependencies = {
         queryClient,
         projectId,
         tabId,
-        projectsActions: actions.projectsActions,
-        contextActions: actions.contextActions,
-        fieldsActions: actions.fieldsActions,
-        logsActions: actions.logsActions,
       };
 
       // Get table tiles to fetch fields

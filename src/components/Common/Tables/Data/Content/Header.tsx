@@ -377,7 +377,7 @@ const DataTableHeader = ({
   const isParentFullyPinned = isParentColumn && allVisibleLeafsPinned;
   const isChildPinned = isPinned && !isParentColumn;
   const style: CSSProperties = {
-    boxShadow: isLastLeftPinnedColumn ? '-4px 0 4px -4px gray inset' : undefined,
+    boxShadow: isLastLeftPinnedColumn ? `-4px 0 4px -4px var(--border) inset` : undefined,
     opacity: isColumnDragging ? 0.8 : 1,
     position: isChildPinned || isParentFullyPinned ? 'sticky' : undefined,
     left: isParentFullyPinned

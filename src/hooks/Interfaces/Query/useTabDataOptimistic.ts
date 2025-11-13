@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, CancelledError } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { 
   TabData, 
@@ -58,6 +58,7 @@ type TabDataActions = {
 };
 
 export type CompleteTabData = {
+  mode: 'light' | 'full';  // Indicates whether this is a lightweight prefetch or full build
   // Tab level data (from TabWrapper.server.tsx)
   tabData: TabData;
   tiles: TileData[];
@@ -102,6 +103,13 @@ export function useTabDataOptimistic() {
        * their own data progressively further down the component tree.
        */
       skipTileData?: boolean;
+      signal?: AbortSignal;
+      /**
+       * When false, do not issue a tiles list request. Useful for non‑active tab
+       * prefetch where we only want metadata placeholders and want to avoid
+       * generating server‑action POSTs that show as 500 on abort.
+       */
+      listTiles?: boolean;
     } = {}
   ): Promise<CompleteTabData> => {
     const {
@@ -110,9 +118,11 @@ export function useTabDataOptimistic() {
       refetchFields = true,
       updateCache = true,
       skipTileData = false,
+      signal,
+      listTiles = true,
     } = options;
 
-    debugLog(`[buildCompleteTabData] Building complete tab data for: ${tabName} (ID: ${tabId})`);
+    debugLog(`[buildCompleteTabData] START building tab data for: ${tabName} (ID: ${tabId})`);
     
     try {      
       // Find the specific tab by tabId and tabName (not the active tab)
@@ -132,16 +142,61 @@ export function useTabDataOptimistic() {
 
       // Get or fetch tiles for the target tab
       let tilesData = queryClient.getQueryData(["tiles", finalTabId]) as TileData[] | undefined;
+      debugLog('[buildCompleteTabData] Tiles cache check:', {
+        tabName,
+        tabId: finalTabId,
+        cacheHit: !!tilesData,
+        cacheValue: tilesData,
+        isError: tilesData && typeof tilesData === "object" && Object.keys(tilesData).includes("error"),
+        listTiles
+      });
+      
       if (!tilesData || (typeof tilesData === "object" && Object.keys(tilesData).includes("error"))) {
-        tilesData = await actions.tileActions.list(finalTabId, undefined, false);
-        if (updateCache) {
-          queryClient.setQueryData(["tiles", finalTabId], tilesData);
+        if (listTiles === false) {
+          debugLog('[buildCompleteTabData] Skipping tile fetch (listTiles=false), using empty array');
+          // Skip listing tiles entirely; use empty placeholders (non‑active prefetch)
+          tilesData = [] as TileData[];
+        } else {
+          debugLog('[buildCompleteTabData] Fetching tiles from API for tab:', tabName);
+          try {
+            const res = await fetch(`/api/tile?tab_id=${encodeURIComponent(finalTabId)}&checkpoint=false`, {
+              method: "GET",
+              signal: signal as AbortSignal,
+              cache: "no-store",
+            });
+            if (!res.ok) throw new Error(`Tiles ${res.status}`);
+            const json = await res.json();
+            tilesData = Array.isArray(json) ? json as TileData[] : [] as TileData[];
+            debugLog('[buildCompleteTabData] Fetched tiles from API:', {
+              tabName,
+              tileCount: tilesData.length,
+              tiles: tilesData.map(t => ({ id: t.id, name: t.name, type: t.type }))
+            });
+          } catch (err: any) {
+            const msg = String(err?.message || err);
+            console.error('[buildCompleteTabData] Tile fetch failed:', { tabName, error: msg });
+            if ((signal as AbortSignal | undefined)?.aborted || /Abort|aborted|Connection closed/i.test(msg)) {
+              throw new CancelledError();
+            }
+            throw err;
+          }
+          if (updateCache) {
+            debugLog('[buildCompleteTabData] Caching tiles:', { tabName, tileCount: tilesData.length });
+            queryClient.setQueryData(["tiles", finalTabId], tilesData);
+          }
         }
+      } else {
+        debugLog('[buildCompleteTabData] Using cached tiles:', {
+          tabName,
+          tileCount: Array.isArray(tilesData) ? tilesData.length : 0,
+          tilesData
+        });
       }
 
       // Filter tiles by type (matching TabWrapper.server.tsx)
-      const tableTilesData = tilesData.filter(t => t.type === "Table");
-      const plotTilesData = tilesData.filter(t => t.type === "Plot");
+      const safeTilesData: TileData[] = Array.isArray(tilesData) ? tilesData : [];
+      const tableTilesData = safeTilesData.filter(t => t.type === "Table");
+      const plotTilesData = safeTilesData.filter(t => t.type === "Plot");
 
       /* ------------------------------------------------------------------
        * FAST-PATH: lightweight mode – just populate store & cache basics
@@ -149,9 +204,10 @@ export function useTabDataOptimistic() {
       if (skipTileData) {
 
         return {
+          mode: 'light',
           // Tab level data
           tabData: targetTab,
-          tiles: tilesData,
+          tiles: safeTilesData,
           tableTiles: tableTilesData,
           plotTiles: plotTilesData,
           // Light-weight placeholders – will be filled progressively by individual tiles
@@ -164,15 +220,12 @@ export function useTabDataOptimistic() {
         } as CompleteTabData;
       }
 
-      // Create shared dependencies object
+      // Create shared dependencies object (actions removed - now using API routes)
       const dependencies: OptimisticUpdateDependencies = {
         queryClient,
         projectId,
         tabId: finalTabId,
-        projectsActions: actions.projectsActions,
-        contextActions: actions.contextActions,
-        fieldsActions: actions.fieldsActions,
-        logsActions: actions.logsActions,
+        signal,
       };
 
       const optimisticOptions: OptimisticUpdateOptions = {
@@ -195,7 +248,7 @@ export function useTabDataOptimistic() {
       // Update tab arguments using shared utility
       const { tableArguments, plotArguments } = await updateTabArguments(
         dependencies,
-        tilesData,
+        safeTilesData,
         fieldsArray,
         optimisticOptions
       );
@@ -204,18 +257,16 @@ export function useTabDataOptimistic() {
       
       const tileDataItems: Record<string, TableDataItem | PlotDataItem> = {};
 
-      // Process each tile based on its type
-      for (const tileData of tilesData) {
+      // Process tiles with small concurrency cap to avoid flooding
+      const concurrencyCap = 3;
+      let index = 0;
+      const processTile = async (tileData: TileData) => {
         const tileId = tileData.id!;
-        
         try {
           switch (tileData.type) {
-            case "Table":
-              // Find index of the tileData in the tableTilesData array
+            case "Table": {
               const tableTileIndex = tableTilesData.findIndex(t => t.id === tileId);
-              if (tableTileIndex === -1) {
-                throw new Error(`Table tile not found: ${tileId}`);
-              }
+              if (tableTileIndex === -1) throw new Error(`Table tile not found: ${tileId}`);
               const fields = fieldsArray[tableTileIndex];
               const tableDataItem = await buildOptimisticTableDataItem(
                 dependencies,
@@ -226,8 +277,8 @@ export function useTabDataOptimistic() {
               );
               tileDataItems[tileId] = tableDataItem;
               break;
-              
-            case "Plot":
+            }
+            case "Plot": {
               const plotDataItem = await buildOptimisticPlotDataItem(
                 dependencies,
                 tileData,
@@ -238,22 +289,48 @@ export function useTabDataOptimistic() {
               );
               tileDataItems[tileId] = plotDataItem;
               break;
-              
+            }
             case "View":
             case "Editor":
-              // Simple wrappers - no additional processing needed
+              // No additional processing
               break;
           }
-        } catch (error) {
+        } catch (error: any) {
           showErrorToast(error, `Error processing tile ${tileData.name}`);
-          // Continue processing other tiles
+          if (tileData.type === 'Table') {
+            tileDataItems[tileId] = {
+              columnContexts: [],
+              fields: {} as any,
+              totalCount: 0,
+              entriesProperties: [],
+              paramsProperties: [],
+              logs: [],
+              params: {} as any,
+              isLoading: false,
+              error: error?.message || 'Failed to load',
+              newCells: [],
+            } as any;
+          }
         }
+      };
+
+      const workers: Promise<void>[] = [];
+      const runNext = async () => {
+        if (index >= safeTilesData.length) return;
+        const current = index++;
+        await processTile(safeTilesData[current]);
+        return runNext();
+      };
+      for (let i = 0; i < Math.min(concurrencyCap, safeTilesData.length); i++) {
+        workers.push(runNext());
       }
+      await Promise.all(workers);
 
       return {
+        mode: 'full',
         // Tab level data
         tabData: targetTab,
-        tiles: tilesData,
+        tiles: safeTilesData,
         tableTiles: tableTilesData,
         plotTiles: plotTilesData,
         fields: fieldsArray,
@@ -264,7 +341,12 @@ export function useTabDataOptimistic() {
         tileDataItems,
       };
       
-    } catch (error) {
+    } catch (error: any) {
+      // Propagate cancellations explicitly so React Query marks them as canceled, not errors
+      const msg = String(error?.message || error);
+      if (error instanceof CancelledError || /Abort|aborted|Connection closed/i.test(msg)) {
+        throw new CancelledError();
+      }
       console.error(`[buildCompleteTabData] Error building complete tab data for ${tabName} (ID: ${tabId}):`, error);
       throw error;
     }

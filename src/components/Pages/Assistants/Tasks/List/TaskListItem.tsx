@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Badge } from "@/components/UI/badge";
-import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap } from "lucide-react"; 
+import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap, Minus } from "lucide-react"; 
 import { Task, TaskActions, Status as TaskStatusEnum, Priority as TaskPriorityEnum } from "@/types/assistants/task"; 
 import { Assistant } from '@/types/assistants/assistant';
 import ActionButton from '../../../../Common/Buttons/Action';
@@ -61,23 +61,24 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
     const getPriorityDisplay = (priority: TaskPriorityEnum | undefined) => {
         const p = priority || TaskPriorityEnum.normal;
         let icon: React.ReactNode = null;
-        let textColor = "text-muted-foreground"; // Default for Normal
+        let textColor = "text-foreground";
 
         switch (p) {
             case TaskPriorityEnum.urgent: 
-                icon = <Zap className="h-3.5 w-3.5 text-red-500 mr-1" />;
-                textColor = "text-red-500";
+                icon = <Zap className="h-3.5 w-3.5 text-destructive mr-1" />;
+                textColor = "text-destructive";
                 break;
             case TaskPriorityEnum.high: 
-                icon = <AlertTriangle className="h-3.5 w-3.5 text-orange-500 mr-1" />;
-                textColor = "text-orange-500";
+                icon = <AlertTriangle className="h-3.5 w-3.5 text-warning mr-1" />;
+                textColor = "text-warning";
                 break;
             case TaskPriorityEnum.low: 
-                icon = <Zap className="h-3.5 w-3.5 text-green-500 opacity-70 mr-1" />; // Example for low, adjust as needed
-                textColor = "text-green-600";
+                icon = <Minus className="h-3.5 w-3.5 text-muted-foreground mr-1" />;
+                textColor = "text-muted-foreground";
                 break;
             case TaskPriorityEnum.normal:
-                // No icon for normal, or a very subtle one if preferred
+                icon = <Minus className="h-3.5 w-3.5 text-primary mr-1" />;
+                textColor = "text-primary";
                 break;
         }
         return (

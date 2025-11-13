@@ -32,7 +32,7 @@ const ColumnSort = (({
 }: ColumnSortProps) => {
 
     /* Display loader when data updates */
-    const [spinnerColor, setSpinnerColor] = useState("white");
+    const [spinnerColor, setSpinnerColor] = useState("primary");
     useEffect(() => {
         setSortLoading(false);
     },[data, setSortLoading])
@@ -49,7 +49,7 @@ const ColumnSort = (({
     ];
     const state = states.find(state => state.key === column.getIsSorted())!;
     const tooltip = state.tooltip;
-    const icon = sortLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon
+    const icon = sortLoading ? <LoaderCircle className={`animate-spin ${isSorted ? 'text-primary-foreground' : 'text-primary'}`}/> : state.icon
     const variant = isSorted ? "primary" : undefined;
     const onClick = () => {
         column.toggleSorting()
@@ -57,7 +57,7 @@ const ColumnSort = (({
         if (!column.getNextSortingOrder()) 
             setSpinnerColor("primary") 
         else 
-            setSpinnerColor("white")
+            setSpinnerColor("primary-foreground")
     }
 
     return (

@@ -23,7 +23,7 @@ const SecondaryButton = ({ onClick, label, className, disabled=false }: {
       type="button"
       onClick={onClick}
       variant="outline"
-      className={`px-7 py-3 w-fit ${className}`}
+      className={`px-3 py-1 w-fit ${className}`}
       text={label}
       disabled={disabled}
     />

@@ -70,7 +70,7 @@ export const CreateTabDialog = React.memo(function CreateTabDialog({
       body={
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="tab-name">Tab Name</Label>
+            <Label htmlFor="tab-name" className="text-label">Tab Name</Label>
             <Input
               id="tab-name"
               value={tabName}
@@ -84,7 +84,7 @@ export const CreateTabDialog = React.memo(function CreateTabDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Tab Icon</Label>
+            <Label className="text-label">Tab Icon</Label>
             <IconSelector 
               value={tabIcon as any} 
               onValueChange={setTabIcon} 
@@ -101,6 +101,7 @@ export const CreateTabDialog = React.memo(function CreateTabDialog({
             variant="outline" 
             onClick={() => handleOpenChange(false)}
             disabled={isSubmitting}
+            className="h-8"
           >
             Cancel
           </Button>
@@ -109,9 +110,10 @@ export const CreateTabDialog = React.memo(function CreateTabDialog({
             onClick={handleSubmit}
             loading={isSubmitting}
             disabled={!tabName.trim()}
+            className="h-8"
           />
         </div>
       }
     />
   )
-}) 
+})

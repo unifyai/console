@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/UI/input";
 import { Button } from "@/components/UI/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Skeleton } from "@/components/UI/skeleton";
 import { cn } from "@/utils/misc/cn";
 import Fuse from "fuse.js";
 import { Icon, IconName } from "@/components/UI/icon-picker";
 import { iconsData } from "@/components/UI/icons-data";
 import { useDebounceValue } from "usehooks-ts";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface IconSelectorProps {
   value?: IconName;
@@ -15,14 +15,11 @@ interface IconSelectorProps {
   searchable?: boolean;
 }
 
-const IconsColumnSkeleton = () => (
-  <div className="flex flex-col gap-2 w-full">
-    <Skeleton className="h-4 w-1/2 rounded-md" />
-    <div className="grid grid-cols-5 gap-2 w-full">
-      {Array.from({ length: 40 }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-10 rounded-md" />
-      ))}
-    </div>
+const IconsSkeleton = () => (
+  <div className="grid grid-cols-6 gap-2 w-full">
+    {Array.from({ length: 48 }).map((_, i) => (
+      <Skeleton key={i} className="h-10 w-10 rounded-md" />
+    ))}
   </div>
 );
 
@@ -53,46 +50,52 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   }, [search, fuseInstance, iconsToUse]);
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState<number>(6);
 
-  // Grouping ----------------------------------------------------
-  const categorizedIcons = useMemo(() => {
-    if (search.trim() !== "") {
-      return [{ name: "Search Results", icons: filteredIcons }];
-    }
-
-    const categories = new Map<string, typeof iconsData>();
-    filteredIcons.forEach((icon) => {
-      const cats = icon.categories && icon.categories.length ? icon.categories : ["Other"];
-      cats.forEach((cat) => {
-        if (!categories.has(cat)) categories.set(cat, [] as any);
-        (categories.get(cat) as any).push(icon);
-      });
+  // Measure columns responsively based on container width
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const width = el.clientWidth || 360;
+      // Target 48px cells with ~8px gap
+      const nextCols = Math.max(4, Math.min(10, Math.floor(width / 56)));
+      setCols(nextCols);
     });
-    return Array.from(categories.entries())
-      .map(([name, icons]) => ({ name, icons }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [filteredIcons, search]);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Virtualization (row-based grid)
+  const rowCount = useMemo(
+    () => Math.ceil(filteredIcons.length / cols),
+    [filteredIcons.length, cols]
+  );
+  const EST_ROW_HEIGHT = 48 + 8; // icon button size + gap
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => EST_ROW_HEIGHT,
+    overscan: 6,
+  });
 
   // Render helpers
   const renderIconButton = useCallback(
     (iconName: IconName) => (
-      <TooltipProvider key={iconName}>
-        <Tooltip>
-          <TooltipTrigger
-            className={cn(
-              "p-2 rounded-md border flex items-center justify-center transition cursor-pointer",
-              value === iconName ? "bg-accent border-primary" : "hover:bg-foreground/10"
-            )}
-            data-icon={iconName}
-            onClick={() => onValueChange?.(iconName)}
-          >
-            <Icon name={iconName} />
-          </TooltipTrigger>
-          <TooltipContent>
-            <span>{iconName}</span>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <button
+        key={iconName}
+        className={cn(
+          "h-10 w-10 p-2 rounded-md border flex items-center justify-center transition cursor-pointer",
+          value === iconName ? "bg-accent border-primary" : "hover:bg-foreground/10"
+        )}
+        data-icon={iconName}
+        title={iconName}
+        onClick={() => onValueChange?.(iconName)}
+      >
+        <Suspense fallback={<Skeleton className="h-5 w-5 rounded" />}>
+          <Icon name={iconName} />
+        </Suspense>
+      </button>
     ),
     [onValueChange, value]
   );
@@ -107,11 +110,12 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   // Scroll to selected icon on mount / value change
   useEffect(() => {
     if (!parentRef.current || !value) return;
-    const el = parentRef.current.querySelector(`[data-icon="${value}"]`) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ block: "center" });
+    const idx = filteredIcons.findIndex((i) => i.name === value);
+    if (idx >= 0) {
+      const row = Math.floor(idx / cols);
+      rowVirtualizer.scrollToIndex(row, { align: "center" });
     }
-  }, [value, isLoading, categorizedIcons]);
+  }, [value, isLoading, filteredIcons, cols, rowVirtualizer]);
 
   return (
     <div className="w-full space-y-2">
@@ -122,21 +126,36 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
           onChange={(e) => setRawSearch(e.target.value)}
         />
       )}
-      <div
-        ref={parentRef}
-        className="max-h-60 overflow-auto command-scrollbar pr-1 space-y-4"
-      >
+      <div ref={parentRef} className="max-h-60 overflow-auto command-scrollbar pr-1">
         {isLoading ? (
-          <IconsColumnSkeleton />
+          <IconsSkeleton />
+        ) : filteredIcons.length === 0 ? (
+          <div className="text-caption text-muted-foreground py-6 text-center">No icons found</div>
         ) : (
-          categorizedIcons.map((cat) => (
-            <div key={cat.name} id={`cat-${cat.name}`} className="space-y-2">
-              <h3 className="text-caption text-strong capitalize pl-1 select-none">{cat.name}</h3>
-              <div className="grid grid-cols-5 gap-2">
-                {cat.icons.map((ic) => renderIconButton(ic.name as IconName))}
-              </div>
-            </div>
-          ))
+          <div
+            className="relative w-full"
+            style={{ height: rowVirtualizer.getTotalSize() }}
+          >
+            {rowVirtualizer.getVirtualItems().map((vi) => {
+              const startIndex = vi.index * cols;
+              const endIndex = Math.min(startIndex + cols, filteredIcons.length);
+              return (
+                <div
+                  key={vi.key}
+                  className="absolute left-0 right-0 grid gap-2"
+                  style={{
+                    top: vi.start,
+                    height: vi.size,
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {filteredIcons.slice(startIndex, endIndex).map((ic) =>
+                    renderIconButton(ic.name as IconName)
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

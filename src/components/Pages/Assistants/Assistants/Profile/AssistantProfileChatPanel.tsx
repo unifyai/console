@@ -43,7 +43,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
 
 interface AssistantProfileChatPanelProps {
     assistant: Assistant;
-    assistantActions: AssistantActions;
+    assistantActions: Pick<AssistantActions, 'chat'>;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
@@ -65,7 +65,7 @@ export function AssistantProfileChatPanel({
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
 
-    const { messages, inputValue, isLoading, handleInputChange, sendMessage } = useAssistantProfileChat(
+    const { messages, inputValue, isLoading, isAssistantReplying, handleInputChange, sendMessage } = useAssistantProfileChat(
         assistant, 
         assistantActions, 
         chatHistories, 
@@ -75,40 +75,62 @@ export function AssistantProfileChatPanel({
         onFirstViewCompleted
     );
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+    const prevScrollHeightRef = React.useRef<number | null>(null);
 
     React.useEffect(() => {
-        const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+        if (!viewport) return;
+
+        const prevScrollHeight = prevScrollHeightRef.current;
+        const { scrollTop, scrollHeight, clientHeight } = viewport;
+
+        // A small buffer to prevent issues with fractional pixels.
+        const scrollBuffer = 10;
+        
+        // Determine if the user was scrolled to the bottom before new messages were added.
+        // `prevScrollHeight` will be null on the first render, causing an initial scroll to bottom.
+        const wasScrolledToBottom = prevScrollHeight === null || (prevScrollHeight - scrollTop - clientHeight <= scrollBuffer);
+
+        // If new content has been added and the user was at the bottom, auto-scroll.
+        if (scrollHeight !== prevScrollHeight && wasScrolledToBottom) {
+            viewport.scrollTop = scrollHeight;
         }
-    }, [messages]);
+        prevScrollHeightRef.current = scrollHeight;
+    }, [messages, isAssistantReplying]);
 
     const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault(); // Prevents adding a new line in the input
-            // Create a synthetic event to pass to sendMessage, which expects a form event
+            event.preventDefault(); 
             const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
             sendMessage(syntheticEvent);
         }
     };
-
-    const isChatDisabled = isLoading;
 
     return (
         <div className="h-full flex flex-col w-full bg-background">
             {/* Chat Area */}
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                 <div className="space-y-4">
-                    {messages.map((msg, index) => (
+                    {messages.map((msg) => (
                         <ChatMessageBubble
                             key={msg.id}
                             message={msg.content}
                             isUser={msg.role === 'user'}
                             assistantPhoto={photoSrc}
                             assistantName={displayName}
-                            isLoading={isLoading && index === messages.length - 1 && msg.role === 'assistant'}
+                            isLoading={false}
                         />
                     ))}
+                    {isAssistantReplying && (
+                        <ChatMessageBubble
+                            key="typing-indicator"
+                            message=""
+                            isUser={false}
+                            assistantPhoto={photoSrc}
+                            assistantName={displayName}
+                            isLoading={true}
+                        />
+                    )}
                 </div>
             </ScrollArea>
 
@@ -116,16 +138,16 @@ export function AssistantProfileChatPanel({
             <form onSubmit={sendMessage} className="p-4 bg-background">
                 <div className="relative">
                      <Input
-                        placeholder={"Send a message..."}
+                        placeholder={isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
-                        disabled={isChatDisabled}
+                        disabled={isLoading}
                         className="pr-10 h-9"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
                      />
-                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isChatDisabled || !inputValue.trim()}>
-                        <Send className="h-4 w-4" />
+                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isLoading || !inputValue.trim()}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                      </Button>
                  </div>
             </form>

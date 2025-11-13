@@ -3,10 +3,30 @@ import { GroupedLogProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsRe
 import { buildFilterExpression } from "@/utils/interfaces/table/filters";
 import { extractLogsData } from "@/utils/interfaces/common";
 import { LogsActions } from "@/types/interfaces/grid";
-import { processContext } from "@/utils/interfaces/table/columnOperations";
+import { processContext, sanitizeId } from "@/utils/interfaces/table/columnOperations";
 import { isGroupedLogs, maybeFlattenGroupedLogs } from "../interfaces/table/grouping";
 import { QueryClient } from "@tanstack/react-query";
 import { isEqual } from 'lodash';
+import { perfStart, perfEnd } from '@/lib/perf';
+
+// Global semaphore to cap concurrent logs fetches
+const MAX_LOGS_CONCURRENCY = 3;
+let currentLogsConcurrency = 0;
+const logsQueue: Array<() => void> = [];
+
+async function withLogsSemaphore<T>(fn: () => Promise<T>): Promise<T> {
+  if (currentLogsConcurrency >= MAX_LOGS_CONCURRENCY) {
+    await new Promise<void>(resolve => logsQueue.push(resolve));
+  }
+  currentLogsConcurrency++;
+  try {
+    return await fn();
+  } finally {
+    currentLogsConcurrency--;
+    const next = logsQueue.shift();
+    if (next) next();
+  }
+}
 
 /**
  * Debug flag for performance logging
@@ -181,35 +201,104 @@ export async function fetchAndBuildTableDataItem(
   const useGroupPagination = !!groupingExpression;
   
   const tGetLogs = performance.now();
-  const logsData: LogsResponseProps = await logsActions.get(
-    projectId,
-    tile.context || null,
-    tile.column_context || null,
-    filterExpression,
-    sortingExpression,
-    groupingExpression,
-    groupSortingExpression,
-    null,
-    null,
-    null,
-    useGroupPagination ? null : limit, // Regular limit (not used for groups)
-    useGroupPagination ? null : offset, // Regular offset (not used for groups)
-    useGroupPagination ? group_limit : null, // Group limit (used for groups)
-    useGroupPagination ? group_offset : null, // Group offset (used for groups)
-    useGroupPagination ? 0 : null, // Group depth (used for groups)
-    null,
-    null,
-    null, 
-    signal
-  );
+  let logsData: LogsResponseProps;
+  try {
+    // Call API route directly instead of server action to avoid POST /interfaces spam
+    // Build query string with all parameters
+    const params = new URLSearchParams();
+    params.set('project', projectId);
+    if (tile.context) params.set('context', tile.context);
+    if (tile.column_context) params.set('column_context', tile.column_context);
+    if (filterExpression) params.set('filter_expr', filterExpression);
+    if (sortingExpression) params.set('sorting', sortingExpression);
+    if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+    
+    // Narrow payload: request only currently visible leaf columns when we can derive them.
+    // Fallback to full payload if we cannot reliably compute a subset.
+    try {
+      // Build candidate IDs from column order or fields; remove hidden columns, parents, and util headers
+      const orderIds = tile.table_tile?.column_order
+        ? tile.table_tile?.column_order.split(",").filter(Boolean)
+        : Object.keys(fields).map((k) => processContext("split", tile.column_context || null, k)).filter(Boolean);
+      const hiddenSet = new Set(
+        (tile.table_tile?.hidden_columns ? tile.table_tile?.hidden_columns.split(",").filter(Boolean) : []).map(sanitizeId)
+      );
+      // Remove util headers and parents (keep only leaves)
+      const idsSanitized = orderIds
+        .map((id) => sanitizeId(id))
+        .filter((id) => id && id !== "RowNumbering" && id !== "Parameters" && id !== "Entries");
+      const leafIds = idsSanitized.filter((id) => !idsSanitized.some((other) => other !== id && other.startsWith(id + "/")));
+      const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
+      // Limit the subset to a reasonable number to keep payload small
+      const MAX_SUBSET = 60;
+      const subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      if (subsetIds.length > 0) {
+        // Merge back column_context for the API
+        const subset = subsetIds
+          .map((id) => processContext("merge", tile.column_context || null, id))
+          .join("&");
+        if (subset) {
+          params.set("from_fields", subset);
+        }
+      }
+    } catch {}
+    
+    // Handle grouping (can be multiple values)
+    if (groupingExpression) {
+      groupingExpression.split(",").forEach(expr => {
+        params.append('group_by', expr.trim());
+      });
+    }
+    
+    // Pagination params
+    if (!useGroupPagination && limit !== null) params.set('limit', limit.toString());
+    if (!useGroupPagination && offset !== null) params.set('offset', offset.toString());
+    if (useGroupPagination && group_limit !== null) params.set('group_limit', group_limit.toString());
+    if (useGroupPagination && group_offset !== null) params.set('group_offset', group_offset.toString());
+    if (useGroupPagination) params.set('group_depth', '0');
+
+    const pFetch = perfStart(`logs-fetch:${tile.name}:${projectId}`);
+    const res = await withLogsSemaphore(() => fetch(`/api/logs?${params.toString()}`, {
+      method: 'GET',
+      signal: signal as AbortSignal,
+      cache: 'no-store',
+    }));
+    perfEnd(pFetch, { status: res.status });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: `Logs ${res.status}` }));
+      throw new Error(errorData.detail || `Failed to fetch logs: ${res.status}`);
+    }
+
+    logsData = await res.json();
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Failed to fetch logs';
+    console.error('[buildTableDataItem] Logs fetch failed for tile:', tile.name, errorMsg);
+    
+    // Gracefully surface a minimal item so the tile can display Retry
+    return {
+      columnContexts: [],
+      fields,
+      totalCount: 0,
+      entriesProperties: [],
+      paramsProperties: [],
+      logs: [],
+      params: {} as any,
+      isLoading: false,
+      error: errorMsg,
+      newCells: [],
+    } as TableDataItem;
+  }
   const tGetLogsEnd = performance.now();
   perfLog(`[perf] getLogs: ${(tGetLogsEnd - tGetLogs).toFixed(2)} ms`);
 
   // Build table data item using the fetched logs data
   const tBuildTableDataItem = performance.now();
+  const pBuild = perfStart(`table-build:${tile.name}:${projectId}`);
   const tableDataItem = await buildTableDataItem(tile, fields, logsData, previousLogs);
   const tBuildTableDataItemEnd = performance.now();
   perfLog(`[perf] buildTableDataItem: ${(tBuildTableDataItemEnd - tBuildTableDataItem).toFixed(2)} ms`);
+  perfEnd(pBuild, { rows: Array.isArray(tableDataItem.logs) ? tableDataItem.logs.length : 0 });
 
   return tableDataItem;
 }

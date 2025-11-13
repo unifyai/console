@@ -74,7 +74,7 @@ const InfiniteScrollController: React.FC<InfiniteScrollControllerProps> = ({
     <div className={`flex items-center justify-between gap-3 ${className}`}>
       {/* Count and Progress Indicator */}
       <div className="flex flex-1 items-center gap-2">
-        <div className="text-xs flex-shrink-0">
+        <div className="text-body-sm flex-shrink-0">
           {getCountText()}
         </div>
         

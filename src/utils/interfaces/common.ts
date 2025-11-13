@@ -3,10 +3,19 @@ import _ from "lodash";
 import { formatNumber } from "./formatNumber";
 import { processContext } from "./table/columnOperations";
 import { LogsActions, TableGroupedMetrics } from "@/types/interfaces/grid";
+import { sanitizeKey } from "@/app/(home)/interfaces/utils";
 import { Row } from "@tanstack/react-table";
 import { maybeConvertRawToGroupedLogs } from "./table/grouping";
 import { TreeNode } from "@/types/common";
 import { showErrorToast } from "@/components/Common/Toasts/notifications";
+
+// Short-lived, in-process caches for metrics requests (dedupe + TTL)
+declare global {
+  // eslint-disable-next-line no-var
+  var __metricsCache: Map<string, { ts: number; data: any }> | undefined;
+  // eslint-disable-next-line no-var
+  var __metricsPending: Map<string, Promise<any>> | undefined;
+}
 
 /**
  * Debug flag for performance logging
@@ -116,27 +125,75 @@ export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedL
 /* 
   Extract logs, parameters, and their respective keys, accounting for context and sorting preferences.
 */
-export function extractLogsData(logsResponse: LogsResponseProps, fields: LogFieldsResponseProps, column_context: string | null, sorting: string | null, hiddenColumns: string | undefined) {
+export function extractLogsData(
+  logsResponse: LogsResponseProps,
+  fields: LogFieldsResponseProps,
+  column_context: string | null,
+  sorting: string | null,
+  hiddenColumns: string | undefined
+) {
     const params = logsResponse.params;
     const rawLogs = logsResponse.logs;
     const logs = extractLogs(params, rawLogs);
 
-    let [paramsProperties, entriesProperties] = [
-      Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
-      Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
-    ]
-    if (column_context){
+    // Helper: recursively collect nested keys as slash paths
+    const collectKeys = (obj: any, prefix = ""): string[] => {
+      if (!obj || typeof obj !== "object") return [];
+      const keys: string[] = [];
+      for (const k of Object.keys(obj)) {
+        const v = (obj as any)[k];
+        const next = prefix ? `${prefix}/${k}` : k;
+        keys.push(next);
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          keys.push(...collectKeys(v, next));
+        }
+      }
+      return keys;
+    };
+
+    let paramsProperties: string[];
+    let entriesProperties: string[];
+
+    if (!fields || Object.keys(fields).length === 0) {
+      // Fallback: derive columns from the first log if fields are unavailable
+      const first = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+      const rawParamsKeys = first?.params ? collectKeys(first.params) : [];
+      const rawEntriesKeys = first?.entries ? collectKeys(first.entries) : [];
+      // Build absolute keys with context
+      let absParams = rawParamsKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
+      let absEntries = rawEntriesKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
+      // Apply hidden filtering on relative keys
+      if (hiddenColumns) {
+        const hidden = new Set(hiddenColumns.split(","));
+        // Convert to relative for comparison with hidden list
+        const relParams = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
+        const relEntries = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+        paramsProperties = relParams.filter(p => !hidden.has(p));
+        entriesProperties = relEntries.filter(p => !hidden.has(p));
+      } else {
+        // Return relative keys
+        paramsProperties = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
+        entriesProperties = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+      }
+    } else {
+      // Normal path using fields metadata
       [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
-        entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
-      ]
-    }
-    if (hiddenColumns) {
-      const hidden = hiddenColumns.split(",");
-      [paramsProperties, entriesProperties] = [
-        paramsProperties.filter(property => !hidden.includes(property)),
-        entriesProperties.filter(property => !hidden.includes(property))
-      ]
+        Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
+        Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
+      ];
+      if (column_context){
+        [paramsProperties, entriesProperties] = [
+          paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
+          entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
+        ];
+      }
+      if (hiddenColumns) {
+        const hidden = hiddenColumns.split(",");
+        [paramsProperties, entriesProperties] = [
+          paramsProperties.filter(property => !hidden.includes(property)),
+          entriesProperties.filter(property => !hidden.includes(property))
+        ];
+      }
     }
 
   return { entriesProperties, paramsProperties, logs, params };
@@ -152,12 +209,57 @@ export const getColumnMetrics = async (
   metric: string | undefined,
   logsActions: LogsActions
 ) => {
+  // Simple in-memory dedupe + TTL cache to avoid duplicate analytics calls
+  const METRICS_TTL_MS = 10_000;
+  if (!globalThis.__metricsCache) {
+    globalThis.__metricsCache = new Map<string, { ts: number; data: any }>();
+  }
+  if (!globalThis.__metricsPending) {
+    globalThis.__metricsPending = new Map<string, Promise<any>>();
+  }
+  const metricsCache = globalThis.__metricsCache!;
+  const metricsPending = globalThis.__metricsPending!;
+  const keyObj = { project, context, column_context, columns, filterExpression, groupingExpression, metric };
+  const key = JSON.stringify(keyObj);
+  const now = Date.now();
+  const cached = metricsCache.get(key);
+  if (cached && now - cached.ts < METRICS_TTL_MS) {
+    return cached.data;
+  }
+  const inflight = metricsPending.get(key);
+  if (inflight) {
+    return inflight;
+  }
+  
   let fullColumns = columns
   if (column_context)
     fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
-  return await logsActions.getMetrics(
-    project!, context!, filterExpression, groupingExpression, metric ? metric : "mean", fullColumns
-  );
+  
+  // Call API route directly instead of server action
+  const metricName = metric ? metric : "mean";
+  const sanitizedColumns = fullColumns.map(sanitizeKey);
+  const params = new URLSearchParams();
+  params.set('project', project!);
+  if (context) params.set('context', context);
+  params.set('key', JSON.stringify(sanitizedColumns));
+  if (filterExpression) params.set('filter_expr', filterExpression);
+  if (groupingExpression) params.set('group_by', JSON.stringify(groupingExpression.split(",")));
+  const fetchPromise = fetch(`/api/logs/${metricName}?${params.toString()}`, {
+    method: 'GET',
+    cache: 'no-store',
+  }).then(async (res) => {
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ detail: `Metrics ${res.status}` }));
+      throw new Error(errorData.detail || `Failed to fetch metrics: ${res.status}`);
+    }
+    const data = await res.json();
+    metricsCache.set(key, { ts: Date.now(), data });
+    return data;
+  }).finally(() => {
+    metricsPending.delete(key);
+  });
+  metricsPending.set(key, fetchPromise);
+  return fetchPromise;
 }
 
 export const getLogsDetails = async (

@@ -112,6 +112,7 @@ const CreateEmptyLogRow: React.FC<CreateEmptyLogRowProps> = ({
         value={newFieldName}
         onChange={(e) => setNewFieldName(e.target.value)}
         disabled={loading}
+        className="text-body-sm"
       />
     </div>
   );

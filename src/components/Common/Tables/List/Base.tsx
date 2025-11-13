@@ -34,7 +34,7 @@ export default function ListTable<TData, TValue>({ data, columns, state, setStat
                 {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header, index) =>
-                            <TableHead key={index}>
+                            <TableHead key={index} className="p-2">
                                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                             </TableHead>
                         )}
@@ -46,7 +46,7 @@ export default function ListTable<TData, TValue>({ data, columns, state, setStat
                 table.getRowModel().rows.map((row) => (
                         <TableRow key={row.id}>
                             {row.getVisibleCells().map((cell, index) => 
-                                <TableCell key={cell.id}>
+                                <TableCell key={cell.id} className="p-2 text-body-sm">
                                     {cell.getIsPlaceholder() ? null : (flexRender(cell.column.columnDef.cell, cell.getContext()))}
                                 </TableCell>
                             )}
@@ -54,7 +54,7 @@ export default function ListTable<TData, TValue>({ data, columns, state, setStat
                     ))
                 ) : (
                 <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                    <TableCell colSpan={columns.length} className="h-24 text-center text-body-sm">
                         No results.
                     </TableCell>
                 </TableRow>

@@ -231,8 +231,8 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
     shadow-sm 
     transition-colors 
     caret-foreground
-    focus:outline-none focus:ring-2 focus:ring-blue-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
-    font-sans leading-none tracking-normal
+    focus:outline-none focus:ring-2 focus:ring-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring
+    leading-none tracking-normal
     overflow-x-auto
   `, className);
   const containerStyle = "z-10 rounded-none rounded-tr-md rounded-br-md bg-transparent text-transparent"
@@ -285,7 +285,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
         const prevToken = tokens[index - 1];
         const parentOption = options.find(opt => opt.name === prevToken);
         return parentOption?.children ? (
-          <span key={index} className="text-orange-400">.</span>
+          <span key={index} className="text-warning">.</span>
         ) : (
           <span key={index}>.</span>
         );
@@ -306,7 +306,7 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
   
   const overlay = 
     <div ref={overlayRef} style={{scrollbarWidth: "none"}} className={`${sharedStyle} ${overlayStyle} p-0 leading-none box-border inline-flex items-center`}>
-      {value === '' || !value ? placeholder : getHighlightedContent(value)}
+      {value === '' || !value ? <span className="text-muted-foreground">{placeholder}</span> : getHighlightedContent(value)}
     </div>
 
   /* Autocomplete suggestions dropdown.*/
@@ -326,9 +326,9 @@ const FormulaInput = ({options, value, setValue, onEnter, withIcon = true, class
           onClick={() => selectSuggestion(option.name)} 
           className={`
             flex flex-row justify-between gap-2
-            p-2 cursor-pointer 
-            hover:text-black hover:bg-gray-200
-            ${index === highlightedIndex ? 'bg-primary text-white' : ''}
+            p-2 cursor-pointer text-body-sm
+            hover:bg-accent hover:text-accent-foreground
+            ${index === highlightedIndex ? 'bg-primary text-primary-foreground' : ''}
           `}
         >
           {option.name}

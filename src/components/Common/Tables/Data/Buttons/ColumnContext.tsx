@@ -45,11 +45,11 @@ const ColumnContext = (({
         setLoading(true);
     };
 
-    const icon = loading ? <LoaderCircle className="animate-spin text-white"/> : <FolderTree />;
+    const icon = loading ? <LoaderCircle className="animate-spin text-primary-foreground"/> : <FolderTree />;
 
     return (
         renderMode === "menuItem" ? (
-            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
+            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer text-body-sm">
                 <FolderTree className="h-4 w-4"/>
                 <span>Set as context</span>
             </DropdownMenuItem>

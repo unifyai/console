@@ -107,7 +107,7 @@ const ColumnGroupBy = (({
 
     return (
         renderMode === "menuItem" ? (
-            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer">
+            <DropdownMenuItem onClick={onClick} className="flex items-center gap-2 cursor-pointer text-body-sm">
                 <Group className="h-4 w-4"/>
                 <span>{isParentColumn ? "Group children columns" : "Group column"}</span>
             </DropdownMenuItem>

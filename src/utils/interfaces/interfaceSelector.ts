@@ -211,8 +211,17 @@ export async function createCompleteDefaultInterface({
 }): Promise<InterfaceData | null> {
   
   try {
+    // Fetch the latest list of interfaces to ensure the name is unique
+    const existingInterfaces = await interfaceActions.list(project, false);
+    if (!Array.isArray(existingInterfaces)) {
+      throw new Error("Failed to retrieve existing interfaces for uniqueness check.");
+    }
+
     // Find a unique name for the interface
-    const interfaceName = baseName || defaultInterface.name;
+    const interfaceName = findUniqueInterfaceName(
+      baseName || defaultInterface.name,
+      existingInterfaces
+    );
 
     // Create the interface
     const newInterface = await interfaceActions.create(project, interfaceName);

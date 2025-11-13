@@ -91,7 +91,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
             </div>
             {paramColumns.map((column, index) => (
             <div key={index} className="flex items-center justify-between py-1 pl-4">
-                <span className="text-body max-w-[200px] truncate" title={column}>
+                <span className="text-body-sm max-w-[200px] truncate" title={column}>
                     {context ? sanitizeId(processContext("split", context, column)) : column}
                 </span>
                 <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)}/>
@@ -109,7 +109,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
         </div>
         {entryColumns.map((column, index) => (
             <div key={index} className="flex items-center justify-between py-1 pl-4">
-                <span className="text-body max-w-[200px] truncate" title={column}>
+                <span className="text-body-sm max-w-[200px] truncate" title={column}>
                     {context ? sanitizeId(processContext("split", context, column)) : column}
                 </span>
                 <Switch checked={columnVisibility[column]} onCheckedChange={() => handleSingleCheck(column)}/>
@@ -123,7 +123,7 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
     return (
         <BasePopover button={button} context="tile">
             <div className="flex flex-col gap-1 p-3">
-            <p className="font-bold text-medium pb-1">Select visible columns</p>
+            <p className="text-title font-bold pb-1">Select visible columns</p>
             <div
                 className="max-h-[60vh] overflow-y-auto pr-2"
                 onWheel={(e) => {

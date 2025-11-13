@@ -30,11 +30,18 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
-import { getLangCodeForRegion } from '@/utils/assistants/voice-utils';
+import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantEditPhone } from './Assistants/Edit/AssistantEditPhone';
-import { AssistantEditEmail } from './Assistants/Edit/AssistantEditEmail';
+import { AssistantHireLocalSetupInstructionsDialog } from './Assistants/Hire/AssistantHireLocalSetupInstructions';
+import { AssistantContactManager } from './Assistants/Profile/AssistantContactManager';
+import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
+import { Room } from 'livekit-client';
+import { RoomContext } from '@livekit/components-react';
+import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
+import { User } from 'next-auth';
+import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
+import { Z_VERSION_ERROR } from 'zlib';
 
 
 interface MainProps {
@@ -42,6 +49,7 @@ interface MainProps {
     assistantActions: AssistantActions;
     activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
+    userMeta: { image: string | null | undefined; timezone?: string | null; };
 }
 
 export default function Main({
@@ -49,6 +57,7 @@ export default function Main({
     assistantActions, 
     activityLogActions,
     oneTimeToken,
+    userMeta,
 }: MainProps) {
     // --- UI Panel Management ---
     const {
@@ -57,6 +66,40 @@ export default function Main({
         activityLogAssistantId, isActivityLogOpen,
         handleShowActivityLog, handleActivityLogClose,
     } = usePanelManager();
+
+    const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
+    const [isResizingProfile, setIsResizingProfile] = React.useState(false);
+
+    const handleProfileResizeStart = React.useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizingProfile(true);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const startWidth = profilePanelWidth;
+        const startX = e.clientX;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const newWidth = startWidth + (moveEvent.clientX - startX);
+            const minWidth = 300;
+            const maxWidth = 800;
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+                setProfilePanelWidth(newWidth);
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsResizingProfile(false);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }, [profilePanelWidth]);
+
 
     // --- Assistant List Fold State ---
     const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
@@ -72,10 +115,10 @@ export default function Main({
     } = useAssistants(assistantActions); 
 
     // --- Assistant Status Polling ---
-    // const { statuses: assistantStatuses } = useAssistantStatus(
-    //     assistants,
-    //     assistantActions.assistant.status
-    // );
+    const { statuses: assistantStatuses } = useAssistantStatus(
+        assistants,
+        assistantActions.assistant.status
+    );
 
     // --- Task Filters & Data ---
     const {
@@ -123,16 +166,148 @@ export default function Main({
     // --- Dialogs & Forms ---
     const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
     const [assistantToEdit, setAssistantToEdit] = React.useState<Assistant | null>(null);
-    const [assistantForPhoneEdit, setAssistantForPhoneEdit] = React.useState<Assistant | null>(null);
-    const [assistantForEmailEdit, setAssistantForEmailEdit] = React.useState<Assistant | null>(null);
+    const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(null);
+    const [contactManagerInitialTab, setContactManagerInitialTab] = React.useState<'email' | 'phone' | 'whatsapp'>('email');
     const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
     const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
     const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false); 
     const [newlyHiredInfo, setNewlyHiredInfo] = React.useState<{ assistant: Assistant; preHireChat?: ChatMessage[] } | null>(null);
     const [profileChatHistories, setProfileChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
-
+    const [setupInstructions, setSetupInstructions] = React.useState<{ os: string; isOpen: boolean } | null>(null);
     const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<AvailableSocialPlatform[]>([]);
     const [isLoadingSocialPlatforms, setIsLoadingSocialPlatforms] = React.useState(true);
+    const [popOutCallAssistantId, setPopOutCallAssistantId] = React.useState<string | null>(null);
+
+    const pongTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const pongListenerRef = React.useRef<(event: StorageEvent) => void>();
+
+    const verifyAndSetPopOutState = React.useCallback(() => {
+        if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+        if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
+        setPopOutCallAssistantId(null);
+
+        try {
+            const data = localStorage.getItem('activePopOutCall');
+            if (!data) return;
+
+            const popOutData = JSON.parse(data);
+            const pingId = `ping-${Date.now()}`;
+
+            pongListenerRef.current = (event: StorageEvent) => {
+                if (event.key === 'popOutCallPong' && event.newValue === pingId) {
+                    if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+                    window.removeEventListener('storage', pongListenerRef.current!);
+                    setPopOutCallAssistantId(popOutData?.assistantId || null);
+                }
+            };
+
+            window.addEventListener('storage', pongListenerRef.current);
+            localStorage.setItem('popOutCallPing', pingId);
+            setTimeout(() => localStorage.removeItem('popOutCallPing'), 2000);
+
+            pongTimeoutRef.current = setTimeout(() => {
+                window.removeEventListener('storage', pongListenerRef.current!);
+                console.warn("No response from pop-out call window. Clearing stale 'activePopOutCall' localStorage entry.");
+                localStorage.removeItem('activePopOutCall');
+                setPopOutCallAssistantId(null);
+            }, 1500);
+
+        } catch (e) {
+            console.error("Error during pop-out verification, clearing state:", e);
+            localStorage.removeItem('activePopOutCall');
+            setPopOutCallAssistantId(null);
+        }
+    }, []);
+
+
+    React.useEffect(() => {
+        verifyAndSetPopOutState();
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === 'activePopOutCall') {
+                verifyAndSetPopOutState();
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+            if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
+        };
+    }, [verifyAndSetPopOutState]);
+
+    // --- Call Management ---
+    const room = React.useMemo(() => new Room(), []);
+    const { 
+        isConnecting: isConnectingCall, 
+        isConnected: isCallConnected, 
+        activeCallAssistant, 
+        callType,
+        connectionDetails,
+        connect: startCall, 
+        disconnect: hangUpCall,
+        isSpeakerMuted,
+        toggleSpeakerMute,
+        isWaitingForAssistant,
+        connectionError,
+        retryConnection,
+        isRemoteControlActive,
+        liveviewUrl,
+        isRemoteControlLoading,
+        toggleRemoteControl,
+        isRemoteControlInteractive,
+        toggleRemoteControlInteractive,
+    } = useAssistantCall(room, assistantActions);
+    const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
+    const [isCallMinimized, setIsCallMinimized] = React.useState(false);
+
+    const handleStartCall = React.useCallback(async (assistant: Assistant, callType: 'video' | 'audio') => {
+        const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
+        if (activeCallId) {
+            if (activeCallId === assistant.agent_id) {
+                if (popOutCallAssistantId) {
+                    toast.info("Call is active in a separate tab. Close that tab to start a new call here.");
+                } else {
+                    setIsCommunicationDialogOpen(true);
+                    setIsCallMinimized(false);
+                }
+            } else {
+                toast.info("A call is already in progress with another assistant.");
+            }
+            return;
+        }
+
+        setIsCommunicationDialogOpen(true);
+        setIsCallMinimized(false);
+        await startCall(assistant, callType);
+    }, [isCallConnected, isConnectingCall, startCall, activeCallAssistant, popOutCallAssistantId]);
+
+    const handleHangUp = React.useCallback(async () => {
+        await hangUpCall();
+        setIsCommunicationDialogOpen(false);
+        setIsCallMinimized(false);
+    }, [hangUpCall]);
+
+    const handleMinimizeCall = React.useCallback(() => {
+        setIsCommunicationDialogOpen(false);
+        setIsCallMinimized(true);
+    }, []);
+    
+    const handleExpandCall = React.useCallback(() => {
+        if (activeCallAssistant) {
+            setIsCommunicationDialogOpen(true);
+            setIsCallMinimized(false);
+        }
+    }, [activeCallAssistant]);
+
+    // Close dialog if connection fails during setup or is disconnected remotely
+    React.useEffect(() => {
+        if (connectionError) return; // Don't close if there's an error the user needs to see
+
+        if (!isConnectingCall && !isCallConnected && (isCommunicationDialogOpen || isCallMinimized)) {
+            setIsCommunicationDialogOpen(false);
+            setIsCallMinimized(false);
+        }
+    }, [isConnectingCall, isCallConnected, isCommunicationDialogOpen, isCallMinimized, connectionError]);
 
     React.useEffect(() => {
         setIsLoadingSocialPlatforms(true);
@@ -141,11 +316,14 @@ export default function Main({
                 if (Array.isArray(result)) {
                     setAvailableSocialPlatforms(result as AvailableSocialPlatform[]);
                 } else {
-                    toast.error((result as ResponseProps).detail || "Could not fetch social platforms.");
+                    const backendError = (result as ResponseProps).detail || "Could not fetch social platforms.";
+                    console.error("[Main.tsx] Error fetching social platforms:", backendError);
+                    toast.error("Failed to fetch social platforms.");
                     setAvailableSocialPlatforms([]);
                 }
             })
             .catch(err => {
+                console.error("[Main.tsx] An unexpected error occurred while fetching social platforms:", err);
                 toast.error("Failed to fetch social platforms.");
                 setAvailableSocialPlatforms([]);
             })
@@ -157,10 +335,10 @@ export default function Main({
     const {
         displayedPresets, loadMorePresets, canLoadMorePresets, isLoadingMorePresets,
         presetAgeFilter, setPresetAgeFilter,
-        presetRegionFilter, setPresetRegionFilter,
+        presetNationalityFilter, setPresetNationalityFilter,
         presetGenderFilter, setPresetGenderFilter,
         presetLanguageFilter, setPresetLanguageFilter,
-        availableAgeBrackets, availableRegions, availableGenders,
+        availableAgeBrackets, availableNationalities, availableGenders,
         availableLanguages,
         currentFilteredPresets, allAssistantPresets
     } = useAssistantPresets();
@@ -173,20 +351,27 @@ export default function Main({
         fetchUserVoices,
         deleteUserVoice
     } = useVoiceOptions(assistantActions.voice);
-
+    
     // --- Callbacks for form success ---
-    const handleHireSuccess = React.useCallback((newAssistant: Assistant, preHireChat?: ChatMessage[]) => {
+    const handleHireSuccess = React.useCallback((newAssistant: Assistant, formData: any, preHireChat?: ChatMessage[]) => {
         refreshAssistants(false);
         fetchUserVoices();
         setIsHireDialogOpen(false);
         setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
         handleShowProfile(newAssistant.agent_id);
         refreshHiringProfile();
+        if (formData.setup === 'local' && formData.operating_system) {
+            setSetupInstructions({ os: formData.operating_system, isOpen: true });
+        }
     }, [refreshAssistants, handleShowProfile, refreshHiringProfile, fetchUserVoices]);
 
-    const handleUpdateSuccess = React.useCallback(() => {
+    const handleUpdateSuccess = React.useCallback((updatedPayload?: Partial<AssistantUpdatePayload>) => {
         refreshAssistants(false);
         setAssistantToEdit(null);
+        setContactManagerAssistant(null);
+        if (updatedPayload?.user_local_desktop) {
+            setSetupInstructions({ os: updatedPayload.user_local_desktop, isOpen: true });
+        }
     }, [refreshAssistants]);
     
     // --- Combined Hire/Edit Form Hook ---
@@ -206,14 +391,19 @@ export default function Main({
         availablePhoneCountries,
         isLoadingCountries,
         onNewMediaReady,
-    } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit, availableSocialPlatforms);
+    } = useAssistantHireForm(assistantActions, unsortedVoices, handleHireSuccess, handleUpdateSuccess, isHireDialogOpen || !!assistantToEdit || !!contactManagerAssistant);
     
     // --- Voice Options  ---
-    const hireFormRegion = hireFormMethods.watch("region");
-    const preferredLanguage = React.useMemo(() => getLangCodeForRegion(hireFormRegion), [hireFormRegion]);
+    const hireFormNationality = hireFormMethods.watch("nationality");
+    const hireFormFastMode = hireFormMethods.watch("fast_mode") as boolean;
+    const preferredLanguage = React.useMemo(() => getLangCodeForNationality(hireFormNationality), [hireFormNationality]);
     const allDisplayableVoices = React.useMemo(() => {
-        // Sort the voices here in Main.tsx using useMemo
-        const sorted = [...unsortedVoices];
+        const voicesToFilter = unsortedVoices;
+        const filteredByProvider = hireFormFastMode
+            ? voicesToFilter.filter(v => v.provider === 'openai')
+            : voicesToFilter.filter(v => v.provider !== 'openai');
+        
+        const sorted = [...filteredByProvider];
         sorted.sort((a, b) => {
             const isAPreferred = preferredLanguage && a.language === preferredLanguage;
             const isBPreferred = preferredLanguage && b.language === preferredLanguage;
@@ -224,14 +414,14 @@ export default function Main({
             return (a.name || '').localeCompare(b.name || '');
         });
         return sorted;
-    }, [unsortedVoices, preferredLanguage]);    
+    }, [unsortedVoices, preferredLanguage, hireFormFastMode]);    
 
     // --- Callbacks for UI interaction ---
     const handleOpenHireDialog = React.useCallback(() => {
         resetHireFormInternal();
         setIsAssistantPresetsOpen(true);
         setPresetAgeFilter('all');
-        setPresetRegionFilter('all');
+        setPresetNationalityFilter('all');
         setPresetGenderFilter('all');
         setPresetLanguageFilter('all');
         setIsDialogBusyProcessingVoice(false);
@@ -239,7 +429,6 @@ export default function Main({
         let presetsToUse = currentFilteredPresets.length > 0 ? currentFilteredPresets : (allAssistantPresets as AssistantPreset[]);
         if (presetsToUse.length > 0) {
             const randomIndex = Math.floor(Math.random() * presetsToUse.length);
-            presetsToUse = presetsToUse.filter(p => !p.voice_ids["openai"]) // Don't pick openai-voice presets as initial presets
             selectPresetForHireForm(presetsToUse[randomIndex]);
         }
 
@@ -247,22 +436,18 @@ export default function Main({
         setIsHireDialogOpen(true);
         refreshHiringProfile();
 
-    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetRegionFilter, setPresetGenderFilter, setPresetLanguageFilter, refreshHiringProfile]);
+    }, [resetHireFormInternal, currentFilteredPresets, selectPresetForHireForm, setPresetAgeFilter, setPresetNationalityFilter, setPresetGenderFilter, setPresetLanguageFilter, refreshHiringProfile]);
 
     const handleOpenEditDialog = React.useCallback((assistant: Assistant) => {
         loadAssistantForEdit(assistant);
         setAssistantToEdit(assistant);
     }, [loadAssistantForEdit]);
-
-    const handleOpenPhoneEditDialog = React.useCallback((assistant: Assistant) => {
-        loadAssistantForEdit(assistant); // Load data into the form
-        setAssistantForPhoneEdit(assistant);
-    }, [loadAssistantForEdit]);
-
-    const handleOpenEmailEditDialog = React.useCallback((assistant: Assistant) => {
-        loadAssistantForEdit(assistant); // Load data into the form
-        setAssistantForEmailEdit(assistant);
-    }, [loadAssistantForEdit]);
+    
+    const handleOpenContactManager = (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp' = 'email') => {
+        loadAssistantForEdit(assistant);
+        setContactManagerInitialTab(tab);
+        setContactManagerAssistant(assistant);
+    };
 
     const handleRandomizePreset = () => {
         if (currentFilteredPresets.length === 0) {
@@ -323,11 +508,12 @@ export default function Main({
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
     const activityLogPanelAssistant = React.useMemo(() => assistants.find(a => a.agent_id === activityLogAssistantId) || null, [assistants, activityLogAssistantId]);
     const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
+    const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
     
     // Determine active panel for width calculations
     const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
     const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
-    const assistantListWidth = isAssistantListFolded ? "w-18"
+    const assistantListWidth = isAssistantListFolded ? "w-12"
                              : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[300px] xl:w-[350px]" 
                              : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
@@ -343,6 +529,7 @@ export default function Main({
                 <div className={cn("h-full transition-all duration-300 ease-in-out relative border-r", assistantListWidth, "flex-shrink-0")}>
                     <AssistantList
                         assistants={assistants}
+                        assistantStatuses={assistantStatuses}
                         assistantError={assistantError}
                         isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
                         error={assistantError}
@@ -351,20 +538,27 @@ export default function Main({
                         onShowProfile={handleShowProfile}
                         onShowActivityLog={handleShowActivityLog}
                         onOpenHireDialog={handleOpenHireDialog}
+                        onOpenContactManager={handleOpenContactManager}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
+                        activeCallAssistantId={activeCallId}
+                        onHangUp={handleHangUp}
                     />
                 </div>
 
                 {/* Assistant Profile Panel */}
                 <AnimatePresence initial={false}>
-                    {isProfileOpen && profileAssistant && (
+                    {isProfileOpen && profileAssistant && [
                         <motion.div
                             key="assistant-profile"
-                            initial={{ width: "0%", opacity: 0, x: "-1%" }}
-                            animate={{ width: panelBaseWidth, opacity: 1, x: "0%" }}
-                            exit={{ width: "0%", opacity: 0, x: "-1%" }}
-                            transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: profilePanelWidth, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{
+                                type: "tween",
+                                ease: "easeInOut",
+                                duration: isResizingProfile ? 0 : 0.3
+                            }}
                             className="h-full flex-shrink-0 border-r overflow-hidden bg-background"
                         >
                             <AssistantProfilePanel
@@ -373,17 +567,32 @@ export default function Main({
                                 onClose={handleProfileClose}
                                 onDeleteAssistant={onDeleteAssistantSubmit}
                                 onEdit={handleOpenEditDialog}
-                                onOpenPhoneEditDialog={handleOpenPhoneEditDialog}
-                                onOpenEmailEditDialog={handleOpenEmailEditDialog}
+                                onOpenContactManager={handleOpenContactManager}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
                                 isFirstView={isFirstViewAfterHire}
                                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
                                 onFirstViewCompleted={() => setNewlyHiredInfo(null)}
+                                onStartCall={handleStartCall}
+                                activeCallAssistantId={activeCallId}
+                                isCallConnected={isCallConnected}
+                                isConnectingCall={isConnectingCall}
+                                userTimezone={userMeta.timezone}
                             />
-                        </motion.div>
-                    )}
+                        </motion.div>,
+                        <motion.div
+                            key="profile-resize-handle"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            onMouseDown={handleProfileResizeStart}
+                            className="w-1.5 h-full cursor-col-resize bg-transparent hover:bg-primary/20 active:bg-primary/40 transition-colors duration-200 flex-shrink-0"
+                            style={{ zIndex: 20 }}
+                        />
+                    ]}
                 </AnimatePresence>
+
 
                 {/* Assistant Activity Log Panel */}
                 <AnimatePresence initial={false}>
@@ -435,7 +644,7 @@ export default function Main({
                 </div>
             </div>
 
-            {/* Dialogs */}
+            {/* Dialogs and Overlays */}
             <FormProvider {...hireFormMethods}>
                 <AssistantHire
                     formMethods={hireFormMethods}
@@ -455,22 +664,15 @@ export default function Main({
                     userApprovalStatus={userHiringApprovalStatus}
                     isLoadingUserApproval={isLoadingHiringApproval || isProcessingHiringAction}
                     onRequestAccess={requestHiringAccess}
-                    availableSocialPlatforms={availableSocialPlatforms}
-                    isLoadingSocialPlatforms={isLoadingSocialPlatforms}
+                    isFastMode={hireFormFastMode}
                 >
                     <HireForm
                         assistants={assistants}
                         formMethods={hireFormMethods}
-                        isSubmitting={isFormSubmitting || isLoadingEmails || isLoadingSocialPlatforms}
+                        isSubmitting={isFormSubmitting || isLoadingEmails}
                         assistantActions={assistantActions}
                         onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                         onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
-                        allAssistantEmails={fetchedAssistantEmails}
-                        isLoadingEmails={isLoadingEmails}
-                        availablePhoneCountries={availablePhoneCountries}
-                        isLoadingCountries={isLoadingCountries}
-                        availableSocialPlatforms={availableSocialPlatforms}
-                        isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                         allDisplayableVoices={allDisplayableVoices}
                         isLoadingUserVoices={isLoadingUserVoices}
                         fetchUserVoices={fetchUserVoices}
@@ -488,15 +690,16 @@ export default function Main({
                         ageFilter={presetAgeFilter}
                         onAgeFilterChange={setPresetAgeFilter}
                         availableAgeBrackets={availableAgeBrackets}
-                        regionFilter={presetRegionFilter}
-                        onRegionFilterChange={setPresetRegionFilter}
-                        availableRegions={availableRegions}
+                        nationalityFilter={presetNationalityFilter}
+                        onNationalityFilterChange={setPresetNationalityFilter}
+                        availableNationalities={availableNationalities}
                         genderFilter={presetGenderFilter}
                         onGenderFilterChange={setPresetGenderFilter}
                         availableGenders={availableGenders}
                         languageFilter={presetLanguageFilter}
                         onLanguageFilterChange={setPresetLanguageFilter}
                         availableLanguages={availableLanguages}
+                        isFastMode={hireFormFastMode}
                         layoutMode="split" // Dummy prop
                         setLayoutMode={() => {}} // Dummy prop
                     />
@@ -521,12 +724,6 @@ export default function Main({
                             assistantActions={assistantActions}
                             onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
                             onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice} 
-                            allAssistantEmails={fetchedAssistantEmails}
-                            isLoadingEmails={isLoadingEmails}
-                            availablePhoneCountries={availablePhoneCountries}
-                            isLoadingCountries={isLoadingCountries}
-                            availableSocialPlatforms={availableSocialPlatforms}
-                            isLoadingSocialPlatforms={isLoadingSocialPlatforms}
                             allDisplayableVoices={allDisplayableVoices}
                             isLoadingUserVoices={isLoadingUserVoices}
                             fetchUserVoices={fetchUserVoices}
@@ -536,37 +733,75 @@ export default function Main({
                         />
                     </AssistantEdit>
                 )}
-                {assistantForPhoneEdit && (
-                    <AssistantEditPhone
-                        isOpen={!!assistantForPhoneEdit}
-                        onClose={() => setAssistantForPhoneEdit(null)}
-                        assistant={assistantForPhoneEdit}
+                {contactManagerAssistant && (
+                    <AssistantContactManager
+                        isOpen={!!contactManagerAssistant}
+                        onClose={() => setContactManagerAssistant(null)}
+                        assistant={contactManagerAssistant}
                         formMethods={hireFormMethods}
                         onSubmit={initiateUpdate}
                         isSubmitting={isFormSubmitting}
                         assistantActions={assistantActions}
-                        onSuccess={() => {
-                            setAssistantForPhoneEdit(null);
-                        }}
-                    />
-                )}
-
-                {assistantForEmailEdit && (
-                    <AssistantEditEmail
-                        isOpen={!!assistantForEmailEdit}
-                        onClose={() => setAssistantForEmailEdit(null)}
-                        assistant={assistantForEmailEdit}
-                        formMethods={hireFormMethods}
-                        onSubmit={initiateUpdate}
-                        isSubmitting={isFormSubmitting}
                         allAssistantEmails={fetchedAssistantEmails}
-                        onSuccess={() => {
-                            setAssistantForEmailEdit(null);
-                        }}
+                        availablePhoneCountries={availablePhoneCountries}
+                        isLoadingCountries={isLoadingCountries}
+                        availableSocialPlatforms={availableSocialPlatforms}
+                        onSuccess={handleUpdateSuccess}
+                        initialTab={contactManagerInitialTab}
                     />
                 )}
-
             </FormProvider>
+
+            <AssistantHireLocalSetupInstructionsDialog
+                isOpen={setupInstructions?.isOpen || false}
+                os={setupInstructions?.os || 'ubuntu'}
+                onClose={() => setSetupInstructions(null)}
+            />
+
+            {activeCallAssistant && (
+                <RoomContext.Provider value={room}>
+                    <AssistantCommunicationDialog
+                        isOpen={isCommunicationDialogOpen}
+                        onClose={handleHangUp}
+                        onMinimize={handleMinimizeCall}
+                        assistant={activeCallAssistant}
+                        assistantActions={assistantActions}
+                        room={room}
+                        chatHistories={profileChatHistories}
+                        setChatHistories={setProfileChatHistories}
+                        isConnecting={isConnectingCall}
+                        userImage={userMeta.image}
+                        isWaitingForAssistant={isWaitingForAssistant}
+                        isCallConnected={isCallConnected}
+                        connectionError={connectionError}
+                        onRetry={retryConnection}
+                        isRemoteControlActive={isRemoteControlActive}
+                        liveviewUrl={liveviewUrl}
+                        isRemoteControlLoading={isRemoteControlLoading}
+                        toggleRemoteControl={toggleRemoteControl}
+                        isRemoteControlInteractive={isRemoteControlInteractive}
+                        toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                        callType={callType}
+                        connectionDetails={connectionDetails}
+                    />
+                    {isCallMinimized && (
+                         <AssistantCommunicationMinimized
+                            assistant={activeCallAssistant}
+                            room={room}
+                            onHangUp={handleHangUp}
+                            onExpand={handleExpandCall}
+                            isSpeakerMuted={isSpeakerMuted}
+                            onToggleSpeaker={toggleSpeakerMute}
+                            isConnecting={isConnectingCall}
+                            isCallConnected={isCallConnected}
+                            isWaitingForAssistant={isWaitingForAssistant}
+                            connectionError={connectionError}
+                            onRetry={retryConnection}
+                            callType={callType}
+                        />
+                    )}
+                </RoomContext.Provider>
+            )}
         </>
     );
 }

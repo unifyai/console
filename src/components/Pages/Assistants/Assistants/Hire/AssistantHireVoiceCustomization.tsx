@@ -10,7 +10,7 @@ import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, Hourglass, X, Slash, TimerOff } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, Hourglass, X, Slash, TimerOff, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
@@ -58,6 +58,7 @@ export function VoiceCustomization({
     const designIncludeBio = watch("design_include_bio");
     const bioText = watch("about");
     const videoSourceVoiceId = watch("video_source_voice_id");
+    const isFastMode = watch("fast_mode");
     
     // Microphone recording state
     const [recordingStatus, setRecordingStatus] = React.useState<'idle' | 'recording'>('idle');
@@ -110,6 +111,11 @@ export function VoiceCustomization({
         isPlayingPreviewForVoiceId,
     } = useTTSPreview({ generateSpeechAction: assistantActions.voice.generate }); 
 
+    const handleSelectVoiceDisplay = React.useCallback((voice: VoiceOption | null) => {
+        setSelectedVoiceId(voice?.voice_id ?? null);
+        onVoiceSelected(voice);
+    }, [onVoiceSelected]);
+
     React.useEffect(() => {
         setSelectedVoiceId(initialVoiceId);
         if (initialVoiceId && activeMainTab !== 'select') { 
@@ -129,10 +135,24 @@ export function VoiceCustomization({
         }
     }, [activeMainTab, setCreateMode]);
 
-    const handleSelectVoiceDisplay = (voice: VoiceOption) => {
-        setSelectedVoiceId(voice.voice_id);
-        onVoiceSelected(voice); 
-    };
+    React.useEffect(() => {
+        if (isFastMode && (activeMainTab === 'clone' || activeMainTab === 'design')) {
+            setActiveMainTab('select');
+        }
+    }, [isFastMode, activeMainTab]);
+
+    React.useEffect(() => {
+        const currentVoice = selectedVoice;
+        if (!currentVoice) return;
+
+        if (isFastMode && currentVoice.provider !== 'openai') {
+            const defaultOpenAIVoice = allDisplayableVoices.find(v => v.provider === 'openai');
+            handleSelectVoiceDisplay(defaultOpenAIVoice || null);
+        } else if (!isFastMode && currentVoice.provider === 'openai') {
+            const defaultPrimaryVoice = allDisplayableVoices.find(v => v.provider === PRIMARY_VOICE_PROVIDER && v.is_preset);
+            handleSelectVoiceDisplay(defaultPrimaryVoice || null);
+        }
+    }, [isFastMode, selectedVoice, allDisplayableVoices, handleSelectVoiceDisplay]);
 
     const cleanupRecording = React.useCallback(() => {
         if (audioStreamRef.current) {
@@ -453,6 +473,33 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
 
     return (
         <div className={cn("", (disabled || isProcessingCreate || isGeneratingPreviews) && "opacity-70 cursor-not-allowed")}>
+            <div className="flex items-center gap-2 mb-3">
+                <Controller
+                    name="fast_mode"
+                    control={control}
+                    render={({ field }) => (
+                        <Checkbox
+                            id="fast-mode-toggle"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={disabled || isProcessingCreate || isGeneratingPreviews}
+                        />
+                    )}
+                />
+                    <Label htmlFor="fast-mode-toggle" className="text-label leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5 cursor-pointer">
+                    Fast Mode
+                </Label>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger type="button" asChild>
+                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs text-caption">
+                            <p>Use faster, multilingual voices. Low-latency voices are not customizable.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            </div>
             <Tabs 
                 value={activeMainTab} 
                 onValueChange={(v) => setActiveMainTab(v as ActiveCreatorTab)} 
@@ -460,13 +507,13 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
             >
                 <TabsList className={cn("grid w-full h-9", PRIMARY_VOICE_PROVIDER === 'elevenlabs' ? "grid-cols-3" : "grid-cols-2")}>
                     <TabsTrigger value="select" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Select</TabsTrigger>
-                    <TabsTrigger value="clone" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Clone</TabsTrigger>
+                    <TabsTrigger value="clone" disabled={disabled || isProcessingCreate || isGeneratingPreviews || isFastMode}>Clone</TabsTrigger>
                     {PRIMARY_VOICE_PROVIDER === 'elevenlabs' && (
-                        <TabsTrigger value="design" disabled={disabled || isProcessingCreate || isGeneratingPreviews}>Design</TabsTrigger>
+                        <TabsTrigger value="design" disabled={disabled || isProcessingCreate || isGeneratingPreviews || isFastMode}>Design</TabsTrigger>
                     )}
                 </TabsList>
 
-                <TabsContent value="select" className="mt-2 border rounded-md h-[276px]">
+                <TabsContent value="select" className="mt-0 border rounded-md h-[276px]">
                     <ScrollArea className="h-full w-full">
                         {isLoadingUserVoices ? (
                             <div className="p-2 space-y-1">

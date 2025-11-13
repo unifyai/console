@@ -1,10 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Mail, Phone, X, Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ExternalLink, Check, ChevronRight } from "lucide-react";
-import { SiGooglemeet } from "react-icons/si";
-import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import { BiLogoZoom } from "react-icons/bi";
-import { WhatsApp } from '@mui/icons-material';
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone, Video } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -21,9 +17,16 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/UI/dropdown-menu";
 import { ChatMessage } from '@/types/assistants/chat';
 import { AssistantProfileInfoPanel } from './AssistantProfileInfoPanel';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
+import { AssistantResourcesManager } from './AssistantResourcesManager';
 
 interface AssistantProfilePanelProps {
     assistant: Assistant;
@@ -31,13 +34,17 @@ interface AssistantProfilePanelProps {
     onClose: () => void;
     onDeleteAssistant: (assistant: Assistant) => Promise<void>;
     onEdit: (assistant: Assistant) => void;
-    onOpenPhoneEditDialog: (assistant: Assistant) => void;
-    onOpenEmailEditDialog: (assistant: Assistant) => void;
+    onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
+    onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => void;
+    activeCallAssistantId: string | null;
+    isCallConnected: boolean;
+    isConnectingCall: boolean;
+    userTimezone?: string | null;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -65,25 +72,37 @@ const AccordionTriggerWithButtons = React.forwardRef<
 ));
 AccordionTriggerWithButtons.displayName = AccordionTrigger.displayName;
 
-
 export function AssistantProfilePanel({
     assistant,
     assistantActions,
     onClose,
     onDeleteAssistant,
     onEdit,
-    onOpenPhoneEditDialog,
-    onOpenEmailEditDialog,
+    onOpenContactManager,
     chatHistories,
     setChatHistories,
     isFirstView,
     preHireChat,
     onFirstViewCompleted,
+    onStartCall,
+    activeCallAssistantId,
+    isCallConnected,
+    isConnectingCall,
+    userTimezone,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
-    const [isChatMaximized, setIsChatMaximized] = React.useState(false);
 
+    const isInThisCall = activeCallAssistantId === assistant.agent_id;
+    const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
+    const isCallButtonDisabled = isAnotherCallActive;
+
+    const callButtonTooltip = 
+        isInThisCall && isConnectingCall ? "Connecting call..." :
+        isInThisCall ? "Return to call" :
+        isAnotherCallActive ? "Another call is in progress" :
+        "Start a call";
+    
     const displayName = `${assistant.first_name} ${assistant.surname}`;
 
     const handleDeleteConfirm = async () => {
@@ -108,7 +127,7 @@ export function AssistantProfilePanel({
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                 <div className="h-full flex flex-col w-full bg-background">
                     
-                    <Accordion type="multiple" defaultValue={["profile", "chat"]} className="w-full flex-1 flex flex-col min-h-0">
+                    <Accordion type="multiple" defaultValue={["profile", "resources", "chat"]} className="w-full flex-1 flex flex-col min-h-0">
                         {/* Profile Section */}
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
@@ -128,7 +147,7 @@ export function AssistantProfilePanel({
                                     </TooltipProvider>
                                 }
                             >
-                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <User className="h-4 w-4" />
                                     <span className="text-body">{`${assistant.first_name}'s Profile`}</span>
                                 </div>
@@ -139,8 +158,29 @@ export function AssistantProfilePanel({
                             >
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
-                                    onOpenPhoneEditDialog={onOpenPhoneEditDialog} 
-                                    onOpenEmailEditDialog={onOpenEmailEditDialog}
+                                    userTimezone={userTimezone}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Manage Resources Section */}
+                        <AccordionItem value="resources">
+                             <AccordionTriggerWithButtons
+                                className="text-title"
+                            >
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
+                                    <Briefcase className="h-4 w-4" />
+                                    <span className="text-body">{`Manage ${assistant.first_name}'s resources`}</span>
+                                </div>
+                            </AccordionTriggerWithButtons>
+                            <AccordionContent
+                                outerClassName="data-[state=open]:flex flex-col flex-1 min-h-0 p-0"
+                                className="p-4 flex-1 min-h-0"
+                            >
+                                <AssistantResourcesManager 
+                                    assistant={assistant} 
+                                    assistantActions={assistantActions} 
+                                    onOpenContactManager={onOpenContactManager}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -150,27 +190,58 @@ export function AssistantProfilePanel({
                             <AccordionTriggerWithButtons
                                 className="text-title"
                                 buttonSlot={
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsChatMaximized(true)}>
-                                                    <Maximize2 className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Maximize Chat</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <div className="flex items-center gap-1">
+                                        {isInThisCall ? (
+                                            <TooltipProvider delayDuration={100}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onStartCall(assistant, 'video')} disabled={isCallButtonDisabled}>
+                                                            {(isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>{callButtonTooltip}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : (
+                                            <DropdownMenu>
+                                                <TooltipProvider delayDuration={100}>
+                                                    <Tooltip>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <TooltipTrigger asChild>
+                                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={isCallButtonDisabled}>
+                                                                    <Phone className="h-4 w-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                        </DropdownMenuTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p>{callButtonTooltip}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')}>
+                                                        <Video className="mr-2 h-4 w-4" />
+                                                        <span>Video Call</span>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')}>
+                                                        <Phone className="mr-2 h-4 w-4" />
+                                                        <span>Audio Call</span>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                    </div>
                                 }
                             >
-                                <div className='flex gap-2 items-center text-muted-foreground'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <MessageSquare className="h-4 w-4" />
                                     <span className="text-body">Chat with {assistant.first_name}</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent
-                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0"
+                                outerClassName="data-[state=open]:flex flex-1 min-h-0 p-0 data-[state=closed]:hidden"
                                 className="p-0 flex-1 min-h-0 flex"
                             >
                                 <AssistantProfileChatPanel 
@@ -226,30 +297,6 @@ export function AssistantProfilePanel({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            <Dialog open={isChatMaximized} onOpenChange={setIsChatMaximized}>
-                <DialogContent className="max-w-6xl h-[80vh] flex flex-col p-0 gap-0" hideClose >
-                     <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
-                        <div className="flex items-start justify-between">
-                            <DialogTitle className="text-title">Chat with {displayName}</DialogTitle>
-                            <Button variant="warning" size="icon" className="h-7 w-7 flex-shrink-0 -mt-1" onClick={() => setIsChatMaximized(false)}>
-                                <Minus className="h-4 w-4" />
-                                <span className="sr-only">Minimize Chat</span>
-                            </Button>
-                        </div>
-                    </DialogHeader>
-                    <div className="flex-1 min-h-0">
-                        <AssistantProfileChatPanel 
-                            assistant={assistant} 
-                            assistantActions={assistantActions}
-                            chatHistories={chatHistories}
-                            setChatHistories={setChatHistories}
-                            isFirstView={isFirstView}
-                            preHireChat={preHireChat}
-                            onFirstViewCompleted={onFirstViewCompleted}
-                        />
-                    </div>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

@@ -18,10 +18,10 @@ interface TaskPriorityFilterProps {
 
 const getPriorityDetails = (priority: Priority | 'all') => {
     switch (priority) {
-        case Priority.urgent: return { icon: Zap, label: "Urgent", iconClassName: "text-red-500" };
-        case Priority.high: return { icon: AlertTriangle, label: "High", iconClassName: "text-orange-500" };
-        case Priority.normal: return { icon: Minus, label: "Normal", iconClassName: "text-blue-500" };
-        case Priority.low: return { icon: Minus, label: "Low", iconClassName: "text-green-500" };
+        case Priority.urgent: return { icon: Zap, label: "Urgent", iconClassName: "text-destructive" };
+        case Priority.high: return { icon: AlertTriangle, label: "High", iconClassName: "text-warning" };
+        case Priority.normal: return { icon: Minus, label: "Normal", iconClassName: "text-primary" };
+        case Priority.low: return { icon: Minus, label: "Low", iconClassName: "text-muted-foreground" };
         default: return { icon: Filter, label: "All Priorities", iconClassName: "" };
     }
 };

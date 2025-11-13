@@ -140,13 +140,13 @@ export const updateLogs = async (apiKey: string) => {
 
 // get log fields
 export const getLogFields = async (apiKey: string) => {
-    return async (project: string, context: string | null) => {
+    return async (project: string, context: string | null, signal?: AbortSignal) => {
         "use server";
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
             + (context ? `&context=${context}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
+            { method: "GET", headers: { apiKey: apiKey }, signal }
         );
         return await response.json();
     };
@@ -211,12 +211,20 @@ export const getLogMetrics = async (apiKey: string) => {
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
-
+        const contentType = response.headers.get("content-type") || "";
         if (!response.ok) {
-            console.error(response);
-            throw new Error("Network error");
+            let detail = `${response.status} ${response.statusText}`;
+            if (contentType.includes("application/json")) {
+                try {
+                    const j = await response.json();
+                    if (j?.detail) detail = j.detail;
+                } catch { /* ignore parse errors */ }
+            }
+            throw new Error(`Upstream error: ${detail}`);
         }
-
+        if (!contentType.includes("application/json")) {
+            throw new Error(`Upstream error: ${response.status} ${response.statusText}`);
+        }
         return await response.json();
     }
 };
@@ -247,6 +255,20 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
             { method: "GET", headers: { apiKey: apiKey }, signal }
         );
+        const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) {
+            let detail = `${response.status} ${response.statusText}`;
+            if (contentType.includes("application/json")) {
+                try {
+                    const j = await response.json();
+                    if (j?.detail) detail = j.detail;
+                } catch { /* ignore */ }
+            }
+            throw new Error(`Upstream error: ${detail}`);
+        }
+        if (!contentType.includes("application/json")) {
+            throw new Error(`Upstream error: ${response.status} ${response.statusText}`);
+        }
         return await response.json();
     };
 };

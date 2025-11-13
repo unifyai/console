@@ -13,7 +13,7 @@ import {
 } from "@/components/UI/select";
 import { Accordion } from "@/components/UI/accordion";
 import { Virtuoso } from 'react-virtuoso';
-import { ScrollArea } from '@/components/UI/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../UI/tooltip';
 import { TaskStatusFilter } from '../Filters/TaskFilterStatus';
 import { TaskPriorityFilter } from '../Filters/TaskFilterPriority';
@@ -116,46 +116,49 @@ export function TaskList({
         <div className="flex flex-col h-full bg-background">
             {/* Header Area - Filter Controls */}
             <div className="px-4 py-3 border-b">
-                <div className='flex flex-wrap gap-2 items-center justify-start'>
-                    {/* Search */}
+                <ScrollArea className="w-full whitespace-nowrap">
+                    <div className='flex w-max items-center space-x-2'>
+                        {/* Search */}
                     <div className="relative flex-grow sm:flex-grow-0 sm:max-w-xs">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search tasks..."
-                            className="pl-8 w-full h-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            disabled={disableFilters}
-                         />
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search tasks..."
+                                className="pl-8 w-full h-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                disabled={disableFilters}
+                             />
+                        </div>
+                        {/* Assistant Filter */}
+                        <TaskAssistantFilter
+                            assistants={assistants}
+                            assistantFilter={assistantFilter}
+                            setAssistantFilter={setAssistantFilter}
+                            disableFilters={disableFilters}
+                        />
+                        {/* Status Filter */}
+                        <TaskStatusFilter
+                            statusFilter={statusFilter}
+                            setStatusFilter={setStatusFilter}
+                            disableFilters={disableFilters}
+                            availableStatuses={sortedStatuses}
+                        />
+                        {/* Priority Filter */}
+                        <TaskPriorityFilter
+                            priorityFilter={priorityFilter}
+                            setPriorityFilter={setPriorityFilter}
+                            disableFilters={disableFilters}
+                        />
+                        {/* Deadline Filter */}
+                        <TaskDeadlineFilter
+                            deadlineFilter={deadlineFilter}
+                            setDeadlineFilter={setDeadlineFilter}
+                            disableFilters={disableFilters}
+                        />
                     </div>
-                    {/* Assistant Filter */}
-                    <TaskAssistantFilter
-                        assistants={assistants}
-                        assistantFilter={assistantFilter}
-                        setAssistantFilter={setAssistantFilter}
-                        disableFilters={disableFilters}
-                    />
-                    {/* Status Filter */}
-                    <TaskStatusFilter
-                        statusFilter={statusFilter}
-                        setStatusFilter={setStatusFilter}
-                        disableFilters={disableFilters}
-                        availableStatuses={sortedStatuses}
-                    />
-                    {/* Priority Filter */}
-                    <TaskPriorityFilter
-                        priorityFilter={priorityFilter}
-                        setPriorityFilter={setPriorityFilter}
-                        disableFilters={disableFilters}
-                    />
-                    {/* Deadline Filter */}
-                    <TaskDeadlineFilter
-                        deadlineFilter={deadlineFilter}
-                        setDeadlineFilter={setDeadlineFilter}
-                        disableFilters={disableFilters}
-                    />
-                </div>
+                    <ScrollBar orientation="horizontal" className="hidden"/>
+                </ScrollArea>
             </div>
 
             {/* Task Rendering Area - Accordion contains Virtuoso or Skeletons */}

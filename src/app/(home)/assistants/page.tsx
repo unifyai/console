@@ -7,8 +7,8 @@ import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
-import { getTranscripts, updateTranscripts } from "@/lib/assistants/chat";
-import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount } from "@/lib/assistants/contact";
+import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
 import { ActivityLogActions } from "@/types/assistants/activity";
@@ -16,6 +16,9 @@ import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
+import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
+import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
+import { getLiveviewUrl, sendSystemEvent } from "@/lib/assistants/desktop";
 
 const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string } }) => {
     const user = await getCurrentUser();
@@ -57,18 +60,33 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         "chat": {
             getTranscripts: await getTranscripts(apiKey),
             updateTranscripts: await updateTranscripts(apiKey),
+            message: await messageAssistant(apiKey),
         },
         "contact": {
+            delete: await deleteAssistantContact(apiKey),
             listAllAssistantEmails: await listAllAssistantEmails(adminKey),
             listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
             listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
             verifySocialAccount: await verifySocialAccount(adminKey),
+        },
+        "secret": {
+            get: await getSecrets(apiKey),
+            create: await createSecret(apiKey),
+            delete: await deleteSecret(apiKey),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),
             claimToken: await claimAssistantHiringToken(apiKey),
             requestAccess: await requestAssistantHiringAccess(apiKey)
 
+        },
+        "call": {
+            getConnectionDetails: await getCallConnectionDetails(apiKey),
+            dispatchToCall: await dispatchAssistantToCall(apiKey),
+        },
+        "desktop": {
+            getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
+            sendSystemEvent: await sendSystemEvent(),
         }
     }
 
@@ -81,6 +99,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         get: await getActivitySummary(apiKey),
     }
 
+    const userMeta = { image: user.image, timezone: user.timezone };
+
     return (
         <div className="w-full h-full">
             <Main
@@ -88,6 +108,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
                 taskActions={taskActions}
                 activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
+                userMeta={userMeta}
             />
         </div>
     );

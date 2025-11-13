@@ -60,7 +60,7 @@ const LoadMore: React.FC<LoadMoreProps> = ({
         size="sm"
         onClick={onLoadMore}
         disabled={isDisabled}
-        className={`h-6 px-2 text-xs backdrop-blur-sm border border-border/50 shadow-md transition-colors ${
+        className={`h-6 px-2 text-body-sm backdrop-blur-sm border border-border/50 shadow-md transition-colors ${
           isDisabled 
             ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-50' 
             : 'bg-background/90 hover:bg-accent hover:text-accent-foreground'

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
 import { CodeSandbox } from "@codesandbox/sdk";
 
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
     const sandbox = await sdk.sandbox.create({
         title: userId,
         template: templateId,
+        hibernationTimeoutSeconds: 300,
     });
     return Response.json(sandbox);
 }

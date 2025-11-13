@@ -47,6 +47,7 @@ import { onGroupExpand, maybeFlattenGroupedLogs } from "@/utils/interfaces/table
 import ContextSelector from "./Content/ContextSelector";
 import ContextTreePicker from "@/components/Common/Dropdowns/ContextTreePicker";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/UI/popover";
+import BaseDialog from "@/components/Common/Dialogs/Base";
 import ResetServerAction from "./Buttons/ResetServerAction";
 import CreateEmptyLogRow from "./Buttons/CreateEmptyLogRow"; // Import the new button
 import { deselectFromClickOutside } from "@/hooks/Interfaces/useCellSelection";
@@ -77,6 +78,7 @@ import { getDeep, setDeep } from "@/utils/objectPath";
 import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection/SelectionUtils";
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
+import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -141,6 +143,8 @@ const LogsTable = ({
   const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
   const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
   const context_ = tabDataState?.globalContext;
+  // Retry state for error screen
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Use granular hooks for better performance
   const {
@@ -162,7 +166,7 @@ const LogsTable = ({
   } = useTableDataQueryWithTracking(tileId, tabId);
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-  const availableContexts = listContextsQuery.data || [];
+  const availableContexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
 
   // Use the existing table data item as single source of truth
   const {
@@ -450,16 +454,22 @@ const LogsTable = ({
   ), [columnIDs, hiddenList, defaultHidden]);
 
   // Toggle handler for updating hiddenColumns from visibility map
-  const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => {
+  const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => { 
+    // Cancel any in-flight auto-update queries to prevent overwrites
+    const autoUpdateQueryKey = ["tableDataItem", "autoUpdate", tileId];
+    queryClient.cancelQueries({ queryKey: autoUpdateQueryKey });
+
     const hidden = Object.keys(v).filter((k) => !v[k]);
-    tableTileActions?.setHiddenColumns(
-      hidden.length
-        ? hidden.join(",")
-        : hidden.length === 0
-          ? ""
-          : undefined
-    );
-  }, [tableTileActions]);
+
+    // Apply the optimistic UI update
+    tableTileActions?.setHiddenColumns( 
+       hidden.length
+         ? hidden.join(",")
+         : hidden.length === 0
+           ? ""
+           : undefined
+     );
+  }, [tableTileActions, tileId, queryClient]);
 
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const setLogsFilters = useCallback((filtersObj: FiltersByColumn) => {
@@ -900,49 +910,59 @@ const LogsTable = ({
   const { interface: interfaceObj } = useInterface(interfaceId, projectId);
   const inheritedContext = (item?.context || context_ || (interfaceObj as any)?.context || null);
 
-  const contextSelectorButton = (inOverlay: boolean) => projectId ? (
-    <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
-      <PopoverTrigger asChild>
-        <Button variant={inheritedContext ? "primary" : "outline"} size={inOverlay ? "default" : "sm"} className={inOverlay ? "" : "h-7"}>
-          <FolderTree className="h-4 w-4 mr-2"/>
-          {inOverlay ? "Context" : "Context"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-96 z-50 p-0">
-        <ContextTreePicker
+  const onPickContext = (ctx: string) => {
+    const s = (storeApi.getState() as any);
+    const tileIdResolved = tileId;
+    // Optimistic clear or set
+    s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+    s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
+    // Also update legacy synced actions to reflect immediately
+    syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, "");
+  };
+
+  const onClearContext = () => {
+      const s = (storeApi.getState() as any);
+      const tileIdResolved = tileId;
+      s.setContextOptimistic?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+      s.enqueueContextSync?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
+      syncedTileActions?.data?.setContextAndColumnContext(undefined, "");
+  };
+
+  const treePicker = (onPick: (ctx: string) => void) => (
+      <ContextTreePicker
           contexts={(listContextsQuery.data || []).map(c => c.name)}
           current={item?.context || null}
           basePrefix={(context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || undefined) as any}
           inherited={!item?.context ? (context_ || (interfaceObj as any)?.context || ((storeApi.getState() as any).projectDefaultContext?.[projectId || ""]) || null) : null}
-          onPick={(ctx) => {
-            const s = (storeApi.getState() as any);
-            const tileIdResolved = tileId;
-            // Optimistic clear or set
-            s.setContextOptimistic?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
-            s.enqueueContextSync?.('tile', tileIdResolved, ctx, { tabId, interfaceId, projectId });
-            // Also update legacy synced actions to reflect immediately
-            syncedTileActions?.data?.setContextAndColumnContext(ctx || undefined, "");
-
-          }}
+          onPick={onPick}
           className="w-full"
           projectId={projectId || undefined}
           contextActions={contextActions}
           hideClear
-        />
-        <div className="flex items-center justify-between p-2 border-t border-border">
-          <Button variant="outline" size="sm" onClick={() => {
-            const s = (storeApi.getState() as any);
-            const tileIdResolved = tileId;
-            s.setContextOptimistic?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
-            s.enqueueContextSync?.('tile', tileIdResolved, "", { tabId, interfaceId, projectId });
-            syncedTileActions?.data?.setContextAndColumnContext(undefined, "");
-          }}>Clear selection</Button>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => setTableContextPopoverOpen(false)}>Cancel</Button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  ) : null;
+      />
+  );
 
+  const contextSelectorForPopover = projectId ? (
+      <Popover open={tableContextPopoverOpen} onOpenChange={setTableContextPopoverOpen}>
+          <PopoverTrigger asChild>
+              <Button variant={inheritedContext ? "primary" : "outline"} size="sm" className="h-7">
+                  <FolderTree className="h-4 w-4 mr-2"/>
+                  Context
+              </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 z-50 p-0">
+              {treePicker((ctx) => {
+                  onPickContext(ctx);
+                  setTableContextPopoverOpen(false);
+              })}
+              <div className="flex items-center justify-between p-2 border-t border-border">
+                  <Button variant="outline" size="sm" onClick={onClearContext}>Clear selection</Button>
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={() => setTableContextPopoverOpen(false)}>Cancel</Button>
+              </div>
+          </PopoverContent>
+      </Popover>
+  ) : null;
+  
   const createLogRedirectButton = <Button
     onClick={(e) => {
         e.stopPropagation();
@@ -952,6 +972,20 @@ const LogsTable = ({
     Learn how to create logs
     <ExternalLink className="h-4 w-4" />
   </Button>
+
+  const selectContextButton = <Button
+    onClick={(e) => {
+        e.stopPropagation();
+        setTableContextPopoverOpen(true);
+    }}
+  >
+    <FolderTree className="h-4 w-4 mr-2"/>
+    Select a Context
+  </Button>
+
+  // Show error UI if data fetch failed - moved after all hooks
+  const showError = error && typeof error === 'string' && !isTableDataLoading;
+  const isTimeout = error?.includes('timeout') || error?.includes('504');
 
   // Empty table overlay display and content
   const showOverlay =
@@ -1083,7 +1117,7 @@ const LogsTable = ({
                   currentTable={item?.name || ""}
                   tableArguments={tableArguments}
               />
-              {contextSelectorButton(false)}
+              {contextSelectorForPopover}
           </div>
         </div>
 
@@ -1253,32 +1287,122 @@ const LogsTable = ({
     };
   }, [pageScrollContainerRef]);
 
+  // New refs and state for "Load More" button positioning
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const tableMenuRef = useRef<HTMLDivElement>(null);
+  const [loadMoreStyle, setLoadMoreStyle] = useState<React.CSSProperties>({});
+  const [isLoadMoreVisible, setIsLoadMoreVisible] = useState(true);
+  
+  const tileDimensions = useDimensionsTracker(containerRef); // containerRef is the tile's main div
+  const tableDimensions = useDimensionsTracker(tableContainerRef); // will be on the table's wrapper
+  const scrollAreaDimensions = useDimensionsTracker(scrollAreaRef); // on the ScrollArea component
+  const tableMenuDimensions = useDimensionsTracker(tableMenuRef); // on the menu's wrapper
+
+  useEffect(() => {
+      const tileWidth = tileDimensions.width;
+      const tableWidth = tableDimensions.width;
+      const tableHeight = tableDimensions.height;
+      const scrollAreaHeight = scrollAreaDimensions.height;
+      const menuHeight = tableMenuDimensions.height;
+      
+      // Ensure we have valid dimensions to work with before calculating
+      if (tileWidth > 0 && scrollAreaHeight > 0 && tableHeight > 0) {
+          // If the full table height is greater than the available scroll area,
+          // it means the table is overflowing and scrolling. In this case, hide the button.
+          if (tableHeight > scrollAreaHeight) {
+              setIsLoadMoreVisible(false);
+          } else {
+              // Otherwise, the table fits, so show the button and calculate its position.
+              setIsLoadMoreVisible(true);
+              
+              // --- Vertical Position ---
+              // Position it 10px below the actual rendered table.
+              const top = menuHeight + tableHeight + 10;
+
+              // --- Horizontal Position ---
+              // Center it relative to the narrower of the tile or the table.
+              const centeringWidth = Math.min(tileWidth, tableWidth);
+              const left = centeringWidth / 2;
+
+              setLoadMoreStyle({
+                  position: 'absolute',
+                  top: `${top}px`,
+                  left: `${left}px`,
+                  transform: 'translateX(-50%)',
+                  zIndex: 40, // Ensure it's above the table but can be below other UI elements
+              });
+          }
+      }
+  }, [tileDimensions, tableDimensions, scrollAreaDimensions, tableMenuDimensions]);
+
+
   return (
     <div
       ref={containerRef}
       className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
-      {/* If truly pending or logs not present, show a spinner */}
-      {showSpinner ? (
+      {/* Show error UI if data fetch failed */}
+      {showError ? (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+          {isRetrying ? (
+            <div className="flex items-center justify-center gap-3">
+              <Loader2 className="animate-spin" />
+              <span className="text-body">Retrying…</span>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
+                <p className="text-body text-muted-foreground max-w-md">
+                  {isTimeout 
+                    ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
+                    : error}
+                </p>
+              </div>
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsRetrying(true);
+                    await queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
+                    await queryClient.invalidateQueries({ queryKey: ['fields', projectId, context_ ?? null] });
+                  } finally {
+                    setTimeout(() => setIsRetrying(false), 300);
+                  }
+                }}
+                disabled={isRetrying}
+              >
+                Retry Loading Data
+              </Button>
+            </>
+          )}
+        </div>
+      ) : showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
           <Loader2 className="animate-spin my-36" />
         </div>
       ) : (
-        <div className="w-full h-full flex flex-col min-h-0">
-          {tableMenu}
+        <div className="w-full h-full flex flex-col min-h-0 relative">
+          <div ref={tableMenuRef}>
+            {tableMenu}
+          </div>
           <ScrollArea ref={scrollAreaRef} className="w-full flex-1 tutorial-logs-table pb-3 pr-3 relative min-h-0">
             {showOverlay && (
               <EmptyTableOverlay
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? contextSelectorButton(true) : createLogRedirectButton}
-                withPulse={overlayMode === "context" ? true : false}
+                actionButton={overlayMode === "context" ? selectContextButton : createLogRedirectButton}
+                withPulse={true}
               />
             )}
               {/* <div className="min-w-max w-full"> */}
-            <div className="min-w-0 w-fit pr-4 pb-2">
+            <div className="min-w-0 w-fit pr-4 pb-2" ref={tableContainerRef}>
               {projectId ? (
                 <div className="flex h-full gap-2">
                   {Array.from({ length: panelCount }).map((_, idx) => (
@@ -1291,6 +1415,18 @@ const LogsTable = ({
                         overflowY: "visible",
                       }}
                     >
+                    {error && (
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/30 px-2 py-1 rounded">
+                        <span className="text-caption">{String(error)}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => infiniteLogsQuery.refetch()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    )}
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
                         interactive={interactive}
@@ -1622,6 +1758,7 @@ const LogsTable = ({
                                       filterExpression={filterExpression}
                                       logsLength={logs.length}
                                       logsActions={logsActions}
+                                      enabled={showMetricsRow}
                                     />
                                   : null
                             }
@@ -1643,10 +1780,18 @@ const LogsTable = ({
                 <BaseTable items={[{ Entries: "Select a project to display your logs." }]} />
               )}
               </div>
-            {/* </div> */}
             <ScrollBar orientation="vertical" className="z-50" />
             <ScrollBar orientation="horizontal" className="z-50" />
           </ScrollArea>
+           {/* Absolutely positioned LoadMore button */}
+           {effectiveHasNextPage && !infiniteLogsQuery.isFetchingNextPage && isLoadMoreVisible && (
+            <div style={loadMoreStyle}>
+              <LoadMore
+                onLoadMore={() => infiniteLogsQuery.fetchNextPage()}
+                interactive={interactive}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

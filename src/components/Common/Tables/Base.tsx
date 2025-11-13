@@ -17,7 +17,7 @@ export  function BaseTable ({items, headers, caption, footer} : {
         <TableHeader>
           <TableRow>
             {labels.map((column, index) => 
-                <TableHead key={index}>{column}</TableHead>    
+                <TableHead key={index} className="px-2 py-1">{column}</TableHead>    
             )}
           </TableRow>
         </TableHeader>
@@ -25,7 +25,7 @@ export  function BaseTable ({items, headers, caption, footer} : {
           {items.map((item, index) => (
             <TableRow key={index}>
                 {columns.map((column, index) => 
-                    <TableCell key={index}>{item[column]}</TableCell>
+                    <TableCell key={index} className="px-2 py-1 text-body-sm">{item[column]}</TableCell>
                 )}
             </TableRow>
           ))}
@@ -34,4 +34,3 @@ export  function BaseTable ({items, headers, caption, footer} : {
       </Table>
     )
   }
-  

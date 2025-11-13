@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { CodeSandbox } from "@codesandbox/sdk";
 import { randomUUID } from "crypto";
+import { buildGDriveMountCommand, buildGDriveCleanupCommand, buildGDriveMountSyncCommand } from "./gdrive_utils";
 
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
@@ -15,6 +16,8 @@ type TerminalEntry = {
   sandbox: any; // CodeSandbox Session type (not exported)
   terminal: any; // CodeSandbox Terminal type (not exported)
   outputBuffer: string;
+  mountBases?: string[];
+  mountPoints?: string[];
 };
 
 const terminalStore: Map<string, TerminalEntry> = globalThis.__terminalStore__ ?? new Map();
@@ -36,7 +39,7 @@ async function ensureSandbox(userId: string) {
   const list = await sdk.sandbox.list();
   let sandboxId = list.sandboxes.find((s: any) => s.title === userId)?.id;
   if (!sandboxId) {
-    const sandbox = await sdk.sandbox.create({ title: userId, template: templateId });
+    const sandbox = await sdk.sandbox.create({ title: userId, template: templateId, hibernationTimeoutSeconds: 300 });
     sandboxId = sandbox.id;
   }
   return sandboxId;
@@ -58,8 +61,11 @@ async function createTerminal(
   }
 
   if (cwd !== "/project/sandbox") {
+    terminal.write(`mkdir -p "${cwd}"\n`);
     terminal.write(`cd "${cwd}"\n`);
   }
+
+  terminal.write("clear\n");
 
   const sessionId = randomUUID();
   terminalStore.set(sessionId, { sandboxId: sandbox.id, sandbox, terminal, outputBuffer: "" });
@@ -71,6 +77,38 @@ async function createTerminal(
   });
 
   return { sessionId };
+}
+
+
+async function setupGDriveMount(sessionId: string, assistantEmails: string[], mountBases: string[]) {
+  const entry = terminalStore.get(sessionId);
+  if (!entry) throw new Error("Invalid session_id");
+
+  const command = buildGDriveMountCommand(assistantEmails, mountBases);
+  await runCommand(sessionId, command);
+  await new Promise((resolve) => setTimeout(resolve, 20_000));
+
+  const syncCommand = buildGDriveMountSyncCommand(mountBases);
+  await runCommand(sessionId, syncCommand);
+
+  const updated = terminalStore.get(sessionId);
+  if (updated) {
+    updated.mountBases = mountBases;
+  }
+}
+
+async function cleanupMounts(sessionId: string) {
+  const entry = terminalStore.get(sessionId);
+  if (!entry) return;
+  const mountBases = entry.mountBases || ["google_drives"];
+  const command = buildGDriveCleanupCommand(mountBases);
+  try {
+    await runCommand(sessionId, command);
+    // Wait for cleanup to finish before killing the terminal
+    await new Promise((resolve) => setTimeout(resolve, 20_000));
+  } catch (_) {
+    // ignore cleanup errors
+  }
 }
 
 async function runCommand(sessionId: string, command: string) {
@@ -140,11 +178,47 @@ export async function POST(req: NextRequest) {
     const userId = body.user_id as string | undefined;
     const shell = (body.shell as string | undefined) ?? "bash";
     const cwd  = (body.cwd  as string | undefined) ?? "/project/sandbox";
+    const mountGdrive = (body.mount_gdrive as boolean | undefined) ?? cwd.includes("Assistants");
 
     if (!userId) return Response.json({ detail: "Missing user_id" }, { status: 400 });
 
     try {
       const { sessionId } = await createTerminal(userId, shell, cwd);
+      if (mountGdrive) {
+        // Fetch assistant emails internally
+        let assistantEmails: string[] = [];
+        try {
+          const emailsRes = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/emails`, {
+            method: "GET",
+            headers: {
+              apiKey: req.headers.get("apiKey") || "",
+            },
+            cache: 'no-store',
+          });
+          if (emailsRes.ok) {
+            const data = await emailsRes.json();
+            const emails: string[] = data?.emails || [];
+            assistantEmails = emails;
+          }
+        } catch (e) {
+          console.error("[terminal] failed to fetch assistant emails", e);
+        }
+
+        if (assistantEmails.length > 0) {
+          const mountBases = assistantEmails.map((email: string) => {
+            const localPart = email.split("@")[0] || "user";
+            const safeLocal = localPart.replace(/[^a-zA-Z0-9_-]/g, "_");
+            return `google_drives/${safeLocal}`;
+          });
+          try {
+            await setupGDriveMount(sessionId, assistantEmails, mountBases);
+          } catch (e) {
+            console.error("[terminal] gdrive mount setup error", e);
+          }
+          return Response.json({ session_id: sessionId, shell, cwd, mount_bases: mountBases });
+        }
+      }
+
       return Response.json({ session_id: sessionId, shell, cwd });
     } catch (err: any) {
       console.error("[terminal] create error", err);
@@ -180,6 +254,11 @@ export async function DELETE(req: NextRequest) {
     const sessionId = body.session_id as string | undefined;
     if (!sessionId) return Response.json({ detail: "Missing session_id" }, { status: 400 });
 
+    try {
+      await cleanupMounts(sessionId);
+    } catch (e) {
+      console.error("[terminal] cleanup error", e);
+    }
     await killSession(sessionId);
     return Response.json({ detail: "Session terminated" });
   } catch (err: any) {

@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage } from "@/types/assistants/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider } from "@/types/assistants/assistant";
 
 export const listAssistants = async (apiKey: string) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
@@ -168,10 +168,11 @@ export const updateAssistant = async (apiKey: string) => {
 
 export const createAssistant = async (apiKey: string) => {
     return async (
-        first_name: string, surname: string, age: number | null, region: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
-        email: string | null, user_phone: string | null, country: string | null,
-        user_whatsapp_number: string | null,
+        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, 
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
+        email: string | null, user_phone: string | null, phone_country: string | null,
+        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
@@ -189,15 +190,19 @@ export const createAssistant = async (apiKey: string) => {
                         first_name,
                         surname,
                         age,
-                        region,
+                        nationality,
                         profile_photo,
                         profile_video,
                         about,
                         voice_id,
+                        voice_provider,
+                        voice_mode,
                         email,
                         user_phone,
-                        country,
+                        phone_country,
+                        timezone,
                         user_whatsapp_number,
+                        user_local_desktop,
                         max_parallel: 10,
                         weekly_limit: 40,
                         create_infra: true,

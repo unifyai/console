@@ -132,6 +132,17 @@ export const useCellSelection = ({
 
   /* Handle keyboard navigation */
   const handleCellsKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (
+      (target.isContentEditable ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA') &&
+      ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+    ) {
+      e.stopPropagation();
+      return;
+    }
+    
     switch (e.key) {
       case "ArrowDown": {
         e.preventDefault();

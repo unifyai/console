@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, CancelledError } from "@tanstack/react-query";
 import { PlotDataItem, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
 import { PlotArguments } from "@/types/interfaces/logs";
 import { buildPlotDataItem } from "@/utils/data/buildPlotDataItem";
@@ -60,7 +60,7 @@ export function usePlotAutoUpdateQuery(
   // Main cache key for syncing
   const mainQueryKey = ["plotDataItem", tileId];
   
-  const queryFn = async (): Promise<PlotDataItem> => {
+  const queryFn = async ({ signal }: { signal?: AbortSignal }): Promise<PlotDataItem> => {
     if (!tileId || !tabId) throw new Error("Tile ID and Tab ID are required");
     
     // Get current state from store
@@ -86,10 +86,7 @@ export function usePlotAutoUpdateQuery(
       projectId,
       false,
       true,
-      true,
-      projectsActions,
-      contextActions,
-      fieldsActions
+      true
     );
     perfLog(
       `[perf] usePlotAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(
@@ -109,28 +106,36 @@ export function usePlotAutoUpdateQuery(
       }
     });
     
-    // Build plot data item using the same logic as optimistic updates
-    const plotDataItem = await buildPlotDataItem(
-      plotTileData,
-      tableTilesData,
-      plotArguments,
-      fieldsArray,
-      projectId,
-      logsActions
-      // Temporarily removed abort signal to fix connection issues
-    );
+    try {
+      // Build plot data item using the same logic as optimistic updates
+      const plotDataItem = await buildPlotDataItem(
+        plotTileData,
+        tableTilesData,
+        plotArguments,
+        fieldsArray,
+        projectId,
+        logsActions,
+        signal as AbortSignal
+      );
 
-    // Update BOTH the auto-update cache AND the main cache to keep them in sync
-    queryClient.setQueryData(autoUpdateQueryKey, plotDataItem);
-    queryClient.setQueryData(mainQueryKey, plotDataItem);
+      // Update BOTH the auto-update cache AND the main cache to keep them in sync
+      queryClient.setQueryData(autoUpdateQueryKey, plotDataItem);
+      queryClient.setQueryData(mainQueryKey, plotDataItem);
 
-    return plotDataItem;
+      return plotDataItem;
+    } catch (e: any) {
+      const msg = String(e?.message || e);
+      if ((signal as AbortSignal | undefined)?.aborted || e?.name === 'AbortError' || /Abort|aborted|Connection closed/i.test(msg)) {
+        throw new CancelledError();
+      }
+      throw e;
+    }
   };
   
   const query = useQuery<PlotDataItem>({
     queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
+    enabled: !!tileId && !!tileDataState && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
     refetchOnWindowFocus: autoUpdate,

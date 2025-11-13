@@ -62,19 +62,32 @@ export const showLoadingToast = (message: string) => {
     )) as string | number;
 };
 
+// Track recent error toasts to prevent duplicates
+const recentErrorToasts = new Map<string, number>();
+const ERROR_TOAST_DEDUPE_WINDOW = 2000; // 2 seconds
+
 export const showErrorToast = (
   error: any,
   defaultMessage: string = "An unexpected error occurred.",
   id?: string | number
 ) => {
   const errorMessage = (error as Error)?.message || '';
+  
+  // Ignore cancellations (these are expected, not errors)
   if ((error as Error).name === 'AbortError' || errorMessage.includes('Connection closed')) {
     return;
   }
+  
   console.error("API Error:", error);
 
   let message = defaultMessage;
-  if (error instanceof Error) {
+  let title = "Error";
+  
+  // Special handling for timeout errors (504 Gateway Timeout)
+  if (errorMessage.includes('timeout') || errorMessage.includes('504')) {
+    title = "Request Timeout";
+    message = "Save timed out. Please try again.";
+  } else if (error instanceof Error) {
     if (error.message.includes("Failed to fetch")) {
       message = "Network request failed. Please check your connection.";
     } else {
@@ -84,18 +97,33 @@ export const showErrorToast = (
     message = error;
   }
 
+  // Deduplicate: prevent showing the same error toast multiple times in quick succession
+  const dedupeKey = `${title}:${message}`;
+  const now = Date.now();
+  const lastShown = recentErrorToasts.get(dedupeKey);
+  if (lastShown && (now - lastShown) < ERROR_TOAST_DEDUPE_WINDOW) {
+    console.warn('[showErrorToast] Suppressing duplicate error toast:', dedupeKey);
+    return;
+  }
+  recentErrorToasts.set(dedupeKey, now);
+  
+  // Clean up old entries to prevent memory leak
+  setTimeout(() => {
+    recentErrorToasts.delete(dedupeKey);
+  }, ERROR_TOAST_DEDUPE_WINDOW);
+
   scheduleToast(() => toast.custom(
     (toastId) => (
         <CustomToast
             id={toastId}
             Icon={Info}
-            title="Error"
+            title={title}
             description={message}
         />
     ),
     {
         id,
-        duration: 4000,
+        duration: errorMessage.includes('timeout') || errorMessage.includes('504') ? 6000 : 4000, // Longer duration for timeouts
         className: 'min-w-[380px] h-16 p-0 bg-transparent border-none shadow-none',
     }
   ));

@@ -28,8 +28,8 @@ export default function FormEntry ({form, name, label, description, choices}: {
             name={name}
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>{label}</FormLabel>
-                    {description && <FormDescription>{description}</FormDescription>}
+                    <FormLabel className="text-label">{label}</FormLabel>
+                    {description && <FormDescription className="text-caption">{description}</FormDescription>}
                     <FormControl>
                         {input(field)}
                     </FormControl>

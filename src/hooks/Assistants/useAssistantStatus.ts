@@ -2,64 +2,69 @@ import * as React from 'react';
 import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 
+const POLLING_INTERVAL = 60000; // Poll every minute
+
 export function useAssistantStatus(
     assistants: Assistant[],
     getStatusAction: (id: string) => Promise<(AssistantStatus & ResponseProps) | ResponseProps>
 ) {
     const [statuses, setStatuses] = React.useState<Map<string, AssistantStatus | null>>(new Map());
-    const timersRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const pollerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const fetchAllStatuses = React.useCallback(async (assistantList: Assistant[]) => {
+        if (assistantList.length === 0) {
+            setStatuses(new Map()); // Clear statuses if no assistants
+            return;
+        }
+
+        const promises = assistantList.map(async (assistant) => {
+            try {
+                const result = await getStatusAction(assistant.agent_id);
+                if (result && 'running' in result) {
+                    return { assistantId: assistant.agent_id, status: result as AssistantStatus };
+                }
+                // Don't log error here as it can be noisy, the action itself logs.
+                return { assistantId: assistant.agent_id, status: null };
+            } catch (error) {
+                console.error(`Error fetching status for assistant ${assistant.agent_id} in bulk fetch:`, error);
+                return { assistantId: assistant.agent_id, status: null };
+            }
+        });
+
+        const results = await Promise.all(promises);
+        
+        setStatuses(prev => {
+            const newStatuses = new Map(prev);
+            results.forEach(({ assistantId, status }) => {
+                newStatuses.set(assistantId, status);
+            });
+            return newStatuses;
+        });
+
+    }, [getStatusAction]);
 
     React.useEffect(() => {
-        const currentTimers = timersRef.current;
-        
-        // Function to fetch status and schedule the next fetch
-        const fetchAndSchedule = async (assistantId: string) => {
-            try {
-                const result = await getStatusAction(assistantId);
-                let status: AssistantStatus | null = null;
-                
-                if (result && 'running' in result) {
-                    status = result as AssistantStatus;
-                } else {
-                    console.warn(`Could not retrieve status for assistant ${assistantId}:`, (result as ResponseProps).detail);
-                }
+        // Stop any existing polling
+        if (pollerRef.current) {
+            clearInterval(pollerRef.current);
+        }
 
-                setStatuses(prev => new Map(prev).set(assistantId, status));
+        // Immediately fetch statuses when assistants list changes
+        fetchAllStatuses(assistants);
 
-                if (status && status.inactivity_timeout_minutes > 0) {
-                    const nextFetchDelay = status.inactivity_timeout_minutes * 60 * 1000;
-                    const timerId = setTimeout(() => fetchAndSchedule(assistantId), nextFetchDelay);
-                    currentTimers.set(assistantId, timerId);
-                }
-            } catch (error) {
-                console.error(`Error fetching status for assistant ${assistantId}:`, error);
-                setStatuses(prev => new Map(prev).set(assistantId, null));
-            }
-        };
+        // Then start polling at a fixed interval
+        pollerRef.current = setInterval(() => {
+            fetchAllStatuses(assistants);
+        }, POLLING_INTERVAL);
 
-        const assistantIds = new Set(assistants.map(a => a.agent_id));
-
-        // Clear timers for assistants that are no longer in the list
-        currentTimers.forEach((timerId, assistantId) => {
-            if (!assistantIds.has(assistantId)) {
-                clearTimeout(timerId);
-                currentTimers.delete(assistantId);
-            }
-        });
-
-        // Start polling for new assistants
-        assistants.forEach(assistant => {
-            if (!currentTimers.has(assistant.agent_id)) {
-                fetchAndSchedule(assistant.agent_id);
-            }
-        });
-
-        // Cleanup on unmount
+        // Cleanup on unmount or when dependencies change
         return () => {
-            currentTimers.forEach(timerId => clearTimeout(timerId));
+            if (pollerRef.current) {
+                clearInterval(pollerRef.current);
+            }
         };
 
-    }, [assistants, getStatusAction]);
+    }, [assistants, fetchAllStatuses]);
 
     return { statuses };
 }

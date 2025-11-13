@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
-import { getSession } from '@/lib/user/user'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image';
 
 // Removed favourites handling
@@ -33,6 +33,7 @@ export default function TopNav() {
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
 
   const router = useRouter()
+  const { data: session } = useSession();
 
   const handleSignOut = async () => {
     // Prevent the dropdown from closing before signOut completes
@@ -40,26 +41,19 @@ export default function TopNav() {
     router.push('/login')
   }
 
-  // Fetch user session data
+  // Populate user info from session provider
   useEffect(() => {
-    (async () => {
-      try {
-        const sessionData = await getSession()
-        const userName = sessionData?.user?.name || "Profile"
-        const imageUrl = sessionData?.user?.image || ""
-        setProfileName(userName)
-        const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
-        setAvatarJSX(
-          <Avatar className="h-6 w-6">
-            <AvatarImage src={imageUrl} alt="User Avatar"/>
-            <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
-          </Avatar>
-        )
-      } catch (err) {
-        console.error("Failed to fetch user info", err)
-      }
-    })()
-  }, [])
+    const userName = session?.user?.name || "Profile";
+    const imageUrl = session?.user?.image || "";
+    setProfileName(userName)
+    const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
+    setAvatarJSX(
+      <Avatar className="h-6 w-6">
+        <AvatarImage src={imageUrl} alt="User Avatar"/>
+        <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
+      </Avatar>
+    )
+  }, [session])
 
   // Removed favourites fetching effect
 
@@ -71,7 +65,7 @@ export default function TopNav() {
 
   return (
     <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
-      <div className="h-full px-4 flex items-center justify-between">
+      <div className="h-full px-3.5 flex items-center justify-between">
         {/* Logo + Nav */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center">
@@ -82,7 +76,7 @@ export default function TopNav() {
               className={`h-5 w-5 object-contain transition-opacity duration-300`}
               />
           </Link>
-          <div className="mx-3 h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
+          <div className="mx-[13px] h-5 w-px bg-[color:var(--border)]" aria-hidden="true"></div>
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
             {/* Assistants - Direct Link */}

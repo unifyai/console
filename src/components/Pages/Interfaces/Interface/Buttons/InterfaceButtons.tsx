@@ -5,14 +5,10 @@ import { Hammer, SquareMousePointer, Settings, Plus, Pen, Trash2, Upload, Downlo
 import { Switch } from "@/components/UI/switch";
 import { Label } from "@/components/UI/label";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import AddTile from "./AddTile";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTab } from "@/contexts/hooks/tab";
-import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
-import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { showSuccessToast, showErrorToast } from "@/components/Common/Toasts/notifications";
 import { useListInterfacesQuery } from "@/hooks/Interfaces/Query/useInterfacesQuery";
 import BaseDropdown from "../../../../Common/Dropdowns/Base";
@@ -39,7 +35,6 @@ const InterfaceButtons = ({
     disabled,
     setOverlayState,
     setIsSwitchingInterface,
-    hideAddTileButton = false,
 }: {
     tabIdOrName: string | null,
     interfaceId: string,
@@ -55,7 +50,6 @@ const InterfaceButtons = ({
         status: 'loading' | 'success' | 'error' | null;
     }>>;
     setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>;
-    hideAddTileButton?: boolean;
 }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -63,18 +57,6 @@ const InterfaceButtons = ({
 
     // Get the project data and the contexts with granular access
     const project = useStoreContext((state) => state.activeProjectId);
-    const anyTileLoading = useStoreContext(state => getAnyTileLoading(state));
-
-    // Tab states and actions with granular access
-    const {
-        meta: tabMetaState,
-        ui: tabUIState,
-        uiActions: tabUIActions,
-    } = useTab(tabIdOrName || "", interfaceId);
-    const tabId = tabMetaState?.id || null;
-    
-    // Get global UI mode settings
-    const { isEditMode } = useGlobalUIMode();
 
     // Fetch interfaces for the current project
     const { data: interfacesData, isLoading: isLoadingInterfaces, refetch: refetchInterfaces } = useListInterfacesQuery(
@@ -83,8 +65,8 @@ const InterfaceButtons = ({
     );
 
     const interfaces = useMemo(() => interfacesData || [], [interfacesData]);
-    const currentInterface = useMemo(() => interfaces.find(iface => iface.id === interfaceId), [interfaces, interfaceId]);
-    const interfaceNames = useMemo(() => interfaces.map(iface => iface.name), [interfaces]);
+    const currentInterface = useMemo(() => interfaces.find((iface: any) => iface.id === interfaceId), [interfaces, interfaceId]);
+    const interfaceNames = useMemo(() => interfaces.map((iface: any) => iface.name), [interfaces]);
 
     // Dialog and dropdown states
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -172,7 +154,7 @@ const InterfaceButtons = ({
 
     const handleCreateInterface = async () => {
         if (!createName.trim()) { setCreateError("Interface name is required."); return; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === createName.trim().toLowerCase())) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === createName.trim().toLowerCase())) {
             setCreateError("An interface with this name already exists."); return;
         }
         setIsCreating(true);
@@ -203,7 +185,7 @@ const InterfaceButtons = ({
     const handleRenameInterface = async () => {
         if (!currentInterface || !renameName.trim()) { setRenameError("Interface name is required."); return; }
         if (renameName.trim() === currentInterface.name) { setRenameOpen(false); return; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === renameName.trim().toLowerCase() && iface.id !== interfaceId)) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === renameName.trim().toLowerCase() && iface.id !== interfaceId)) {
             setRenameError("An interface with this name already exists."); return;
         }
         setIsRenaming(true); setRenameError("");
@@ -281,7 +263,7 @@ const InterfaceButtons = ({
     
     const validateImportName = useCallback((name: string) => {
         if (!name.trim()) { setNameError("Interface name is required."); return false; }
-        if (interfaces.some(iface => iface.name.toLowerCase() === name.toLowerCase())) {
+        if (interfaces.some((iface: any) => iface.name.toLowerCase() === name.toLowerCase())) {
             setNameError("An interface with this name already exists."); return false;
         }
         setNameError(""); return true;
@@ -309,20 +291,9 @@ const InterfaceButtons = ({
         } finally { setIsImporting(false); }
     }, [selectedFile, templateData, importInterfaceName, validateImportName, interfaceActions, project, refetchInterfaces, router]);
 
-
     return (
         <div className="flex items-center gap-2">
-            
-            {/* Add Tile Button (edit mode only) */}
-            {!hideAddTileButton && tabId && isEditMode && <AddTile
-                tabId={tabId}
-                interfaceId={interfaceId}
-                project={project}
-                anyTileLoading={anyTileLoading}
-                tabActions={tabActions} 
-                tileActions={tileActions}
-            />}
-
+            {/* Add Tile button removed - use the floating button in the bottom left instead */}
         </div>
     );
 };

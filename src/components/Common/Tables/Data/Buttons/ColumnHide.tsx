@@ -33,7 +33,7 @@ const ColumnHide = (({
 
     return (
         renderMode === "menuItem" ? (
-            <DropdownMenuItem onClick={hideColumns} className="flex items-center gap-2 cursor-pointer">
+            <DropdownMenuItem onClick={hideColumns} className="flex items-center gap-2 cursor-pointer text-body-sm">
                 <EyeOff className="h-4 w-4"/>
                 <span>{isParentColumn ? "Hide children columns" : "Hide column"}</span>
             </DropdownMenuItem>

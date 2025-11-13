@@ -26,6 +26,7 @@ export interface CoreLogFetchParams {
   parentId?: string | null;
   dataTypes?: { [key: string]: string };
   fields?: LogFieldsResponseProps;
+  signal?: AbortSignal;
 }
 
 /**
@@ -78,7 +79,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     groupingValue,
     parentId,
     dataTypes,
-    fields
+    fields,
+    signal
   } = params;
 
   let effectiveFilterExpression = filterExpression;
@@ -104,27 +106,41 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     targetGroupFilters = getTargetGroupFilters(groupingFilters.columnFilters);
   }
 
-  // Make the API call with appropriate parameters
-  let response: LogsResponseProps = await logsActions.get(
-    projectId,
-    context,
-    columnContext,
-    effectiveFilterExpression,
-    sortingExpression,
-    effectiveGroupingExpression,
-    groupSortingExpression,
-    null, // from_ids
-    null, // from_fields
-    null, // exclude_fields
-    useGroupPagination ? null : limit, // limit (not used for groups)
-    useGroupPagination ? null : offset, // offset (not used for groups)
-    useGroupPagination ? group_limit : null, // group_limit (used for groups)
-    useGroupPagination ? group_offset : null, // group_offset (used for groups)
-    useGroupPagination ? 0 : null, // group_depth (used for groups)
-    null, // return_ids_only
-    null, // randomize
-    Date.now().toString()
-  );
+  // Call API route directly instead of server action to avoid POST /interfaces spam
+  const queryParams = new URLSearchParams();
+  queryParams.set('project', projectId);
+  if (context) queryParams.set('context', context);
+  if (columnContext) queryParams.set('column_context', columnContext);
+  if (effectiveFilterExpression) queryParams.set('filter_expr', effectiveFilterExpression);
+  if (sortingExpression) queryParams.set('sorting', sortingExpression);
+  if (groupSortingExpression) queryParams.set('group_sorting', groupSortingExpression);
+  
+  // Handle grouping (can be multiple values)
+  if (effectiveGroupingExpression) {
+    effectiveGroupingExpression.split(",").forEach(expr => {
+      queryParams.append('group_by', expr.trim());
+    });
+  }
+  
+  // Pagination params
+  if (!useGroupPagination && limit !== null) queryParams.set('limit', limit.toString());
+  if (!useGroupPagination && offset !== null) queryParams.set('offset', offset.toString());
+  if (useGroupPagination && group_limit !== null) queryParams.set('group_limit', group_limit.toString());
+  if (useGroupPagination && group_offset !== null) queryParams.set('group_offset', group_offset.toString());
+  if (useGroupPagination) queryParams.set('group_depth', '0');
+
+  const logsRes = await fetch(`/api/logs?${queryParams.toString()}`, {
+    method: 'GET',
+    signal: signal as AbortSignal,
+    cache: 'no-store',
+  });
+
+  if (!logsRes.ok) {
+    const errorData = await logsRes.json().catch(() => ({ detail: `Logs ${logsRes.status}` }));
+    throw new Error(errorData.detail || `Failed to fetch logs: ${logsRes.status}`);
+  }
+
+  const response: LogsResponseProps = await logsRes.json();
 
   // Convert raw logs to appropriate format
   const convertedLogs: LogProps[] | GroupedLogProps[] = maybeConvertRawToGroupedLogs(

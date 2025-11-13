@@ -88,13 +88,25 @@ export default function Terminal({
   const termRef = useRef<XTerm>();
   const fitRef = useRef<FitAddon>();
   const sessionId = useRef<string>();
+  const pendingEnterRef = useRef<boolean>(false);
+  const historyRef = useRef<string[]>([]);
+  const histIdxRef = useRef<number>(-1); // -1 means current input
+  const pendingTabRef = useRef<boolean>(false);
+  const preTabBufferRef = useRef<string>("");
+  const pendingBackspaceRef = useRef<boolean>(false);
 
   /* -------------------------------------------------- helper to init terminal */
   const initTerminal = async () => {
     if (started) return;
 
     /* xterm setup */
-    const term = new XTerm({ fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace", theme: { background: "#1e1e1e" }, cursorBlink: true });
+    const term = new XTerm({
+      fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, \"DejaVu Sans Mono\", monospace",
+      theme: { background: "#1e1e1e" },
+      cursorBlink: true,
+      // Prevent descenders/underscores from being clipped by providing extra vertical room
+      lineHeight: 1.5,
+    });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current!);
@@ -104,12 +116,25 @@ export default function Terminal({
     fitRef.current = fit;
     setStarted(true);
 
+    // Ensure Tab key stays in the terminal and doesn't move browser focus
+    term.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        return true; // allow xterm to emit onData("\t")
+      }
+      return true;
+    });
+
     const resizeObserver = new ResizeObserver(() => fit.fit());
     resizeObserver.observe(containerRef.current!);
 
     try {
       // @ts-ignore global actions
-      term.write("Starting terminal...\r\n");
+      if (projectId.includes("Assistants")) {
+        term.write("Syncing GDrives and starting terminal...\r\n");
+      } else {
+        term.write("Starting terminal...\r\n");
+      }
       const { session_id } = await codeActions.createTerminal(shell, projectId);
       term.reset();
       sessionId.current = session_id;
@@ -118,48 +143,150 @@ export default function Terminal({
       term.write("Failed to start terminal session\r\n");
     }
 
-    /* input handling identical as before */
-    const history: string[] = [];
-    let histIdx = -1;
-    const redraw = () => {
-      term.write("\x1b[2K\r$ ");
-      term.write(bufferRef.current);
-    };
+    // Local buffer + send on Enter (basic behavior)
     term.onData(async (data: string) => {
-      if (!sessionId.current) return;
-      switch (data) {
-        case "\r":
-          term.write("\r\n");
-          const cmd = bufferRef.current.trim();
-          if (cmd) history.unshift(cmd);
-          histIdx = -1;
-          bufferRef.current = "";
-          if (cmd) {
-            // @ts-ignore
-            const res = await codeActions.runTerminal(sessionId.current, cmd + "\n");
+      if (!sessionId.current || !termRef.current) return;
+
+      // Strip xterm bracketed paste markers from local buffer to avoid prompt corruption
+      // \x1b[200~ ... \x1b[201~
+      let ch = data.replace(/\x1b\[200~/g, '').replace(/\x1b\[201~/g, '');
+      if (!ch) return;
+
+      // Enter: send the buffered command plus newline; do not echo locally
+      if (ch === "\r") {
+        const cmd = preTabBufferRef.current + bufferRef.current;
+        bufferRef.current = "";
+
+        // Move to a new line locally so the prompt/output starts at column 0
+        term.write("\r\n");
+
+        // Block rclone usage
+        const isBlocked = cmd.trim().toLowerCase().includes("rclone");
+        if (isBlocked) {
+          term.write("rclone is not allowed\r\n");
+        }
+
+        if (!isBlocked) {
+          const trimmed = cmd.trim();
+          if (trimmed.length) {
+            historyRef.current.push(trimmed);
           }
-          // prompt();
-          break;
-        // case "\u0003":
-        //   term.write("^C"); buffer=""; prompt(); break;
-        case "\u007F":
-          if (bufferRef.current.length) { bufferRef.current=bufferRef.current.slice(0,-1); term.write("\b \b"); }
-          break;
-        // case "\u001b[A":
-        //   if (history.length){ histIdx=Math.min(histIdx+1,history.length-1); buffer=history[histIdx]??""; redraw(); }
-        //   break;
-        // case "\u001b[B":
-        //   if (history.length&&histIdx>=0){ histIdx=Math.max(histIdx-1,-1); buffer=histIdx===-1?"":history[histIdx]??""; redraw(); }
-        //   break;
-        default:
-          bufferRef.current+=data; term.write(data);
+        }
+        await codeActions.runTerminal(sessionId.current, isBlocked ? "\n" : cmd.replace(preTabBufferRef.current, "") + "\n");
+        preTabBufferRef.current = "";
+        pendingEnterRef.current = true;
+        histIdxRef.current = -1; // reset browsing index
+        return;
       }
+
+      // Backspace: update local buffer and visually erase one char
+      if (ch === "\u007F") {
+        if (bufferRef.current.length > 0) {
+          bufferRef.current = bufferRef.current.slice(0, -1);
+          const term = termRef.current;
+          const cursorX = term?.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            term.write("\b \b");
+          } else {
+            // Wrapped to previous row: move up a line and to the last column, then erase
+            term.write("\x1b[A");
+            term.write(`\x1b[${term.cols}C`);
+            term.write(" ");
+            term.write(`\x1b[${term.cols}C`);
+          }
+        } else if (preTabBufferRef.current.length > 0) {
+          preTabBufferRef.current = preTabBufferRef.current.slice(0, -1);
+          const term = termRef.current;
+          const cursorX = term?.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            term.write("\b \b");
+          } else {
+            // Wrapped to previous row: move up a line and to the last column, then erase
+            term.write("\x1b[A");
+            term.write(`\x1b[${term.cols}C`);
+            term.write(" ");
+            term.write(`\x1b[${term.cols}C`);
+          }
+          pendingBackspaceRef.current = true;
+          await codeActions.runTerminal(sessionId.current, ch);
+        }
+        return;
+      }
+
+      // Helper to erase the current buffer from the screen honoring wraps
+      const eraseCurrentBuffer = () => {
+        const len = bufferRef.current.length;
+        if (!len) return;
+        const t = termRef.current;
+        if (!t) return;
+        for (let i = 0; i < len; i++) {
+          const cursorX = t.buffer?.active?.cursorX ?? 0;
+          if (cursorX > 0) {
+            t.write("\b \b");
+          } else {
+            t.write("\x1b[A");
+            t.write(`\x1b[${t.cols}C`);
+            t.write(" ");
+            t.write(`\x1b[${t.cols}C`);
+          }
+        }
+      };
+
+      // History: Up arrow
+      if (ch === "\u001b[A") {
+        const hist = historyRef.current;
+        if (!hist.length) return;
+        if (histIdxRef.current === -1) {
+          histIdxRef.current = hist.length - 1;
+        } else if (histIdxRef.current > 0) {
+          histIdxRef.current -= 1;
+        }
+        eraseCurrentBuffer();
+        bufferRef.current = hist[histIdxRef.current] ?? "";
+        term.write(bufferRef.current);
+        return;
+      }
+
+      // History: Down arrow
+      if (ch === "\u001b[B") {
+        const hist = historyRef.current;
+        if (!hist.length) return;
+        if (histIdxRef.current === -1) return; // already at current input
+        if (histIdxRef.current < hist.length - 1) {
+          histIdxRef.current += 1;
+          eraseCurrentBuffer();
+          bufferRef.current = hist[histIdxRef.current] ?? "";
+          term.write(bufferRef.current);
+        } else {
+          // Move back to empty current input
+          histIdxRef.current = -1;
+          eraseCurrentBuffer();
+          bufferRef.current = "";
+        }
+        return;
+      }
+
+      // Tab: trigger shell completion; send only a tab and reconcile echo on poll
+      if (ch === "\t") {
+        preTabBufferRef.current += bufferRef.current;
+        pendingTabRef.current = true;
+        await codeActions.runTerminal(sessionId.current, bufferRef.current + "\t");
+        return;
+      }
+
+      // Normal character: append to buffer and echo locally
+      bufferRef.current += ch;
+      term.write(ch);
     });
   };
 
   const stopTerminal = async () => {
     termRef.current?.reset();
-    termRef.current?.write("Stopping terminal...\r\n");
+    if (projectId.includes("Assistants")) {
+      termRef.current?.write("Syncing GDrives then stopping terminal...\r\n");
+    } else {
+      termRef.current?.write("Stopping terminal...\r\n");
+    }
     if (sessionId.current) {
       // @ts-ignore
       const sid = sessionId.current;
@@ -190,11 +317,30 @@ export default function Terminal({
         // @ts-ignore helper exists
         const res = await codeActions.getTerminalOutput(sessionId.current);
         if (res?.output && termRef.current) {
-          termRef.current.write(res.output.replaceAll("/project/sandbox", ""));
-          termRef.current.write(bufferRef.current);
+          const out = res.output.replaceAll("/project/sandbox", "");
+          // Normalize newlines to CRLF so cursor returns to column 0 on xterm
+          const toCRLF = (s: string) => s.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+          if (pendingEnterRef.current) {
+            const parts = out.split(/\r?\n/);
+            const adjusted = parts.slice(1).join("\n");
+            termRef.current.write(toCRLF(adjusted));
+            pendingEnterRef.current = false;
+          } else if (pendingTabRef.current) {
+            const parts = out.split(/\r?\n/);
+            const tabPart = parts.at(0)?.replace(bufferRef.current, "") ?? "";
+            termRef.current.write(toCRLF(tabPart));
+            preTabBufferRef.current += tabPart;
+            bufferRef.current = "";
+            pendingTabRef.current = false;
+          } else if (pendingBackspaceRef.current) {
+            pendingBackspaceRef.current = false;
+            return;
+          } else {
+            termRef.current.write(toCRLF(out));
+          }
         }
       } catch {}
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(id);
   }, [started, codeActions]);

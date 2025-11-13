@@ -32,37 +32,33 @@ export interface IStoreState extends StoreState {
 //    This is what the provider will call to get "one store per request."
 // -----------------------------------------------------------------------------
 export function createStore(initialState?: Partial<IStoreState>) {
-  // Build a new store using `create`
-  const zustandStore = create<IStoreState>()(
-    devtools(
-      immer((set, get, api) => {
-        // Use the helper function to cast the slice creator
-        const storeSlice = createStoreSlice(set, get, api);
+  // Base creator with immer
+  const baseCreator = immer<IStoreState>((set, get, api) => {
+    const storeSlice = createStoreSlice(set, get, api);
 
+    return {
+      ...storeSlice,
+
+      // Global reset action
+      resetState: (newState: Partial<IStoreState>) => set((state) => ({
+        ...state,
+        ...newState,
+      })),
+
+      // Global update action
+      updateState: (updates: Partial<IStoreState>) => set((state) => {
         return {
-          // Include the slice
-          ...storeSlice,
-
-          // Global reset action
-          resetState: (newState: Partial<IStoreState>) => set((state) => ({
-            ...state,
-            ...newState,
-          })),
-
-          // Global update action
-          updateState: (updates: Partial<IStoreState>) => set((state) => {
-            return {
-              ...state,
-              ...updates,
-            };
-          }),
+          ...state,
+          ...updates,
         };
       }),
-      {
-        name: "MyStore",
-      }
-    )
-  );
+    };
+  });
+
+  // Build a new store using `create`, conditionally wrapping with devtools
+  const zustandStore = process.env.NODE_ENV !== "production"
+    ? create<IStoreState>()(devtools(baseCreator, { name: "ConsoleStore" }))
+    : create<IStoreState>()(baseCreator);
 
   // If initial state was provided, set it
   if (initialState) {

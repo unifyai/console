@@ -2,13 +2,14 @@ import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { toast } from 'sonner';
 
 const INSUFFICIENT_CREDITS_MESSAGE = "Sorry, I couldn't get that properly; it looks like a technical issue on my end. I suggest we continue over phone or email. Otherwise maybe you could try refilling your credits balance? This should fix it.";
 const BILLING_URL = "https://console.unify.ai/billing";
 
 export function useAssistantProfileChat(
     assistant: Assistant | null,
-    assistantActions: AssistantActions,
+    assistantActions: Pick<AssistantActions, 'chat'>,
     chatHistories: Record<string, ChatMessage[]>,
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
     isFirstView?: boolean,
@@ -19,73 +20,33 @@ export function useAssistantProfileChat(
     const messages = assistantId ? chatHistories[assistantId] || [] : [];
     
     const [inputValue, setInputValue] = React.useState('');
-    const [isLoading, setIsLoading] = React.useState(false);
+    const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
+    const [isInitialLoading, setIsInitialLoading] = React.useState(false);
 
     const firstViewProcessed = React.useRef(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);
     };
-    
-    const logMessagesToHistory = async (newMessages: Omit<ChatMessage, 'id'>[]) => {
-        if (!assistant) return;
-        // Create context from first and last name, removing all whitespace
-        const context = `${assistant.first_name}${assistant.surname}`;
-        let startMessageId = 0;
-        let shouldLogMessageId = true;
 
-        try {
-            // Fetch existing transcripts to find the last message_id
-            const historyResult = await assistantActions.chat.getTranscripts(context);
-
-            if ('detail' in historyResult) {
-                // This is an error response. Don't log message_id.
-                console.error("Failed to fetch chat history for logging:", historyResult.detail);
-                shouldLogMessageId = false;
-            } else {
-                const historicalMessages = historyResult as ChatMessage[];
-                if (historicalMessages.length > 0) {
-                    // Sort by timestamp just in case they are out of order
-                    historicalMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-                    const lastMessage = historicalMessages[historicalMessages.length - 1];
-                    if (typeof lastMessage.message_id === 'number') {
-                        startMessageId = lastMessage.message_id + 1;
-                    }
-                }
-            }
-        } catch (error) {
-            // Catch any other exceptions during fetch
-            console.error("Exception while fetching chat history for logging:", error);
-            shouldLogMessageId = false;
+    React.useEffect(() => {
+        if (messages.length === 0) return;
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.role === 'assistant' && lastMessage.content.trim() !== '') {
+            setIsAssistantReplying(false);
         }
+    }, [messages]);
 
-        // Prepare messages with or without message_id
-        const messagesToLog = newMessages.map((msg, index) => {
-            if (shouldLogMessageId) {
-                return { ...msg, message_id: startMessageId + index };
-            }
-            // Exclude message_id if there was an error
-            const { message_id, ...rest } = msg as ChatMessage;
-            return rest;
-        });
-
-        try {
-            await assistantActions.chat.updateTranscripts(context, messagesToLog);
-        } catch (error) {
-            console.error("Failed to log chat history:", error);
-            // Non-critical, so we don't show a user-facing toast
-        }
-    };
 
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
 
-        const hasBeenInitialized = (chatHistories[assistantId]?.length || 0) > 0;
+        const hasBeenInitialized = chatHistories[assistantId] !== undefined;
 
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const generateAndSetGreeting = async () => {
-                setIsLoading(true);
+                setIsInitialLoading(true);
                 const initialHistory = preHireChat || [];
                 const greetingMessageId = uuidv4();
                 const placeholderMessage: ChatMessage = { id: greetingMessageId, role: 'assistant', content: '', timestamp: new Date() };
@@ -102,7 +63,7 @@ export function useAssistantProfileChat(
                             assistantName: `${assistant.first_name} ${assistant.surname}`,
                             assistantAge: assistant.age,
                             assistantBio: assistant.about,
-                            assistantRegion: assistant.region,
+                            assistantNationality: assistant.nationality,
                             preHireChat: preHireChat?.map(({ role, content }) => ({ role, content }))
                         }),
                     });
@@ -115,9 +76,6 @@ export function useAssistantProfileChat(
                     const { content } = await response.json();
                     if (!content) throw new Error("LLM returned an empty greeting.");
                     
-                    const messageToLog: Omit<ChatMessage, 'id'> = { role: 'assistant', content: content, timestamp: new Date() };
-                    // logMessagesToHistory([messageToLog]);
-                    
                     setChatHistories(prev => {
                         const updatedHistory = (prev[assistantId] || []).map(msg =>
                             msg.id === greetingMessageId ? { ...msg, content } : msg
@@ -128,12 +86,6 @@ export function useAssistantProfileChat(
                 } catch (error) {
                     console.error("Failed to generate post-hire greeting:", error);
                     const fallbackContent = `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`;
-                    const fallbackToLog: Omit<ChatMessage, 'id'> = { role: 'assistant', content: fallbackContent, timestamp: new Date() };
-
-                    // Only log the fallback if there wasn't a pre-hire chat to avoid confusion
-                    if (!preHireChat || preHireChat.length === 0) {
-                        // logMessagesToHistory([fallbackToLog]);
-                    }
                     
                     setChatHistories(prev => {
                         const updatedHistory = (prev[assistantId] || []).map(msg =>
@@ -142,14 +94,14 @@ export function useAssistantProfileChat(
                         return { ...prev, [assistantId]: updatedHistory };
                     });
                 } finally {
-                    setIsLoading(false);
+                    setIsInitialLoading(false);
                     onFirstViewCompleted?.();
                 }
             };
             generateAndSetGreeting();
         } else if (!isFirstView && !hasBeenInitialized) {
             // Case C: Existing assistant, fetch history
-            setIsLoading(true);
+            setIsInitialLoading(true);
             const context = `${assistant.first_name}${assistant.surname}`;
             assistantActions.chat.getTranscripts(context)
                 .then(historyResult => {
@@ -157,8 +109,8 @@ export function useAssistantProfileChat(
                         console.error(historyResult.detail);
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                     } else {
-                        const last10 = (historyResult as ChatMessage[]).slice(-10).reverse();
-                        setChatHistories(prev => ({ ...prev, [assistantId]: last10 }));
+                        const history = (historyResult as ChatMessage[]).reverse();
+                        setChatHistories(prev => ({ ...prev, [assistantId]: history }));
                     }
                 })
                 .catch(err => {
@@ -166,7 +118,7 @@ export function useAssistantProfileChat(
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                 })
                 .finally(() => {
-                    setIsLoading(false);
+                    setIsInitialLoading(false);
                 });
         } else if (!isFirstView) {
             // Reset the ref if it's no longer the first view (e.g., user re-opens profile later)
@@ -183,9 +135,61 @@ export function useAssistantProfileChat(
         assistantActions.chat
     ]);
 
-    const sendMessage = async (e: React.FormEvent) => {
+    // Effect for listening to incoming messages via SSE
+    React.useEffect(() => {
+        if (!assistantId) return;
+
+        const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
+
+        eventSource.onopen = () => {
+            console.log(`[SSE Client] Connection opened for assistant ${assistantId}`);
+        };
+
+        eventSource.onmessage = (event) => {
+            try {
+                const messageData = JSON.parse(event.data);
+                const messageContent = messageData.event?.content;
+                
+                if (typeof messageContent === 'string') {
+                    const newAssistantMessage: ChatMessage = {
+                        id: uuidv4(),
+                        role: 'assistant',
+                        content: messageContent,
+                        timestamp: new Date(),
+                    };
+
+                    setChatHistories(prev => {
+                        const currentHistory = prev[assistantId] || [];
+                        if (currentHistory.some(m => m.content === newAssistantMessage.content && m.role === 'assistant' && (new Date().getTime() - m.timestamp.getTime() < 2000))) {
+                             return prev;
+                        }
+                        return {
+                            ...prev,
+                            [assistantId]: [...currentHistory, newAssistantMessage]
+                        };
+                    });
+                } else {
+                    console.warn("[SSE Client] Received message with unexpected data format:", messageData);
+                }
+            } catch (error) {
+                console.error("[SSE Client] Error parsing incoming message:", error);
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            console.error("[SSE Client] EventSource error:", error);
+            eventSource.close();
+        };
+
+        return () => {
+            console.log(`[SSE Client] Closing connection for assistant ${assistantId}`);
+            eventSource.close();
+        };
+    }, [assistantId, setChatHistories]);
+
+    const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isLoading || !assistant || !assistantId) return;
+        if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;
 
         const newUserMessage: ChatMessage = {
             id: uuidv4(),
@@ -194,101 +198,42 @@ export function useAssistantProfileChat(
             timestamp: new Date(),
         };
 
-        const currentMessages = [...messages, newUserMessage];
-        setChatHistories(prev => ({ ...prev, [assistantId]: currentMessages }));
+        setChatHistories(prev => ({
+            ...prev,
+            [assistantId]: [...(prev[assistantId] || []), newUserMessage]
+        }));
+
+        const messageToSend = inputValue.trim();
         setInputValue('');
-        setIsLoading(true);
+        setIsAssistantReplying(true);
 
-        const assistantResponseId = uuidv4();
-        const assistantPlaceholder: ChatMessage = {
-            id: assistantResponseId,
-            role: 'assistant',
-            content: '',
-            timestamp: new Date()
-        };
-        setChatHistories(prev => ({ ...prev, [assistantId]: [...prev[assistantId], assistantPlaceholder] }));
-
-        try {
-            // Create context from first and last name for the API call, removing all whitespace
-            const apiContext = `${assistant.first_name}${assistant.surname}`;
-            const response = await fetch('/api/assistant/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: currentMessages.map(({ role, content }) => ({ role, content })),
-                    assistantId: assistant.agent_id,
-                    assistantName: apiContext, // Use the sanitized context here
-                    assistantAge: assistant.age,
-                    assistantBio: assistant.about,
-                    assistantRegion: assistant.region,
-                    type: 'profile',
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: "An unknown error occurred." }));
-                throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+        assistantActions.chat.message({
+            assistant_id: parseInt(assistant.agent_id),
+            contact_id: 1,
+            message: messageToSend
+        }).then(response => {
+            if (response.detail) {
+                throw new Error(response.detail);
             }
-
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error("Failed to get response reader.");
-            }
-            const decoder = new TextDecoder();
-            let finalAssistantResponse = "";
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                const chunk = decoder.decode(value);
-                finalAssistantResponse += chunk;
-                setChatHistories(prev => {
-                    const updatedHistory = prev[assistantId!].map(msg => 
-                        msg.id === assistantResponseId ? { ...msg, content: finalAssistantResponse } : msg
-                    );
-                    return { ...prev, [assistantId!]: updatedHistory };
-                });
-            }
-
-            const finalAssistantMessage: Omit<ChatMessage, 'id'> = {
-                role: 'assistant',
-                content: finalAssistantResponse,
-                timestamp: new Date(),
-            };
-            
-            // Log the user message and the final assistant response
-            /* await logMessagesToHistory([
-                { role: newUserMessage.role, content: newUserMessage.content, timestamp: newUserMessage.timestamp },
-                finalAssistantMessage
-            ]); */
-
-
-        } catch (error) {
+        }).catch(error => {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error("Failed to get profile chat response:", errorMessage);
-
-            let displayError = `Sorry, I couldn't get a response. ${errorMessage}`;
-            if (errorMessage.includes("INSUFFICIENT_CREDITS")) {
-                displayError = `${INSUFFICIENT_CREDITS_MESSAGE} ${BILLING_URL}`;
-            }
-
-            setChatHistories(prev => {
-                const updatedHistory = prev[assistantId!].map(msg => 
-                    msg.id === assistantResponseId ? { ...msg, content: displayError } : msg
-                );
-                return { ...prev, [assistantId!]: updatedHistory };
-            });
-
-        } finally {
-            setIsLoading(false);
-        }
+            console.error("Failed to send message:", errorMessage);
+            toast.error("Failed to send message. Please try again.");
+            
+            setChatHistories(prev => ({
+                ...prev,
+                [assistantId]: (prev[assistantId] || []).filter(msg => msg.id !== newUserMessage.id)
+            }));
+            setInputValue(messageToSend);
+            setIsAssistantReplying(false);
+        });
     };
 
     return {
         messages,
         inputValue,
-        isLoading,
+        isLoading: isInitialLoading,
+        isAssistantReplying,
         handleInputChange,
         sendMessage,
     };

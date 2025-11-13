@@ -8,7 +8,7 @@ export const UnifyLoader = ({message, children}: {message: string, children?: Re
     return (
         <Suspense fallback={
             <div className="flex flex-col gap-2 items-center self-center">
-                <p className="text-gray-500">{message}</p>
+                <p className="text-muted-foreground">{message}</p>
                 <LoadingElement height={100} width={100}/>
             </div>
 

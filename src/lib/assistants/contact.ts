@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { AvailablePhoneCountry, AvailableSocialPlatform } from "../../types/assistants/assistant";
+import { AvailablePhoneCountry, AvailableSocialPlatform, Assistant } from "../../types/assistants/assistant";
 import { getCountryFlag, getCountryName } from "../../utils/assistants/country-utils";
 
 export const createAssistantEmail = async (apiKey: string) => {
@@ -236,6 +236,43 @@ export const verifySocialAccount = async (apiKey: string) => {
             return { detail: "Verification succeeded but response format was unexpected." };
         } catch (error) {
             return { detail: error instanceof Error ? error.message : "Unknown error during verification." };
+        }
+    };
+};
+
+export const deleteAssistantContact = async (apiKey: string) => {
+    return async (assistantId: string, contactType: "phone" | "email" | "whatsapp"): Promise<ResponseProps & { assistant?: Assistant }> => {
+        "use server";
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/contact`,
+                {
+                    method: "DELETE",
+                    headers: {
+                         apiKey: apiKey,
+                         "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ contact_type: contactType })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = data.detail || `Failed to delete contact: ${response.statusText}`;
+                return { detail: errorMessage };
+            }
+
+            const successMessage = data.info || `Contact deleted successfully.`;
+            // The backend is expected to return the updated assistant object in the 'info' field.
+            const updatedAssistant = data.info as Assistant;
+            return { info: successMessage, assistant: updatedAssistant };
+
+        } catch (error) {
+            console.error(`[actions.ts deleteAssistantContact] Error deleting contact for assistant ${assistantId}:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
+            return { detail: errorMessage };
         }
     };
 };

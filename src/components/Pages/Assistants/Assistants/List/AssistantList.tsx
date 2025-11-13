@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 
 interface AssistantListProps {
     assistants: Assistant[];
+    assistantStatuses: Map<string, AssistantStatus | null>;
     assistantError: string | null;
     isLoading: boolean;
     error: string | null;
@@ -19,12 +20,16 @@ interface AssistantListProps {
     onShowProfile: (id: string) => void;
     onShowActivityLog: (id: string) => void;
     onOpenHireDialog: () => void;
+    onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
     isFolded: boolean;
     onToggleFold: () => void;
+    activeCallAssistantId: string | null;
+    onHangUp: () => void;
 }
 
 export function AssistantList({
     assistants,
+    assistantStatuses,
     assistantError,
     isLoading,
     error,
@@ -33,8 +38,11 @@ export function AssistantList({
     onShowProfile,
     onShowActivityLog,
     onOpenHireDialog,
+    onOpenContactManager,
     isFolded,
     onToggleFold,
+    activeCallAssistantId,
+    onHangUp,
 }: AssistantListProps) {
 
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -62,7 +70,7 @@ export function AssistantList({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
-                                        variant="outline"
+                                        variant={isFolded ? "ghost" : "outline"}
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={onOpenHireDialog}
@@ -121,7 +129,7 @@ export function AssistantList({
             </div>
 
             {/* Content Area: Loading Skeletons, Error, or List */}
-            <ScrollArea className="flex-1 p-2">
+            <ScrollArea className="flex-1 p-1">
                 <div className={cn(
                     "space-y-1 pt-2",
                     isFolded && "flex flex-col items-center space-y-3"
@@ -142,10 +150,13 @@ export function AssistantList({
                             <AssistantListItem
                                 key={assistant.agent_id}
                                 assistant={assistant}
-                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id} // Highlight if selected for profile OR activity
+                                status={assistantStatuses.get(assistant.agent_id) || null}
+                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id}
                                 onShowProfile={onShowProfile}
                                 onShowActivityLog={onShowActivityLog}
+                                onOpenContactManager={onOpenContactManager}
                                 isFolded={isFolded}
+                                isCallActive={activeCallAssistantId === assistant.agent_id}
                             />
                         ))
                     ) : searchTerm && !isFolded ? (

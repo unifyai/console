@@ -1,17 +1,18 @@
 import { ResponseProps } from "../common";
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from "@cartesia/cartesia-js/api"; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { AssistantHiringApprovalResponse, HiringProfileData } from "../user";
-import { ChatMessage } from "./chat";
+import { ChatMessage, UnifyMessage } from "./chat";
+import { SecretActions } from "./secret";
+import { ConnectionDetails } from "./call";
 
-// New type for the pre_hire_chat payload
+export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
+
+export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
+
+// Type for the pre_hire_chat payload
 export interface PreHireChatMessage {
-  message_id: number;
-  medium: "unify_chat";
-  sender_id: 0 | 1; // 0 for assistant, 1 for user
-  receiver_ids: (0 | 1)[]; // 0 for assistant, 1 for user
-  timestamp: string; // ISO 8601 format
-  content: string;
-  exchange_id: 0;
+  role: "user" | "assistant";
+  msg: string;
 }
 
 // Assistant profile types
@@ -22,18 +23,24 @@ export interface Assistant {
   profile_photo: string | null;
   profile_video: string | null;
   age: number | null;
-  region: string | null;
+  nationality: string | null;
   about: string | null;
-  country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
+  phone_country: string | null; // Country code for phone number provisioning e.g. "US", "GB"
+  timezone: string | null;
   gender?: 'male' | 'female';
   // Voice fields
   voice_id: string | null; // Provider Voice ID
+  voice_provider: VoiceProvider | null;
+  voice_mode: "sts" | "tts";
   // Contact fields
   email: string | null;
   phone: string | null;
   assistant_whatsapp_number: string | null;
   user_phone: string | null;
   user_whatsapp_number: string | null;
+  // Advanced fields
+  user_local_desktop?: UserLocalDesktop | null;
+  desktop_url?: string | null;
   // Contract fields
   weekly_limit: number | null;
   max_parallel: number | null;
@@ -56,10 +63,10 @@ export interface AssistantStatus {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id'> // voice_id removed from Omit
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'>
   & {
       gender?: 'male' | 'female';
-      country: string;
+      phone_country: string;
       voice_ids: {
           cartesia?: string | null;
           elevenlabs?: string | null;
@@ -83,7 +90,7 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'email'>
+  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'voice_provider' | 'email'>
   & {
       email?: string | null;
       isEmailAdded?: boolean;
@@ -103,20 +110,24 @@ export type AssistantFormData =
       user_phone_verificationAttempts?: number;
       user_phone_verificationError?: string | null;
       user_whatsapp_number?: string | null;
-      country?: string;
+      phone_country?: string;
+      timezone?: string | null;
       voice_id?: string;
       voice_name?: string;
       voice_description?: string;
       voice_gender?: CartesiaGender;
       voice_language?: SupportedLanguage | "multi";
       voice_exists?: boolean;
-      voice_provider?: "cartesia" | "elevenlabs" | "openai";
+      voice_provider?: VoiceProvider;
       isPresetPristine?: boolean;
-      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'region' | 'voice_id' | 'profile_photo_url' | 'country'> | null;
+      presetOriginalValues?: Pick<AssistantFormData, 'first_name' | 'surname' | 'age' | 'nationality' | 'voice_id' | 'profile_photo_url' | 'phone_country'> | null;
+      currentPreset?: AssistantPreset | null;
       social_accounts?: SocialAccount[];
+      setup?: 'remote' | 'local';
       isPhoneNumberAdded?: boolean;
       operating_system?: 'ubuntu' | 'windows' | 'macos';
       design_include_bio?: boolean;
+      fast_mode?: boolean;
     };
 
 export interface PhotoUploadResponse {
@@ -172,9 +183,13 @@ export interface AssistantUpdatePayload {
     email?: string | null;
     user_whatsapp_number?: string | null;
     voice_id?: string | null;
-    country?: string | null;
+    voice_provider?: VoiceProvider | null;
+    voice_mode?: "sts" | "tts";
+    phone_country?: string | null;
+    timezone?: string | null;
     profile_photo?: string | null;
     profile_video?: string | null;
+    user_local_desktop?: UserLocalDesktop | null;
 }
 
 
@@ -203,7 +218,6 @@ export interface GenerateSpeechPayload {
     cartesia_sample_rate?: number;
     cartesia_bit_rate?: number;
     elevenlabs_optimize_streaming_latency?: number;
-    elevenlabs_voice_settings_stability?: number;
     elevenlabs_voice_settings_similarity_boost?: number;
 }
 
@@ -253,10 +267,11 @@ export interface AssistantActions {
     "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
     create: (
-        first_name: string, surname: string, age: number | null, region: string | null,
-        profile_photo: string | null, profile_video: string | null, about: string | null, voice_id: string | null,
-        email: string | null, user_phone: string | null, country: string | null,
-        user_whatsapp_number: string | null,
+        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, 
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
+        email: string | null, user_phone: string | null, phone_country: string | null,
+        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         preHireChat?: PreHireChatMessage[]
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     update: (assistantId: string, payload: Partial<AssistantUpdatePayload>) => Promise<ResponseProps>;
@@ -277,7 +292,7 @@ export interface AssistantActions {
     "voice": {
     list: () => Promise<(Voice & {is_preset?: boolean})[] | ResponseProps>;
     register: (voice_id: string, provider: string, name: string, description: string, gender: CartesiaGender, language: SupportedLanguage | "multi", is_preset: boolean) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
-    delete: (cartesia_voice_id: string) => Promise<ResponseProps>;
+    delete: (voice_id: string, voice_provider: string) => Promise<ResponseProps>;
     clone: (formData: FormData) => Promise<(Voice & {info?:string; is_preset?: boolean}) | ResponseProps>;
     generate: (payload: GenerateSpeechPayload) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
     preview: (payload: VoiceDesignGeneratePreviewsRequest) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
@@ -286,16 +301,27 @@ export interface AssistantActions {
     "chat": {
         getTranscripts: (assistantContext: string) => Promise<ChatMessage[] | ResponseProps>;
         updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
+        message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     },
     "contact": {
+    delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
     verifySocialAccount: (platform: string, account_identifier: string) => Promise<{ verification_code: string; sent_at: string; } | ResponseProps>;
     },
+    "secret": SecretActions;
     "approval": {
     getProfile: () => Promise<HiringProfileData | ResponseProps>
     requestAccess: () => Promise<AssistantHiringApprovalResponse>;
     claimToken: (token: string) => Promise<AssistantHiringApprovalResponse>;
+    },
+    "call": {
+      getConnectionDetails: (assistantId: string, assistantName: string) => Promise<ConnectionDetails | ResponseProps>;
+      dispatchToCall: (assistantId: string, assistantName: string, roomName: string) => Promise<ResponseProps>;
+    },
+    "desktop": {
+        getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+        sendSystemEvent: (assistantId: string, eventType: 'pause_actor' | 'resume_actor', message: string) => Promise<ResponseProps>;
     }
 }

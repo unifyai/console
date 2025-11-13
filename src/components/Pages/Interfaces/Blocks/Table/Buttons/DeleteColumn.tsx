@@ -88,7 +88,7 @@ const ColumnDelete = ({
 
     return (
         <DropdownMenuItem 
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer text-body-sm"
             onSelect={(e) => e.preventDefault()} // Prevent dropdown close
         >
             <div 

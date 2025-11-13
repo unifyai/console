@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, ExternalLink } from "lucide-react";
+import { Mail, Phone, PenLine, Check, Info, Clock } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
 import { WhatsApp } from '@mui/icons-material';
@@ -12,11 +12,12 @@ import { AssistantPhotoViewer } from '../Hire/AssistantHirePhotoPreview';
 import { Skeleton } from "@/components/UI/skeleton";
 import { toast } from "sonner";
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { getTimezoneOffsetInMinutes, formatOffset } from '@/utils/assistants/timezone-utils';
+import { Button } from '@/components/UI/button';
 
 interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
-    onOpenPhoneEditDialog: (assistant: Assistant) => void;
-    onOpenEmailEditDialog: (assistant: Assistant) => void;
+    userTimezone?: string | null;
 }
 
 const ContactItem: React.FC<{ 
@@ -51,9 +52,11 @@ const ContactItem: React.FC<{
         <TooltipProvider delayDuration={100}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={onClick}>
-                        {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        <span className={`truncate text-caption ${textClassName}`}>{value || '-'}</span>
+                    <div className="grid grid-cols-[auto_1fr] items-center gap-2 cursor-pointer" onClick={onClick}>
+                        <div className="flex-shrink-0">
+                            {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
+                        </div>
+                        <span className={`truncate min-w-0 text-caption ${textClassName}`}>{value || '-'}</span>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent side="top">
@@ -64,7 +67,7 @@ const ContactItem: React.FC<{
     );
 };
 
-export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, onOpenEmailEditDialog }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant, userTimezone }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -129,6 +132,24 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
         toast.error("Video preview failed to load.");
     };
 
+    const timezoneInfo = React.useMemo(() => {
+        if (!assistant.timezone) return { friendlyName: 'Not set', relativeOffsetString: null };
+        
+        const assistantOffset = getTimezoneOffsetInMinutes(assistant.timezone);
+        const localTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const localOffset = getTimezoneOffsetInMinutes(localTimezone);
+        
+        const offsetDiffHours = (assistantOffset - localOffset) / 60;
+        
+        let relativeOffsetString: string | null = null;
+        relativeOffsetString = `${offsetDiffHours >= 0 ? '+' : ''}${offsetDiffHours}H`;
+
+        const assistantUtcOffset = formatOffset(assistantOffset);
+        const friendlyName = `UTC${assistantUtcOffset} ${assistant.timezone.split('/').pop()?.replace(/_/g, ' ')}`;
+
+        return { friendlyName, relativeOffsetString };
+    }, [assistant.timezone, userTimezone]);
+
     return (
         <div className="h-full flex flex-col w-full bg-background">
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -166,50 +187,47 @@ export function AssistantProfileInfoPanel({ assistant, onOpenPhoneEditDialog, on
                         )}
                     </Popover>
 
-                    <div className="grid grid-cols-2 gap-y-1 py-0.5 text-caption flex-1">
-                        <span>First Name</span>
-                        <span>{assistant.first_name}</span>
-                        <span>Last Name</span>
-                        <span>{assistant.surname}</span>
-                        <span>Age</span>
-                        <span>{assistant.age ?? 'N/A'}</span>
-                        <span>Region</span>
-                        <span>{assistant.region ?? 'N/A'}</span>
+                    <div className="grid grid-cols-2 gap-y-0.5 py-0.5 flex-1 max-w-xs">
+                        <span className="text-caption font-bold">First Name</span>
+                        <span className="text-caption">{assistant.first_name}</span>
+                        <span className="text-caption font-bold">Last Name</span>
+                        <span className="text-caption">{assistant.surname}</span>
+                        <span className="text-caption font-bold">Age</span>
+                        <span className="text-caption">{assistant.age ?? 'N/A'}</span>
+                        <span className="text-caption font-bold">Nationality</span>
+                        <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
                     </div>
                     
                 </div>
-
-                {/* About Section */}
-                <div className="pt-4 group">
-                    <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1">
-                        <Markdown>{assistant.about || "No description provided."}</Markdown>
+                
+                {/* Timezone Section */}
+                <div className="pt-4 group/assistant-timezone">
+                    <h3 className="text-title">Timezone</h3>
+                    <div className="grid grid-cols-2 items-center max-w-sm">
+                        <span className="text-caption">{timezoneInfo.friendlyName}</span>
+                        {timezoneInfo.relativeOffsetString && (
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 mr-3 text-xs gap-1" onClick={() => window.open('/profile', '_blank', 'noopener,noreferrer')}>
+                                            {timezoneInfo.relativeOffsetString}
+                                            <Clock className="h-3 w-3" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Time relative to local. Click to update your timezone.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                     </div>
                 </div>
 
-                {/* Contacts Section */}
-                <div className="pt-4 group/assistant-contact">
-                    <h3 className="text-title">My Contact</h3>
-                    <div className="grid grid-flow-col grid-rows-3 auto-cols-fr gap-2 my-1 text-caption">
-                        {assistant.email ? (
-                            <ContactItem value={assistant.email} tooltip="Copy Email" icon={<Mail className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <ContactItem value={"Add Email"} tooltip="Add Email Address" icon={<Mail className="h-4 w-4 flex-shrink-0"/>} handleClick={() => onOpenEmailEditDialog(assistant)}/>
-                        )}
-                        {assistant.phone ? (
-                            <ContactItem value={assistant.phone} tooltip="Copy Phone" icon={<Phone className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <ContactItem value={"Add Number"} tooltip="Add Phone Number" icon={<Phone className="h-4 w-4 flex-shrink-0"/>} handleClick={() => onOpenPhoneEditDialog(assistant)}/>
-                        )}
-
-                        {assistant.assistant_whatsapp_number ? (
-                            <ContactItem value={assistant.assistant_whatsapp_number} tooltip="Copy WhatsApp" icon={<WhatsApp className="h-4 w-4 flex-shrink-0"/>} isCopyable/>
-                        ) : (
-                            <div/>
-                        )}
-                        <ContactItem value={"Start Meet"} tooltip={`Schedule a Google Meet meeting and invite ${assistant.first_name}`} icon={<SiGooglemeet className="h-4 w-4 flex-shrink-0"/>} handleClick={handleStartMeet} textClassName="underline"/>
-                        <ContactItem value={"Coming Soon"} tooltip={`Schedule a Microsoft Teams meeting and invite ${assistant.first_name}`} icon={<BiLogoMicrosoftTeams className="h-4 w-4 flex-shrink-0"/>}/>
-                        <ContactItem value={"Coming Soon"} tooltip={`Schedule a Zoom meeting and invite ${assistant.first_name}`} icon={<BiLogoZoom className="h-4 w-4 flex-shrink-0"/>}/>
+                {/* About Section */}
+                <div className="pt-4 group/assistant-about">
+                    <h3 className="text-title">About Me</h3>
+                    <div className="text-caption prose max-w-none prose-p:my-1">
+                        <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>
             </ScrollArea>

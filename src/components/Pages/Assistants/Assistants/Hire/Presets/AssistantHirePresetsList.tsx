@@ -26,9 +26,9 @@ export interface PresetsPanelProps {
   onAgeFilterChange: (value: string) => void;
   availableAgeBrackets: string[];
 
-  regionFilter: string;
-  onRegionFilterChange: (value: string) => void;
-  availableRegions: string[];
+  nationalityFilter: string;
+  onNationalityFilterChange: (value: string) => void;
+  availableNationalities: string[];
 
   genderFilter: string;
   onGenderFilterChange: (value: string) => void;
@@ -39,6 +39,7 @@ export interface PresetsPanelProps {
   availableLanguages: string[];
 
   onToggleView?: () => void;
+  isFastMode: boolean;
 }
 
 export function PresetsPanel({
@@ -53,9 +54,9 @@ export function PresetsPanel({
   ageFilter,
   onAgeFilterChange,
   availableAgeBrackets,
-  regionFilter,
-  onRegionFilterChange,
-  availableRegions,
+  nationalityFilter,
+  onNationalityFilterChange,
+  availableNationalities,
   genderFilter,
   onGenderFilterChange,
   availableGenders,
@@ -63,6 +64,7 @@ export function PresetsPanel({
   onLanguageFilterChange,
   availableLanguages,
   onToggleView,
+  isFastMode,
 }: PresetsPanelProps) {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
 
@@ -157,14 +159,14 @@ export function PresetsPanel({
             </Select>
           </div>
           <div>
-            <Select value={regionFilter} onValueChange={onRegionFilterChange} disabled={availableRegions.length <= 1}>
+            <Select value={nationalityFilter} onValueChange={onNationalityFilterChange} disabled={availableNationalities.length <= 1}>
               <SelectTrigger className="h-8 text-caption">
-                <SelectValue placeholder="Region" />
+                <SelectValue placeholder="Nationality" />
               </SelectTrigger>
               <SelectContent>
-                {availableRegions.map(region => (
-                  <SelectItem key={region} value={region} className="text-caption">
-                    {region === 'all' ? 'All Regions' : region}
+                {availableNationalities.map(nationality => (
+                  <SelectItem key={nationality} value={nationality} className="text-caption">
+                    {nationality === 'all' ? 'All Nationalities' : nationality}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -185,7 +187,7 @@ export function PresetsPanel({
             </Select>
           </div>
           <div>
-            <Select value={languageFilter} onValueChange={onLanguageFilterChange} disabled={availableLanguages.length <= 1}>
+            <Select value={languageFilter} onValueChange={onLanguageFilterChange} disabled={availableLanguages.length <= 1 || isFastMode}>
               <SelectTrigger className="h-8 text-caption">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
@@ -210,6 +212,7 @@ export function PresetsPanel({
                 key={`${preset.first_name}-${preset.surname}-${index}`} 
                 preset={preset}
                 onSelect={onPresetSelect}
+                isFastMode={isFastMode}
               />
             ))
           ) : (
