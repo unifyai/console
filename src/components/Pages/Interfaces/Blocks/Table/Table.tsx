@@ -79,6 +79,7 @@ import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
 import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
+import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -272,7 +273,19 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = isInteractive;
-  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
+  const pending = !!(tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending);
+
+  // Wire up manual refresh for Retry using the auto-update hook's queryFn
+  const { manualRefresh: manualTableRefresh } = useTableAutoUpdateQuery(
+    tileId,
+    tabId,
+    (projectId || "") as string,
+    pending,
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions,
+  );
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -1369,8 +1382,7 @@ const LogsTable = ({
                 onClick={async () => {
                   try {
                     setIsRetrying(true);
-                    await queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
-                    await queryClient.invalidateQueries({ queryKey: ['fields', projectId, context_ ?? null] });
+                    await manualTableRefresh();
                   } finally {
                     setTimeout(() => setIsRetrying(false), 300);
                   }

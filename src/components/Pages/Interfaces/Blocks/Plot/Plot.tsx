@@ -16,6 +16,7 @@ import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { Button } from "@/components/UI/button";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpdateQuery";
 
 const LogsPlot = ({ 
     tileId,
@@ -90,6 +91,18 @@ const LogsPlot = ({
     } = usePlotDataQueryWithTracking(tileId);
 
     const { data: args } = usePlotArgumentsQuery(tabId);
+
+    // Wire up manual refresh for Retry using the auto-update hook's queryFn
+    const { manualRefresh: manualPlotRefresh } = usePlotAutoUpdateQuery(
+      tileId,
+      tabId,
+      projectId,
+      pending,
+      logsActions,
+      projectsActions,
+      contextActions,
+      fieldsActions,
+    );
 
     // Init logs and handle local updates
     const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
@@ -249,11 +262,8 @@ return (
           </p>
         </div>
         <Button 
-          onClick={() => {
-            // Invalidate plot data to force a fresh fetch
-            queryClient.invalidateQueries({ queryKey: ['plotDataItem', tileId] });
-            // Also invalidate related table data that the plot depends on
-            queryClient.invalidateQueries({ queryKey: ['fields', projectId] });
+          onClick={async () => {
+            await manualPlotRefresh();
           }}
         >
           Retry Loading Data
