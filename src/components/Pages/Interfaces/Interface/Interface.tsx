@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
 import { Loader2, Search, Plus, RefreshCw } from "lucide-react";
-import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
+import { showSuccessToast, showErrorToast, showLoadingToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
+import { toast } from 'sonner';
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
@@ -46,6 +47,7 @@ import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { 
   createInterfaceUrl,
   createCompleteDefaultInterface,
+  ensureInterfaceLoadable,
 } from "@/utils/interfaces/interfaceSelector"
 
 function getUniqueDefaultInterfaceName(baseProject: string, actions: GranularInterfaceActions) {
@@ -142,6 +144,7 @@ const Interface = ({
   const lastNoticeKeyRef = useRef<string | null>(null);
   const navTokenRef = useRef(0);
   const beginNavigation = useCallback(() => { navTokenRef.current += 1; return navTokenRef.current; }, []);
+  const navToastIdRef = useRef<string | number | null>(null);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
   const queryClient = useQueryClient();
   // Global bootstrap error overlay state
@@ -339,6 +342,18 @@ const Interface = ({
     setLoadingProjectName(null);
     setLoadingInterfaceId(null);    
   }, [interfaceQueryParam]);
+
+  // Toast-driven feedback for navigation/refresh (replaces frosted overlay)
+  useEffect(() => {
+    const active = isSwitchingInterface || isRefreshingInterface;
+    if (active && navToastIdRef.current == null) {
+      const msg = isRefreshingInterface ? 'Refreshing interface...' : (loadingMessage || 'Loading interface...');
+      navToastIdRef.current = showLoadingToast(msg);
+    } else if (!active && navToastIdRef.current != null) {
+      toast.dismiss(navToastIdRef.current);
+      navToastIdRef.current = null;
+    }
+  }, [isSwitchingInterface, isRefreshingInterface, loadingMessage]);
 
   useEffect(() => {
     // Reset failure count when the project changes
@@ -549,6 +564,7 @@ const Interface = ({
     setProjectQueryParam,
     setTabQueryParam: setTabQueryParamFromSync,
     setInterfaceQueryParam,
+    setSelectProjectParam,
     projectActions: projectsActions,
     interfaceActions,
     tabActions,
@@ -1203,6 +1219,16 @@ const Interface = ({
     },
     setInterface: async (projectId, interfaceName) => {
       const token = beginNavigation();
+      try {
+        const ac = new AbortController();
+        await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
+      } catch (err) {
+        setIsSwitchingInterface(false);
+        setLoadingMessage('Loading...');
+        setSelectInterfaceParam('true'); // Return to interface selection
+        showErrorToast('Failed to load interface');
+        return;
+      }
       const newParams = new URLSearchParams(window.location.search);
       newParams.set('project', projectId);
       newParams.set('interface', interfaceName);
@@ -1444,16 +1470,27 @@ const Interface = ({
                   interfacesForSelection.map((iface) => {
                     // Interface already comes from projectTree, so icon is directly available
                     const icon = iface.icon;
-                    const isLoading = loadingInterfaceId === iface.id;
+                    const rowKey = iface.id || iface.name; // Fallback to name when id is missing
+                    const isLoading = loadingInterfaceId === rowKey;
                     const isDisabled = loadingInterfaceId !== null;
                     
                     return (
                       <button
-                        key={iface.id}
-                        onClick={() => {
-                          setLoadingInterfaceId(iface.id);
+                        key={rowKey}
+                        onClick={async () => {
+                          setLoadingInterfaceId(rowKey);
                           setLoadingMessage(`Loading interface...`);
                           setIsSwitchingInterface(true);
+                          try {
+                            const ac = new AbortController();
+                            await ensureInterfaceLoadable(projectQueryParam || '', iface.name, ac.signal);
+                          } catch (err) {
+                            setIsSwitchingInterface(false);
+                            setLoadingMessage('Loading...');
+                            showErrorToast('Failed to load interface');
+                            // Stay on selection screen
+                            return;
+                          }
                           const newParams = new URLSearchParams(window.location.search);
                           newParams.set('interface', iface.name);
                           newParams.delete('selectInterface');
@@ -1538,19 +1575,6 @@ const Interface = ({
             }}
           >
           <div className="relative flex-1 min-w-0 h-full">
-          {(isSwitchingInterface || isRefreshingInterface) && (
-            <div
-              className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
-              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem', right: 0, bottom: 0 }}
-            >
-              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-body text-muted-foreground text-center whitespace-nowrap">
-                  {isRefreshingInterface ? 'Refreshing interface...' : loadingMessage}
-                </p>
-              </div>
-            </div>
-          )}
           <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
                      <div className="relative bg-background pt-3" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
@@ -1753,19 +1777,7 @@ const Interface = ({
             onComplete={hideOverlay}
           />
 
-          {/* Initial Interface Load Overlay - shows between navbar and interface paint */}
-          {isInitialInterfaceLoad && !isSwitchingTab && (
-            <div 
-              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm"
-              style={{ left: sidebarWidth }}
-            >
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Loading interface...</p>
-              </div>
-            </div>
-          )}
-
+          
           
         </Suspense>
 

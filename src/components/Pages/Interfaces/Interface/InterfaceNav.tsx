@@ -797,6 +797,14 @@ export default function InterfaceNav({
   
   const handleProjectChange = async (newProject: string) => {
     if (isNavigating) return;
+    // Deselect current project → open project selection
+    if (selectedProject === newProject) {
+      setIsChangingProject(true)
+      setTransitioningToProject(newProject)
+      setLoadingMessage('Loading projects...')
+      setProjectGlobal(null, { openProjectSelection: true })
+      return
+    }
     setIsChangingProject(true)
     setTransitioningToProject(newProject)
     setLoadingMessage('Loading project...')

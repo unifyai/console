@@ -93,6 +93,8 @@ export default async function Main({
   let currentProject = projects.find(proj => proj == project) || null;
   
   const userRequestedProjectSelection = searchParams?.selectProject === 'true';
+  const userRequestedInterfaceSelection = searchParams?.selectInterface === 'true';
+  const selectingInterface = !interface_ || userRequestedInterfaceSelection;
   
   if (!currentProject && !project && !userRequestedProjectSelection) {
     // Check if "Assistants" project exists and use it as default (fresh session)
@@ -136,7 +138,9 @@ export default async function Main({
 
   // Get interfaces
   let interfaces: InterfaceData[] = [];
-  if (currentProject) {
+  // Skip interface prefetch when user is navigating to the interface selection screen.
+  // This avoids blocking SSR on slow /interfaces/list and makes deselection snappy.
+  if (currentProject && !selectingInterface) {
     await qc.prefetchQuery({
       queryKey: ["interfaces", currentProject],
       queryFn: () => actions.interfaceActions.list(currentProject, false),
@@ -146,6 +150,8 @@ export default async function Main({
     const maybeInterfaces = qc.getQueryData(["interfaces", currentProject]);
     interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
     debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
+  } else if (currentProject && selectingInterface) {
+    debugLog("[Main.server] Skipping interface prefetch (selecting interface UI).");
   }
 
   // **BUILD ALL STATE SLICES THAT WE NEED**
