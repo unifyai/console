@@ -702,7 +702,7 @@ export default function InterfaceNav({
   
   // Ensure currentTabs is always an array with stable reference to prevent drag-drop library loops
   const currentTabs = useMemo(() => {
-    return Array.isArray(currentTabsData) ? currentTabsData : [];
+    return Array.isArray(currentTabsData) ? currentTabsData : []
   }, [currentTabsData]);
   
   // Show toast notification for tab list errors (timeout-aware)
@@ -2252,11 +2252,11 @@ export default function InterfaceNav({
               {tabsError ? (
                 // Error state
                 <div className={cn(
-                  "text-body text-destructive text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-4 px-2" : "py-6 px-3"
+                  "text-caption text-destructive text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-3 px-2" : "py-4 px-3"
                 )}>
-                  <div className="mb-2">
-                    <svg className="h-8 w-8 mx-auto text-destructive/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="mb-1">
+                    <svg className="h-4 w-4 mx-auto text-destructive/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -2300,11 +2300,11 @@ export default function InterfaceNav({
                 </div>
               ) : currentTabs.length === 0 ? (
                 <div className={cn(
-                  "text-body text-muted-foreground text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-4" : "py-6 px-2"
+                  "text-caption text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-3" : "py-4 px-2"
                 )}>
-                  <div className="mb-2">
-                    <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="mb-1">
+                    <svg className="h-4 w-4 mx-auto text-muted-foreground/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                   </div>
