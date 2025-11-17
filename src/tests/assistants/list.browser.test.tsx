@@ -36,33 +36,6 @@ vi.mock('@/hooks/Assistants/useAssistantCall', () => ({
     })),
 }));
 
-vi.mock('@/components/UI/avatar', () => ({
-    Avatar: ({ children, className }: { children: React.ReactNode, className: string }) => <div data-testid="avatar" className={className}>{children}</div>,
-    AvatarImage: ({ src, alt }: { src: string, alt: string }) => <img src={src} alt={alt} data-testid="avatar-image" />,
-    AvatarFallback: ({ children }: { children: React.ReactNode }) => <div data-testid="avatar-fallback">{children}</div>,
-}));
-
-vi.mock('lucide-react', async (importOriginal) => {
-    const original = await importOriginal<typeof import('lucide-react')>();
-    return {
-        ...original,
-        Search: () => <div data-testid="search-icon" />,
-        UserPlus: () => <div data-testid="user-plus-icon" />,
-        WifiOff: () => <div data-testid="wifi-off-icon" />,
-        PanelLeftClose: () => <div data-testid="panel-left-close-icon" />,
-        PanelLeft: () => <div data-testid="panel-left-icon" />,
-        Mail: () => <div data-testid="mail-icon" />,
-        Phone: () => <div data-testid="phone-icon" />,
-        PhoneCall: () => <div data-testid="phone-call-icon" />,
-        Check: () => <div data-testid="check-icon" />,
-        User: () => <div data-testid="user-icon" />,
-    };
-});
-
-vi.mock('@mui/icons-material', () => ({
-    WhatsApp: () => <div data-testid="whatsapp-icon" />,
-}));
-
 describe('Component Tests', () => {
 
     const defaultListProps = {
@@ -99,27 +72,39 @@ describe('Component Tests', () => {
         it('should display assistant avatar and name', () => {
             render(<AssistantList {...defaultListProps} assistants={[mockAssistants[0]]} />);
             expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            const avatarImage = screen.getByTestId('avatar-image');
-            expect(avatarImage).toHaveAttribute('src', mockAssistants[0].profile_photo);
+            // The image fails to load in JSDOM, so we check for the fallback initials.
+            const listItem = screen.getByTestId('assistant-list-item-1');
+            expect(within(listItem).getByText('JD')).toBeInTheDocument();
         });
 
         it('should display avatar-only items when the list is folded', () => {
             render(<AssistantList {...defaultListProps} assistants={mockAssistants} isFolded={true} />);
             expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
-            expect(screen.getAllByTestId('avatar-image').length).toBe(2);
+            expect(screen.getByText('JD')).toBeInTheDocument();
+            expect(screen.getByText('JS')).toBeInTheDocument();
         });
 
-        it('should display a phone call icon when an assistant is in an active call', () => {
+        it('should display a phone call icon when an assistant is in an active call', async () => {
+            const user = userEvent.setup();
             render(<AssistantList {...defaultListProps} assistants={[mockAssistants[0]]} activeCallAssistantId="1" />);
-            expect(screen.getByTestId('phone-call-icon')).toBeInTheDocument();
+            
+            const listItem = screen.getByTestId('assistant-list-item-1');
+            
+            const phoneCallIcon = listItem.querySelector('.lucide-phone-call');
+            expect(phoneCallIcon).toBeInTheDocument();
+
+            await user.hover(phoneCallIcon!);
+            expect(await screen.findByRole('tooltip', { name: 'In a call' })).toBeInTheDocument();
         });
         
         it('should display status indicators for online and offline assistants', () => {
             render(<AssistantList {...defaultListProps} assistants={mockAssistants} />);
-            const onlineIndicator = screen.getByTestId('status-indicator-1');
+            const janeItem = screen.getByTestId('assistant-list-item-1');
+            const onlineIndicator = within(janeItem).getByRole('status');
             expect(onlineIndicator).toHaveClass('bg-green-500');
 
-            const offlineIndicator = screen.getByTestId('status-indicator-2');
+            const johnItem = screen.getByTestId('assistant-list-item-2');
+            const offlineIndicator = within(johnItem).getByRole('status');
             expect(offlineIndicator).toHaveClass('bg-gray-400');
         });
         
@@ -184,8 +169,14 @@ describe('Component Tests', () => {
         });
 
         it('should toggle list folding when clicking on fold button', async () => {
-            render(<AssistantList {...defaultListProps} />);
-            const foldButton = screen.getByTestId('panel-left-close-icon').closest('button');
+            const user = userEvent.setup();
+            const { container } = render(<AssistantList {...defaultListProps} />);
+
+            const foldIcon = container.querySelector('.lucide-panel-left-close');
+            const foldButton = foldIcon?.closest('button');
+            
+            expect(foldButton).toBeInTheDocument();
+        
             await user.click(foldButton!);
             expect(defaultListProps.onToggleFold).toHaveBeenCalledTimes(1);
         });
@@ -196,9 +187,11 @@ describe('Component Tests', () => {
 
         it("should display a hover card with contact details on avatar hover", async () => {
             render(<AssistantList {...defaultListProps} assistants={[mockAssistants[0]]} isFolded={true} />);
-            await user.hover(screen.getAllByTestId('avatar')[0]);
+            // Hover the element containing the fallback text, which is inside the trigger
+            await user.hover(screen.getByText('JD'));
             
             expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
+            // these are in the hover card content
             expect(screen.getByText(mockAssistants[0].email!)).toBeInTheDocument();
             expect(screen.getByText(mockAssistants[0].phone!)).toBeInTheDocument();
             expect(screen.getByText(mockAssistants[0].assistant_whatsapp_number!)).toBeInTheDocument();
@@ -206,14 +199,14 @@ describe('Component Tests', () => {
 
         it('should display "Add" buttons for missing contact details', async () => {
             render(<AssistantList {...defaultListProps} assistants={[mockAssistantWithoutSocials]} isFolded={true} />);
-            await user.hover(screen.getAllByTestId('avatar')[0]);
+            await user.hover(screen.getByText('AR'));
             
             expect(await screen.findByRole('button', { name: /Add Email/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Add Phone/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Add WhatsApp/i })).toBeInTheDocument();
         });
 
-        it('should open contat manager with "email" tab when "Add Email" is clicked', async () => {
+        it('should open contact manager with "email" tab when "Add Email" is clicked', async () => {
             const onOpenContactManagerMock = vi.fn();
             render(
                 <AssistantList 
@@ -224,7 +217,7 @@ describe('Component Tests', () => {
                 />
             );
             
-            await user.hover(screen.getAllByTestId('avatar')[0]);
+            await user.hover(screen.getByText('AR'));
             const addEmailButton = await screen.findByRole('button', { name: /Add Email/i });
             await user.click(addEmailButton);
             
@@ -242,7 +235,7 @@ describe('Component Tests', () => {
                 />
             );
             
-            await user.hover(screen.getAllByTestId('avatar')[0]);
+            await user.hover(screen.getByText('AR'));
             const addPhoneButton = await screen.findByRole('button', { name: /Add Phone/i });
             await user.click(addPhoneButton);
             
@@ -275,12 +268,13 @@ describe('Integration Tests', () => {
             renderMain({ assistantActions: loadingActions });
             
             await vi.waitFor(() => {
+                // The skeleton components have this role for testing purposes.
                 expect(screen.getAllByRole('list-item-skeleton').length).toBeGreaterThan(0);
             });
             expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
         });
 
-        it('should display an error message if assitants fail to load', { meta: { alias: 'Assistants-API-Error' }}, async () => {
+        it('should display an error message if assistants fail to load', { meta: { alias: 'Assistants-API-Error' }}, async () => {
             const errorActions = {
                 ...mockAssistantActions,
                 assistant: {
@@ -321,8 +315,10 @@ describe('Integration Tests', () => {
         
             expect(deleteMock).toHaveBeenCalledWith('1');
             expect(await screen.findByText('Jane Doe removed from team.')).toBeInTheDocument();
-            await waitForElementToBeRemoved(() => screen.queryByText("Jane's Profile"));
-        
+            
+            await waitFor(() => {
+              expect(screen.queryByText("Jane's Profile")).not.toBeInTheDocument();
+            });
             expect(screen.queryByTestId('assistant-list-item-1')).not.toBeInTheDocument();
             expect(screen.getByText('John Smith')).toBeInTheDocument();
         });
@@ -345,7 +341,9 @@ describe('Integration Tests', () => {
         
             expect(deleteMock).toHaveBeenCalledWith('1');
             expect(await screen.findByText('Failed to remove Jane Doe')).toBeInTheDocument();
-            await waitForElementToBeRemoved(dialog);
+            await waitFor(() => {
+                expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+            });
         
             const janeListItem = screen.getByTestId('assistant-list-item-1');
             expect(within(janeListItem).getByText('Jane Doe')).toBeInTheDocument();
@@ -381,11 +379,14 @@ describe('Integration Tests', () => {
     
             const janeItem = await screen.findByText('Jane Doe');
             await user.click(janeItem);
-            expect(await screen.findByText("Jane's Profile")).toBeInTheDocument();
+            const profilePanel = await screen.findByText("Jane's Profile");
+            expect(profilePanel).toBeInTheDocument();
     
             await user.click(janeItem);
             
-            await waitForElementToBeRemoved(() => screen.queryByText("Jane's Profile"));
+            await waitFor(() => {
+                expect(screen.queryByText("Jane's Profile")).not.toBeInTheDocument();
+            });
         });
     
         it('should switch profile panels when a different assistant is clicked', { meta: { alias: 'Assistants-SwitchProfile' }}, async () => {
@@ -393,11 +394,14 @@ describe('Integration Tests', () => {
             renderMain();
     
             await user.click(await screen.findByText('Jane Doe'));
-            expect(await screen.findByText("Jane's Profile")).toBeInTheDocument();
+            const janeProfile = await screen.findByText("Jane's Profile");
+            expect(janeProfile).toBeInTheDocument();
     
             await user.click(await screen.findByText('John Smith'));
             
-            await waitForElementToBeRemoved(() => screen.queryByText("Jane's Profile"));
+            await waitFor(() => {
+                expect(screen.queryByText("Jane's Profile")).not.toBeInTheDocument();
+            });
             expect(await screen.findByText("John's Profile")).toBeInTheDocument();
         });
 
