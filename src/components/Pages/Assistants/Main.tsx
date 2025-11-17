@@ -531,7 +531,7 @@ export default function Main({
                         assistants={assistants}
                         assistantStatuses={assistantStatuses}
                         assistantError={assistantError}
-                        isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
+                        isLoading={isLoadingAssistants}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
                         activityLogAssistantId={activityLogAssistantId}

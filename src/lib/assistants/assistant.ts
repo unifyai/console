@@ -1,5 +1,5 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider } from "@/types/assistants/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode } from "@/types/assistants/assistant";
 
 export const listAssistants = async (apiKey: string) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
@@ -170,7 +170,7 @@ export const createAssistant = async (apiKey: string) => {
     return async (
         first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
-        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
         email: string | null, user_phone: string | null, phone_country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         pre_hire_chat?: PreHireChatMessage[]

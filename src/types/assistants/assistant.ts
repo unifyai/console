@@ -6,7 +6,7 @@ import { SecretActions } from "./secret";
 import { ConnectionDetails } from "./call";
 
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
-
+export type VoiceMode = "sts" | "tts"
 export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
 
 // Type for the pre_hire_chat payload
@@ -31,7 +31,7 @@ export interface Assistant {
   // Voice fields
   voice_id: string | null; // Provider Voice ID
   voice_provider: VoiceProvider | null;
-  voice_mode: "sts" | "tts";
+  voice_mode: VoiceMode | null;
   // Contact fields
   email: string | null;
   phone: string | null;
@@ -184,7 +184,7 @@ export interface AssistantUpdatePayload {
     user_whatsapp_number?: string | null;
     voice_id?: string | null;
     voice_provider?: VoiceProvider | null;
-    voice_mode?: "sts" | "tts";
+    voice_mode?: VoiceMode | null;
     phone_country?: string | null;
     timezone?: string | null;
     profile_photo?: string | null;
@@ -269,7 +269,7 @@ export interface AssistantActions {
     create: (
         first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
-        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
         email: string | null, user_phone: string | null, phone_country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         preHireChat?: PreHireChatMessage[]

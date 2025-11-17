@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { Phone, Mail, PhoneCall } from "lucide-react";
@@ -98,6 +97,7 @@ export function AssistantListItem({
                 </Avatar>
                 {status !== null && (
                     <span
+                        role="status"
                         className={cn(
                             "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
                             isOnline ? "bg-green-500" : "bg-gray-400"
@@ -127,6 +127,7 @@ export function AssistantListItem({
 
     return (
         <div
+            data-testid={`assistant-list-item-${assistant.agent_id}`}
             className={cn(
                 "flex items-center justify-between p-2 rounded-md group cursor-pointer",
                 !isSelected && "hover:bg-muted",
@@ -144,6 +145,8 @@ export function AssistantListItem({
                             </Avatar>
                             {status !== null && (
                                 <span
+                                    role='status'
+                                    data-testid={`status-indicator-${assistant.agent_id}`}
                                     className={cn(
                                         "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
                                         isOnline ? "bg-green-500" : "bg-gray-400"
