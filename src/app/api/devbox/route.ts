@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { getApiKeyFromRequest } from "@/lib/auth/getApiKey";
 import { CodeSandbox } from "@codesandbox/sdk";
 
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;

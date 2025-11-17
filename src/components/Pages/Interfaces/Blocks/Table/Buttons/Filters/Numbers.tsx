@@ -71,8 +71,8 @@ const NumericColumnFilter = ({
 
     const { data: tileDataState } = useTileData(tileId || null, tabId || null);
 
-    // Only request boundaries for the active column to avoid heavy, multi-column analytics
-    const columns = [column];
+    // Get columns for the query
+    const columns = [...entriesProperties, ...paramsProperties];
 
     // Use the boundaries query - this will actively fetch boundaries
     const { data: queryBoundaries, isLoading: isBoundariesLoading } = useTableBoundariesQuery(

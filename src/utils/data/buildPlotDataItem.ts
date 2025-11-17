@@ -3,7 +3,6 @@ import { PlotArguments, LogFieldsResponseProps, LogsResponseProps, LogProps, Gro
 import { LogsActions } from "@/types/interfaces/grid";
 import { processContext } from "@/utils/interfaces/table/columnOperations";
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/interfaces/common";
-import { sanitizeKey } from "@/app/(home)/interfaces/utils";
 
 /**
  * Debug flag for performance logging
@@ -30,8 +29,7 @@ export async function buildPlotDataItem(
   plotArguments: PlotArguments, 
   fields: LogFieldsResponseProps[],
   projectId: string,
-  logsActions: LogsActions,
-  signal?: AbortSignal
+  logsActions: LogsActions
 ): Promise<PlotDataItem> {
   // Identify which tables are used in this plot by name
   const usedTableNames = getUsedTableNames(plotTile);
@@ -49,8 +47,7 @@ export async function buildPlotDataItem(
     fields,
     plotFields,
     projectId,
-    logsActions,
-    signal
+    logsActions
   );
   const tFetchPlotDataByTableEnd = performance.now();
   perfLog(`[perf] fetchPlotDataByTable: ${(tFetchPlotDataByTableEnd - tFetchPlotDataByTable).toFixed(2)} ms`);
@@ -151,8 +148,7 @@ async function fetchPlotDataByTable(
   fields: LogFieldsResponseProps[],
   plotFields: LogFieldsResponseProps,
   projectId: string,
-  logsActions: LogsActions,
-  signal?: AbortSignal
+  logsActions: LogsActions
 ) {
   const plotDataPromises = usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
@@ -207,59 +203,38 @@ async function fetchPlotDataByTable(
         && grouping
       ) {
         const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(plotTile.plot_tile?.plot_aggregate.split(".")[1]) + 1);
-        
-        // Call API route directly instead of server action
-        const metricName = metric ? metric : "mean";
-        const keyNames = subset ? subset.split("&").map(sanitizeKey) : [];
-        const params = new URLSearchParams();
-        params.set('project', projectId);
-        if (context) params.set('context', context);
-        params.set('key', JSON.stringify(keyNames));
-        if (filterExpression) params.set('filter_expr', filterExpression);
-        params.set('group_by', JSON.stringify(groupFields));
-        
-        const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
-          method: 'GET',
-          signal: signal as AbortSignal,
-          cache: 'no-store',
-        });
-        
-        if (!metricsRes.ok) {
-          throw new Error(`Failed to fetch metrics: ${metricsRes.status}`);
-        }
-        
-        const metrics = await metricsRes.json();
+        const metrics = await logsActions.getMetrics(
+          projectId, 
+          context ?? null, 
+          filterExpression, 
+          groupFields.join(","), 
+          metric ? metric : "mean",
+          subset ? subset.split("&") : []
+        );
     
         data.logs = convertMetricsToLogs(
           groupFields, 
-          metricName, 
+          metric ? metric : "mean", 
           tableFields, 
           metrics as GroupedMetrics
         );
     
       }
       else if (subset) {
-        // Call API route directly instead of server action
-        const params = new URLSearchParams();
-        params.set('project', projectId);
-        if (context) params.set('context', context);
-        if (columnContext) params.set('column_context', columnContext);
-        if (filterExpression) params.set('filter_expr', filterExpression);
-        if (subset) params.set('from_fields', subset);
-        params.set('limit', '1000');
-        params.set('randomize', 'True');
+        const rawData = await logsActions.get(
+          projectId, 
+          context ?? null, 
+          columnContext ?? null, 
+          filterExpression, 
+          null, null, null, null,
+          subset, 
+          null, 
+          1000,               // Limit to 1000 detapoints
+          null, null, null, null, null,
+          "True",             // Randomize
+          Date.now().toString()
+        );
 
-        const logsRes = await fetch(`/api/logs?${params.toString()}`, {
-          method: 'GET',
-          signal: signal as AbortSignal,
-          cache: 'no-store',
-        });
-        
-        if (!logsRes.ok) {
-          throw new Error(`Failed to fetch plot logs: ${logsRes.status}`);
-        }
-
-        const rawData = await logsRes.json();
         data = replaceParamsIndicesWithValues(rawData);
       }
     }

@@ -93,8 +93,6 @@ export default async function Main({
   let currentProject = projects.find(proj => proj == project) || null;
   
   const userRequestedProjectSelection = searchParams?.selectProject === 'true';
-  const userRequestedInterfaceSelection = searchParams?.selectInterface === 'true';
-  const selectingInterface = !interface_ || userRequestedInterfaceSelection;
   
   if (!currentProject && !project && !userRequestedProjectSelection) {
     // Check if "Assistants" project exists and use it as default (fresh session)
@@ -131,27 +129,53 @@ export default async function Main({
     projectCount: minimalGlobalState.projects?.length 
   });
 
-  // Project contexts (deferred to client bootstrap)
+  // Project contexts
   let contexts: Context[] = [];
+  
+  if (currentProject) {
+    await qc.prefetchQuery({
+      queryKey: ["contexts", currentProject],
+      queryFn: () => actions.contextActions.get(currentProject),
+    });
+    
+    // Get contexts from cache
+    contexts = qc.getQueryData<Context[]>(["contexts", currentProject]) || [];
+    debugLog("[Main.server] Loaded contexts for project:", currentProject, "contexts:", contexts.length);
+  }
 
-  // Devbox creation is deferred to client to keep SSR light
+  // Get or create devbox
+  let devbox = null;
+  try {
+    if (currentProject) {
+      await qc.prefetchQuery({
+        queryKey: ["devbox"],
+      queryFn: () => actions.devboxActions.get(),
+    });
+    devbox = qc.getQueryData(["devbox"]) || null;
+    debugLog("[Main.server] Devbox status:", devbox ? "exists" : "not found");
+
+    // If devbox is not found, create it
+    if (!devbox) {
+      await actions.devboxActions.create();
+      debugLog("[Main.server] Created new devbox");
+      }
+    }
+  } catch (error) {
+    console.error("[Main.server] Error creating devbox:", error);
+  }
 
   // Get interfaces
   let interfaces: InterfaceData[] = [];
-  // Skip interface prefetch when user is navigating to the interface selection screen.
-  // This avoids blocking SSR on slow /interfaces/list and makes deselection snappy.
-  if (currentProject && !selectingInterface) {
+  if (currentProject) {
     await qc.prefetchQuery({
-      queryKey: ["interfaces", currentProject],
+      queryKey: ["interfaces", currentProject, false],
       queryFn: () => actions.interfaceActions.list(currentProject, false),
     });
 
     // Get interfaces from cache
-    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject]);
+    const maybeInterfaces = qc.getQueryData(["interfaces", currentProject, false]);
     interfaces = Array.isArray(maybeInterfaces) ? (maybeInterfaces as InterfaceData[]) : [];
     debugLog("[Main.server] Loaded interfaces for project:", currentProject, "interfaces:", interfaces.map(i => i.name));
-  } else if (currentProject && selectingInterface) {
-    debugLog("[Main.server] Skipping interface prefetch (selecting interface UI).");
   }
 
   // **BUILD ALL STATE SLICES THAT WE NEED**
@@ -237,41 +261,24 @@ export default async function Main({
       });
       
       tabs = qc.getQueryData<TabData[]>(["tabs", interfaceId]) || [];
-      // Ensure tabs is actually an array before trying to map
-      if (!Array.isArray(tabs)) {
-        console.warn("[Main.server] Tabs data is not an array, got:", typeof tabs, tabs);
-        tabs = [];
-      }
       debugLog("[Main.server] Loaded tabs for interface:", interfaceId, "tabs:", tabs.map(t => t.name));
     }
 
     // Build interface state slice
     const activeTabId = currentInterface.active_tab_id || undefined;
-    // Prefer the URL tab if present (for SSR); otherwise use server's active_tab_id
-    let forcedActiveTabId: string | undefined = undefined;
-    const spTab = (typeof searchParams?.tab === 'string') ? (searchParams!.tab as string) : undefined;
-    if (spTab && Array.isArray(tabs)) {
-      const match = tabs.find(t => t.name === spTab);
-      if (match?.id) {
-        forcedActiveTabId = match.id;
-        debugLog("[Main.server] Using tab from URL for SSR:", spTab, "ID:", forcedActiveTabId);
-      }
-    }
-    const finalActiveTabId = forcedActiveTabId ?? activeTabId;
-
     debugLog("[Main.server] Building interface state slice");
     interfaceStateSlice = buildInterfaceStateForStore(
       currentInterface, 
-      finalActiveTabId,
+      activeTabId,
       tabs.map(tab => tab.id || '') || [],
       tabs.map(tab => tab.name || '') || []
     );
     stateSlices.push(interfaceStateSlice);
     debugLog("[Main.server] Interface state slice built");
 
-    // Build tab and tile state slices (prefetch tiles only for active tab)
+    // Build tab and tile state slices
     if (tabs.length > 0) {
-      debugLog("[Main.server] Building tab and tile state slices (active tab tiles only) for", tabs.length, "tabs");
+      debugLog("[Main.server] Building tab and tile state slices for", tabs.length, "tabs");
       const allTabData: TabData[] = [];
       const allTileData: TileData[] = [];
       const isActiveFlags: boolean[] = [];
@@ -284,34 +291,30 @@ export default async function Main({
         if (!tabId) continue;
 
         try {
-          const isActive = tabId === finalActiveTabId;
+          await qc.prefetchQuery({
+            queryKey: ["tiles", tabId],
+            queryFn: () => actions.tileActions.list(tabId, undefined, false)
+          });
+          const tabTiles = qc.getQueryData<TileData[]>(["tiles", tabId]) || [];
+          debugLog("[Main.server] Loaded tiles for tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
+          
           allTabData.push(tab);
-          isActiveFlags.push(isActive);
 
-          if (isActive) {
-            await qc.prefetchQuery({
-              queryKey: ["tiles", tabId],
-              queryFn: () => actions.tileActions.list(tabId, undefined, false)
-            });
-            const rawTiles = qc.getQueryData(["tiles", tabId]);
-            const tabTiles: TileData[] = Array.isArray(rawTiles) ? (rawTiles as TileData[]) : [];
-            if (!Array.isArray(rawTiles)) {
-              console.warn(`[Main.server] Tiles cache for tab ${tab.name} is not an array; skipping tiles for this tab.`);
-            } else {
-              debugLog("[Main.server] Loaded tiles for ACTIVE tab:", tab.name, "tiles:", tabTiles.map(t => `${t.name}(${t.type})`));
-            }
-
-            tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
-            tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
-            tabTiles.forEach(tile => {
-              allTileData.push(tile);
-              tabIdsForTiles.push(tabId);
-            });
+          if (tabId === currentInterface.active_tab_id) {
+            isActiveFlags.push(true);
+            debugLog("[Main.server] Tab", tab.name, "is active");
           } else {
-            // Defer non-active tab tiles to client to keep navigation light
-            tileIdsPerTab.push([]);
-            tileNamesPerTab.push([]);
+            isActiveFlags.push(false);
           }
+
+          tileIdsPerTab.push(tabTiles.map(tile => tile.id || ''));
+          tileNamesPerTab.push(tabTiles.map(tile => tile.name || ''));
+          
+          tabTiles.forEach(tile => {
+            allTileData.push(tile);
+            tabIdsForTiles.push(tabId);
+          });
+          
         } catch (error) {
           console.warn(`[Main.server] Could not build state for tab ${tab.name}:`, error);
         }

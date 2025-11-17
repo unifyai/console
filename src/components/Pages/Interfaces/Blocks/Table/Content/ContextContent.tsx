@@ -72,7 +72,7 @@ const ContextContent = ({
     } : setContext;
 
     const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-    const contexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
+    const contexts = listContextsQuery.data || [];
 
     const contextNames = useMemo(() => contexts.map(context => context.name).sort(), [contexts]);
     

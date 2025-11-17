@@ -83,7 +83,7 @@ const ProjectButtons = ({
     // Use React Query to load projects and contexts
     const listProjectsQuery = useListProjectsQuery(projectActions);
     const listContextsQuery = useListContextsQuery(project || null, contextActions);
-    const contexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
+    const contexts = listContextsQuery.data || [];
     
     // Favourites state
     const [favourites, setFavourites] = useState<Favourite[]>(initialFavourites);

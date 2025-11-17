@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient, CancelledError } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableDataItem, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
 import { LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { fetchAndBuildTableDataItem } from "@/utils/data/buildTableDataItem";
@@ -59,7 +59,7 @@ export function useTableAutoUpdateQuery(
   // Main cache key for syncing
   const mainQueryKey = ["tableDataItem", tileId];
 
-  const queryFn = async ({ signal }: { signal?: AbortSignal }): Promise<TableDataItem> => {
+  const queryFn = async (): Promise<TableDataItem> => {
     if (!tileId) throw new Error("Tile ID is required");
     
     // Get current tile data from store (uses latest filters, context, etc.)
@@ -78,7 +78,10 @@ export function useTableAutoUpdateQuery(
       projectId,
       false,
       true,
-      true
+      true,
+      projectsActions,
+      contextActions,
+      fieldsActions
     );
     perfLog(
       `[perf] useTableAutoUpdateQuery – fetchOrBuildProjectsContextsFields: ${(
@@ -113,43 +116,34 @@ export function useTableAutoUpdateQuery(
     // Get infinite query keys from the current tile
     const infiniteQueryKeys = tile?.tableTile?.infiniteQueryKeys || [];
 
-    try {
-      // Build table data item using the same logic as optimistic updates
-      const tableDataItem = await fetchAndBuildTableDataItem(
-        tileData,
-        fields,
-        projectId,
-        logsActions,
-        queryClient,
-        infiniteQueryKeys,
-        prevLogs,
-        signal as AbortSignal,
-      );
+    // Build table data item using the same logic as optimistic updates
+    const tableDataItem = await fetchAndBuildTableDataItem(
+      tileData,
+      fields,
+      projectId,
+      logsActions,
+      queryClient,
+      infiniteQueryKeys,
+      prevLogs,
+      undefined, // signal - temporarily removed to fix connection issues
+    );
 
-      // Update BOTH the auto-update cache AND the main cache to keep them in sync
-      queryClient.setQueryData(autoUpdateQueryKey, tableDataItem);
-      queryClient.setQueryData(mainQueryKey, tableDataItem);
+    // Update BOTH the auto-update cache AND the main cache to keep them in sync
+    queryClient.setQueryData(autoUpdateQueryKey, tableDataItem);
+    queryClient.setQueryData(mainQueryKey, tableDataItem);
 
-      return tableDataItem;
-    } catch (e: any) {
-      const msg = String(e?.message || e);
-      if ((signal as AbortSignal | undefined)?.aborted || e?.name === 'AbortError' || /Abort|aborted|Connection closed/i.test(msg)) {
-        // Treat as benign cancellation so React Query doesn't surface an error
-        throw new CancelledError();
-      }
-      throw e;
-    }
+    return tableDataItem;
   };
   
   const query = useQuery<TableDataItem>({
     queryKey: autoUpdateQueryKey,
     queryFn,
-    enabled: !!tileId && !!tileDataState && autoUpdate,
+    enabled: !!tileId && !!tileDataState && !pending && autoUpdate,
     refetchInterval: autoUpdate ? 5000 : false,
     refetchIntervalInBackground: autoUpdate,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: autoUpdate,
+    refetchOnReconnect: autoUpdate,
+    refetchOnMount: autoUpdate,
     staleTime: 0, // Always fetch fresh data when auto-update is enabled
   });
   

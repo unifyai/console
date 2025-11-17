@@ -73,7 +73,7 @@ export const deleteInterface = async (apiKey: string) => {
 
 // List interfaces
 export const listInterfaces = async (apiKey: string) => {
-    return async (projectId: string, checkpoint: boolean = false, signal?: AbortSignal) => {
+    return async (projectId: string, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -82,7 +82,6 @@ export const listInterfaces = async (apiKey: string) => {
                 method: "GET",
                 headers: { apiKey: apiKey },
                 cache: "no-store",
-                signal,
             }
         );
         

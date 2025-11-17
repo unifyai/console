@@ -122,9 +122,6 @@ import { CreateInterfaceDialog } from './Dialogs/CreateInterfaceDialog'
 import { CreateTabDialog } from './Dialogs/CreateTabDialog'
 import { RenameProjectDialog } from './Dialogs/RenameProjectDialog'
 import ContextTreePicker from '@/components/Common/Dropdowns/ContextTreePicker'
-import { InterfaceNavContext } from './Interface';
-import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
-import { useTab } from '@/contexts/hooks/tab';
 
 interface ProjectInterface {
   id: string;
@@ -170,11 +167,6 @@ interface InterfaceNavProps {
   syncedInterfaceUIActions?: {
     setActiveTab: (tabIdOrName: string | null) => void
   } | null
-  // Project tree data passed from parent to avoid duplicate fetching
-  projectTree: Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
-  refetchProjectTree: () => Promise<any>
-  // Optional: hover prefetch callback
-  onHoverPrefetchTab?: (tabName: string) => void
 }
 
 
@@ -229,7 +221,6 @@ interface SortableTabProps {
   onChangeTabColor: (tab: ProjectTab) => void;
   onSetTabContext: (tab: ProjectTab) => void;
   onDeleteTab: (tab: ProjectTab) => void;
-  onHoverPrefetch?: (tab: ProjectTab) => void;
 }
 
 const SortableTab = React.memo(function SortableTab({
@@ -245,7 +236,6 @@ const SortableTab = React.memo(function SortableTab({
   onChangeTabColor,
   onSetTabContext,
   onDeleteTab,
-  onHoverPrefetch,
 }: SortableTabProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   
@@ -278,7 +268,6 @@ const SortableTab = React.memo(function SortableTab({
         {...attributes}
         {...listeners}
         onClick={() => onTabClick(tab)}
-        onMouseEnter={() => onHoverPrefetch?.(tab)}
         className={cn(
           "flex-1 min-w-0 flex items-center gap-2 py-1.5 text-body-sm rounded-md transition-all cursor-pointer overflow-hidden",
           isCollapsed ? "px-0 justify-center" : "px-3 pr-10 justify-start",
@@ -418,10 +407,7 @@ export default function InterfaceNav({
   onRefresh,
   refreshStatus,
   fieldsActions,
-  syncedInterfaceUIActions,
-  projectTree,
-  refetchProjectTree,
-  onHoverPrefetchTab
+  syncedInterfaceUIActions
 }: InterfaceNavProps) {
 
   // Initialize sidebar state from cookies
@@ -545,8 +531,6 @@ export default function InterfaceNav({
   const [importInterfaceOpen, setImportInterfaceOpen] = useState(false)
   const [importProjectName, setImportProjectName] = useState<string | null>(null)
   const [isImportingInterface, setIsImportingInterface] = useState(false)
-  // Saving overlay state (blocks navigation)
-  const [isSaving, setIsSaving] = useState(false)
   
   // Drag and drop state
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
@@ -564,10 +548,6 @@ export default function InterfaceNav({
     return activeTab?.name || null
   })
   
-  // For manual save (checkpoint): access current tab data actions and mutation
-  const { dataActions: activeTabDataActions } = useTab(activeTabName, interfaceId)
-  const saveTabWithTilesMutation = useSaveTabWithTilesQuery(tabActions, tileActions, 'Manual save')
-  
   // Store hooks for save/reset functionality
   const setSaveInterfaceOpen = useStoreContext((state) => state.setSaveInterfaceOpen)
   const setGlobalContextOpen = useStoreContext((state) => state.setGlobalContextOpen)
@@ -576,28 +556,54 @@ export default function InterfaceNav({
   const setFileUploadOpen = useStoreContext((state) => state.setFileUploadOpen)
   const storeAddTab = useStoreContext((state) => state.addTab)
   
-  // Project tree is now passed from parent to avoid duplicate fetching
-  // Wrap in useMemo for stable reference to prevent unnecessary re-renders
-  const safeProjectTree = useMemo(() => {
-    return Array.isArray(projectTree) ? projectTree : [];
-  }, [projectTree]);
+  // Fetch project tree using React Query for better caching
+  const { data: projectTree = [], isLoading: projectTreeLoading, isFetching: projectTreeFetching, isError: projectTreeError, refetch: refetchProjectTree } = useQuery<
+    Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
+  >({
+    queryKey: ['projects', 'tree'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/projects/tree')
+        
+        if (!res.ok) {
+          // Try to get error message from response
+          let errorMessage = `Failed to fetch project tree: ${res.status}`
+          try {
+            const errorData = await res.json()
+            if (errorData.detail) {
+              errorMessage = errorData.detail
+            }
+          } catch {
+            // Ignore JSON parse errors, use default message
+          }
+          throw new Error(errorMessage)
+        }
+        
+        const data = await res.json()
+        
+        // Validate response is actually an array
+        if (!Array.isArray(data)) {
+          console.error('Invalid project tree response:', data)
+          throw new Error('Invalid project tree format')
+        }
+        
+        return data
+      } catch (error) {
+        console.error('Failed to fetch project tree:', error)
+        throw error instanceof Error ? error : new Error('Failed to fetch project tree')
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  })
   
   // Fetch contexts for file upload
-  const { data: contextsData = [], isError: isContextsError, error: contextsErrorObj } = useListContextsQuery(selectedProject, contextActions)
-  // Ensure contexts is always an array, even if query returns error object
-  const contexts = useMemo(() => Array.isArray(contextsData) ? contextsData : [], [contextsData])
-
-  // Show error notification for context failures (non-blocking) - only once per project
-  const contextsErrorShownRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    if (isContextsError && selectedProject && !contextsErrorShownRef.current.has(selectedProject)) {
-      contextsErrorShownRef.current.add(selectedProject)
-      showErrorToast(
-        'Failed to load contexts',
-        'Context selection and file upload may not work properly.'
-      )
-    }
-  }, [isContextsError, selectedProject])
+  const { data: contexts = [] } = useListContextsQuery(selectedProject, contextActions)
   
   // Update selected project and interface based on props
   useEffect(() => {
@@ -617,8 +623,8 @@ export default function InterfaceNav({
   
   // Find current interface data
   const currentProjectData = useMemo(() => {
-    return safeProjectTree.find(p => p.project === selectedProject)
-  }, [safeProjectTree, selectedProject])
+    return projectTree.find(p => p.project === selectedProject)
+  }, [projectTree, selectedProject])
   
   const currentInterfaces = useMemo(() => {
     return currentProjectData?.interfaces || []
@@ -627,7 +633,7 @@ export default function InterfaceNav({
   // Find the current interface from the project tree
   const currentInterface = useMemo(() => {
     // Wait for project tree to load
-    if (safeProjectTree.length === 0) return null
+    if (projectTree.length === 0) return null
     
     if (!interfaceId || !currentInterfaces.length) return null
     
@@ -643,7 +649,7 @@ export default function InterfaceNav({
     }
     
     return found
-  }, [interfaceId, currentInterfaces, searchParams, safeProjectTree])
+  }, [interfaceId, currentInterfaces, searchParams, projectTree])
   
   // Use the interfaceId prop directly - parent component handles URL parsing
   useEffect(() => {
@@ -655,7 +661,7 @@ export default function InterfaceNav({
   }, [interfaceId])
   
   // Fetch tabs for the current interface using React Query
-  const { data: currentTabsData = [], isLoading: tabsLoading, isFetching: tabsFetching, isError: tabsError, error: tabsErrorDetails, refetch: refetchTabs } = useQuery<ProjectTab[]>({
+  const { data: currentTabs = [], isLoading: tabsLoading, isFetching: tabsFetching, isError: tabsError, error: tabsErrorDetails, refetch: refetchTabs } = useQuery<ProjectTab[]>({
     queryKey: ['tabs', interfaceId],
     queryFn: async () => {
       if (!interfaceId) return []
@@ -695,41 +701,9 @@ export default function InterfaceNav({
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
     retry: 3, // Retry failed requests 3 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   })
-  
-  // Ensure currentTabs is always an array with stable reference to prevent drag-drop library loops
-  const currentTabs = useMemo(() => {
-    return Array.isArray(currentTabsData) ? currentTabsData : []
-  }, [currentTabsData]);
-  
-  // Show toast notification for tab list errors (timeout-aware)
-  const tabsErrorShownRef = useRef(false);
-  useEffect(() => {
-    if (tabsError && !tabsErrorShownRef.current) {
-      tabsErrorShownRef.current = true;
-      const errorMsg = (tabsErrorDetails as any)?.message || '';
-      
-      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
-        showErrorToast(
-          'Tab list timed out',
-          'The server took too long to load tabs. Retrying automatically...'
-        );
-      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
-        showErrorToast(
-          'Failed to load tabs',
-          errorMsg || 'Unable to fetch tab list.'
-        );
-      }
-    }
-    
-    // Reset on success
-    if (!tabsError && tabsErrorShownRef.current) {
-      tabsErrorShownRef.current = false;
-    }
-  }, [tabsError, tabsErrorDetails]);
   
   // Tabs loading should check both isLoading (initial) and isFetching (refetch/retry)
   const loadingTabs = tabsLoading || tabsFetching
@@ -796,30 +770,56 @@ export default function InterfaceNav({
   }, [router])
   
   const handleProjectChange = async (newProject: string) => {
-    if (isNavigating) return;
-    // Deselect current project → open project selection
+    // Check if clicking on already selected project to unselect
     if (selectedProject === newProject) {
       setIsChangingProject(true)
       setTransitioningToProject(newProject)
+      setSelectedProject('')
+      setSelectedInterface(null)
       setLoadingMessage('Loading projects...')
-      setProjectGlobal(null, { openProjectSelection: true })
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.delete('project')
+      newParams.delete('interface')
+      newParams.delete('tab')
+      newParams.set('selectProject', 'true') // Flag to show project selection instead of redirecting
+      try {
+        navigateSoft(`/interfaces?${newParams.toString()}`)
+      } finally {
+        // Loading states will be reset in useEffect when projectId prop changes
+      }
       return
     }
+
     setIsChangingProject(true)
     setTransitioningToProject(newProject)
     setLoadingMessage('Loading project...')
-    // Reflect selection through the global setter (dropdown drives navigation)
-    const projectData = safeProjectTree.find(p => p.project === newProject)
-    const interfaces = projectData?.interfaces || []
-    const openInterfaceSelection = interfaces.length !== 1
-    setProjectGlobal(newProject, { openInterfaceSelection })
+    try {
+      setSelectedProject(newProject)
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('project', newProject)
+      newParams.delete('selectProject') // Clear the project selection screen flag
+      
+      // Find interfaces for the new project
+      const projectData = projectTree.find(p => p.project === newProject)
+      const interfaces = projectData?.interfaces || []
+      
+      if (interfaces.length === 1) {
+        // Auto-select the only interface
+        newParams.set('interface', interfaces[0].name)
+      } else if (interfaces.length > 1) {
+        // Clear interface selection to show dropdown
+        newParams.delete('interface')
+        setSelectedInterface(null)
+      }
+      
+      newParams.delete('tab') // Clear tab selection
+      navigateSoft(`/interfaces?${newParams.toString()}`)
+    } finally {
+      // Loading states will be reset in useEffect when projectId prop changes
+    }
   }
   
-  const { isNavigating, beginNavigation, setProject: setProjectGlobal, setInterface: setInterfaceGlobal } = React.useContext(InterfaceNavContext);
-  
   const handleInterfaceChange = async (newInterfaceName: string) => {
-    if (isNavigating) return;
-    const navToken = beginNavigation();
     const iface = currentInterfaces.find(i => i.name === newInterfaceName)
     if (!iface) return
     
@@ -828,29 +828,49 @@ export default function InterfaceNav({
       setIsChangingInterface(true)
       setTransitioningToInterface(newInterfaceName)
       setLoadingMessage('Loading interfaces...')
-      setSelectedInterface(null)
-      // Open selection screen via global setter (no project change)
-      setProjectGlobal(selectedProject, { openInterfaceSelection: true })
+      try {
+        setSelectedInterface(null)
+        const newParams = new URLSearchParams(searchParams.toString())
+        newParams.delete('interface')
+        newParams.delete('tab')
+        newParams.set('selectInterface', 'true') // Flag to show interface selection instead of auto-selecting
+        navigateSoft(`/interfaces?${newParams.toString()}`)
+          } finally {
+      // Loading states will be reset in useEffect when interfaceId prop changes
+    }
       return
     }
 
     setIsChangingInterface(true)
     setTransitioningToInterface(newInterfaceName)
     setLoadingMessage('Loading interface...')
-    // Defer existence check + navigation to the single pathway
-    await setInterfaceGlobal(selectedProject!, newInterfaceName)
+    try {
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('interface', iface.name)
+      newParams.delete('selectInterface') // Clear the interface selection screen flag
+      newParams.delete('tab') // Clear tab selection
+      navigateSoft(`/interfaces?${newParams.toString()}`)
+          } finally {
+        // Loading states will be reset in useEffect when interfaceId prop changes
+      }
   }
   
   const handleTabClick = useCallback((tab: ProjectTab) => {
     // Use the interface sync action to switch tabs instantly
-    // The parent component's setTabQueryParam (with shallow: true) handles URL updates
     if (syncedInterfaceUIActions?.setActiveTab) {
-      console.log('[InterfaceNav] Client-side tab switch to:', tab.name)
       syncedInterfaceUIActions.setActiveTab(tab.name)
+      
+      // Also update URL for consistency (without triggering navigation)
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('tab', tab.name)
+      window.history.replaceState(null, '', `?${newParams.toString()}`)
     } else {
-      console.warn('[InterfaceNav] Sync actions not available - tab switch may not work')
+      // Fallback to URL navigation if sync actions not available
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.set('tab', tab.name)
+      navigateTab(`?${newParams.toString()}`)
     }
-  }, [syncedInterfaceUIActions])
+  }, [syncedInterfaceUIActions, searchParams, navigateTab])
   
   const handleCreateTab = useCallback(async (tabName: string, tabIcon?: string) => {
     if (!interfaceId) throw new Error('No active interface')
@@ -1013,7 +1033,7 @@ export default function InterfaceNav({
   }
   
   const handleCreateProject = useCallback(async (projectName: string, projectIcon?: string) => {
-    const result = await createProject(projectName, projectActions, safeProjectTree.map(p => p.project), projectIcon)
+    const result = await createProject(projectName, projectActions, projectTree.map(p => p.project), projectIcon)
     
     if (result.success && result.projectName) {
       // Create default interface
@@ -1040,7 +1060,7 @@ export default function InterfaceNav({
     } else {
       throw new Error(result.error || 'Failed to create project')
     }
-  }, [safeProjectTree, projectActions, queryClient, interfaceActions, tabActions, tileActions, navigateSoft, refetchProjectTree])
+  }, [projectTree, projectActions, queryClient, interfaceActions, tabActions, tileActions, navigateSoft, refetchProjectTree])
   
   const handleSaveProjectIcon = async () => {
     if (!activeProject) return
@@ -1158,7 +1178,7 @@ export default function InterfaceNav({
   const handleRenameProject = useCallback(async (newName: string) => {
     if (!activeProject) throw new Error('No active project')
     
-    const result = await renameProject(activeProject, newName, projectActions, safeProjectTree.map(p => p.project))
+    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.project))
     
     if (result.success) {
       await refetchProjectTree()
@@ -1445,41 +1465,23 @@ export default function InterfaceNav({
     }
   }
   
-  // Load interface color via React Query (not server action)
   useEffect(() => {
     const loadInterfaceColor = async () => {
-      if (!interfaceId) {
-        setThemeColor('');
-        return;
-      }
-      
+      if (!interfaceId) return
       try {
-        // Check if interface data is in the cache first
-        const cachedInterface = queryClient.getQueryData(['interface-by-id', interfaceId]) as any;
-        if (cachedInterface && typeof cachedInterface.color === 'string') {
-          setThemeColor(cachedInterface.color.trim() || '');
-          return;
-        }
-        
-        // If not in cache, fetch via API route (not server action)
-        const res = await fetch(`/api/interface?interface_id=${interfaceId}&checkpoint=false`);
-        if (res.ok) {
-          const iface = await res.json();
-          if (iface && typeof iface.color === 'string' && iface.color.trim() !== '') {
-            setThemeColor(iface.color.trim());
-            // Cache the result
-            queryClient.setQueryData(['interface-by-id', interfaceId], iface);
-          } else {
-            setThemeColor('');
-          }
+        const iface = await interfaceActions.get({ interface_id: interfaceId })
+        if (iface && typeof iface.color === 'string' && iface.color.trim() !== '') {
+          setThemeColor(iface.color.trim())
+        } else {
+          setThemeColor('')
         }
       } catch (err) {
-        console.error('Failed to fetch interface color', err);
+        console.error('Failed to fetch interface colour', err)
       }
     }
 
-    loadInterfaceColor();
-  }, [interfaceId, queryClient])
+    loadInterfaceColor()
+  }, [interfaceId, interfaceActions])
   
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1974,11 +1976,29 @@ export default function InterfaceNav({
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <Command>
                       <CommandInput placeholder="Search projects..." />
-                      {safeProjectTree.length === 0 && (
+                      {!projectTreeLoading && !projectTreeFetching && (
                         <CommandEmpty>No project found.</CommandEmpty>
                       )}
                       <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                        {safeProjectTree.length === 0 ? (
+                        {projectTreeError ? (
+                          <div className="p-3 text-center">
+                            <p className="text-body text-destructive mb-2">Failed to load projects</p>
+                            <Button size="sm" variant="ghost" onClick={() => { refetchProjectTree() }}>
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Button>
+                          </div>
+                        ) : (projectTreeLoading || projectTreeFetching) ? (
+                          <div className="p-1">
+                            <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading projects...</div>
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
+                              </div>
+                            ))}
+                          </div>
+                        ) : projectTree.length === 0 ? (
                           <div className="p-3 text-center text-body text-muted-foreground">
                             <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -1986,7 +2006,7 @@ export default function InterfaceNav({
                             No projects found
                           </div>
                         ) : (
-                          safeProjectTree.map((project) => {
+                          projectTree.map((project) => {
                             const isSelected = projectId === project.project
                             const isLoading = isChangingProject && transitioningToProject === project.project
                             return (
@@ -2109,11 +2129,21 @@ export default function InterfaceNav({
                     <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <Command>
                         <CommandInput placeholder="Search interfaces..." />
-                        {currentInterfaces.length > 0 && (
+                        {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
                           <CommandEmpty>No interface found.</CommandEmpty>
                         )}
                         <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                          {currentInterfaces.length === 0 ? (
+                          {(projectTreeLoading || projectTreeFetching) ? (
+                            <div className="p-1">
+                              <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading interfaces...</div>
+                              {[1, 2].map((i) => (
+                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
+                                  <div className="h-4 w-4 bg-muted animate-pulse rounded" />
+                                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${80 + i * 10}%` }} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : currentInterfaces.length === 0 ? (
                             <div className="p-3 text-center text-body text-muted-foreground">
                               <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
@@ -2128,7 +2158,6 @@ export default function InterfaceNav({
                                 <CommandItem
                                   key={iface.name}
                                   value={iface.name}
-                                  disabled={isNavigating}
                                   onSelect={() => handleInterfaceChange(iface.name)}
                                   className={cn("text-body-sm", isSelected && !isLoading && "text-primary")}
                                 >
@@ -2252,11 +2281,11 @@ export default function InterfaceNav({
               {tabsError ? (
                 // Error state
                 <div className={cn(
-                  "text-caption text-destructive text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-3 px-2" : "py-4 px-3"
+                  "text-body text-destructive text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-4 px-2" : "py-6 px-3"
                 )}>
-                  <div className="mb-1">
-                    <svg className="h-4 w-4 mx-auto text-destructive/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="mb-2">
+                    <svg className="h-8 w-8 mx-auto text-destructive/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -2300,11 +2329,11 @@ export default function InterfaceNav({
                 </div>
               ) : currentTabs.length === 0 ? (
                 <div className={cn(
-                  "text-caption text-center animate-in fade-in duration-300",
-                  isCollapsed ? "py-3" : "py-4 px-2"
+                  "text-body text-muted-foreground text-center animate-in fade-in duration-300",
+                  isCollapsed ? "py-4" : "py-6 px-2"
                 )}>
-                  <div className="mb-1">
-                    <svg className="h-4 w-4 mx-auto text-muted-foreground/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="mb-2">
+                    <svg className="h-8 w-8 mx-auto text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                   </div>
@@ -2359,7 +2388,6 @@ export default function InterfaceNav({
                             onChangeTabColor={onChangeTabColor}
                             onSetTabContext={onSetTabContext}
                             onDeleteTab={onDeleteTab}
-                            onHoverPrefetch={(t) => onHoverPrefetchTab?.(t.name)}
                           />
                         ))}
                       </div>
@@ -2869,61 +2897,21 @@ export default function InterfaceNav({
         />, document.body
       )}
       
-      {/* Floating Add Tile + Save buttons when Edit Mode is ON */}
+      {/* Floating Add Tile button when Edit Mode is ON */}
       {isEditMode && projectId && interfaceId && (
         <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
-          <div className="flex gap-2 pointer-events-none">
-            {/* Add tile bubble */}
-            <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
-              <ActionButton
-                className="h-7 px-1.5 text-caption"
-                size="sm"
-                variant="ghost"
-                onClick={onAddTile}
-                tooltip="Add new tile"
-                icon={<Plus size={12} />}
-                text="Add tile"
-                disabled={isSaving}
-              />
-            </div>
-            {/* Save bubble (icon only) */}
-            <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
-              <ActionButton
-                className="h-7 w-7"
-                size="icon"
-                variant="ghost"
-                onClick={async () => {
-                  const ids = (activeTabDataActions?.getTileIds?.() || []) as string[]
-                  if (!ids.length || !activeTabName) return
-                  setIsSaving(true)
-                  try {
-                    await withLoadingToastFn(async () => {
-                      await saveTabWithTilesMutation.mutateAsync({
-                        interface_id: interfaceId,
-                        tab_name: activeTabName,
-                        tile_ids: ids,
-                      })
-                    }, { loadingMessage: 'Saving…', successMessage: 'Saved', errorMessage: 'Save failed' })
-                  } catch (_) { /* toast already shown */ }
-                  finally { setIsSaving(false) }
-                }}
-                tooltip="Save changes"
-                icon={<Save className="h-3.5 w-3.5" />}
-                disabled={saveTabWithTilesMutation.isPending || isSaving}
-              />
-            </div>
+          <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
+            <ActionButton
+              className="h-7 px-1.5 text-caption"
+              size="sm"
+              variant="ghost"
+              onClick={onAddTile}
+              tooltip="Add new tile"
+              icon={<Plus size={12} />}
+              text="Add tile"
+            />
           </div>
         </div>
-      )}
-
-      {/* Fullscreen saving overlay to block navigation */}
-      {isSaving && createPortal(
-        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex items-center gap-3 bg-background border border-border rounded-md px-4 py-3 shadow-md">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-body">Saving changes…</span>
-          </div>
-        </div>, document.body
       )}
       
       {/* Set Project Context Dialog */}

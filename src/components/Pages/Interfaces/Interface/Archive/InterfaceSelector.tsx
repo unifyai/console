@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Loader2, Search, Upload, X, AlertCircle, FileUp, Check, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/UI/button";
@@ -21,10 +21,7 @@ import {
   filterInterfaces, 
   createInterfaceUrl,
   createCompleteDefaultInterface,
-  ensureInterfaceLoadable,
 } from "@/utils/interfaces/interfaceSelector";
-import { showErrorToast, showLoadingToast } from '@/components/Common/Toasts/notifications';
-import { toast } from 'sonner';
 import { 
   SkeletonTable, 
   createInterfaceSelectorColumns,
@@ -147,28 +144,13 @@ export default function InterfaceSelector({
     setIsNavigating(true);
     
     try {
-      // Preflight the interface to avoid navigating into a broken state
-      const ac = new AbortController();
-      await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
       const newUrl = createInterfaceUrl(searchParams, interfaceName);
       router.push(newUrl);
     } catch (error) {
       console.error('Failed to navigate to interface:', error);
       setIsNavigating(false);
-      showErrorToast('Failed to load interface');
     }
-  }, [router, searchParams, projectId]);
-
-  // Show/dismiss a loading toast while navigating (replaces frosted overlay)
-  const navToastIdRef = useRef<string | number | null>(null);
-  useEffect(() => {
-    if (isNavigating && navToastIdRef.current == null) {
-      navToastIdRef.current = showLoadingToast('Loading interface...');
-    } else if (!isNavigating && navToastIdRef.current != null) {
-      toast.dismiss(navToastIdRef.current);
-      navToastIdRef.current = null;
-    }
-  }, [isNavigating]);
+  }, [router, searchParams]);
 
   // Validate interface name doesn't already exist
   const validateCreateInterfaceName = useCallback((name: string) => {
@@ -597,6 +579,16 @@ export default function InterfaceSelector({
 
   return (
     <div className="w-full h-full overflow-auto relative bg-background">
+      {/* Navigation overlay when selecting interface */}
+      {isNavigating && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="text-body text-muted-foreground">Loading interface...</div>
+          </div>
+        </div>
+      )}
+
       {/* Export overlay when exporting template */}
       {isExporting && (
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">

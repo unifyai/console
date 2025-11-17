@@ -20,7 +20,7 @@ import DarkModeToggle from "./DarkModeToggle";
 import SignOutButton from "./SignOut";
 import { NavItem } from "@/types/navigation";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { getSession } from "@/lib/user/user";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/UI/avatar";
 import { useTheme } from "next-themes";
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
@@ -143,19 +143,26 @@ export default function NavMenu() {
   const [initialProjectsSnapshot, setInitialProjectsSnapshot] = useState<ProjectItem[]>([]); // For reverting optimistic updates
   const [isInterfacesExpanded, setIsInterfacesExpanded] = useState(true);
 
-  const { data: session } = useSession();
+
   useEffect(() => {
-    const userName = session?.user?.name || "Profile";
-    const imageUrl = session?.user?.image || "";
-    setProfileName(userName);
-    const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2);
-    setAvatarJSX(
-      <Avatar className="h-4 w-4">
-        <AvatarImage src={imageUrl} alt="User Avatar"/>
-        <AvatarFallback>{getInitials(userName)}</AvatarFallback>
-      </Avatar>
-    );
-  }, [session]);
+    (async () => {
+      try {
+        const sessionData = await getSession();
+        const userName = sessionData?.user?.name || "Profile";
+        const imageUrl = sessionData?.user?.image || "";
+        setProfileName(userName);
+        const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2);
+        setAvatarJSX(
+          <Avatar className="h-4 w-4">
+            <AvatarImage src={imageUrl} alt="User Avatar"/>
+            <AvatarFallback>{getInitials(userName)}</AvatarFallback>
+          </Avatar>
+        );
+      } catch (err) {
+        console.error("Failed to fetch user info", err);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {

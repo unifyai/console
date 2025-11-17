@@ -15,7 +15,6 @@ import ThemeLoader from "@/components/Layout/ThemeLoader";
 import LoadingScreen from "@/components/Layout/LoadingScreen";
 import { Toaster } from "@/components/UI/Chat/sonner";
 import OnboardingGuard from "@/components/Pages/TaxClassification/OnboardingGuard";
-import { Loader2 } from "lucide-react";
 import { fontSans, fontMono } from "@/styles/fonts";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,21 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             <ThemeLoader>
               <OnboardingGuard>
-                {/* Static skeleton bar to avoid brief blank before navbar hydration */}
-                <div
-                  className="fixed top-0 left-0 right-0 h-10 bg-background/80 backdrop-blur-lg border-b border-[color:var(--border)] z-40"
-                  aria-hidden="true"
-                />
-                <Suspense
-                  fallback={
-                    <div className="fixed top-0 left-0 right-0 h-10 bg-background/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50 flex items-center px-3.5">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-caption text-muted-foreground">Loading…</span>
-                    </div>
-                  }
-                >
-                  <TopNav />
-                </Suspense>
+                <TopNav />
                 <Suspense fallback={<LoadingScreen/>}>
                   <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden">
                     <NuqsAdapter>{children}</NuqsAdapter>

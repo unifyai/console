@@ -149,7 +149,11 @@ export function useEnsurePlotTileData(params: {
         queryClient,
         projectId,
         tabId,
-      };
+        projectsActions: actions.projectsActions,
+        contextActions: actions.contextActions,
+        fieldsActions: actions.fieldsActions,
+        logsActions: actions.logsActions,
+      } as OptimisticUpdateDependencies;
 
       const { fieldsArray } = await fetchProjectsContextsFields(
         dependencies,

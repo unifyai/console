@@ -23,8 +23,8 @@ export function usePlotDataQuery(tileId: string) {
     // The data is prefetched manually on the client
     // so we don't need to provide a queryFn
     // Configure staleness to allow re-renders while preventing unnecessary refetches:
-    staleTime: 0, // Always consider stale (allows updates)
-    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes (was 0 - caused data loss!)
+    staleTime: 0,
+    gcTime: 0,
     enabled: !!tileId, // Only run the query if we have a valid tileId
   });
 }
@@ -100,6 +100,9 @@ export function useUpdatePlotDataItem(tileId: string) {
   return useMutation<PlotDataItem, Error, Partial<PlotDataItem>, { previousData?: PlotDataItem }>({
     mutationFn: async (newData) => {
       // Simulating API response - in real app this would make an API call
+      console.log(`Updating plot data for tile ${tileId}:`, newData);
+      
+      // Simulating API response
       return {
         ...(queryClient.getQueryData<PlotDataItem>(["plotDataItem", tileId]) || {}),
         ...newData

@@ -637,7 +637,7 @@ export interface DerivedEntryActions {
 }
 
 export interface FieldsActions {
-    get: (project: string, context: string | null, signal?: AbortSignal) => Promise<LogFieldsResponseProps>,
+    get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
     rename: (project: string, context: string | null, oldFieldName: string, newFieldName: string) => Promise<ResponseProps>
 }
 

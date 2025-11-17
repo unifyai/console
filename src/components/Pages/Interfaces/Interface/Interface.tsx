@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
-import { Loader2, Search, Plus, RefreshCw } from "lucide-react";
-import { showSuccessToast, showErrorToast, showLoadingToast } from '@/components/Common/Toasts/notifications';
+import { Loader2, Search, Plus } from "lucide-react";
+import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
-import { toast } from 'sonner';
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
 import { Button } from "../../../UI/button";
 import { Icon } from "../../../UI/icon-picker";
 import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
-// InterfaceButtons is loaded lazily to reduce initial JS
+import InterfaceButtons from "./Buttons/InterfaceButtons";
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
@@ -21,10 +20,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';
 import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
-import { useShallow } from 'zustand/react/shallow';
 import { Command } from '@/contexts/slices/selectors/commands';
 import { iconMap } from '@/constants/logs';
-import dynamic from 'next/dynamic';
+import { Toaster } from 'sonner';
 import { useCreateTabQuery, useUpdateTabQuery } from '@/hooks/Interfaces/Query/useTabsQuery';
 import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
 import { useCommand } from '@/contexts/hooks/commands/useCommand';
@@ -47,31 +45,15 @@ import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { 
   createInterfaceUrl,
   createCompleteDefaultInterface,
-  ensureInterfaceLoadable,
 } from "@/utils/interfaces/interfaceSelector"
 
-function getUniqueDefaultInterfaceName(baseProject: string, actions: GranularInterfaceActions) {
-  // This is a small wrapper to keep call sites consistent if we later centralize naming
-  // We cannot query synchronously here; the real uniqueness check is handled server-side.
-  // Keep a deterministic prefix; server can add suffixes as needed.
-  return Promise.resolve('Default');
-}
-
 export const PageScrollContext = React.createContext<React.RefObject<HTMLDivElement> | null>(null);
-export const InterfaceNavContext = React.createContext<{
-  isNavigating: boolean;
-  beginNavigation: () => number;
-  setProject: (project: string | null, options?: { openProjectSelection?: boolean; openInterfaceSelection?: boolean }) => void;
-  setInterface: (projectId: string, interfaceName: string) => Promise<void>;
-}>({ isNavigating: false, beginNavigation: () => 0, setProject: () => {}, setInterface: async () => {} });
 
 // Lazy load components
 const DefaultProject = lazy(() => import('./Buttons/DefaultProject'));
 const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
 const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
-const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
-const Toaster = dynamic(() => import('sonner').then(m => m.Toaster), { ssr: false });
 
 /**
  * Debug flag for tab prefetching indicators
@@ -112,44 +94,21 @@ const Interface = ({
 }: InterfaceComponentProps) => {
 
   const router = useRouter();
-  // Query params - project/interface use deep routing (trigger server)
+  // Query params - no more tab param needed
   const [projectQueryParam, setProjectQueryParam] = useQueryState("project", { shallow: false });
   const [interfaceQueryParam, setInterfaceQueryParam] = useQueryState("interface", { shallow: false });
   const [selectProjectParam, setSelectProjectParam] = useQueryState("selectProject", { shallow: false });
   const [selectInterfaceParam, setSelectInterfaceParam] = useQueryState("selectInterface", { shallow: false });
   const [noticeParam, setNoticeParam] = useQueryState("notice", { shallow: false });
   const [missingParam, setMissingParam] = useQueryState("missing", { shallow: false });
-
-  // History helpers for tab (pure client; no Next navigation)
-  const shallowSetTabInUrl = useCallback((tabName: string | null) => {
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (tabName) url.searchParams.set('tab', tabName);
-    else url.searchParams.delete('tab');
-    // Use pushState for usable back/forward semantics
-    window.history.pushState(window.history.state, '', url.toString());
-  }, []);
-
-  const getTabFromUrl = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('tab');
-  }, []);
   const [isSwitchingInterface, setIsSwitchingInterface] = useState(false);
   const [isRefreshingInterface, setIsRefreshingInterface] = useState(false);
-  const [isSwitchingTab, setIsSwitchingTab] = useState(false);
   const [tabBarReady, setTabBarReady] = useState(false);
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
   const [interfaceLoadFailures, setInterfaceLoadFailures] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const lastNoticeKeyRef = useRef<string | null>(null);
-  const navTokenRef = useRef(0);
-  const beginNavigation = useCallback(() => { navTokenRef.current += 1; return navTokenRef.current; }, []);
-  const navToastIdRef = useRef<string | number | null>(null);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
-  const queryClient = useQueryClient();
-  // Global bootstrap error overlay state
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
-  const [bootstrapRetryToken, setBootstrapRetryToken] = useState(0);
 
   // Seed contexts on project change
   const activeProjectId = projectQueryParam || null;
@@ -159,23 +118,12 @@ const Interface = ({
     if (contextsQuery.data && Array.isArray(contextsQuery.data)) {
       const s = storeApi.getState() as any;
       s.setProjectContexts?.(activeProjectId, contextsQuery.data.map((c: any) => c.name));
+      // Do not overwrite existing projectDefaultContext; only set if undefined
       if (s.projectDefaultContext?.[activeProjectId] === undefined) {
         s.setProjectDefaultContext?.(activeProjectId, null);
       }
     }
   }, [activeProjectId, contextsQuery.data, storeApi]);
-
-  // Show error notification for context failures (non-blocking) - only once per project
-  const contextsErrorShownRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (contextsQuery.isError && activeProjectId && !contextsErrorShownRef.current.has(activeProjectId)) {
-      contextsErrorShownRef.current.add(activeProjectId);
-      showErrorToast(
-        'Failed to load contexts',
-        'Some features may be unavailable. Context selection will not work until this is resolved.'
-      );
-    }
-  }, [contextsQuery.isError, activeProjectId]);
   
   // Helper to render icon (similar to renderSidebarIcon in InterfaceNav)
   const renderIcon = (iconStr: string | undefined | null, className: string, defaultIcon: string = 'folder') => {
@@ -197,7 +145,7 @@ const Interface = ({
   
   // Auto-select interface when none is specified
   const shouldAutoSelectInterface = !interfaceId && projectQueryParam && selectInterfaceParam !== 'true';
-  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces, isError: isErrorInterfaces, error: interfacesError, refetch: refetchInterfaces } = useListInterfacesQuery(
+  const { data: projectInterfaces = [], isLoading: isLoadingInterfaces } = useListInterfacesQuery(
     shouldAutoSelectInterface ? projectQueryParam : null,
     interfaceActions
   );
@@ -225,7 +173,7 @@ const Interface = ({
   }, [showInterfaceSelection, showProjectSelection]);
   
   // Get projects from store to check if Assistants project exists
-  const projects = useStoreContext(useShallow(state => state.projects));
+  const projects = useStoreContext(state => state.projects);
   const hasAssistantsProject = projects?.includes("Assistants");
   
   // Determine if we should auto-open the project selection screen when no projects exist
@@ -241,51 +189,8 @@ const Interface = ({
     }
   }, [shouldAutoShowProjectSelection, selectProjectParam, setSelectProjectParam]);
   
-  // Bootstrap batch for project change
-  const { data: bootstrapData, isError: isBootstrapError, error: bootstrapErrorObj, refetch: refetchBootstrap } = useQuery({
-    queryKey: ['bootstrap', projectQueryParam],  // Removed bootstrapRetryToken to prevent unnecessary refetches
-    queryFn: async () => {
-      if (!projectQueryParam) return null;
-      const res = await fetch(`/api/bootstrap?project=${encodeURIComponent(projectQueryParam)}`);
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(errorData.detail || 'Failed to bootstrap');
-      }
-      return res.json();
-    },
-    enabled: !!projectQueryParam,
-    staleTime: 5 * 60 * 1000,  // 5 minutes - bootstrap data doesn't change often
-    gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache longer
-    refetchOnMount: false,       // Don't refetch if we have cached data
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-    retry: 2,                    // Retry twice on failure
-  });
-
-  // Warm caches after bootstrap
-  useEffect(() => {
-    const data: any = bootstrapData as any;
-    if (!data || !projectQueryParam) return;
-    try {
-      if (Array.isArray(data.projectsTree)) {
-        queryClient.setQueryData(['projects', 'tree'], data.projectsTree);
-      }
-      if (Array.isArray(data.interfaces)) {
-        queryClient.setQueryData(['interfaces', projectQueryParam], data.interfaces);
-      }
-      if (Array.isArray(data.contexts)) {
-        queryClient.setQueryData(['contexts', projectQueryParam], data.contexts);
-        // Seed store contexts if not already present
-        const s = storeApi.getState() as any;
-        s.setProjectContexts?.(projectQueryParam, data.contexts.map((c: any) => c.name));
-        if (s.projectDefaultContext?.[projectQueryParam] === undefined) {
-          s.setProjectDefaultContext?.(projectQueryParam, null);
-        }
-      }
-    } catch {}
-  }, [bootstrapData, projectQueryParam, queryClient]);
-
   // Fetch project tree with icons
-  const { data: projectTree = [], isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
+  const { data: projectTree = [] } = useQuery<
     Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
@@ -294,46 +199,17 @@ const Interface = ({
       if (!res.ok) throw new Error('Failed to fetch project tree')
       return res.json()
     },
-    initialData: Array.isArray((bootstrapData as any)?.projectsTree) ? (bootstrapData as any)?.projectsTree : undefined,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
-    retry: 2, // Retry twice on failure
+    refetchOnReconnect: true,
   });
   
   // Get interfaces from projectTree for selection screen (faster than separate API call)
-  const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
-  const currentProjectData = safeProjectTree.find(p => p.project === projectQueryParam);
+  const currentProjectData = projectTree?.find(p => p.project === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
-  const isLoadingInterfacesForSelection = showInterfaceSelection && safeProjectTree.length === 0;
-
-  // Show toast notification for project tree errors (non-blocking, for dropdowns)
-  const projectTreeErrorShownRef = useRef(false);
-  useEffect(() => {
-    if (isProjectTreeError && !projectTreeErrorShownRef.current) {
-      projectTreeErrorShownRef.current = true;
-      const errorMsg = (projectTreeErrorObj as any)?.message || '';
-      
-      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
-        showErrorToast(
-          'Project tree timed out',
-          'Project/interface selection may be limited until this resolves.'
-        );
-      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
-        showErrorToast(
-          'Failed to load project tree',
-          'Project/interface selection may be limited.'
-        );
-      }
-    }
-    
-    // Reset on success
-    if (!isProjectTreeError && projectTreeErrorShownRef.current) {
-      projectTreeErrorShownRef.current = false;
-    }
-  }, [isProjectTreeError, projectTreeErrorObj]);
+  const isLoadingInterfacesForSelection = showInterfaceSelection && !projectTree.length;
 
   useEffect(() => {
     // When the interface param changes (navigation completes), hide the loader.
@@ -343,51 +219,10 @@ const Interface = ({
     setLoadingInterfaceId(null);    
   }, [interfaceQueryParam]);
 
-  // Toast-driven feedback for navigation/refresh (replaces frosted overlay)
-  useEffect(() => {
-    const active = isSwitchingInterface || isRefreshingInterface;
-    if (active && navToastIdRef.current == null) {
-      const msg = isRefreshingInterface ? 'Refreshing interface...' : (loadingMessage || 'Loading interface...');
-      navToastIdRef.current = showLoadingToast(msg);
-    } else if (!active && navToastIdRef.current != null) {
-      toast.dismiss(navToastIdRef.current);
-      navToastIdRef.current = null;
-    }
-  }, [isSwitchingInterface, isRefreshingInterface, loadingMessage]);
-
   useEffect(() => {
     // Reset failure count when the project changes
     setInterfaceLoadFailures(0);
    }, [projectQueryParam]);  
-
-  // Show toast notification for interface list errors (timeout-aware)
-  const interfacesErrorShownRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (isErrorInterfaces && projectQueryParam) {
-      const errorKey = `${projectQueryParam}-interfaces`;
-      if (interfacesErrorShownRef.current === errorKey) return;
-      
-      interfacesErrorShownRef.current = errorKey;
-      const errorMsg = (interfacesError as any)?.message || '';
-      
-      if (errorMsg.includes('timeout') || errorMsg.includes('504')) {
-        showErrorToast(
-          'Interface list timed out',
-          'The service is taking longer than usual to respond. Retrying automatically...'
-        );
-      } else if (!errorMsg.includes('AbortError') && !errorMsg.includes('Connection closed')) {
-        showErrorToast(
-          'Failed to load interfaces',
-          errorMsg || 'Unable to fetch interface list.'
-        );
-      }
-    }
-    
-    // Reset on project change or success
-    if (!isErrorInterfaces || !projectQueryParam) {
-      interfacesErrorShownRef.current = null;
-    }
-  }, [isErrorInterfaces, projectQueryParam, interfacesError]);
 
   useEffect(() => {
     // Trigger tab bar entrance animation after mount
@@ -426,50 +261,11 @@ const Interface = ({
   const syncedInterfaceUIActions = syncedInterfaceActions?.ui ?? null;
   
   // Get current active tab name using selector - this is our source of truth
-  const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
-  const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
   const state = useStoreApiContext().getState();
   const activeTab = selectActiveTab(state, interfaceId);
   const activeTabId = activeTab?.id || null;
   const activeTabName = activeTab?.name || null;
-  tabLog('[Interface] Active tab from store', { interfaceId, activeTabId, activeTabName });
-  
-  // Wrapper that updates both Zustand store AND URL (pure client)
-  const setTabQueryParamFromSync = useCallback((tabName: string | null) => {
-    tabLog('[Interface] setTabQueryParamFromSync', { tabName });
-    if (tabName && syncedInterfaceUIActions?.setActiveTab) {
-      syncedInterfaceUIActions.setActiveTab(tabName);
-    }
-    shallowSetTabInUrl(tabName); // Pure client URL update
-  }, [syncedInterfaceUIActions, shallowSetTabInUrl]);
-
-  // On mount, adopt ?tab= from URL (no navigation)
-  useEffect(() => {
-    const urlTab = getTabFromUrl();
-    tabLog('[Interface] On mount URL tab detected', { urlTab, activeTabName });
-    if (urlTab && syncedInterfaceUIActions && activeTabName !== urlTab) {
-      syncedInterfaceUIActions.setActiveTab(urlTab);
-    }
-    // Back/forward handler
-    const onPop = () => {
-      const t = getTabFromUrl();
-      tabLog('[Interface] popstate URL tab', { tab: t });
-      if (t && syncedInterfaceUIActions) {
-        syncedInterfaceUIActions.setActiveTab(t);
-      }
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Always mirror active tab into URL without navigation
-  useEffect(() => {
-    if (activeTabName) {
-      tabLog('[Interface] Mirroring active tab to URL', { activeTabName });
-      shallowSetTabInUrl(activeTabName);
-    }
-  }, [activeTabName, shallowSetTabInUrl]);
+  const setTabQueryParamFromSync = syncedInterfaceUIActions?.setActiveTab || (() => {});
 
   // Store state and actions for UI control
   const focusPaneOpen = useStoreContext((state) => state.focusPaneOpen);
@@ -492,7 +288,7 @@ const Interface = ({
   const { isEditMode, isDashboardMode, setEditMode, setDashboardMode } = useGlobalUIMode();
 
   // Command state
-  const storeCommands = useStoreContext(useShallow((state) => state.commands));
+  const storeCommands = useStoreContext((state) => state.commands);
 
   // Initialize React Query mutations for tab operations
   const createTabMutation = useCreateTabQuery();
@@ -521,21 +317,8 @@ const Interface = ({
       logsActions,
       projectsActions,
       contextActions,
-    },
-    {
-      enableNonActivePrefetch: !isSwitchingInterface,
-      prefetchMode: 'light',  // Keep background light; avoid contention
-      deferMs: 1200,
-      concurrency: 1,  // Reduce pressure on slow backend
     }
   );
-
-  // Drive overlay from the active tab query's loading state
-  useEffect(() => {
-    const switching = !!tabStreamingQuery?.activeTab.isLoading;
-    tabLog('[Interface] Switching tab overlay state', { switching });
-    setIsSwitchingTab(switching);
-  }, [tabStreamingQuery?.activeTab.isLoading]);
 
   // Sidebar state for proper positioning
   const isMobile = useIsMobile();
@@ -564,7 +347,6 @@ const Interface = ({
     setProjectQueryParam,
     setTabQueryParam: setTabQueryParamFromSync,
     setInterfaceQueryParam,
-    setSelectProjectParam,
     projectActions: projectsActions,
     interfaceActions,
     tabActions,
@@ -586,7 +368,7 @@ const Interface = ({
   // Auto-select first tab if no active tab is set and tabs are available
   useEffect(() => {
     if (tabNames.length > 0 && syncedInterfaceUIActions && (!activeTabName || (activeTabName && !tabNames.includes(activeTabName)))) {
-      tabLog('[Interface] Auto-selecting fallback tab', { tabNames, previousActive: activeTabName });
+      
       syncedInterfaceUIActions.setActiveTab(tabNames[tabNames.length - 1]);
     }
   }, [activeTabName, tabNames, syncedInterfaceUIActions]);
@@ -603,7 +385,6 @@ const Interface = ({
     
     // Check if tab data is already cached
     const isCached = tabStreamingQuery?.switchTab(value) || false;
-    tabLog('[Interface] performTabSwitch', { target: value, isCached });
     
     if (isCached) {
       // Instant switch - data is already available
@@ -626,26 +407,13 @@ const Interface = ({
   // Enhanced tab change handler with debounced switching
   const handleTabChange = useCallback((value: string | undefined) => {
     if (!value) return;
-    if (value === activeTabName) return; // No-op if already active
-    
-    // Block tab switching during mutations to prevent state desync
-    if (createTabMutation.isPending || updateTabMutation.isPending || saveTabWithTilesMutation.isPending) {
-      return;
-    }
     
     // Set pending tab change immediately for UI feedback
     setPendingTabChange(value);
-    setIsSwitchingTab(true);
-    
-    // Prefetch only if we don't already have a full cache for instant switch
-    const isCached = tabStreamingQuery.switchTab(value);
-    if (!isCached) {
-      void tabStreamingQuery.prefetchTab(value);
-    }
     
     // Debounce the actual tab switch
     debouncedTabSwitch(value);
-  }, [debouncedTabSwitch, createTabMutation.isPending, updateTabMutation.isPending, saveTabWithTilesMutation.isPending, tabStreamingQuery, activeTabName]);
+  }, [debouncedTabSwitch]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -654,12 +422,12 @@ const Interface = ({
     };
   }, [debouncedTabSwitch]);
 
-  
+  const queryClient = useQueryClient();
 
   // Auto-select interface when none is specified
   useEffect(() => {
     // Add delay and additional check to prevent race conditions
-    if (!shouldAutoSelectInterface || isLoadingInterfaces || isErrorInterfaces || !projectQueryParam || preventAutoSelect) return;
+    if (!shouldAutoSelectInterface || isLoadingInterfaces || !projectQueryParam || preventAutoSelect) return;
 
     // Debounce the auto-selection to ensure URL params have settled
     const timer = setTimeout(() => {
@@ -671,11 +439,9 @@ const Interface = ({
 
       const selectOrCreateInterface = async () => {
         try {
-          const tokenAtStart = navTokenRef.current;
           setLoadingMessage('Loading interfaces...');
           setIsSwitchingInterface(true);
 
-          // Only create a default interface if the list call completed and confirmed empty
           if (projectInterfaces.length > 0) {
             // If interfaces exist, find the most recently updated one and redirect.
             const sortedInterfaces = [...projectInterfaces].sort((a, b) => {
@@ -688,39 +454,33 @@ const Interface = ({
             if (latestInterface) {
               const searchParams = new URLSearchParams(window.location.search);
               const newUrl = createInterfaceUrl(searchParams, latestInterface.name);
-              if (tokenAtStart === navTokenRef.current) {
-                router.push(newUrl);
-              }
+              router.push(newUrl);
             }
-          } else if (!isErrorInterfaces && Array.isArray(projectInterfaces) && projectInterfaces.length === 0) {
-            // Explicitly empty array and not an error => safe to create a default
-            setLoadingMessage('Creating default interface...');
-            const newInterface = await interfaceActions.create(
-              projectQueryParam,
-              await getUniqueDefaultInterfaceName(projectQueryParam, interfaceActions),
-              undefined
-            );
+          } else if (projectQueryParam !== 'Usage') {
+            // If no interfaces exist, create a default one and then redirect.
+            const newInterface = await createCompleteDefaultInterface({
+              queryClient,
+              project: projectQueryParam,
+              interfaceActions,
+              tabActions,
+              tileActions,
+              baseName: "Default"
+            });
 
             if (newInterface && newInterface.name) {
               const searchParams = new URLSearchParams(window.location.search);
               const newUrl = createInterfaceUrl(searchParams, newInterface.name);
-              if (tokenAtStart === navTokenRef.current) {
-                router.push(newUrl);
-              }
+              router.push(newUrl);
             }
           } else {
-            // Error fetching interfaces OR invalid data: do not auto-create; show selection overlay instead
-            console.error('[Interface] Cannot auto-create - error state or invalid data:', { isErrorInterfaces, projectInterfaces });
+            // For the special "Usage" project we simply stay on the project view with no interfaces.
             setIsSwitchingInterface(false);
-            setSelectInterfaceParam('true');
           }
         } catch (err) {
           console.error("Error in interface selection/creation:", err);
           setIsSwitchingInterface(false);
           setInterfaceLoadFailures(prev => prev + 1);
-          const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
-          showErrorToast('Failed to load interface', errorMsg);
-          setLoadingMessage('Loading...');
+          showErrorToast('Failed to load interface. Please try again.');
         }
       };
 
@@ -728,22 +488,32 @@ const Interface = ({
     }, 500); // 500ms delay to let URL params settle
 
     return () => clearTimeout(timer);
-  }, [shouldAutoSelectInterface, isLoadingInterfaces, isErrorInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
+  }, [shouldAutoSelectInterface, isLoadingInterfaces, projectInterfaces, projectQueryParam, router, interfaceActions, tabActions, tileActions, queryClient, preventAutoSelect]);
   
   // Don't clean up selection params - they should persist until user makes a choice
   // This prevents auto-selection from re-triggering after deselection
 
-  // NOTE: We intentionally do NOT have a UI-level navigation timeout here.
-  // Timeouts are managed at the request level (30-90s in API routes) where they
-  // can actually abort the HTTP requests. UI-level timeouts create false failures
-  // where the user sees "timeout" but the request completes anyway.
-  // 
-  // Proper error handling is implemented at each data layer:
-  // - Bootstrap: shows blocking error screen with retry button
-  // - Interface load: shows blocking error screen with retry button  
-  // - Tab load: shows inline error with retry button
-  //
-  // This approach ensures users only see real errors, not fake timeouts.
+  // Safety timeout: hide switching overlay and cancel queries if navigation stalls
+  useEffect(() => {
+    if (!isSwitchingInterface) return;
+
+    const timer = setTimeout(() => {
+      // Abort any long-running queries
+      queryClient.cancelQueries({ predicate: (q: any) => {
+        const key0 = q.queryKey?.[0] as string;
+        return [
+          'interfaces', 'interface', 'interface-by-id', 'interface-with-tabs',
+          'tabs', 'tiles', 'tab', 'tile'
+        ].includes(key0);
+      }});
+      
+      // Hide the overlay and show an error
+      setIsSwitchingInterface(false);
+      showErrorToast('Navigation timed out. Please try again.', 'Failed to load the selected interface.');
+    }, 90000); // 90 seconds
+
+    return () => clearTimeout(timer);
+  }, [isSwitchingInterface, queryClient]);
 
   // Function to hide overlay
   const hideOverlay = () => {
@@ -771,17 +541,6 @@ const Interface = ({
       tabUIActions?.setPending(false);
     }
   }, [tabStreamingQuery?.activeTab.data, tabUIState?.pending, tabUIActions]);
-
-  // Cancel heavy queries immediately when switching interface
-  useEffect(() => {
-    if (!isSwitchingInterface) return;
-    queryClient.cancelQueries({
-      predicate: (q: any) => {
-        const k0 = q?.queryKey?.[0] as string;
-        return k0 === 'tabCompleteData' || k0 === 'logs';
-      }
-    });
-  }, [isSwitchingInterface, queryClient]);
 
   // Full refresh handler used by sidebar refresh button
   const handleInterfaceRefresh = async () => {
@@ -856,119 +615,12 @@ const Interface = ({
     }
    }, [activeTabName, createTabMutation, updateTabMutation]);
 
-  // Track if tab retry is in progress using ref to avoid re-renders
-  const isRetryingTabRef = useRef(false);
-
-  // Determine if we're in initial load state (before interface/tab paints)
-  const isInitialInterfaceLoad = useMemo(() => {
-    // Show loader if we have project+interface but no active tab yet (very first load)
-    if (!activeTabId && !!projectQueryParam && !!interfaceQueryParam) {
-      return true;
-    }
-    // Show loader while tab query is loading and we don't have cached data
-    if (tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.data) {
-      return true;
-    }
-    // Show loader during tab activation debounce
-    if (tabStreamingQuery?.activationPending) {
-      return true;
-    }
-    return false;
-  }, [tabStreamingQuery?.activeTab.isLoading, tabStreamingQuery?.activeTab.data, tabStreamingQuery?.activationPending, activeTabId, projectQueryParam, interfaceQueryParam]);
-
-  // Render the active tab based on streaming query - memoized to prevent infinite loops
-  const renderActiveTab = useCallback(() => {
+  // Render the active tab based on streaming query
+  const renderActiveTab = () => {
     if (!activeTabId || !projectQueryParam) {
       return (
         <div className="flex items-center justify-center h-full">
           Please select a tab
-        </div>
-      );
-    }
-
-    // Show loading state while tab is being fetched
-    if (tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <SkeletonLoader />
-        </div>
-      );
-    }
-
-    // Check for streaming errors (ignore cancellation errors)
-    if (tabStreamingQuery?.activeTab.isError) {
-      const error = tabStreamingQuery.activeTab.error as any;
-      const errorMsg = error?.message || '';
-      const isCancellation = 
-        error?.name === 'AbortError' || 
-        error?.name === 'CancelledError' ||
-        /abort|cancelled|connection closed/i.test(errorMsg);
-
-      // Don't show error UI for cancellations (expected when switching tabs)
-      if (!isCancellation) {
-        return (
-          <div className="flex flex-col items-center justify-center h-full p-6 max-w-md mx-auto text-center">
-            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-h4 mb-2">Failed to Load Tab</h3>
-            <p className="text-body text-muted-foreground mb-4">
-              {errorMsg || 'Unable to load tab data. The server may be unavailable.'}
-            </p>
-            <Button
-              onClick={() => {
-                if (isRetryingTabRef.current) return; // Prevent multiple rapid clicks
-                isRetryingTabRef.current = true;
-                // Force an immediate refetch of the active tab
-                void tabStreamingQuery.refetchActiveTab?.();
-                // Reset guard after 2 seconds
-                setTimeout(() => { isRetryingTabRef.current = false; }, 2000);
-              }}
-              className="w-full max-w-xs"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Retry Loading Tab
-            </Button>
-          </div>
-        );
-      }
-    }
-
-    // Check if we have tab data - if not, show helpful message
-    const tabData = tabStreamingQuery?.activeTab.data;
-    if (!tabData && !tabStreamingQuery?.activeTab.isLoading && !tabStreamingQuery?.activeTab.isError && !tabStreamingQuery?.activationPending) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <svg className="h-6 w-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-h4 mb-2">No Tab Data</h3>
-            <p className="text-body text-muted-foreground max-w-md">
-              This tab exists but has no data loaded. Try refreshing the tab.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => {
-              // Force a refetch of the active tab query
-              void tabStreamingQuery.refetchActiveTab?.();
-            }}>
-              Refresh Tab
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    // Guard against race condition: ensure tab data matches current active tab
-    if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <SkeletonLoader />
         </div>
       );
     }
@@ -997,7 +649,7 @@ const Interface = ({
         </Suspense>
       </div>
     );
-  }, [activeTabId, projectQueryParam, tabStreamingQuery, activeTabName, interfaceId, projectsActions, tabActions, tileActions, logsActions, fieldsActions, derivedEntryActions, contextActions, codeActions, fileActions, queryClient, setTabQueryParamFromSync]);
+  };
 
   // Handle save dialog submission
   const handleSaveDialog = async () => {
@@ -1041,8 +693,6 @@ const Interface = ({
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(true);
       }
-      // Notify user of success
-      showSuccessToast('Saved changes');
       
     } catch (error) {
       console.error("Failed to save tab:", error);
@@ -1057,8 +707,6 @@ const Interface = ({
       if (tabUIActions) {
         tabUIActions.setSaveSuccess(false);
       }
-      // Notify user of failure without resetting UI
-      showErrorToast(error, 'Failed to save changes');
     } finally {
       // Hide loading state
       if (tabUIActions) {
@@ -1120,123 +768,65 @@ const Interface = ({
     }
   };
 
-  // Background worker (event-driven): process context sync queue
+  // Background worker: process context sync queue
   useEffect(() => {
     let cancelled = false;
-    let draining = false;
+    let timer: any = null;
 
-    const MAX_ATTEMPTS = 5;
-    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, Math.max(0, attempt - 1)));
+    const backoff = (attempt: number) => Math.min(30000, 500 * Math.pow(2, attempt));
 
-    const drain = async () => {
-      if (cancelled || draining) return;
-      draining = true;
-
+    const runOnce = async () => {
+      if (cancelled) return;
+      const s = storeApi.getState() as any;
+      if (s.processingQueue) return; // avoid concurrent runs
+      const job = s.peekContextSync?.();
+      if (!job) return; // nothing to do
       try {
-        while (!cancelled) {
-          const s = storeApi.getState() as any;
-          const job = s.peekContextSync?.();
-          if (!job) break; // queue empty
-
-          try {
-            s.setProcessingQueue?.(true);
-            if (job.scope === 'interface') {
-              await interfaceActions.updateById(job.targetId, { context: job.context });
-            } else if (job.scope === 'tab') {
-              await tabActions.updateById(job.targetId, { context: job.context });
-            } else if (job.scope === 'tile') {
-              await tileActions.updateById(job.targetId, { context: job.context });
-            }
-            s.dequeueContextSync?.();
-          } catch (e) {
-            const attempts = (job.attempts || 0) + 1;
-            s.dequeueContextSync?.();
-
-            if (attempts < MAX_ATTEMPTS) {
-              const delay = backoff(attempts);
-              s.enqueueContextSync?.(job.scope, job.targetId, job.context, {
-                ...job,
-                attempts,
-              });
-              await new Promise(r => setTimeout(r, delay));
-            } else {
-              console.warn('[context-sync] Dropping job after max attempts', job);
-            }
-          } finally {
-            s.setProcessingQueue?.(false);
-          }
+        s.setProcessingQueue?.(true);
+        // Execute job against Orchestra using granular actions
+        if (job.scope === 'interface') {
+          await interfaceActions.updateById(job.targetId, { context: job.context });
+        } else if (job.scope === 'tab') {
+          await tabActions.updateById(job.targetId, { context: job.context });
+        } else if (job.scope === 'tile') {
+          await tileActions.updateById(job.targetId, { context: job.context });
         }
+        // Remove from queue after success
+        s.dequeueContextSync?.();
+      } catch (e) {
+        // Re-enqueue with incremented attempts and backoff
+        const nextAttempts = (job.attempts || 0) + 1;
+        const delay = backoff(nextAttempts);
+        // Put back at front with updated attempts and scheduled delay by just waiting
+        s.dequeueContextSync?.();
+        s.enqueueContextSync?.(job.scope, job.targetId, job.context, {
+          projectId: job.projectId,
+          interfaceId: job.interfaceId,
+          tabId: job.tabId,
+        });
+        // sleep
+        await new Promise(r => setTimeout(r, delay));
       } finally {
-        draining = false;
+        s.setProcessingQueue?.(false);
       }
     };
 
-    // Subscribe to store changes and trigger drain when queue becomes non-empty
-    const unsubscribe = storeApi.subscribe((state: any, prev: any) => {
-      const len = state?.contextSyncQueue?.length || 0;
-      const prevLen = prev?.contextSyncQueue?.length || 0;
-      if (len > 0 && len !== prevLen) {
-        drain();
-      }
-    });
-
-    // Kick off immediately if queue already has items
-    if ((storeApi.getState() as any).contextSyncQueue?.length > 0) {
-      drain();
-    }
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
+    const pump = () => {
+      const s = storeApi.getState() as any;
+      if (!s.peekContextSync?.()) return; // nothing queued
+      runOnce().finally(() => {
+        if (!cancelled) timer = setTimeout(pump, 200); // continue draining
+      });
     };
+
+    // React to queue length changes by polling quickly
+    timer = setInterval(pump, 500);
+
+    return () => { cancelled = true; if (timer) clearInterval(timer); };
   }, [storeApi, interfaceActions, tabActions, tileActions]);
 
   return (
   <PageScrollContext.Provider value={pageScrollContainerRef}>
-  <InterfaceNavContext.Provider value={{
-    isNavigating: isSwitchingInterface,
-    beginNavigation,
-    setProject: (project, opts) => {
-      const token = beginNavigation();
-      const newParams = new URLSearchParams(window.location.search);
-      if (!project) {
-        newParams.delete('project');
-        newParams.delete('interface');
-        newParams.delete('tab');
-        if (opts?.openProjectSelection) newParams.set('selectProject', 'true');
-        router.push(`/interfaces?${newParams.toString()}`);
-        return;
-      }
-      newParams.set('project', project);
-      newParams.delete('tab');
-      if (opts?.openInterfaceSelection) {
-        newParams.delete('interface');
-        newParams.set('selectInterface', 'true');
-      }
-      // Route via single source
-      const url = `/interfaces?${newParams.toString()}`;
-      router.push(url);
-    },
-    setInterface: async (projectId, interfaceName) => {
-      const token = beginNavigation();
-      try {
-        const ac = new AbortController();
-        await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
-      } catch (err) {
-        setIsSwitchingInterface(false);
-        setLoadingMessage('Loading...');
-        setSelectInterfaceParam('true'); // Return to interface selection
-        showErrorToast('Failed to load interface');
-        return;
-      }
-      const newParams = new URLSearchParams(window.location.search);
-      newParams.set('project', projectId);
-      newParams.set('interface', interfaceName);
-      newParams.delete('selectInterface');
-      newParams.delete('tab');
-      router.push(`/interfaces?${newParams.toString()}`);
-    }
-  }}>
 
     <div className="w-full h-full relative overflow-hidden">
       {/* New Interface Navigation Sidebar */}
@@ -1269,128 +859,10 @@ const Interface = ({
         onAddTile={handleSidebarAddTile}
         fieldsActions={fieldsActions}
         syncedInterfaceUIActions={syncedInterfaceUIActions}
-        projectTree={safeProjectTree}
-        refetchProjectTree={refetchProjectTree}
-        onHoverPrefetchTab={tabStreamingQuery.prefetchTab}
       />
       
       {/* Main Content Area */}
-      {isBootstrapError && projectQueryParam ? (
-        /* Bootstrap Error Screen - Critical data failed to load */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-md p-6">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <h1 className="text-h3 mb-2">Failed to Load Project</h1>
-                <p className="text-body text-muted-foreground mb-2">
-                  Unable to load project data for <span className="font-semibold">{projectQueryParam}</span>.
-                </p>
-                <p className="text-caption text-muted-foreground mb-6">
-                  {bootstrapErrorObj instanceof Error ? bootstrapErrorObj.message : 'The server timed out or is unavailable.'}
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    if (isSwitchingInterface) return; // Prevent double-click
-                    setIsSwitchingInterface(true);
-                    setLoadingMessage('Retrying...');
-                    try {
-                      await refetchBootstrap();
-                    } finally {
-                      setIsSwitchingInterface(false);
-                      setLoadingMessage('Loading...');
-                    }
-                  }}
-                  className="w-full"
-                  disabled={isSwitchingInterface}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry Connection
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setProjectQueryParam(null);
-                    setSelectProjectParam('true');
-                  }}
-                  className="w-full"
-                >
-                  Choose Different Project
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
-        /* Interface Error Screen - Show when interface fetch fails */
-        <div
-          className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
-          style={{ left: 'var(--interface-nav-width, 256px)' }}
-        >
-          <div className="w-full max-w-md p-6">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                  <svg className="h-8 w-8 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <h1 className="text-h3 mb-2">Connection Error</h1>
-                <p className="text-body text-muted-foreground mb-6">
-                  Unable to communicate with the server. The request timed out or the server is unavailable.
-                </p>
-              </div>
-              <div className="space-y-3">
-                <Button
-                  onClick={async () => {
-                    if (isLoadingInterfaces || isSwitchingInterface) return; // Prevent double-click
-                    setIsSwitchingInterface(true);
-                    setLoadingMessage('Retrying...');
-                    try {
-                      await refetchInterfaces();
-                    } finally {
-                      setIsSwitchingInterface(false);
-                      setLoadingMessage('Loading...');
-                    }
-                  }}
-                  className="w-full"
-                  disabled={isLoadingInterfaces || isSwitchingInterface}
-                >
-                  {isLoadingInterfaces || isSwitchingInterface ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Retrying...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Retry Connection
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectInterfaceParam('true');
-                  }}
-                  className="w-full"
-                >
-                  Select Interface Manually
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : effectiveShowProjectSelection ? (
+      {effectiveShowProjectSelection ? (
         /* Project Selection Screen - Full viewport, left-aligned */
         <div
           className="absolute top-0 right-0 bottom-0 bg-background z-10 transition-all duration-300 flex items-center justify-center"
@@ -1404,7 +876,7 @@ const Interface = ({
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-1 pb-6 max-h-[250px]">
                   {projects?.map((project) => {
-                    const projectData = safeProjectTree.find(p => p.project === project);
+                    const projectData = projectTree?.find(p => p.project === project);
                     const icon = projectData?.icon;
                     const isLoading = loadingProjectName === project;
                     return (
@@ -1470,36 +942,24 @@ const Interface = ({
                   interfacesForSelection.map((iface) => {
                     // Interface already comes from projectTree, so icon is directly available
                     const icon = iface.icon;
-                    const rowKey = iface.id || iface.name; // Fallback to name when id is missing
-                    const isLoading = loadingInterfaceId === rowKey;
-                    const isDisabled = loadingInterfaceId !== null;
+                    const isLoading = loadingInterfaceId === iface.id;
                     
                     return (
                       <button
-                        key={rowKey}
-                        onClick={async () => {
-                          setLoadingInterfaceId(rowKey);
+                        key={iface.id}
+                        onClick={() => {
+                          setLoadingInterfaceId(iface.id);
                           setLoadingMessage(`Loading interface...`);
                           setIsSwitchingInterface(true);
-                          try {
-                            const ac = new AbortController();
-                            await ensureInterfaceLoadable(projectQueryParam || '', iface.name, ac.signal);
-                          } catch (err) {
-                            setIsSwitchingInterface(false);
-                            setLoadingMessage('Loading...');
-                            showErrorToast('Failed to load interface');
-                            // Stay on selection screen
-                            return;
-                          }
                           const newParams = new URLSearchParams(window.location.search);
                           newParams.set('interface', iface.name);
                           newParams.delete('selectInterface');
                           router.push(`/interfaces?${newParams.toString()}`);
                         }}
-                        disabled={isDisabled}
+                        disabled={isLoading || loadingInterfaceId !== null}
                         className={cn(
                           "w-full p-2 text-left rounded-md transition-colors duration-200 group flex items-center gap-2",
-                          isDisabled 
+                          isLoading 
                               ? "cursor-not-allowed opacity-50" 
                               : "hover:bg-primary hover:text-primary-foreground"
                         )}
@@ -1548,9 +1008,7 @@ const Interface = ({
                             router.push(`/interfaces?${newParams.toString()}`);
                           }
                         } catch (error) {
-                          const errorMsg = error instanceof Error ? error.message : 'Failed to create interface';
-                          showErrorToast('Failed to create interface', errorMsg);
-                          setLoadingMessage('Loading...');
+                          showErrorToast('Failed to create interface');
                         } finally {
                           setIsSwitchingInterface(false);
                         }
@@ -1575,6 +1033,19 @@ const Interface = ({
             }}
           >
           <div className="relative flex-1 min-w-0 h-full">
+          {(isSwitchingInterface || isRefreshingInterface) && (
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
+              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem', right: 0, bottom: 0 }}
+            >
+              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-body text-muted-foreground text-center whitespace-nowrap">
+                  {isRefreshingInterface ? 'Refreshing interface...' : loadingMessage}
+                </p>
+              </div>
+            </div>
+          )}
           <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
                      <div className="relative bg-background pt-3" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
@@ -1624,6 +1095,7 @@ const Interface = ({
                   disabled={saveTabWithTilesMutation.isPending}
                   setOverlayState={setOverlayState}
                   setIsSwitchingInterface={setIsSwitchingInterface}
+                  hideAddTileButton={true}
                 />
               </div>
             </div>
@@ -1776,31 +1248,7 @@ const Interface = ({
             status={overlayState.status}
             onComplete={hideOverlay}
           />
-
-          
-          
         </Suspense>
-
-        {/* Bootstrap/global fetch error overlay */}
-        {isProjectTreeError && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-            <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-destructive">⚠️</div>
-                <div className="flex-1">
-                  <div className="font-medium mb-1">Failed to load projects</div>
-                  <div className="text-sm text-muted-foreground mb-3 break-words">
-                    {projectTreeErrorObj instanceof Error ? projectTreeErrorObj.message : 'Please check your connection and try again.'}
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => window.location.reload()}>Reload</Button>
-                    <Button onClick={() => refetchProjectTree()}>Retry</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Focus Dialog */}
         {focusPaneOpen && (
@@ -1908,7 +1356,6 @@ const Interface = ({
         </div>
       )}
     </div>
-  </InterfaceNavContext.Provider>
   </PageScrollContext.Provider>
   );
 };

@@ -21,11 +21,6 @@ export function useListTilesQuery(
       return actions.list(tab_id, type || undefined);
     },
     enabled: !!tab_id,
-    staleTime: 10 * 60 * 1000, // tiles list rarely changes; keep fresh longer
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect
   });
 }
 
@@ -107,8 +102,6 @@ export function useCreateTileQuery() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({ 
       tab_id, 
       name,
@@ -150,8 +143,6 @@ export function useUpdateTileQuery() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({ 
       id,
       tab_id, 
@@ -209,8 +200,6 @@ export function useUpdateTilesPositionsQuery() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({ 
       tab_id, 
       tiles, 
@@ -260,8 +249,6 @@ export function useDeleteTileQuery() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({ 
       id,
       tab_id, 
@@ -314,8 +301,6 @@ export function useDeleteTileQuery() {
  */
 export function useCreateTileCheckpointQuery() {
   return useMutation({
-    retry: 3,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 15000),
     mutationFn: async ({ 
       tab_id,
       name,
@@ -384,8 +369,6 @@ export function usePatchTileQuery() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({
       id,
       tab_id, 
@@ -447,8 +430,6 @@ export function usePatchSpecializedTileQuery<
   const queryClient = useQueryClient();
   
   return useMutation({
-    retry: 5,
-    retryDelay: (attempt: number) => Math.min(2000 * Math.pow(2, attempt - 1), 30000),
     mutationFn: async ({ 
       tab_id, 
       name, 

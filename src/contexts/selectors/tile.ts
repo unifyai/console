@@ -16,32 +16,24 @@ export const selectTileById = (state: IStoreState, id: string) => {
   return state.tilesById?.[id] || null;
 };
 
-// Helper: get tile ids for a tab safely
-const selectTileIdsForTab = (state: IStoreState, tabId: string) => {
-  if (!tabId) return [];
-  const tab = state.tabsById?.[tabId];
-  return Array.isArray(tab?.tileIds) ? tab!.tileIds : [];
-};
-
 /**
  * Select a tile by tab ID and name
  */
 export const selectTileByTabIdAndName = (state: IStoreState, tabId: string, name: string) => {
   if (!tabId || !name) return null;
-  const ids = selectTileIdsForTab(state, tabId);
-  for (const id of ids) {
-    const tile = state.tilesById?.[id];
-    if (tile?.name === name) return tile || null;
-  }
-  return null;
+  
+  const tiles = Object.values(state.tilesById || {});
+  return tiles.find(tile => tile.tabId === tabId && tile.name === name) || null;
 };
 
 /**
  * Select all tiles for a specific tab
  */
 export const selectTilesForTab = (state: IStoreState, tabId: string) => {
-  const ids = selectTileIdsForTab(state, tabId);
-  return ids.map(id => state.tilesById?.[id]).filter(Boolean);
+  if (!tabId) return [];
+  
+  const tiles = Object.values(state.tilesById || {});
+  return tiles.filter(tile => tile.tabId === tabId);
 };
 
 /**
@@ -49,20 +41,19 @@ export const selectTilesForTab = (state: IStoreState, tabId: string) => {
  */
 export const selectTilesForTabByType = (state: IStoreState, tabId: string, tileType: string) => {
   if (!tabId || !tileType) return [];
-  const ids = selectTileIdsForTab(state, tabId);
-  return ids
-    .map(id => state.tilesById?.[id])
-    .filter(tile => tile && tile.type === tileType);
+  
+  const tiles = Object.values(state.tilesById || {});
+  return tiles.filter(tile => tile.tabId === tabId && tile.type === tileType);
 };
 
 /**
  * Select all visible tiles for a specific tab
  */
 export const selectVisibleTilesForTab = (state: IStoreState, tabId: string) => {
-  const ids = selectTileIdsForTab(state, tabId);
-  return ids
-    .map(id => state.tilesById?.[id])
-    .filter(tile => tile && tile.visible !== false);
+  if (!tabId) return [];
+  
+  const tiles = Object.values(state.tilesById || {});
+  return tiles.filter(tile => tile.tabId === tabId && tile.visible !== false);
 };
 
 /**
@@ -83,12 +74,17 @@ export const selectPlotTilesForTab = (state: IStoreState, tabId: string) => {
  * Get all unique context values from tiles in a tab
  */
 export const selectUniqueContextsForTab = (state: IStoreState, tabId: string) => {
-  const ids = selectTileIdsForTab(state, tabId);
+  if (!tabId) return [];
+  
   const contexts = new Set<string>();
-  ids.forEach(id => {
-    const tile = state.tilesById?.[id];
-    if (tile?.context) contexts.add(tile.context);
+  
+  const tiles = Object.values(state.tilesById || {});
+  tiles.forEach(tile => {
+    if (tile.tabId === tabId && tile.context) {
+      contexts.add(tile.context);
+    }
   });
+  
   return Array.from(contexts);
 };
 
@@ -96,8 +92,10 @@ export const selectUniqueContextsForTab = (state: IStoreState, tabId: string) =>
  * Get all table names from tiles in a tab
  */
 export const selectTableNamesForTab = (state: IStoreState, tabId: string) => {
+  if (!tabId) return [];
+  
   return selectTableTilesForTab(state, tabId)
-    .map(tile => tile?.name)
+    .map(tile => tile.name)
     .filter(Boolean) as string[];
 };
 

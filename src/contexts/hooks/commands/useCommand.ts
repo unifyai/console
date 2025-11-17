@@ -52,7 +52,6 @@ export interface UseCommandArgs {
   setProjectQueryParam?: (project: string | null) => void;
   setTabQueryParam?: (tab: string | null) => void;
   setInterfaceQueryParam?: (interface_: string | null) => void;
-  setSelectProjectParam?: (value: string | null) => void; // ensure we can force project selection UI
    /* Server-side actions */
    projectActions: ProjectsActions;
    interfaceActions: GranularInterfaceActions;
@@ -82,7 +81,6 @@ export function useCommand(args: UseCommandArgs) {
     setProjectQueryParam,
     setTabQueryParam,
     setInterfaceQueryParam,
-    setSelectProjectParam,
     projectActions,
     interfaceActions,
     tabActions,
@@ -310,17 +308,6 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions?.setTabNames([]);
     setInterfaceQueryParam(null);
     setProjectQueryParam(null);
-    // Explicitly request the project selection screen
-    try {
-      setSelectProjectParam?.('true');
-    } catch {
-      // Fallback to direct URL manipulation if needed
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.set('selectProject', 'true');
-        window.history.pushState(window.history.state, '', url.toString());
-      }
-    }
     debugLog("[closeProject] Project closed, UI state reset");
   }, [
     tabUIActions, 
@@ -328,7 +315,6 @@ export function useCommand(args: UseCommandArgs) {
     interfaceDataActions, 
     setInterfaceQueryParam, 
     setProjectQueryParam,
-    setSelectProjectParam,
     projectId
   ]);
 

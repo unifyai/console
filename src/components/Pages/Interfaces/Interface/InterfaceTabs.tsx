@@ -82,12 +82,10 @@ const InterfaceTabs = ({
     const { actions: syncedTabActions } = useTabSync(tabId, interfaceId, tabActions, tileActions);
     const syncedTabDataActions = syncedTabActions?.data ?? null;
     const syncedTabUIActions = syncedTabActions?.ui ?? null;
-    const DEBUG_TABS = process.env.NEXT_PUBLIC_DEBUG_TABS === 'true';
-    const tabLog = (...args: any[]) => { if (DEBUG_TABS) console.log(...args); };
     
     // Use React Query to fetch contexts
     const listContextsQuery = useListContextsQuery(project || null, contextActions);
-    const contexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
+    const contexts = listContextsQuery.data || [];
 
     // Streaming integration for instant tab switching (when enabled)
     const { prefetchedTabs } = useTabStreamingQuery(
@@ -246,7 +244,6 @@ const InterfaceTabs = ({
 
     // Enhanced tab click handler with instant switching
     const handleTabClick = (tabName: string) => {
-        tabLog('[InterfaceTabs] handleTabClick', { tabName });
         // Only update the URL param, Interface.tsx's handleTabChange will handle the actual switching
         setTabQueryParam(tabName);
     };

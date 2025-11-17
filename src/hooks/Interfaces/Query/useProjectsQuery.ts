@@ -13,10 +13,7 @@ export function useListProjectsQuery(actions: ProjectsActions) {
     queryFn: async () => {
       return actions.get();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
   });
 }
 

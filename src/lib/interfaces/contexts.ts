@@ -2,7 +2,7 @@
 
 // get contexts
 export const getContexts = async (apiKey: string) => {
-    return async (project: string, signal?: AbortSignal) => {
+    return async (project: string) => {
         "use server";
 
         const response = await fetch(
@@ -10,7 +10,6 @@ export const getContexts = async (apiKey: string) => {
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
-                signal,
             }
         );
         return await response.json();

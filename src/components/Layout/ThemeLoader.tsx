@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import LoadingScreen from "@/components/Layout/LoadingScreen";
+import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
 
 export default function ThemeLoader({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -13,8 +13,7 @@ export default function ThemeLoader({ children }: { children: React.ReactNode })
   }, []);
 
   if (!mounted) {
-    // Show a full-screen overlay to avoid a blank flash before navbar/theme mount
-    return <LoadingScreen />;
+    return <SkeletonLoader />;
   }
 
   return <>{children}</>;

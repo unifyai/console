@@ -88,10 +88,7 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
     // Context popover states
 
     const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-    const contextNames = useMemo(() => {
-        const data = listContextsQuery.data;
-        return Array.isArray(data) ? data.map(c => c.name) : [];
-    }, [listContextsQuery.data]);
+    const contextNames = (listContextsQuery.data || []).map(c => c.name);
     const setPending = (pending: boolean) => tileUIActions?.setPending(pending);
     
     // Function to handle tile deletion

@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { dedupedJson } from '@/lib/requestDeduper';
 import { GranularInterfaceActions, InterfaceData } from '@/types/interfaces/grid';
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -12,40 +11,14 @@ export function useListInterfacesQuery(
   projectId: string | null,
   actions: GranularInterfaceActions
 ) {
-  const eTagByProject = (useListInterfacesQuery as any)._etag || ((useListInterfacesQuery as any)._etag = new Map<string, string>());
   return useQuery({
     queryKey: ['interfaces', projectId],
-    queryFn: async ({ signal, queryKey, meta }) => {
+    queryFn: async () => {
       if (!projectId) return [];
-      // Prefer API route on the client to avoid server action round-trips (RSC fetches)
-      const headers: HeadersInit = {};
-      const et = eTagByProject.get(projectId);
-      if (et) (headers as any)['If-None-Match'] = et;
-      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
-        method: 'GET',
-        signal: signal as AbortSignal,
-        cache: 'no-store',
-        headers,
-      });
-      const etag = resHeaders?.etag;
-      if (etag) eTagByProject.set(projectId, etag);
-      if (status === 304) {
-        // Reuse cached data
-        return (meta as any)?.queryClient?.getQueryData(['interfaces', projectId]) || [];
-      }
-      if (!ok) {
-        const detail = json?.detail || `Interfaces ${status}`;
-        throw new Error(detail);
-      }
-      return Array.isArray(json) ? json : [];
+      const result = await actions.list(projectId);
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    retry: 2, // Retry twice on failure
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
   });
 }
 

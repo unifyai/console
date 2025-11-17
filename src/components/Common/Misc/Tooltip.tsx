@@ -5,7 +5,7 @@ export default function Tooltip ({children, content, side}: {children: ReactNode
   return (
     <TooltipProvider>
       <TooltipMenu>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           {children}
         </TooltipTrigger>
         <TooltipContent side={side}>

@@ -92,7 +92,8 @@ export const drawPlot = async (
     plotTileActions?: PlotActions | null,
     plotTileState?: PlotTile | null
 ) => {
-    try {
+    await withLoadingToastFn(
+        async () => {
             // Update svg dimensions
             svg
             .attr("width", dimensions.width)
@@ -261,8 +262,11 @@ export const drawPlot = async (
                     clearFixedTooltip(settings, setIsTooltipMinimized);
                 }
             }
-    } catch (error) {
-        console.error("Failed to render plot:", error);
-        throw error;
-    }
+        },
+        {
+            loadingMessage: "Rendering plot...",
+            successMessage: "Plot rendered successfully!",
+            errorMessage: "Failed to render plot."
+        }
+    );
 };

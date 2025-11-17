@@ -79,7 +79,6 @@ import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
 import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
-import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -144,8 +143,6 @@ const LogsTable = ({
   const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
   const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
   const context_ = tabDataState?.globalContext;
-  // Retry state for error screen
-  const [isRetrying, setIsRetrying] = useState(false);
 
   // Use granular hooks for better performance
   const {
@@ -167,7 +164,7 @@ const LogsTable = ({
   } = useTableDataQueryWithTracking(tileId, tabId);
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-  const availableContexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
+  const availableContexts = listContextsQuery.data || [];
 
   // Use the existing table data item as single source of truth
   const {
@@ -273,19 +270,7 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = isInteractive;
-  const pending = !!(tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending);
-
-  // Wire up manual refresh for Retry using the auto-update hook's queryFn
-  const { manualRefresh: manualTableRefresh } = useTableAutoUpdateQuery(
-    tileId,
-    tabId,
-    (projectId || "") as string,
-    pending,
-    logsActions,
-    projectsActions,
-    contextActions,
-    fieldsActions,
-  );
+  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -996,10 +981,6 @@ const LogsTable = ({
     Select a Context
   </Button>
 
-  // Show error UI if data fetch failed - moved after all hooks
-  const showError = error && typeof error === 'string' && !isTableDataLoading;
-  const isTimeout = error?.includes('timeout') || error?.includes('504');
-
   // Empty table overlay display and content
   const showOverlay =
     !showSpinner &&
@@ -1355,46 +1336,8 @@ const LogsTable = ({
       className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
-      {/* Show error UI if data fetch failed */}
-      {showError ? (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
-          {isRetrying ? (
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="animate-spin" />
-              <span className="text-body">Retrying…</span>
-            </div>
-          ) : (
-            <>
-              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
-                <p className="text-body text-muted-foreground max-w-md">
-                  {isTimeout 
-                    ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
-                    : error}
-                </p>
-              </div>
-              <Button 
-                onClick={async () => {
-                  try {
-                    setIsRetrying(true);
-                    await manualTableRefresh();
-                  } finally {
-                    setTimeout(() => setIsRetrying(false), 300);
-                  }
-                }}
-                disabled={isRetrying}
-              >
-                Retry Loading Data
-              </Button>
-            </>
-          )}
-        </div>
-      ) : showSpinner ? (
+      {/* If truly pending or logs not present, show a spinner */}
+      {showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
           <Loader2 className="animate-spin my-36" />
         </div>
@@ -1427,18 +1370,6 @@ const LogsTable = ({
                         overflowY: "visible",
                       }}
                     >
-                    {error && (
-                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/30 px-2 py-1 rounded">
-                        <span className="text-caption">{String(error)}</span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => infiniteLogsQuery.refetch()}
-                        >
-                          Retry
-                        </Button>
-                      </div>
-                    )}
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
                         interactive={interactive}
@@ -1770,7 +1701,6 @@ const LogsTable = ({
                                       filterExpression={filterExpression}
                                       logsLength={logs.length}
                                       logsActions={logsActions}
-                                      enabled={showMetricsRow}
                                     />
                                   : null
                             }

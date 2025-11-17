@@ -12,7 +12,7 @@ import {
 
 // List tabs in interface
 export const listTabs = async (apiKey: string) => {
-    return async (interface_id: string, checkpoint: boolean = false, signal?: AbortSignal) => {
+    return async (interface_id: string, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
@@ -21,7 +21,6 @@ export const listTabs = async (apiKey: string) => {
                 method: "GET",
                 headers: { apiKey: apiKey },
                 cache: "no-store",
-                signal,
             }
         );
         

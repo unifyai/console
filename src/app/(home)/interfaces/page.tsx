@@ -12,7 +12,7 @@ import * as favourites from "@/lib/interfaces/favourites";
 
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { GranularInterfaceActions, GranularTabActions, GranularTileActions, Favourite } from "@/types/interfaces/grid";
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from "@/types/interfaces/grid";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 import Main from "@/components/Pages/Interfaces/Server/Main.server";
 import { SearchParams } from "nuqs";
@@ -38,7 +38,6 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     debugLog("[InterfacesPage] Received searchParams:", searchParams);
     debugLog("[InterfacesPage] Project:", searchParams?.project);
     debugLog("[InterfacesPage] Interface:", searchParams?.interface);
-    debugLog("[InterfacesPage] Tab:", searchParams?.tab);
     debugLog("[InterfacesPage] All keys:", Object.keys(searchParams));
     debugLog("[InterfacesPage] Timestamp:", new Date().toISOString());
 
@@ -112,15 +111,8 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         rename: await files.renameFile(apiKey, userId),
     };
 
-    // Favourites actions - gracefully handle failures
-    let initialFavourites: Favourite[] = [];
-    try {
-        initialFavourites = await favourites.getFavourites(apiKey);
-    } catch (error) {
-        console.error('[InterfacesPage] Failed to fetch favourites:', error);
-        // Continue without favourites rather than crashing the page
-    }
-    
+    // Favourites actions
+    const initialFavourites = await favourites.getFavourites(apiKey);
     const favouritesActions = {
         create: await favourites.createFavourite(apiKey),
         delete: await favourites.deleteFavourite(apiKey),
