@@ -180,7 +180,7 @@ export function useAssistantCall(
         }
 
         setIsRemoteControlLoading(true);
-        const toastId = toast.loading("Starting remote control session...");
+        const toastId = toast.loading("Starting assistant screen sharing...");
         
         try {
             const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agent_id);
@@ -188,13 +188,13 @@ export function useAssistantCall(
                 setLiveviewUrl(result.liveviewUrl);
                 setIsRemoteControlActive(true);
                 setIsRemoteControlInteractive(false); // Start in view-only mode
-                toast.success("Remote control session started.", { id: toastId });
+                toast.success("Assistant screen sharing started.", { id: toastId });
             } else {
                  throw new Error("Could not retrieve session URL.");
             }
         } catch (e: any) {
             console.error("[useAssistantCall] Toggle remote control failed:", e.message);
-            toast.error("Could not start remote control session. Please try again.", { id: toastId });
+            toast.error("The assistant could not share their screen. Please try again.", { id: toastId });
         } finally {
             setIsRemoteControlLoading(false);
         }

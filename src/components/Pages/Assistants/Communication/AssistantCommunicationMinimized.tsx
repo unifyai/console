@@ -66,7 +66,6 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
     const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
     const showLoadingState = isConnecting || isWaitingForAssistant;
     const loadingMessage = isConnecting ? "Connecting..." : `Waiting for ${assistant.first_name}...`;
-    const isAudioOnly = callType === 'audio';
 
     if (connectionError) {
         return (
@@ -120,15 +119,13 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
                 >
                     {isSpeakerMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </ControlButton>
-                {!isAudioOnly && (
-                    <ControlButton 
-                        tooltip={!isCallConnected ? "Available after connecting" : (camToggle.enabled ? "Turn Off Camera" : "Turn On Camera")}
-                        {...camToggle.buttonProps}
-                        disabled={!isCallConnected || camToggle.buttonProps.disabled} 
-                    >
-                        {camToggle.enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
-                    </ControlButton>
-                )}
+                <ControlButton 
+                    tooltip={!isCallConnected ? "Available after connecting" : (camToggle.enabled ? "Turn Off Camera" : "Turn On Camera")}
+                    {...camToggle.buttonProps}
+                    disabled={!isCallConnected || camToggle.buttonProps.disabled} 
+                >
+                    {camToggle.enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                </ControlButton>
             </div>
              {/* Expand Button */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">

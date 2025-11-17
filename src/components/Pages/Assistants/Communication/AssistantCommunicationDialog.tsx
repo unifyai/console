@@ -79,7 +79,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
 
     const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
     const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
-    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | 'transcriptions' | null>(null);
+    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);
 
     const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
     const [selectedVideoDevice, setSelectedVideoDevice] = React.useState<string>('');
@@ -172,7 +172,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
 
-    const handleToggleSidePanel = (panel: 'chat' | 'settings' | 'transcriptions') => {
+    const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
         setActiveSidePanel(current => current === panel ? null : panel);
     };
 
@@ -181,14 +181,12 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         ? "Setting up a connection..."
         : `Waiting for ${assistant.first_name} to join...`;
 
-    const isAudioOnly = callType === 'audio';
-
     return (
         <>
             <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} onPopOut={handlePopOut} isPopOutDisabled={!connectionDetails} />
             <div className="flex-1 flex min-h-0 relative">
                 <div className="flex-1 flex flex-col items-center justify-center relative bg-background/80">
-                    {isUserViewMaximized && userTrackRef && !isAudioOnly ? (
+                    {isUserViewMaximized && userTrackRef ? (
                         <AssistantCommunicationUserView
                             imageUrl={userImage}
                             trackRef={userTrackRef}
@@ -213,7 +211,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 onRetry={onRetry}
                             />
                             <AnimatePresence>
-                                {isUserViewVisible && !isConnecting && !isAudioOnly && (
+                                {isUserViewVisible && !isConnecting && (
                                     <motion.div
                                         key="user-view-pip" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                                         transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -231,7 +229,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                             </AnimatePresence>
                         </>
                     )}
-                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && !isAudioOnly && (
+                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
                          <motion.div
                              key="user-view-minimized" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                              transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -294,7 +292,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onHangUp={onHangUp}
                 onToggleChat={() => handleToggleSidePanel('chat')}
                 onToggleSettings={() => handleToggleSidePanel('settings')}
-                onToggleTranscriptions={() => handleToggleSidePanel('transcriptions')}
                 isRemoteControlActive={isRemoteControlActive}
                 isRemoteControlLoading={isRemoteControlLoading}
                 onToggleRemoteControl={toggleRemoteControl}

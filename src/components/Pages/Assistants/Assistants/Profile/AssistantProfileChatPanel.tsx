@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Send, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/UI/input';
+import { Textarea } from '@/components/UI/textarea';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
@@ -34,7 +34,7 @@ const ChatMessageBubble = ({ message, isUser, assistantPhoto, assistantName, isL
                     <AvatarFallback>{fallback}</AvatarFallback>
                 </Avatar>
             )}
-            <div className={cn("rounded-lg p-3 text-body max-w-[85%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}>
+            <div className={cn("rounded-lg p-3 text-body max-w-[75%] break-words", isUser ? "bg-primary text-primary-foreground" : "bg-muted")}>
                 {bubbleContent()}
             </div>
         </div>
@@ -76,6 +76,34 @@ export function AssistantProfileChatPanel({
     );
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     const prevScrollHeightRef = React.useRef<number | null>(null);
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+    React.useEffect(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto'; // Always reset first to let CSS define the initial height
+            textarea.style.overflowY = 'hidden'; // Default to hidden
+
+            if (inputValue) { // Only perform calculations if there is content
+                const scrollHeight = textarea.scrollHeight;
+                const computedStyle = window.getComputedStyle(textarea);
+                const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+                const paddingTop = parseFloat(computedStyle.paddingTop);
+                const paddingBottom = parseFloat(computedStyle.paddingBottom);
+                const paddingAndBorder = paddingTop + paddingBottom;
+                const maxLines = 3;
+                const maxHeight = (lineHeight * maxLines) + paddingAndBorder;
+
+                if (scrollHeight > maxHeight) {
+                    textarea.style.height = `${maxHeight}px`;
+                    textarea.style.overflowY = 'auto';
+                } else {
+                    textarea.style.height = `${scrollHeight}px`;
+                }
+            }
+        }
+    }, [inputValue]);
+
 
     React.useEffect(() => {
         const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
@@ -98,7 +126,7 @@ export function AssistantProfileChatPanel({
         prevScrollHeightRef.current = scrollHeight;
     }, [messages, isAssistantReplying]);
 
-    const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault(); 
             const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -137,12 +165,14 @@ export function AssistantProfileChatPanel({
             {/* Input Area */}
             <form onSubmit={sendMessage} className="p-4 bg-background">
                 <div className="relative">
-                     <Input
+                     <Textarea
+                        ref={textareaRef}
+                        rows={1}
                         placeholder={isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
                         disabled={isLoading}
-                        className="pr-10 h-9"
+                        className="pr-10 resize-none overflow-y-hidden text-body min-h-[36px]"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
                      />

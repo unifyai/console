@@ -13,7 +13,6 @@ import {
     Computer,
     MessageSquare,
     Settings,
-    Captions,
     Loader2,
     Pointer,
     PointerOff
@@ -31,7 +30,6 @@ interface AssistantCommunicationControlsProps {
     onHangUp: () => void;
     onToggleChat: () => void;
     onToggleSettings: () => void;
-    onToggleTranscriptions: () => void;
     isRemoteControlActive: boolean;
     onToggleRemoteControl: () => void;
     isRemoteControlLoading: boolean;
@@ -72,7 +70,6 @@ export function AssistantCommunicationControls({
     onHangUp,
     onToggleChat,
     onToggleSettings,
-    onToggleTranscriptions,
     isRemoteControlActive,
     onToggleRemoteControl,
     isRemoteControlLoading,
@@ -81,7 +78,6 @@ export function AssistantCommunicationControls({
     isConnectionEstablished,
     callType,
 }: AssistantCommunicationControlsProps) {
-    const isAudioOnly = callType === 'audio';
 
     return (
         <div className="flex-shrink-0 h-20 px-6 flex items-center justify-between bg-background border-t">
@@ -97,20 +93,18 @@ export function AssistantCommunicationControls({
                 >
                     {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                 </ControlButton>
-                {!isAudioOnly && (
-                    <ControlButton 
-                        tooltip={!isConnectionEstablished ? "Available after connecting" : (isCameraOn ? "Turn off camera" : "Turn on camera")} 
-                        {...cameraButtonProps}
-                        disabled={!isConnectionEstablished || cameraButtonProps.disabled}
-                    >
-                        {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-                    </ControlButton>
-                )}
+                <ControlButton 
+                    tooltip={!isConnectionEstablished ? "Available after connecting" : (isCameraOn ? "Turn off camera" : "Turn on camera")} 
+                    {...cameraButtonProps}
+                    disabled={!isConnectionEstablished || cameraButtonProps.disabled}
+                >
+                    {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+                </ControlButton>
             </div>
 
             {/* Center Controls */}
             <div className="flex items-center justify-center flex-1 gap-3">
-                {!isAudioOnly && (
+                
                     <>
                         <ControlButton
                             tooltip={
@@ -150,7 +144,7 @@ export function AssistantCommunicationControls({
                                         </span>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
-                                        <p>{!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Stop remote control" : "Take over workspace")}</p>
+                                        <p>{!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Hide assistant screen" : "Show assistant screen")}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -186,16 +180,13 @@ export function AssistantCommunicationControls({
                             )}
                         </div>
                     </>
-                )}
+                
             </div>
 
             {/* Right Controls */}
             <div className="flex items-center justify-end gap-3 w-1/3">
                  <ControlButton tooltip="Toggle chat" onClick={onToggleChat}>
                     <MessageSquare className="h-5 w-5" />
-                </ControlButton>
-                 <ControlButton tooltip="Toggle transcriptions" onClick={onToggleTranscriptions}>
-                    <Captions className="h-5 w-5" />
                 </ControlButton>
                  <ControlButton tooltip="Toggle settings" onClick={onToggleSettings}>
                     <Settings className="h-5 w-5" />

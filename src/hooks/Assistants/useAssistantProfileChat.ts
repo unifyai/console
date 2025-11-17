@@ -24,18 +24,37 @@ export function useAssistantProfileChat(
     const [isInitialLoading, setIsInitialLoading] = React.useState(false);
 
     const firstViewProcessed = React.useRef(false);
+    const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
     };
 
-    React.useEffect(() => {
-        if (messages.length === 0) return;
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === 'assistant' && lastMessage.content.trim() !== '') {
-            setIsAssistantReplying(false);
+    const clearTimers = React.useCallback(() => {
+        if (typingDelayTimerRef.current) {
+            clearTimeout(typingDelayTimerRef.current);
+            typingDelayTimerRef.current = null;
         }
-    }, [messages]);
+        if (typingTimeoutTimerRef.current) {
+            clearTimeout(typingTimeoutTimerRef.current);
+            typingTimeoutTimerRef.current = null;
+        }
+    }, []);
+
+    // Effect for 20s timeout on typing indicator
+    React.useEffect(() => {
+        if (isAssistantReplying) {
+            typingTimeoutTimerRef.current = setTimeout(() => {
+                setIsAssistantReplying(false);
+            }, 20000); // Hide after 20 seconds
+        }
+        return () => {
+            if (typingTimeoutTimerRef.current) {
+                clearTimeout(typingTimeoutTimerRef.current);
+            }
+        };
+    }, [isAssistantReplying]);
 
 
     React.useEffect(() => {
@@ -146,6 +165,8 @@ export function useAssistantProfileChat(
         };
 
         eventSource.onmessage = (event) => {
+            clearTimers();
+            setIsAssistantReplying(false);
             try {
                 const messageData = JSON.parse(event.data);
                 const messageContent = messageData.event?.content;
@@ -177,19 +198,24 @@ export function useAssistantProfileChat(
         };
 
         eventSource.onerror = (error) => {
+            clearTimers();
+            setIsAssistantReplying(false);
             console.error("[SSE Client] EventSource error:", error);
             eventSource.close();
         };
 
         return () => {
+            clearTimers();
             console.log(`[SSE Client] Closing connection for assistant ${assistantId}`);
             eventSource.close();
         };
-    }, [assistantId, setChatHistories]);
+    }, [assistantId, setChatHistories, clearTimers]);
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;
+        if (!inputValue.trim() || isInitialLoading || isAssistantReplying || !assistant || !assistantId) return;
+
+        clearTimers();
 
         const newUserMessage: ChatMessage = {
             id: uuidv4(),
@@ -205,7 +231,10 @@ export function useAssistantProfileChat(
 
         const messageToSend = inputValue.trim();
         setInputValue('');
-        setIsAssistantReplying(true);
+
+        typingDelayTimerRef.current = setTimeout(() => {
+            setIsAssistantReplying(true);
+        }, 5000);
 
         assistantActions.chat.message({
             assistant_id: parseInt(assistant.agent_id),
@@ -216,6 +245,9 @@ export function useAssistantProfileChat(
                 throw new Error(response.detail);
             }
         }).catch(error => {
+            clearTimers();
+            setIsAssistantReplying(false);
+
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error("Failed to send message:", errorMessage);
             toast.error("Failed to send message. Please try again.");
@@ -225,7 +257,6 @@ export function useAssistantProfileChat(
                 [assistantId]: (prev[assistantId] || []).filter(msg => msg.id !== newUserMessage.id)
             }));
             setInputValue(messageToSend);
-            setIsAssistantReplying(false);
         });
     };
 
