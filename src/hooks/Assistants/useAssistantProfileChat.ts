@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, OutboundMessagePayload } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -169,32 +169,27 @@ export function useAssistantProfileChat(
 
         eventSource.onmessage = (event) => {
             try {
-                const messageData = JSON.parse(event.data);
-                const messageContent = messageData.event?.content;
-                const messageId = messageData.event?.message_id || messageData.id;
+                const messagePayload : OutboundMessagePayload = JSON.parse(event.data);
+                const eventPayload = messagePayload.event;
                 
-                if (typeof messageContent === 'string') {
+                // Only process events that are actual outbound messages with content
+                if (messagePayload.thread === 'unify_message_outbound') {
                     const newAssistantMessage: ChatMessage = {
                         id: uuidv4(),
                         role: 'assistant',
-                        content: messageContent,
+                        content: eventPayload.content,
                         timestamp: new Date(),
-                        message_id: messageId,
                     };
 
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
-                        // De-duplicate only if a message_id is present and already exists
-                        if (messageId && currentHistory.some(m => m.message_id === messageId)) {
-                             return prev;
-                        }
                         return {
                             ...prev,
                             [assistantId]: [...currentHistory, newAssistantMessage]
                         };
                     });
                 } else {
-                    console.warn("[SSE Client] Received message with unexpected data format:", messageData);
+                    console.warn("[SSE Client] Received message with unexpected data format:", messagePayload);
                 }
             } catch (error) {
                 console.error("[SSE Client] Error parsing incoming message:", error);
@@ -204,20 +199,40 @@ export function useAssistantProfileChat(
         };
 
         const handleServerError = (event: MessageEvent) => {
-            console.error("[SSE Client] Received server error event:", event.data);
-            setConnectionStatus('error');
-            toast.error("There was an issue connecting to the assistant. Please try reloading.");
-            eventSource.close();
+            try {
+                const payload = JSON.parse(event.data);
+
+                // Fatal errors that cannot recover (e.g., unauthorized)
+                if (payload.status === 401 || payload.status === 403) {
+                    console.error("[SSE Client] Fatal auth error:", payload);
+                    setConnectionStatus('error');
+                    toast.error("Failed to authenticate while connecting to the assistant. Please refresh.");
+                    eventSource.close();   // only close for fatal errors
+                    return;
+                }
+
+                // For everything else: mark reconnecting but DO NOT close
+                console.warn("[SSE Client] Server returned recoverable error:", payload);
+                setConnectionStatus('reconnecting');
+
+            } catch {
+                // If server sent plain text, still treat it as recoverable
+                console.warn("[SSE Client] Non-JSON server error:", event.data);
+                setConnectionStatus('reconnecting');
+            }
         };
+
 
         eventSource.addEventListener('error', handleServerError);
 
+        let retryCount = 0;
         eventSource.onerror = (error) => {
-            // This is for network-level errors, EventSource will try to reconnect automatically
+            retryCount++;
             if (eventSource.readyState === EventSource.CONNECTING) {
+                console.warn("[SSE Client] Connection lost, attempting to reconnect...", error);
                 setConnectionStatus('reconnecting');
-                console.error("[SSE Client] Connection lost, attempting to reconnect...", error);
-            } else {
+            }
+            if (retryCount > 5) {
                 console.error("[SSE Client] A non-retriable EventSource error occurred:", error);
                 setConnectionStatus('error');
             }

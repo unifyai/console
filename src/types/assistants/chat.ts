@@ -13,6 +13,11 @@ export interface ChatCompletionMessage {
     content: string;
 }
 
+export interface OutboundMessagePayload {
+  thread: string,
+  event: ChatCompletionMessage
+}
+
 export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
