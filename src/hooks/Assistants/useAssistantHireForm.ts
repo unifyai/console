@@ -9,6 +9,7 @@ import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -568,6 +569,31 @@ export function useAssistantHireForm(
                 throw new Error("No voice selected.");
             }
 
+            // Generate initial greeting if no pre-hire chat exists
+            let finalChatHistory = chatHistory;
+            if (!chatHistory || chatHistory.length === 0) {
+                try {
+                    const greetingResponse = await fetch('/api/assistant/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'post-hire-greeting',
+                            assistantName: `${data.first_name} ${data.surname}`,
+                            assistantAge: data.age,
+                            assistantBio: data.about,
+                            assistantNationality: data.nationality,
+                            preHireChat: []
+                        }),
+                    });
+                    if (!greetingResponse.ok) throw new Error("Failed to generate assistant's first message.");
+                    const { content } = await greetingResponse.json();
+                    if (!content) throw new Error("Generated an empty greeting.");
+                    finalChatHistory = [{ id: uuidv4(), role: 'assistant', content, timestamp: new Date() }];
+                } catch (greetingError) {
+                    console.error("[useAssistantHireForm] Greeting generation failed:", greetingError);
+                }
+            }
+
             // Registering voices / uploading custom photos/videos
             let finalImageUrlToSend: string | null = data.profile_photo_url || null;
             let finalVideoUrlToSend: string | null = data.profile_video_url || null;
@@ -605,7 +631,7 @@ export function useAssistantHireForm(
             }
             
             const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
-            const formattedPreHireChat = chatHistory?.map(({ role, content }) => ({ role, msg: content }));
+            const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({ role, msg: content }));
             const voice_mode = data.fast_mode ? "sts" : "tts";
 
             // Loading message updated to finalizing hire
@@ -620,7 +646,7 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
-                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, chatHistory);
+                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, finalChatHistory);
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);

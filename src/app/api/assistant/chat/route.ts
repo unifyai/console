@@ -21,21 +21,11 @@ export async function POST(request: NextRequest) {
         const { messages, assistantName, assistantAge, assistantBio, assistantNationality, assistantId, type, preHireChat } = await request.json();
         const chatType: ChatRequestType = type || 'hire';
 
-        // generate post hire greeting
+        // This is now used BEFORE an assistant is hired to generate their first message
         if (chatType === 'post-hire-greeting') {
-            const hasPreHireChat = preHireChat && Array.isArray(preHireChat) && preHireChat.length > 0;
-            let greetingSystemPrompt: string;
             const displayName = assistantName.replace(/([A-Z])/g, ' $1').trim();
-
-            if (hasPreHireChat) {
-                // Case B: Hired with pre-hire chat
-                const chatHistoryString = preHireChat.map((m: any) => `${m.role === 'user' ? userName : displayName}: ${m.content}`).join('\n');
-                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired after a brief chat with them. Here is your profile: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Here is the transcript of the pre-hire chat:\n\n${chatHistoryString}\n\nBased on your profile, bio, and this prior conversation, generate a short (2-3 sentences), friendly, and enthusiastic message to ${userName} expressing your excitement to start working together.`;
-            } else {
-                // Case A: Hired without pre-hire chat
-                greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
-            }
-
+            const greetingSystemPrompt = `You are ${displayName}, a personal assistant for ${userName}. You were just hired. Your profile is: Age ${assistantAge || 'ageless'}, from ${assistantNationality || 'an undisclosed location'}, and your bio is "${assistantBio || 'a helpful assistant'}". Generate a friendly, welcoming first message (2-3 sentences) to ${userName}. In your message, mention that you're ready to get started and that they can reach you via this chat interface, by phone call, or by text message.`;
+            
             const greetingMessages: ChatCompletionMessage[] = [{ role: "system", content: greetingSystemPrompt }];
 
             const url = `${process.env.ORCHESTRA_URL}/v0/chat/completions`;

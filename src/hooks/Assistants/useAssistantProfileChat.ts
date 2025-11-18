@@ -65,60 +65,31 @@ export function useAssistantProfileChat(
 
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
-            const generateAndSetGreeting = async () => {
+            const initialHistory = preHireChat || [];
+            if (initialHistory.length > 0) {
+                setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
+            } else {
+                // Fallback: If for some reason preHireChat is empty on first view, fetch history.
                 setIsInitialLoading(true);
-                const initialHistory = preHireChat || [];
-                const greetingMessageId = uuidv4();
-                const placeholderMessage: ChatMessage = { id: greetingMessageId, role: 'assistant', content: '', timestamp: new Date() };
+                const context = `${assistant.first_name}${assistant.surname}`;
+                assistantActions.chat.getTranscripts(context)
+                    .then(historyResult => {
+                        if ('detail' in historyResult) {
+                            console.error(historyResult.detail);
+                            setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                        } else {
+                            const history = (historyResult as ChatMessage[]).reverse();
+                            setChatHistories(prev => ({ ...prev, [assistantId]: history }));
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching transcripts:", err);
+                        setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                    })
+                    .finally(() => setIsInitialLoading(false));
+            }
+            onFirstViewCompleted?.();
 
-                setChatHistories(prev => ({ ...prev, [assistantId]: [...initialHistory, placeholderMessage] }));
-
-                try {
-                    const response = await fetch('/api/assistant/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            type: 'post-hire-greeting',
-                            assistantId: assistant.agent_id,
-                            assistantName: `${assistant.first_name} ${assistant.surname}`,
-                            assistantAge: assistant.age,
-                            assistantBio: assistant.about,
-                            assistantNationality: assistant.nationality,
-                            preHireChat: preHireChat?.map(({ role, content }) => ({ role, content }))
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.detail || "Failed to generate greeting.");
-                    }
-
-                    const { content } = await response.json();
-                    if (!content) throw new Error("LLM returned an empty greeting.");
-                    
-                    setChatHistories(prev => {
-                        const updatedHistory = (prev[assistantId] || []).map(msg =>
-                            msg.id === greetingMessageId ? { ...msg, content } : msg
-                        );
-                        return { ...prev, [assistantId]: updatedHistory };
-                    });
-
-                } catch (error) {
-                    console.error("Failed to generate post-hire greeting:", error);
-                    const fallbackContent = `Hey, great to see you again! Feel free to message here, text or call me on my phone whenever.`;
-                    
-                    setChatHistories(prev => {
-                        const updatedHistory = (prev[assistantId] || []).map(msg =>
-                            msg.id === greetingMessageId ? { ...msg, content: fallbackContent } : msg
-                        );
-                        return { ...prev, [assistantId]: updatedHistory };
-                    });
-                } finally {
-                    setIsInitialLoading(false);
-                    onFirstViewCompleted?.();
-                }
-            };
-            generateAndSetGreeting();
         } else if (!isFirstView && !hasBeenInitialized) {
             // Case C: Existing assistant, fetch history
             setIsInitialLoading(true);
