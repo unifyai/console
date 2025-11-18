@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, MessageSquareMore } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
@@ -65,7 +65,7 @@ export function AssistantProfileChatPanel({
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
 
-    const { messages, inputValue, isLoading, isAssistantReplying, handleInputChange, sendMessage } = useAssistantProfileChat(
+    const { messages, inputValue, isLoading, isAssistantReplying, handleInputChange, sendMessage, connectionStatus } = useAssistantProfileChat(
         assistant, 
         assistantActions, 
         chatHistories, 
@@ -133,6 +133,14 @@ export function AssistantProfileChatPanel({
             sendMessage(syntheticEvent);
         }
     };
+    
+    const connectionStatusText = {
+        connected: 'Conntected',
+        connecting: 'Connecting...',
+        reconnecting: 'Connection lost. Reconnecting...',
+        error: 'Connection failed. Please refresh.',
+    }[connectionStatus];
+
 
     return (
         <div className="h-full flex flex-col w-full bg-background">
@@ -161,6 +169,14 @@ export function AssistantProfileChatPanel({
                     )}
                 </div>
             </ScrollArea>
+            
+            {/* Connection Status */}
+            {connectionStatus !== 'connected' && connectionStatusText && (
+                 <div className="flex flex-row gap-2 px-4 text-caption text-muted-foreground animate-pulse">
+                    <MessageSquareMore className="h-4 w-4"/>
+                    {connectionStatusText}
+                </div>
+            )}
 
             {/* Input Area */}
             <form onSubmit={sendMessage} className="p-4 bg-background">
@@ -171,12 +187,12 @@ export function AssistantProfileChatPanel({
                         placeholder={isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
-                        disabled={isLoading}
+                        disabled={isLoading || connectionStatus !== 'connected'}
                         className="pr-10 resize-none overflow-y-hidden text-body min-h-[36px]"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
                      />
-                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isLoading || !inputValue.trim()}>
+                     <Button type="submit" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" disabled={isLoading || !inputValue.trim() || connectionStatus !== 'connected'}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                      </Button>
                  </div>

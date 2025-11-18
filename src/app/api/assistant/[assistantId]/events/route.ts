@@ -57,6 +57,15 @@ export async function GET(
         const stream = new ReadableStream({
             async start(controller) {
                 console.log(`[SSE] Starting stream for subscription: ${subscriptionName}`);
+                
+                const [exists] = await subscription.exists();
+                if (!exists) {
+                     console.error(`[SSE] Subscription ${subscriptionName} does not exist. Cannot establish connection.`);
+                     const errorPayload = JSON.stringify({ detail: "Server configuration error: Real-time messaging subscription not found." });
+                     controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
+                     controller.close();
+                     return;
+                }
 
                 const messageHandler = (message: any) => {
                     message.ack();
@@ -66,15 +75,14 @@ export async function GET(
 
                 const errorHandler = (error: any) => {
                     console.error(`[SSE] Pub/Sub error on subscription ${subscriptionName}:`, error);
+                    // Send a specific error event to the client to notify them of the issue
+                    const errorPayload = JSON.stringify({ detail: "A server-side error occurred with the real-time connection. The connection may be unstable." });
+                    controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
                 };
 
                 subscription.on('message', messageHandler);
                 subscription.on('error', errorHandler);
 
-                const [exists] = await subscription.exists();
-                if (!exists) {
-                     console.warn(`[SSE] Subscription ${subscriptionName} does not exist. The backend service may need to create it.`);
-                }
 
                 const keepAliveInterval = setInterval(() => {
                     controller.enqueue(': keep-alive\n\n');

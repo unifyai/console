@@ -3,7 +3,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  message_id?: number;
+  message_id?: number | string;
 }
 
 export type ChatRole = "user" | "system" | "assistant";

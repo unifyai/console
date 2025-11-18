@@ -22,6 +22,7 @@ export function useAssistantProfileChat(
     const [inputValue, setInputValue] = React.useState('');
     const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
     const [isInitialLoading, setIsInitialLoading] = React.useState(false);
+    const [connectionStatus, setConnectionStatus] = React.useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
 
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -158,18 +159,19 @@ export function useAssistantProfileChat(
     React.useEffect(() => {
         if (!assistantId) return;
 
+        setConnectionStatus('connecting');
         const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
         eventSource.onopen = () => {
             console.log(`[SSE Client] Connection opened for assistant ${assistantId}`);
+            setConnectionStatus('connected');
         };
 
         eventSource.onmessage = (event) => {
-            clearTimers();
-            setIsAssistantReplying(false);
             try {
                 const messageData = JSON.parse(event.data);
                 const messageContent = messageData.event?.content;
+                const messageId = messageData.event?.message_id || messageData.id;
                 
                 if (typeof messageContent === 'string') {
                     const newAssistantMessage: ChatMessage = {
@@ -177,11 +179,13 @@ export function useAssistantProfileChat(
                         role: 'assistant',
                         content: messageContent,
                         timestamp: new Date(),
+                        message_id: messageId,
                     };
 
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
-                        if (currentHistory.some(m => m.content === newAssistantMessage.content && m.role === 'assistant' && (new Date().getTime() - m.timestamp.getTime() < 2000))) {
+                        // De-duplicate only if a message_id is present and already exists
+                        if (messageId && currentHistory.some(m => m.message_id === messageId)) {
                              return prev;
                         }
                         return {
@@ -195,24 +199,41 @@ export function useAssistantProfileChat(
             } catch (error) {
                 console.error("[SSE Client] Error parsing incoming message:", error);
             }
-        };
-
-        eventSource.onerror = (error) => {
             clearTimers();
             setIsAssistantReplying(false);
-            console.error("[SSE Client] EventSource error:", error);
+        };
+
+        const handleServerError = (event: MessageEvent) => {
+            console.error("[SSE Client] Received server error event:", event.data);
+            setConnectionStatus('error');
+            toast.error("There was an issue connecting to the assistant. Please try reloading.");
+            eventSource.close();
+        };
+
+        eventSource.addEventListener('error', handleServerError);
+
+        eventSource.onerror = (error) => {
+            // This is for network-level errors, EventSource will try to reconnect automatically
+            if (eventSource.readyState === EventSource.CONNECTING) {
+                setConnectionStatus('reconnecting');
+                console.error("[SSE Client] Connection lost, attempting to reconnect...", error);
+            } else {
+                console.error("[SSE Client] A non-retriable EventSource error occurred:", error);
+                setConnectionStatus('error');
+            }
         };
 
         return () => {
             clearTimers();
             console.log(`[SSE Client] Closing connection for assistant ${assistantId}`);
+            eventSource.removeEventListener('error', handleServerError);
             eventSource.close();
         };
     }, [assistantId, setChatHistories, clearTimers]);
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isInitialLoading || isAssistantReplying || !assistant || !assistantId) return;
+        if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;
 
         clearTimers();
 
@@ -244,8 +265,6 @@ export function useAssistantProfileChat(
                 throw new Error(response.detail);
             }
         }).catch(error => {
-            clearTimers();
-            setIsAssistantReplying(false);
 
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             console.error("Failed to send message:", errorMessage);
@@ -256,6 +275,9 @@ export function useAssistantProfileChat(
                 [assistantId]: (prev[assistantId] || []).filter(msg => msg.id !== newUserMessage.id)
             }));
             setInputValue(messageToSend);
+            clearTimers();
+            setIsAssistantReplying(false);
+
         });
     };
 
@@ -266,5 +288,6 @@ export function useAssistantProfileChat(
         isAssistantReplying,
         handleInputChange,
         sendMessage,
+        connectionStatus,
     };
 }
