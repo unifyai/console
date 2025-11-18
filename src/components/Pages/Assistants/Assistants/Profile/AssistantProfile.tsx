@@ -132,24 +132,10 @@ export function AssistantProfilePanel({
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
                                 className="text-title"
-                                buttonSlot={
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
-                                                    <PenLine className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Edit Assistant</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                }
                             >
-                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200 p-1'>
                                     <User className="h-4 w-4" />
-                                    <span className="text-body">{`${assistant.first_name}'s Profile`}</span>
+                                    <span className="text-body">Profile</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                             <AccordionContent
@@ -159,6 +145,7 @@ export function AssistantProfilePanel({
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
                                     userTimezone={userTimezone}
+                                    onEdit={() => onEdit(assistant)}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -170,7 +157,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <Briefcase className="h-4 w-4" />
-                                    <span className="text-body">{`Manage ${assistant.first_name}'s resources`}</span>
+                                    <span className="text-body">Resources</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                             <AccordionContent
@@ -237,7 +224,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <MessageSquare className="h-4 w-4" />
-                                    <span className="text-body">Chat with {assistant.first_name}</span>
+                                    <span className="text-body">Chat</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent

@@ -201,7 +201,6 @@ export function useAssistantProfileChat(
             clearTimers();
             setIsAssistantReplying(false);
             console.error("[SSE Client] EventSource error:", error);
-            eventSource.close();
         };
 
         return () => {

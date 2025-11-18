@@ -86,12 +86,12 @@ export function AssistantResourcesManager({ assistant, assistantActions, onOpenC
                     />
                 }
                 <ContactItem
-                    value="Update contact"
+                    value="Contact Details"
                     icon={<Contact className="h-4 w-4 flex-shrink-0" />}
                     handleClick={() => onOpenContactManager(assistant)}
                 />
                 <ContactItem
-                    value="Manage secrets"
+                    value="Secrets"
                     icon={<KeyRound className="h-4 w-4 flex-shrink-0" />}
                     handleClick={() => setIsSecretsManagerOpen(true)}
                 />

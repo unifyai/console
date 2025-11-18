@@ -18,56 +18,10 @@ import { Button } from '@/components/UI/button';
 interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
     userTimezone?: string | null;
+    onEdit: () => void;
 }
 
-const ContactItem: React.FC<{ 
-    value: string; 
-    icon: React.ReactNode;
-    tooltip: string; 
-    isCopyable?: boolean, 
-    handleClick?: () => void, 
-    textClassName?: string
-}> = ({ 
-    value, 
-    icon,
-    tooltip,
-    isCopyable = false, 
-    handleClick,
-    textClassName
-}) => {
-    const [isCopied, setIsCopied] = React.useState(false);
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(value);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
-
-    const onClick = () => {
-        isCopyable && handleCopy();
-        handleClick && handleClick();
-    }
-
-    return (
-        <TooltipProvider delayDuration={100}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <div className="grid grid-cols-[auto_1fr] items-center gap-2 cursor-pointer" onClick={onClick}>
-                        <div className="flex-shrink-0">
-                            {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        </div>
-                        <span className={`truncate min-w-0 text-caption ${textClassName}`}>{value || '-'}</span>
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                    <p>{tooltip}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-};
-
-export function AssistantProfileInfoPanel({ assistant, userTimezone }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -189,22 +143,21 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
 
                     <div className="grid grid-cols-2 gap-y-0.5 py-0.5 flex-1 max-w-xs">
                         <span className="text-caption font-bold">First Name</span>
-                        <span className="text-caption">{assistant.first_name}</span>
+                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.first_name}</span>
                         <span className="text-caption font-bold">Last Name</span>
-                        <span className="text-caption">{assistant.surname}</span>
+                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.surname}</span>
                         <span className="text-caption font-bold">Age</span>
-                        <span className="text-caption">{assistant.age ?? 'N/A'}</span>
+                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.age ?? 'N/A'}</span>
                         <span className="text-caption font-bold">Nationality</span>
-                        <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
+                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.nationality ?? 'N/A'}</span>
                     </div>
-                    
                 </div>
                 
                 {/* Timezone Section */}
                 <div className="pt-4 group/assistant-timezone">
                     <h3 className="text-title">Timezone</h3>
                     <div className="grid grid-cols-2 items-center max-w-sm">
-                        <span className="text-caption">{timezoneInfo.friendlyName}</span>
+                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{timezoneInfo.friendlyName}</span>
                         {timezoneInfo.relativeOffsetString && (
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
@@ -215,7 +168,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Time relative to local. Click to update your timezone.</p>
+                                        <p>Assistant&apos;s time relative to yours</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -226,7 +179,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                 {/* About Section */}
                 <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1">
+                    <div className="text-caption prose max-w-none prose-p:my-1 cursor-[var(--pen-cursor)]" onClick={onEdit}>
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>
