@@ -4,9 +4,6 @@ import { ChatMessage, OutboundMessagePayload } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
-const INSUFFICIENT_CREDITS_MESSAGE = "Sorry, I couldn't get that properly; it looks like a technical issue on my end. I suggest we continue over phone or email. Otherwise maybe you could try refilling your credits balance? This should fix it.";
-const BILLING_URL = "https://console.unify.ai/billing";
-
 export function useAssistantProfileChat(
     assistant: Assistant | null,
     assistantActions: Pick<AssistantActions, 'chat'>,
@@ -26,7 +23,9 @@ export function useAssistantProfileChat(
 
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const fallbackTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const hasConnectedOnceRef = React.useRef(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
@@ -41,23 +40,111 @@ export function useAssistantProfileChat(
             clearTimeout(typingTimeoutTimerRef.current);
             typingTimeoutTimerRef.current = null;
         }
+        if (fallbackTimerRef.current) {
+            clearTimeout(fallbackTimerRef.current);
+            fallbackTimerRef.current = null;
+        }
     }, []);
 
-    // Effect for 20s timeout on typing indicator
+    const stopReplying = React.useCallback(() => {
+        clearTimers();
+        setIsAssistantReplying(false);
+    }, [clearTimers]);
+
+    const reconcileTranscripts = React.useCallback(async () => {
+        if (!assistantId || !assistant) return;
+
+        const context = `${assistant.first_name}${assistant.surname}`;
+        const historyResult = await assistantActions.chat.getTranscripts(context);
+
+        if ('detail' in historyResult) return;
+
+        const fetchedHistory = (historyResult as ChatMessage[]).reverse();
+        
+        setChatHistories(prev => {
+            const currentHistory = prev[assistantId] || [];
+            
+            // If server has more messages, or different messages, we merge.
+            // Simple check: if fetch length > current length, we definitely missed something.
+            // Or we can check IDs.
+            const existingMessageIds = new Set(currentHistory.map(m => m.id));
+            const newMessages = fetchedHistory.filter(m => !existingMessageIds.has(m.id));
+            if (newMessages.length > 0) {
+                const hasAssistantReply = newMessages.some(m => m.role === 'assistant');
+                if (hasAssistantReply) {
+                    stopReplying(); 
+                }
+                return { ...prev, [assistantId]: [...currentHistory, ...newMessages] };
+            }
+            
+            // If we are waiting for a reply, but the server says we have the latest messages
+            // AND the latest message is from the user, we keep waiting.
+            // If the latest message is from the assistant, we ensure typing is stopped.
+            if (fetchedHistory.length > 0) {
+                const lastMsg = fetchedHistory[fetchedHistory.length - 1];
+                if (lastMsg.role === 'assistant') {
+                    stopReplying();
+                }
+            }
+
+            return prev;
+        });
+
+    }, [assistantId, assistant, assistantActions.chat, setChatHistories, stopReplying]);
+
+    // --- 1. Watch for Visibility Changes (Tab Switching) ---
     React.useEffect(() => {
-        if (isAssistantReplying) {
-            typingTimeoutTimerRef.current = setTimeout(() => {
-                setIsAssistantReplying(false);
-            }, 20000); // Hide after 20 seconds
-        }
-        return () => {
-            if (typingTimeoutTimerRef.current) {
-                clearTimeout(typingTimeoutTimerRef.current);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                if (navigator.onLine) {
+                   reconcileTranscripts();
+                }
             }
         };
-    }, [isAssistantReplying]);
+
+        const handleOnline = () => {
+            setConnectionStatus('reconnecting');
+            reconcileTranscripts();
+        };
+
+        const handleOffline = () => {
+            setConnectionStatus('reconnecting');
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+        };
+    }, [reconcileTranscripts]);
 
 
+    // --- 2. Typing Indicator Timers (Fallback) ---
+    React.useEffect(() => {
+        if (isAssistantReplying) {
+            // Fallback: After 18 seconds of typing, refetch transcripts just in case SSE failed.
+            fallbackTimerRef.current = setTimeout(() => {
+                reconcileTranscripts();
+            }, 18000);
+
+            // Timeout: Hide typing indicator after 20 seconds if no response is received.
+            typingTimeoutTimerRef.current = setTimeout(() => {
+                setIsAssistantReplying(false);
+            }, 20000);
+        }
+
+        return () => {
+            if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+            if (typingTimeoutTimerRef.current) clearTimeout(typingTimeoutTimerRef.current);
+        };
+    }, [isAssistantReplying, reconcileTranscripts]);
+
+
+    // --- 3. Initial Load ---
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
 
@@ -66,58 +153,29 @@ export function useAssistantProfileChat(
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
-            if (initialHistory.length > 0) {
-                setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
-            } else {
-                // Fallback: If for some reason preHireChat is empty on first view, fetch history.
-                setIsInitialLoading(true);
-                const context = `${assistant.first_name}${assistant.surname}`;
-                assistantActions.chat.getTranscripts(context)
-                    .then(historyResult => {
-                        if ('detail' in historyResult) {
-                            console.error(historyResult.detail);
-                            setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
-                        } else {
-                            const history = (historyResult as ChatMessage[]).reverse();
-                            setChatHistories(prev => ({ ...prev, [assistantId]: history }));
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error fetching transcripts:", err);
-                        setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
-                    })
-                    .finally(() => setIsInitialLoading(false));
-            }
+            setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
             onFirstViewCompleted?.();
-
-        } else if (!isFirstView && !hasBeenInitialized) {
-            // Case C: Existing assistant, fetch history
+        } else if (!hasBeenInitialized) {
             setIsInitialLoading(true);
             const context = `${assistant.first_name}${assistant.surname}`;
             assistantActions.chat.getTranscripts(context)
                 .then(historyResult => {
                     if ('detail' in historyResult) {
-                        console.error(historyResult.detail);
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                     } else {
                         const history = (historyResult as ChatMessage[]).reverse();
                         setChatHistories(prev => ({ ...prev, [assistantId]: history }));
                     }
                 })
-                .catch(err => {
-                    console.error("Error fetching transcripts:", err);
+                .catch(() => {
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                 })
-                .finally(() => {
-                    setIsInitialLoading(false);
-                });
+                .finally(() => setIsInitialLoading(false));
         } else if (!isFirstView) {
-            // Reset the ref if it's no longer the first view (e.g., user re-opens profile later)
             firstViewProcessed.current = false;
         }
     }, [
         assistantId,
-        assistant,
         isFirstView,
         preHireChat,
         onFirstViewCompleted,
@@ -126,96 +184,78 @@ export function useAssistantProfileChat(
         assistantActions.chat
     ]);
 
-    // Effect for listening to incoming messages via SSE
+    // --- 4. SSE Connection Logic ---
     React.useEffect(() => {
         if (!assistantId) return;
 
+        hasConnectedOnceRef.current = false;
         setConnectionStatus('connecting');
+        let retryCount = 0; 
         const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
         eventSource.onopen = () => {
-            console.log(`[SSE Client] Connection opened for assistant ${assistantId}`);
             setConnectionStatus('connected');
+            retryCount = 0;
+            if (hasConnectedOnceRef.current) {
+                reconcileTranscripts();
+            }
+            hasConnectedOnceRef.current = true;
         };
 
         eventSource.onmessage = (event) => {
+            stopReplying(); 
             try {
                 const messagePayload : OutboundMessagePayload = JSON.parse(event.data);
-                const eventPayload = messagePayload.event;
-                
-                // Only process events that are actual outbound messages with content
                 if (messagePayload.thread === 'unify_message_outbound') {
                     const newAssistantMessage: ChatMessage = {
                         id: uuidv4(),
                         role: 'assistant',
-                        content: eventPayload.content,
+                        content: messagePayload.event.content,
                         timestamp: new Date(),
                     };
-
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
-                        return {
-                            ...prev,
-                            [assistantId]: [...currentHistory, newAssistantMessage]
-                        };
+                        return { ...prev, [assistantId]: [...currentHistory, newAssistantMessage] };
                     });
-                } else {
-                    console.warn("[SSE Client] Received message with unexpected data format:", messagePayload);
-                }
-            } catch (error) {
-                console.error("[SSE Client] Error parsing incoming message:", error);
-            }
-            clearTimers();
-            setIsAssistantReplying(false);
+                } else {/* noop */}
+            } catch (error) {/* noop */}
         };
 
         const handleServerError = (event: MessageEvent) => {
             try {
                 const payload = JSON.parse(event.data);
-
-                // Fatal errors that cannot recover (e.g., unauthorized)
                 if (payload.status === 401 || payload.status === 403) {
-                    console.error("[SSE Client] Fatal auth error:", payload);
                     setConnectionStatus('error');
                     toast.error("Failed to authenticate while connecting to the assistant. Please refresh.");
-                    eventSource.close();   // only close for fatal errors
+                    eventSource.close();
                     return;
                 }
-
-                // For everything else: mark reconnecting but DO NOT close
-                console.warn("[SSE Client] Server returned recoverable error:", payload);
-                setConnectionStatus('reconnecting');
-
-            } catch {
-                // If server sent plain text, still treat it as recoverable
-                console.warn("[SSE Client] Non-JSON server error:", event.data);
-                setConnectionStatus('reconnecting');
-            }
+            } catch {/* // Ignore parsing errors on error events */}
+            setConnectionStatus('reconnecting');
         };
 
+        eventSource.addEventListener('error', handleServerError as EventListener);
 
-        eventSource.addEventListener('error', handleServerError);
-
-        let retryCount = 0;
         eventSource.onerror = (error) => {
             retryCount++;
-            if (eventSource.readyState === EventSource.CONNECTING) {
-                console.warn("[SSE Client] Connection lost, attempting to reconnect...", error);
+            if (eventSource.readyState === EventSource.CLOSED) {
+                setConnectionStatus('reconnecting');
+            } else if (eventSource.readyState === EventSource.CONNECTING) {
                 setConnectionStatus('reconnecting');
             }
             if (retryCount > 5) {
-                console.error("[SSE Client] A non-retriable EventSource error occurred:", error);
                 setConnectionStatus('error');
+                eventSource.close();
+                toast.error("Lost connection to assistant. Refresh to reconnect.");
             }
         };
 
         return () => {
-            clearTimers();
-            console.log(`[SSE Client] Closing connection for assistant ${assistantId}`);
-            eventSource.removeEventListener('error', handleServerError);
+            stopReplying();
+            eventSource.removeEventListener('error', handleServerError as EventListener);
             eventSource.close();
         };
-    }, [assistantId, setChatHistories, clearTimers]);
+    }, [assistantId, setChatHistories, stopReplying, reconcileTranscripts]);
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
@@ -251,19 +291,13 @@ export function useAssistantProfileChat(
                 throw new Error(response.detail);
             }
         }).catch(error => {
-
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error("Failed to send message:", errorMessage);
-            toast.error("Failed to send message. Please try again.");
-            
             setChatHistories(prev => ({
                 ...prev,
                 [assistantId]: (prev[assistantId] || []).filter(msg => msg.id !== newUserMessage.id)
             }));
             setInputValue(messageToSend);
-            clearTimers();
-            setIsAssistantReplying(false);
-
+            stopReplying();
+            toast.error("Failed to send message.");
         });
     };
 
