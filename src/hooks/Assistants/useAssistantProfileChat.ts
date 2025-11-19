@@ -62,32 +62,72 @@ export function useAssistantProfileChat(
         const fetchedHistory = (historyResult as ChatMessage[]).reverse();
         
         setChatHistories(prev => {
-            const currentHistory = prev[assistantId] || [];
+            const currentLocalHistory = prev[assistantId] || [];
             
-            // If server has more messages, or different messages, we merge.
-            // Simple check: if fetch length > current length, we definitely missed something.
-            // Or we can check IDs.
-            const existingMessageIds = new Set(currentHistory.map(m => m.id));
-            const newMessages = fetchedHistory.filter(m => !existingMessageIds.has(m.id));
-            if (newMessages.length > 0) {
-                const hasAssistantReply = newMessages.some(m => m.role === 'assistant');
-                if (hasAssistantReply) {
-                    stopReplying(); 
+            // (a) Base is the fetched history from the server (Source of Truth)
+            const mergedHistory = [...fetchedHistory];
+
+            if (mergedHistory.length > 0) {
+                const lastServerMsg = mergedHistory[mergedHistory.length - 1];
+
+                // (b) Find where the server history ends within the local history.
+                // We search backwards from the local history to find the most recent occurrence
+                // that matches the last server message.
+                let matchIndex = -1;
+
+                for (let i = currentLocalHistory.length - 1; i >= 0; i--) {
+                    const localMsg = currentLocalHistory[i];
+
+                    // Primary match: Content and Role
+                    if (localMsg.content === lastServerMsg.content && localMsg.role === lastServerMsg.role) {
+                        
+                        // (c) Secondary match: Predecessor check to differentiate duplicates.
+                        // Ensure this specific "Hi" matches the context of the server's "Hi" 
+                        // by checking if the message before it is also the same.
+                        const prevServerMsg = mergedHistory.length > 1 ? mergedHistory[mergedHistory.length - 2] : null;
+                        const prevLocalMsg = i > 0 ? currentLocalHistory[i - 1] : null;
+
+                        const isPredecessorMatch = 
+                            (!prevServerMsg && !prevLocalMsg) || // Start of conversation
+                            (prevServerMsg && prevLocalMsg && prevServerMsg.content === prevLocalMsg.content && prevServerMsg.role === prevLocalMsg.role);
+
+                        if (isPredecessorMatch) {
+                            matchIndex = i;
+                            break;
+                        }
+                    }
                 }
-                return { ...prev, [assistantId]: [...currentHistory, ...newMessages] };
+
+                if (matchIndex !== -1) {
+                    // If we found the sync point, append only the messages that occurred LOCALLY after that point.
+                    const localTail = currentLocalHistory.slice(matchIndex + 1);
+                    mergedHistory.push(...localTail);
+                } else {
+                    // Fallback: If context matching failed (e.g., drastic history changes), 
+                    // append local messages strictly newer than the server's last timestamp.
+                    const serverEndTime = new Date(lastServerMsg.timestamp).getTime();
+                    const localTail = currentLocalHistory.filter(m => new Date(m.timestamp).getTime() > serverEndTime);
+                    
+                    // Simple deduplication for the fallback tail to prevent immediate stutter
+                    const cleanTail = localTail.filter(m => 
+                        !(m.content === lastServerMsg.content && m.role === lastServerMsg.role)
+                    );
+                    mergedHistory.push(...cleanTail);
+                }
+            } else if (currentLocalHistory.length > 0) {
+                // If server returned nothing but we have local messages, assume they are all pending sync.
+                return { ...prev, [assistantId]: currentLocalHistory };
             }
-            
-            // If we are waiting for a reply, but the server says we have the latest messages
-            // AND the latest message is from the user, we keep waiting.
-            // If the latest message is from the assistant, we ensure typing is stopped.
-            if (fetchedHistory.length > 0) {
-                const lastMsg = fetchedHistory[fetchedHistory.length - 1];
+
+            // Ensure typing indicator logic is consistent
+            if (mergedHistory.length > 0) {
+                const lastMsg = mergedHistory[mergedHistory.length - 1];
                 if (lastMsg.role === 'assistant') {
                     stopReplying();
                 }
             }
 
-            return prev;
+            return { ...prev, [assistantId]: mergedHistory };
         });
 
     }, [assistantId, assistant, assistantActions.chat, setChatHistories, stopReplying]);
