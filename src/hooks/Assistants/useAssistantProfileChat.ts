@@ -26,6 +26,7 @@ export function useAssistantProfileChat(
     const fallbackTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const hasConnectedOnceRef = React.useRef(false);
+    const lastReconcileTimeRef = React.useRef<number>(0);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
@@ -55,96 +56,113 @@ export function useAssistantProfileChat(
         if (!assistantId || !assistant) return;
 
         const context = `${assistant.first_name}${assistant.surname}`;
+        
+        // @ts-ignore - ignoring TS error until types/API definition is fully propagated in editor context
         const historyResult = await assistantActions.chat.getTranscripts(context);
-
-        if ('detail' in historyResult) return;
+        if ('detail' in historyResult) {
+            if (historyResult.detail === "Aborted") return;
+            return; 
+        }
 
         const fetchedHistory = (historyResult as ChatMessage[]).reverse();
         
         setChatHistories(prev => {
             const currentLocalHistory = prev[assistantId] || [];
+            const serverHistory = [...fetchedHistory];
             
-            // (a) Base is the fetched history from the server (Source of Truth)
-            const mergedHistory = [...fetchedHistory];
-
-            if (mergedHistory.length > 0) {
-                const lastServerMsg = mergedHistory[mergedHistory.length - 1];
-
-                // (b) Find where the server history ends within the local history.
-                // We search backwards from the local history to find the most recent occurrence
-                // that matches the last server message.
-                let matchIndex = -1;
-
-                for (let i = currentLocalHistory.length - 1; i >= 0; i--) {
-                    const localMsg = currentLocalHistory[i];
-
-                    // Primary match: Content and Role
-                    if (localMsg.content === lastServerMsg.content && localMsg.role === lastServerMsg.role) {
+            // Strategy: Find the last message in Local that matches a message in Server (The Anchor).
+            // The full Server History becomes the base (containing confirmed messages + new replies).
+            // Everything after the Anchor in Local is appended as "Pending".
+            
+            let anchorIndexLocal = -1;
+            
+            // Search backwards through local history to find the most recent synced message
+            for (let l = currentLocalHistory.length - 1; l >= 0; l--) {
+                const localMsg = currentLocalHistory[l];
+                
+                // Search backwards through server history to find a match
+                let matchFound = false;
+                for (let s = serverHistory.length - 1; s >= 0; s--) {
+                    const serverMsg = serverHistory[s];
+                    
+                    // Check for content/role match
+                    if (serverMsg.content === localMsg.content && serverMsg.role === localMsg.role) {
                         
-                        // (c) Secondary match: Predecessor check to differentiate duplicates.
-                        // Ensure this specific "Hi" matches the context of the server's "Hi" 
-                        // by checking if the message before it is also the same.
-                        const prevServerMsg = mergedHistory.length > 1 ? mergedHistory[mergedHistory.length - 2] : null;
-                        const prevLocalMsg = i > 0 ? currentLocalHistory[i - 1] : null;
+                        // Context Check: Verify predecessors to avoid false positives with duplicate messages (e.g. "Hello", "Hello")
+                        const prevLocal = l > 0 ? currentLocalHistory[l - 1] : null;
+                        const prevServer = s > 0 ? serverHistory[s - 1] : null;
 
-                        const isPredecessorMatch = 
-                            (!prevServerMsg && !prevLocalMsg) || // Start of conversation
-                            (prevServerMsg && prevLocalMsg && prevServerMsg.content === prevLocalMsg.content && prevServerMsg.role === prevLocalMsg.role);
+                        const isStartMatch = !prevLocal && !prevServer;
+                        const isPrevMatch = prevLocal && prevServer && prevLocal.content === prevServer.content && prevLocal.role === prevServer.role;
 
-                        if (isPredecessorMatch) {
-                            matchIndex = i;
+                        if (isStartMatch || isPrevMatch) {
+                            anchorIndexLocal = l;
+                            matchFound = true;
                             break;
                         }
                     }
                 }
+                if (matchFound) break;
+            }
 
-                if (matchIndex !== -1) {
-                    // If we found the sync point, append only the messages that occurred LOCALLY after that point.
-                    const localTail = currentLocalHistory.slice(matchIndex + 1);
-                    mergedHistory.push(...localTail);
-                } else {
-                    // Fallback: If context matching failed (e.g., drastic history changes), 
-                    // append local messages strictly newer than the server's last timestamp.
+            let newHistory: ChatMessage[];
+
+            if (anchorIndexLocal !== -1) {
+                // Found a sync point. 
+                // Base: Full Server History (includes new replies).
+                // Append: Pending Local Messages (everything after the anchor).
+                const pendingMessages = currentLocalHistory.slice(anchorIndexLocal + 1);
+                newHistory = [...serverHistory, ...pendingMessages];
+            } else {
+                // Fallback: No overlap found. Use timestamp slicing.
+                if (serverHistory.length > 0) {
+                    const lastServerMsg = serverHistory[serverHistory.length - 1];
                     const serverEndTime = new Date(lastServerMsg.timestamp).getTime();
-                    const localTail = currentLocalHistory.filter(m => new Date(m.timestamp).getTime() > serverEndTime);
-                    
-                    // Simple deduplication for the fallback tail to prevent immediate stutter
-                    const cleanTail = localTail.filter(m => 
-                        !(m.content === lastServerMsg.content && m.role === lastServerMsg.role)
-                    );
-                    mergedHistory.push(...cleanTail);
+                    // Keep local messages strictly newer than server's last message
+                    const cleanLocal = currentLocalHistory.filter(m => new Date(m.timestamp).getTime() > serverEndTime);
+                    newHistory = [...serverHistory, ...cleanLocal];
+                } else {
+                    // If server is empty, trust local state entirely
+                    newHistory = [...currentLocalHistory];
                 }
-            } else if (currentLocalHistory.length > 0) {
-                // If server returned nothing but we have local messages, assume they are all pending sync.
-                return { ...prev, [assistantId]: currentLocalHistory };
             }
 
             // Ensure typing indicator logic is consistent
-            if (mergedHistory.length > 0) {
-                const lastMsg = mergedHistory[mergedHistory.length - 1];
+            if (newHistory.length > 0) {
+                const lastMsg = newHistory[newHistory.length - 1];
                 if (lastMsg.role === 'assistant') {
                     stopReplying();
                 }
             }
 
-            return { ...prev, [assistantId]: mergedHistory };
+            return { ...prev, [assistantId]: newHistory };
         });
 
     }, [assistantId, assistant, assistantActions.chat, setChatHistories, stopReplying]);
 
     // --- 1. Watch for Visibility Changes (Tab Switching) ---
     React.useEffect(() => {
+        const THROTTLE_MS = 1000;
+
+        const attemptReconcile = () => {
+            const now = Date.now();
+            if (now - lastReconcileTimeRef.current >= THROTTLE_MS) {
+                lastReconcileTimeRef.current = now;
+                reconcileTranscripts();
+            }
+        };
+
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 if (navigator.onLine) {
-                   reconcileTranscripts();
+                   attemptReconcile();
                 }
             }
         };
 
         const handleOnline = () => {
             setConnectionStatus('reconnecting');
-            reconcileTranscripts();
+            attemptReconcile();
         };
 
         const handleOffline = () => {
@@ -247,14 +265,21 @@ export function useAssistantProfileChat(
             try {
                 const messagePayload : OutboundMessagePayload = JSON.parse(event.data);
                 if (messagePayload.thread === 'unify_message_outbound') {
-                    const newAssistantMessage: ChatMessage = {
-                        id: uuidv4(),
-                        role: 'assistant',
-                        content: messagePayload.event.content,
-                        timestamp: new Date(),
-                    };
+                    const content = messagePayload.event.content;
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
+                        
+                        const lastMsg = currentHistory[currentHistory.length - 1];
+                        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
+                            return prev; // Ignore duplicate
+                        }
+
+                        const newAssistantMessage: ChatMessage = {
+                            id: uuidv4(),
+                            role: 'assistant',
+                            content: content,
+                            timestamp: new Date(),
+                        };
                         return { ...prev, [assistantId]: [...currentHistory, newAssistantMessage] };
                     });
                 } else {/* noop */}
@@ -296,7 +321,7 @@ export function useAssistantProfileChat(
             eventSource.close();
         };
     }, [assistantId, setChatHistories, stopReplying, reconcileTranscripts]);
-
+    
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;

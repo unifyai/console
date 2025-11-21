@@ -33,7 +33,7 @@ export const mockAssistantActions: AssistantActions = {
         design: vi.fn(async () => ({})) 
     },
     chat: { 
-        getTranscripts: vi.fn(async () => []),
+        getTranscripts: vi.fn(async (_context: string ) => []),
         updateTranscripts: vi.fn(async () => ({})), 
         message: vi.fn(async () => ({})) 
     },
