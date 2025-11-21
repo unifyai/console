@@ -933,7 +933,7 @@ describe('Assistant Profile Chat Interface', () => {
     // SSE CONNECTION STRESS TESTS
     // =========================================================================
     describe('SSE Connection Robustness', () => {
-        let mockEventSourceInstance: MockEventSource | null = null;
+        let mockEventSourceInstance: any = null;
 
         // Override the MockEventSource for this specific suite to give us control
         class ControllableMockEventSource extends MockEventSource {
@@ -1349,7 +1349,7 @@ describe('Assistant Profile Chat Interface', () => {
                 ...mockAssistantActions,
                 chat: {
                     ...mockAssistantActions.chat,
-                    getTranscripts: getTranscriptsSpy,
+                    getTranscripts: getTranscriptsSpy as any,
                     message: vi.fn(async () => ({ info: 'Sent' }))
                 }
             };
