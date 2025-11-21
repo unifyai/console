@@ -13,6 +13,8 @@ interface ImportMeta {
 interface CustomMeta {
   alias?: string;
   mock?: boolean;
+  scenario?: string;
+  behavior?: string;
 }
 
 declare module 'vitest' {

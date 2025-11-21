@@ -168,7 +168,13 @@ describe('Assistant Profile Chat Interface', () => {
     describe('General UX & Functionality', () => {
         
 
-        it('disables input while initial history is loading', { meta: { alias: 'UX-Loading-State' } }, async () => {
+        it('disables input while initial history is loading', { 
+            meta: { 
+                alias: 'UX-Loading-State',
+                scenario: 'Transcripts are being fetched on component mount',
+                behavior: 'Input is disabled with a loading placeholder until fetch completes and SSE connects'
+            } 
+        }, async () => {
             // Scenario: The `getTranscripts` call is slow. User shouldn't be able to type yet.
             
             let resolveFetch: Function;
@@ -209,7 +215,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('prevents sending empty or whitespace-only messages', { meta: { alias: 'UX-Empty-Send' } }, async () => {
+        it('prevents sending empty or whitespace-only messages', { 
+            meta: { 
+                alias: 'UX-Empty-Send',
+                scenario: 'User attempts to send a message containing only spaces or empty string',
+                behavior: 'Send button remains disabled and no API call is made'
+            } 
+        }, async () => {
             render(<ChatTestWrapper initialHistory={[]} />);
             const user = userEvent.setup();
             const input = await screen.findByPlaceholderText('Send a message...');
@@ -236,7 +248,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(getChatBubbleContents()).toHaveLength(1);
         });
 
-        it('preserves input value if sending fails', { meta: { alias: 'UX-Send-Failure' } }, async () => {
+        it('preserves input value if sending fails', { 
+            meta: { 
+                alias: 'UX-Send-Failure',
+                scenario: 'Network error occurs when user attempts to send a message',
+                behavior: 'Optimistic message is removed, error toast appears, and original text is restored to input'
+            } 
+        }, async () => {
             // Scenario: Optimistic update adds message -> API fails -> Optimistic message removed -> Input restored.
             
             const errorActions = {
@@ -293,7 +311,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('auto-expands textarea on multi-line input', { meta: { alias: 'UX-Textarea-Grow' } }, async () => {
+        it('auto-expands textarea on multi-line input', { 
+            meta: { 
+                alias: 'UX-Textarea-Grow',
+                scenario: 'User types multiple lines of text into the chat input',
+                behavior: 'Textarea height property increases dynamically to fit content'
+            } 
+        }, async () => {
             // This tests the `useEffect` for textarea height in `AssistantProfileChatPanel`.
             
             render(<ChatTestWrapper initialHistory={[]} />);
@@ -316,7 +340,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
         
-        it('loads and displays existing chat history', { meta: { alias: 'Chat-Load-History' } }, async () => {
+        it('loads and displays existing chat history', { 
+            meta: { 
+                alias: 'Chat-Load-History',
+                scenario: 'Component mounts with existing message logs from server',
+                behavior: 'Chat bubbles are rendered in the correct chronological order'
+            } 
+        }, async () => {
             const logs = [
                 { role: 'user' as const, content: 'Hello assistant' },
                 { role: 'assistant' as const, content: 'Hello Jane, how can I help?' }
@@ -329,7 +359,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('optimistically updates UI when sending a message', { meta: { alias: 'Chat-Send-Optimistic' } }, async () => {
+        it('optimistically updates UI when sending a message', { 
+            meta: { 
+                alias: 'Chat-Send-Optimistic',
+                scenario: 'User sends a valid message',
+                behavior: 'Message appears in the chat immediately before the API confirms success'
+            } 
+        }, async () => {
             const user = userEvent.setup();
             render(<ChatTestWrapper initialHistory={[]} />);
 
@@ -344,7 +380,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(await screen.findByText(messageText)).toBeInTheDocument();
         });
 
-        it('restores message content to input if sending fails', { meta: { alias: 'UX-Restore-Input-On-Fail' } }, async () => {
+        it('restores message content to input if sending fails', { 
+            meta: { 
+                alias: 'UX-Restore-Input-On-Fail',
+                scenario: 'User sends message and API returns an error',
+                behavior: 'Input value reverts to the original message text after the error is caught'
+            } 
+        }, async () => {
             // 1. Setup mock to simulate failure with delay
             const errorActions = {
                 ...mockAssistantActions,
@@ -389,7 +431,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('sends correct payload to message API', { meta: { alias: 'Chat-Payload-Verify' } }, async () => {
+        it('sends correct payload to message API', { 
+            meta: { 
+                alias: 'Chat-Payload-Verify',
+                scenario: 'User submits a message',
+                behavior: 'API is called with the correct assistant_id, contact_id, and message content'
+            } 
+        }, async () => {
             // 1. Setup an assistant with a parsable numeric ID
             const numericAssistant = createMockAssistant({ 
                 agent_id: '12345', 
@@ -445,7 +493,13 @@ describe('Assistant Profile Chat Interface', () => {
     // =========================================================================
     describe('Chat History Reconciliation', () => {
         
-        it('syncs new server messages when local state is undefined', { meta: { alias: 'Rec-Cold-Sync' } }, async () => {
+        it('syncs new server messages when local state is undefined', { 
+            meta: { 
+                alias: 'Rec-Cold-Sync',
+                scenario: 'Local history is undefined/empty and server returns log',
+                behavior: 'All server logs are adopted into local state'
+            } 
+        }, async () => {
             const now = Date.now();
             // Define in chronological order
             const logs = [
@@ -460,7 +514,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('preserves pending local messages when server lags behind', { meta: { alias: 'Rec-Preserve-Pending' } }, async () => {
+        it('preserves pending local messages when server lags behind', { 
+            meta: { 
+                alias: 'Rec-Preserve-Pending',
+                scenario: 'Server history does not yet include the most recent local pending message',
+                behavior: 'Local pending message is retained at the end of the chat history'
+            } 
+        }, async () => {
             const now = Date.now();
             
             // 1. Server knows about Message A
@@ -486,7 +546,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('merges server reply while keeping subsequent pending user message', { meta: { alias: 'Rec-Interleaved' } }, async () => {
+        it('merges server reply while keeping subsequent pending user message', { 
+            meta: { 
+                alias: 'Rec-Interleaved',
+                scenario: 'Server returns a reply to an older message while a newer local message exists',
+                behavior: 'Server reply is inserted correctly, keeping the newer local message pending at the bottom'
+            } 
+        }, async () => {
             const now = Date.now();
 
             // 1. Local State: User sent A, then B.
@@ -511,7 +577,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles duplicate identical messages correctly', { meta: { alias: 'Rec-Duplicates' } }, async () => {
+        it('handles duplicate identical messages correctly', { 
+            meta: { 
+                alias: 'Rec-Duplicates',
+                scenario: 'Server and local state contain identical messages',
+                behavior: 'Reconciliation logic prevents duplication of the identical messages'
+            } 
+        }, async () => {
             const now = Date.now();
             const logs = [
                 { role: 'user' as const, content: 'Hello', timestamp: now - 2000 },
@@ -532,7 +604,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('recovers gracefully when server history is completely different', { meta: { alias: 'Rec-Fallback' } }, async () => {
+        it('recovers gracefully when server history is completely different', { 
+            meta: { 
+                alias: 'Rec-Fallback',
+                scenario: 'Local state is stale or mismatched compared to fresh server state',
+                behavior: 'Old local state is discarded, server state is adopted, and pending local messages are kept'
+            } 
+        }, async () => {
             const now = Date.now();
 
             // Local has stale/wrong data
@@ -559,7 +637,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles race condition where user sends message during reconciliation', { meta: { alias: 'Rec-Race-Send' } }, async () => {
+        it('handles race condition where user sends message during reconciliation', { 
+            meta: { 
+                alias: 'Rec-Race-Send',
+                scenario: 'User sends a message while transcript fetch is in progress',
+                behavior: 'New message is preserved and appended after the fetched transcripts'
+            } 
+        }, async () => {
             const now = Date.now();
             // 1. Initial Server State
             const initialLogs = [{ role: 'user' as const, content: 'Message A', timestamp: now - 5000 }];
@@ -625,7 +709,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('preserves locally sent message during subsequent background refetches', { meta: { alias: 'Rec-Send-Then-Refetch' } }, async () => {
+        it('preserves locally sent message during subsequent background refetches', { 
+            meta: { 
+                alias: 'Rec-Send-Then-Refetch',
+                scenario: 'Background refetch occurs while a local message is still pending (server lag)',
+                behavior: 'Pending message persists despite missing from the refetch response'
+            } 
+        }, async () => {
             const user = userEvent.setup();
             
             // Setup:
@@ -680,7 +770,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(getChatBubbleContents()).toEqual(['Persistent Message']);
         });
 
-        it('handles client clock lagging the server clock significantly', { meta: { alias: 'Stress-Clock-Lag' } }, async () => {
+        it('handles client clock lagging the server clock significantly', { 
+            meta: { 
+                alias: 'Stress-Clock-Lag',
+                scenario: 'Client system time is far behind server time',
+                behavior: 'Content matching logic ensures messages sync correctly despite timestamp mismatch'
+            } 
+        }, async () => {
             // Scenario: Client clock is set to 1990. Server clock is 2024.
             // If matching logic relies purely on timestamps for "newness", this will fail.
             // It must rely on Content Matching first.
@@ -708,7 +804,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('prevents duplication when client clock is ahead of server clock', { meta: { alias: 'Stress-Clock-Future' } }, async () => {
+        it('prevents duplication when client clock is ahead of server clock', { 
+            meta: { 
+                alias: 'Stress-Clock-Future',
+                scenario: 'Client system time is far ahead of server time',
+                behavior: 'Messages are merged based on content/ID, preventing duplicates'
+            } 
+        }, async () => {
             // Scenario: Client clock is set to 3000. Server clock is 2024.
             // Fallback logic `local > server` returns TRUE.
             // We need to ensure the Primary Match logic catches the duplicate before Fallback executes.
@@ -735,7 +837,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles server state regression', { meta: { alias: 'Stress-Server-Regression' } }, async () => {
+        it('handles server state regression', { 
+            meta: { 
+                alias: 'Stress-Server-Regression',
+                scenario: 'Server momentarily returns fewer messages than previously known',
+                behavior: 'Local state retains the previously known messages (prevents deletion)'
+            } 
+        }, async () => {
             const now = Date.now();
             // Scenario: Local has [A, B]. We previously synced [A, B].
             // Suddenly, server returns only [A] (maybe DB read replica lag).
@@ -761,7 +869,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('ignores API Failures gracefully', { meta: { alias: 'Stress-API-Fail' } }, async () => {
+        it('ignores API Failures gracefully', { 
+            meta: { 
+                alias: 'Stress-API-Fail',
+                scenario: 'Transcript fetch returns an error',
+                behavior: 'Existing local chat history remains visible and intact'
+            } 
+        }, async () => {
             // Scenario: getTranscripts fails completely. 
             // Local state should not be wiped.
             
@@ -804,7 +918,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(contents).toEqual(['Important Pending Data']);
         });
 
-        it('handles empty server response by preserving all local messages', { meta: { alias: 'Stress-Empty-Server' } }, async () => {
+        it('handles empty server response by preserving all local messages', { 
+            meta: { 
+                alias: 'Stress-Empty-Server',
+                scenario: 'Server returns empty array while local state has messages',
+                behavior: 'Local messages are preserved (assuming server lag for new items)'
+            } 
+        }, async () => {
             // Scenario: Server returns [], but we have local messages.
             // This happens if the very first message sent hasn't been indexed by the server yet.
             
@@ -823,7 +943,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles mixed roles synchronization', { meta: { alias: 'Stress-Mixed-Roles' } }, async () => {
+        it('handles mixed roles synchronization', { 
+            meta: { 
+                alias: 'Stress-Mixed-Roles',
+                scenario: 'History contains interleaved User and Assistant messages',
+                behavior: 'All messages are rendered with correct roles and order'
+            } 
+        }, async () => {
              const now = Date.now();
              // Scenario: Complex interplay of User and Assistant messages
              // Local: [User: A, Assistant: B, User: C (pending)]
@@ -856,7 +982,13 @@ describe('Assistant Profile Chat Interface', () => {
              });
         });
 
-        it('handles out-of-order server ingestion', { meta: { alias: 'Stress-Out-Of-Order' } }, async () => {
+        it('handles out-of-order server ingestion', { 
+            meta: { 
+                alias: 'Stress-Out-Of-Order',
+                scenario: 'Server returns logs with confusing timestamps/order',
+                behavior: 'Messages are reconciled and displayed without crashing'
+            } 
+        }, async () => {
             const now = Date.now();
             // Scenario: User sends A, then B.
             // Server returns [B, A] (timestamp collision or async processing glitch).
@@ -895,7 +1027,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('distinguishes identical messages properly', { meta: { alias: 'Stress-Identical-Content' } }, async () => {
+        it('distinguishes identical messages properly', { 
+            meta: { 
+                alias: 'Stress-Identical-Content',
+                scenario: 'Sequence contains identical repeated messages (e.g. "Yes", "Sure?", "Yes")',
+                behavior: 'Logic correctly matches sequence context to avoid collapsing duplicates incorrectly'
+            } 
+        }, async () => {
             const now = Date.now();
             // Scenario:
             // Server has: [User: "Yes", Asst: "Sure?"]
@@ -975,7 +1113,13 @@ describe('Assistant Profile Chat Interface', () => {
             mockEventSourceInstance = null;
         });
 
-        it('reconciles transcripts immediately upon successful reconnection', { meta: { alias: 'SSE-Reconcile-On-Open' } }, async () => {
+        it('reconciles transcripts immediately upon successful reconnection', { 
+            meta: { 
+                alias: 'SSE-Reconcile-On-Open',
+                scenario: 'SSE connection is re-established after a drop',
+                behavior: 'Transcript fetch is triggered to sync missed messages'
+            } 
+        }, async () => {
             // Scenario: Connection opens -> We expect a fetch of transcripts to sync up state.
             
             // 1. Setup: Server has "Message A". Local is empty.
@@ -1002,7 +1146,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles rapid connect/disconnect', { meta: { alias: 'SSE-Flapping' } }, async () => {
+        it('handles rapid connect/disconnect', { 
+            meta: { 
+                alias: 'SSE-Flapping',
+                scenario: 'SSE connection flaps rapidly between open and error',
+                behavior: 'UI remains stable and processes valid messages when connected'
+            } 
+        }, async () => {
             // Scenario: The connection is unstable. Open -> Error -> Open -> Error.
             // The hook should stay resilient and not crash or duplicate listeners.
             
@@ -1028,7 +1178,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('triggers reconciliation on error', { meta: { alias: 'SSE-Error-Fetch' } }, async () => {
+        it('triggers reconciliation on error', { 
+            meta: { 
+                alias: 'SSE-Error-Fetch',
+                scenario: 'SSE connection errors out',
+                behavior: 'System prepares to fetch transcripts upon next successful connection'
+            } 
+        }, async () => {
             // Scenario: SSE fails. We switch to "reconnecting".             
             // Let's test that flow: Connect -> Receive A -> Error (Miss B) -> Reconnect -> Receive C (and fetch B).
             
@@ -1074,7 +1230,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('stops typing indicator when a message arrives via SSE', { meta: { alias: 'SSE-Stop-Typing' } }, async () => {
+        it('stops typing indicator when a message arrives via SSE', { 
+            meta: { 
+                alias: 'SSE-Stop-Typing',
+                scenario: 'Incoming SSE message arrives while "Typing..." is displayed',
+                behavior: 'Typing indicator is removed and replaced by the message'
+            } 
+        }, async () => {
             // Scenario: User sent a message. "Typing..." is active.
             // SSE message arrives. "Typing..." should vanish.
             
@@ -1109,7 +1271,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(typingIndicators).toHaveLength(0);
         });
 
-        it('handles permanent failure', { meta: { alias: 'SSE-Permanent-Fail' } }, async () => {
+        it('handles permanent failure', { 
+            meta: { 
+                alias: 'SSE-Permanent-Fail',
+                scenario: 'SSE connection fails repeatedly (max retries exceeded)',
+                behavior: 'Connection closes and error message is displayed to user'
+            } 
+        }, async () => {
             // Scenario: Auth fails (401) or server 500s repeatedly.
             // The hook has logic: `if (retryCount > 5) ... eventSource.close()`.
             // We want to ensure it eventually stops trying and shows error state.
@@ -1137,7 +1305,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(mockEventSourceInstance!.readyState).toBe(2); // CLOSED
         });
 
-        it('ignores irrelevant SSE events', { meta: { alias: 'SSE-Filter-Events' } }, async () => {
+        it('ignores irrelevant SSE events', { 
+            meta: { 
+                alias: 'SSE-Filter-Events',
+                scenario: 'SSE stream receives events from unrelated threads',
+                behavior: 'Irrelevant events are filtered out; only chat events are processed'
+            } 
+        }, async () => {
             // Scenario: The stream might send keep-alives, pings, or other thread types.
             // We only want `thread: 'unify_message_outbound'`.
             
@@ -1162,7 +1336,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles JSON parsing errors gracefully', { meta: { alias: 'SSE-Bad-JSON' } }, async () => {
+        it('handles JSON parsing errors gracefully', { 
+            meta: { 
+                alias: 'SSE-Bad-JSON',
+                scenario: 'SSE stream receives malformed JSON',
+                behavior: 'Error is caught, app does not crash, and subsequent valid messages are processed'
+            } 
+        }, async () => {
             // Scenario: Server sends broken JSON. The app shouldn't crash.
             // It should log the error (silently in test) and continue listening.
             
@@ -1189,7 +1369,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles messaged arrived during reconnecting state', { meta: { alias: 'SSE-Ghost-Msg' } }, async () => {
+        it('handles messaged arrived during reconnecting state', { 
+            meta: { 
+                alias: 'SSE-Ghost-Msg',
+                scenario: 'Message arrives while readyState is reconnecting',
+                behavior: 'Message is accepted and displayed'
+            } 
+        }, async () => {
             // Scenario: Connection drops -> Status = Reconnecting.
             // But a message arrives (maybe buffered in browser network stack) right before the socket is dead.
             // The app should probably still accept it.
@@ -1219,7 +1405,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles race condition', { meta: { alias: 'SSE-Zero-Latency' } }, async () => {
+        it('handles race condition', { 
+            meta: { 
+                alias: 'SSE-Zero-Latency',
+                scenario: 'Message arrives via SSE at the exact same moment it is fetched via API',
+                behavior: 'Message appears only once (deduplicated)'
+            } 
+        }, async () => {
             // Scenario: 
             // 1. reconcileTranscripts() is called (e.g. on focus). It fetches history including Message A.
             // 2. AT THE SAME MILLISECOND, Message A arrives via SSE.
@@ -1251,7 +1443,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('prevents multiple EventSources', { meta: { alias: 'SSE-Zombie' } }, async () => {
+        it('prevents multiple EventSources', { 
+            meta: { 
+                alias: 'SSE-Zombie',
+                scenario: 'Component re-renders rapidly',
+                behavior: 'Previous SSE connection is closed before opening a new one (no zombie connections)'
+            } 
+        }, async () => {
             // Scenario: Component re-renders rapidly (e.g., user resizing window or fast tab switching).
             // If the `useEffect` cleanup isn't perfect, we might spawn multiple SSE connections.
             // If we have 2 connections, every message will appear TWICE.
@@ -1299,7 +1497,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('handles backpressure / batching', { meta: { alias: 'SSE-Flood' } }, async () => {
+        it('handles backpressure / batching', { 
+            meta: { 
+                alias: 'SSE-Flood',
+                scenario: 'High volume of SSE events arrive in a short burst',
+                behavior: 'All messages are processed and rendered correctly without loss'
+            } 
+        }, async () => {
             // Scenario: Server sends 50 tokens/messages in 10ms (e.g., fast LLM streaming words as separate events).
             // React state updates are async. If the hook doesn't use functional state updates 
             // (setMsgs(prev => ...)), updates will overwrite each other, resulting in missing words.
@@ -1367,7 +1571,13 @@ describe('Assistant Profile Chat Interface', () => {
             vi.useRealTimers();
         });
 
-        it('fetches transcripts on component mount', { meta: { alias: 'Fetch-Mount' } }, async () => {
+        it('fetches transcripts on component mount', { 
+            meta: { 
+                alias: 'Fetch-Mount',
+                scenario: 'Component mounts',
+                behavior: 'getTranscripts is called immediately'
+            } 
+        }, async () => {
             // 1. Render with no initial history, forcing a fetch
             render(
                 <AssistantProfilePanel
@@ -1384,7 +1594,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('fetches when tab becomes visible', { meta: { alias: 'Fetch-Visibility' } }, async () => {
+        it('fetches when tab becomes visible', { 
+            meta: { 
+                alias: 'Fetch-Visibility',
+                scenario: 'User switches tabs away and back',
+                behavior: 'Transcripts are refetched upon visibility change'
+            } 
+        }, async () => {
             // 1. Render (Trigger 1: Mount)
             render(
                 <AssistantProfilePanel
@@ -1414,7 +1630,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('fetches when network status becomes online', { meta: { alias: 'Fetch-Online' } }, async () => {
+        it('fetches when network status becomes online', { 
+            meta: { 
+                alias: 'Fetch-Online',
+                scenario: 'Browser reports network status changing to online',
+                behavior: 'Transcripts are refetched'
+            } 
+        }, async () => {
             render(
                 <AssistantProfilePanel
                     assistant={testAssistant}
@@ -1434,7 +1656,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('fetches on reconnection but not on first connection', { meta: { alias: 'Fetch-SSE-Reconnect' } }, async () => {
+        it('fetches on reconnection but not on first connection', { 
+            meta: { 
+                alias: 'Fetch-SSE-Reconnect',
+                scenario: 'SSE connects for the first time vs reconnecting after error',
+                behavior: 'Fetch triggers only on re-connection, avoiding double-fetch on mount'
+            } 
+        }, async () => {
             // 1. Render (Trigger 1: Mount)
             render(
                 <AssistantProfilePanel
@@ -1470,7 +1698,13 @@ describe('Assistant Profile Chat Interface', () => {
             });
         });
 
-        it('fetches when typing indicator times out', { meta: { alias: 'Fetch-Typing-Timeout' } }, async () => {
+        it('fetches when typing indicator times out', { 
+            meta: { 
+                alias: 'Fetch-Typing-Timeout',
+                scenario: 'Typing indicator stays active longer than the fallback threshold',
+                behavior: 'Transcripts are refetched to ensure state sync'
+            } 
+        }, async () => {
             // 1. Render with real timers first
             render(
                 <AssistantProfilePanel
@@ -1515,7 +1749,13 @@ describe('Assistant Profile Chat Interface', () => {
             vi.useRealTimers();
         });
 
-        it('does not fetch if page is hidden', { meta: { alias: 'Fetch-Skip-Hidden' } }, async () => {
+        it('does not fetch if page is hidden', { 
+            meta: { 
+                alias: 'Fetch-Skip-Hidden',
+                scenario: 'Visibility change event fires while document is hidden',
+                behavior: 'Fetch is skipped'
+            } 
+        }, async () => {
             // The hook logic usually checks visibility inside the event handler, 
             // OR the browser suppresses effects.
             // The hook code: `if (document.visibilityState === 'visible') { ... reconcileTranscripts() }`
@@ -1542,7 +1782,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(getTranscriptsSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('does not fetch if offline', { meta: { alias: 'Fetch-Skip-Offline' } }, async () => {
+        it('does not fetch if offline', { 
+            meta: { 
+                alias: 'Fetch-Skip-Offline',
+                scenario: 'Visibility change event fires while navigator is offline',
+                behavior: 'Fetch is skipped'
+            } 
+        }, async () => {
             // Hook logic: `if (navigator.onLine) { reconcileTranscripts() }` inside visibility change.
             
             // 1. Render
@@ -1567,7 +1813,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(getTranscriptsSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('handles old fetch resolving after new fetch', { meta: { alias: 'Fetch-Race' } }, async () => {
+        it('handles old fetch resolving after new fetch', { 
+            meta: { 
+                alias: 'Fetch-Race',
+                scenario: 'A slow earlier fetch resolves after a faster later fetch',
+                behavior: 'The result of the older fetch is ignored to prevent state regression'
+            } 
+        }, async () => {
             // Scenario:
             // 1. Trigger A fires (slow network).
             // 2. Trigger B fires (fast network).
@@ -1614,7 +1866,13 @@ describe('Assistant Profile Chat Interface', () => {
 
         });
 
-        it('prevents updates after ccmponent unmount', { meta: { alias: 'Fetch-Unmount' } }, async () => {
+        it('prevents updates after ccmponent unmount', { 
+            meta: { 
+                alias: 'Fetch-Unmount',
+                scenario: 'Fetch resolves after component has unmounted',
+                behavior: 'No state updates occur (no React warnings)'
+            } 
+        }, async () => {
             // Scenario: Fetch starts -> Component Unmounts -> Fetch Resolves.
             // If we try to set state, React warns.
             // While Vitest suppresses console.error by default sometimes, we want to ensure logical correctness.
@@ -1653,7 +1911,13 @@ describe('Assistant Profile Chat Interface', () => {
             expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/state update on an unmounted component/i));
         });
 
-        it('debounces rapid fetch triggers', { meta: { alias: 'Fetch-Debounce' } }, async () => {
+        it('debounces rapid fetch triggers', { 
+            meta: { 
+                alias: 'Fetch-Debounce',
+                scenario: 'Visibility changes rapidly multiple times',
+                behavior: 'Network requests are limited/throttled'
+            } 
+        }, async () => {
             // Scenario: User spams Alt-Tab (visibility change) 10 times in 100ms.
             // We shouldn't fire 10 network requests.
             
