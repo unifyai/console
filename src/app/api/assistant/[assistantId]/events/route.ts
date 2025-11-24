@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PubSub } from '@google-cloud/pubsub';
+import { v1 } from '@google-cloud/pubsub';
 import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
-async function getPubSubClient() {
+function getClientConfig() {
     const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
     if (!credentialsValue) {
         throw new Error("COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.");
@@ -19,16 +19,16 @@ async function getPubSubClient() {
             credentials = JSON.parse(credentialsFile);
         } catch (fileError) {
             console.error("Failed to load or parse Pub/Sub credentials from path:", credentialsValue, fileError);
-            throw new Error("Server is misconfigured for real-time communication. COMMS_SERVICE_ACCOUNT_CREDENTIALS is not valid JSON or a valid file path.");
+            throw new Error("Server is misconfigured. COMMS_SERVICE_ACCOUNT_CREDENTIALS is invalid.");
         }
     }
     if (!credentials || !credentials.project_id) {
          throw new Error("Invalid Pub/Sub credentials format.");
     }
-    return new PubSub({
+    return {
         projectId: credentials.project_id,
         credentials,
-    });
+    };
 }
 
 export async function GET(
@@ -41,120 +41,24 @@ export async function GET(
         return new NextResponse("Assistant ID is required.", { status: 400 });
     }
 
+    let subClient: v1.SubscriberClient | null = null;
+    let subscriptionPath = "";
+
     try {
-        const pubsub = await getPubSubClient();
+        const config = getClientConfig();
+        subClient = new v1.SubscriberClient(config);
+        
         const orchestraUrl = process.env.ORCHESTRA_URL || "";
         const isStaging = orchestraUrl.includes("staging");
-        
         const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-outbound-sub`;
         
-        const subscription = pubsub.subscription(subscriptionName, {
-            flowControl: {
-                maxMessages: 1,
-                allowExcessMessages: false
-            }
-        });
-
-        const stream = new ReadableStream({
-            async start(controller) {
-                console.log(`[SSE] Starting stream for subscription: ${subscriptionName}`);
-                
-                const [exists] = await subscription.exists();
-                if (!exists) {
-                     console.error(`[SSE] Subscription ${subscriptionName} does not exist.`);
-                     const errorPayload = JSON.stringify({ detail: "Server configuration error: Real-time messaging subscription not found." });
-                     controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
-                     controller.close();
-                     return;
-                }
-
-                const messageHandler = (message: any) => {
-                    if (request.signal.aborted) {
-                        message.nack();
-                        return;
-                    }
-
-                    try {
-                        const rawData = message.data.toString('utf8');
-                        let payload: any = {};
-                        
-                        try {
-                            payload = JSON.parse(rawData);
-                        } catch (e) {
-                            console.error("Failed to parse message data JSON:", e);
-                            payload = { raw_content: rawData };
-                        }
-
-                        const serverId = message.id;
-                        const publishTime = message.publishTime?.toISOString() || new Date().toISOString();
-
-                        payload.id = serverId;
-                        payload.publishTime = publishTime;
-
-                        if (payload.event && typeof payload.event === 'object') {
-                            payload.event.id = serverId;
-                            payload.event.publishTime = publishTime;
-                        }
-
-                        const enrichedData = JSON.stringify(payload);
-                        
-                        controller.enqueue(`data: ${enrichedData}\n\n`);
-                        
-                        message.ack();
-                    } catch (error) {
-                        console.error(`[SSE] Error processing message ${message.id}:`, error);
-                        message.nack(); 
-                    }
-                };
-
-                const errorHandler = (error: any) => {
-                    console.error(`[SSE] Pub/Sub error on subscription ${subscriptionName}:`, error);
-                    if (!request.signal.aborted) {
-                        try {
-                            const errorPayload = JSON.stringify({ detail: "A server-side error occurred with the real-time connection." });
-                            controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
-                        } catch(e) {}
-                    }
-                };
-
-                subscription.on('message', messageHandler);
-                subscription.on('error', errorHandler);
-
-                const keepAliveInterval = setInterval(() => {
-                    if (request.signal.aborted) {
-                        clearInterval(keepAliveInterval);
-                        return;
-                    }
-                    try {
-                        controller.enqueue(': keep-alive\n\n');
-                    } catch (e) {
-                         clearInterval(keepAliveInterval);
-                    }
-                }, 20000);
-
-                request.signal.addEventListener('abort', async () => {
-                    console.log(`[SSE] Client disconnected from ${subscriptionName}.`);
-                    clearInterval(keepAliveInterval);                    
-                    subscription.removeListener('message', messageHandler);
-                    subscription.removeListener('error', errorHandler);
-                    try { 
-                        await subscription.close();
-                        console.log(`[SSE] Subscription ${subscriptionName} closed successfully.`);
-                    } catch(e) {
-                        console.error("Error closing subscription:", e);
-                    }
-                    try { controller.close(); } catch (e) {}
-                });
-            },
-        });
-
-        return new Response(stream, {
-            headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
-            },
-        });
+        subscriptionPath = subClient.subscriptionPath(config.projectId, subscriptionName);        
+        try {
+            await subClient.getSubscription({ subscription: subscriptionPath });
+        } catch (e: any) {
+            console.error(`[SSE] Subscription ${subscriptionName} not found or error:`, e.message);
+            // We continue; if it doesn't exist, the pull will fail downstream which is handled.
+        }
 
     } catch (error: any) {
         console.error(`[SSE] Setup error for assistant ${assistantId}:`, error);
@@ -163,4 +67,113 @@ export async function GET(
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }
+
+    const stream = new ReadableStream({
+        async start(controller) {
+            console.log(`[SSE] Starting Synchronous Pull loop for: ${subscriptionPath}`);
+            const keepAliveInterval = setInterval(() => {
+                if (request.signal.aborted) {
+                    clearInterval(keepAliveInterval);
+                    return;
+                }
+                try { controller.enqueue(': keep-alive\n\n'); } catch (e) {}
+            }, 15000);
+            while (!request.signal.aborted) {
+                try {
+
+                    const [response] = await subClient!.pull({
+                        subscription: subscriptionPath,
+                        maxMessages: 1, 
+                        returnImmediately: false, 
+                    });
+
+                    const messages = response.receivedMessages || [];
+
+                    for (const receivedMessage of messages) {
+                        const msg = receivedMessage.message;
+                        const ackId = receivedMessage.ackId;
+
+                        if (!msg || !ackId) continue;
+
+                        // 1. Check if client disconnected while we were waiting
+                        if (request.signal.aborted) {
+                            console.log("[SSE] Client disconnected. NACKing message immediately.");
+                            // Explicit NACK: Release message instantly so the next connection gets it.
+                            await subClient!.modifyAckDeadline({
+                                subscription: subscriptionPath,
+                                ackIds: [ackId],
+                                ackDeadlineSeconds: 0 
+                            });
+                            break; // Exit loop
+                        }
+
+                        // 2. Process and Send
+                        try {
+                            const rawData = msg.data ? msg.data.toString() : "{}";
+                            let payload: any = {};
+                            try { payload = JSON.parse(rawData); } catch (e) { payload = { raw_content: rawData }; }
+
+                            // Handle Timestamp conversion from Protobuf (seconds/nanos) to ISO string
+                            let publishTimeStr = new Date().toISOString();
+                            if (msg.publishTime && msg.publishTime.seconds) {
+                                const millis = Number(msg.publishTime.seconds) * 1000;
+                                publishTimeStr = new Date(millis).toISOString();
+                            }
+
+                            const serverId = msg.messageId || "unknown-id";
+
+                            // Inject ID/Time
+                            payload.id = serverId;
+                            payload.publishTime = publishTimeStr;
+                            if (payload.event && typeof payload.event === 'object') {
+                                payload.event.id = serverId;
+                                payload.event.publishTime = publishTimeStr;
+                            }
+
+                            controller.enqueue(`data: ${JSON.stringify(payload)}\n\n`);
+
+                            // 3. Acknowledge (ACK)
+                            await subClient!.acknowledge({
+                                subscription: subscriptionPath,
+                                ackIds: [ackId]
+                            });
+                        } catch (processingError) {
+                            console.error("[SSE] Error processing message, NACKing:", processingError);
+                            // If we fail to parse/send, NACK it so it retries.
+                            await subClient!.modifyAckDeadline({
+                                subscription: subscriptionPath,
+                                ackIds: [ackId],
+                                ackDeadlineSeconds: 0
+                            });
+                        }
+                    }
+                } catch (error: any) {
+                    // Code 4 is DEADLINE_EXCEEDED (normal for long polling if no messages arrive)
+                    // We just loop again.
+                    if (error.code !== 4 && !request.signal.aborted) {
+                        console.error("[SSE] Pull loop error:", error.message);
+                        // Prevent tight loops on auth/config errors
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+            }
+
+            // Cleanup
+            clearInterval(keepAliveInterval);
+            try { await subClient!.close(); } catch(e) {}
+        },
+        async cancel() {
+            if (subClient) {
+                try { await subClient.close(); } catch(e) {}
+            }
+        }
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        },
+    });
 }
