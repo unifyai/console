@@ -140,7 +140,7 @@ export async function GET(
                                 await authClient.request({
                                     url: `${subscriptionUrl}:modifyAckDeadline`,
                                     method: 'POST',
-                                    data: { ackIds: [ackId], ackDeadlineSeconds: 60 }
+                                    data: { ackIds: [ackId], ackDeadlineSeconds: 5 }
                                 });
                             } catch (e) {
                                 console.warn('[SSE] Failed to extend ack deadline', e);
