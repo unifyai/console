@@ -47,7 +47,13 @@ export async function GET(
         const isStaging = orchestraUrl.includes("staging");
         
         const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-outbound-sub`;
-        const subscription = pubsub.subscription(subscriptionName);
+        
+        const subscription = pubsub.subscription(subscriptionName, {
+            flowControl: {
+                maxMessages: 1,
+                allowExcessMessages: false
+            }
+        });
 
         const stream = new ReadableStream({
             async start(controller) {
@@ -62,16 +68,13 @@ export async function GET(
                      return;
                 }
 
-                // --- UPDATED MESSAGE HANDLER ---
                 const messageHandler = (message: any) => {
-                    // 1. Check client connection
                     if (request.signal.aborted) {
-                        message.nack(); // Retry later
+                        message.nack();
                         return;
                     }
 
                     try {
-                        // 2. Parse the inner JSON data
                         const rawData = message.data.toString('utf8');
                         let payload: any = {};
                         
@@ -79,36 +82,28 @@ export async function GET(
                             payload = JSON.parse(rawData);
                         } catch (e) {
                             console.error("Failed to parse message data JSON:", e);
-                            // If it's not JSON, we can't inject, but we should still send it
                             payload = { raw_content: rawData };
                         }
 
-                        // 3. Inject ID and PublishTime
-                        // We convert the PreciseDate to an ISO string
                         const serverId = message.id;
                         const publishTime = message.publishTime?.toISOString() || new Date().toISOString();
 
-                        // Inject into root
                         payload.id = serverId;
                         payload.publishTime = publishTime;
 
-                        // Inject specifically into 'event' so your client hook finds it easily
-                        // at `messagePayload.event.id`
                         if (payload.event && typeof payload.event === 'object') {
                             payload.event.id = serverId;
                             payload.event.publishTime = publishTime;
                         }
 
-                        // 4. Re-serialize to send to client
                         const enrichedData = JSON.stringify(payload);
                         
                         controller.enqueue(`data: ${enrichedData}\n\n`);
                         
-                        // 5. ACK only after successful enqueue
                         message.ack();
                     } catch (error) {
                         console.error(`[SSE] Error processing message ${message.id}:`, error);
-                        message.nack(); // Retry later
+                        message.nack(); 
                     }
                 };
 
@@ -137,11 +132,17 @@ export async function GET(
                     }
                 }, 20000);
 
-                request.signal.addEventListener('abort', () => {
+                request.signal.addEventListener('abort', async () => {
                     console.log(`[SSE] Client disconnected from ${subscriptionName}.`);
-                    clearInterval(keepAliveInterval);
+                    clearInterval(keepAliveInterval);                    
                     subscription.removeListener('message', messageHandler);
                     subscription.removeListener('error', errorHandler);
+                    try { 
+                        await subscription.close();
+                        console.log(`[SSE] Subscription ${subscriptionName} closed successfully.`);
+                    } catch(e) {
+                        console.error("Error closing subscription:", e);
+                    }
                     try { controller.close(); } catch (e) {}
                 });
             },
