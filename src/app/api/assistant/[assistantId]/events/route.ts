@@ -3,14 +3,14 @@ import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; 
+export const maxDuration = 60;
 
 async function getAuthClient() {
     const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
     if (!credentialsValue) {
         throw new Error("COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.");
     }
-    
+
     let credentials;
     try {
         credentials = JSON.parse(credentialsValue);
@@ -37,7 +37,7 @@ export async function GET(
     { params }: { params: { assistantId: string } }
 ) {
     const { assistantId } = params;
-    
+
     if (!assistantId) {
         return new NextResponse("Assistant ID is required.", { status: 400 });
     }
@@ -55,7 +55,7 @@ export async function GET(
         const orchestraUrl = process.env.ORCHESTRA_URL || "";
         const isStaging = orchestraUrl.includes("staging");
         const subscriptionName = `unity-${assistantId}${isStaging ? '-staging' : ''}-outbound-sub`;
-        
+
         subscriptionUrl = `https://pubsub.googleapis.com/v1/projects/${projectId}/subscriptions/${subscriptionName}`;
     } catch (error: any) {
         console.error(`[SSE] Setup error:`, error);
@@ -65,7 +65,7 @@ export async function GET(
     const stream = new ReadableStream({
         async start(controller) {
             console.log(`[SSE] Connected to ${subscriptionUrl} via REST`);
-            
+
             // Keep-alive loop to prevent load balancer timeouts
             const keepAliveInterval = setInterval(() => {
                 if (request.signal.aborted) {
@@ -79,20 +79,17 @@ export async function GET(
             while (!request.signal.aborted) {
                 try {
                     // 2. HTTP PULL Request
-                    // We use the authClient.request helper which handles the Bearer token automatically
                     const res = await authClient.request({
                         url: `${subscriptionUrl}:pull`,
                         method: 'POST',
                         data: {
-                            maxMessages: 1,      // Fetch only 1 to prevent hoarding
-                            returnImmediately: false // Enable Long Polling (wait for data)
+                            maxMessages: 1,
+                            returnImmediately: false
                         },
-                        validateStatus: () => true // Handle 400s manually
+                        validateStatus: () => true
                     });
 
                     if (res.status !== 200) {
-                        // If 404, subscription might not exist yet. 
-                        // If 500/429, back off briefly.
                         if (res.status === 404) {
                             console.error(`[SSE] Subscription not found: ${subscriptionUrl}`);
                             controller.error("Subscription not found");
@@ -116,7 +113,7 @@ export async function GET(
                                 url: `${subscriptionUrl}:modifyAckDeadline`,
                                 method: 'POST',
                                 data: { ackIds: [ackId], ackDeadlineSeconds: 0 }
-                            }).catch(() => {}); // Ignore errors on exit
+                            }).catch(() => {});
                             break;
                         }
 
@@ -126,25 +123,31 @@ export async function GET(
                             let payload: any = {};
                             try { payload = JSON.parse(rawData); } catch (e) { payload = { raw_content: rawData }; }
 
-                            // Inject ID/Time
+                            // Inject ID/Time and ackId so client can ACK after render
                             const serverId = message.messageId;
                             const publishTime = message.publishTime;
 
                             payload.id = serverId;
                             payload.publishTime = publishTime;
+                            payload.__ackId = ackId; // IMPORTANT: send ackId to client
                             if (payload.event && typeof payload.event === 'object') {
                                 payload.event.id = serverId;
                                 payload.event.publishTime = publishTime;
                             }
 
-                            controller.enqueue(`data: ${JSON.stringify(payload)}\n\n`);
+                            // extend ack deadline to give client time (safety)
+                            try {
+                                await authClient.request({
+                                    url: `${subscriptionUrl}:modifyAckDeadline`,
+                                    method: 'POST',
+                                    data: { ackIds: [ackId], ackDeadlineSeconds: 60 }
+                                });
+                            } catch (e) {
+                                console.warn('[SSE] Failed to extend ack deadline', e);
+                            }
 
-                            // 5. ACK (REST)
-                            await authClient.request({
-                                url: `${subscriptionUrl}:acknowledge`,
-                                method: 'POST',
-                                data: { ackIds: [ackId] }
-                            });
+                            // Push to client — do NOT ACK here
+                            controller.enqueue(`data: ${JSON.stringify(payload)}\n\n`);
 
                         } catch (err) {
                             console.error("[SSE] Error processing, NACKing:", err);

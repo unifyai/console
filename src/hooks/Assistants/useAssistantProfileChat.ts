@@ -14,7 +14,7 @@ export function useAssistantProfileChat(
     onFirstViewCompleted?: () => void,
 ) {
     const assistantId = assistant?.agent_id || null;
-    
+
     const messages = React.useMemo(() => {
         const raw = assistantId ? chatHistories[assistantId] || [] : [];
         return [...raw].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -49,8 +49,7 @@ export function useAssistantProfileChat(
         setIsAssistantReplying(false);
     }, [clearTimers]);
 
-    // --- 1. Typing Indicator Timeout (Visual only) ---
-    // Hide typing indicator after 20 seconds if no response is received.
+    // Typing timeout
     React.useEffect(() => {
         if (isAssistantReplying) {
             typingTimeoutTimerRef.current = setTimeout(() => {
@@ -62,7 +61,7 @@ export function useAssistantProfileChat(
         };
     }, [isAssistantReplying]);
 
-    // --- 2. Initial Load ---
+    // Initial load
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
         const hasBeenInitialized = chatHistories[assistantId] !== undefined;
@@ -91,10 +90,9 @@ export function useAssistantProfileChat(
             firstViewProcessed.current = false;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]); 
+    }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
 
-
-    // --- 3. PubSub SSE Connection ---
+    // PubSub SSE Connection (client-side ACK model)
     React.useEffect(() => {
         if (!assistantId) return;
 
@@ -106,22 +104,24 @@ export function useAssistantProfileChat(
         };
 
         eventSource.onmessage = (event) => {
-            stopReplying(); 
+            stopReplying();
             try {
-                const messagePayload : OutboundMessagePayload = JSON.parse(event.data);
-                
-                if (messagePayload.thread === 'unify_message_outbound') {
-                    const content = messagePayload.event.content;
-                    const serverMsgId = messagePayload.id || uuidv4();                    
+                const messagePayload: any = JSON.parse(event.data);
+
+                if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
+                    const content = messagePayload.event?.content ?? messagePayload.event?.body ?? messagePayload.content ?? messagePayload.raw_content ?? '';
+                    const serverMsgId = messagePayload.id || uuidv4();
                     const publishTimeStr = messagePayload.publishTime;
                     const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
+                    const ackId = messagePayload.__ackId;
 
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
-                        
+
                         if (serverMsgId && currentHistory.some(m => m.id === serverMsgId)) {
                             return prev;
                         }
+
                         const lastMsg = currentHistory[currentHistory.length - 1];
                         if (!serverMsgId && lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
                             return prev;
@@ -130,8 +130,9 @@ export function useAssistantProfileChat(
                         const newAssistantMessage: ChatMessage = {
                             id: serverMsgId,
                             role: 'assistant',
-                            content: content,
+                            content: String(content),
                             timestamp: timestamp,
+                            __ackId: ackId
                         };
 
                         const updatedList = [...currentHistory, newAssistantMessage];
@@ -144,13 +145,8 @@ export function useAssistantProfileChat(
         };
 
         eventSource.onerror = (error) => {
-            if (eventSource.readyState === EventSource.CLOSED) {
-                setConnectionStatus('reconnecting');
-            } else if (eventSource.readyState === EventSource.CONNECTING) {
-                setConnectionStatus('reconnecting');
-            } else {
-                setConnectionStatus('error');
-            }
+            // EventSource doesn't always give useful info; map to state
+            setConnectionStatus(prev => (eventSource.readyState === EventSource.CLOSED ? 'reconnecting' : 'reconnecting'));
         };
 
         return () => {
@@ -158,8 +154,35 @@ export function useAssistantProfileChat(
             eventSource.close();
         };
     }, [assistantId, setChatHistories, stopReplying]);
-    
-    // --- 4. Message Sending ---
+
+    // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
+    React.useEffect(() => {
+        if (!assistantId) return;
+        messages.forEach(msg => {
+            if (msg.role === 'assistant' && msg.__ackId) {
+                const ackId = msg.__ackId;
+                fetch(`/api/assistant/${assistantId}/events/ack`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ackId }),
+                })
+                .catch(err => {
+                    console.warn('Failed to ack message', ackId, err);
+                });
+                setChatHistories(prev => {
+                    const current = prev[assistantId] || [];
+                    return {
+                        ...prev,
+                        [assistantId]: current.map(m =>
+                            m.id === msg.id ? { ...m, __ackId: undefined } : m
+                        ),
+                    };
+                });
+            }
+        });
+    }, [messages, assistantId, setChatHistories]);
+
+    // Send message
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;

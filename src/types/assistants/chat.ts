@@ -1,9 +1,10 @@
 export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  message_id?: number | string;
+    id: string;
+    role: 'assistant' | 'user';
+    content: string;
+    timestamp: Date;
+    message_id?: number;
+    __ackId?: string;
 }
 
 export type ChatRole = "user" | "system" | "assistant";
