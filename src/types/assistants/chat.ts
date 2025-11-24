@@ -15,6 +15,8 @@ export interface ChatCompletionMessage {
 
 export interface OutboundMessagePayload {
   thread: string,
+  id: string,
+  publishTime: string,
   event: ChatCompletionMessage
 }
 

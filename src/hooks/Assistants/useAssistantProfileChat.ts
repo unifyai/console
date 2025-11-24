@@ -14,8 +14,12 @@ export function useAssistantProfileChat(
     onFirstViewCompleted?: () => void,
 ) {
     const assistantId = assistant?.agent_id || null;
-    const messages = assistantId ? chatHistories[assistantId] || [] : [];
     
+    const messages = React.useMemo(() => {
+        const raw = assistantId ? chatHistories[assistantId] || [] : [];
+        return [...raw].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }, [chatHistories, assistantId]);
+
     const [inputValue, setInputValue] = React.useState('');
     const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
     const [isInitialLoading, setIsInitialLoading] = React.useState(false);
@@ -23,10 +27,7 @@ export function useAssistantProfileChat(
 
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-    const fallbackTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-    const hasConnectedOnceRef = React.useRef(false);
-    const lastReconcileTimeRef = React.useRef<number>(0);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
@@ -41,10 +42,6 @@ export function useAssistantProfileChat(
             clearTimeout(typingTimeoutTimerRef.current);
             typingTimeoutTimerRef.current = null;
         }
-        if (fallbackTimerRef.current) {
-            clearTimeout(fallbackTimerRef.current);
-            fallbackTimerRef.current = null;
-        }
     }, []);
 
     const stopReplying = React.useCallback(() => {
@@ -52,162 +49,23 @@ export function useAssistantProfileChat(
         setIsAssistantReplying(false);
     }, [clearTimers]);
 
-    const reconcileTranscripts = React.useCallback(async () => {
-        if (!assistantId || !assistant) return;
-
-        const context = `${assistant.first_name}${assistant.surname}`;
-        
-        // @ts-ignore - ignoring TS error until types/API definition is fully propagated in editor context
-        const historyResult = await assistantActions.chat.getTranscripts(context);
-        if ('detail' in historyResult) {
-            if (historyResult.detail === "Aborted") return;
-            return; 
-        }
-
-        const fetchedHistory = (historyResult as ChatMessage[]).reverse();
-        
-        setChatHistories(prev => {
-            const currentLocalHistory = prev[assistantId] || [];
-            const serverHistory = [...fetchedHistory];
-            
-            // Strategy: Find the last message in Local that matches a message in Server (The Anchor).
-            // The full Server History becomes the base (containing confirmed messages + new replies).
-            // Everything after the Anchor in Local is appended as "Pending".
-            
-            let anchorIndexLocal = -1;
-            
-            // Search backwards through local history to find the most recent synced message
-            for (let l = currentLocalHistory.length - 1; l >= 0; l--) {
-                const localMsg = currentLocalHistory[l];
-                
-                // Search backwards through server history to find a match
-                let matchFound = false;
-                for (let s = serverHistory.length - 1; s >= 0; s--) {
-                    const serverMsg = serverHistory[s];
-                    
-                    // Check for content/role match
-                    if (serverMsg.content === localMsg.content && serverMsg.role === localMsg.role) {
-                        
-                        // Context Check: Verify predecessors to avoid false positives with duplicate messages (e.g. "Hello", "Hello")
-                        const prevLocal = l > 0 ? currentLocalHistory[l - 1] : null;
-                        const prevServer = s > 0 ? serverHistory[s - 1] : null;
-
-                        const isStartMatch = !prevLocal && !prevServer;
-                        const isPrevMatch = prevLocal && prevServer && prevLocal.content === prevServer.content && prevLocal.role === prevServer.role;
-
-                        if (isStartMatch || isPrevMatch) {
-                            anchorIndexLocal = l;
-                            matchFound = true;
-                            break;
-                        }
-                    }
-                }
-                if (matchFound) break;
-            }
-
-            let newHistory: ChatMessage[];
-
-            if (anchorIndexLocal !== -1) {
-                // Found a sync point. 
-                // Base: Full Server History (includes new replies).
-                // Append: Pending Local Messages (everything after the anchor).
-                const pendingMessages = currentLocalHistory.slice(anchorIndexLocal + 1);
-                newHistory = [...serverHistory, ...pendingMessages];
-            } else {
-                // Fallback: No overlap found. Use timestamp slicing.
-                if (serverHistory.length > 0) {
-                    const lastServerMsg = serverHistory[serverHistory.length - 1];
-                    const serverEndTime = new Date(lastServerMsg.timestamp).getTime();
-                    // Keep local messages strictly newer than server's last message
-                    const cleanLocal = currentLocalHistory.filter(m => new Date(m.timestamp).getTime() > serverEndTime);
-                    newHistory = [...serverHistory, ...cleanLocal];
-                } else {
-                    // If server is empty, trust local state entirely
-                    newHistory = [...currentLocalHistory];
-                }
-            }
-
-            // Ensure typing indicator logic is consistent
-            if (newHistory.length > 0) {
-                const lastMsg = newHistory[newHistory.length - 1];
-                if (lastMsg.role === 'assistant') {
-                    stopReplying();
-                }
-            }
-
-            return { ...prev, [assistantId]: newHistory };
-        });
-
-    }, [assistantId, assistant, assistantActions.chat, setChatHistories, stopReplying]);
-
-    // --- 1. Watch for Visibility Changes (Tab Switching) ---
-    React.useEffect(() => {
-        const THROTTLE_MS = 1000;
-
-        const attemptReconcile = () => {
-            const now = Date.now();
-            if (now - lastReconcileTimeRef.current >= THROTTLE_MS) {
-                lastReconcileTimeRef.current = now;
-                reconcileTranscripts();
-            }
-        };
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                if (navigator.onLine) {
-                   attemptReconcile();
-                }
-            }
-        };
-
-        const handleOnline = () => {
-            setConnectionStatus('reconnecting');
-            attemptReconcile();
-        };
-
-        const handleOffline = () => {
-            setConnectionStatus('reconnecting');
-        };
-
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-        window.addEventListener("online", handleOnline);
-        window.addEventListener("offline", handleOffline);
-
-        return () => {
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
-            window.removeEventListener("online", handleOnline);
-            window.removeEventListener("offline", handleOffline);
-        };
-    }, [reconcileTranscripts]);
-
-
-    // --- 2. Typing Indicator Timers (Fallback) ---
+    // --- 1. Typing Indicator Timeout (Visual only) ---
+    // Hide typing indicator after 20 seconds if no response is received.
     React.useEffect(() => {
         if (isAssistantReplying) {
-            // Fallback: After 18 seconds of typing, refetch transcripts just in case SSE failed.
-            fallbackTimerRef.current = setTimeout(() => {
-                reconcileTranscripts();
-            }, 18000);
-
-            // Timeout: Hide typing indicator after 20 seconds if no response is received.
             typingTimeoutTimerRef.current = setTimeout(() => {
                 setIsAssistantReplying(false);
             }, 20000);
         }
-
         return () => {
-            if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
             if (typingTimeoutTimerRef.current) clearTimeout(typingTimeoutTimerRef.current);
         };
-    }, [isAssistantReplying, reconcileTranscripts]);
+    }, [isAssistantReplying]);
 
-
-    // --- 3. Initial Load ---
+    // --- 2. Initial Load ---
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
-
         const hasBeenInitialized = chatHistories[assistantId] !== undefined;
-
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
@@ -232,96 +90,76 @@ export function useAssistantProfileChat(
         } else if (!isFirstView) {
             firstViewProcessed.current = false;
         }
-    }, [
-        assistantId,
-        isFirstView,
-        preHireChat,
-        onFirstViewCompleted,
-        chatHistories,
-        setChatHistories,
-        assistantActions.chat
-    ]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]); 
 
-    // --- 4. SSE Connection Logic ---
+
+    // --- 3. PubSub SSE Connection ---
     React.useEffect(() => {
         if (!assistantId) return;
 
-        hasConnectedOnceRef.current = false;
         setConnectionStatus('connecting');
-        let retryCount = 0; 
         const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
 
         eventSource.onopen = () => {
             setConnectionStatus('connected');
-            retryCount = 0;
-            if (hasConnectedOnceRef.current) {
-                reconcileTranscripts();
-            }
-            hasConnectedOnceRef.current = true;
         };
 
         eventSource.onmessage = (event) => {
             stopReplying(); 
             try {
                 const messagePayload : OutboundMessagePayload = JSON.parse(event.data);
+                
                 if (messagePayload.thread === 'unify_message_outbound') {
                     const content = messagePayload.event.content;
+                    const serverMsgId = messagePayload.id || uuidv4();                    
+                    const publishTimeStr = messagePayload.publishTime;
+                    const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
+
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
                         
+                        if (serverMsgId && currentHistory.some(m => m.id === serverMsgId)) {
+                            return prev;
+                        }
                         const lastMsg = currentHistory[currentHistory.length - 1];
-                        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
-                            return prev; // Ignore duplicate
+                        if (!serverMsgId && lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
+                            return prev;
                         }
 
                         const newAssistantMessage: ChatMessage = {
-                            id: uuidv4(),
+                            id: serverMsgId,
                             role: 'assistant',
                             content: content,
-                            timestamp: new Date(),
+                            timestamp: timestamp,
                         };
-                        return { ...prev, [assistantId]: [...currentHistory, newAssistantMessage] };
+
+                        const updatedList = [...currentHistory, newAssistantMessage];
+                        updatedList.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                        return { ...prev, [assistantId]: updatedList };
                     });
-                } else {/* noop */}
+                }
             } catch (error) {/* noop */}
         };
 
-        const handleServerError = (event: MessageEvent) => {
-            try {
-                const payload = JSON.parse(event.data);
-                if (payload.status === 401 || payload.status === 403) {
-                    setConnectionStatus('error');
-                    toast.error("Failed to authenticate while connecting to the assistant. Please refresh.");
-                    eventSource.close();
-                    return;
-                }
-            } catch {/* // Ignore parsing errors on error events */}
-            setConnectionStatus('reconnecting');
-        };
-
-        eventSource.addEventListener('error', handleServerError as EventListener);
-
         eventSource.onerror = (error) => {
-            retryCount++;
             if (eventSource.readyState === EventSource.CLOSED) {
                 setConnectionStatus('reconnecting');
             } else if (eventSource.readyState === EventSource.CONNECTING) {
                 setConnectionStatus('reconnecting');
-            }
-            if (retryCount > 5) {
+            } else {
                 setConnectionStatus('error');
-                eventSource.close();
-                toast.error("Lost connection to assistant. Refresh to reconnect.");
             }
         };
 
         return () => {
             stopReplying();
-            eventSource.removeEventListener('error', handleServerError as EventListener);
             eventSource.close();
         };
-    }, [assistantId, setChatHistories, stopReplying, reconcileTranscripts]);
+    }, [assistantId, setChatHistories, stopReplying]);
     
+    // --- 4. Message Sending ---
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;
@@ -335,10 +173,11 @@ export function useAssistantProfileChat(
             timestamp: new Date(),
         };
 
-        setChatHistories(prev => ({
-            ...prev,
-            [assistantId]: [...(prev[assistantId] || []), newUserMessage]
-        }));
+        setChatHistories(prev => {
+            const current = prev[assistantId] || [];
+            const updated = [...current, newUserMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            return { ...prev, [assistantId]: updated };
+        });
 
         const messageToSend = inputValue.trim();
         setInputValue('');

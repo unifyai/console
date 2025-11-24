@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PubSub } from '@google-cloud/pubsub';
 import fs from 'fs';
 
-export const dynamic = 'force-dynamic'; // Prevent caching of this route
+export const dynamic = 'force-dynamic';
 
 async function getPubSubClient() {
     const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
     if (!credentialsValue) {
         throw new Error("COMMS_SERVICE_ACCOUNT_CREDENTIALS environment variable not set.");
     }
-
-    // First, try to parse the env var as a raw JSON string.
-    // If parsing fails, assume it's a file path.
     let credentials;
     try {
         credentials = JSON.parse(credentialsValue);
@@ -25,11 +22,9 @@ async function getPubSubClient() {
             throw new Error("Server is misconfigured for real-time communication. COMMS_SERVICE_ACCOUNT_CREDENTIALS is not valid JSON or a valid file path.");
         }
     }
-
     if (!credentials || !credentials.project_id) {
          throw new Error("Invalid Pub/Sub credentials format.");
     }
-
     return new PubSub({
         projectId: credentials.project_id,
         credentials,
@@ -60,40 +55,94 @@ export async function GET(
                 
                 const [exists] = await subscription.exists();
                 if (!exists) {
-                     console.error(`[SSE] Subscription ${subscriptionName} does not exist. Cannot establish connection.`);
+                     console.error(`[SSE] Subscription ${subscriptionName} does not exist.`);
                      const errorPayload = JSON.stringify({ detail: "Server configuration error: Real-time messaging subscription not found." });
                      controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
                      controller.close();
                      return;
                 }
 
+                // --- UPDATED MESSAGE HANDLER ---
                 const messageHandler = (message: any) => {
-                    message.ack();
-                    const data = message.data.toString('utf8');
-                    controller.enqueue(`data: ${data}\n\n`);
+                    // 1. Check client connection
+                    if (request.signal.aborted) {
+                        message.nack(); // Retry later
+                        return;
+                    }
+
+                    try {
+                        // 2. Parse the inner JSON data
+                        const rawData = message.data.toString('utf8');
+                        let payload: any = {};
+                        
+                        try {
+                            payload = JSON.parse(rawData);
+                        } catch (e) {
+                            console.error("Failed to parse message data JSON:", e);
+                            // If it's not JSON, we can't inject, but we should still send it
+                            payload = { raw_content: rawData };
+                        }
+
+                        // 3. Inject ID and PublishTime
+                        // We convert the PreciseDate to an ISO string
+                        const serverId = message.id;
+                        const publishTime = message.publishTime?.toISOString() || new Date().toISOString();
+
+                        // Inject into root
+                        payload.id = serverId;
+                        payload.publishTime = publishTime;
+
+                        // Inject specifically into 'event' so your client hook finds it easily
+                        // at `messagePayload.event.id`
+                        if (payload.event && typeof payload.event === 'object') {
+                            payload.event.id = serverId;
+                            payload.event.publishTime = publishTime;
+                        }
+
+                        // 4. Re-serialize to send to client
+                        const enrichedData = JSON.stringify(payload);
+                        
+                        controller.enqueue(`data: ${enrichedData}\n\n`);
+                        
+                        // 5. ACK only after successful enqueue
+                        message.ack();
+                    } catch (error) {
+                        console.error(`[SSE] Error processing message ${message.id}:`, error);
+                        message.nack(); // Retry later
+                    }
                 };
 
                 const errorHandler = (error: any) => {
                     console.error(`[SSE] Pub/Sub error on subscription ${subscriptionName}:`, error);
-                    // Send a specific error event to the client to notify them of the issue
-                    const errorPayload = JSON.stringify({ detail: "A server-side error occurred with the real-time connection. The connection may be unstable." });
-                    controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
+                    if (!request.signal.aborted) {
+                        try {
+                            const errorPayload = JSON.stringify({ detail: "A server-side error occurred with the real-time connection." });
+                            controller.enqueue(`event: error\ndata: ${errorPayload}\n\n`);
+                        } catch(e) {}
+                    }
                 };
 
                 subscription.on('message', messageHandler);
                 subscription.on('error', errorHandler);
 
-
                 const keepAliveInterval = setInterval(() => {
-                    controller.enqueue(': keep-alive\n\n');
+                    if (request.signal.aborted) {
+                        clearInterval(keepAliveInterval);
+                        return;
+                    }
+                    try {
+                        controller.enqueue(': keep-alive\n\n');
+                    } catch (e) {
+                         clearInterval(keepAliveInterval);
+                    }
                 }, 20000);
 
                 request.signal.addEventListener('abort', () => {
-                    console.log(`[SSE] Client disconnected from ${subscriptionName}. Cleaning up.`);
+                    console.log(`[SSE] Client disconnected from ${subscriptionName}.`);
                     clearInterval(keepAliveInterval);
                     subscription.removeListener('message', messageHandler);
                     subscription.removeListener('error', errorHandler);
-                    controller.close();
+                    try { controller.close(); } catch (e) {}
                 });
             },
         });
@@ -107,7 +156,7 @@ export async function GET(
         });
 
     } catch (error: any) {
-        console.error(`[SSE] Failed to set up SSE stream for assistant ${assistantId}:`, error);
+        console.error(`[SSE] Setup error for assistant ${assistantId}:`, error);
         return new NextResponse(
             JSON.stringify({ detail: error.message || "Failed to establish real-time connection." }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
