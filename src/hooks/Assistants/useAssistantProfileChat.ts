@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage, OutboundMessagePayload } from '@/types/assistants/chat';
+import { ChatMessage } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -28,6 +28,15 @@ export function useAssistantProfileChat(
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
+    const historyLoadedRef = React.useRef<Set<string>>(new Set());
+
+    // Sync historyLoadedRef with incoming props in case history was loaded in a previous session/mount
+    React.useEffect(() => {
+        if (assistantId && chatHistories[assistantId] !== undefined) {
+            historyLoadedRef.current.add(assistantId);
+        }
+    }, [assistantId, chatHistories]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
@@ -65,16 +74,24 @@ export function useAssistantProfileChat(
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
         const hasBeenInitialized = chatHistories[assistantId] !== undefined;
+        let isMounted = true;
+        if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized) {
+            return;
+        }
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
             setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
-            onFirstViewCompleted?.();
+            historyLoadedRef.current.add(assistantId);
+            if (isMounted) onFirstViewCompleted?.();
         } else if (!hasBeenInitialized) {
+            fetchInitiatedRef.current.add(assistantId);
             setIsInitialLoading(true);
-            const context = `${assistant.first_name}${assistant.surname}`;
+            const context = `${assistant.first_name}${assistant.surname}`;            
             assistantActions.chat.getTranscripts(context)
                 .then(historyResult => {
+                    if (!isMounted) return;
+                    historyLoadedRef.current.add(assistantId);
                     if ('detail' in historyResult) {
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                     } else {
@@ -83,12 +100,19 @@ export function useAssistantProfileChat(
                     }
                 })
                 .catch(() => {
+                    if (!isMounted) return;
+                    historyLoadedRef.current.add(assistantId);
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                 })
-                .finally(() => setIsInitialLoading(false));
+                .finally(() => {
+                    if (isMounted) setIsInitialLoading(false);
+                });
         } else if (!isFirstView) {
             firstViewProcessed.current = false;
         }
+        return () => {
+            isMounted = false;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
 
@@ -107,13 +131,29 @@ export function useAssistantProfileChat(
             stopReplying();
             try {
                 const messagePayload: any = JSON.parse(event.data);
+                const ackId = messagePayload.__ackId;
+
+                // If history hasn't loaded yet, ACK the message but drop it.
+                // This prevents duplicating messages that will be loaded via transcripts.
+                if (!historyLoadedRef.current.has(assistantId)) {
+                    if (ackId) {
+                        fetch(`/api/assistant/${assistantId}/events/ack`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ackId }),
+                        }).catch(err => console.warn('Early ACK failed', err));
+                    }
+                    return; 
+                }
 
                 if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
                     const content = messagePayload.event?.content ?? messagePayload.event?.body ?? messagePayload.content ?? messagePayload.raw_content ?? '';
-                    const serverMsgId = messagePayload.id || uuidv4();
+                    
+                    const incomingId = messagePayload.id;
+                    const serverMsgId = incomingId || uuidv4();
+                    
                     const publishTimeStr = messagePayload.publishTime;
                     const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
-                    const ackId = messagePayload.__ackId;
 
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
@@ -123,7 +163,7 @@ export function useAssistantProfileChat(
                         }
 
                         const lastMsg = currentHistory[currentHistory.length - 1];
-                        if (!serverMsgId && lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
+                        if (!incomingId && lastMsg && lastMsg.role === 'assistant' && lastMsg.content === content) {
                             return prev;
                         }
 
@@ -145,7 +185,6 @@ export function useAssistantProfileChat(
         };
 
         eventSource.onerror = (error) => {
-            // EventSource doesn't always give useful info; map to state
             setConnectionStatus(prev => (eventSource.readyState === EventSource.CLOSED ? 'reconnecting' : 'reconnecting'));
         };
 
