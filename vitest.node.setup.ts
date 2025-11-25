@@ -10,6 +10,20 @@ const server = setupServer(...handlers);
 beforeAll(() => {
     vi.clearAllMocks();
     server.listen({ onUnhandledRequest: 'bypass' });
+
+    // Provide a basic matchMedia polyfill for libraries like next-themes
+    if (typeof window !== 'undefined' && !window.matchMedia) {
+      window.matchMedia = (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(), // deprecated
+        removeListener: vi.fn(), // deprecated
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      });
+    }
 });
 
 beforeEach(async (context) => {

@@ -9,6 +9,9 @@ node_modules
 # testing
 /coverage
 
+# vitest / playwright screenshots
+screenshots/
+
 # next.js
 .next/
 /out/

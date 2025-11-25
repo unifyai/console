@@ -190,11 +190,11 @@ function detectCircularDependencies(
     recursionStack.delete(tileId);
   }
   
-  dependencyMap.keys().forEach(tileId => {
+  for (const tileId of Array.from(dependencyMap.keys())) {
     if (!visited.has(tileId)) {
       dfs(tileId, []);
     }
-  });
+  }
   
   return cycles;
 }

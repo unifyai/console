@@ -56,41 +56,51 @@ export function useEnsurePlotTileData(params: {
   const { interfaceId, tabId, tileId, projectId, plotArguments, actions } = params;
   const queryClient = useQueryClient();
 
-  // Check dependency readiness more reactively
+  // Read tiles from cache so dependency readiness can respond to cache updates
+  const tiles = queryClient.getQueryData<TileData[]>(['tiles', tabId]);
+
+  // Check dependency readiness reactively based on tiles and cached table data
   const dependenciesReady = useMemo(() => {
     if (!tileId || !projectId) return false;
-    
-    // Get tiles to find the plot tile
-    const tiles = queryClient.getQueryData<TileData[]>(["tiles", tabId]);
     if (!tiles) return false;
-    
+
     const plotTile = tiles.find((t) => t.id === tileId);
     if (!plotTile) return false;
-    
+
     // Get dependency names
     const depsNames = getUsedTableNames(plotTile);
-    debugLog(`[useEnsurePlotTileData] Checking dependencies for plot ${plotTile.name}: [${depsNames.join(', ')}]`);
-    
+    debugLog(
+      `[useEnsurePlotTileData] Checking dependencies for plot ${plotTile.name}: [${depsNames.join(
+        ', ',
+      )}]`,
+    );
+
     // Check if all dependencies have their data cached
     for (const tableName of depsNames) {
       const depTile = tiles.find((t) => t.name === tableName);
       if (!depTile || !depTile.id) {
-        debugLog(`[useEnsurePlotTileData] Dependency table "${tableName}" not found`);
+        debugLog(
+          `[useEnsurePlotTileData] Dependency table "${tableName}" not found for plot ${plotTile.name}`,
+        );
         return false;
       }
 
-      const tableData = queryClient.getQueryData(["tableDataItem", depTile.id]);
+      const tableData = queryClient.getQueryData(['tableDataItem', depTile.id]);
       if (!tableData) {
-        debugLog(`[useEnsurePlotTileData] Dependency "${tableName}" (${depTile.id}) not ready`);
+        debugLog(
+          `[useEnsurePlotTileData] Dependency "${tableName}" (${depTile.id}) not ready for plot ${plotTile.name}`,
+        );
         return false;
       }
-      
+
       debugLog(`[useEnsurePlotTileData] Dependency "${tableName}" is ready ✓`);
     }
-    
-    debugLog(`[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`);
+
+    debugLog(
+      `[useEnsurePlotTileData] All dependencies ready for plot ${plotTile.name} ✓`,
+    );
     return true;
-  }, [tileId, projectId, tabId, queryClient]);
+  }, [tileId, projectId, tabId, tiles, queryClient]);
 
   return useQuery<PlotDataItem>({
     queryKey: ["ensurePlotTileData", tileId, projectId],
