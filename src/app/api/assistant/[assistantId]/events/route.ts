@@ -66,6 +66,9 @@ export async function GET(
         async start(controller) {
             console.log(`[SSE] Connected to ${subscriptionUrl} via REST`);
 
+            // Send initial ping to establish connection fast on client
+            try { controller.enqueue(': connected\n\n'); } catch (e) { }
+
             // Keep-alive loop to prevent load balancer timeouts
             const keepAliveInterval = setInterval(() => {
                 if (request.signal.aborted) {

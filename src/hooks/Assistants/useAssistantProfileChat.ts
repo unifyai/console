@@ -74,7 +74,6 @@ export function useAssistantProfileChat(
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
         const hasBeenInitialized = chatHistories[assistantId] !== undefined;
-        let isMounted = true;
         if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized) {
             return;
         }
@@ -83,14 +82,13 @@ export function useAssistantProfileChat(
             const initialHistory = preHireChat || [];
             setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
             historyLoadedRef.current.add(assistantId);
-            if (isMounted) onFirstViewCompleted?.();
+            onFirstViewCompleted?.();
         } else if (!hasBeenInitialized) {
             fetchInitiatedRef.current.add(assistantId);
             setIsInitialLoading(true);
             const context = `${assistant.first_name}${assistant.surname}`;            
             assistantActions.chat.getTranscripts(context)
                 .then(historyResult => {
-                    if (!isMounted) return;
                     historyLoadedRef.current.add(assistantId);
                     if ('detail' in historyResult) {
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
@@ -100,19 +98,15 @@ export function useAssistantProfileChat(
                     }
                 })
                 .catch(() => {
-                    if (!isMounted) return;
                     historyLoadedRef.current.add(assistantId);
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                 })
                 .finally(() => {
-                    if (isMounted) setIsInitialLoading(false);
+                    setIsInitialLoading(false);
                 });
         } else if (!isFirstView) {
             firstViewProcessed.current = false;
         }
-        return () => {
-            isMounted = false;
-        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
 
