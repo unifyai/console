@@ -57,6 +57,29 @@ class ControllableMockEventSource {
     }
 }
 
+// --- Mock BroadcastChannel Infrastructure ---
+const originalBroadcastChannel = window.BroadcastChannel;
+let mockBroadcastChannels: ControllableBroadcastChannel[] = [];
+
+class ControllableBroadcastChannel {
+    name: string;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    postMessage = vi.fn();
+    close = vi.fn();
+
+    constructor(name: string) {
+        this.name = name;
+        mockBroadcastChannels.push(this);
+    }
+
+    // Helper to simulate incoming message FROM "other tabs"
+    simulateIncomingMessage(data: any) {
+        if (this.onmessage) {
+            this.onmessage(new MessageEvent('message', { data }));
+        }
+    }
+}
+
 // --- Helper: Real Fetch Implementation for Tests ---
 // This mimics the server action src/lib/assistants/chat.ts to hit the MSW handlers
 const fetchTranscriptsViaApi = async (assistantContext: string, beforeMessageId?: number): Promise<ChatMessage[] | any> => {
@@ -157,8 +180,10 @@ describe('Assistant Profile Chat', () => {
 
     beforeEach(() => {
         window.EventSource = ControllableMockEventSource as any;
+        window.BroadcastChannel = ControllableBroadcastChannel as any;
         mockEventSourceInstance = null;
         eventSourceInstances = [];
+        mockBroadcastChannels = [];
         
         // Setup Fresh Spy (but allow passthrough for our helper fetch)
         fetchSpy = vi.spyOn(window, 'fetch');
@@ -166,6 +191,7 @@ describe('Assistant Profile Chat', () => {
 
     afterEach(() => {
         window.EventSource = originalEventSource;
+        window.BroadcastChannel = originalBroadcastChannel;
         vi.useRealTimers();
         vi.restoreAllMocks();
     });
@@ -1171,8 +1197,7 @@ describe('Assistant Profile Chat', () => {
 
             render(<ChatTestWrapper initialHistory={undefined} assistantOverride={failAssistant} assistantActionsOverride={apiOverride} />);
 
-            // Wait for first batch (Handler logic: context includes "FailPagination", but only fails if filter includes 'message_id <')
-            // Initial fetch does NOT have 'message_id <', so it should succeed.
+            // Wait for first batch
             await waitFor(() => {
                 expect(screen.getByText('Message 26')).toBeInTheDocument();
             });
@@ -1180,12 +1205,16 @@ describe('Assistant Profile Chat', () => {
             // Scroll to top
             const scrollArea = screen.getByTestId('chat-scroll-area');
             const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            
+            // Fix: ensure scrollTop is explicitly set before event dispatch for test reliability
+            viewport.scrollTop = 0;
             fireEvent.scroll(viewport, { target: { scrollTop: 0 } });
 
-            // Handler should return 500
-            // Component should log error to console (as per implementation) and stop loading state.
+            // Instead of checking for console.error (which can be flaky or vary in format),
+            // check for the UI manifestation of the error: the "Retry" button.
+            // This proves the error state was reached and handled by the component.
             await waitFor(() => {
-                expect(consoleSpy).toHaveBeenCalledWith("Failed to load more messages:", expect.anything());
+                expect(screen.getByRole('button', { name: /failed to load more\. retry/i })).toBeInTheDocument();
             });
 
             // Verify state didn't crash / messages still there
@@ -1330,6 +1359,236 @@ describe('Assistant Profile Chat', () => {
             expect(input).toHaveAttribute('placeholder', 'Send a message...');
         });
 
+    });
+
+    // =========================================================================
+    // SECTION E: CROSS-TAB SYNCHRONIZATION
+    // =========================================================================
+    describe('E - Cross-Tab Synchronization', () => {
+        it('displays messages broadcast from other tabs', {
+            meta: {
+                alias: 'Sync-Receive',
+                scenario: 'Message arrives via BroadcastChannel from another tab',
+                behavior: 'Message is displayed in the chat'
+            }
+        }, async () => {
+            const assistantId = 'stress-test-id';
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // 1. Find the channel listening for this assistant
+            const listenerChannel = mockBroadcastChannels.find(c => c.name.includes(assistantId) && c.onmessage);
+            expect(listenerChannel).toBeDefined();
+
+            // 2. Simulate incoming message from another tab (Correct payload structure)
+            act(() => {
+                listenerChannel!.simulateIncomingMessage({
+                    type: 'NEW_MESSAGE',
+                    message: {
+                        id: 'msg-remote-1',
+                        role: 'user',
+                        content: 'Hello from Tab B',
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            });
+
+            // 3. Verify it appears
+            await waitFor(() => {
+                expect(screen.getByText('Hello from Tab B')).toBeInTheDocument();
+            });
+        });
+
+        it('broadcasts own sent messages to other tabs', {
+            meta: {
+                alias: 'Sync-Send',
+                scenario: 'User sends a message',
+                behavior: 'Message is posted to BroadcastChannel'
+            }
+        }, async () => {
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+            const user = userEvent.setup();
+
+            const input = screen.getByRole('textbox');
+            await user.type(input, 'Sync Me');
+            await user.keyboard('{Enter}');
+
+            await waitFor(() => {
+                // Find channels that were used to POST
+                const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
+                expect(postingChannels.length).toBeGreaterThan(0);
+
+                const lastPost = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
+                
+                // Assert payload structure
+                expect(lastPost).toMatchObject({
+                    type: 'NEW_MESSAGE',
+                    message: {
+                        role: 'user',
+                        content: 'Sync Me'
+                    }
+                });
+                
+                expect(lastPost.message.timestamp).toBeInstanceOf(Date);
+            });
+        });
+
+        it('prevents duplicate messages if broadcast arrives for existing message', {
+            meta: {
+                alias: 'Sync-Dedupe',
+                scenario: 'User sends message (optimistic update), then receives same message via BroadcastChannel (race condition)',
+                behavior: 'Message is displayed only once'
+            }
+        }, async () => {
+            const assistantId = 'stress-test-id';
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+            const user = userEvent.setup();
+
+            // 1. Send Message
+            const input = screen.getByRole('textbox');
+            await user.type(input, 'Race Condition');
+            await user.keyboard('{Enter}');
+
+            // 2. Capture the ID generated for the sent message from the postMessage call
+            const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
+            const sentPayload = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
+            const msgId = sentPayload.message.id;
+
+            // 3. Verify it is displayed
+            await waitFor(() => expect(screen.getAllByText('Race Condition')).toHaveLength(1));
+
+            // 4. Simulate receiving exact same message via BroadcastChannel
+            const listenerChannel = mockBroadcastChannels.find(c => c.name.includes(assistantId) && c.onmessage);
+            
+            act(() => {
+                listenerChannel!.simulateIncomingMessage({
+                    type: 'NEW_MESSAGE',
+                    message: {
+                        ...sentPayload.message,
+                        timestamp: sentPayload.message.timestamp.toISOString() // Simulate JSON serialization over wire
+                    }
+                });
+            });
+
+            // 5. Verify no duplicate
+            await new Promise(r => setTimeout(r, 100));
+            expect(screen.getAllByText('Race Condition')).toHaveLength(1);
+        });
+
+        it('relays incoming SSE messages to other tabs via BroadcastChannel', {
+            meta: {
+                alias: 'Sync-Relay',
+                scenario: 'Tab A receives message via SSE',
+                behavior: 'Tab A broadcasts the message to Tab B'
+            }
+        }, async () => {
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // Simulate incoming SSE message
+            const sseMessage = {
+                thread: 'unify_message_outbound',
+                id: 'msg-server-1',
+                publishTime: new Date().toISOString(),
+                event: { content: 'Server Says Hello' }
+            };
+
+            act(() => {
+                mockEventSourceInstance!.simulateMessage(sseMessage);
+            });
+
+            // Verify UI update
+            await waitFor(() => {
+                expect(screen.getByText('Server Says Hello')).toBeInTheDocument();
+            });
+
+            // Verify Broadcast
+            await waitFor(() => {
+                const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
+                expect(postingChannels.length).toBeGreaterThan(0);
+
+                const lastPost = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
+                expect(lastPost).toMatchObject({
+                    type: 'NEW_MESSAGE',
+                    message: {
+                        id: 'msg-server-1',
+                        role: 'assistant',
+                        content: 'Server Says Hello'
+                    }
+                });
+            });
+        });
+
+        it('strips __ackId from relayed messages to prevent double-acking by listeners', {
+            meta: {
+                alias: 'Sync-Strip-Ack',
+                scenario: 'SSE message arrives with ackId',
+                behavior: 'Broadcasted message does NOT contain ackId'
+            }
+        }, async () => {
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            const sseMessageWithAck = {
+                thread: 'unify_message_outbound',
+                id: 'msg-with-ack',
+                __ackId: 'secret-token-123',
+                event: { content: 'Ack Check' }
+            };
+
+            act(() => {
+                mockEventSourceInstance!.simulateMessage(sseMessageWithAck);
+            });
+
+            await waitFor(() => {
+                const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
+                const lastPost = postingChannels[postingChannels.length - 1].postMessage.mock.calls[0][0];
+                
+                // Assert content exists
+                expect(lastPost.message.content).toBe('Ack Check');
+                // Assert ACK ID is stripped
+                expect(lastPost.message.__ackId).toBeUndefined();
+            });
+        });
+
+        it('does not re-broadcast messages received via BroadcastChannel (loop prevention)', {
+            meta: {
+                alias: 'Sync-Loop-Prevention',
+                scenario: 'Message received via BroadcastChannel',
+                behavior: 'Message is rendered but NOT re-broadcasted'
+            }
+        }, async () => {
+            const assistantId = 'stress-test-id';
+            render(<ChatTestWrapper initialHistory={[]} />);
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // 1. Identify listener channel
+            const listenerChannel = mockBroadcastChannels.find(c => c.name.includes(assistantId) && c.onmessage);
+            
+            // 2. Simulate INCOMING broadcast
+            act(() => {
+                listenerChannel!.simulateIncomingMessage({
+                    type: 'NEW_MESSAGE',
+                    message: {
+                        id: 'msg-broadcast-in',
+                        role: 'assistant',
+                        content: 'Loop Check',
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            });
+
+            // 3. Verify UI update
+            await waitFor(() => {
+                expect(screen.getByText('Loop Check')).toBeInTheDocument();
+            });
+
+            // 4. Verify NO outgoing broadcast was triggered
+            const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
+            expect(postingChannels.length).toBe(0);
+        });
     });
 
 });

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, BroadcastMessagePayload } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
@@ -99,7 +99,6 @@ export function useAssistantProfileChat(
         try {
             const historyResult = await assistantActions.chat.getTranscripts(context);
             if ('detail' in historyResult) {
-                console.error("Failed to fetch initial history:", historyResult.detail);
                 setInitialLoadError(true);
             } else {
                 const history = (historyResult as ChatMessage[]).reverse();
@@ -111,7 +110,6 @@ export function useAssistantProfileChat(
                 setHistoryLoadedForAssistantId(currentAssistantId); // Enable SSE
             }
         } catch (error) {
-            console.error("Network error fetching initial history:", error);
             setInitialLoadError(true);
         } finally {
             setIsInitialLoading(false);
@@ -171,7 +169,6 @@ export function useAssistantProfileChat(
             const result = await assistantActions.chat.getTranscripts(context, oldestMessage.message_id);
             setHasFetchedHistory(true);
             if ('detail' in result) {
-                console.error("Failed to load more messages:", result.detail);
                 setLoadMoreError(true);
             } else {
                 const newMessages = (result as ChatMessage[]).reverse();
@@ -186,12 +183,43 @@ export function useAssistantProfileChat(
                 });
             }
         } catch (error) {
-            console.error("Error loading more messages", error);
             setLoadMoreError(true);
         } finally {
             setIsLoadingMore(false);
         }
     };
+
+    // Broadcast Channel Sync
+    // Handles both User sent messages and Server received messages relayed from other tabs.
+    React.useEffect(() => {
+        if (!assistantId) return;
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        channel.onmessage = (event) => {
+            const payload = event.data as BroadcastMessagePayload;
+            if (!payload || !payload.message || !payload.message.id) return;
+            const incomingMsg = payload.message;
+            const messageWithDate = {
+                ...incomingMsg,
+                timestamp: new Date(incomingMsg.timestamp)
+            };
+            if (messageWithDate.__ackId) {
+                delete messageWithDate.__ackId;
+            }
+            setChatHistories(prev => {
+                const current = prev[assistantId] || [];
+                if (current.some(m => m.id === messageWithDate.id)) {
+                    return prev;
+                }
+                const updated = [...current, messageWithDate].sort((a, b) => 
+                    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                );
+                return { ...prev, [assistantId]: updated };
+            });
+        };
+        return () => {
+            channel.close();
+        };
+    }, [assistantId, setChatHistories]);
 
     // PubSub SSE Connection
     React.useEffect(() => {
@@ -205,7 +233,7 @@ export function useAssistantProfileChat(
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ackId }),
-            }).catch(err => console.warn('ACK failed', err));
+            }).catch(err => {/* noop */});
         };
 
         eventSource.onopen = () => {
@@ -237,6 +265,14 @@ export function useAssistantProfileChat(
                     const publishTimeStr = messagePayload.publishTime;
                     const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
 
+                    const newAssistantMessage: ChatMessage = {
+                        id: serverMsgId,
+                        role: 'assistant',
+                        content: String(content),
+                        timestamp: timestamp,
+                        __ackId: ackId
+                    };
+
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
                         if (serverMsgId && currentHistory.some(m => m.id === serverMsgId)) {
@@ -249,19 +285,20 @@ export function useAssistantProfileChat(
                             return prev;
                         }
 
-                        const newAssistantMessage: ChatMessage = {
-                            id: serverMsgId,
-                            role: 'assistant',
-                            content: String(content),
-                            timestamp: timestamp,
-                            __ackId: ackId
-                        };
-
                         const updatedList = [...currentHistory, newAssistantMessage];
                         updatedList.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
                         return { ...prev, [assistantId]: updatedList };
                     });
+
+                    const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+                    const broadcastMsg = { ...newAssistantMessage };
+                    delete broadcastMsg.__ackId; 
+                    const payload: BroadcastMessagePayload = {
+                        type: 'NEW_MESSAGE',
+                        message: broadcastMsg
+                    };
+                    channel.postMessage(payload);
+                    channel.close();
                 }
             } catch (error) {/* noop */}
         };
@@ -277,6 +314,7 @@ export function useAssistantProfileChat(
     }, [assistantId, setChatHistories, stopReplying, historyLoadedForAssistantId]);
 
     // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
+    // This only runs in the tab that successfully received the SSE message with the __ackId
     React.useEffect(() => {
         if (!assistantId) return;
         messages.forEach(msg => {
@@ -287,9 +325,7 @@ export function useAssistantProfileChat(
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ ackId }),
                 })
-                .catch(err => {
-                    console.warn('Failed to ack message', ackId, err);
-                });
+                .catch(err => {/* noop */});
                 setChatHistories(prev => {
                     const current = prev[assistantId] || [];
                     return {
@@ -317,6 +353,7 @@ export function useAssistantProfileChat(
             timestamp: new Date(),
         };
 
+        // 1. Update Local State (Optimistic)
         setChatHistories(prev => {
             const current = prev[assistantId] || [];
             const updated = [...current, newUserMessage].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -330,6 +367,16 @@ export function useAssistantProfileChat(
             setIsAssistantReplying(true);
         }, 5000);
 
+        // 2. Broadcast to other tabs
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+            type: 'NEW_MESSAGE',
+            message: newUserMessage
+        };
+        channel.postMessage(payload);
+        channel.close();
+
+        // 3. Send to Backend
         assistantActions.chat.message({
             assistant_id: parseInt(assistant.agent_id),
             contact_id: 1,

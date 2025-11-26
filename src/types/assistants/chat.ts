@@ -21,6 +21,11 @@ export interface OutboundMessagePayload {
   event: ChatCompletionMessage
 }
 
+export type BroadcastMessagePayload = {
+    type: 'NEW_MESSAGE';
+    message: ChatMessage;
+};
+
 export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
