@@ -13,7 +13,10 @@
     "test:interfaces": "vitest --project node src/tests/interfaces",
     "test:interfaces:node": "vitest --project node src/tests/interfaces",
     "test:interfaces:browser": "vitest --project browser src/tests/interfaces",
-    "test:interfaces:golden": "vitest --project node src/tests/interfaces/e2e/golden-path.node.test.tsx"
+    "test:interfaces:golden": "vitest --project node src/tests/interfaces/e2e/golden-path.node.test.tsx",
+    "test:interfaces:api": "vitest --project node src/tests/interfaces/api",
+    "test:api:all": "vitest --project node src/tests/interfaces/api src/tests/assistants/actions.node.test.ts",
+    "test:integration:real": "vitest --project node src/tests/interfaces/integration --testNamePattern @real"
   },
   "dependencies": {
     "@ai-sdk/provider-utils": "^2.0.0",
