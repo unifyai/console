@@ -29,24 +29,19 @@ export function useAssistantProfileChat(
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
     const [loadMoreError, setLoadMoreError] = React.useState(false);
     const [hasFetchedHistory, setHasFetchedHistory] = React.useState(false);
+    const [historyLoadedForAssistantId, setHistoryLoadedForAssistantId] = React.useState<string | null>(null);
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
-    const historyLoadedRef = React.useRef<Set<string>>(new Set());
+    const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
 
-    // Sync historyLoadedRef with incoming props in case history was loaded in a previous session/mount
-    React.useEffect(() => {
-        if (assistantId && chatHistories[assistantId] !== undefined) {
-            historyLoadedRef.current.add(assistantId);
-        }
-    }, [assistantId, chatHistories]);
-
-    // Reset pagination state when assistant changes
+    // Reset UI state when assistant changes
     React.useEffect(() => {
         setHasMoreMessages(true);
         setHasFetchedHistory(false);
         setLoadMoreError(false);
+        setHistoryLoadedForAssistantId(null);
     }, [assistantId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -88,38 +83,59 @@ export function useAssistantProfileChat(
         if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized) {
             return;
         }
+        const recordTranscriptTimestamp = (id: string, msgs: ChatMessage[]) => {
+            if (msgs.length > 0) {
+                const maxTime = Math.max(...msgs.map(m => new Date(m.timestamp).getTime()));
+                if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
+                    transcriptCutoffsRef.current[id] = maxTime;
+                }
+            } else if (!transcriptCutoffsRef.current[id]) {
+                transcriptCutoffsRef.current[id] = 0;
+            }
+        };
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
+            recordTranscriptTimestamp(assistantId, initialHistory);
             setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
-            historyLoadedRef.current.add(assistantId);
             onFirstViewCompleted?.();
+            setHistoryLoadedForAssistantId(assistantId);
         } else if (!hasBeenInitialized) {
             fetchInitiatedRef.current.add(assistantId);
             setIsInitialLoading(true);
             const context = `${assistant.first_name}${assistant.surname}`;            
             assistantActions.chat.getTranscripts(context)
                 .then(historyResult => {
-                    historyLoadedRef.current.add(assistantId);
                     if ('detail' in historyResult) {
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                         setHasMoreMessages(false);
+                        recordTranscriptTimestamp(assistantId, []); 
                     } else {
                         const history = (historyResult as ChatMessage[]).reverse();
+                        recordTranscriptTimestamp(assistantId, history);
                         setChatHistories(prev => ({ ...prev, [assistantId]: history }));
                         if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) setHasMoreMessages(false);
                     }
                 })
                 .catch(() => {
-                    historyLoadedRef.current.add(assistantId);
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
                     setHasMoreMessages(false);
+                    recordTranscriptTimestamp(assistantId, []);
                 })
                 .finally(() => {
                     setIsInitialLoading(false);
+                    setHistoryLoadedForAssistantId(assistantId); // Enable SSE connection now
                 });
-        } else if (!isFirstView) {
-            firstViewProcessed.current = false;
+        } else {
+            if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
+                 transcriptCutoffsRef.current[assistantId] = 0;
+            }
+            if (historyLoadedForAssistantId !== assistantId) {
+                setHistoryLoadedForAssistantId(assistantId);
+            }
+            if (!isFirstView) {
+                firstViewProcessed.current = false;
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
@@ -162,12 +178,20 @@ export function useAssistantProfileChat(
         }
     };
 
-    // PubSub SSE Connection (client-side ACK model)
+    // PubSub SSE Connection
     React.useEffect(() => {
-        if (!assistantId) return;
+        if (!assistantId || historyLoadedForAssistantId !== assistantId) return;
 
         setConnectionStatus('connecting');
         const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
+
+        const ack = (ackId: string) => {
+             fetch(`/api/assistant/${assistantId}/events/ack`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ackId }),
+            }).catch(err => console.warn('ACK failed', err));
+        };
 
         eventSource.onopen = () => {
             setConnectionStatus('connected');
@@ -179,17 +203,16 @@ export function useAssistantProfileChat(
                 const messagePayload: any = JSON.parse(event.data);
                 const ackId = messagePayload.__ackId;
 
-                // If history hasn't loaded yet, ACK the message but drop it.
-                // This prevents duplicating messages that will be loaded via transcripts.
-                if (!historyLoadedRef.current.has(assistantId)) {
-                    if (ackId) {
-                        fetch(`/api/assistant/${assistantId}/events/ack`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ackId }),
-                        }).catch(err => console.warn('Early ACK failed', err));
+                // Check if message is older than the API Transcript
+                // If message is strictly older than what we loaded from the API, it's a zombie.
+                // Acknowledge it but don't display it in the chat.
+                if (messagePayload.publishTime) {
+                    const msgTime = new Date(messagePayload.publishTime).getTime();
+                    const cutoff = transcriptCutoffsRef.current[assistantId] || 0;  
+                    if (msgTime < cutoff) {
+                        if (ackId) ack(ackId);
+                        return;
                     }
-                    return; 
                 }
 
                 if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
@@ -201,8 +224,8 @@ export function useAssistantProfileChat(
 
                     setChatHistories(prev => {
                         const currentHistory = prev[assistantId] || [];
-
                         if (serverMsgId && currentHistory.some(m => m.id === serverMsgId)) {
+                            if (ackId) ack(ackId);
                             return prev;
                         }
 
@@ -236,7 +259,7 @@ export function useAssistantProfileChat(
             stopReplying();
             eventSource.close();
         };
-    }, [assistantId, setChatHistories, stopReplying]);
+    }, [assistantId, setChatHistories, stopReplying, historyLoadedForAssistantId]);
 
     // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
     React.useEffect(() => {

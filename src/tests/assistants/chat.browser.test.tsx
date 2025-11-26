@@ -327,6 +327,51 @@ describe('Assistant Profile Chat', () => {
     // SECTION B: SSE CONNECTION
     // =========================================================================
     describe('B - SSE Connection', () => {
+        it('waits for history to load before establishing SSE connection', { 
+            meta: { 
+                alias: 'SSE-Wait-History', 
+                scenario: 'Component mounts and starts fetching history',
+                behavior: 'SSE connection is deferred until history fetch completes'
+            } 
+        }, async () => {
+            let resolveFetch: (value: ChatMessage[]) => void;
+            const fetchPromise = new Promise<ChatMessage[]>((resolve) => {
+                resolveFetch = resolve;
+            });
+
+            const slowFetchActions = {
+                chat: {
+                    getTranscripts: vi.fn(() => fetchPromise),
+                    updateTranscripts: vi.fn(async () => ({})),
+                    message: vi.fn(async () => ({}))
+                }
+            };
+
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={slowFetchActions} />);
+
+            // 1. Assert Loading State
+            expect(screen.getByPlaceholderText('Loading messages...')).toBeInTheDocument();
+            
+            // 2. Assert No EventSource created yet
+            expect(eventSourceInstances.length).toBe(0);
+
+            // 3. Finish Loading
+            await act(async () => {
+                // @ts-ignore
+                resolveFetch([]);
+            });
+
+            // 4. Assert Loaded State
+            await waitFor(() => {
+                expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
+            });
+
+            // 5. Assert EventSource created
+            await waitFor(() => {
+                expect(eventSourceInstances.length).toBe(1);
+            });
+        });
+
         it('handles rapid connection flapping without duplicating visual state', { 
             meta: { 
                 alias: 'SSE-Flapping',
@@ -580,11 +625,11 @@ describe('Assistant Profile Chat', () => {
             expect(fetchSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('does NOT ack messages if they are filtered out as duplicates', { 
+        it('acks messages if they are filtered out as duplicates to clear queue', { 
             meta: { 
                 alias: 'ACK-Skip-Dedupe',
                 scenario: 'Server resends existing message with ACK token',
-                behavior: 'Message is deduplicated and ACK is ignored'
+                behavior: 'Message is deduplicated and ACK IS SENT to clear it from PubSub'
             } 
         }, async () => {
             const history = [{ id: 'existing-id', role: 'assistant', content: 'Original', timestamp: new Date() } as ChatMessage];
@@ -594,7 +639,7 @@ describe('Assistant Profile Chat', () => {
             const duplicateMsg = {
                 thread: 'unify_message_outbound',
                 id: 'existing-id',
-                __ackId: 'ack-token-ignored',
+                __ackId: 'ack-token-deduped',
                 event: { content: 'Original' }
             };
 
@@ -602,8 +647,15 @@ describe('Assistant Profile Chat', () => {
                 mockEventSourceInstance!.simulateMessage(duplicateMsg);
             });
 
-            await new Promise(r => setTimeout(r, 100));
-            expect(fetchSpy).not.toHaveBeenCalled();
+            await waitFor(() => {
+                expect(fetchSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('/events/ack'),
+                    expect.objectContaining({
+                        method: 'POST',
+                        body: JSON.stringify({ ackId: 'ack-token-deduped' })
+                    })
+                );
+            });
         });
 
         it('handles ACK API failure gracefully without crashing UI', { 
@@ -709,84 +761,6 @@ describe('Assistant Profile Chat', () => {
                     body: JSON.stringify({ ackId: 'ack-for-B' })
                 })
             );
-        });
-        
-        it('silently acknowledges and drops PubSub messages received before history load to prevent duplication', {
-            meta: {
-                alias: 'ACK-PreLoad-Race',
-                scenario: 'PubSub message arrives before getTranscripts resolves',
-                behavior: 'Message is ACKed immediately but NOT added to state (assumed covered by incoming transcript)'
-            }
-        }, async () => {
-            let resolveTranscripts: (val: any) => void;
-            const transcriptPromise = new Promise(r => { resolveTranscripts = r; });
-            const getTranscriptsMock = vi.fn(() => transcriptPromise);
-
-            const actionsOverride = {
-                chat: {
-                    getTranscripts: getTranscriptsMock,
-                    message: vi.fn(),
-                    updateTranscripts: vi.fn()
-                }
-            };
-
-            const msgFromPubSub = {
-                thread: 'unify_message_outbound',
-                id: 'duplicate-msg-id',
-                __ackId: 'early-ack-id',
-                event: { content: 'Potential Duplicate' }
-            };
-
-            const msgFromTranscript = {
-                id: 'duplicate-msg-id',
-                role: 'assistant',
-                content: 'Potential Duplicate',
-                timestamp: new Date()
-            };
-
-            render(
-                <ChatTestWrapper 
-                    initialHistory={undefined} 
-                    assistantActionsOverride={actionsOverride} 
-                />
-            );
-
-            // 1. Simulate Connection Open
-            act(() => {
-                mockEventSourceInstance!.simulateOpen();
-            });
-
-            // 2. Simulate Incoming Message BEFORE history resolves
-            act(() => {
-                mockEventSourceInstance!.simulateMessage(msgFromPubSub);
-            });
-
-            // 3. Verify early ACK was sent
-            await waitFor(() => {
-                expect(fetchSpy).toHaveBeenCalledWith(
-                    expect.stringContaining('/events/ack'),
-                    expect.objectContaining({
-                        body: JSON.stringify({ ackId: 'early-ack-id' })
-                    })
-                );
-            });
-
-            // 4. Verify message is NOT yet in the document (it was dropped to prevent dupes)
-            expect(screen.queryByText('Potential Duplicate')).not.toBeInTheDocument();
-
-            // 5. Now resolve the transcript (which contains the same message)
-            await act(async () => {
-                // @ts-ignore
-                resolveTranscripts([msgFromTranscript]);
-            });
-
-            // 6. Verify message NOW appears (from history source)
-            await waitFor(() => {
-                expect(screen.getByText('Potential Duplicate')).toBeInTheDocument();
-            });
-
-            // 7. Ensure absolutely no duplication visually
-            expect(screen.getAllByText('Potential Duplicate')).toHaveLength(1);
         });
     });
 
@@ -970,6 +944,106 @@ describe('Assistant Profile Chat', () => {
             // Verify ACKs were attempted for the stream items
             expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('/ack'), expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-backlog' }) }));
             expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('/ack'), expect.objectContaining({ body: JSON.stringify({ ackId: 'ack-reply' }) }));
+        });
+
+        it('filters zombie messages based on API transcript timestamp, not local cache (cached session restore)', {
+            meta: {
+                alias: 'History-Zombie-Cache',
+                scenario: 'Load A -> Rx Live Msg (Newer) -> Switch B -> Switch A -> Rx Late Msg (Older than Live, Newer than Transcript)',
+                behavior: 'Late Msg is ACCEPTED (not treated as zombie)'
+            }
+        }, async () => {
+            const tTranscript = new Date('2023-01-01T10:00:00Z');
+            const tLatePubSub = new Date('2023-01-01T10:02:00Z'); // The one to test
+            const tLiveCached = new Date('2023-01-01T10:05:00Z'); // The one already in cache
+
+            const assistantA = createMockAssistant({ agent_id: 'assistant-a', first_name: 'A' });
+            const assistantB = createMockAssistant({ agent_id: 'assistant-b', first_name: 'B' });
+
+            // Mock Transcripts for A
+            const getTranscriptsMock = vi.fn(async (context) => {
+                if (context.includes('A')) {
+                    return [{
+                        id: 'msg-transcript',
+                        role: 'assistant',
+                        content: 'Transcript Msg',
+                        timestamp: tTranscript,
+                        message_id: 1
+                    }];
+                }
+                return [];
+            });
+
+            const actionsOverride = { chat: { getTranscripts: getTranscriptsMock, message: vi.fn(), updateTranscripts: vi.fn() } };
+
+            const { rerender } = render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantA}
+                    assistantActionsOverride={actionsOverride}
+                />
+            );
+
+            // 1. Wait for Transcript
+            await waitFor(() => expect(screen.getByText('Transcript Msg')).toBeInTheDocument());
+
+            // 2. Connect SSE and receive "Live Cached" message
+            await act(async () => {
+                 mockEventSourceInstance!.simulateOpen();
+                 mockEventSourceInstance!.simulateMessage({
+                    thread: 'unify_message_outbound',
+                    id: 'msg-live',
+                    publishTime: tLiveCached.toISOString(),
+                    event: { content: 'Live Msg' }
+                 });
+            });
+            await waitFor(() => expect(screen.getByText('Live Msg')).toBeInTheDocument());
+
+            // 3. Switch to B (Unmounts A's connection, caches A's history)
+            rerender(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantB}
+                    assistantActionsOverride={actionsOverride}
+                />
+            );
+
+            // Wait for B to load (empty transcripts)
+            await waitFor(() => expect(eventSourceInstances[1]?.url).toContain('assistant-b'));
+
+            // 4. Switch back to A
+            rerender(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantA}
+                    assistantActionsOverride={actionsOverride}
+                />
+            );
+
+            // Wait for A to re-appear (from cache, no fetch)
+            await waitFor(() => expect(screen.getByText('Live Msg')).toBeInTheDocument());
+            // Expect 2 calls: 1 for A (initial), 1 for B (switch). A is not re-fetched on return.
+            expect(getTranscriptsMock).toHaveBeenCalledTimes(2);
+
+            // Wait for SSE A to reconnect
+            await waitFor(() => expect(eventSourceInstances[2]?.url).toContain('assistant-a'));
+            const connectionA = eventSourceInstances[2];
+            await act(async () => connectionA.simulateOpen());
+
+            // 5. Send "Late" message (Older than Live, Newer than Transcript)
+            // If logic uses local cache max (10:05), 10:02 is rejected.
+            // If logic uses transcript max (10:00), 10:02 is accepted.
+            await act(async () => {
+                 connectionA.simulateMessage({
+                    thread: 'unify_message_outbound',
+                    id: 'msg-late',
+                    publishTime: tLatePubSub.toISOString(),
+                    event: { content: 'Late Msg' }
+                 });
+            });
+
+            // 6. Assert
+            await waitFor(() => expect(screen.getByText('Late Msg')).toBeInTheDocument());
         });
 
         it('ensures getTranscripts is called exactly once per session, preventing double-fetches', {
