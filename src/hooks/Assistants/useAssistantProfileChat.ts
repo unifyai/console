@@ -24,12 +24,13 @@ export function useAssistantProfileChat(
     const [inputValue, setInputValue] = React.useState('');
     const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
     const [isInitialLoading, setIsInitialLoading] = React.useState(false);
+    const [initialLoadError, setInitialLoadError] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
     const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
     const [loadMoreError, setLoadMoreError] = React.useState(false);
     const [hasFetchedHistory, setHasFetchedHistory] = React.useState(false);
-    const [historyLoadedForAssistantId, setHistoryLoadedForAssistantId] = React.useState<string | null>(null);
+    const [historyLoadedForAssistantId, setHistoryLoadedForAssistantId] = React.useState<string | null>(null);    
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -41,6 +42,7 @@ export function useAssistantProfileChat(
         setHasMoreMessages(true);
         setHasFetchedHistory(false);
         setLoadMoreError(false);
+        setInitialLoadError(false);
         setHistoryLoadedForAssistantId(null);
     }, [assistantId]);
 
@@ -76,23 +78,53 @@ export function useAssistantProfileChat(
         };
     }, [isAssistantReplying]);
 
-    // Initial load
+    // Helper to calculate and store the latest timestamp
+    const recordTranscriptTimestamp = React.useCallback((id: string, msgs: ChatMessage[]) => {
+        if (msgs.length > 0) {
+            const maxTime = Math.max(...msgs.map(m => new Date(m.timestamp).getTime()));
+            if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
+                transcriptCutoffsRef.current[id] = maxTime;
+            }
+        } else if (!transcriptCutoffsRef.current[id]) {
+            transcriptCutoffsRef.current[id] = 0;
+        }
+    }, []);
+
+    // Initial transcripts fetching logic
+    // Treats API error response (e.g. 500) as a blocking error to prevent SSE connection
+    const fetchInitialHistory = React.useCallback(async (currentAssistantId: string, currentAssistant: Assistant) => {
+        setIsInitialLoading(true);
+        setInitialLoadError(false);
+        const context = `${currentAssistant.first_name}${currentAssistant.surname}`;
+        try {
+            const historyResult = await assistantActions.chat.getTranscripts(context);
+            if ('detail' in historyResult) {
+                console.error("Failed to fetch initial history:", historyResult.detail);
+                setInitialLoadError(true);
+            } else {
+                const history = (historyResult as ChatMessage[]).reverse();
+                recordTranscriptTimestamp(currentAssistantId, history);
+                setChatHistories(prev => ({ ...prev, [currentAssistantId]: history }));
+                if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
+                    setHasMoreMessages(false);
+                }
+                setHistoryLoadedForAssistantId(currentAssistantId); // Enable SSE
+            }
+        } catch (error) {
+            console.error("Network error fetching initial history:", error);
+            setInitialLoadError(true);
+        } finally {
+            setIsInitialLoading(false);
+        }
+    }, [assistantActions.chat, recordTranscriptTimestamp, setChatHistories]);
+
+    // Initial loading
     React.useEffect(() => {
         if (!assistantId || !assistant) return;
         const hasBeenInitialized = chatHistories[assistantId] !== undefined;
-        if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized) {
+        if (fetchInitiatedRef.current.has(assistantId) && !hasBeenInitialized && !initialLoadError) {
             return;
         }
-        const recordTranscriptTimestamp = (id: string, msgs: ChatMessage[]) => {
-            if (msgs.length > 0) {
-                const maxTime = Math.max(...msgs.map(m => new Date(m.timestamp).getTime()));
-                if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
-                    transcriptCutoffsRef.current[id] = maxTime;
-                }
-            } else if (!transcriptCutoffsRef.current[id]) {
-                transcriptCutoffsRef.current[id] = 0;
-            }
-        };
         if (isFirstView && !firstViewProcessed.current) {
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
@@ -102,30 +134,7 @@ export function useAssistantProfileChat(
             setHistoryLoadedForAssistantId(assistantId);
         } else if (!hasBeenInitialized) {
             fetchInitiatedRef.current.add(assistantId);
-            setIsInitialLoading(true);
-            const context = `${assistant.first_name}${assistant.surname}`;            
-            assistantActions.chat.getTranscripts(context)
-                .then(historyResult => {
-                    if ('detail' in historyResult) {
-                        setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
-                        setHasMoreMessages(false);
-                        recordTranscriptTimestamp(assistantId, []); 
-                    } else {
-                        const history = (historyResult as ChatMessage[]).reverse();
-                        recordTranscriptTimestamp(assistantId, history);
-                        setChatHistories(prev => ({ ...prev, [assistantId]: history }));
-                        if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) setHasMoreMessages(false);
-                    }
-                })
-                .catch(() => {
-                    setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
-                    setHasMoreMessages(false);
-                    recordTranscriptTimestamp(assistantId, []);
-                })
-                .finally(() => {
-                    setIsInitialLoading(false);
-                    setHistoryLoadedForAssistantId(assistantId); // Enable SSE connection now
-                });
+            fetchInitialHistory(assistantId, assistant);
         } else {
             if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
                  transcriptCutoffsRef.current[assistantId] = 0;
@@ -139,6 +148,12 @@ export function useAssistantProfileChat(
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
+
+    const retryInitialLoad = () => {
+        if (assistantId && assistant) {
+            fetchInitialHistory(assistantId, assistant);
+        }
+    };
 
     // Pagination: Load more messages
     const loadMoreMessages = async () => {
@@ -208,7 +223,7 @@ export function useAssistantProfileChat(
                 // Acknowledge it but don't display it in the chat.
                 if (messagePayload.publishTime) {
                     const msgTime = new Date(messagePayload.publishTime).getTime();
-                    const cutoff = transcriptCutoffsRef.current[assistantId] || 0;  
+                    const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
                     if (msgTime < cutoff) {
                         if (ackId) ack(ackId);
                         return;
@@ -291,7 +306,7 @@ export function useAssistantProfileChat(
     // Send message
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isInitialLoading || !assistant || !assistantId) return;
+        if (!inputValue.trim() || isInitialLoading || initialLoadError || !assistant || !assistantId) return;
 
         clearTimers();
 
@@ -338,6 +353,8 @@ export function useAssistantProfileChat(
         messages,
         inputValue,
         isLoading: isInitialLoading,
+        initialLoadError,
+        retryInitialLoad,
         isAssistantReplying,
         handleInputChange,
         sendMessage,

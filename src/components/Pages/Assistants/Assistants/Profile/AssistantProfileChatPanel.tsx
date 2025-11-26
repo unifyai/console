@@ -98,6 +98,8 @@ export function AssistantProfileChatPanel({
         messages,
         inputValue,
         isLoading,
+        initialLoadError,
+        retryInitialLoad,
         isAssistantReplying,
         handleInputChange,
         sendMessage,
@@ -153,14 +155,14 @@ export function AssistantProfileChatPanel({
         const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
         if (!viewport) return;
         const handleScroll = () => {
-            if (viewport.scrollTop < 10 && hasMoreMessages && !isLoadingMore && !isLoading && !loadMoreError) {
+            if (viewport.scrollTop < 10 && hasMoreMessages && !isLoadingMore && !isLoading && !loadMoreError && !initialLoadError) {
                 preserveScrollRef.current = viewport.scrollHeight;
                 loadMoreMessages();
             }
         };
         viewport.addEventListener('scroll', handleScroll);
         return () => viewport.removeEventListener('scroll', handleScroll);
-    }, [hasMoreMessages, isLoadingMore, isLoading, loadMoreMessages, loadMoreError]);
+    }, [hasMoreMessages, isLoadingMore, isLoading, loadMoreMessages, loadMoreError, initialLoadError]);
 
     /* Scroll position preservation when loading older messages */
     React.useLayoutEffect(() => {
@@ -221,62 +223,79 @@ export function AssistantProfileChatPanel({
                 ref={scrollAreaRef}
                 data-testid="chat-scroll-area"
             >
-                <div className="space-y-4">
-                    {hasFetchedHistory && !hasMoreMessages && (
-                        <div className="w-full text-center py-1 text-caption text-muted-foreground animate-fade-in">
-                            No more messages
+                {initialLoadError ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground animate-fade-in">
+                        <div className="text-center space-y-1">
+                            <p className="text-sm font-medium">Failed to load chat history</p>
+                            <p className="text-xs opacity-80">Please check your connection</p>
                         </div>
-                    )}
-                    {isLoadingMore && (
-                        <div className="w-full flex flex-row gap-2 justify-center py-1 text-caption text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Loading messages
-                        </div>
-                    )}
-                    {loadMoreError && (
-                         <div className="w-full flex flex-col items-center gap-2 py-1 animate-fade-in">
-                             <Button 
-                                role="button"
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => {
-                                    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
-                                    if(viewport) preserveScrollRef.current = viewport.scrollHeight;
-                                    loadMoreMessages();
-                                }}
-                                className="h-3 text-caption"
-                             >
-                                Failed to load more. Retry
-                             </Button>
-                        </div>
-                    )}
-                    {messages.map((msg, i) => (
-                        <ChatMessageBubble
-                            key={msg.id}
-                            message={msg.content}
-                            isUser={msg.role === 'user'}
-                            assistantPhoto={photoSrc}
-                            assistantName={displayName}
-                            index={i}
-                        />
-                    ))}
-
-                    {isAssistantReplying && (
-                        <ChatMessageBubble
-                            key="typing-indicator"
-                            message=""
-                            isUser={false}
-                            assistantPhoto={photoSrc}
-                            assistantName={displayName}
-                            isLoading={true}
-                            index={messages.length}
-                        />
-                    )}
-                </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={retryInitialLoad}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                            Retry
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {hasFetchedHistory && !hasMoreMessages && (
+                            <div className="w-full text-center py-1 text-caption text-muted-foreground animate-fade-in">
+                                No more messages
+                            </div>
+                        )}
+                        {isLoadingMore && (
+                            <div className="w-full flex flex-row gap-2 justify-center py-1 text-caption text-muted-foreground">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Loading messages
+                            </div>
+                        )}
+                        {loadMoreError && (
+                             <div className="w-full flex flex-col items-center gap-2 py-1 animate-fade-in">
+                                 <Button 
+                                    role="button"
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => {
+                                        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+                                        if(viewport) preserveScrollRef.current = viewport.scrollHeight;
+                                        loadMoreMessages();
+                                    }}
+                                    className="h-3 text-caption"
+                                 >
+                                    Failed to load more. Retry
+                                 </Button>
+                            </div>
+                        )}
+                        {messages.map((msg, i) => (
+                            <ChatMessageBubble
+                                key={msg.id}
+                                message={msg.content}
+                                isUser={msg.role === 'user'}
+                                assistantPhoto={photoSrc}
+                                assistantName={displayName}
+                                index={i}
+                            />
+                        ))}
+                        {isAssistantReplying && (
+                            <ChatMessageBubble
+                                key="typing-indicator"
+                                message=""
+                                isUser={false}
+                                assistantPhoto={photoSrc}
+                                assistantName={displayName}
+                                isLoading={true}
+                                index={messages.length}
+                            />
+                        )}
+                    </div>
+                )}
             </ScrollArea>
 
             {/* Connection status */}
-            {connectionStatus !== 'connected' && connectionStatusText && (
+            {!initialLoadError && connectionStatus !== 'connected' && connectionStatusText && (
                 <div className="flex flex-row gap-2 px-4 text-caption text-muted-foreground animate-pulse">
                     <MessageSquareMore className="h-4 w-4" />
                     {connectionStatusText}
@@ -289,10 +308,10 @@ export function AssistantProfileChatPanel({
                     <Textarea
                         ref={textareaRef}
                         rows={1}
-                        placeholder={isLoading ? "Loading messages..." : "Send a message..."}
+                        placeholder={initialLoadError ? "Connection failed" : isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
-                        disabled={isLoading || connectionStatus !== 'connected'}
+                        disabled={isLoading || initialLoadError || connectionStatus !== 'connected'}
                         className="pr-10 resize-none overflow-y-hidden text-body min-h-[36px]"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
@@ -303,7 +322,7 @@ export function AssistantProfileChatPanel({
                         aria-label="Send message"
                         size="icon"
                         className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                        disabled={isLoading || !inputValue.trim() || connectionStatus !== 'connected'}
+                        disabled={isLoading || !inputValue.trim() || initialLoadError || connectionStatus !== 'connected'}
                     >
                         {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

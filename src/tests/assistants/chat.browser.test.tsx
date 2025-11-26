@@ -1261,6 +1261,75 @@ describe('Assistant Profile Chat', () => {
             });
         });
 
+        it('shows error UI and prevents SSE connection on initial history load failure, allowing retry', {
+            meta: {
+                alias: 'History-Initial-Fail-Retry',
+                scenario: 'Initial getTranscripts fails -> User clicks Retry -> Success',
+                behavior: 'Error UI shown, SSE blocked. After retry, UI loads, SSE connects.'
+            }
+        }, async () => {
+            let callCount = 0;
+            const getTranscriptsMock = vi.fn(async () => {
+                callCount++;
+                if (callCount === 1) {
+                    return { detail: 'Simulated Initial Error' };
+                }
+                return [{
+                    id: 'msg-1',
+                    role: 'assistant',
+                    content: 'Loaded after retry',
+                    timestamp: new Date(),
+                    message_id: 1
+                }] as ChatMessage[];
+            });
+
+            const actionsOverride = {
+                chat: {
+                    getTranscripts: getTranscriptsMock,
+                    message: vi.fn(),
+                    updateTranscripts: vi.fn()
+                }
+            };
+
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={actionsOverride} />);
+
+            // 1. Wait for Error UI
+            await waitFor(() => {
+                expect(screen.getByText('Failed to load chat history')).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+            });
+
+            // 2. Assert NO SSE connection
+            expect(eventSourceInstances.length).toBe(0);
+            
+            // 3. Assert Input Disabled/Placeholder
+            const input = screen.getByRole('textbox');
+            expect(input).toBeDisabled();
+            expect(input).toHaveAttribute('placeholder', 'Connection failed');
+
+            // 4. Click Retry
+            await userEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+            // 5. Wait for Success UI
+            await waitFor(() => {
+                expect(screen.getByText('Loaded after retry')).toBeInTheDocument();
+            });
+
+            // 6. Assert SSE Connected
+            await waitFor(() => {
+                expect(eventSourceInstances.length).toBe(1);
+            });
+            
+            // 7. Manually trigger OPEN to enable input (since we use a mock)
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // 8. Assert Input Enabled
+            await waitFor(() => {
+                expect(input).not.toBeDisabled();
+            });
+            expect(input).toHaveAttribute('placeholder', 'Send a message...');
+        });
+
     });
 
 });
