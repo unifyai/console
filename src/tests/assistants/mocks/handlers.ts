@@ -15,39 +15,52 @@ export const getAssistantsEmpty = http.get('/api/assistant', () => {
 
 // --- Chat Handlers ---
 
-// Mock fetching transcripts (logs) - ONLY for assistant chat contexts
-// This handler only intercepts /api/logs when context contains 'ChatBot' or 'JaneDoe'
-// Otherwise it passes through to let interfaceHandlers handle it
+// Mock fetching transcripts (logs) with pagination support
 export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
     const url = new URL(request.url);
+    const filterExpr = url.searchParams.get('filter_expr') || '';
     const context = url.searchParams.get('context');
+    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
 
-    // Only handle assistant-specific contexts, let other /api/logs calls pass through
-    if (!context || (!context.includes('ChatBot') && !context.includes('JaneDoe'))) {
-        // Return undefined to let MSW continue to the next matching handler
-        return;
+    // Scenario: Simulate Pagination Failure for specific context
+    // We check if it's a pagination request (has message_id filter) and the context matches
+    if (context?.includes('FailPagination') && filterExpr.includes('message_id <')) {
+        return HttpResponse.json({ detail: 'Simulated Network Error' }, { status: 500 });
     }
 
-    // Return chat logs for assistant contexts
-    const logs = [
-        {
-            id: 1,
-            timestamp: new Date(Date.now() - 10000).toISOString(),
-            entries: { sender_id: 1, content: 'Hello assistant', medium: 'unify_message' }
-        },
-        {
-            id: 2,
-            timestamp: new Date(Date.now() - 8000).toISOString(),
-            entries: { sender_id: 0, content: 'Hello Jane, how can I help?', medium: 'unify_message' }
-        }
-    ];
+    // Parse 'message_id < X' from filter expression
+    const match = filterExpr.match(/message_id < (\d+)/);
+    const beforeId = match ? parseInt(match[1], 10) : null;
 
-    return HttpResponse.json({ 
-        params: {},
-        logs,
-        count: logs.length,
-        groups: {}
-    });
+    // Generate 75 messages to support 2 pages (50 + 25)
+    // IDs: 1 (Oldest) -> 75 (Newest)
+    const TOTAL_MESSAGES = 75;
+    
+    const allLogs = Array.from({ length: TOTAL_MESSAGES }, (_, i) => {
+        const id = i + 1;
+        return {
+            id: id,
+            // Timestamp: Spaced 1 minute apart
+            timestamp: new Date(Date.now() - (TOTAL_MESSAGES - id) * 1000 * 60).toISOString(),
+            entries: { 
+                sender_id: id % 2 === 0 ? 0 : 1, // Alternate between Assistant (0) and User (1)
+                content: `Message ${id}`, 
+                medium: 'unify_chat',
+                message_id: id 
+            }
+        };
+    }).reverse(); // Sort Newest -> Oldest (API default)
+
+    // Filter by pagination cursor
+    let filteredLogs = allLogs;
+    if (beforeId !== null) {
+        filteredLogs = filteredLogs.filter(log => log.entries.message_id < beforeId);
+    }
+
+    // Apply limit
+    const page = filteredLogs.slice(0, limit);
+
+    return HttpResponse.json({ logs: page });
 });
 
 // Mock sending a message

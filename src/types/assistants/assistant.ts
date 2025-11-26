@@ -171,7 +171,7 @@ export interface ReplicatePredictionResponse {
         cancel?: string;
     };
 }
- 
+
 
 
 export interface AssistantUpdatePayload {
@@ -299,7 +299,7 @@ export interface AssistantActions {
     design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     },
     "chat": {
-        getTranscripts: (assistantContext: string) => Promise<ChatMessage[] | ResponseProps>;
+        getTranscripts: (assistantContext: string, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
         updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
         message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     },

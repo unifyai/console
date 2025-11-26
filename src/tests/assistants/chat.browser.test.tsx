@@ -7,6 +7,7 @@ import { createMockAssistant } from './mocks/data';
 import { mockAssistantActions } from './mocks/actions';
 import { AssistantActions, Assistant } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
+import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 
 // --- Mock EventSource Infrastructure ---
 const originalEventSource = window.EventSource;
@@ -55,6 +56,44 @@ class ControllableMockEventSource {
         }
     }
 }
+
+// --- Helper: Real Fetch Implementation for Tests ---
+// This mimics the server action src/lib/assistants/chat.ts to hit the MSW handlers
+const fetchTranscriptsViaApi = async (assistantContext: string, beforeMessageId?: number): Promise<ChatMessage[] | any> => {
+    const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
+    let filter_expr = `medium == "unify_chat" and (sender_id == 1 or sender_id == 0)`;
+    if (beforeMessageId !== undefined) {
+        filter_expr += ` and message_id < ${beforeMessageId}`;
+    }
+
+    const params = new URLSearchParams({
+        project: 'Assistants',
+        context: `${assistantContext}/Transcripts`,
+        limit: limit.toString(),
+        filter_expr: filter_expr
+    });
+
+    try {
+        const response = await fetch(`/api/logs?${params.toString()}`);
+        if (!response.ok) {
+             const err = await response.json().catch(() => ({ detail: 'Fetch Error' }));
+             return { detail: err.detail || 'Error' };
+        }
+        const data = await response.json();
+        
+        // Map logs to ChatMessage (logic copied from src/lib/assistants/chat.ts)
+        return (data.logs || []).map((log: any) => ({
+            id: String(log.id),
+            role: log.entries.sender_id === 1 ? 'user' : 'assistant',
+            content: log.entries.content,
+            timestamp: new Date(log.timestamp),
+            message_id: log.entries.message_id
+        }));
+    } catch (e) {
+        return { detail: 'Network Error' };
+    }
+};
+
 
 // --- Test Wrapper ---
 const ChatTestWrapper = ({ 
@@ -121,9 +160,8 @@ describe('Assistant Profile Chat', () => {
         mockEventSourceInstance = null;
         eventSourceInstances = [];
         
-        // Setup Fresh Spy
+        // Setup Fresh Spy (but allow passthrough for our helper fetch)
         fetchSpy = vi.spyOn(window, 'fetch');
-        fetchSpy.mockResolvedValue({ ok: true, json: async () => ({}) } as Response);
     });
 
     afterEach(() => {
@@ -364,14 +402,14 @@ describe('Assistant Profile Chat', () => {
         it('processes high volume message burst without dropping frames', { 
             meta: { 
                 alias: 'SSE-Flood',
-                scenario: '50 messages arrive in a single batch update',
-                behavior: 'All 50 messages are rendered in order'
+                scenario: `${ASSISTANT_CHAT_LOADED_MESSAGES_COUNT} messages arrive in a single batch update`,
+                behavior: `All ${ASSISTANT_CHAT_LOADED_MESSAGES_COUNT} messages are rendered in order`
             } 
         }, async () => {
             render(<ChatTestWrapper initialHistory={[]} />);
             act(() => mockEventSourceInstance!.simulateOpen());
 
-            const messageCount = 50;
+            const messageCount = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
             const messages = Array.from({ length: messageCount }, (_, i) => ({
                 thread: 'unify_message_outbound',
                 id: `msg-${i}`,
@@ -575,7 +613,11 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'UI remains stable and rendered'
             } 
         }, async () => {
-            fetchSpy.mockRejectedValueOnce(new Error('Network Error'));
+            // Need to mock fetch to reject only for ACK requests, but pass through for transcripts if needed
+            fetchSpy.mockImplementation((url) => {
+                if (String(url).includes('/ack')) return Promise.reject(new Error('Network Error'));
+                return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
+            });
 
             render(<ChatTestWrapper initialHistory={[]} />);
             act(() => mockEventSourceInstance!.simulateOpen());
@@ -971,6 +1013,178 @@ describe('Assistant Profile Chat', () => {
 
             // Assert that despite the re-render, the fetch was only initiated once
             expect(getTranscriptsMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('loads older messages when scrolling to the top', {
+            meta: {
+                alias: 'History-Pagination-Load',
+                scenario: `User scrolls to top of chat with ${ASSISTANT_CHAT_LOADED_MESSAGES_COUNT}+ messages`,
+                behavior: 'Older messages are fetched and prepended'
+            }
+        }, async () => {
+            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            
+            // 1. Initial Render (loads first messages: IDs 75 -> 26)
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Message 75')).toBeInTheDocument();
+                expect(screen.getByText('Message 26')).toBeInTheDocument();
+            });
+
+            expect(screen.queryByText('Message 25')).not.toBeInTheDocument();
+
+            // 2. Simulate Scroll to Top
+            const scrollArea = screen.getByTestId('chat-scroll-area');
+            const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            fireEvent.scroll(viewport, { target: { scrollTop: 0 } });
+
+            // 3. Verify older messages appear (IDs 25 -> 1)
+            await waitFor(() => {
+                expect(screen.getByText('Message 25')).toBeInTheDocument();
+                expect(screen.getByText('Message 1')).toBeInTheDocument();
+            });
+
+            // Verify total order
+            const bubbles = getChatBubbles();
+            expect(bubbles[0]).toBe('Message 1');
+            expect(bubbles[bubbles.length - 1]).toBe('Message 75');
+            expect(bubbles.length).toBe(75);
+        });
+
+        it('displays "No more messages" when history is fully loaded', {
+            meta: {
+                alias: 'History-Pagination-End',
+                scenario: 'User loads all available history',
+                behavior: 'End of history indicator is shown'
+            }
+        }, async () => {
+            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
+
+            // Wait for first batch
+            await waitFor(() => {
+                expect(screen.getByText('Message 26')).toBeInTheDocument();
+            });
+
+            // Scroll to top to load second batch (25-1)
+            const scrollArea = screen.getByTestId('chat-scroll-area');
+            const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            fireEvent.scroll(viewport, { target: { scrollTop: 0 } });
+
+            // Wait for second batch
+            await waitFor(() => {
+                expect(screen.getByText('Message 1')).toBeInTheDocument();
+            });
+
+            // Expect "No more messages" text
+            await waitFor(() => {
+                expect(screen.getByText('No more messages')).toBeInTheDocument();
+            });
+        });
+
+        it('handles pagination failure gracefully', {
+            meta: {
+                alias: 'History-Pagination-Fail',
+                scenario: 'Pagination API call fails',
+                behavior: 'Error is logged, existing messages remain, no crash'
+            }
+        }, async () => {
+            // Use specific assistant name to trigger handler error (logic inside handlers.ts)
+            const failAssistant = createMockAssistant({ first_name: 'FailPagination', surname: 'Test' });
+            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            render(<ChatTestWrapper initialHistory={undefined} assistantOverride={failAssistant} assistantActionsOverride={apiOverride} />);
+
+            // Wait for first batch (Handler logic: context includes "FailPagination", but only fails if filter includes 'message_id <')
+            // Initial fetch does NOT have 'message_id <', so it should succeed.
+            await waitFor(() => {
+                expect(screen.getByText('Message 26')).toBeInTheDocument();
+            });
+
+            // Scroll to top
+            const scrollArea = screen.getByTestId('chat-scroll-area');
+            const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            fireEvent.scroll(viewport, { target: { scrollTop: 0 } });
+
+            // Handler should return 500
+            // Component should log error to console (as per implementation) and stop loading state.
+            await waitFor(() => {
+                expect(consoleSpy).toHaveBeenCalledWith("Failed to load more messages:", expect.anything());
+            });
+
+            // Verify state didn't crash / messages still there
+            expect(screen.getByText('Message 26')).toBeInTheDocument();
+            expect(screen.getByText('Message 75')).toBeInTheDocument();
+            
+            consoleSpy.mockRestore();
+        });
+
+        it('allows retrying after pagination failure', {
+            meta: {
+                alias: 'History-Pagination-Retry',
+                scenario: 'Pagination fails, user clicks retry, pagination succeeds',
+                behavior: 'Error message is replaced by new messages'
+            }
+        }, async () => {
+            const successMessages = [
+                { id: 'msg-retry-1', role: 'assistant', content: 'Retried Message 1', timestamp: new Date(), message_id: 10 },
+                { id: 'msg-retry-2', role: 'assistant', content: 'Retried Message 2', timestamp: new Date(), message_id: 11 }
+            ] as ChatMessage[];
+            
+            let paginationAttempt = 0;
+            const getTranscriptsMock = vi.fn(async (context: string, beforeMessageId?: number) => {
+                // Initial Load
+                if (beforeMessageId === undefined) {
+                     return Array.from({ length: 50 }, (_, i) => ({
+                         id: `msg-initial-${i}`,
+                         role: 'user',
+                         content: `Initial ${i}`,
+                         timestamp: new Date(),
+                         message_id: 100 + i
+                     })) as ChatMessage[];
+                }
+                
+                // Pagination
+                paginationAttempt++;
+                if (paginationAttempt === 1) {
+                    return { detail: 'Simulated Network Error' };
+                }
+                return successMessages;
+            });
+
+            const apiOverride = { chat: { getTranscripts: getTranscriptsMock } };
+
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
+
+            // 1. Initial Load
+            await waitFor(() => {
+                expect(screen.getByText('Initial 0')).toBeInTheDocument();
+            });
+
+            // 2. Scroll to top to trigger pagination
+            const scrollArea = screen.getByTestId('chat-scroll-area');
+            const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            fireEvent.scroll(viewport, { target: { scrollTop: 0 } });
+
+            // 3. Verify Error State
+            await waitFor(() => {
+                // Use regex to be resilient against whitespace
+                expect(screen.getByRole('button', { name: /failed to load more\. retry/i })).toBeInTheDocument();
+            });
+
+            // 4. Click Retry
+            const user = userEvent.setup();
+            const retryBtn = screen.getByRole('button', { name: /failed to load more\. retry/i });
+            await user.click(retryBtn);
+
+            // 5. Verify Success
+            await waitFor(() => {
+                expect(screen.queryByRole('button', { name: /failed to load more\. retry/i })).not.toBeInTheDocument();
+                expect(screen.getByText('Retried Message 1')).toBeInTheDocument();
+                expect(screen.getByText('Retried Message 2')).toBeInTheDocument();
+            });
         });
 
     });

@@ -10,7 +10,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 
 /* ---------------------
-   ChatMessageBubble — WITH TEST SELECTORS
+   ChatMessageBubble
 ------------------------ */
 const ChatMessageBubble = ({
     message,
@@ -101,7 +101,12 @@ export function AssistantProfileChatPanel({
         isAssistantReplying,
         handleInputChange,
         sendMessage,
-        connectionStatus
+        connectionStatus,
+        loadMoreMessages,
+        hasMoreMessages,
+        isLoadingMore,
+        loadMoreError,
+        hasFetchedHistory
     } = useAssistantProfileChat(
         assistant,
         assistantActions,
@@ -115,6 +120,7 @@ export function AssistantProfileChatPanel({
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     const prevScrollHeightRef = React.useRef<number | null>(null);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+    const preserveScrollRef = React.useRef<number | null>(null);
 
     /* Auto-resize textarea */
     React.useEffect(() => {
@@ -142,7 +148,36 @@ export function AssistantProfileChatPanel({
         }
     }, [inputValue]);
 
-    /* Auto-scroll behavior */
+    /* Infinite scroll trigger */
+    React.useEffect(() => {
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+        if (!viewport) return;
+        const handleScroll = () => {
+            if (viewport.scrollTop < 10 && hasMoreMessages && !isLoadingMore && !isLoading && !loadMoreError) {
+                preserveScrollRef.current = viewport.scrollHeight;
+                loadMoreMessages();
+            }
+        };
+        viewport.addEventListener('scroll', handleScroll);
+        return () => viewport.removeEventListener('scroll', handleScroll);
+    }, [hasMoreMessages, isLoadingMore, isLoading, loadMoreMessages, loadMoreError]);
+
+    /* Scroll position preservation when loading older messages */
+    React.useLayoutEffect(() => {
+        if (preserveScrollRef.current !== null) {
+            const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+            if (viewport) {
+                const newHeight = viewport.scrollHeight;
+                const diff = newHeight - preserveScrollRef.current;
+                if (diff > 0) {
+                    viewport.scrollTop = diff;
+                }
+                preserveScrollRef.current = null;
+            }
+        }
+    }, [messages]);
+
+    /* Auto-scroll behavior (bottom stickiness) */
     React.useEffect(() => {
         const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
             '[data-radix-scroll-area-viewport]'
@@ -154,14 +189,15 @@ export function AssistantProfileChatPanel({
 
         const wasBottom =
             prevScrollHeight === null ||
-            prevScrollHeight - scrollTop - clientHeight <= 10;
+            prevScrollHeight - scrollTop - clientHeight <= 20;
 
-        if (scrollHeight !== prevScrollHeight && wasBottom) {
+        // Only auto-scroll to bottom if we aren't currently loading old history (which keeps us at top)
+        if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
             viewport.scrollTop = scrollHeight;
         }
 
         prevScrollHeightRef.current = scrollHeight;
-    }, [messages, isAssistantReplying]);
+    }, [messages, isAssistantReplying, isLoadingMore]);
 
     const sendMessageOnEnter = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -186,6 +222,34 @@ export function AssistantProfileChatPanel({
                 data-testid="chat-scroll-area"
             >
                 <div className="space-y-4">
+                    {hasFetchedHistory && !hasMoreMessages && (
+                        <div className="w-full text-center py-1 text-caption text-muted-foreground animate-fade-in">
+                            No more messages
+                        </div>
+                    )}
+                    {isLoadingMore && (
+                        <div className="w-full flex flex-row gap-2 justify-center py-1 text-caption text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading messages
+                        </div>
+                    )}
+                    {loadMoreError && (
+                         <div className="w-full flex flex-col items-center gap-2 py-1 animate-fade-in">
+                             <Button 
+                                role="button"
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+                                    if(viewport) preserveScrollRef.current = viewport.scrollHeight;
+                                    loadMoreMessages();
+                                }}
+                                className="h-3 text-caption"
+                             >
+                                Failed to load more. Retry
+                             </Button>
+                        </div>
+                    )}
                     {messages.map((msg, i) => (
                         <ChatMessageBubble
                             key={msg.id}

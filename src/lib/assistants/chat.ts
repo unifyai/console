@@ -4,16 +4,19 @@ import { getCurrentUser } from "@/lib/user/user";
 import { ChatCompletionMessage, ChatCompletionRequest, ChatMessage, UnifyMessage } from "@/types/assistants/chat";
 import { ResponseProps } from "@/types/common";
 import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
+import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from "@/constants/assistants/settings";
 
 export const getTranscripts = async (apiKey: string) => {
-    return async (assistantContext: string): Promise<ChatMessage[] | ResponseProps> => {
+    return async (assistantContext: string, beforeMessageId?: number): Promise<ChatMessage[] | ResponseProps> => {
         "use server";
         try {
             const project = "Assistants";
             const context = `${assistantContext}/Transcripts`;
-            const limit = 50;
-            const filter_expr = `medium == "unify_message" and (sender_id == 1 or sender_id == 0)`;
-            
+            const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
+            let filter_expr = `medium == "unify_message" and (sender_id == 1 or sender_id == 0)`;
+            if (beforeMessageId !== undefined) {
+                filter_expr += ` and message_id < ${beforeMessageId}`;
+            }
             let url = `${process.env.NEXTAUTH_URL}/api/logs?project=${project}&context=${context}&limit=${limit}&filter_expr=${encodeURIComponent(filter_expr)}`;
 
             const response = await fetch(url, {
@@ -26,7 +29,6 @@ export const getTranscripts = async (apiKey: string) => {
                 console.warn(`[getTranscripts] No logs found for context '${context}', returning empty array.`);
                 return [];
             }
-            
             if (!response.ok) {
                 let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
                 try {
@@ -40,7 +42,6 @@ export const getTranscripts = async (apiKey: string) => {
                 console.error(`[getTranscripts] Error response: ${errorDetail}`);
                 return { detail: errorDetail };
             }
-            
             const data = await response.json();
             const logsResponse = data as LogsResponseProps;
             const mappedMessages = (logsResponse.logs as LogProps[])
@@ -59,7 +60,6 @@ export const getTranscripts = async (apiKey: string) => {
                     };
                 })
                 .filter((msg): msg is ChatMessage => msg !== null);
-            
             return mappedMessages;
 
         } catch (error) {
@@ -74,14 +74,13 @@ export const updateTranscripts = async (apiKey: string) => {
     return async (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]): Promise<ResponseProps> => {
         "use server";
         if (messages.length === 0) return { info: "No messages to log." };
-        
         try {
             const entries = messages.map(msg => ({
                 message_id: msg.message_id,
                 sender_id: msg.role === 'user' ? 1 : 0,
                 receiver_ids: [msg.role === 'user' ? 0 : 1],
                 content: msg.content,
-                medium: "unify_chat",
+                medium: "unify_message",
                 timestamp: msg.timestamp.toISOString(),
                 exchange_id: 0 as const,
             }));
@@ -95,7 +94,6 @@ export const updateTranscripts = async (apiKey: string) => {
                 params: {},
                 entries: entries
             };
-            
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/logs`,
                 {
@@ -107,9 +105,7 @@ export const updateTranscripts = async (apiKey: string) => {
                     body: JSON.stringify(payload)
                 }
             );
-            
             const responseText = await response.text();
-            
             if (!response.ok) {
                 let errorDetail = `Failed to update history: ${response.statusText}`;
                 try {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage } from '@/types/assistants/chat';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
+import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 
 export function useAssistantProfileChat(
     assistant: Assistant | null,
@@ -24,7 +25,10 @@ export function useAssistantProfileChat(
     const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
     const [isInitialLoading, setIsInitialLoading] = React.useState(false);
     const [connectionStatus, setConnectionStatus] = React.useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
-
+    const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
+    const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+    const [loadMoreError, setLoadMoreError] = React.useState(false);
+    const [hasFetchedHistory, setHasFetchedHistory] = React.useState(false);
     const firstViewProcessed = React.useRef(false);
     const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -37,6 +41,13 @@ export function useAssistantProfileChat(
             historyLoadedRef.current.add(assistantId);
         }
     }, [assistantId, chatHistories]);
+
+    // Reset pagination state when assistant changes
+    React.useEffect(() => {
+        setHasMoreMessages(true);
+        setHasFetchedHistory(false);
+        setLoadMoreError(false);
+    }, [assistantId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInputValue(e.target.value);
@@ -92,14 +103,17 @@ export function useAssistantProfileChat(
                     historyLoadedRef.current.add(assistantId);
                     if ('detail' in historyResult) {
                         setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                        setHasMoreMessages(false);
                     } else {
                         const history = (historyResult as ChatMessage[]).reverse();
                         setChatHistories(prev => ({ ...prev, [assistantId]: history }));
+                        if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) setHasMoreMessages(false);
                     }
                 })
                 .catch(() => {
                     historyLoadedRef.current.add(assistantId);
                     setChatHistories(prev => ({ ...prev, [assistantId]: [] }));
+                    setHasMoreMessages(false);
                 })
                 .finally(() => {
                     setIsInitialLoading(false);
@@ -109,6 +123,44 @@ export function useAssistantProfileChat(
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
+
+    // Pagination: Load more messages
+    const loadMoreMessages = async () => {
+        if (isLoadingMore || !hasMoreMessages || !assistant || !assistantId) return;
+        const oldestMessage = messages[0];
+        if (!oldestMessage || oldestMessage.message_id === undefined) {
+            setHasMoreMessages(false);
+            return;
+        }
+        
+        setLoadMoreError(false);
+        setIsLoadingMore(true);
+        const context = `${assistant.first_name}${assistant.surname}`; 
+        try {
+            const result = await assistantActions.chat.getTranscripts(context, oldestMessage.message_id);
+            setHasFetchedHistory(true);
+            if ('detail' in result) {
+                console.error("Failed to load more messages:", result.detail);
+                setLoadMoreError(true);
+            } else {
+                const newMessages = (result as ChatMessage[]).reverse();
+                if (newMessages.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
+                    setHasMoreMessages(false);
+                }
+                setChatHistories(prev => {
+                    const current = prev[assistantId] || [];
+                    const existingIds = new Set(current.map(m => m.id));
+                    const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
+                    return { ...prev, [assistantId]: [...uniqueNewMessages, ...current] };
+                });
+            }
+        } catch (error) {
+            console.error("Error loading more messages", error);
+            setLoadMoreError(true);
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
 
     // PubSub SSE Connection (client-side ACK model)
     React.useEffect(() => {
@@ -142,10 +194,8 @@ export function useAssistantProfileChat(
 
                 if (messagePayload.thread === 'unify_message_outbound' || messagePayload.event) {
                     const content = messagePayload.event?.content ?? messagePayload.event?.body ?? messagePayload.content ?? messagePayload.raw_content ?? '';
-                    
                     const incomingId = messagePayload.id;
                     const serverMsgId = incomingId || uuidv4();
-                    
                     const publishTimeStr = messagePayload.publishTime;
                     const timestamp = publishTimeStr ? new Date(publishTimeStr) : new Date();
 
@@ -269,5 +319,10 @@ export function useAssistantProfileChat(
         handleInputChange,
         sendMessage,
         connectionStatus,
+        loadMoreMessages,
+        hasMoreMessages,
+        isLoadingMore,
+        loadMoreError,
+        hasFetchedHistory
     };
 }
