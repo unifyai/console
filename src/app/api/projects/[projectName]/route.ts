@@ -60,15 +60,17 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: { projectName: string } }
 ) {
+    const bodyObj = await request.json();
     return await fetch(
         `${baseUrl}/project/${params.projectName}`, 
         {
             method: "PATCH",
             headers: {
                 "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Content-Type": "application/json",
                 "accept": "application/json",
             },
-            body: JSON.stringify(request.body)
+            body: JSON.stringify(bodyObj)
         }
     );
 }
