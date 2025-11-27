@@ -46,7 +46,7 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
                 <TooltipTrigger asChild>
                     {/* This span allows hover events for the tooltip even when the button is disabled. */}
                     <span>
-                        <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground", className)} {...props}>
+                        <Button variant="ghost" size="icon" className={cn("h-10 w-10 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground", className)} aria-label={tooltip}{...props}>
                             {children}
                         </Button>
                     </span>
@@ -138,6 +138,7 @@ export function AssistantCommunicationControls({
                                                 )}
                                                 onClick={onToggleRemoteControl}
                                                 disabled={isRemoteControlLoading || !isConnectionEstablished}
+                                                aria-label={!isConnectionEstablished ? "Available after assistant joins" : (isRemoteControlActive ? "Hide assistant screen" : "Show assistant screen")}
                                             >
                                                 {isRemoteControlLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Computer className="h-5 w-5" />}
                                             </Button>
@@ -167,6 +168,7 @@ export function AssistantCommunicationControls({
                                                     )}
                                                     onClick={onToggleRemoteControlInteractive}
                                                     disabled={isRemoteControlLoading}
+                                                    aria-label={isRemoteControlInteractive ? "Disable mouse & keyboard control" : "Enable mouse & keyboard control"}
                                                 >
                                                     {isRemoteControlInteractive ? <Pointer className="h-5 w-5" /> : <PointerOff className="h-5 w-5" />}
                                                 </Button>

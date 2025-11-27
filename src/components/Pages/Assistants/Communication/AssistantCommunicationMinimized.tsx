@@ -44,7 +44,7 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
                 <TooltipTrigger asChild>
                     {/* This span allows hover events for the tooltip even when the button is disabled. */}
                     <span>
-                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} {...props}>
+                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} aria-label={tooltip} {...props}>
                             {children}
                         </Button>
                     </span>

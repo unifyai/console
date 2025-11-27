@@ -182,7 +182,15 @@ export function AssistantProfilePanel({
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onStartCall(assistant, 'video')} disabled={isCallButtonDisabled}>
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7" 
+                                                            onClick={() => onStartCall(assistant, 'video')} 
+                                                            disabled={isCallButtonDisabled}
+                                                            data-testid="call-return-button"
+                                                        >
                                                             {(isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
                                                         </Button>
                                                     </TooltipTrigger>
@@ -197,7 +205,14 @@ export function AssistantProfilePanel({
                                                     <Tooltip>
                                                         <DropdownMenuTrigger asChild>
                                                             <TooltipTrigger asChild>
-                                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={isCallButtonDisabled}>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    className="h-7 w-7" 
+                                                                    disabled={isCallButtonDisabled}
+                                                                    data-testid="call-menu-trigger"
+                                                                >
                                                                     <Phone className="h-4 w-4" />
                                                                 </Button>
                                                             </TooltipTrigger>
@@ -208,11 +223,11 @@ export function AssistantProfilePanel({
                                                     </Tooltip>
                                                 </TooltipProvider>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')}>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')} data-testid="call-option-video">
                                                         <Video className="mr-2 h-4 w-4" />
                                                         <span>Video Call</span>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')}>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')} data-testid="call-option-audio">
                                                         <Phone className="mr-2 h-4 w-4" />
                                                         <span>Audio Call</span>
                                                     </DropdownMenuItem>

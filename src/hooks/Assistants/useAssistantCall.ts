@@ -5,6 +5,8 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
 
 export function useAssistantCall(
     room: Room,
@@ -75,23 +77,44 @@ export function useAssistantCall(
         setConnectionError(null);
         try {
             const assistantName = `${assistant.first_name}${assistant.surname}`;
-            
-            // Step 1: Get connection details for the user
-            const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
-            if (isCancelledRef.current) return;
-            if ('detail' in details) {
-                throw new Error(details.detail || 'Could not get call details.');
-            }
-            
-            const connDetails = details as ConnectionDetails;
-            setConnectionDetails(connDetails);
+            let connDetails: ConnectionDetails | null = null;
 
-            // Step 2: Dispatch the assistant to join the room
-            const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
-            if (isCancelledRef.current) return;
-            if (dispatchResult.detail) {
-                throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
+            // Retry loop for connection setup
+            for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+                if (isCancelledRef.current) return;
+
+                try {
+                    // Step 1: Get connection details for the user
+                    const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
+                    if (isCancelledRef.current) return;
+                    if ('detail' in details) {
+                        throw new Error(details.detail || 'Could not get call details.');
+                    }
+                    connDetails = details as ConnectionDetails;
+                    setConnectionDetails(connDetails);
+
+                    // Step 2: Dispatch the assistant to join the room
+                    const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
+                    if (isCancelledRef.current) return;
+                    if (dispatchResult.detail) {
+                        throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
+                    }
+
+                    // If we get here, both steps succeeded
+                    break;
+
+                } catch (err: any) {
+                    if (attempt > MAX_RETRIES) {
+                        throw err; // Rethrow on final attempt to trigger catch block below
+                    }
+                    
+                    console.warn(`[useAssistantCall] Connection setup attempt ${attempt} failed. Retrying...`, err);
+                    const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
+
+            if (!connDetails) return; // Should be covered by throw above, but safety check
 
             // Step 3: Connect the user's client
             await room.connect(connDetails.serverUrl, connDetails.token);
@@ -106,12 +129,13 @@ export function useAssistantCall(
             setIsConnecting(false); // User is connected, now wait for assistant
 
             if (room.numParticipants < 2) { // Check if assistant isn't already there
-                setIsWaitingForAssistant(true);
+                setIsWaitingForAssistant(true);                
+                const timeoutDuration = (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) || ASSISTANT_JOIN_TIMEOUT;
                 assistantJoinTimeoutRef.current = setTimeout(() => {
                     if (isCancelledRef.current) return;
                     setConnectionError(`${assistant.first_name} is taking too long to join.`);
                     setIsWaitingForAssistant(false);
-                }, ASSISTANT_JOIN_TIMEOUT);
+                }, timeoutDuration);
             } else {
                 setIsWaitingForAssistant(false); // Assistant was already present
             }
@@ -124,6 +148,10 @@ export function useAssistantCall(
                 console.error("Failed to connect to LiveKit room", e);
                 toast.error(`Failed to start call. Please try again.`);
                 setError(`Failed to start call: ${e.message}`);
+            }
+            // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
+            if (room.state !== 'disconnected') {
+                 room.disconnect().catch(console.error);
             }
             onDisconnected();
         }
@@ -237,6 +265,15 @@ export function useAssistantCall(
             clearAssistantJoinTimeout();
         };
     }, [room, onDisconnected, clearAssistantJoinTimeout]);
+
+    // Ensure proper cleanup on component unmount
+    React.useEffect(() => {
+        return () => {
+            if (room.state !== 'disconnected') {
+                room.disconnect();
+            }
+        };
+    }, [room]);
 
     return {
         room,

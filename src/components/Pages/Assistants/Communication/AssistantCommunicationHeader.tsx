@@ -22,7 +22,7 @@ export function AssistantCommunicationHeader({ assistantName, onMinimize, onPopO
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <span>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={onPopOut} disabled={isPopOutDisabled}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={onPopOut} disabled={isPopOutDisabled} aria-label="Open in new tab">
                                         <ExternalLink className="h-4 w-4" />
                                     </Button>
                                 </span>
@@ -36,7 +36,7 @@ export function AssistantCommunicationHeader({ assistantName, onMinimize, onPopO
                 <TooltipProvider delayDuration={100}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={onMinimize}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={onMinimize} aria-label="Minimize">
                                 <Minus className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
