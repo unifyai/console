@@ -38,6 +38,12 @@ export default defineConfig({
           'import.meta.env.VITE_TAKE_SCREENSHOTS': JSON.stringify(
             process.env.VITE_TAKE_SCREENSHOTS === 'true'
           ),
+          // Define process.env for browser tests (Next.js components use this)
+          'process.env': JSON.stringify({
+            NEXT_PUBLIC_DEBUG_PERFORMANCE: 'false',
+            NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES: 'false',
+            NODE_ENV: 'test',
+          }),
         },
         test: {
           name: 'browser',

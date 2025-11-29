@@ -1,0 +1,537 @@
+/**
+ * Plot Tile Test Harness
+ * 
+ * A reusable wrapper for testing plot/chart visualization behaviors
+ * including axis selection, plot type changes, and settings.
+ * 
+ * IMPROVED: Uses REAL Zustand store and hooks (`usePlotTile`).
+ */
+import React, { useState, useCallback, useEffect } from 'react';
+import { render, RenderResult } from '@testing-library/react';
+import { Settings, Maximize2, X } from 'lucide-react';
+
+// Real Store Imports
+import { StoreProvider, useStoreApiContext, useStoreContext } from '../../../../contexts/providers/StoreProvider';
+import { usePlotTile } from '../../../../contexts/hooks/tile/usePlotTile';
+import { initTile, Tile } from '../../../../contexts/slices/selectors/tile';
+import { initPlotTile, PlotTile } from '../../../../contexts/slices/selectors/plotTile';
+import { initTab } from '../../../../contexts/slices/selectors/tab';
+import { IStoreState } from '../../../../contexts/store';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export type PlotType = 'scatter' | 'line' | 'bar';
+
+export interface DataPoint {
+  x: number;
+  y: number;
+  label?: string;
+  category?: string;
+}
+
+export interface PlotTileCallbacks {
+  onXAxisChange?: (column: string) => void;
+  onYAxisChange?: (column: string) => void;
+  onPlotTypeChange?: (type: PlotType) => void;
+  onColorByChange?: (column: string | null) => void;
+  onSettingsToggle?: (open: boolean) => void;
+  onFocusModeToggle?: (focused: boolean) => void;
+}
+
+export interface PlotTileTestOptions {
+  /** Initial data points */
+  initialData?: DataPoint[];
+  /** Available columns for axis selection */
+  columns?: string[];
+  /** Initial X axis column */
+  initialXAxis?: string;
+  /** Initial Y axis column */
+  initialYAxis?: string;
+  /** Initial plot type */
+  initialPlotType?: PlotType;
+  /** Initial color by column */
+  initialColorBy?: string | null;
+  /** Initial settings panel state */
+  initialSettingsOpen?: boolean;
+  /** Initial focus mode state */
+  initialFocusMode?: boolean;
+  /** Callbacks for actions */
+  callbacks?: PlotTileCallbacks;
+}
+
+export interface PlotTileTestResult extends RenderResult {
+  /** Get current X axis column */
+  getXAxis: () => string;
+  /** Get current Y axis column */
+  getYAxis: () => string;
+  /** Get current plot type */
+  getPlotType: () => PlotType;
+  /** Get current color by column */
+  getColorBy: () => string | null;
+  /** Check if settings panel is open */
+  isSettingsOpen: () => boolean;
+  /** Check if focus mode is active */
+  isFocusMode: () => boolean;
+  /** Set X axis column */
+  setXAxis: (column: string) => void;
+  /** Set Y axis column */
+  setYAxis: (column: string) => void;
+  /** Set plot type */
+  setPlotType: (type: PlotType) => void;
+  /** Set color by column */
+  setColorBy: (column: string | null) => void;
+  /** Toggle settings panel */
+  toggleSettings: () => void;
+  /** Toggle focus mode */
+  toggleFocusMode: () => void;
+}
+
+// =============================================================================
+// Mock Data
+// =============================================================================
+
+export function createMockPlotData(count: number = 20): DataPoint[] {
+  const categories = ['A', 'B', 'C'];
+  return Array.from({ length: count }, (_, i) => ({
+    x: i * 10 + Math.random() * 5,
+    y: Math.random() * 100,
+    label: `Point ${i + 1}`,
+    category: categories[i % categories.length],
+  }));
+}
+
+// =============================================================================
+// Internal State Container
+// =============================================================================
+
+interface StateContainer {
+  getXAxis: () => string;
+  getYAxis: () => string;
+  getPlotType: () => PlotType;
+  getColorBy: () => string | null;
+  isSettingsOpen: () => boolean;
+  isFocusMode: () => boolean;
+  setXAxis: (column: string) => void;
+  setYAxis: (column: string) => void;
+  setPlotType: (type: PlotType) => void;
+  setColorBy: (column: string | null) => void;
+  toggleSettings: () => void;
+  toggleFocusMode: () => void;
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const TAB_ID = 'test-tab';
+const TILE_ID = 'test-plot-tile';
+
+// =============================================================================
+// Plot Tile Inner Component (Connected to Store)
+// =============================================================================
+
+interface PlotTileInnerProps extends PlotTileTestOptions {
+  stateContainerRef: React.MutableRefObject<StateContainer | null>;
+}
+
+function PlotTileInner({
+  initialData,
+  columns = ['x', 'y', 'score', 'timestamp', 'category'],
+  initialSettingsOpen = false,
+  initialFocusMode = false,
+  callbacks = {},
+  stateContainerRef,
+}: PlotTileInnerProps) {
+  // Access store via hooks
+  const { plotTile, plotTileActions, exists } = usePlotTile(TILE_ID, TAB_ID);
+  const storeUpdateTile = useStoreContext(state => state.updateTile);
+  
+  // Local state for UI things not yet in store (or mocked for this test)
+  const [data] = useState<DataPoint[]>(initialData ?? createMockPlotData());
+  const [settingsOpen, setSettingsOpen] = useState(initialSettingsOpen);
+  const [focusMode, setFocusMode] = useState(initialFocusMode);
+  const [hoveredPoint, setHoveredPoint] = useState<DataPoint | null>(null);
+
+  // ==========================================================================
+  // Handlers
+  // ==========================================================================
+
+  const handleSetXAxis = useCallback((column: string) => {
+    plotTileActions?.setXAxis(column);
+    callbacks.onXAxisChange?.(column);
+  }, [plotTileActions, callbacks]);
+
+  const handleSetYAxis = useCallback((column: string) => {
+    plotTileActions?.setYAxis(column);
+    callbacks.onYAxisChange?.(column);
+  }, [plotTileActions, callbacks]);
+
+  const handleSetPlotType = useCallback((type: PlotType) => {
+    plotTileActions?.setPlotType(type);
+    callbacks.onPlotTypeChange?.(type);
+  }, [plotTileActions, callbacks]);
+
+  const handleSetColorBy = useCallback((column: string | null) => {
+    plotTileActions?.setPlotGroupBy(column ?? undefined);
+    callbacks.onColorByChange?.(column);
+  }, [plotTileActions, callbacks]);
+
+  const handleToggleSettings = useCallback(() => {
+    setSettingsOpen((prev) => {
+      const newValue = !prev;
+      callbacks.onSettingsToggle?.(newValue);
+      return newValue;
+    });
+  }, [callbacks]);
+
+  const handleToggleFocusMode = useCallback(() => {
+    setFocusMode((prev) => {
+      const newValue = !prev;
+      callbacks.onFocusModeToggle?.(newValue);
+      return newValue;
+    });
+  }, [callbacks]);
+
+  // ==========================================================================
+  // Expose state to test via ref
+  // ==========================================================================
+
+  useEffect(() => {
+    stateContainerRef.current = {
+      getXAxis: () => plotTile?.x_axis || '',
+      getYAxis: () => plotTile?.y_axis || '',
+      getPlotType: () => (plotTile?.plot_type as PlotType) || 'scatter',
+      getColorBy: () => plotTile?.plot_group_by || null,
+      isSettingsOpen: () => settingsOpen,
+      isFocusMode: () => focusMode,
+      setXAxis: handleSetXAxis,
+      setYAxis: handleSetYAxis,
+      setPlotType: handleSetPlotType,
+      setColorBy: handleSetColorBy,
+      toggleSettings: handleToggleSettings,
+      toggleFocusMode: handleToggleFocusMode,
+    };
+  });
+
+  if (!stateContainerRef.current) {
+    // Initial mock state before store is ready/accessed
+    stateContainerRef.current = {
+      getXAxis: () => '',
+      getYAxis: () => '',
+      getPlotType: () => 'scatter',
+      getColorBy: () => null,
+      isSettingsOpen: () => settingsOpen,
+      isFocusMode: () => focusMode,
+      setXAxis: handleSetXAxis,
+      setYAxis: handleSetYAxis,
+      setPlotType: handleSetPlotType,
+      setColorBy: handleSetColorBy,
+      toggleSettings: handleToggleSettings,
+      toggleFocusMode: handleToggleFocusMode,
+    };
+  }
+
+  // Wait for store to initialize
+  if (!exists || !plotTile) {
+    return <div>Loading...</div>;
+  }
+
+  // ==========================================================================
+  // Render helpers
+  // ==========================================================================
+
+  const getPointColor = (point: DataPoint) => {
+    if (!plotTile.plot_group_by) return '#3b82f6';
+    const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b'];
+    const index = point.category ? ['A', 'B', 'C', 'D'].indexOf(point.category) : 0;
+    return colors[index % colors.length];
+  };
+
+  // ==========================================================================
+  // Render
+  // ==========================================================================
+
+  const plotContent = (
+    <div
+      data-testid="plot-tile-container"
+      className={`bg-white border rounded-lg ${focusMode ? 'fixed inset-4 z-50' : ''}`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b">
+        <h3 className="font-semibold">Plot</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleToggleSettings}
+            className={`p-1 rounded ${settingsOpen ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}`}
+            data-testid="settings-button"
+            aria-pressed={settingsOpen}
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleToggleFocusMode}
+            className="p-1 rounded hover:bg-gray-100"
+            data-testid="focus-mode-button"
+          >
+            {focusMode ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex">
+        {/* Plot area */}
+        <div className="flex-1 p-4">
+          {/* Simulated chart */}
+          <div
+            className="relative w-full h-64 bg-gray-50 border rounded"
+            data-testid="plot-canvas"
+            data-plot-type={plotTile.plot_type || 'scatter'}
+          >
+            {/* Y axis label */}
+            <div
+              className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-gray-500"
+              data-testid="y-axis-label"
+            >
+              {plotTile.y_axis}
+            </div>
+
+            {/* X axis label */}
+            <div
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-gray-500"
+              data-testid="x-axis-label"
+            >
+              {plotTile.x_axis}
+            </div>
+
+            {/* Data points */}
+            <svg className="w-full h-full" data-testid="plot-svg">
+              {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && data.map((point, i) => (
+                <circle
+                  key={i}
+                  cx={`${(point.x / 200) * 100}%`}
+                  cy={`${100 - (point.y / 100) * 100}%`}
+                  r={6}
+                  fill={getPointColor(point)}
+                  className="cursor-pointer"
+                  data-testid={`data-point-${i}`}
+                  onMouseEnter={() => setHoveredPoint(point)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+              ))}
+              {plotTile.plot_type === 'line' && (
+                <polyline
+                  points={data.map((p, i) => 
+                    `${(p.x / 200) * 100}%,${100 - (p.y / 100) * 100}%`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  data-testid="line-path"
+                />
+              )}
+              {plotTile.plot_type === 'bar' && data.slice(0, 10).map((point, i) => (
+                <rect
+                  key={i}
+                  x={`${i * 10}%`}
+                  y={`${100 - point.y}%`}
+                  width="8%"
+                  height={`${point.y}%`}
+                  fill={getPointColor(point)}
+                  data-testid={`bar-${i}`}
+                  onMouseEnter={() => setHoveredPoint(point)}
+                  onMouseLeave={() => setHoveredPoint(null)}
+                />
+              ))}
+            </svg>
+
+            {/* Tooltip */}
+            {hoveredPoint && (
+              <div
+                className="absolute bg-gray-900 text-white text-xs px-2 py-1 rounded pointer-events-none"
+                style={{ left: '50%', top: '10px' }}
+                data-testid="tooltip"
+              >
+                {hoveredPoint.label}: ({hoveredPoint.x.toFixed(1)}, {hoveredPoint.y.toFixed(1)})
+              </div>
+            )}
+
+            {/* Legend (when color by is set) */}
+            {plotTile.plot_group_by && (
+              <div
+                className="absolute top-2 right-2 bg-white border rounded p-2 text-xs"
+                data-testid="legend"
+              >
+                <div className="font-semibold mb-1">{plotTile.plot_group_by}</div>
+                {['A', 'B', 'C'].map((cat, i) => (
+                  <div key={cat} className="flex items-center gap-1">
+                    <span
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: ['#ef4444', '#22c55e', '#3b82f6'][i] }}
+                    />
+                    {cat}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Settings panel */}
+        {settingsOpen && (
+          <div
+            className="w-64 border-l p-4"
+            data-testid="settings-panel"
+          >
+            <h4 className="font-semibold mb-4">Settings</h4>
+
+            {/* X Axis */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">X Axis</label>
+              <select
+                value={plotTile.x_axis || ''}
+                onChange={(e) => handleSetXAxis(e.target.value)}
+                className="w-full border rounded px-2 py-1"
+                data-testid="x-axis-select"
+              >
+                {columns.map((col) => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Y Axis */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Y Axis</label>
+              <select
+                value={plotTile.y_axis || ''}
+                onChange={(e) => handleSetYAxis(e.target.value)}
+                className="w-full border rounded px-2 py-1"
+                data-testid="y-axis-select"
+              >
+                {columns.map((col) => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Plot Type */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Plot Type</label>
+              <select
+                value={plotTile.plot_type || 'scatter'}
+                onChange={(e) => handleSetPlotType(e.target.value as PlotType)}
+                className="w-full border rounded px-2 py-1"
+                data-testid="plot-type-select"
+              >
+                <option value="scatter">Scatter</option>
+                <option value="line">Line</option>
+                <option value="bar">Bar</option>
+              </select>
+            </div>
+
+            {/* Color By */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Color By</label>
+              <select
+                value={plotTile.plot_group_by || ''}
+                onChange={(e) => handleSetColorBy(e.target.value || null)}
+                className="w-full border rounded px-2 py-1"
+                data-testid="color-by-select"
+              >
+                <option value="">None</option>
+                {columns.map((col) => (
+                  <option key={col} value={col}>{col}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render focus mode overlay
+  if (focusMode) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-black/50 z-40" data-testid="focus-overlay" />
+        {plotContent}
+      </>
+    );
+  }
+
+  return plotContent;
+}
+
+// =============================================================================
+// Main Export: renderPlotTile
+// =============================================================================
+
+/**
+ * Creates initial store state with a plot tile
+ */
+function createInitialStoreState(options: PlotTileTestOptions): Partial<IStoreState> {
+  const {
+    initialXAxis = 'x',
+    initialYAxis = 'y',
+    initialPlotType = 'scatter',
+    initialColorBy = null,
+  } = options;
+
+  const tab = initTab(TAB_ID, { name: 'Test Tab', tileIds: [TILE_ID] });
+  
+  const plotTileData: Partial<PlotTile> = {
+    x_axis: initialXAxis,
+    y_axis: initialYAxis,
+    plot_type: initialPlotType,
+    plot_group_by: initialColorBy,
+  };
+
+  const tile = initTile(TILE_ID, {
+    type: 'Plot',
+    tabId: TAB_ID,
+    visible: true,
+    plotTile: initPlotTile(plotTileData)
+  });
+
+  return {
+    activeTabId: TAB_ID,
+    tabsById: {
+      [TAB_ID]: tab
+    },
+    tilesById: {
+      [TILE_ID]: tile
+    }
+  };
+}
+
+export function renderPlotTile(options: PlotTileTestOptions = {}): PlotTileTestResult {
+  const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
+  const initialState = createInitialStoreState(options);
+
+  const renderResult = render(
+    <StoreProvider initialState={initialState}>
+      <PlotTileInner {...options} stateContainerRef={stateContainerRef} />
+    </StoreProvider>
+  );
+
+  return {
+    ...renderResult,
+    getXAxis: () => stateContainerRef.current?.getXAxis() ?? '',
+    getYAxis: () => stateContainerRef.current?.getYAxis() ?? '',
+    getPlotType: () => stateContainerRef.current?.getPlotType() ?? 'scatter',
+    getColorBy: () => stateContainerRef.current?.getColorBy() ?? null,
+    isSettingsOpen: () => stateContainerRef.current?.isSettingsOpen() ?? false,
+    isFocusMode: () => stateContainerRef.current?.isFocusMode() ?? false,
+    setXAxis: (column) => stateContainerRef.current?.setXAxis(column),
+    setYAxis: (column) => stateContainerRef.current?.setYAxis(column),
+    setPlotType: (type) => stateContainerRef.current?.setPlotType(type),
+    setColorBy: (column) => stateContainerRef.current?.setColorBy(column),
+    toggleSettings: () => stateContainerRef.current?.toggleSettings(),
+    toggleFocusMode: () => stateContainerRef.current?.toggleFocusMode(),
+  };
+}
+
+export { createMockPlotData as createMockData };
