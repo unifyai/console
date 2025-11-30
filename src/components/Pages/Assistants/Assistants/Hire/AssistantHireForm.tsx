@@ -141,6 +141,8 @@ export function HireForm({
     const rhfVoiceName = watch("voice_name");
     const rhfVoiceDescription = watch("voice_description");
     const rhfIsPresetPristine = watch("isPresetPristine");
+    const rhfProfileVideoUrl = watch("profile_video_url");
+    const videoSourceVoiceId = watch("video_source_voice_id");
     
     // --- Start of Video Playability Logic ---
     const isVideoPlayable = React.useMemo(() => {
@@ -149,31 +151,27 @@ export function HireForm({
     
         // An existing video on an assistant being edited is always playable,
         // as it's not dependent on the currently selected form voice.
-        if (mode === 'edit' && !!getValues("profile_video_url") && !videoFile) {
+        if (mode === 'edit' && !!rhfProfileVideoUrl && !videoFile) {
             return true;
         }
 
         // A preset video is playable only if the form state is still pristine.
-        const rhfProfileVideoUrl = getValues("profile_video_url");
         const isPresetVideo = rhfProfileVideoUrl?.includes('preset_assistants');
-
-        const videoVoiceId = getValues("video_source_voice_id");
     
         // A preset video is playable if the form is pristine OR if the currently selected voice matches the video's original voice.
         if (isPresetVideo) {
-            return isPresetPristine || rhfVoiceId === videoVoiceId;
+            return isPresetPristine || rhfVoiceId === videoSourceVoiceId;
         }
 
         // A custom video (one the user animated themselves) is playable if the currently
         // selected voice matches the voice used to create the video.
         const hasCustomVideo = !!videoFile;
         if (hasCustomVideo) {
-            const videoVoiceId = getValues("video_source_voice_id");
-            return rhfVoiceId === videoVoiceId;
+            return rhfVoiceId === videoSourceVoiceId;
         }
     
         return false; // Not a preset video and not a custom video, so not playable.
-    }, [videoPreviewUrl, videoFile, getValues, isPresetPristine, rhfVoiceId]);
+    }, [videoPreviewUrl, videoFile, isPresetPristine, rhfVoiceId, rhfProfileVideoUrl, videoSourceVoiceId, mode]);
     
     // --- End of Video Playability Logic ---
 

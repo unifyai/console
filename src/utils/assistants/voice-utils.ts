@@ -1,5 +1,9 @@
 import { countryToLangMap } from "@/constants/assistants/countries";
+import voice_presets from "@/constants/assistants/voice_presets";
+import { PRIMARY_VOICE_PROVIDER } from "@/constants/assistants/settings";
 import { SupportedLanguage, Gender as CartesiaGender } from "@cartesia/cartesia-js/api";
+import { Voice } from "@/types/assistants/assistant";
+
 export const languageOptions: { value: SupportedLanguage; label: string; flag: string }[] = [
     { value: "en", label: "English", flag: "🇬🇧" }, { value: "es", label: "Spanish", flag: "🇪🇸" },
     { value: "fr", label: "French", flag: "🇫🇷" }, { value: "de", label: "German", flag: "🇩🇪" },
@@ -113,8 +117,6 @@ export const getRandomSampleLine = (language: SupportedLanguage | "multi"): stri
     return lines[Math.floor(Math.random() * lines.length)];
 };
 
-
-
 export const getLangCodeForNationality = (nationality: string | null | undefined): SupportedLanguage | null => {
     if (!nationality) return null;
     return countryToLangMap[nationality] || null;
@@ -129,3 +131,21 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     }
     return btoa(binary);
 }
+
+export const getDefaultVoiceForProvider = () => {
+    let suitableDefault = (voice_presets as Voice[]).find(vp => vp.provider === PRIMARY_VOICE_PROVIDER);
+    if (!suitableDefault && voice_presets.length > 0) {
+        suitableDefault = (voice_presets as Voice[])[0]; // Fallback to first preset if no provider match
+    }
+    if (!suitableDefault) { // Absolute fallback if voice_presets is empty
+        return { 
+            voice_id: PRIMARY_VOICE_PROVIDER === "cartesia" ? '11af83e2-23eb-452f-956e-7fee218ccb5c' : "9BWtsMINqrJLrRacOk9x", 
+            name: PRIMARY_VOICE_PROVIDER === "cartesia" ? 'English Female Calm 1' : "English Female Husky 1",
+            language: 'en', 
+            description: PRIMARY_VOICE_PROVIDER === "cartesia" ? 'A calm, conversational, feminine voice perfect for narration stories or on phone calls. Speaking in an American accent.' : "A middle-aged female with an African-American accent. Calm with a hint of rasp.", 
+            gender: 'female', 
+            provider: PRIMARY_VOICE_PROVIDER
+        };
+    }
+    return suitableDefault;
+};

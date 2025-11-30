@@ -268,7 +268,7 @@ export function AssistantHire ({
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
+                                                    <Button aria-label="Randomize Assistant" type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
                                                         <Shuffle className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>

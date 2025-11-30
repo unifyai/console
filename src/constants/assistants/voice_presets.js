@@ -560,6 +560,14 @@ export default [
     "provider": "cartesia",
   },
   {
+    "voice_id": "9BWtsMINqrJLrRacOk9x",
+    "name": "English Female Husky 1", // Original: Aria
+    "description": "A middle-aged female with an African-American accent. Calm with a hint of rasp.",
+    "gender": "female",
+    "language": "en",
+    "provider": "elevenlabs",
+  },
+  {
     "voice_id": "21m00Tcm4TlvDq8ikWAM",
     "name": "Korean Female Calm 1", // Original: Rachel
     "description": "A young, female, calm voice with a american accent.",
@@ -588,14 +596,6 @@ export default [
     "name": "English Male Authoritative 1", // Original: Paul
     "description": "A middle aged, male, authoritative voice with a american accent.",
     "gender": "male",
-    "language": "en",
-    "provider": "elevenlabs",
-  },
-  {
-    "voice_id": "9BWtsMINqrJLrRacOk9x",
-    "name": "English Female Husky 1", // Original: Aria
-    "description": "A middle-aged female with an African-American accent. Calm with a hint of rasp.",
-    "gender": "female",
     "language": "en",
     "provider": "elevenlabs",
   },

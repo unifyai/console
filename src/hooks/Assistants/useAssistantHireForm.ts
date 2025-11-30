@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount, PreHireChatMessage, UserLocalDesktop } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, UserLocalDesktop } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
+import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
@@ -19,18 +20,7 @@ export function useAssistantHireForm(
     isDialogOpen?: boolean
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
-
-    // Find a default voice that matches the current PRIMARY_VOICE_PROVIDER
-    const getDefaultVoiceForProvider = () => {
-        let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === PRIMARY_VOICE_PROVIDER);
-        if (!suitableDefault && voicePresetsConstant.length > 0) {
-            suitableDefault = (voicePresetsConstant as Voice[])[0]; // Fallback to first preset if no provider match
-        }
-        if (!suitableDefault) { // Absolute fallback if voicePresetsConstant is empty
-            return { voice_id: '', name: 'Default', language: 'en', description: 'Default voice', gender: 'female', provider: PRIMARY_VOICE_PROVIDER };
-        }
-        return suitableDefault;
-    };
+    
     const defaultVoice = getDefaultVoiceForProvider();
 
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
@@ -88,29 +78,33 @@ export function useAssistantHireForm(
     React.useEffect(() => {
         async function loadCountries() {
             setIsLoadingCountries(true);
-            const countries = await assistantActions.contact.listAvailablePhoneCountries();
-            setAvailablePhoneCountries(countries);
-            // Optionally set a default country from the fetched list if needed
-            // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
-            if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                 setValue("phone_country", countries[0].code);
-            } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                // Ensure the default value is set explicitly if it exists
-                setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
-            } else if (countries.length === 0) {
-                 // Handle case where no countries are returned (should be at least US from fallback in fetch)
-                 const usName = getCountryName("US") || "United States";
-                 const usFlag = getCountryFlag("US");
-                 setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
-                 setValue("phone_country", "US");
+            try {
+                const countries = await assistantActions.contact.listAvailablePhoneCountries();
+                setAvailablePhoneCountries(countries);
+                // Optionally set a default country from the fetched list if needed
+                // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
+                if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                    setValue("phone_country", countries[0].code);
+                } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                    // Ensure the default value is set explicitly if it exists
+                    setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
+                } else if (countries.length === 0) {
+                    throw new Error("No countries returned");
+                }
+            } catch (error) {
+                // Fallback for error or empty list
+                const usName = getCountryName("US") || "United States";
+                const usFlag = getCountryFlag("US");
+                setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
+                setValue("phone_country", "US");
+            } finally {
+                setIsLoadingCountries(false);
             }
-            setIsLoadingCountries(false);
         }
         if(isDialogOpen) {
             loadCountries();
         }
     }, [isDialogOpen, setValue]);
-
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -681,7 +675,6 @@ export function useAssistantHireForm(
 
     const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
         if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
-            if(isLoadingEmails || isLoadingCountries)
             return;
         }
 
@@ -716,7 +709,8 @@ export function useAssistantHireForm(
                 return;
             }
 
-            const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
+            const balanceData = balanceResult as {balance: string, fullBalance: number};
+            const currentBalance = typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
             const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
 
 

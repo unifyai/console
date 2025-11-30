@@ -1,10 +1,9 @@
 import { faker } from '@faker-js/faker';
-import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
+import type { Assistant, AssistantStatus, AssistantPreset, VoiceOption, AvailablePhoneCountry, AvailableSocialPlatform } from '@/types/assistants/assistant';
+import { SupportedLanguage, Gender } from '@cartesia/cartesia-js/api';
 
 /**
  * Creates a mock assistant object with realistic fake data.
- * @param overrides - An object with properties to override the generated defaults.
- * @returns A mock Assistant object.
  */
 export function createMockAssistant(overrides: Partial<Assistant> = {}): Assistant {
   return {
@@ -17,10 +16,10 @@ export function createMockAssistant(overrides: Partial<Assistant> = {}): Assista
     profile_photo: faker.image.avatar(),
     profile_video: null,
     age: faker.number.int({ min: 20, max: 50 }),
-    nationality: faker.location.country(),
+    nationality: 'United States',
     about: faker.lorem.paragraph(),
     phone_country: 'US',
-    timezone: faker.location.timeZone(),
+    timezone: 'UTC',
     voice_id: `v_${faker.string.alphanumeric(10)}`,
     voice_provider: 'elevenlabs',
     voice_mode: 'tts',
@@ -30,13 +29,12 @@ export function createMockAssistant(overrides: Partial<Assistant> = {}): Assista
     max_parallel: 10,
     created_at: faker.date.past().toISOString(),
     updated_at: faker.date.recent().toISOString(),
-    ...overrides, // Apply any specific overrides for the test case
+    ...overrides,
   };
 }
 
 // --- Exported Mock Data ---
 
-// A consistent set of assistants for our tests
 export const mockAssistants: Assistant[] = [
   createMockAssistant({ agent_id: '1', first_name: 'Jane', surname: 'Doe', email: 'jane.doe@example.com' }),
   createMockAssistant({ agent_id: '2', first_name: 'John', surname: 'Smith', email: 'john.smith@example.com', phone: null, assistant_whatsapp_number: null }),
@@ -54,3 +52,88 @@ export const mockAssistantWithoutSocials: Assistant = createMockAssistant({
 export const mockStatuses = new Map<string, AssistantStatus | null>();
 mockStatuses.set('1', { running: true } as AssistantStatus);
 mockStatuses.set('2', { running: false } as AssistantStatus);
+
+export const mockVoices: VoiceOption[] = [
+    {
+        voice_id: 'voice_1',
+        name: 'Alice (US)',
+        description: 'Friendly American female',
+        gender: 'female',
+        language: 'en',
+        provider: 'elevenlabs',
+        is_preset: true,
+        isUserVoiceInOrchestra: false
+    },
+    {
+        voice_id: 'voice_2',
+        name: 'Bob (UK)',
+        description: 'Professional British male',
+        gender: 'male',
+        language: 'en',
+        provider: 'elevenlabs',
+        is_preset: true,
+        isUserVoiceInOrchestra: false
+    },
+    {
+        voice_id: 'voice_3',
+        name: 'Speedy (OpenAI)',
+        description: 'Low latency voice',
+        gender: 'male',
+        language: 'en',
+        provider: 'openai',
+        is_preset: true,
+        isUserVoiceInOrchestra: false
+    }
+];
+
+export const mockPresets: AssistantPreset[] = [
+    {
+        first_name: 'Sarah',
+        surname: 'Connor',
+        age: 28,
+        nationality: 'United States',
+        about: 'Experienced scheduler.',
+        profile_photo: 'https://example.com/photo1.jpg',
+        profile_video: null,
+        phone_country: 'US',
+        timezone: 'America/New_York',
+        gender: 'female',
+        voice_ids: {
+            elevenlabs: 'voice_1',
+            openai: 'voice_3',
+            cartesia: null
+        },
+        language: 'en',
+        voice_mode: 'tts'
+    },
+    {
+        first_name: 'James',
+        surname: 'Bond',
+        age: 40,
+        nationality: 'United Kingdom',
+        about: 'Secret agent assistant.',
+        profile_photo: 'https://example.com/photo2.jpg',
+        profile_video: null,
+        phone_country: 'GB',
+        timezone: 'Europe/London',
+        gender: 'male',
+        voice_ids: {
+            elevenlabs: 'voice_2',
+            openai: 'voice_3', // Reuse same openai voice for simplicity
+            cartesia: null
+        },
+        language: 'en',
+        voice_mode: 'tts'
+    }
+];
+
+export const mockPhoneCountries: AvailablePhoneCountry[] = [
+    { code: 'US', name: 'United States', flag: '🇺🇸' },
+    { code: 'GB', name: 'United Kingdom', flag: '🇬🇧' },
+    { code: 'CA', name: 'Canada', flag: '🇨🇦' }
+];
+
+export const mockSocialPlatforms: AvailableSocialPlatform[] = [
+    { name: 'whatsapp', cost: 5.00 },
+    { name: 'telegram', cost: 0.00 }
+];
