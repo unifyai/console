@@ -127,6 +127,9 @@ export function useAssistantProfileChat(
             firstViewProcessed.current = true;
             const initialHistory = preHireChat || [];
             recordTranscriptTimestamp(assistantId, initialHistory);
+            
+            fetchInitiatedRef.current.add(assistantId);
+
             setChatHistories(prev => ({ ...prev, [assistantId]: initialHistory }));
             onFirstViewCompleted?.();
             setHistoryLoadedForAssistantId(assistantId);

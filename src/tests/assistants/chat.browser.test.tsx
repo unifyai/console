@@ -1354,6 +1354,60 @@ describe('Assistant Profile Chat', () => {
             expect(input).toHaveAttribute('placeholder', 'Send a message...');
         });
 
+        it('preserves initial greeting passed via preHireChat when transitioning from first view to normal view (race condition fix)', {
+            meta: {
+                alias: 'History-Preserve-Greeting',
+                scenario: 'New assistant hired. Profile opens (isFirstView=true) with greeting. Hook initializes, calls onFirstViewCompleted. Parent toggles isFirstView=false.',
+                behavior: 'Greeting remains visible. API fetch is skipped to prevent overwriting local greeting with empty server logs.'
+            }
+        }, async () => {
+            const assistant = createMockAssistant({ agent_id: 'new-hire-id', first_name: 'New', surname: 'Hire' });
+            const greetingMsg: ChatMessage = {
+                id: 'greeting-1',
+                role: 'assistant',
+                content: 'Hello! I am your new assistant.',
+                timestamp: new Date()
+            };
+            const getTranscriptsMock = vi.fn(async () => []);            
+            const actionsOverride = { 
+                ...mockAssistantActions,
+                chat: { 
+                    getTranscripts: getTranscriptsMock, 
+                    message: vi.fn() 
+                } 
+            };
+            const TransitionContainer = () => {
+                const [isFirstView, setIsFirstView] = React.useState(true);
+                const [histories, setHistories] = React.useState<Record<string, ChatMessage[]>>({});
+                return (
+                    <AssistantProfilePanel
+                        assistant={assistant}
+                        assistantActions={actionsOverride}
+                        chatHistories={histories}
+                        setChatHistories={setHistories}
+                        isFirstView={isFirstView}
+                        preHireChat={isFirstView ? [greetingMsg] : undefined}
+                        onFirstViewCompleted={() => setIsFirstView(false)}
+                        onClose={vi.fn()} 
+                        onDeleteAssistant={vi.fn()} 
+                        onEdit={vi.fn()} 
+                        onOpenContactManager={vi.fn()}
+                        onStartCall={vi.fn()} 
+                        activeCallAssistantId={null} 
+                        isCallConnected={false} 
+                        isConnectingCall={false}
+                    />
+                );
+            };
+            render(<TransitionContainer />);
+            expect(screen.getByText('Hello! I am your new assistant.')).toBeInTheDocument();
+            await waitFor(() => {
+                expect(screen.getByPlaceholderText('Send a message...')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Hello! I am your new assistant.')).toBeInTheDocument();
+            expect(getTranscriptsMock).not.toHaveBeenCalled();
+        });
+
     });
 
     // =========================================================================
