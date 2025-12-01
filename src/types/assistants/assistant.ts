@@ -8,6 +8,7 @@ import { ConnectionDetails } from "./call";
 export type VoiceProvider = "elevenlabs" | "cartesia" | "openai"
 export type VoiceMode = "sts" | "tts"
 export type UserLocalDesktop  = "ubuntu"  | "windows" | "macos";
+export type AssistantHiringSufficientFunds = {sufficient: boolean};
 
 // Type for the pre_hire_chat payload
 export interface PreHireChatMessage {
@@ -266,6 +267,7 @@ export interface VoiceDesignCreateFromPreviewRequest {
 export interface AssistantActions {
     "assistant": {
     list: () => Promise<Assistant[] | ResponseProps>;
+    check: (hiring_fee: number) => Promise<AssistantHiringSufficientFunds | ResponseProps>;
     create: (
         first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 

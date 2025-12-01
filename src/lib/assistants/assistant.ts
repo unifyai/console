@@ -1,5 +1,6 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode } from "@/types/assistants/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
+import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
 
 export const listAssistants = async (apiKey: string) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
@@ -238,6 +239,38 @@ export const createAssistant = async (apiKey: string) => {
             console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
+        }
+    };
+};
+
+export const checkHiringFunds = async (apiKey: string) => {
+    return async (hiringFee: number): Promise<AssistantHiringSufficientFunds | ResponseProps> => {
+        "use server";
+        try {
+            const orchestraUrl = process.env.ORCHESTRA_URL || "";
+            if (orchestraUrl.includes("staging")) return {sufficient: true};
+
+            const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/billing/balance`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                },
+                cache: "no-store",
+            });
+
+            if (!response.ok) return { detail: `Failed to fetch balance: ${response.statusText}` };
+
+            const balanceData = await response.json() as { balance: string; fullBalance: number };
+            const currentBalance = typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
+            const fee = hiringFee ?? ASSISTANT_ONBOARDING_FEE;
+            if (currentBalance < fee) return {sufficient: false}
+
+            return {sufficient: true};
+        } catch (error) {
+            console.error("[Server Action checkHiringFunds] Error:", error);
+            const message = error instanceof Error ? error.message : "Unknown error checking balance.";
+            return { detail: message };
         }
     };
 };

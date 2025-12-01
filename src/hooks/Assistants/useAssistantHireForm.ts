@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, UserLocalDesktop } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, UserLocalDesktop, AssistantHiringSufficientFunds } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -688,33 +688,18 @@ export function useAssistantHireForm(
         toastIdRef.current = toast.loading("Checking your balance...");
 
         try {
-            const fetchBalance = async () => {
-                try {
-                    const balanceData  = await fetch(`/api/billing/balance`). then((response) => response.json());
-                    if (!balanceData) return {detail: "Failed to fetch balance data"};
-                    return balanceData as {balance: string, fullBalance: number}
-                } catch (error) {
-                    console.error("Error fetching balance:", error);
-                    return {detail: "Failed to fetch balance data"};
-                }
-            };
+            const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE); 
 
-            const balanceResult = await fetchBalance();
-
-            if ('detail' in balanceResult || !balanceResult) {
-                console.error(`[useAssistantHireForm] ${(balanceResult as ResponseProps)?.detail || "Failed to check balance."}`);
+            if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
+                console.error(`[useAssistantHireForm] ${(hiringFundsResponse as ResponseProps)?.detail || "Failed to check balance."}`);
                 toast.error("Failed to check balance.", { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 setIsCheckingBalance(false);
                 return;
             }
 
-            const balanceData = balanceResult as {balance: string, fullBalance: number};
-            const currentBalance = typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
-            const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
-
-
-            if (currentBalance < totalOnboardingFee) {
+            const hasSufficientFunds = hiringFundsResponse as AssistantHiringSufficientFunds;
+            if (!hasSufficientFunds.sufficient) {
                 setShowInsufficientFundsHint(true);
                 if(toastIdRef.current) toast.dismiss(toastIdRef.current);
                 toastIdRef.current = undefined;

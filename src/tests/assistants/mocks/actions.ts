@@ -6,6 +6,7 @@ import { TaskActions } from "@/types/assistants/task";
 export const mockAssistantActions: AssistantActions = {
     assistant: {
         list: vi.fn(async () => mockAssistants),
+        check: vi.fn(async () => ({sufficient: true})),
         create: vi.fn(async (args) => ({ 
             info: "Assistant created successfully.",
             assistant: { ...mockAssistants[0], ...args, agent_id: 'new_created_id' } 
