@@ -2,7 +2,7 @@ import { render, screen, waitFor, within, act } from '@/tests/render';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Main from '@/components/Pages/Assistants/Main';
-import { mockAssistantActions, mockTaskActions, mockActivityLogActions } from './mocks/actions';
+import { mockAssistantActions, mockTaskActions } from './mocks/actions';
 import { mockAssistants } from './mocks/data';
 import { RoomEvent, ConnectionState } from 'livekit-client';
 import { EventEmitter } from 'events';
@@ -129,7 +129,6 @@ describe('Assistant Call', () => {
             <Main
                 taskActions={mockTaskActions}
                 assistantActions={mockAssistantActions}
-                activityLogActions={mockActivityLogActions}
                 userMeta={{ image: 'test-image.jpg', timezone: 'UTC' }}
             />
         );

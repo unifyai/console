@@ -63,7 +63,7 @@ export const cloneVoice = async (apiKey: string) => {
                 body: formData
             });
             const data = await response.json();
-if (!response.ok) return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
+            if (!response.ok) return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
             return data.info as (Voice & {info?:string; is_preset?: boolean});
         } catch (error) { return { detail: error instanceof Error ? error.message : "Unknown error during voice clone." }; }
     };

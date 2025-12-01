@@ -2,7 +2,6 @@ import { AssistantActions } from "@/types/assistants/assistant";
 import { mockAssistants, mockStatuses, mockVoices, mockPhoneCountries, mockSocialPlatforms } from "./data";
 import { vi } from "vitest";
 import { TaskActions } from "@/types/assistants/task";
-import { ActivityLogActions } from "@/types/assistants/activity";
 
 export const mockAssistantActions: AssistantActions = {
     assistant: {
@@ -38,7 +37,6 @@ export const mockAssistantActions: AssistantActions = {
     },
     chat: { 
         getTranscripts: vi.fn(async (_context: string ) => []),
-        updateTranscripts: vi.fn(async () => ({ info: "Transcripts updated" })), 
         message: vi.fn(async () => ({ info: "Message sent" })) 
     },
     contact: { 
@@ -71,8 +69,4 @@ export const mockAssistantActions: AssistantActions = {
 export const mockTaskActions: TaskActions = {
     get: vi.fn(() => Promise.resolve({ logs: [], count: 0 })),
     update: vi.fn(async () => ({ info: "Tasks updated" })),
-};
-
-export const mockActivityLogActions: ActivityLogActions = {
-    get: vi.fn(() => Promise.resolve({ summary: 'Mock activity summary' })),
 };

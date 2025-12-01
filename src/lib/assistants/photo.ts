@@ -16,11 +16,11 @@ export const uploadPhoto = async (apiKey: string) => {
 
         try {
             const response = await fetch(
-                `${process.env.ORCHESTRA_URL}/v0/assistant/photo/upload`, // Call Orchestra directly
+                `${process.env.NEXTAUTH_URL}/api/assistant/photo/upload`,
                 {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${apiKey}`,
+                        "apiKey": apiKey,
                     },
                     body: formData,
                 }
@@ -47,11 +47,11 @@ export const uploadVideo = async (apiKey: string) => {
         "use server";
         try {
             const response = await fetch(
-                `${process.env.ORCHESTRA_URL}/v0/assistant/video/upload`, // Call Orchestra directly
+                `${process.env.NEXTAUTH_URL}/api/assistant/video/upload`,
                 {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${apiKey}`,
+                        "apiKey": apiKey,
                     },
                     body: formData,
                 }
@@ -69,6 +69,53 @@ export const uploadVideo = async (apiKey: string) => {
             console.error('[photo.ts uploadVideo] Error during video upload:', error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error during video upload.";
             return { detail: errorMessage };
+        }
+    };
+};
+
+export const listMediaFiles = async () => {
+    /* THIS SERVER ACTION IS USED FOR TESTING ONLY */
+    return async (prefix: string = ""): Promise<{ files?: { name: string; url: string; contentType: string; size: string | number; updated: string }[]; detail?: string }> => {
+        "use server";
+
+        const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME;
+        if (!bucketName) {
+            console.error("[photo.ts listMediaFiles] GCS Bucket name environment variable is not set.");
+            return { detail: "Server configuration error: Bucket name missing." };
+        }
+        if (!storage) {
+            console.error("[photo.ts listMediaFiles] Storage client is not available.");
+            return { detail: "Server configuration error: Storage unavailable" };
+        }
+
+        try {
+            
+            const [files] = await storage.bucket(bucketName).getFiles({ prefix });
+
+            const signedUrlPromises = files.map(async (file) => {
+                const [url] = await file.getSignedUrl({
+                    version: 'v4',
+                    action: 'read',
+                    expires: Date.now() + 60 * 60 * 1000,
+                });
+
+                return {
+                    name: file.name,
+                    url: url,
+                    contentType: file.metadata.contentType || 'application/octet-stream',
+                    size: file.metadata.size || '0',
+                    updated: file.metadata.updated || new Date().toISOString(),
+                };
+            });
+
+            const fileList = await Promise.all(signedUrlPromises);
+            
+            return { files: fileList };
+
+        } catch (error) {
+            console.error(`[photo.ts listMediaFiles] Failed to list files in bucket "${bucketName}":`, error);
+            const errorMsg = error instanceof Error ? error.message : "Unknown error listing media files.";
+            return { detail: errorMsg };
         }
     };
 };

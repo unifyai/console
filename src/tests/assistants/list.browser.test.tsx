@@ -11,7 +11,7 @@ import { Assistant } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 
 import { mockAssistants, mockStatuses, mockAssistantWithoutSocials } from '@/tests/assistants/mocks/data';
-import { mockActivityLogActions, mockAssistantActions, mockTaskActions } from '@/tests/assistants/mocks/actions';
+import { mockAssistantActions, mockTaskActions } from '@/tests/assistants/mocks/actions';
 
 vi.mock('@/hooks/Assistants/useAssistantCall', () => ({
     useAssistantCall: vi.fn(() => ({
@@ -45,9 +45,7 @@ describe('Component Tests', () => {
         isLoading: false,
         error: null,
         profileAssistantId: null,
-        activityLogAssistantId: null,
         onShowProfile: vi.fn(),
-        onShowActivityLog: vi.fn(),
         onOpenHireDialog: vi.fn(),
         onOpenContactManager: vi.fn(),
         isFolded: false,
@@ -250,7 +248,6 @@ describe('Integration Tests', () => {
         const defaultMainProps = {
             assistantActions: mockAssistantActions,
             taskActions: mockTaskActions,
-            activityLogActions: mockActivityLogActions,
             userMeta: { image: null, timezone: 'UTC' },
         };
         return render(<Main {...defaultMainProps} {...props} />);

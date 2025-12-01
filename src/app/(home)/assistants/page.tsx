@@ -7,14 +7,12 @@ import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
-import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { getTranscripts, messageAssistant } from "@/lib/assistants/chat";
 import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
-import { ActivityLogActions } from "@/types/assistants/activity";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
 import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
 import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
@@ -59,7 +57,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         },
         "chat": {
             getTranscripts: await getTranscripts(apiKey),
-            updateTranscripts: await updateTranscripts(apiKey),
             message: await messageAssistant(apiKey),
         },
         "contact": {
@@ -95,10 +92,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         update: await updateTask(apiKey),
     }
 
-    const activityLogActions: ActivityLogActions = {
-        get: await getActivitySummary(apiKey),
-    }
-
     const userMeta = { image: user.image, timezone: user.timezone };
 
     return (
@@ -106,7 +99,6 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             <Main
                 assistantActions={assistantActions}
                 taskActions={taskActions}
-                activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
                 userMeta={userMeta}
             />

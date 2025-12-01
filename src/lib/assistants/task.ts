@@ -110,7 +110,6 @@ export const getUniqueFieldValues = async (apiKey: string) => {
     };
 };
 
-
 export const updateTask = async (apiKey: string) => {
     return async (context: string, logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
         "use server";

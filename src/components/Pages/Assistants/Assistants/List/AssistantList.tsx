@@ -16,9 +16,7 @@ interface AssistantListProps {
     isLoading: boolean;
     error: string | null;
     profileAssistantId: string | null;
-    activityLogAssistantId: string | null;
     onShowProfile: (id: string) => void;
-    onShowActivityLog: (id: string) => void;
     onOpenHireDialog: () => void;
     onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
     isFolded: boolean;
@@ -34,9 +32,7 @@ export function AssistantList({
     isLoading,
     error,
     profileAssistantId,
-    activityLogAssistantId,
     onShowProfile,
-    onShowActivityLog,
     onOpenHireDialog,
     onOpenContactManager,
     isFolded,
@@ -151,9 +147,8 @@ export function AssistantList({
                                 key={assistant.agent_id}
                                 assistant={assistant}
                                 status={assistantStatuses.get(assistant.agent_id) || null}
-                                isSelected={profileAssistantId === assistant.agent_id || activityLogAssistantId === assistant.agent_id}
+                                isSelected={profileAssistantId === assistant.agent_id}
                                 onShowProfile={onShowProfile}
-                                onShowActivityLog={onShowActivityLog}
                                 onOpenContactManager={onOpenContactManager}
                                 isFolded={isFolded}
                                 isCallActive={activeCallAssistantId === assistant.agent_id}

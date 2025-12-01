@@ -1,10 +1,12 @@
+import { loadEnvConfig } from '@next/env';
+loadEnvConfig(process.cwd());
+
 import { beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, passthrough } from 'msw';
 import { handlers } from '@/tests/handlers';
 import '@testing-library/jest-dom/vitest';
 
-process.env.NEXTAUTH_URL = "http://localhost:3000";
 const server = setupServer(...handlers);
 
 // === Test Callbacks ===

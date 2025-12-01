@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/user/user";
 import { redirect } from "next/navigation";
-import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { getTranscripts, messageAssistant } from "@/lib/assistants/chat";
 import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
 import { getLiveviewUrl, sendSystemEvent } from "@/lib/assistants/desktop";
 import { listAssistants } from "@/lib/assistants/assistant";
@@ -19,7 +19,6 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
             getTranscripts: await getTranscripts(apiKey),
-            updateTranscripts: await updateTranscripts(apiKey),
             message: await messageAssistant(apiKey),
         },
         "call": {

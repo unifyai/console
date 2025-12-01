@@ -13,7 +13,6 @@ interface AssistantListItemProps {
     status: AssistantStatus | null;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
-    onShowActivityLog: (id: string) => void;
     onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
     isFolded: boolean;
     isCallActive: boolean;
@@ -24,7 +23,6 @@ export function AssistantListItem({
     status,
     isSelected,
     onShowProfile,
-    onShowActivityLog,
     onOpenContactManager,
     isFolded,
     isCallActive,
@@ -33,11 +31,6 @@ export function AssistantListItem({
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onShowProfile(assistant.agent_id);
-    }
-
-    const handleActivityLogClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onShowActivityLog(assistant.agent_id);
     }
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;

@@ -212,7 +212,6 @@ describe('Assistant Profile Chat', () => {
             const failActions = {
                 chat: {
                     getTranscripts: vi.fn(async () => []),
-                    updateTranscripts: vi.fn(async () => ({})),
                     message: vi.fn(async () => {
                         await new Promise(r => setTimeout(r, 50));
                         throw new Error('Simulated Network Fail');
@@ -368,7 +367,6 @@ describe('Assistant Profile Chat', () => {
             const slowFetchActions = {
                 chat: {
                     getTranscripts: vi.fn(() => fetchPromise),
-                    updateTranscripts: vi.fn(async () => ({})),
                     message: vi.fn(async () => ({}))
                 }
             };
@@ -731,7 +729,6 @@ describe('Assistant Profile Chat', () => {
                 chat: {
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(async () => ({})),
-                    updateTranscripts: vi.fn(async () => ({}))
                 }
             };
 
@@ -1000,7 +997,7 @@ describe('Assistant Profile Chat', () => {
                 return [];
             });
 
-            const actionsOverride = { chat: { getTranscripts: getTranscriptsMock, message: vi.fn(), updateTranscripts: vi.fn() } };
+            const actionsOverride = { chat: { getTranscripts: getTranscriptsMock, message: vi.fn() } };
 
             const { rerender } = render(
                 <ChatTestWrapper
@@ -1089,7 +1086,6 @@ describe('Assistant Profile Chat', () => {
                 chat: {
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(),
-                    updateTranscripts: vi.fn()
                 }
             };
 
@@ -1316,7 +1312,6 @@ describe('Assistant Profile Chat', () => {
                 chat: {
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(),
-                    updateTranscripts: vi.fn()
                 }
             };
 

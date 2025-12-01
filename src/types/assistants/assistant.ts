@@ -300,7 +300,6 @@ export interface AssistantActions {
     },
     "chat": {
         getTranscripts: (assistantContext: string, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
-        updateTranscripts: (assistantContext: string, messages: Omit<ChatMessage, 'id'>[]) => Promise<ResponseProps>;
         message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     },
     "contact": {
