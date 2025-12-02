@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { X, PanelRightOpen, Send, PanelLeftClose, Loader2, Maximize, Minimize, LayoutList, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { Send, Loader2, LayoutList, Minimize2, Maximize2, Minus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { cn } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';

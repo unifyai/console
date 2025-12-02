@@ -16,7 +16,6 @@ import { getCountryFlag } from '@/utils/assistants/country-utils';
 import { toast } from 'sonner';
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from "@/lib/utils";
-import { getPlatformIcon } from '@/utils/assistants/platform-utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 

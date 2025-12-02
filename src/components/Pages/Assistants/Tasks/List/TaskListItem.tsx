@@ -3,7 +3,7 @@ import { Badge } from "@/components/UI/badge";
 import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap, Minus } from "lucide-react"; 
 import { Task, TaskActions, Status as TaskStatusEnum, Priority as TaskPriorityEnum } from "@/types/assistants/task"; 
 import { Assistant } from '@/types/assistants/assistant';
-import ActionButton from '../../../../Common/Buttons/Action';
+import ActionButton from '@/components/Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
 import {

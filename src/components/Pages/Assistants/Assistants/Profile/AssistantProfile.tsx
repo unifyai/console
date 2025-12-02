@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone, Video } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, ChevronRight, Briefcase, Phone, Video } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -14,7 +14,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import {

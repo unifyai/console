@@ -1,39 +1,27 @@
 'use client';
 
 import * as React from 'react';
-import { UseFormReturn, useFieldArray, FormProvider, Controller, useFormContext, useWatch } from "react-hook-form";
+import { UseFormReturn, FormProvider, Controller, useWatch } from "react-hook-form";
 import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
-import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant, AssistantPreset, Voice } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption, Assistant, Voice } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail, Settings, Laptop } from 'lucide-react';
+import { Volume2, User, Info, Image as ImageIcon, Settings, Laptop } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { AvailablePhoneCountry } from '@/types/assistants/assistant';
-import { getCountryFlag } from '@/utils/assistants/country-utils';
-import { EMAIL_DOMAIN_WITH_AT, PRIMARY_VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/UI/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
-import { Button } from '@/components/UI/button';
-import { toast } from 'sonner';
-import { SocialAccountInput } from './SocialAccountInput';
 import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
-import { useAccountVerification } from '@/hooks/Assistants/useAccountVerification';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows, FaApple } from "react-icons/fa";
-import { TimezoneOption, generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
+import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -68,7 +56,7 @@ export function HireForm({
     assistants,
     mode = 'hire',
 }: HireFormProps) {
-    const { register, formState: { errors }, watch, setValue, getValues, trigger, control, clearErrors } = formMethods;
+    const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
 
     const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);

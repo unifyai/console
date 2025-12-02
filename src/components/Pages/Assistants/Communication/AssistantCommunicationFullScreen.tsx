@@ -8,7 +8,7 @@ import { AssistantCommunicationMainView } from '@/components/Pages/Assistants/Co
 import { AssistantCommunicationUserView } from '@/components/Pages/Assistants/Communication/AssistantCommunicationUserView';
 import { AssistantCommunicationControls } from '@/components/Pages/Assistants/Communication/AssistantCommunicationControls';
 import { AssistantCommunicationSidePanel } from '@/components/Pages/Assistants/Communication/AssistantCommunicationSidePanel';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';

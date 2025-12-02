@@ -3,9 +3,8 @@ import { ScrollArea } from "@/components/UI/scroll-area";
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
-import { X, Filter, Loader2, PanelRightOpen, PanelLeftClose, MessageSquare, Maximize, Minimize, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { Loader2, MessageSquare, Minimize2, Maximize2, Minus } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { Label } from '@/components/UI/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 

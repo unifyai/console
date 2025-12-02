@@ -1,8 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, Info, Clock } from "lucide-react";
-import { SiGooglemeet } from "react-icons/si";
-import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
-import { WhatsApp } from '@mui/icons-material';
+import { Clock } from "lucide-react";
 import type { Assistant } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
@@ -53,25 +50,6 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
             setIsVideoLoading(false);
             cleanupVideoTimeout();
         }
-    };
-    
-    const handleStartMeet = () => {
-        if (!assistant.email) return;
-
-        const now = new Date();
-        const startTime = new Date(now.getTime());
-        const endTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
-
-        const formatDate = (date: Date) => date.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
-
-        const calendarUrl = new URL('https://calendar.google.com/calendar/render');
-        calendarUrl.searchParams.append('action', 'TEMPLATE');
-        calendarUrl.searchParams.append('text', `Meeting with ${assistant.first_name} ${assistant.surname}`);
-        calendarUrl.searchParams.append('dates', `${formatDate(startTime)}/${formatDate(endTime)}`);
-        calendarUrl.searchParams.append('add', assistant.email);
-        calendarUrl.searchParams.append('details', 'Generated from Assistant Console.');
-
-        window.open(calendarUrl.toString(), '_blank', 'noopener,noreferrer');
     };
 
     const handleVideoCanPlay = () => {

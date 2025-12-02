@@ -14,9 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { RoomAudioRenderer, RoomContext, useTrackToggle, useVoiceAssistant, useLocalParticipant, TrackReference, useTracks, useMediaDeviceSelect } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
 import { ChatMessage } from '@/types/assistants/chat';
-import { Loader2, AlertTriangle } from 'lucide-react';
-import { User } from 'next-auth';
-import { Button } from '@/components/UI/button';
 import { ConnectionDetails } from '@/types/assistants/call';
 import { toast } from 'sonner';
 

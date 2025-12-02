@@ -8,22 +8,16 @@ import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, Hourglass, X, Slash, TimerOff, Zap } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, TimerOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
 import { VoiceListItemSkeleton } from './AssistantHireVoiceItemSkeleton';
 import { Checkbox } from "@/components/UI/checkbox";
 import { useFormContext, Controller } from 'react-hook-form';
-
-// Import Hooks
 import { useVoiceCreator } from '@/hooks/Assistants/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
-
-// Import Utils/Constants
-import { getLanguageFlag, getLanguageLabel } from '@/utils/assistants/voice-utils'; 
+import { getLanguageFlag } from '@/utils/assistants/voice-utils'; 
 import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 
 interface VoiceCustomizationProps {

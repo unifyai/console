@@ -1,20 +1,12 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
-import { Filter, Search, Users, Loader2, AlertCircle, WifiOff } from "lucide-react"; 
+import { Search, Loader2, WifiOff } from "lucide-react"; 
 import type { Task, TaskActions } from "@/types/assistants/task"; 
 import { TaskListItem } from "./TaskListItem";
 import { TaskListItemSkeleton } from './TaskListItemSkeleton';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/UI/select";
 import { Accordion } from "@/components/UI/accordion";
 import { Virtuoso } from 'react-virtuoso';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../UI/tooltip';
 import { TaskStatusFilter } from '../Filters/TaskFilterStatus';
 import { TaskPriorityFilter } from '../Filters/TaskFilterPriority';
 import { TaskDeadlineFilter } from '../Filters/TaskFilterDeadline';
