@@ -117,6 +117,7 @@ import {
 } from "@/components/UI/command"
 import { FileUpload } from './Buttons/FileUpload'
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
+import { ProjectPicker, InterfacePicker, renderSidebarIcon as renderSidebarIconUtil } from './Nav'
 import { CreateProjectDialog } from './Dialogs/CreateProjectDialog'
 import { CreateInterfaceDialog } from './Dialogs/CreateInterfaceDialog'
 import { CreateTabDialog } from './Dialogs/CreateTabDialog'
@@ -171,41 +172,8 @@ interface InterfaceNavProps {
 
 
 
-// Helper to render emoji vs lucide icon with defaults
-function renderSidebarIcon(iconStr: string | undefined | null, className: string, type: 'project' | 'interface' | 'tab' = 'tab') {
-  // Default icons for each type
-  const defaultIcons: Record<string, string> = {
-    project: 'folder',      // Default project icon
-    interface: 'layout-grid', // Default interface icon
-    tab: 'square'        // Default tab icon
-  };
-  
-  // Ensure we have a valid type
-  const validType = type in defaultIcons ? type : 'tab';
-  const defaultIcon = defaultIcons[validType];
-  
-  // Clean and validate the icon string
-  let icon = iconStr;
-  if (!icon || typeof icon !== 'string' || icon.trim() === '' || 
-      icon === 'null' || icon === 'undefined' || icon === 'none') {
-    icon = defaultIcon;
-  } else {
-    icon = icon.trim();
-  }
-  
-  // Check if it's an emoji or special character
-  if (/[^a-zA-Z0-9_-]/.test(icon)) {
-    return <span className={cn(className, "inline-flex items-center justify-center")}>{icon}</span>;
-  }
-  
-  // Simple mapping: if icon is "tab", use the default
-  if (icon.toLowerCase() === 'tab') {
-    icon = defaultIcon;
-  }
-  
-  // Just render the icon directly
-  return <Icon name={icon as any} className={className}/>;
-}
+// Re-export the shared renderSidebarIcon utility
+const renderSidebarIcon = renderSidebarIconUtil;
 
 // Sortable Tab Component (hoisted and memoized to avoid remounts during sidebar resize)
 interface SortableTabProps {
@@ -1959,84 +1927,20 @@ export default function InterfaceNav({
                 </Button>
               </div>
               <div className="flex items-center gap-1 w-full min-w-0">
-                <Popover open={projectPopoverOpen} onOpenChange={setProjectPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="flex-1 min-w-0 justify-between h-8 text-body-sm"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                        {renderSidebarIcon(currentProjectData?.icon, "h-4 w-4 flex-shrink-0", "project")}
-                        <span className="truncate">{selectedProject || "Select project"}</span>
-                      </div>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-                    <Command>
-                      <CommandInput placeholder="Search projects..." />
-                      {!projectTreeLoading && !projectTreeFetching && (
-                        <CommandEmpty>No project found.</CommandEmpty>
-                      )}
-                      <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                        {projectTreeError ? (
-                          <div className="p-3 text-center">
-                            <p className="text-body text-destructive mb-2">Failed to load projects</p>
-                            <Button size="sm" variant="ghost" onClick={() => { refetchProjectTree() }}>
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                              Retry
-                            </Button>
-                          </div>
-                        ) : (projectTreeLoading || projectTreeFetching) ? (
-                          <div className="p-1">
-                            <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading projects...</div>
-                            {[1, 2, 3].map((i) => (
-                              <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
-                                <div className="h-4 w-4 bg-muted animate-pulse rounded" />
-                                <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${70 + i * 10}%` }} />
-                              </div>
-                            ))}
-                          </div>
-                        ) : projectTree.length === 0 ? (
-                          <div className="p-3 text-center text-body text-muted-foreground">
-                            <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                            </svg>
-                            No projects found
-                          </div>
-                        ) : (
-                          projectTree.map((project) => {
-                            const isSelected = projectId === project.project
-                            const isLoading = isChangingProject && transitioningToProject === project.project
-                            return (
-                              <CommandItem
-                                key={project.project}
-                                value={project.project}
-                                onSelect={() => handleProjectChange(project.project)}
-                                className={cn("text-body-sm", isSelected && !isLoading && "text-primary")}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 w-full">
-                                  {isLoading ? (
-                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
-                                  ) : isSelected ? (
-                                    <Check className="h-4 w-4 flex-shrink-0" />
-                                  ) : (
-                                    renderSidebarIcon(project.icon, "h-4 w-4 flex-shrink-0", "project")
-                                  )}
-                                  <span className="truncate flex-1">{project.project}</span>
-                                  {isLoading && (
-                                    <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-                                  )}
-                                </div>
-                              </CommandItem>
-                            )
-                          })
-                        )}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <ProjectPicker
+                  projects={projectTree}
+                  selectedProject={projectId}
+                  selectedProjectIcon={currentProjectData?.icon}
+                  isLoading={projectTreeLoading}
+                  isFetching={projectTreeFetching}
+                  isError={!!projectTreeError}
+                  transitioningToProject={transitioningToProject}
+                  isChangingProject={isChangingProject}
+                  onSelect={handleProjectChange}
+                  onRefresh={refetchProjectTree}
+                  open={projectPopoverOpen}
+                  onOpenChange={setProjectPopoverOpen}
+                />
                 {/* Project Context Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -2112,76 +2016,17 @@ export default function InterfaceNav({
               <div className="space-y-1.5">
                 <label className="text-body-sm text-muted-foreground select-none">Interface:</label>
                 <div className="flex items-center gap-1 w-full min-w-0">
-                  <Popover open={interfacePopoverOpen} onOpenChange={setInterfacePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="flex-1 min-w-0 justify-between h-8 text-body-sm"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                          {renderSidebarIcon(currentInterface?.icon, "h-4 w-4 flex-shrink-0", "interface")}
-                          <span className="truncate">{currentInterface?.name || "Select interface"}</span>
-                        </div>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[12rem] max-w-[20rem] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-                      <Command>
-                        <CommandInput placeholder="Search interfaces..." />
-                        {!projectTreeLoading && !projectTreeFetching && currentInterfaces.length > 0 && (
-                          <CommandEmpty>No interface found.</CommandEmpty>
-                        )}
-                        <CommandGroup className='max-h-[250px] overflow-y-auto' style={{'scrollbarWidth': 'none'}}>
-                          {(projectTreeLoading || projectTreeFetching) ? (
-                            <div className="p-1">
-                              <div className="p-2 text-center text-caption text-muted-foreground mb-1">Loading interfaces...</div>
-                              {[1, 2].map((i) => (
-                                <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-sm">
-                                  <div className="h-4 w-4 bg-muted animate-pulse rounded" />
-                                  <div className="flex-1 h-4 bg-muted animate-pulse rounded" style={{ width: `${80 + i * 10}%` }} />
-                                </div>
-                              ))}
-                            </div>
-                          ) : currentInterfaces.length === 0 ? (
-                            <div className="p-3 text-center text-body text-muted-foreground">
-                              <svg className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                              </svg>
-                              No interfaces in this project
-                            </div>
-                          ) : (
-                            currentInterfaces.map((iface) => {
-                              const isSelected = currentInterface?.name === iface.name
-                              const isLoading = isChangingInterface && transitioningToInterface === iface.name
-                              return (
-                                <CommandItem
-                                  key={iface.name}
-                                  value={iface.name}
-                                  onSelect={() => handleInterfaceChange(iface.name)}
-                                  className={cn("text-body-sm", isSelected && !isLoading && "text-primary")}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0 w-full">
-                                    {isLoading ? (
-                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
-                                    ) : isSelected ? (
-                                      <Check className="h-4 w-4 flex-shrink-0" />
-                                    ) : (
-                                      renderSidebarIcon(iface.icon, "h-4 w-4 flex-shrink-0", "interface")
-                                    )}
-                                    <span className="truncate flex-1">{iface.name}</span>
-                                    {isLoading && (
-                                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-                                    )}
-                                  </div>
-                                </CommandItem>
-                              )
-                            })
-                          )}
-                        </CommandGroup>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <InterfacePicker
+                    interfaces={currentInterfaces}
+                    selectedInterface={currentInterface ?? null}
+                    isLoading={projectTreeLoading}
+                    isFetching={projectTreeFetching}
+                    transitioningToInterface={transitioningToInterface}
+                    isChangingInterface={isChangingInterface}
+                    onSelect={handleInterfaceChange}
+                    open={interfacePopoverOpen}
+                    onOpenChange={setInterfacePopoverOpen}
+                  />
                   {/* Interface Context Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
