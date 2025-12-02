@@ -4,30 +4,37 @@
  * A reusable wrapper for testing edit mode behaviors including
  * toggle, save, reset, and unsaved changes detection.
  * 
- * IMPROVED: Uses REAL Zustand store for global edit mode state.
- * Note: "Unsaved Changes" logic is currently mocked as it depends on 
- * specific implementation details (e.g. diffing state vs persisted) 
- * that are not yet centralized in the store.
+ * Uses REAL components:
+ * - useGlobalUIMode hook for edit mode state (from Zustand store)
+ * - useSaveTabWithTilesQuery for save operations
+ * - useRestoreLastSavedTabWithTilesQuery for reset operations
+ * - Tab UI state from store for save success/failure
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { render, RenderResult } from '@testing-library/react';
-import { flushSync } from 'react-dom';
 import { Hammer, Save, RotateCcw, AlertTriangle, GripVertical } from 'lucide-react';
 
+// Shared test utilities
+import { TestProviders, useStateContainer, actSync, actAsync } from '../utils';
+
 // Real Store Imports
-import { StoreProvider, useStoreContext, useStoreApiContext } from '../../../../contexts/providers/StoreProvider';
+import { useStoreContext, useStoreApiContext } from '../../../../contexts/providers/StoreProvider';
 import { useGlobalUIMode } from '../../../../contexts/hooks/useGlobalUIMode';
 import { IStoreState } from '../../../../contexts/store';
+import { useStore } from 'zustand';
 
-// Act wrapper utilities for proper test state management
-import { actSync, actAsync } from '../utils/actWrapper';
+// Real Mutation Hooks
+import { useSaveTabWithTilesQuery } from '@/hooks/Interfaces/Query/useSaveTabWithTilesQuery';
+import { useRestoreLastSavedTabWithTilesQuery } from '@/hooks/Interfaces/Query/useRestoreLastSavedTabWithTilesQuery';
+import { GranularInterfaceActions, GranularTabActions, GranularTileActions } from '@/types/interfaces/grid';
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export interface EditModeCallbacks {
-  onToggleEditMode?: (isEdit: boolean) => void;
+  /** Called after edit mode is toggled. Query isEditMode() for the new state. */
+  onToggleEditMode?: () => void;
   onSave?: () => Promise<void>;
   onReset?: () => void;
   onNavigateAway?: () => boolean; // Returns true if navigation should proceed
@@ -44,6 +51,180 @@ export interface EditModeTestOptions {
   saveSucceeds?: boolean;
   /** Simulated tiles for showing drag handles */
   tileCount?: number;
+  /** Project ID for save/reset operations */
+  projectId?: string;
+  /** Interface ID for save/reset operations */
+  interfaceId?: string;
+  /** Tab ID for save/reset operations */
+  tabId?: string;
+}
+
+// =============================================================================
+// Mock Actions Factory (for save/reset operations)
+// =============================================================================
+
+interface TileSnapshot {
+  id: string;
+  name: string;
+  position: { x: number; y: number; width: number; height: number };
+  type: string;
+}
+
+function createMockActions(
+  projectId: string,
+  interfaceId: string,
+  tabId: string,
+  saveSucceeds: boolean,
+  checkpointStore: React.MutableRefObject<{
+    interface: any;
+    tab: any;
+    tiles: TileSnapshot[];
+  } | null>
+): {
+  interfaceActions: GranularInterfaceActions;
+  tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
+} {
+  // Cast to the action types - we only implement the methods used by the hooks
+  const interfaceActions = {
+    list: async () => [{ id: interfaceId, name: 'Test Interface', project_id: projectId }],
+    getById: async (id: string) => ({
+      id,
+      name: 'Test Interface',
+      project_id: projectId,
+      active_tab_id: tabId,
+    }),
+    getByName: async (projId: string, name: string) => ({
+      id: interfaceId,
+      name,
+      project_id: projId,
+      active_tab_id: tabId,
+    }),
+    getCheckpointById: async (id: string) => {
+      if (checkpointStore.current?.interface) {
+        return checkpointStore.current.interface;
+      }
+      return { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId };
+    },
+    getCheckpointByName: async (projId: string, name: string) => {
+      if (checkpointStore.current?.interface) {
+        return checkpointStore.current.interface;
+      }
+      return { id: interfaceId, name, project_id: projId, active_tab_id: tabId };
+    },
+    create: async () => ({ id: interfaceId, name: 'Test Interface', project_id: projectId }),
+    updateById: async (id: string, data: any) => ({ id, ...data }),
+    updateByName: async (projId: string, name: string, data: any) => ({ id: interfaceId, name, project_id: projId, ...data }),
+    deleteById: async () => ({ success: true }),
+    deleteByName: async () => ({ success: true }),
+    checkpointById: async (id: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      checkpointStore.current = {
+        interface: { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId },
+        tab: checkpointStore.current?.tab || null,
+        tiles: checkpointStore.current?.tiles || [],
+      };
+      return { id, description };
+    },
+    checkpointByName: async (projId: string, name: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      checkpointStore.current = {
+        interface: { id: interfaceId, name, project_id: projId, active_tab_id: tabId },
+        tab: checkpointStore.current?.tab || null,
+        tiles: checkpointStore.current?.tiles || [],
+      };
+      return { id: interfaceId, description };
+    },
+  } as unknown as GranularInterfaceActions;
+
+  const tabActions = {
+    list: async () => [{ id: tabId, name: 'Test Tab', interface_id: interfaceId }],
+    getById: async (id: string) => ({
+      id,
+      name: 'Test Tab',
+      interface_id: interfaceId,
+    }),
+    getByName: async (intId: string, name: string) => ({
+      id: tabId,
+      name,
+      interface_id: intId,
+    }),
+    getCheckpointById: async (id: string) => {
+      if (checkpointStore.current?.tab) {
+        return checkpointStore.current.tab;
+      }
+      return { id, name: 'Test Tab', interface_id: interfaceId };
+    },
+    getCheckpointByName: async (intId: string, name: string) => {
+      if (checkpointStore.current?.tab) {
+        return checkpointStore.current.tab;
+      }
+      return { id: tabId, name, interface_id: intId };
+    },
+    create: async () => ({ id: tabId, name: 'New Tab', interface_id: interfaceId }),
+    updateById: async (id: string, data: any) => ({ id, ...data }),
+    updateByName: async (intId: string, name: string, data: any) => ({ id: tabId, name, interface_id: intId, ...data }),
+    deleteById: async () => ({ success: true }),
+    deleteByName: async () => ({ success: true }),
+    checkpointById: async (id: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      checkpointStore.current = {
+        interface: checkpointStore.current?.interface || null,
+        tab: { id, name: 'Test Tab', interface_id: interfaceId },
+        tiles: checkpointStore.current?.tiles || [],
+      };
+      return { id, description };
+    },
+    checkpointByName: async (intId: string, name: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      checkpointStore.current = {
+        interface: checkpointStore.current?.interface || null,
+        tab: { id: tabId, name, interface_id: intId },
+        tiles: checkpointStore.current?.tiles || [],
+      };
+      return { id: tabId, description };
+    },
+  } as unknown as GranularTabActions;
+
+  const tileActions = {
+    list: async (tId: string, name?: string, checkpoint?: boolean) => {
+      if (checkpoint && checkpointStore.current?.tiles) {
+        return checkpointStore.current.tiles.map(tile => ({
+          ...tile,
+          tab_id: tabId,
+          visible: true,
+        }));
+      }
+      return [];
+    },
+    getById: async (id: string) => ({ id, name: 'Tile', tab_id: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tab_id: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getCheckpointById: async (id: string) => ({ id, name: 'Tile', tab_id: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getCheckpointByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tab_id: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    create: async (tId: string, name: string, position: any, extra?: any, type?: string) => ({
+      id: `tile-${Date.now()}`,
+      name,
+      tab_id: tId,
+      position,
+      type: type || 'Table',
+      visible: true,
+      ...extra,
+    }),
+    updateById: async (id: string, data: any) => ({ id, ...data }),
+    updateByName: async (tId: string, name: string, data: any) => ({ id: `tile-${name}`, name, ...data }),
+    deleteById: async () => ({ success: true }),
+    deleteByName: async () => ({ success: true }),
+    checkpointById: async (id: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      return { id, description };
+    },
+    checkpointByName: async (tId: string, name: string, description?: string) => {
+      if (!saveSucceeds) throw new Error('Save failed');
+      return { id: `tile-${name}`, description };
+    },
+  } as unknown as GranularTileActions;
+
+  return { interfaceActions, tabActions, tileActions };
 }
 
 export interface EditModeTestResult extends RenderResult {
@@ -86,6 +267,10 @@ interface StateContainer {
 
 interface EditModeInnerProps extends EditModeTestOptions {
   stateContainerRef: React.MutableRefObject<StateContainer | null>;
+  interfaceActions: GranularInterfaceActions;
+  tabActions: GranularTabActions;
+  tileActions: GranularTileActions;
+  checkpointStore: React.MutableRefObject<{ interface: any; tab: any; tiles: TileSnapshot[] } | null>;
 }
 
 function EditModeInner({
@@ -93,15 +278,37 @@ function EditModeInner({
   callbacks = {},
   saveSucceeds = true,
   tileCount = 3,
+  projectId = 'test-project',
+  interfaceId = 'test-interface',
+  tabId = 'tab-1',
   stateContainerRef,
+  interfaceActions,
+  tabActions,
+  tileActions,
+  checkpointStore,
 }: EditModeInnerProps) {
-  // Use real hook for Edit Mode
+  // Use REAL hook for Edit Mode (from Zustand store)
   const { isEditMode, toggleEditMode, setEditMode } = useGlobalUIMode();
   
-  // Mock "Unsaved Changes" state (as there is no central store selector for this yet)
+  // Use REAL mutation hooks for save/reset operations
+  const saveTabMutation = useSaveTabWithTilesQuery(tabActions, tileActions, "Manual save");
+  const restoreTabMutation = useRestoreLastSavedTabWithTilesQuery();
+  
+  // Get store for tile IDs (used by real save mutation)
+  const storeApi = useStoreApiContext();
+  const store = useStore(storeApi);
+  const tileIds = useMemo(() => {
+    const tabData = store.tabsById?.[tabId];
+    return tabData?.tileIds || [];
+  }, [store.tabsById, tabId]);
+  
+  // Simple hasChanges state for UI consistency (matches original harness behavior)
+  // This allows tests to use initialHasUnsavedChanges and makeChange() predictably
   const [hasChanges, setHasChanges] = useState(initialHasUnsavedChanges);
   
-  const [saving, setSaving] = useState(false);
+  // Track saving state (both mutation and callback)
+  const [isSavingState, setIsSavingState] = useState(false);
+  
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showNavigateWarning, setShowNavigateWarning] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
@@ -121,30 +328,37 @@ function EditModeInner({
 
   const handleToggleEditMode = useCallback(() => {
     toggleEditMode();
-    // We can't easily predict the next state here because toggle is async in terms of React updates,
-    // but for the callback we can assume it toggles. 
-    // Better to assume the consumer checks the state after.
-    callbacks.onToggleEditMode?.(!isEditMode); 
-  }, [isEditMode, toggleEditMode, callbacks]);
+    // Callback is called without predicted state - tests should query isEditMode() after
+    callbacks.onToggleEditMode?.();
+  }, [toggleEditMode, callbacks]);
 
   const handleMakeChange = useCallback(() => {
     setHasChanges(true);
   }, []);
 
   const handleSave = useCallback(async () => {
-    setSaving(true);
+    setIsSavingState(true);
     setSaveSuccess(null);
     
     try {
+      // Call the callback first if provided (allows tests to control timing)
       if (callbacks.onSave) {
         await callbacks.onSave();
-      } else {
-        // Simulate API delay with cleanup-safe promise
-        await new Promise<void>((resolve) => {
-          const timeoutId = setTimeout(() => resolve(), 100);
-          // Return cleanup function for when component unmounts
-          return () => clearTimeout(timeoutId);
-        });
+      }
+      
+      // Use the REAL mutation hook for save (if we have tiles and no callback)
+      if (!callbacks.onSave) {
+        if (tileIds.length > 0) {
+          await saveTabMutation.mutateAsync({
+            tab_id: tabId,
+            interface_id: interfaceId,
+            tab_name: 'Test Tab',
+            tile_ids: tileIds,
+          });
+        } else {
+          // For empty tabs, just checkpoint the tab via mock actions
+          await tabActions.checkpointById(tabId, 'Manual save');
+        }
       }
       
       // Only update state if still mounted
@@ -162,59 +376,59 @@ function EditModeInner({
       }
     } finally {
       if (isMountedRef.current) {
-        setSaving(false);
+        setIsSavingState(false);
       }
     }
-  }, [callbacks, saveSucceeds]);
+  }, [callbacks, tileIds, saveTabMutation, tabId, interfaceId, tabActions, saveSucceeds]);
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
     setShowResetConfirm(false);
-    setHasChanges(false);
-    callbacks.onReset?.();
-  }, [callbacks]);
+    
+    try {
+      // Use the REAL mutation hook for reset
+      await restoreTabMutation.mutateAsync({
+        interface_id: interfaceId,
+        project_id: projectId,
+        interface_actions: interfaceActions,
+        tab_actions: tabActions,
+        tile_actions: tileActions,
+      });
+      
+      // Clear changes state
+      setHasChanges(false);
+      
+      // Call callback if provided
+      callbacks.onReset?.();
+    } catch (error) {
+      console.error('Reset failed:', error);
+    }
+  }, [callbacks, restoreTabMutation, interfaceId, projectId, interfaceActions, tabActions, tileActions]);
 
   const handleAttemptNavigate = useCallback(() => {
     if (hasChanges) {
-      // Use flushSync to ensure state updates are synchronous when called from tests
-      flushSync(() => {
-        setShowNavigateWarning(true);
-      });
+      setShowNavigateWarning(true);
       return callbacks.onNavigateAway?.() ?? false;
     }
     return true;
   }, [hasChanges, callbacks]);
 
   // ==========================================================================
-  // Expose state to test via ref
+  // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  // Update ref on every render
-  useEffect(() => {
-    stateContainerRef.current = {
-      isEditMode: () => isEditMode,
-      hasUnsavedChanges: () => hasChanges,
-      isSaving: () => saving,
-      toggleEditMode: handleToggleEditMode,
-      makeChange: handleMakeChange,
-      save: handleSave,
-      reset: handleReset,
-      attemptNavigate: handleAttemptNavigate,
-    };
-  });
-
-  // Immediate ref for first render
-  if (!stateContainerRef.current) {
-    stateContainerRef.current = {
-      isEditMode: () => isEditMode,
-      hasUnsavedChanges: () => hasChanges,
-      isSaving: () => saving,
-      toggleEditMode: handleToggleEditMode,
-      makeChange: handleMakeChange,
-      save: handleSave,
-      reset: handleReset,
-      attemptNavigate: handleAttemptNavigate,
-    };
-  }
+  // Derive saving state from our state OR mutation
+  const isSaving = isSavingState || saveTabMutation.isPending;
+  
+  useStateContainer(stateContainerRef, () => ({
+    isEditMode: () => isEditMode,
+    hasUnsavedChanges: () => hasChanges,
+    isSaving: () => isSaving,
+    toggleEditMode: handleToggleEditMode,
+    makeChange: handleMakeChange,
+    save: handleSave,
+    reset: handleReset,
+    attemptNavigate: handleAttemptNavigate,
+  }), [isEditMode, hasChanges, isSaving, handleToggleEditMode, handleMakeChange, handleSave, handleReset, handleAttemptNavigate]);
 
   // ==========================================================================
   // Render
@@ -240,16 +454,16 @@ function EditModeInner({
           <>
             <button
               onClick={handleSave}
-              disabled={saving || !hasChanges}
+              disabled={isSaving || !hasChanges}
               className={`flex items-center gap-2 px-3 py-2 rounded ${
-                hasChanges && !saving
+                hasChanges && !isSaving
                   ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
               data-testid="save-button"
             >
               <Save className="h-4 w-4" />
-              {saving ? 'Saving...' : 'Save'}
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
 
             <button
@@ -411,22 +625,112 @@ function EditModeInner({
 // Main Export: renderEditMode
 // =============================================================================
 
-function createInitialStoreState(initialEditMode: boolean): Partial<IStoreState> {
+function createInitialStoreState(
+  initialEditMode: boolean,
+  tabId: string,
+  interfaceId: string,
+  projectId: string
+): Partial<IStoreState> {
   return {
-    globalEditMode: initialEditMode
+    globalEditMode: initialEditMode,
+    projects: [projectId],
+    projectsById: {
+      [projectId]: {
+        id: projectId,
+        name: projectId,
+        description: '',
+        contexts: [],
+        interfaceIds: [interfaceId],
+        activeInterfaceId: interfaceId,
+      },
+    },
+    activeProjectId: projectId,
+    interfacesById: {
+      [interfaceId]: {
+        id: interfaceId,
+        name: 'Test Interface',
+        projectId,
+        tabIds: [tabId],
+        tabNames: ['Test Tab'],
+        activeTabId: tabId,
+      },
+    },
+    activeInterfaceId: interfaceId,
+    tabsById: {
+      [tabId]: {
+        id: tabId,
+        name: 'Test Tab',
+        visible: true,
+        active: true,
+        order: 0,
+        globalContext: undefined,
+        tileIds: [],
+        tileNames: [],
+        itemsNeedRecompute: false,
+        interfaceId,
+        focusedTileNames: [undefined, undefined] as [string | undefined, string | undefined],
+        saveSuccess: undefined,
+        resetting: false,
+        edit: true,
+        interactive: true,
+        help: true,
+        copied: undefined,
+        deleting: false,
+        refreshing: false,
+        color: undefined,
+        hoveredLog: undefined,
+        editTile: undefined,
+        dataPending: false,
+        pending: false,
+      },
+    },
+    activeTabId: tabId,
+    tilesById: {},
   };
 }
 
 export function renderEditMode(options: EditModeTestOptions = {}): EditModeTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
-  const { initialEditMode = false, ...innerOptions } = options;
+  const { 
+    initialEditMode = false, 
+    projectId = 'test-project',
+    interfaceId = 'test-interface',
+    tabId = 'tab-1',
+    saveSucceeds = true,
+    ...innerOptions 
+  } = options;
 
-  const initialState = createInitialStoreState(initialEditMode);
+  // Checkpoint store for save/reset operations
+  const checkpointStore: React.MutableRefObject<{ interface: any; tab: any; tiles: TileSnapshot[] } | null> = { 
+    current: null 
+  };
+
+  // Create mock actions
+  const { interfaceActions, tabActions, tileActions } = createMockActions(
+    projectId,
+    interfaceId,
+    tabId,
+    saveSucceeds,
+    checkpointStore
+  );
+
+  const initialState = createInitialStoreState(initialEditMode, tabId, interfaceId, projectId);
 
   const renderResult = render(
-    <StoreProvider initialState={initialState}>
-      <EditModeInner {...innerOptions} stateContainerRef={stateContainerRef} />
-    </StoreProvider>
+    <TestProviders initialState={initialState}>
+      <EditModeInner 
+        {...innerOptions} 
+        projectId={projectId}
+        interfaceId={interfaceId}
+        tabId={tabId}
+        saveSucceeds={saveSucceeds}
+        stateContainerRef={stateContainerRef}
+        interfaceActions={interfaceActions}
+        tabActions={tabActions}
+        tileActions={tileActions}
+        checkpointStore={checkpointStore}
+      />
+    </TestProviders>
   );
 
   // Wrap state-changing operations in actSync to avoid act() warnings

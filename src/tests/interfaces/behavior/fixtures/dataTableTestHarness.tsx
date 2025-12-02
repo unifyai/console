@@ -13,7 +13,7 @@
  *   });
  */
 import React, { useRef, useState, useMemo, useCallback } from 'react';
-import { render, RenderResult } from '@testing-library/react';
+import { render, RenderResult, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import DataTable from '@/components/Common/Tables/Data/Base';
 import type { LogProps } from '@/types/interfaces/logs';
@@ -553,21 +553,77 @@ export function renderDataTable(options: DataTableTestOptions = {}): DataTableTe
     getExpandedGroups: () => stateContainerRef.current?.getExpandedGroups() ?? [],
     isFrozen: () => stateContainerRef.current?.isFrozen() ?? false,
     getEditingCell: () => stateContainerRef.current?.getEditingCell() ?? null,
-    // Setters
-    setSorting: (sorting) => stateContainerRef.current?.setSorting(sorting),
-    setFilters: (filters) => stateContainerRef.current?.setFilters(filters),
-    setColumnVisibility: (visibility) => stateContainerRef.current?.setColumnVisibility(visibility),
-    setSelectedCells: (cells) => stateContainerRef.current?.setSelectedCells(cells),
-    setColumnOrder: (order) => stateContainerRef.current?.setColumnOrder(order),
-    setSearchTerm: (term) => stateContainerRef.current?.setSearchTerm(term),
-    toggleMetrics: () => stateContainerRef.current?.toggleMetrics(),
-    setMetricsType: (type) => stateContainerRef.current?.setMetricsType(type),
-    toggleGroup: (groupId) => stateContainerRef.current?.toggleGroup(groupId),
-    toggleFrozen: () => stateContainerRef.current?.toggleFrozen(),
-    setEditingCell: (cellId) => stateContainerRef.current?.setEditingCell(cellId),
-    refresh: () => stateContainerRef.current?.refresh(),
-    deleteCells: (cellIds) => stateContainerRef.current?.deleteCells(cellIds),
-    copyCells: (cellIds) => stateContainerRef.current?.copyCells(cellIds),
+    // Setters - wrapped in act() to avoid React state update warnings
+    setSorting: (sorting) => {
+      act(() => {
+        stateContainerRef.current?.setSorting(sorting);
+      });
+    },
+    setFilters: (filters) => {
+      act(() => {
+        stateContainerRef.current?.setFilters(filters);
+      });
+    },
+    setColumnVisibility: (visibility) => {
+      act(() => {
+        stateContainerRef.current?.setColumnVisibility(visibility);
+      });
+    },
+    setSelectedCells: (cells) => {
+      act(() => {
+        stateContainerRef.current?.setSelectedCells(cells);
+      });
+    },
+    setColumnOrder: (order) => {
+      act(() => {
+        stateContainerRef.current?.setColumnOrder(order);
+      });
+    },
+    setSearchTerm: (term) => {
+      act(() => {
+        stateContainerRef.current?.setSearchTerm(term);
+      });
+    },
+    toggleMetrics: () => {
+      act(() => {
+        stateContainerRef.current?.toggleMetrics();
+      });
+    },
+    setMetricsType: (type) => {
+      act(() => {
+        stateContainerRef.current?.setMetricsType(type);
+      });
+    },
+    toggleGroup: (groupId) => {
+      act(() => {
+        stateContainerRef.current?.toggleGroup(groupId);
+      });
+    },
+    toggleFrozen: () => {
+      act(() => {
+        stateContainerRef.current?.toggleFrozen();
+      });
+    },
+    setEditingCell: (cellId) => {
+      act(() => {
+        stateContainerRef.current?.setEditingCell(cellId);
+      });
+    },
+    refresh: () => {
+      act(() => {
+        stateContainerRef.current?.refresh();
+      });
+    },
+    deleteCells: (cellIds) => {
+      act(() => {
+        stateContainerRef.current?.deleteCells(cellIds);
+      });
+    },
+    copyCells: (cellIds) => {
+      act(() => {
+        stateContainerRef.current?.copyCells(cellIds);
+      });
+    },
   };
 }
 

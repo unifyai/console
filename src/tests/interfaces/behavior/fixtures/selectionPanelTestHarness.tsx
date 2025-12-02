@@ -15,8 +15,14 @@
  *   });
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { render, RenderResult } from '@testing-library/react';
-import { flushSync } from 'react-dom';
+import { render, RenderResult, act } from '@testing-library/react';
+
+// Real Store Imports
+import { StoreProvider } from '@/contexts/providers/StoreProvider';
+import { IStoreState } from '@/contexts/store';
+
+// Shared test utilities
+import { useStateContainer } from '../utils';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, MouseSensor } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -428,22 +434,19 @@ function SelectionPanelWrapper({
   }, [callbacks]);
 
   // ==========================================================================
-  // Safe state updater for external calls (wraps in flushSync to avoid act warnings)
+  // Safe state updater for external calls
   // ==========================================================================
   
   const handleSelectCells = useCallback((cells: CellData[]) => {
     if (!isMountedRef.current) return;
-    // Use flushSync to ensure state updates are synchronous when called from tests
-    flushSync(() => {
-      setSelectedCells(cells);
-    });
+    setSelectedCells(cells);
   }, []);
 
   // ==========================================================================
-  // Expose state to test via ref
+  // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  const buildStateContainer = useCallback((): StateContainer => ({
+  useStateContainer(stateContainerRef, () => ({
     getSelectedCells: () => selectedCells,
     getExpandedEntries: () => expandedEntries,
     getViewMode: () => viewMode,
@@ -455,14 +458,6 @@ function SelectionPanelWrapper({
     setViewMode: handleSetViewMode,
     selectCells: handleSelectCells,
   }), [selectedCells, expandedEntries, viewMode, handleExpandEntry, handleCollapseEntry, handleExpandAll, handleCollapseAll, handleSetViewMode, handleSelectCells]);
-
-  useEffect(() => {
-    stateContainerRef.current = buildStateContainer();
-  });
-
-  if (!stateContainerRef.current) {
-    stateContainerRef.current = buildStateContainer();
-  }
 
   // ==========================================================================
   // Render
@@ -558,14 +553,34 @@ function SelectionPanelWrapper({
 }
 
 // =============================================================================
+// Initial Store State
+// =============================================================================
+
+function createInitialStoreState(): Partial<IStoreState> {
+  return {
+    projects: [],
+    projectsById: {},
+    activeProjectId: null,
+    interfacesById: {},
+    activeInterfaceId: null,
+    tabsById: {},
+    activeTabId: null,
+    tilesById: {},
+  };
+}
+
+// =============================================================================
 // Main Export: renderSelectionPanel
 // =============================================================================
 
 export function renderSelectionPanel(options: SelectionPanelTestOptions = {}): SelectionPanelTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
+  const initialState = createInitialStoreState();
 
   const renderResult = render(
-    <SelectionPanelWrapper {...options} stateContainerRef={stateContainerRef} />
+    <StoreProvider initialState={initialState}>
+      <SelectionPanelWrapper {...options} stateContainerRef={stateContainerRef} />
+    </StoreProvider>
   );
 
   return {
@@ -574,12 +589,36 @@ export function renderSelectionPanel(options: SelectionPanelTestOptions = {}): S
     getExpandedEntries: () => stateContainerRef.current?.getExpandedEntries() ?? [],
     getViewMode: () => stateContainerRef.current?.getViewMode() ?? 'raw',
     getEntryOrder: () => stateContainerRef.current?.getEntryOrder() ?? [],
-    expandEntry: (id) => stateContainerRef.current?.expandEntry(id),
-    collapseEntry: (id) => stateContainerRef.current?.collapseEntry(id),
-    expandAll: () => stateContainerRef.current?.expandAll(),
-    collapseAll: () => stateContainerRef.current?.collapseAll(),
-    setViewMode: (mode) => stateContainerRef.current?.setViewMode(mode),
-    selectCells: (cells) => stateContainerRef.current?.selectCells(cells),
+    expandEntry: (id) => {
+      act(() => {
+        stateContainerRef.current?.expandEntry(id);
+      });
+    },
+    collapseEntry: (id) => {
+      act(() => {
+        stateContainerRef.current?.collapseEntry(id);
+      });
+    },
+    expandAll: () => {
+      act(() => {
+        stateContainerRef.current?.expandAll();
+      });
+    },
+    collapseAll: () => {
+      act(() => {
+        stateContainerRef.current?.collapseAll();
+      });
+    },
+    setViewMode: (mode) => {
+      act(() => {
+        stateContainerRef.current?.setViewMode(mode);
+      });
+    },
+    selectCells: (cells) => {
+      act(() => {
+        stateContainerRef.current?.selectCells(cells);
+      });
+    },
   };
 }
 

@@ -4,14 +4,23 @@
  * A reusable wrapper that provides all the mocking and state management
  * needed to test tile layout behaviors in isolation.
  * 
- * IMPROVED: Now uses the REAL Zustand store and hooks for state management,
- * eliminating "shadow logic" while still mocking the complex View layer (react-grid-layout).
+ * Uses REAL components:
+ * - Zustand store for all tile/tab state management
+ * - useTilesFromTab hook to get tiles from store
+ * - useGlobalUIMode hook for edit mode state
+ * - initTile/initTab selectors for state initialization
+ * - Store actions for tile CRUD operations
+ * 
+ * Mock view layer (DnD) is used to avoid react-grid-layout complexity in tests.
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { render, RenderResult } from '@testing-library/react';
 import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, MouseSensor } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import { Plus, Trash2, Copy, EyeOff, Eye, Palette, Move } from 'lucide-react';
+
+// Shared test utilities
+import { useStateContainer } from '../utils';
 
 // Real Store Imports
 import { StoreProvider, useStoreApiContext, useStoreContext } from '../../../../contexts/providers/StoreProvider';
@@ -19,6 +28,7 @@ import { IStoreState } from '../../../../contexts/store';
 import { useTilesFromTab } from '../../../../contexts/hooks/useStore';
 import { initTile, Tile, TileType, TilePosition } from '../../../../contexts/slices/selectors/tile';
 import { initTab } from '../../../../contexts/slices/selectors/tab';
+import { useGlobalUIMode } from '../../../../contexts/hooks/useGlobalUIMode';
 
 // =============================================================================
 // Constants
@@ -372,10 +382,14 @@ function TileGridInner({
   stateContainerRef,
 }: TileGridInnerProps) {
   const storeApi = useStoreApiContext();
-  const [editMode, setEditMode] = useState(initialEditMode);
+  
+  // Use REAL hook for Edit Mode (from Zustand store)
+  const { isEditMode, toggleEditMode, setEditMode } = useGlobalUIMode();
+  const editMode = isEditMode;
+  
   const [showAddOverlay, setShowAddOverlay] = useState(false);
   
-  // Access data using real hooks
+  // Access data using REAL hooks
   const tiles = useTilesFromTab(TAB_ID);
   
   // DnD sensors
@@ -469,34 +483,19 @@ function TileGridInner({
   const hiddenTiles = tiles.filter((t) => t.visible === false);
 
   // ==========================================================================
-  // Expose state to test via ref
+  // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  useEffect(() => {
-    stateContainerRef.current = {
-      getTiles: () => tiles,
-      getVisibleTiles: () => visibleTiles,
-      getHiddenTiles: () => hiddenTiles,
-      getTile: (id) => tiles.find((t) => t.id === id),
-      isEditMode: () => editMode,
-      toggleEditMode: () => setEditMode((prev) => !prev),
-      addTile: (tile) => storeApi.getState().initTile(TAB_ID, tile.id!, tile),
-      removeTile: (tileId) => storeApi.getState().removeTile(TAB_ID, tileId),
-    };
-  });
-
-  if (!stateContainerRef.current) {
-    stateContainerRef.current = {
-        getTiles: () => tiles,
-        getVisibleTiles: () => visibleTiles,
-        getHiddenTiles: () => hiddenTiles,
-        getTile: (id) => tiles.find((t) => t.id === id),
-        isEditMode: () => editMode,
-        toggleEditMode: () => setEditMode((prev) => !prev),
-        addTile: (tile) => storeApi.getState().initTile(TAB_ID, tile.id!, tile),
-        removeTile: (tileId) => storeApi.getState().removeTile(TAB_ID, tileId),
-    };
-  }
+  useStateContainer(stateContainerRef, () => ({
+    getTiles: () => tiles,
+    getVisibleTiles: () => visibleTiles,
+    getHiddenTiles: () => hiddenTiles,
+    getTile: (id: string) => tiles.find((t) => t.id === id),
+    isEditMode: () => editMode,
+    toggleEditMode: () => toggleEditMode(),
+    addTile: (tile: Partial<Tile>) => storeApi.getState().initTile(TAB_ID, tile.id!, tile),
+    removeTile: (tileId: string) => storeApi.getState().removeTile(TAB_ID, tileId),
+  }), [tiles, visibleTiles, hiddenTiles, editMode, toggleEditMode, storeApi]);
 
   // ==========================================================================
   // Render
@@ -508,7 +507,7 @@ function TileGridInner({
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setEditMode((prev) => !prev)}
+            onClick={() => toggleEditMode()} // Use REAL toggle from useGlobalUIMode
             className={`px-3 py-1.5 rounded text-sm ${
               editMode ? 'bg-blue-500 text-white' : 'bg-gray-200'
             }`}
@@ -579,9 +578,12 @@ function TileGridInner({
 // =============================================================================
 
 /**
- * Helper to create initial store state with tabs and tiles
+ * Helper to create initial store state with tabs, tiles, and edit mode
  */
-function createInitialStoreState(initialTiles: Partial<Tile>[]): Partial<IStoreState> {
+function createInitialStoreState(
+  initialTiles: Partial<Tile>[],
+  initialEditMode: boolean
+): Partial<IStoreState> {
   const tab = initTab(TAB_ID, { name: 'Test Tab' });
   
   const tilesById: Record<string, Tile> = {};
@@ -606,20 +608,26 @@ function createInitialStoreState(initialTiles: Partial<Tile>[]): Partial<IStoreS
       [TAB_ID]: tab
     },
     tilesById,
+    // Initialize REAL global edit mode state
+    globalEditMode: initialEditMode,
   };
 }
 
 export function renderTileGrid(options: TileGridTestOptions = {}): TileGridTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
-  const { initialTiles = createMockTiles(4), ...innerOptions } = options;
+  const { 
+    initialTiles = createMockTiles(4), 
+    editMode: initialEditMode = false,
+    ...innerOptions 
+  } = options;
 
-  // Pre-calculate initial state
-  const initialState = createInitialStoreState(initialTiles);
+  // Pre-calculate initial state (includes REAL global edit mode)
+  const initialState = createInitialStoreState(initialTiles, initialEditMode);
 
   // Wrap with StoreProvider
   const renderResult = render(
     <StoreProvider initialState={initialState}>
-      <TileGridInner {...innerOptions} stateContainerRef={stateContainerRef} />
+      <TileGridInner {...innerOptions} editMode={initialEditMode} stateContainerRef={stateContainerRef} />
     </StoreProvider>
   );
 

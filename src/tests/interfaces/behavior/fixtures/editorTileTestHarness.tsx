@@ -4,6 +4,8 @@
  * A reusable wrapper for testing code editor behaviors including
  * file management, code editing, and execution.
  * 
+ * IMPROVED: Uses REAL Zustand store and `useEditorTile` hook for content management.
+ * 
  * Usage:
  *   import { renderEditorTile } from '../fixtures/editorTileTestHarness';
  *   
@@ -13,9 +15,20 @@
  *     expect(getFiles().some(f => f.name === 'test.js')).toBe(true);
  *   });
  */
-import React, { useState, useCallback } from 'react';
-import { render, RenderResult } from '@testing-library/react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { render, RenderResult, act } from '@testing-library/react';
 import { File, Folder, Plus, Trash2, Play, Loader2, Lock } from 'lucide-react';
+
+// Shared test utilities
+import { useStateContainer } from '../utils';
+
+// Real Store Imports
+import { StoreProvider, useStoreContext } from '@/contexts/providers/StoreProvider';
+import { useEditorTile } from '@/contexts/hooks/tile/useEditorTile';
+import { initTile } from '@/contexts/slices/selectors/tile';
+import { initEditorTile } from '@/contexts/slices/selectors/editorTile';
+import { initTab } from '@/contexts/slices/selectors/tab';
+import { IStoreState } from '@/contexts/store';
 
 // =============================================================================
 // Types
@@ -89,6 +102,13 @@ export interface EditorTileTestResult extends RenderResult {
 }
 
 // =============================================================================
+// Constants
+// =============================================================================
+
+const TAB_ID = 'test-tab';
+const TILE_ID = 'test-editor-tile';
+
+// =============================================================================
 // Mock Data
 // =============================================================================
 
@@ -121,6 +141,35 @@ interface StateContainer {
 }
 
 // =============================================================================
+// Initial Store State Builder
+// =============================================================================
+
+function createInitialStoreState(initialContent: string): Partial<IStoreState> {
+  const tab = initTab(TAB_ID, { name: 'Test Tab', tileIds: [TILE_ID] });
+  
+  const tile = initTile(TILE_ID, {
+    type: 'Editor',
+    tabId: TAB_ID,
+    visible: true,
+    editorTile: initEditorTile({
+      file_name: 'main.py',
+      file_type: 'python',
+      content: initialContent,
+    })
+  });
+
+  return {
+    activeTabId: TAB_ID,
+    tabsById: {
+      [TAB_ID]: tab
+    },
+    tilesById: {
+      [TILE_ID]: tile
+    }
+  };
+}
+
+// =============================================================================
 // Editor Tile Wrapper Component
 // =============================================================================
 
@@ -137,6 +186,7 @@ function EditorTileWrapper({
   initialRunning = false,
   stateContainerRef,
 }: EditorTileWrapperProps) {
+  // Local state for files list (multi-file support not in store)
   const [files, setFiles] = useState<EditorFile[]>(initialFiles ?? createMockFiles());
   const [activeFileId, setActiveFileId] = useState<string | null>(
     initialActiveFile ?? files[0]?.id ?? null
@@ -152,7 +202,19 @@ function EditorTileWrapper({
   const [newEnvKey, setNewEnvKey] = useState('');
   const [newEnvValue, setNewEnvValue] = useState('');
 
+  // Real store hook for editor tile content
+  const { editorTile, editorTileActions, exists } = useEditorTile(TILE_ID, TAB_ID);
+  const storeUpdateEditorTile = useStoreContext(state => state.updateEditorTile);
+
   const activeFile = files.find((f) => f.id === activeFileId);
+
+  // Sync active file content with store
+  useEffect(() => {
+    if (activeFile && editorTileActions) {
+      editorTileActions.setFileName(activeFile.name);
+      editorTileActions.setContent(activeFile.content);
+    }
+  }, [activeFileId]);
 
   // ==========================================================================
   // Handlers
@@ -167,8 +229,15 @@ function EditorTileWrapper({
     };
     setFiles((prev) => [...prev, newFile]);
     setActiveFileId(newFile.id);
+    
+    // Update store with new file content
+    if (editorTileActions) {
+      editorTileActions.setFileName(name);
+      editorTileActions.setContent('');
+    }
+    
     callbacks.onCreateFile?.(name);
-  }, [callbacks]);
+  }, [callbacks, editorTileActions]);
 
   const handleDeleteFile = useCallback((id: string) => {
     setFiles((prev) => {
@@ -185,20 +254,40 @@ function EditorTileWrapper({
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
     );
+    
+    // Update store if renaming active file
+    if (id === activeFileId && editorTileActions) {
+      editorTileActions.setFileName(newName);
+    }
+    
     callbacks.onRenameFile?.(id, newName);
-  }, [callbacks]);
+  }, [activeFileId, callbacks, editorTileActions]);
 
   const handleSelectFile = useCallback((id: string) => {
+    const file = files.find(f => f.id === id);
     setActiveFileId(id);
+    
+    // Update store with selected file
+    if (file && editorTileActions) {
+      editorTileActions.setFileName(file.name);
+      editorTileActions.setContent(file.content);
+    }
+    
     callbacks.onFileSelect?.(id);
-  }, [callbacks]);
+  }, [files, callbacks, editorTileActions]);
 
   const handleUpdateContent = useCallback((id: string, content: string) => {
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, content } : f))
     );
+    
+    // Update store if updating active file
+    if (id === activeFileId && editorTileActions) {
+      editorTileActions.setContent(content);
+    }
+    
     callbacks.onContentChange?.(id, content);
-  }, [callbacks]);
+  }, [activeFileId, callbacks, editorTileActions]);
 
   const handleRun = useCallback(async () => {
     setRunning(true);
@@ -220,13 +309,13 @@ function EditorTileWrapper({
   }, [envVars, callbacks]);
 
   // ==========================================================================
-  // Expose state to test via ref
+  // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  const buildStateContainer = useCallback((): StateContainer => ({
+  useStateContainer(stateContainerRef, () => ({
     getFiles: () => files,
     getActiveFile: () => activeFileId,
-    getFileContent: (id) => files.find((f) => f.id === id)?.content ?? '',
+    getFileContent: (id: string) => files.find((f) => f.id === id)?.content ?? '',
     getEnvVars: () => envVars,
     getOutput: () => output,
     isRunning: () => running,
@@ -238,14 +327,6 @@ function EditorTileWrapper({
     run: handleRun,
     addEnvVar: handleAddEnvVar,
   }), [files, activeFileId, envVars, output, running, handleCreateFile, handleDeleteFile, handleRenameFile, handleSelectFile, handleUpdateContent, handleRun, handleAddEnvVar]);
-
-  React.useEffect(() => {
-    stateContainerRef.current = buildStateContainer();
-  });
-
-  if (!stateContainerRef.current) {
-    stateContainerRef.current = buildStateContainer();
-  }
 
   // ==========================================================================
   // Render
@@ -494,9 +575,18 @@ function EditorTileWrapper({
 
 export function renderEditorTile(options: EditorTileTestOptions = {}): EditorTileTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
+  
+  // Get initial content for store
+  const initialFiles = options.initialFiles ?? createMockFiles();
+  const initialActiveId = options.initialActiveFile ?? initialFiles[0]?.id;
+  const initialContent = initialFiles.find(f => f.id === initialActiveId)?.content ?? '';
+  
+  const initialState = createInitialStoreState(initialContent);
 
   const renderResult = render(
-    <EditorTileWrapper {...options} stateContainerRef={stateContainerRef} />
+    <StoreProvider initialState={initialState}>
+      <EditorTileWrapper {...options} stateContainerRef={stateContainerRef} />
+    </StoreProvider>
   );
 
   return {
@@ -507,14 +597,40 @@ export function renderEditorTile(options: EditorTileTestOptions = {}): EditorTil
     getEnvVars: () => stateContainerRef.current?.getEnvVars() ?? [],
     getOutput: () => stateContainerRef.current?.getOutput() ?? '',
     isRunning: () => stateContainerRef.current?.isRunning() ?? false,
-    createFile: (name) => stateContainerRef.current?.createFile(name),
-    deleteFile: (id) => stateContainerRef.current?.deleteFile(id),
-    renameFile: (id, name) => stateContainerRef.current?.renameFile(id, name),
-    selectFile: (id) => stateContainerRef.current?.selectFile(id),
-    updateContent: (id, content) => stateContainerRef.current?.updateContent(id, content),
-    run: () => stateContainerRef.current?.run(),
-    addEnvVar: (key, value) => stateContainerRef.current?.addEnvVar(key, value),
+    createFile: (name) => {
+      act(() => {
+        stateContainerRef.current?.createFile(name);
+      });
+    },
+    deleteFile: (id) => {
+      act(() => {
+        stateContainerRef.current?.deleteFile(id);
+      });
+    },
+    renameFile: (id, name) => {
+      act(() => {
+        stateContainerRef.current?.renameFile(id, name);
+      });
+    },
+    selectFile: (id) => {
+      act(() => {
+        stateContainerRef.current?.selectFile(id);
+      });
+    },
+    updateContent: (id, content) => {
+      act(() => {
+        stateContainerRef.current?.updateContent(id, content);
+      });
+    },
+    run: () => {
+      act(() => {
+        stateContainerRef.current?.run();
+      });
+    },
+    addEnvVar: (key, value) => {
+      act(() => {
+        stateContainerRef.current?.addEnvVar(key, value);
+      });
+    },
   };
 }
-
-
