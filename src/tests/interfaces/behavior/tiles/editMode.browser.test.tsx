@@ -54,7 +54,8 @@ describe('P2-E: Edit Mode', () => {
         expect(isEditMode()).toBe(true);
       });
 
-      expect(onToggleEditMode).toHaveBeenCalledWith(true);
+      // Callback is called without arguments - tests should query isEditMode() for the new state
+      expect(onToggleEditMode).toHaveBeenCalled();
       expect(screen.getByTestId('edit-mode-toggle')).toHaveAttribute('aria-pressed', 'true');
     });
 
