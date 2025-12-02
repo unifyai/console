@@ -230,6 +230,9 @@ export function HireForm({
         setValue("voice_gender", voiceDetails.gender as Gender);
         setValue("voice_provider", voiceDetails.provider);
 
+        const userHasVoice = allDisplayableVoices.some(v => v.voice_id === voiceDetails.voice_id && v.provider === voiceDetails.provider && v.isUserVoiceInOrchestra);
+        setValue("voice_exists", userHasVoice, { shouldValidate: true });
+
         // Update video
         setValue("videoPreviewUrl", null); // Clear old video to show loading
         assistantActions.photo.downloadPresetVideo(currentPreset.first_name, currentPreset.surname, finalProvider)
@@ -243,7 +246,7 @@ export function HireForm({
                 }
             });
 
-    }, [fastMode, getValues, setValue, assistantActions.photo]);
+    }, [fastMode, getValues, setValue, assistantActions.photo, allDisplayableVoices]);
 
     return (
     <FormProvider {...formMethods}>
