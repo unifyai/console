@@ -132,6 +132,20 @@ export function AssistantProfilePanel({
                         <AccordionItem value="profile">
                             <AccordionTriggerWithButtons
                                 className="text-title"
+                                buttonSlot={
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
+                                                    <PenLine className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>Edit Assistant</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                }
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200 p-1'>
                                     <User className="h-4 w-4" />

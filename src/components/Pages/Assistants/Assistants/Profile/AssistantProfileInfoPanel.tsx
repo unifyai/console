@@ -143,13 +143,13 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
 
                     <div className="grid grid-cols-2 gap-y-0.5 py-0.5 flex-1 max-w-xs">
                         <span className="text-caption font-bold">First Name</span>
-                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.first_name}</span>
+                        <span className="text-caption">{assistant.first_name}</span>
                         <span className="text-caption font-bold">Last Name</span>
-                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.surname}</span>
+                        <span className="text-caption">{assistant.surname}</span>
                         <span className="text-caption font-bold">Age</span>
-                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.age ?? 'N/A'}</span>
+                        <span className="text-caption">{assistant.age ?? 'N/A'}</span>
                         <span className="text-caption font-bold">Nationality</span>
-                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{assistant.nationality ?? 'N/A'}</span>
+                        <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
                     </div>
                 </div>
                 
@@ -157,7 +157,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
                 <div className="pt-4 group/assistant-timezone">
                     <h3 className="text-title">Timezone</h3>
                     <div className="grid grid-cols-2 items-center max-w-sm">
-                        <span className="text-caption cursor-[var(--pen-cursor)]" onClick={onEdit}>{timezoneInfo.friendlyName}</span>
+                        <span className="text-caption cursor-pointer" onClick={onEdit}>{timezoneInfo.friendlyName}</span>
                         {timezoneInfo.relativeOffsetString && (
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
@@ -179,7 +179,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
                 {/* About Section */}
                 <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1 cursor-[var(--pen-cursor)]" onClick={onEdit}>
+                    <div className="text-caption prose max-w-none prose-p:my-1" onClick={onEdit}>
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>
