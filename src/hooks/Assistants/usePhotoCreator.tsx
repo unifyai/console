@@ -6,7 +6,7 @@ import { StopCircle } from 'lucide-react';
 import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, ReplicatePredictionResponse, VoiceOption } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
-import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
+import { getAudioDuration, getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { Button } from '@/components/UI/button';
 
 const ANIMATION_POLLING_INTERVAL = 5000;
@@ -288,20 +288,10 @@ export function usePhotoCreator(
         }
 
         setIsProcessing(true);
-        toastIdRef.current = toast.loading("Checking your balance...");
+        toastIdRef.current = toast.loading("Generating video speech...");
 
         try {
-            const currentBalance = await fetchBalance();
-            if (currentBalance < videoAnimationCost) {
-                insufficientFundsToast("animation");
-                setIsProcessing(false);
-                toast.dismiss(toastIdRef.current);
-                toastIdRef.current = undefined;
-                return;
-            }
-    
-            toast.loading("Generating audio for animation...", { id: toastIdRef.current });
-    
+        
             const ttsPayload: GenerateSpeechPayload = {
                 text: ttsPrompt, provider: selectedVoice.provider, voice_id: selectedVoice.voice_id, output_format: "mp3",
                 ...(selectedVoice.provider === 'cartesia' && { model_id: 'sonic-2', cartesia_language: selectedVoice.language as SupportedLanguage }),
@@ -315,7 +305,24 @@ export function usePhotoCreator(
     
             const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64) as any;
             const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType });
-    
+            let audioDuration = 0;
+            try {
+                audioDuration = await getAudioDuration(audioFile);
+            } catch (e) {
+                console.warn("Failed to calculate audio duration", e);
+            }
+
+            toast.loading("Checking your balance...", { id: toastIdRef.current });
+
+            const currentBalance = await fetchBalance();
+            if (currentBalance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
+                insufficientFundsToast("animation");
+                setIsProcessing(false);
+                toast.dismiss(toastIdRef.current);
+                toastIdRef.current = undefined;
+                return;
+            }
+
             toast.loading("Starting animation job...", { id: toastIdRef.current });
             
             const formData = new FormData();
@@ -328,7 +335,10 @@ export function usePhotoCreator(
                 }
                 formData.append('image_url', imageSource);
             }
-    
+            if (audioDuration > 0) {
+                formData.append('duration', audioDuration.toString());
+            }
+
             const createResult = await photoActions.animate(formData);
             if ('detail' in createResult) {
                 throw new Error(createResult.detail);

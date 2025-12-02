@@ -249,7 +249,7 @@ export function PhotoCustomization({
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-caption text-muted-foreground px-1">
-                                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits
+                                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits per image
                             </p>
                             <div className="flex gap-1">
                                 <TooltipProvider delayDuration={100}>
@@ -313,7 +313,7 @@ export function PhotoCustomization({
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-caption text-muted-foreground px-1">
-                                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits
+                                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits per second
                             </p>
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>

@@ -149,3 +149,16 @@ export const getDefaultVoiceForProvider = () => {
     }
     return suitableDefault;
 };
+
+export const getAudioDuration = (blob: Blob): Promise<number> => {
+    return new Promise((resolve) => {
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.onloadedmetadata = () => {
+            URL.revokeObjectURL(audio.src);
+            resolve(audio.duration);
+        };
+        audio.onerror = () => {
+            resolve(0);
+        };
+    });
+};
