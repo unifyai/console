@@ -73,6 +73,9 @@ export function AssistantCommunicationMainView({
                             src={remoteControlUrl}
                             className="w-full h-full border-0"
                             title="Assistant Remote Desktop"
+                            allow="autoplay; camera; microphone; display-capture; clipboard-write; clipboard-read; fullscreen"
+                            allowFullScreen
+                            referrerPolicy="no-referrer"
                         />
                         {/* Add overlay to block pointer events when not interactive */}
                         {!isInteractive && (
