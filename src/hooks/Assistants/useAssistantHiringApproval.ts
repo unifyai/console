@@ -27,7 +27,6 @@ export function useAssistantHiringApproval({
         const response = await approvalActions.getProfile(); 
         if ('detail' in response) {
             const errorMsg = (response as ResponseProps).detail || "Failed to load hiring status.";
-            console.error("[useAssistantHiringApproval] Load Profile Error:", errorMsg);
             setError(errorMsg);
             toast.error("Could not load hiring status. Please try again.");
             setApprovalStatus(null); 
@@ -55,7 +54,6 @@ export function useAssistantHiringApproval({
             return true;
         } else {
             const errorMessage = response.message || response.detail || "An unknown error occurred.";
-            console.error(`[useAssistantHiringApproval] API Error (${operation}):`, errorMessage);
             setError(errorMessage);
             toast.error("An error occurred. Please try again.");
             return false;

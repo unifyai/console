@@ -93,7 +93,6 @@ export function useAssistantContactManager({
             setConfirmDelete(null);
             onSuccess(); // This closes the dialog & refreshes assistants list
         } catch (error: any) {
-            console.error("[useAssistantContactManager] Delete Error:", error.message);
             toast.error(`Failed to delete contact. Please try again.`, { id: toastId });
         } finally {
             setIsDeleting(false);

@@ -44,9 +44,7 @@ export function useAssistants(
             }
 
             const validAssistants = listResult.filter(a => a && a.agent_id && a.first_name);
-            if (validAssistants.length !== listResult.length) {
-                console.warn("Some assistant data was incomplete and filtered out.");
-            }
+            if (validAssistants.length !== listResult.length) {/* no-op */}
 
             // Step 2: Set the core data immediately for a fast UI render
             setAssistants(validAssistants);
@@ -118,7 +116,6 @@ export function useAssistants(
             return true;
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error(`[useAssistants] Error during deletion process for ${displayName}:`, errorMsg);
             toast.error(`Failed to remove ${displayName}`, { id: toastId });
             return false;
         }
@@ -151,7 +148,6 @@ export function useAssistants(
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "Unknown error";
             toast.error(`Profile update failed`, { id: toastId });
-            console.error("Assistant update error in hook:", errorMsg);
             return false;
         }
     }, [assistantActions, photoActions]);

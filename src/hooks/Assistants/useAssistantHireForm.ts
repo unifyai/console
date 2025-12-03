@@ -120,12 +120,10 @@ export function useAssistantHireForm(
                     if (Array.isArray(result)) {
                         setFetchedAssistantEmails(result);
                     } else {
-                        console.error(`[useAssistantHireForm] ${(result as ResponseProps).detail || "Could not fetch existing assistant emails."}`);
                         setFetchedAssistantEmails([]);
                     }
                 })
                 .catch(err => {
-                    console.error("[useAssistantHireForm] Failed to fetch assistant emails.");
                     setFetchedAssistantEmails([]);
                 })
                 .finally(() => {
@@ -257,7 +255,6 @@ export function useAssistantHireForm(
         );
 
         if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
-            console.warn(`Voice ID ${providerSpecificVoiceId} found in assistant preset but not in voice_presets.js. Using fallback.`);
             selectedPresetVoiceDetails = {
                 voice_id: providerSpecificVoiceId, name: "Preset Voice", description: "Preset voice",
                 gender: preset.gender === 'male' ? 'male' : 'female', language: 'en', provider: finalProvider,
@@ -269,7 +266,6 @@ export function useAssistantHireForm(
                  selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
                  selectedPresetVoiceDetails.is_preset = true;
             }
-            console.warn(`No corresponding voice_id found in preset. Using default voice.`);
         }
 
         setValue("voice_id", selectedPresetVoiceDetails.voice_id);
@@ -523,7 +519,6 @@ export function useAssistantHireForm(
              else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
 
              toastIdRef.current = undefined;
-             console.error(`[useAssistantHireForm] Update process failed: ${error.message}`, error);
         } finally {
             setIsSubmitting(false);
         }
@@ -583,9 +578,7 @@ export function useAssistantHireForm(
                     const { content } = await greetingResponse.json();
                     if (!content) throw new Error("Generated an empty greeting.");
                     finalChatHistory = [{ id: uuidv4(), role: 'assistant', content, timestamp: new Date() }];
-                } catch (greetingError) {
-                    console.error("[useAssistantHireForm] Greeting generation failed:", greetingError);
-                }
+                } catch (greetingError) {/* no-op */}
             }
 
             // Registering voices / uploading custom photos/videos
@@ -664,7 +657,6 @@ export function useAssistantHireForm(
                  if(toastIdRef.current) toast.dismiss(toastIdRef.current);
             }
             toastIdRef.current = undefined;
-            console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
         } finally {
             setIsSubmitting(false);
@@ -691,7 +683,6 @@ export function useAssistantHireForm(
             const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE); 
 
             if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
-                console.error(`[useAssistantHireForm] ${(hiringFundsResponse as ResponseProps)?.detail || "Failed to check balance."}`);
                 toast.error("Failed to check balance.", { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 setIsCheckingBalance(false);
@@ -708,7 +699,6 @@ export function useAssistantHireForm(
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: toastIdRef.current });
-            console.error("[useAssistantHireForm] Balance check/hire attempt error:", error);
             toastIdRef.current = undefined;
         } finally {
             setIsCheckingBalance(false);

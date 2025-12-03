@@ -138,7 +138,6 @@ export function useAssistantChat(
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error("Failed to get chat response:", errorMessage);
 
             if (errorMessage.includes("INSUFFICIENT_CREDITS")) {
                 setHistories(prev => {

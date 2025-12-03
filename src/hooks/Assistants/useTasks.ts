@@ -20,7 +20,6 @@ const mapLogToTask = (log: LogProps, assistant_id: string): Task | null => {
     
     // Basic validation for core fields
     if (!entries || typeof log_id !== 'number' || typeof task_id !== 'number' || typeof name !== 'string') {
-        console.warn("Skipping log due to missing or invalid task_id or name:", log);
         return null;
     }
 
@@ -125,7 +124,6 @@ export function useTasks(
                 const assistantId = assistant.agent_id;
 
                 if ('detail' in response && response.detail) {
-                    console.error(`Error fetching tasks for assistant ${assistantId}:`, response.detail);
                     hadError = true;
                     newPerAssistantData.set(assistantId, {
                         ...(newPerAssistantData.get(assistantId) || { offset: 0, total: 0 }),
@@ -167,7 +165,6 @@ export function useTasks(
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "An unknown error occurred while fetching tasks.";
             setTaskError(errorMsg);
-            console.error("Task fetch error in hook:", errorMsg);
             toast.error(`Failed to load tasks`);
             if (isInitialLoad) setTasks([]);
         } finally {

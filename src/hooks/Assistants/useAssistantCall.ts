@@ -65,7 +65,6 @@ export function useAssistantCall(
         isCancelledRef.current = false;
 
         if (room.state !== 'disconnected') {
-            console.warn("[useAssistantCall] Connect called while room is not in disconnected state.");
             return;
         }
         if (!assistant) return;
@@ -108,7 +107,6 @@ export function useAssistantCall(
                         throw err; // Rethrow on final attempt to trigger catch block below
                     }
                     
-                    console.warn(`[useAssistantCall] Connection setup attempt ${attempt} failed. Retrying...`, err);
                     const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -142,16 +140,14 @@ export function useAssistantCall(
 
         } catch (e: any) {
             setIsConnecting(false);
-            if (isCancelledRef.current) {
-                console.log("Connection process was cancelled by the user.");
-            } else {
-                console.error("Failed to connect to LiveKit room", e);
+            if (isCancelledRef.current) {/* no-op */} 
+            else {
                 toast.error(`Failed to start call. Please try again.`);
                 setError(`Failed to start call: ${e.message}`);
             }
             // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
             if (room.state !== 'disconnected') {
-                 room.disconnect().catch(console.error);
+                room.disconnect().catch(console.error);
             }
             onDisconnected();
         }

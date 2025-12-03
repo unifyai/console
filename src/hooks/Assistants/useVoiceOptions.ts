@@ -49,11 +49,9 @@ export function useVoiceOptions(
                 })));
             } else {
                 const errorResult = result as ResponseProps;
-                console.error(errorResult.detail || "Failed to load user voices from Orchestra.");
                 setUserVoicesFromOrchestra([]);
             }
         } catch (error: any) {
-            console.error("Error fetching voices from Orchestra:", error.message);
             setUserVoicesFromOrchestra([]);
         } finally {
             setIsLoadingUserVoices(false);
@@ -102,7 +100,6 @@ export function useVoiceOptions(
         try {
             const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id, voiceToDelete.provider);
             if (deleteResult.detail) { 
-                console.error(`[useVoiceOptions.ts] Voice delete error: ${deleteResult.detail}.`, { id: toastId });
                 toast.error(`Error deleting voice}`, { id: toastId });
                 return null;
             }
@@ -111,7 +108,6 @@ export function useVoiceOptions(
             fetchUserVoicesFromOrchestra(); 
             return voiceToDelete.voice_id;
         } catch (error: any) {
-            console.error(`[useVoiceOptions.ts] Error during voice deletion: ${error.message}`)
             toast.error(`Error deleting voice`, { id: toastId });
             return null;
         }

@@ -86,7 +86,6 @@ export function useVoiceCreator(
 
             const result = await assistantVoiceActions.preview(payload);
             if ('detail' in result) {
-                console.error(`[useVoiceCreator] ${(result as ResponseProps).detail || "Failed to generate previews."}`)
                 toast.error("Failed to generate previews.", { id: toastId });
             } else { 
                 setDesignPreviews(result.previews || []);
@@ -97,7 +96,6 @@ export function useVoiceCreator(
                 }
             }
         } catch (error: any) {
-            console.error(`[useVoiceCreator] Preview generation failed: ${error.message}`)
             toast.error(`Preview generation failed.`, { id: toastId });
         } finally {
             setIsGeneratingPreviews(false);
@@ -151,7 +149,6 @@ export function useVoiceCreator(
             
             if (backendResponse && (backendResponse as ResponseProps).detail) {
                 const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
-                console.error(`Error creating voice: ${errorDetail}`);
                 toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
             }
 
@@ -170,12 +167,10 @@ export function useVoiceCreator(
             }
 
             else { 
-                console.error(`Error creating voice: Unexpected response structure from backend.`, backendResponse);
                 toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
             }
 
         } catch (error: any) {
-            console.error(`Error creating voice: ${error.message}`);
             toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
         } finally {
             setIsProcessingCreate(false);

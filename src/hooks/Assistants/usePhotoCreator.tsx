@@ -28,10 +28,8 @@ const fetchBalance = async (): Promise<number> => {
         if (balanceData && typeof balanceData.fullBalance === 'number') {
             return balanceData.fullBalance;
         }
-        console.warn("Could not fetch user balance or format was incorrect.");
         return 0;
     } catch (error) {
-        console.error("Error fetching balance:", error);
         toast.error("Could not verify your credit balance.");
         return 0;
     }
@@ -201,7 +199,6 @@ export function usePhotoCreator(
 
         } catch (error: any) {
             toast.error(`Photo generation failed.`, { id: toastId });
-            console.error("[usePhotoCreator] generate error:", error);
         } finally {
             setIsProcessing(false);
         }
@@ -267,7 +264,6 @@ export function usePhotoCreator(
 
         } catch (error: any) {
             toast.error(`Photo editing failed.`, { id: toastId });
-            console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
         }
@@ -308,9 +304,7 @@ export function usePhotoCreator(
             let audioDuration = 0;
             try {
                 audioDuration = await getAudioDuration(audioFile);
-            } catch (e) {
-                console.warn("Failed to calculate audio duration", e);
-            }
+            } catch (e) {/* no-op */}
 
             toast.loading("Checking your balance...", { id: toastIdRef.current });
 
@@ -395,7 +389,6 @@ export function usePhotoCreator(
                     const statusResult = await photoActions.getAnimation(prediction.id);
 
                     if ('detail' in statusResult) {
-                        console.warn(`Polling warning: ${statusResult.detail}`);
                         pollIntervalRef.current = setTimeout(poll, 20000);
                         return;
                     }
@@ -417,7 +410,6 @@ export function usePhotoCreator(
                         }
 
                         if (!outputUrl) {
-                            console.error("Animation succeeded but no valid output URL was found.", currentStatus);
                             toast.error("Animation succeeded but the video URL was missing or invalid.", { id: toastIdRef.current });
                             toastIdRef.current = undefined;
                             setIsProcessing(false);
@@ -426,7 +418,6 @@ export function usePhotoCreator(
                         
                         const videoFetchResponse = await fetch(outputUrl);
                         if (!videoFetchResponse.ok) {
-                            console.error(`Failed to download animated video.`);
                             toast.error("Failed to retrieve the final video.", { id: toastIdRef.current });
                             toastIdRef.current = undefined;
                             setIsProcessing(false);
@@ -446,7 +437,6 @@ export function usePhotoCreator(
                         stopPolling();
                         if (toastIdRef.current) {
                             if (currentStatus.status === 'failed') {
-                                console.error("[usePhotoCreator] Animation poll failed:", currentStatus.error);
                                 toast.error(`Animation failed. Please try again.`, { id: toastIdRef.current, duration: 5000 });
                             } else {
                                 toast.info("Animation was canceled.", { id: toastIdRef.current, duration: 5000 });
@@ -471,7 +461,6 @@ export function usePhotoCreator(
     
         } catch (error: any) {
             if(toastIdRef.current) {
-                console.error("[usePhotoCreator] Animate Error:", error.message);
                 toast.error("Failed to start animation. Please try again.", { id: toastIdRef.current });
             }
             toastIdRef.current = undefined;

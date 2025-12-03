@@ -33,7 +33,6 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
                 }
             };
             audioRef.current.onerror = (e) => {
-                console.error("Audio playback error:", e);
                 toast.error("Error playing audio preview.");
                 setIsPlayingPreviewForVoiceId(null);
             };
@@ -71,7 +70,6 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
 
         if (!voice.voice_id || !voice.provider || !voice.language) {
             toast.error("Voice information is incomplete for preview.");
-            console.error("Incomplete voice data for TTS preview:", voice);
             setIsPlayingPreviewForVoiceId(null);
             return;
         }
@@ -115,12 +113,10 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
                 await audioRef.current.play();
             } else { 
                 const errorDetail = result.detail || "TTS generation failed";
-                console.error(`Error playing voice (hook): ${errorDetail}, Status: ${result.status}`);
                 toast.error(`Error playing voice. Please try again or contact us if the issue persists.`);
                 setIsPlayingPreviewForVoiceId(null);
             }
         } catch (e: any) {
-            console.error("TTS Preview Error (hook catch block):", e);
             toast.error(`Failed to play preview. Please try again or contact us if the issue persists.`);
             setIsPlayingPreviewForVoiceId(null);
         }
