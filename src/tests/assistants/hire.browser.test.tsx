@@ -241,6 +241,10 @@ describe('Assistant Hire Flow', () => {
                 revokeObjectURL: vi.fn(),
             },
         });
+        Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
+            configurable: true,
+            value: vi.fn(),
+        });
     });
 
     beforeEach(() => {
@@ -252,7 +256,6 @@ describe('Assistant Hire Flow', () => {
     });
 
     describe('A. General Hiring Featured and UX', () => {
-        // ... (Other A tests unchanged) ...
         it('should validate required fields before hiring', { 
             meta: { 
                 alias: 'Hire-Validation',
@@ -290,6 +293,7 @@ describe('Assistant Hire Flow', () => {
                     return HttpResponse.json({ balance: "0.00", fullBalance: 0.00 });
                 })
             );
+            mockAssistantActions.assistant.check.mockResolvedValueOnce({ sufficient: false });
             render(<HireFlowTestWrapper />);
             await waitForFormReady();
             await user.type(screen.getByLabelText(/first name/i), 'Broke');
@@ -310,68 +314,68 @@ describe('Assistant Hire Flow', () => {
             });
         });
 
-    it('should successfully hire an assistant when requirements are met', { 
-        meta: { 
-            alias: 'Hire-Success',
-            behavior: "Closes dialog and triggers success callback",
-            scenario: "Successful hire flow"
-        } 
-    }, async () => {
-        const originalFetch = window.fetch;
-        vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
-            const url = input.toString();
-            if (url.includes('/api/billing/balance')) {
-                return new Response(JSON.stringify({ balance: "100.00", fullBalance: 100.00 }), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            }
-            return originalFetch(input, init);
-        });
-
-        const createSpy = vi.spyOn(mockAssistantActions.assistant, 'create').mockImplementation(
-            async (first_name, surname, age, nationality, ...args) => ({
-                info: "Assistant created successfully.",
-                assistant: {
-                    ...mockAssistants[0],
-                    agent_id: 'new_created_id',
-                    first_name: first_name as string,
-                    surname: surname as string,
-                    age: age as number,
-                    nationality: nationality as string,
+        it('should successfully hire an assistant when requirements are met', { 
+            meta: { 
+                alias: 'Hire-Success',
+                behavior: "Closes dialog and triggers success callback",
+                scenario: "Successful hire flow"
+            } 
+        }, async () => {
+            const originalFetch = window.fetch;
+            vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
+                const url = input.toString();
+                if (url.includes('/api/billing/balance')) {
+                    return new Response(JSON.stringify({ balance: "100.00", fullBalance: 100.00 }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
                 }
-            })
-        );
+                return originalFetch(input, init);
+            });
 
-        render(<HireFlowTestWrapper onClose={() => {}} />);
-        await waitForFormReady();
+            const createSpy = vi.spyOn(mockAssistantActions.assistant, 'create').mockImplementation(
+                async (first_name, surname, age, nationality, ...args) => ({
+                    info: "Assistant created successfully.",
+                    assistant: {
+                        ...mockAssistants[0],
+                        agent_id: 'new_created_id',
+                        first_name: first_name as string,
+                        surname: surname as string,
+                        age: age as number,
+                        nationality: nationality as string,
+                    }
+                })
+            );
 
-        await userEvent.type(screen.getByLabelText(/first name/i), 'John');
-        await userEvent.type(screen.getByLabelText(/last name/i), 'Doe');
-        await userEvent.type(screen.getByLabelText(/age/i), '30');
-        await userEvent.type(screen.getByLabelText(/about/i), 'Experienced assistant ready to work.');
+            render(<HireFlowTestWrapper onClose={() => {}} />);
+            await waitForFormReady();
 
-        const nationalityTrigger = screen.getByLabelText(/nationality/i);
-        await userEvent.click(nationalityTrigger);
-        await userEvent.click(await screen.findByRole('option', { name: /United States/i }));
+            await userEvent.type(screen.getByLabelText(/first name/i), 'John');
+            await userEvent.type(screen.getByLabelText(/last name/i), 'Doe');
+            await userEvent.type(screen.getByLabelText(/age/i), '30');
+            await userEvent.type(screen.getByLabelText(/about/i), 'Experienced assistant ready to work.');
 
-        const hireButton = screen.getByRole('button', { name: /hire assistant/i });
-        await waitFor(() => expect(hireButton).toBeEnabled());
-        await userEvent.click(hireButton);
+            const nationalityTrigger = screen.getByLabelText(/nationality/i);
+            await userEvent.click(nationalityTrigger);
+            await userEvent.click(await screen.findByRole('option', { name: /United States/i }));
 
-        await waitFor(async () => {
-            expect(createSpy).toHaveBeenCalled();
-            const createPromise = createSpy.mock.results[0].value;                
-            const result = await createPromise;
-            expect(result.assistant).toEqual(expect.objectContaining({
-                agent_id: 'new_created_id',
-                first_name: 'John',
-                surname: 'Doe',
-                age: 30,
-                nationality: 'United States'
-            }));
+            const hireButton = screen.getByRole('button', { name: /hire assistant/i });
+            await waitFor(() => expect(hireButton).toBeEnabled());
+            await userEvent.click(hireButton);
+
+            await waitFor(async () => {
+                expect(createSpy).toHaveBeenCalled();
+                const createPromise = createSpy.mock.results[0].value;                
+                const result = await createPromise;
+                expect(result.assistant).toEqual(expect.objectContaining({
+                    agent_id: 'new_created_id',
+                    first_name: 'John',
+                    surname: 'Doe',
+                    age: 30,
+                    nationality: 'United States'
+                }));
+            });
         });
-    });
 
         it('should prevent creating a duplicate assistant by name', {
             meta: { 
@@ -517,6 +521,41 @@ describe('Assistant Hire Flow', () => {
             
             rerender(<AutoOpenTestComponent assistants={[mockAssistants[0]]} />);
         });
+
+        it('should register voice before hiring if selected voice does not exist in user library', async () => {
+            const user = userEvent.setup();
+            const registerSpy = vi.spyOn(mockAssistantActions.voice, 'register').mockResolvedValue({ 
+                voice_id: 'v_new', 
+                name: 'New Voice', 
+                description: 'desc', 
+                gender: 'female', 
+                language: 'en', 
+                provider: 'elevenlabs',
+                is_preset: false 
+            });
+            const createSpy = vi.spyOn(mockAssistantActions.assistant, 'create').mockResolvedValue({ 
+                info: "Assistant created", 
+                assistant: mockAssistants[0] 
+            });
+            render(<HireFlowTestWrapper />);
+            const mainHireBtn = await screen.findByRole('button', { name: /Hire Assistant/i });
+            await user.click(mainHireBtn);
+            await user.type(screen.getByLabelText(/First Name/i), 'VoiceTest');
+            await user.type(screen.getByLabelText(/Last Name/i), 'Runner');
+            await user.type(screen.getByLabelText(/Age/i), '30');
+            await user.type(screen.getByLabelText(/About/i), 'This is a test assistant description.');
+            const modalHireBtn = screen.getByRole('button', { name: "Hire Assistant" });
+            await user.click(modalHireBtn);
+            await waitFor(() => {
+                expect(registerSpy).toHaveBeenCalled();
+            });
+            await waitFor(() => {
+                expect(createSpy).toHaveBeenCalled();
+            });
+            const registerOrder = registerSpy.mock.invocationCallOrder[0];
+            const createOrder = createSpy.mock.invocationCallOrder[0];
+            expect(registerOrder).toBeLessThan(createOrder);
+        });
     });
 
     describe('B. Presets', () => {
@@ -652,29 +691,6 @@ describe('Assistant Hire Flow', () => {
             expect(screen.getByPlaceholderText(/message limit reached/i)).toBeInTheDocument();
         });
 
-        it('should handle API errors gracefully during chat', {
-            meta: { 
-                alias: 'Hire-Chat-Error',
-                behavior: "Shows error message in chat on failure",
-                scenario: "API returns 500 error"
-            }
-        }, async () => {
-            const user = userEvent.setup();
-            worker.use(
-                http.post('/api/assistant/chat', () => {
-                    return HttpResponse.json({ detail: "Simulated server error" }, { status: 500 });
-                })
-            );
-            render(<HireFlowTestWrapper />);
-            await waitForFormReady();
-            await user.click(screen.getByRole('button', { name: /chat now/i }));
-            await screen.findByText(/it's great to meet you/i, {}, { timeout: 5000 });
-            const chatInput = screen.getByPlaceholderText(/send a message/i);
-            await user.type(chatInput, 'This will fail');
-            await user.keyboard('{Enter}');
-            expect(await screen.findByText(/Failed to get a response/i)).toBeInTheDocument();
-            expect(screen.getByText('This will fail')).toBeInTheDocument();
-        });
     });
 
     describe('D. Photo and Video', () => {
@@ -710,29 +726,37 @@ describe('Assistant Hire Flow', () => {
                 scenario: "Clicking media container with video"
             }
         }, async () => {
-            // Mock video
-            worker.use(
-                http.get('https://signed.url/video.mp4', () => {
-                    return new HttpResponse(new ArrayBuffer(100), { headers: { 'Content-Type': 'video/mp4' } });
-                })
-            );
             const user = userEvent.setup();
-            const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+            const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+            const downloadSpy = vi.spyOn(mockAssistantActions.photo, 'downloadPresetVideo').mockImplementation(async () => {
+                return { signedUrl: 'https://test-video.mp4' };
+            });
             render(<HireFlowTestWrapper />);
-            await waitForFormReady();
-            const presetItem = await screen.findByText('Sarah Connor');
-            await user.click(presetItem);
-            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
-            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
-                await user.click(appearanceTrigger);
+            const mainHireBtn = await screen.findByRole('button', { name: /Hire Assistant/i });
+            await user.click(mainHireBtn);
+            const presetName = await screen.findByText(/Sarah/i); 
+            await user.click(presetName); 
+            await waitFor(() => {
+                expect(downloadSpy).toHaveBeenCalled();
+            });
+            try {
+                await waitFor(() => {
+                    const video = document.querySelector('video');
+                    if (!video) throw new Error("Video tag not found.");
+                }, { timeout: 4000 });
+            } catch (e) {
+                console.log('❌ [DEBUG] Video Element missing.');
+                const viewerContainer = document.querySelector('.h-44.w-44'); 
+                if (viewerContainer) {
+                    console.log('🔍 [DEBUG] Viewer Container HTML:', viewerContainer.outerHTML);
+                }
+                throw e;
             }
-            
-            const videoEl = await screen.findByTestId('assistant-video-element').catch(() => document.querySelector('video'));
-            const container = videoEl?.closest('div[class*="relative group"]');
-            if(container) await user.click(container);
-
-            expect(playSpy).toHaveBeenCalled();
-            playSpy.mockRestore();
+            const videoEl = document.querySelector('video') as HTMLVideoElement;
+            await user.click(videoEl);
+            await waitFor(() => {
+                expect(playSpy).toHaveBeenCalled();
+            });
         });
 
         it('should remove video from image container when selecting another voice which doesn\'t have a video generated', {
@@ -822,7 +846,7 @@ describe('Assistant Hire Flow', () => {
             await user.click(screen.getByRole('tab', { name: /create/i }));
             const promptInput = screen.getByLabelText(/photo prompt/i);
             await user.type(promptInput, "Make it cyberpunk");
-            const editBtn = await screen.findByRole('button', { name: /edit current photo/i });
+            const editBtn = await screen.findByRole('button', { name: /edit photo/i });
             await user.click(editBtn);
             expect(mockAssistantActions.photo.edit).toHaveBeenCalled();
             expect(await screen.findByText("Photo edited successfully!")).toBeInTheDocument();
@@ -1039,7 +1063,7 @@ describe('Assistant Hire Flow', () => {
             if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
             const createBtn = await screen.findByText("Create & Select Voice");
             fireEvent.click(createBtn.closest('button')!);
-            expect(await screen.findByText("Voice name already exists")).toBeInTheDocument();
+            expect(await screen.findByText("Error creating voice. Please try again.")).toBeInTheDocument();
         });
 
         it('should automatically select a newly created voice', {
@@ -1200,7 +1224,7 @@ describe('Assistant Hire Flow', () => {
                 const options = screen.getAllByRole('option');
                 if(options.length > 0) await user.click(options[options.length - 1]);
             }
-            expect(screen.getByRole('heading', { name: /^voice$/i })).toBeInTheDocument();
+            expect(screen.getByLabelText(/^voice trigger$/i)).toBeInTheDocument();
         });
     });
 

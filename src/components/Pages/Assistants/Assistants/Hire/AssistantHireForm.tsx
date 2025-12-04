@@ -244,7 +244,7 @@ export function HireForm({
                     <Accordion type="multiple" defaultValue={["profile", "photo", "voice", "advanced"]} className="w-full">
                         
                         {/* Profile Section */}
-                        <AccordionItem value="profile">
+                        <AccordionItem value="profile" aria-label='profile trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <User className="h-4 w-4"/>
@@ -368,7 +368,7 @@ export function HireForm({
                         </AccordionItem>
 
                         {/* Photo Section */}
-                        <AccordionItem value="photo">
+                        <AccordionItem value="photo" aria-label='photo trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <ImageIcon className="h-4 w-4"/>
@@ -379,7 +379,7 @@ export function HireForm({
                                 <div className="flex flex-col sm:flex-row items-start gap-4">
                                     <AssistantPhotoViewer
                                         photoUrl={photoPreviewUrl}
-                                        videoUrl={videoPreviewUrl}
+                                        videoUrl={isVideoPlayable ? videoPreviewUrl : null}
                                         photoFile={photoFile}
                                         videoFile={videoFile}
                                         className="flex-shrink-0"
@@ -409,7 +409,7 @@ export function HireForm({
                         </AccordionItem>
 
                         {/* Voice Section */}
-                        <AccordionItem value="voice">
+                        <AccordionItem value="voice" aria-label='voice trigger'>
                              <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Volume2 className="h-4 w-4"/>
@@ -442,7 +442,7 @@ export function HireForm({
                             </AccordionContent>
                         </AccordionItem>
                         
-                        <AccordionItem value="advanced" className="border-b-0">
+                        <AccordionItem value="advanced" className="border-b-0" aria-label='advanced trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Settings className="h-4 w-4"/>
