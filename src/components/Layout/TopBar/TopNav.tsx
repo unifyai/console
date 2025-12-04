@@ -90,7 +90,7 @@ export default function TopNav() {
               href="/assistants"
               className={cn(
                 "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
-                pathname === '/assistants' || pathname.startsWith('/assistants/')
+                pathname === '/assistants' || pathname?.startsWith('/assistants/')
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
@@ -103,7 +103,7 @@ export default function TopNav() {
               href="/interfaces"
               className={cn(
                 "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
-                pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
+                pathname === '/interfaces' && searchParams?.get('project') !== 'Usage'
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
@@ -187,16 +187,10 @@ export default function TopNav() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="text-label">{profileName}</p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
                 <Link href="/profile" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <User className="mr-2 h-4 w-4" />
-                  <span>{profileName}</span>
+                  <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
