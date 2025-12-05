@@ -427,14 +427,14 @@ const LogsTable = ({
     const currentHidden = hiddenColumns != null
       ? hiddenColumns.split(",").filter(x => x)
       : [];
-    // Compute underscore-prefixed IDs
-    const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id));
+    // Compute underscore-prefixed IDs (with exception for _assistant in Assistants/All)
+    const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id, projectId, context));
     // Only hide those not already hidden
     const toHide = underscoreIds.filter(id => !currentHidden.includes(id));
     if (toHide.length && tableTileActions) {
       tableTileActions.setHiddenColumns([...currentHidden, ...toHide].join(","));
     }
-  }, [columnIDs, context, defaultHidden, tableTileActions]);
+  }, [columnIDs, context, defaultHidden, tableTileActions, projectId]);
 
   // Compute column visibility map: user override or default underscore hide when enabled
   const hiddenList = hiddenColumns != null
@@ -446,10 +446,10 @@ const LogsTable = ({
       hiddenList !== undefined
         ? !hiddenList.includes(id)
         : defaultHidden
-          ? !isHiddenByDefault(id)
+          ? !isHiddenByDefault(id, projectId, context)
           : true
     ])
-  ), [columnIDs, hiddenList, defaultHidden]);
+  ), [columnIDs, hiddenList, defaultHidden, projectId, context]);
 
   // Toggle handler for updating hiddenColumns from visibility map
   const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => { 

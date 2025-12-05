@@ -1200,7 +1200,25 @@ export const shouldRenderHeader = (
 	return true;
 };
 
-export function isHiddenByDefault(id: string): boolean {
-  // Hide if any path segment starts with an underscore
-  return id.split("/").some(segment => segment.startsWith("_"));
-};
+export function isHiddenByDefault(
+  id: string,
+  projectId?: string,
+  context?: string | null
+): boolean {
+  // Check if any path segment starts with underscore
+  const hasUnderscorePrefix = id.split("/").some(segment => segment.startsWith("_"));
+  
+  if (!hasUnderscorePrefix) {
+    return false; // Not underscore-prefixed, don't hide
+  }
+
+  // Exception: Assistants project with "All" in context - keep _assistant visible
+  if (projectId === "Assistants" && context?.includes("All")) {
+    const columnName = id.split("/").pop(); // Get the last segment
+    if (columnName === "_assistant") {
+      return false; // Don't hide _assistant column
+    }
+  }
+
+  return true; // Hide all other underscore-prefixed columns
+}
