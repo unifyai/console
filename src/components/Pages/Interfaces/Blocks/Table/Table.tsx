@@ -421,20 +421,37 @@ const LogsTable = ({
     tableTileActions?.setColumnOrder(order.join(","));
   }, [tableTileActions, setManualColumnOrderOverride]);
 
-  // Auto-hide underscores once per context when enabled
+  // Auto-hide underscores when enabled, and auto-show exception columns (e.g., _assistant in Assistants/All)
   useEffect(() => {
     if (!defaultHidden) return;
     const currentHidden = hiddenColumns != null
       ? hiddenColumns.split(",").filter(x => x)
       : [];
-    // Compute underscore-prefixed IDs (with exception for _assistant in Assistants/All)
-    const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id, projectId, context));
-    // Only hide those not already hidden
-    const toHide = underscoreIds.filter(id => !currentHidden.includes(id));
-    if (toHide.length && tableTileActions) {
-      tableTileActions.setHiddenColumns([...currentHidden, ...toHide].join(","));
+    
+    // Columns that should be hidden by default (respecting exceptions like _assistant in Assistants/All)
+    const shouldBeHidden = columnIDs.filter(id => isHiddenByDefault(id, projectId, context));
+    
+    // Columns that are underscore-prefixed but should NOT be hidden (exception applies)
+    const shouldBeVisible = columnIDs.filter(id => {
+      const hasUnderscore = id.split("/").some(segment => segment.startsWith("_"));
+      return hasUnderscore && !isHiddenByDefault(id, projectId, context);
+    });
+    
+    // Add new columns that should be hidden
+    const toHide = shouldBeHidden.filter(id => !currentHidden.includes(id));
+    
+    // Remove columns that are hidden but should now be visible (exception kicked in)
+    const toShow = shouldBeVisible.filter(id => currentHidden.includes(id));
+    
+    // Only update if there are actual changes
+    if ((toHide.length > 0 || toShow.length > 0) && tableTileActions) {
+      const newHiddenList = [
+        ...currentHidden.filter(id => !toShow.includes(id)),  // Remove exception columns
+        ...toHide  // Add new columns to hide
+      ];
+      tableTileActions.setHiddenColumns(newHiddenList.length ? newHiddenList.join(",") : "");
     }
-  }, [columnIDs, context, defaultHidden, tableTileActions, projectId]);
+  }, [columnIDs, context, defaultHidden, tableTileActions, projectId, hiddenColumns]);
 
   // Compute column visibility map: user override or default underscore hide when enabled
   const hiddenList = hiddenColumns != null
