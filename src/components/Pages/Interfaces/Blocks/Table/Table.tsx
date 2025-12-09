@@ -1820,7 +1820,7 @@ const LogsTable = ({
                         ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                           <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                         }
-                        error={error}
+                        error={undefined} // Error is handled by Table.tsx's own error UI, don't show DataTable's fallback
                         onRenameColumn={renameColumn}
                       />
                     </div>
