@@ -15,12 +15,10 @@ export async function POST(request: NextRequest) {
 
         // Hardcode the base URL as requested
         const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-        const baseDispatchUrl = "https://us-central1-gcp-project-runtime.cloudfunctions.net/unify-call-webhook";
         
         // Append '-staging' if in a staging/preview environment (using Vercel's env var as an example)
         const isStaging = baseUrl.includes("staging");
-        const DISPATCH_URL = isStaging ? `${baseDispatchUrl}-staging` : baseDispatchUrl;
-        
+        const DISPATCH_URL = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/call`
         const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
         if (!ADMIN_KEY) {

@@ -28,10 +28,7 @@ export async function POST(request: NextRequest) {
     const orchestraUrl = process.env.ORCHESTRA_URL || "";
     const is_staging = orchestraUrl.includes("staging");
 
-    const webhook_url = (
-        "https://us-central1-gcp-project-runtime.cloudfunctions.net/unify-message-webhook"
-        + (is_staging ? "-staging" : "")
-    );
+    const webhook_url = `https://unity-adapters-${is_staging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/message`;
 
     const payload = { "assistant_id": assistant_id, "body": message };
 
