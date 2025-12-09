@@ -74,11 +74,12 @@ const NumericColumnFilter = ({
     // Only request boundaries for the active column to avoid heavy, multi-column analytics
     const columns = [column];
 
-    // Use the boundaries query - this will actively fetch boundaries
+    // Use the boundaries query - ONLY fetch when dialog is actually open to avoid blocking initial render
+    // The min/max endpoints are very slow and can timeout, so we defer until user needs them
     const { data: queryBoundaries, isLoading: isBoundariesLoading } = useTableBoundariesQuery(
         tileId || null,
         tabId || null,
-        true, // enabled
+        open, // Only enabled when dialog is open - prevents blocking initial tile render
         logsActions,
         projectId,
         tileDataState?.context,
