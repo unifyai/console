@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/tests/interfaces/utils/render-with-providers';
 import Interface from '@/components/Pages/Interfaces/Interface/Interface';
@@ -20,6 +20,18 @@ import {
 import { mockProjectId } from '@/tests/interfaces/mocks/fixtures/projects';
 import { mockInterface } from '@/tests/interfaces/mocks/fixtures/interfaces';
 import { mockTab } from '@/tests/interfaces/mocks/fixtures/tabs';
+import { createMockLogs, MOCK_LOGS_TOTAL_COUNT } from '@/tests/interfaces/mocks/fixtures/logs';
+
+// Mock fetch - hooks now use direct fetch to API routes
+const mockFetch = vi.fn();
+
+// Helper to create mock fetch response with proper headers
+const createMockResponse = (data: any, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: (name: string) => name === 'etag' ? 'mock-etag' : null },
+  json: async () => data,
+});
 
 // Stub the heavy Tab component to avoid ReactGridLayout and complex data flow.
 // For the Golden Path we only need to know that the main tab view rendered.
@@ -125,6 +137,70 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
     vi.clearAllMocks();
     nuqsStore.clear();
     nuqsListeners.clear();
+    
+    // Setup fetch mock
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+    
+    // Create mock response data
+    const allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
+    
+    // Default fetch mock implementation
+    mockFetch.mockImplementation(async (url: string) => {
+      // API routes
+      if (url.includes('/api/logs/fields')) {
+        return createMockResponse({
+          'entries/value': { data_type: 'string', field_type: 'entry', artifacts: '', mutable: 'false', created_at: '' },
+        });
+      }
+      if (url.includes('/api/logs')) {
+        // Parse limit and offset from URL
+        const urlObj = new URL(url, 'http://localhost');
+        const limit = parseInt(urlObj.searchParams.get('limit') || '20');
+        const offset = parseInt(urlObj.searchParams.get('offset') || '0');
+        
+        // Return paginated logs
+        const paginatedLogs = allLogs.logs.slice(offset, offset + limit);
+        
+        return createMockResponse({
+          params: allLogs.params,
+          logs: paginatedLogs,
+          count: allLogs.count,
+          groups: allLogs.groups || [],
+        });
+      }
+      if (url.includes('/api/interface')) {
+        return createMockResponse([mockInterface]);
+      }
+      if (url.includes('/api/tab')) {
+        return createMockResponse([mockTab]);
+      }
+      if (url.includes('/api/tile')) {
+        return createMockResponse([{
+          id: 'tile-1',
+          name: 'Logs Table',
+          type: 'Table',
+          tab_id: mockTab.id,
+          visible: true,
+          position: { x: 0, y: 0, width: 4, height: 4 },
+          table_tile: { table_type: 'logs', page_number: '0' },
+        }]);
+      }
+      if (url.includes('/api/projects/tree')) {
+        return createMockResponse([{ id: mockProjectId, name: mockProjectId, contexts: [] }]);
+      }
+      if (url.includes('/api/context')) {
+        return createMockResponse([]);
+      }
+      
+      // Default: return 404
+      return createMockResponse({}, 404);
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   const defaultProps = {
@@ -223,4 +299,3 @@ describe('Interfaces Golden Path (node/jsdom)', () => {
     expect(await screen.findByTestId('golden-path-tab')).toBeInTheDocument();
   });
 });
-

@@ -72,14 +72,35 @@ export const toAbsoluteDate = (value: RelativeDateString) => {
 /* Converts a date from absolute format to relative, compared to a specified baseline date */
 export const toRelativeDate = (value: AbsoluteDateString, base: Date) => {
 	const date = new Date(value);
-	const offsets = [];
-    offsets[0] = `${Math.max(0, differenceInYears(base, date))}Y`;
-    offsets[1] = `${Math.max(0, differenceInMonths(base, date) % 12)}M`;
-    offsets[2] = `${Math.max(0, differenceInDays(base, date) % 30)}D`;
-    offsets[3] = `${Math.max(0, differenceInHours(base, date) % 24)}h`;
-    offsets[4] = `${Math.max(0, differenceInMinutes(base, date) % 60)}m`;
-    offsets[5] = `${Math.max(0, differenceInSeconds(base, date) % 60)}s`;
-    offsets[6] = `${Math.max(0, differenceInMilliseconds(base, date) % 1000)}ms`;
+	
+	// Determine if date is before or after base for proper difference calculation
+	const isAfter = date >= base;
+	const [later, earlier] = isAfter ? [date, base] : [base, date];
+	
+	// Calculate differences by subtracting larger units first
+	const years = differenceInYears(later, earlier);
+	const afterYears = subYears(later, years);
+	const months = differenceInMonths(afterYears, earlier);
+	const afterMonths = subMonths(afterYears, months);
+	const days = differenceInDays(afterMonths, earlier);
+	const afterDays = subDays(afterMonths, days);
+	const hours = differenceInHours(afterDays, earlier);
+	const afterHours = subHours(afterDays, hours);
+	const minutes = differenceInMinutes(afterHours, earlier);
+	const afterMinutes = subMinutes(afterHours, minutes);
+	const seconds = differenceInSeconds(afterMinutes, earlier);
+	const afterSeconds = subSeconds(afterMinutes, seconds);
+	const milliseconds = differenceInMilliseconds(afterSeconds, earlier);
+	
+	const offsets = [
+		`${years}Y`,
+		`${months}M`,
+		`${days}D`,
+		`${hours}h`,
+		`${minutes}m`,
+		`${seconds}s`,
+		`${milliseconds}ms`
+	];
 	const relative = handleInvalidDate(offsets.join(";") as RelativeDateString)
 	return relative as RelativeDateString
 }
@@ -358,19 +379,18 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
 	if (common_filter && fields) {
 		const commonFilterMode = common_filter.split("§")[0]
 		const commonFilterValue = common_filter.split("§")[1]
-		if (!commonFilterValue) return ""
+		if (!commonFilterValue) return columnFiltersExpression || null
 		if (commonFilterMode === "expression") {
 			let filter = commonFilterValue;
 			const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
 			Object.keys(fields).forEach(column => processFilter(filter, column, column_context)) 
-			return filter
+			commonFiltersExpression = filter
 		}
 		else {
 			const validFields = Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
 			const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
 			const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in str(${column_context ? processContext("merge", column_context, column) : column})`
-			const filter = Object.keys(validFields).map(column => processFilter(filterValue, column, column_context)).join(" or ")
-			return filter
+			commonFiltersExpression = Object.keys(validFields).map(column => processFilter(filterValue, column, column_context)).join(" or ")
 		}
 	}
 

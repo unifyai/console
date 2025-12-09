@@ -82,14 +82,14 @@ export default function RenameDialog ({ path, paths, fileDir, fileName, type, re
     const title =   tooltip + "?"
     const Fields =  <> 
                         <Input disabled placeholder={fileName} />
-                        <FormEntry form={form} name="newName" label="New Name" description={`New ${type} name`}/>
+                        <FormEntry form={form as any} name="newName" label="New Name" description={`New ${type} name`}/>
                     </>
     const body =    <div className="text-body">{success ? messages["success"] : error ? messages["error"] : Fields}</div>;
     const footer =  success 
         ? null 
         : error
             ?   <RetryButton onClick={() => setError(false)}/>
-            :   <SubmitButton disabled={loading} onClick={form.handleSubmit(onSubmit)}/>
+            :   <SubmitButton disabled={loading} onClick={(form as any).handleSubmit(onSubmit)}/>
 
     // Hotkey to trigger form submission when pressing enter
     // useKey("Enter", () => {
@@ -98,7 +98,7 @@ export default function RenameDialog ({ path, paths, fileDir, fileName, type, re
 
     return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={(form as any).handleSubmit(onSubmit)}>
             <BaseDialog button={button} title={title} body={body} footer={footer} open={open} setOpen={setOpen}/>
         </form>
     </Form>

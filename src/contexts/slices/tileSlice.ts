@@ -63,10 +63,14 @@ export const createTileSlice: StateCreator<
   // Actions
   initTile: (tabId, tileId, initialState) => set(state => {
     const tab = state.tabsById[tabId];
-    if (!tab) return;
+    if (!tab) {
+      return;
+    }
     
-    // Only initialize if it doesn't exist
-    if (!state.tilesById[tileId]) {
+    const existingTile = state.tilesById[tileId];
+    
+    // If tile doesn't exist, create it
+    if (!existingTile) {
       const newTile = tileLogic.initTile(tileId, initialState);
       state.tilesById[tileId] = newTile;
       
@@ -88,6 +92,34 @@ export const createTileSlice: StateCreator<
       
       // Add the tile to the tab
       state.tabsById[tabId] = tabLogic.addTile(tab, tileId, newTile.name);
+    } else {
+      // Tile exists - but UPDATE the type if it's missing and we have one
+      if (!existingTile.type && initialState?.type) {
+        state.tilesById[tileId].type = initialState.type;
+        
+        // Initialize type-specific data for the newly set type
+        if (initialState.type === 'Table' && !state.tilesById[tileId].tableTile) {
+          state.tilesById[tileId].tableTile = tableTileLogic.initTableTile();
+        } else if (initialState.type === 'Plot' && !state.tilesById[tileId].plotTile) {
+          state.tilesById[tileId].plotTile = plotTileLogic.initPlotTile();
+        } else if (initialState.type === 'View' && !state.tilesById[tileId].viewTile) {
+          state.tilesById[tileId].viewTile = viewTileLogic.initViewTile();
+        } else if (initialState.type === 'Editor' && !state.tilesById[tileId].editorTile) {
+          state.tilesById[tileId].editorTile = editorTileLogic.initEditorTile();
+        } else if (initialState.type === 'Terminal' && !state.tilesById[tileId].terminalTile) {
+          state.tilesById[tileId].terminalTile = terminalTileLogic.initTerminalTile();
+        }
+      }
+      
+      // Also update name if missing
+      if (!existingTile.name && initialState?.name) {
+        state.tilesById[tileId].name = initialState.name;
+      }
+      
+      // Ensure tile is in the tab's tileIds
+      if (!tab.tileIds.includes(tileId)) {
+        state.tabsById[tabId] = tabLogic.addTile(tab, tileId, state.tilesById[tileId].name);
+      }
     }
   }),
   

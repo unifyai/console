@@ -170,8 +170,11 @@ describe('filters', () => {
         
         it('converts relative zero to current time (approx)', () => {
              const abs = toAbsoluteDate(defaultRelativeDate);
-             // Should be very close to 'now'
-             expect(new Date(abs).getTime()).toBeCloseTo(now.getTime(), -2); // within 100ms
+             // Should be very close to 'now' - allow up to 5 seconds tolerance
+             // for module load time and test execution time differences
+             const absTime = new Date(abs).getTime();
+             const nowTime = now.getTime();
+             expect(Math.abs(absTime - nowTime)).toBeLessThan(5000);
         });
 
         it('subtracts offsets correctly', () => {

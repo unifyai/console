@@ -58,12 +58,19 @@ export const getLogs = async (apiKey: string) => {
                 + (randomize ? `&randomize=${randomize}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] }, signal },
             );
+            
+            // Handle 404 - context not found
+            if (response.status === 404) {
+                console.warn(`[getLogs] Context not found: ${context} in project ${project}`);
+                return { params: {}, logs: [], count: 0, groups: [], contextNotFound: true };
+            }
+            
             const json = await response.json();
             if (!response.ok)
                 return { params: {}, logs: [], count: 0, groups: [], detail: json.detail };
             return await json;
-        } catch (e) {
-            console.log(`Failed to get logs error: ${e}`)
+        } catch (e: any) {
+            console.log(`Failed to get logs error: ${e?.message || e}`)
             return {"params":{},"logs":[],"count":0, "groups": []}
         }
     };
@@ -140,15 +147,31 @@ export const updateLogs = async (apiKey: string) => {
 
 // get log fields
 export const getLogFields = async (apiKey: string) => {
-    return async (project: string, context: string | null) => {
+    return async (project: string, context: string | null, signal?: AbortSignal) => {
         "use server";
 
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
-            + (context ? `&context=${context}` : ""),
-            { method: "GET", headers: { apiKey: apiKey } }
-        );
-        return await response.json();
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
+                + (context ? `&context=${context}` : ""),
+                { method: "GET", headers: { apiKey: apiKey }, signal }
+            );
+            
+            // Return empty object for 404 (context not found) or other errors
+            if (response.status === 404) {
+                console.warn(`[getLogFields] Context not found: ${context}`);
+                return {};
+            }
+            if (!response.ok) {
+                console.error(`[getLogFields] Error: ${response.status}`);
+                return {};
+            }
+            
+            return await response.json();
+        } catch (e) {
+            console.error(`[getLogFields] Network error:`, e);
+            return {};
+        }
     };
 };
 
@@ -211,12 +234,20 @@ export const getLogMetrics = async (apiKey: string) => {
             ),
             { method: "GET", headers: { apiKey: apiKey } }
         );
-
+        const contentType = response.headers.get("content-type") || "";
         if (!response.ok) {
-            console.error(response);
-            throw new Error("Network error");
+            let detail = `${response.status} ${response.statusText}`;
+            if (contentType.includes("application/json")) {
+                try {
+                    const j = await response.json();
+                    if (j?.detail) detail = j.detail;
+                } catch { /* ignore parse errors */ }
+            }
+            throw new Error(`Upstream error: ${detail}`);
         }
-
+        if (!contentType.includes("application/json")) {
+            throw new Error(`Upstream error: ${response.status} ${response.statusText}`);
+        }
         return await response.json();
     }
 };
@@ -247,6 +278,20 @@ export const getLatestTimestamp = async (apiKey: string) => {
             + (group_depth !== null && group_depth !== undefined ? `&group_depth=${group_depth}` : ""),
             { method: "GET", headers: { apiKey: apiKey }, signal }
         );
+        const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) {
+            let detail = `${response.status} ${response.statusText}`;
+            if (contentType.includes("application/json")) {
+                try {
+                    const j = await response.json();
+                    if (j?.detail) detail = j.detail;
+                } catch { /* ignore */ }
+            }
+            throw new Error(`Upstream error: ${detail}`);
+        }
+        if (!contentType.includes("application/json")) {
+            throw new Error(`Upstream error: ${response.status} ${response.statusText}`);
+        }
         return await response.json();
     };
 };

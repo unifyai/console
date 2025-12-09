@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@/tests/interfaces/utils/render-with-providers';
 import { useTabDataOptimistic, type CompleteTabData } from '@/hooks/Interfaces/Query/useTabDataOptimistic';
 import type {
@@ -25,6 +25,17 @@ import {
   mockTabId,
   mockTab,
 } from '@/tests/interfaces/mocks/fixtures/tabs';
+
+// Mock fetch - useTabDataOptimistic now uses direct fetch to /api/tile
+const mockFetch = vi.fn();
+
+// Helper to create mock fetch response with proper headers
+const createMockResponse = (data: any, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: () => null },
+  json: async () => data,
+});
 
 type TabDataActions = {
   tabActions: GranularTabActions;
@@ -145,11 +156,30 @@ function TestComponent({
 }
 
 describe('useTabDataOptimistic (lightweight integration, skipTileData)', () => {
-  it('assembles a coherent CompleteTabData snapshot with tiles, tableTiles, and plotTiles', async () => {
-    const tiles = makeTiles();
+  let tiles: TileData[];
 
+  beforeEach(() => {
+    tiles = makeTiles();
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+    
+    // Setup fetch mock to return tiles
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/tile')) {
+        return createMockResponse(tiles);
+      }
+      return createMockResponse({}, 404);
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('assembles a coherent CompleteTabData snapshot with tiles, tableTiles, and plotTiles', async () => {
     const tileActions = {
-      list: vi.fn(async () => tiles),
+      list: vi.fn(async () => tiles), // Not used - hook uses direct fetch
     } as unknown as GranularTileActions;
 
     const actions: TabDataActions = {
@@ -175,7 +205,10 @@ describe('useTabDataOptimistic (lightweight integration, skipTileData)', () => {
       { initialState: makeInitialState() },
     );
 
-    expect(tileActions.list).toHaveBeenCalledTimes(1);
+    // Verify fetch was called for tiles (implementation uses direct fetch)
+    await vi.waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled();
+    });
 
     // Wait for buildCompleteTabData to resolve and call onComplete
     await vi.waitFor(() => {
@@ -202,7 +235,3 @@ describe('useTabDataOptimistic (lightweight integration, skipTileData)', () => {
     expect(result.tileDataItems).toEqual({});
   });
 });
-
-
-
-

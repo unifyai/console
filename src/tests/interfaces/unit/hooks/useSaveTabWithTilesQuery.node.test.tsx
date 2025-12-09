@@ -94,7 +94,7 @@ describe('useSaveTabWithTilesQuery', () => {
     ).rejects.toThrow('Missing required parameters');
   });
 
-  it('reports partial success if some tiles fail', async () => {
+  it('throws error if some tiles fail', async () => {
     const wrapper = createWrapper();
     const { result } = renderHook(
       () => useSaveTabWithTilesQuery(mockTabActions, mockTileActions),
@@ -107,14 +107,11 @@ describe('useSaveTabWithTilesQuery', () => {
       return { id: `chk-${id}` };
     });
 
-    const response = await result.current.mutateAsync({
+    // Implementation throws if any tiles fail
+    await expect(result.current.mutateAsync({
       tab_id: 'tab-1',
       tile_ids: ['good-tile', 'fail-tile'],
-    });
-
-    expect(response.success).toBe(true); // Partial success is considered "success" by the hook return structure logic (tileErrors.length < tile_ids.length)
-    expect(response.tileErrors).toContain('fail-tile');
-    expect(response.tileCheckpoints).toHaveLength(1); // One succeeded
+    })).rejects.toThrow('Failed to save 1 tile(s)');
   });
 
   it('fails completely if tab checkpoint fails', async () => {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user/user";
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -6,9 +7,12 @@ export async function GET(
     request: NextRequest,
     { params }: { params: { assistantId: string } }
 ) {
-    const apiKey = request.headers.get("apiKey"); // This is the admin key from the client
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
     if (!apiKey) {
-        return NextResponse.json({ detail: "API key is missing" }, { status: 401 });
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
     }
 
     try {

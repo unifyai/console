@@ -61,6 +61,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useStoreContext, useStoreApiContext } from '@/contexts/providers/StoreProvider'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useGetInterfaceByIdQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery'
 import { selectActiveTab } from '@/contexts/selectors/tab'
 import BaseDialog from '@/components/Common/Dialogs/Base'
 import { Input } from '@/components/UI/input'
@@ -516,6 +517,13 @@ export default function InterfaceNav({
     return activeTab?.name || null
   })
   
+  // Get active tab ID for hidden tiles
+  const activeTabIdFromStore = useStoreContext((state) => {
+    const activeTab = selectActiveTab(state, interfaceId)
+    return activeTab?.id || null
+  })
+  
+  
   // Store hooks for save/reset functionality
   const setSaveInterfaceOpen = useStoreContext((state) => state.setSaveInterfaceOpen)
   const setGlobalContextOpen = useStoreContext((state) => state.setGlobalContextOpen)
@@ -677,7 +685,7 @@ export default function InterfaceNav({
   const loadingTabs = tabsLoading || tabsFetching
   
   // Prefetch current tab - must be called unconditionally for React hooks rules
-  useTabStreamingQuery(
+  const tabStreamingQuery = useTabStreamingQuery(
     interfaceId || '',
     activeTabName,
     selectedProject,
@@ -691,40 +699,34 @@ export default function InterfaceNav({
     }
   )
   
-  // Prefetch adjacent tabs for faster navigation
+  // Extract prefetchTab function to avoid object reference instability
+  const prefetchTab = tabStreamingQuery.prefetchTab
+  
+  // Prefetch adjacent tabs for faster navigation using the proper prefetchTab method
+  // Delay prefetch to avoid competing with active tab's initial load
   React.useEffect(() => {
     if (!interfaceId || !activeTabName || !selectedProject) return
     
-    const currentTabIndex = currentTabs.findIndex(t => t.name === activeTabName)
-    if (currentTabIndex > 0) {
-      const prevTab = currentTabs[currentTabIndex - 1]
-      // Use the same query key structure as useTabStreamingQuery
-      queryClient.prefetchQuery({
-        queryKey: ['tabCompleteData', interfaceId, prevTab.name, selectedProject],
-        queryFn: async () => {
-          // The actual fetching will be done by useTabStreamingQuery when the tab is activated
-          // This just ensures the query is registered for prefetching
-          return null
-        },
-        staleTime: Infinity,
-        gcTime: Infinity,
-      })
-    }
-    if (currentTabIndex < currentTabs.length - 1) {
-      const nextTab = currentTabs[currentTabIndex + 1]
-      // Use the same query key structure as useTabStreamingQuery
-      queryClient.prefetchQuery({
-        queryKey: ['tabCompleteData', interfaceId, nextTab.name, selectedProject],
-        queryFn: async () => {
-          // The actual fetching will be done by useTabStreamingQuery when the tab is activated
-          // This just ensures the query is registered for prefetching
-          return null
-        },
-        staleTime: Infinity,
-        gcTime: Infinity,
-      })
-    }
-  }, [interfaceId, activeTabName, selectedProject, currentTabs, queryClient])
+    // Wait for active tab to load before prefetching others
+    const timeoutId = setTimeout(() => {
+      const currentTabIndex = currentTabs.findIndex(t => t.name === activeTabName)
+      
+      // Prefetch previous tab
+      if (currentTabIndex > 0) {
+        const prevTab = currentTabs[currentTabIndex - 1]
+        // Use the prefetchTab method which actually fetches the data
+        void prefetchTab(prevTab.name)
+      }
+      
+      // Prefetch next tab
+      if (currentTabIndex < currentTabs.length - 1) {
+        const nextTab = currentTabs[currentTabIndex + 1]
+        void prefetchTab(nextTab.name)
+      }
+    }, 2000) // Wait 2 seconds after tab switch before prefetching
+    
+    return () => clearTimeout(timeoutId)
+  }, [interfaceId, activeTabName, selectedProject, currentTabs, prefetchTab])
   
   // Navigation handlers
   const navigateSoft = useCallback((url: string) => {
@@ -811,7 +813,7 @@ export default function InterfaceNav({
 
     setIsChangingInterface(true)
     setTransitioningToInterface(newInterfaceName)
-    setLoadingMessage('Loading interface...')
+    setLoadingMessage(`Loading ${iface.name}...`)
     try {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.set('interface', iface.name)
@@ -1433,23 +1435,17 @@ export default function InterfaceNav({
     }
   }
   
+  // Use React Query for interface data - cached, no duplicate fetches
+  const { data: interfaceData } = useGetInterfaceByIdQuery(interfaceId, interfaceActions)
+  
+  // Update theme color when interface data loads
   useEffect(() => {
-    const loadInterfaceColor = async () => {
-      if (!interfaceId) return
-      try {
-        const iface = await interfaceActions.get({ interface_id: interfaceId })
-        if (iface && typeof iface.color === 'string' && iface.color.trim() !== '') {
-          setThemeColor(iface.color.trim())
-        } else {
-          setThemeColor('')
-        }
-      } catch (err) {
-        console.error('Failed to fetch interface colour', err)
-      }
+    if (interfaceData && typeof interfaceData.color === 'string' && interfaceData.color.trim() !== '') {
+      setThemeColor(interfaceData.color.trim())
+    } else {
+      setThemeColor('')
     }
-
-    loadInterfaceColor()
-  }, [interfaceId, interfaceActions])
+  }, [interfaceData])
   
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1524,7 +1520,9 @@ export default function InterfaceNav({
   )
   
   const pickerColor = themeColor && themeColor.trim() !== '' ? themeColor : getDefaultPrimary()
-  const showModeControls = Boolean(projectId && interfaceId)
+  // Only show mode controls when there's a project, interface AND at least one tab
+  const hasActiveTabs = currentTabs.length > 0
+  const showModeControls = Boolean(projectId && interfaceId && hasActiveTabs)
   const sidebarStyle = useMemo<CSSProperties>(() => (
     themeColor
       ? ({ '--primary': themeColor, '--accent': themeColor } as CSSProperties)
@@ -2742,8 +2740,8 @@ export default function InterfaceNav({
         />, document.body
       )}
       
-      {/* Floating Add Tile button when Edit Mode is ON */}
-      {isEditMode && projectId && interfaceId && (
+      {/* Floating Add Tile button when Edit Mode is ON and there's an active tab */}
+      {isEditMode && projectId && interfaceId && hasActiveTabs && (
         <div className="fixed z-40 transition-all duration-300 ease-linear pointer-events-none animate-in fade-in slide-in-from-bottom-2" style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}>
           <div className="pointer-events-auto backdrop-blur-sm bg-background/90 border border-border/50 shadow-md rounded-lg p-1">
             <ActionButton

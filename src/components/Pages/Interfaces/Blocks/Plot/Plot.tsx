@@ -14,6 +14,9 @@ import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
 import { PlotArguments } from "@/types/interfaces/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
+import { Button } from "@/components/UI/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpdateQuery";
 
 const LogsPlot = ({ 
     tileId,
@@ -60,6 +63,7 @@ const LogsPlot = ({
     // Get access to the tab context and actions with granular access
     const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
     const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (containerRef.current) {
@@ -88,8 +92,25 @@ const LogsPlot = ({
 
     const { data: args } = usePlotArgumentsQuery(tabId);
 
+    // Wire up manual refresh for Retry using the auto-update hook's queryFn
+    const { manualRefresh: manualPlotRefresh } = usePlotAutoUpdateQuery(
+      tileId,
+      tabId,
+      projectId,
+      pending,
+      logsActions,
+      projectsActions,
+      contextActions,
+      fieldsActions,
+    );
+
     // Init logs and handle local updates
     const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+
+    // Show error UI flags if data fetch failed (rendered later, after all hooks)
+    const plotError = (plotDataItem as any)?.error as any;
+    const showPlotError = !!(plotError && typeof plotError === 'string' && !isPlotDataLoading);
+    const isTimeout = typeof plotError === 'string' && (plotError.includes('timeout') || plotError.includes('504'));
 
     // Initialize refs and container dimensions
     let svgRef = useRef<SVGSVGElement>(null);
@@ -225,6 +246,30 @@ const LogsPlot = ({
     ]);
 
 return (
+    showPlotError ? (
+      <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+          <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-h4 mb-2">Failed to Load Plot Data</h3>
+          <p className="text-body text-muted-foreground max-w-md">
+            {isTimeout 
+              ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
+              : String(plotError)}
+          </p>
+        </div>
+        <Button 
+          onClick={async () => {
+            await manualPlotRefresh();
+          }}
+        >
+          Retry Loading Data
+        </Button>
+      </div>
+    ) : (
     <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
   
       {/* Chart Container */}
@@ -305,6 +350,7 @@ return (
         />
 
     </div>
+    )
   );
 };
 

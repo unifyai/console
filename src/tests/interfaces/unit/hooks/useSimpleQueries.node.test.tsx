@@ -1,11 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useListProjectsQuery } from '@/hooks/Interfaces/Query/useProjectsQuery';
 import { useListInterfacesQuery, useGetInterfaceUnifiedQuery } from '@/hooks/Interfaces/Query/useInterfacesQuery';
 import { ProjectsActions, GranularInterfaceActions } from '@/types/interfaces/grid';
 import { createQueryWrapper } from '@/tests/interfaces/utils/render-with-providers';
 
+// Mock fetch for useListInterfacesQuery which uses direct fetch
+const mockFetch = vi.fn();
+
 describe('Simple Query Hooks', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   describe('useListProjectsQuery', () => {
     it('fetches projects successfully', async () => {
       const mockProjects = [{ id: 'p1', name: 'Project 1' }];
@@ -24,10 +36,19 @@ describe('Simple Query Hooks', () => {
   });
 
   describe('useListInterfacesQuery', () => {
-    it('fetches interfaces successfully', async () => {
+    it('fetches interfaces successfully via direct fetch', async () => {
       const mockInterfaces = [{ id: 'i1', name: 'Interface 1', project_id: 'p1' }];
+      
+      // Mock the fetch response that useListInterfacesQuery uses
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'etag': 'abc123' }),
+        json: async () => mockInterfaces,
+      });
+
       const actions = {
-        list: vi.fn().mockResolvedValue(mockInterfaces),
+        list: vi.fn(), // Not used by implementation anymore
       } as unknown as GranularInterfaceActions;
 
       const { result } = renderHook(
@@ -37,7 +58,12 @@ describe('Simple Query Hooks', () => {
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
       expect(result.current.data).toEqual(mockInterfaces);
-      expect(actions.list).toHaveBeenCalledWith('p1');
+      
+      // Verify fetch was called with correct URL
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const fetchUrl = mockFetch.mock.calls[0][0] as string;
+      expect(fetchUrl).toContain('/api/interface');
+      expect(fetchUrl).toContain('project=p1');
     });
 
     it('does not fetch if projectId is null', async () => {
@@ -52,7 +78,39 @@ describe('Simple Query Hooks', () => {
 
       expect(result.current.isPending).toBe(true); // Queries disabled by 'enabled: false' start in pending state in v5
       expect(result.current.fetchStatus).toBe('idle');
-      expect(actions.list).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled(); // No fetch when disabled
+    });
+
+    it('handles fetch errors gracefully', async () => {
+      // Reset and set up mock for this specific test
+      mockFetch.mockReset();
+      mockFetch.mockImplementation(async () => ({
+        ok: false,
+        status: 500,
+        headers: {
+          get: () => null,
+        },
+        json: async () => ({ detail: 'Server Error' }),
+      }));
+
+      const actions = {} as GranularInterfaceActions;
+
+      const { result } = renderHook(
+        () => useListInterfacesQuery('p1', actions), 
+        { wrapper: createQueryWrapper() }
+      );
+
+      // Wait for the query to complete - use a longer interval for state updates
+      await waitFor(
+        () => {
+          expect(result.current.status).not.toBe('pending');
+        }, 
+        { timeout: 5000, interval: 100 }
+      );
+      
+      // Verify error state
+      expect(result.current.status).toBe('error');
+      expect(result.current.error?.message).toBe('Server Error');
     });
   });
 
@@ -90,4 +148,3 @@ describe('Simple Query Hooks', () => {
     });
   });
 });
-

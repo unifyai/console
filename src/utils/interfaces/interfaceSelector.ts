@@ -7,6 +7,7 @@ import {
 } from "@/types/interfaces/grid";
 import { defaultInterface, defaultTab, defaultTiles } from "@/constants/logs";
 import { QueryClient } from "@tanstack/react-query";
+import { dedupedJson } from '@/lib/requestDeduper';
 
 // Extended interface data with additional fields for the table
 export interface ExtendedInterfaceData extends InterfaceData {
@@ -129,6 +130,29 @@ const upsert = <T>(
   clone[idx] = item;
   return clone;
 };
+
+/**
+ * Ensure the target interface is loadable by preflighting the API route.
+ * Throws on non-OK responses (including upstream timeouts surfaced by the proxy).
+ */
+export async function ensureInterfaceLoadable(
+  project: string,
+  name: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const qs = new URLSearchParams({ project, name, checkpoint: 'false' });
+  const { ok, status, json } = await dedupedJson(`/api/interface?${qs.toString()}`, {
+    method: 'GET',
+    cache: 'no-store',
+    signal,
+  });
+  if (!ok) {
+    const detail = json?.detail || `Interfaces ${status}`;
+    const err = new Error(detail);
+    (err as any).status = status;
+    throw err;
+  }
+}
 
 /**
  * Create default tiles for a tab

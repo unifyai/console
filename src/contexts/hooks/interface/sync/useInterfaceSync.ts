@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { GranularInterfaceActions, GranularTabActions, TabData } from "@/types/interfaces/grid";
 import { useCreateTabQuery, useUpdateTabQuery, useUpdateTabByIdQuery, useDeleteTabQuery } from "@/hooks/Interfaces/Query/useTabsQuery";
 import { useInterface } from "../useInterface";
@@ -84,6 +84,11 @@ export function useInterfaceSync(
   const updateTabMutation = useUpdateTabQuery();
   const updateTabByIdMutation = useUpdateTabByIdQuery();
   const deleteTabMutation = useDeleteTabQuery();
+
+  // Refs for debouncing active tab persistence (must be at hook top-level)
+  const persistTimerRef = useRef<any>(null);
+  const lastScheduledRef = useRef<string | null>(null);
+  const lastPersistedRef = useRef<string | null>(null);
 
   // Helper: propagate interface context to tabs/tiles without explicit context
   const propagateInterfaceContext = async (context?: string | null) => {
@@ -240,15 +245,32 @@ export function useInterfaceSync(
       // 1) Update local state immediately (optimistic update)
       interfaceUIActions.setActiveTab(tabIdOrName);
 
-      // 2) Update server state
-      if (tabId) {
-        await updateInterfaceMutation.mutateAsync({
-          interfaceId: interfaceId,
-          data: {
-            active_tab_id: tabId
-          },
-          actions: interfaceActions as GranularInterfaceActions
-        });
+      // 2) Debounced server persistence to avoid spamming on rapid switches
+      // If nothing to persist or same as last persisted/scheduled, skip
+      if (!tabId) return;
+      if (lastPersistedRef.current === tabId) {
+        debugLog("Active tab already persisted; skipping", tabId);
+        // proceed to cache sync below
+      } else if (lastScheduledRef.current === tabId) {
+        debugLog("Active tab persist already scheduled; skipping re-schedule", tabId);
+      } else {
+        lastScheduledRef.current = tabId;
+        if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = setTimeout(async () => {
+          try {
+            await updateInterfaceMutation.mutateAsync({
+              interfaceId: interfaceId,
+              data: { active_tab_id: tabId },
+              actions: interfaceActions as GranularInterfaceActions
+            });
+            lastPersistedRef.current = tabId;
+          } catch (e) {
+            // swallow error; UI stays consistent and a future change will retry
+          } finally {
+            lastScheduledRef.current = null;
+            persistTimerRef.current = null;
+          }
+        }, 500);
       }
 
       // 3) Update React Query cache to sync tab active states

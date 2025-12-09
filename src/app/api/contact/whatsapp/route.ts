@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user/user";
 
 const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 
 export async function POST(request: NextRequest) {
-    const apiKey = request.headers.get("apiKey"); // For potential proxy auth if needed
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
 
     let requestBody;
     try {

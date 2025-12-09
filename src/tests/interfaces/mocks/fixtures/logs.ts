@@ -66,26 +66,39 @@ export const mockLogFields: LogFieldsResponseProps = {
   },
 };
 
+/**
+ * Format timestamp to match Orchestra API format (no timezone Z suffix)
+ */
+function formatOrchestraTimestamp(date: Date): string {
+  return date.toISOString().replace('Z', '').slice(0, -3);
+}
+
+/**
+ * Static mock response matching real Orchestra API structure exactly.
+ * Use createMockLogs() for dynamic/parameterized tests.
+ */
 export const mockLogsResponse: LogsResponseProps = {
   params: baseParams,
   logs: [
     {
       type: 'ungrouped',
-      id: 'log-1',
-      ts: new Date().toISOString(),
+      id: '1',
+      ts: formatOrchestraTimestamp(new Date()),
       params: {},
       entries: { message: 'First log message' },
       derived_entries: {},
-      clipped_fields: {},
+      versions: {},
+      clipped_fields: [],
     },
     {
       type: 'ungrouped',
-      id: 'log-2',
-      ts: new Date().toISOString(),
+      id: '2',
+      ts: formatOrchestraTimestamp(new Date()),
       params: {},
       entries: { message: 'Second log message' },
       derived_entries: {},
-      clipped_fields: {},
+      versions: {},
+      clipped_fields: [],
     },
   ],
   count: 2,
@@ -98,18 +111,36 @@ export interface CreateMockLogsOptions {
 }
 
 /**
- * Creates mock log entries with rich, sortable/filterable data.
+ * Creates mock log entries matching the real Orchestra API structure exactly.
  * Supports pagination via offset parameter.
+ * 
+ * Real API response structure:
+ * {
+ *   "params": {},
+ *   "logs": [{
+ *     "id": 15675373,           // number
+ *     "ts": "2025-12-04T13:22:03.330797",  // no Z suffix
+ *     "params": {},
+ *     "entries": { ... },
+ *     "derived_entries": {},
+ *     "versions": {},
+ *     "clipped_fields": []      // array, not object
+ *   }],
+ *   "count": 7483857
+ * }
  */
 export function createMockLogs(count: number, options: CreateMockLogsOptions = {}): LogsResponseProps {
   const { offset = 0, totalCount = MOCK_LOGS_TOTAL_COUNT } = options;
   
   const logs = Array.from({ length: count }, (_, i) => {
     const index = offset + i;
+    const logId = 1000000 + index + 1; // Use realistic numeric IDs
+    const timestamp = new Date(Date.now() - (totalCount - index) * 60000);
+    
     return {
-      type: 'ungrouped' as const,
-      id: `log-${index + 1}`,
-      ts: new Date(Date.now() - (totalCount - index) * 60000).toISOString(),
+      type: 'ungrouped',
+      id: String(logId),
+      ts: formatOrchestraTimestamp(timestamp),
       params: {},
       entries: {
         message: `Log message ${index + 1}`,
@@ -118,10 +149,11 @@ export function createMockLogs(count: number, options: CreateMockLogsOptions = {
         score: Math.round((index + 1) * 10.5),
         latency_ms: 100 + (index * 10),
         is_active: index % 2 === 0,
-        created_at: new Date(Date.now() - (totalCount - index) * 60000).toISOString(),
+        created_at: formatOrchestraTimestamp(timestamp),
       },
       derived_entries: {},
-      clipped_fields: {},
+      versions: {},
+      clipped_fields: [] as string[],
     };
   });
 

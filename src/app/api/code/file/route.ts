@@ -1,5 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { CodeSandbox } from "@codesandbox/sdk";
+import { getCurrentUser } from "@/lib/user/user";
 
 // ---------------------------------------------------------------------------
 // Env & SDK initialisation
@@ -36,15 +37,19 @@ export async function POST(request: NextRequest) {
    * Expected JSON body: { user_id, project, filename, content }
    */
   try {
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
     const { user_id: userId, project, filename, content } = await request.json();
 
     if (!userId || !project || !filename || typeof content !== "string") {
-      return Response.json({ detail: "Missing user_id, project, filename or content" }, { status: 400 });
+      return NextResponse.json({ detail: "Missing user_id, project, filename or content" }, { status: 400 });
     }
 
     let contentToWrite = content;
     if (filename === ".env" && content === "") {
-      contentToWrite = `UNIFY_KEY=${request.headers.get("apiKey")}\nUNIFY_PROJECT=${project}`;
+      contentToWrite = `UNIFY_KEY=${apiKey}\nUNIFY_PROJECT=${project}`;
     }
 
     // Ensure sandbox exists and open the FS

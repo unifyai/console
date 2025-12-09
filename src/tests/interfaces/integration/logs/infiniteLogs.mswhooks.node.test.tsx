@@ -4,7 +4,7 @@ import { render, waitFor } from '@/tests/interfaces/utils/render-with-providers'
 import { useInfiniteLogsQuery } from '@/hooks/Interfaces/Query/useInfiniteLogsQuery';
 import type { LogsActions } from '@/types/interfaces/grid';
 import type { LogProps } from '@/types/interfaces/logs';
-import { getLogs } from '@/lib/interfaces/logs';
+import { createMockLogs } from '@/tests/interfaces/mocks/fixtures/logs';
 
 // Reuse the lightweight table tile mock from the unit tests so we don't depend on real tile state.
 const addInfiniteQueryKey = vi.fn();
@@ -36,12 +36,41 @@ describe('useInfiniteLogsQuery (MSW-backed, ungrouped)', () => {
   });
 
   it('fetches the first page of ungrouped logs via getLogs/MSW and calls updateLogs in append mode', async () => {
-    const apiKey = 'test-api-key';
-    const getLogsFn = await getLogs(apiKey);
+    // Use a mock getLogs function that returns the expected data
+    // This avoids issues with server actions in the test environment
+    const mockGetLogs = vi.fn(async (
+      project: string,
+      context: string | null,
+      columnContext: string | null,
+      filterExpression: string | null,
+      sortingExpression: string | null,
+      groupingExpression: string | null,
+      groupSortingExpression: string | null,
+      from_ids: string | null,
+      from_fields: string | null,
+      exclude_fields: string | null,
+      limit: number | null,
+      offset: number | null,
+      group_limit: number | null,
+      group_offset: number | null,
+      group_depth: number | null
+    ) => {
+      const effectiveLimit = limit ?? 20;
+      const effectiveOffset = offset ?? 0;
+      // Return exactly 20 logs with totalCount of 20 (no more pages)
+      const allLogs = createMockLogs(20, { offset: 0, totalCount: 20 });
+      const paginatedLogs = (allLogs.logs as LogProps[]).slice(effectiveOffset, effectiveOffset + effectiveLimit);
+      return {
+        params: allLogs.params,
+        logs: paginatedLogs,
+        count: 20,
+        groups: allLogs.groups,
+      };
+    });
 
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: mockGetLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),

@@ -85,12 +85,40 @@ export const TILE_BUILD_AND_RENDER_CONFIGS: Record<TileType, TileBuildAndRenderC
     shouldStartBuilding: (tabArgumentsReady) => tabArgumentsReady,
     
     checkInternalDataReadiness: (tileId, tabId, queryClient) => {
-      const tableDataItem = queryClient.getQueryData(['tableDataItem', tileId]);
+      const tableDataItem = queryClient.getQueryData(['tableDataItem', tileId]) as { 
+        isLoading?: boolean; 
+        logs?: any[]; 
+        fields?: object;
+        contextNotFound?: boolean;  // Set when context returns 404
+        error?: string;
+      } | undefined;
       const tableArguments = queryClient.getQueryData(['tableArguments', tabId]);
       
       const missingData: string[] = [];
-      if (!tableDataItem) missingData.push('tableDataItem');
+      if (!tableDataItem) {
+        missingData.push('tableDataItem');
+      } else if (tableDataItem.isLoading) {
+        // Data exists but is still loading - not ready yet!
+        missingData.push('tableDataItem (loading)');
+      } else if (tableDataItem.contextNotFound) {
+        // Context doesn't exist (404) - this is a valid "ready" state
+        // The tile should render with an error/empty message instead of waiting forever
+        console.log(`[checkInternalDataReadiness] contextNotFound=true for tile ${tileId}, marking as READY`);
+        // Don't add to missingData - we're ready to render
+      } else if (tableDataItem.error) {
+        // Any error state (including context not found from catch block) - ready to show error UI
+        console.log(`[checkInternalDataReadiness] error="${tableDataItem.error}" for tile ${tileId}, marking as READY`);
+        // Don't add to missingData - we're ready to render error state
+      }
+      // Note: Empty tables (no logs, no fields) are VALID - this can happen for:
+      // 1. Newly created tables
+      // 2. Tables with context: null and no data in the project
+      // 3. Tables where the filter returns no results
+      // So we don't check for empty logs/fields anymore - if tableDataItem exists
+      // and isn't loading/error, it's ready to render (even if empty)
       if (!tableArguments) missingData.push('tableArguments');
+      
+      console.log(`[checkInternalDataReadiness] tile ${tileId}: contextNotFound=${tableDataItem?.contextNotFound}, error=${tableDataItem?.error}, isReady=${missingData.length === 0}, missing=${JSON.stringify(missingData)}`);
       
       return {
         isReady: missingData.length === 0,

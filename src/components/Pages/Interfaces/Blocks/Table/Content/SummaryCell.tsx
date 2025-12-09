@@ -29,7 +29,8 @@ const SummaryCell = ({
 	paramsProperties,
 	filterExpression,
 	logsLength,
-	logsActions
+	logsActions,
+	enabled = false
 }: {
 	tileId?: string;
 	tabId?: string;
@@ -43,6 +44,7 @@ const SummaryCell = ({
 	filterExpression: string | null;
 	logsLength: number;
 	logsActions: LogsActions;
+	enabled?: boolean;
 }) => {
 	const { isDragging, setNodeRef, transform } = useSortable({ id: column.id });
 
@@ -57,7 +59,7 @@ const SummaryCell = ({
 	const { data: queryMetrics, isLoading: isMetricsLoading, isFetching } = useTableMetricsQuery(
 		tileId || null,
 		tabId || null,
-		true, // enabled - this will trigger the query
+		!!enabled, // only fetch when metrics row is shown
 		logsActions,
 		projectId,
 		tileDataState?.context,

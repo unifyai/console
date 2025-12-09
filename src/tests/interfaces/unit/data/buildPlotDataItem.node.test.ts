@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { buildPlotDataItem, getUsedTableNames } from '@/utils/data/buildPlotDataItem';
 import {
   TileData,
@@ -8,12 +8,19 @@ import {
 import {
   LogFieldsResponseProps,
   PlotArguments,
-  LogsResponseProps,
-  LogProps,
-  GroupedMetrics,
 } from '@/types/interfaces/logs';
 
 const makePosition = (): TilePosition => ({ x: 0, y: 0, width: 4, height: 4 });
+
+// Mock fetch globally for these tests since buildPlotDataItem uses relative URLs
+// which don't work in Node.js without a base URL
+const mockFetch = vi.fn();
+
+// Dummy logsActions - not used by implementation but required by type
+const dummyLogsActions = {
+  get: vi.fn(),
+  getMetrics: vi.fn(),
+} as unknown as LogsActions;
 
 describe('buildPlotDataItem', () => {
   const baseFields: LogFieldsResponseProps = {
@@ -26,10 +33,14 @@ describe('buildPlotDataItem', () => {
     },
   };
 
-  const mockLogsActions = {
-    get: vi.fn(),
-    getMetrics: vi.fn(),
-  } as unknown as LogsActions;
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it('getUsedTableNames extracts table names from axis and group settings', () => {
     const plotTile: TileData = {
@@ -65,11 +76,12 @@ describe('buildPlotDataItem', () => {
       {},
       [],
       'proj-1',
-      mockLogsActions
+      dummyLogsActions
     );
 
     expect(result.plotLogs).toEqual([]);
     expect(result.plotFields).toEqual({});
+    expect(mockFetch).not.toHaveBeenCalled(); // No fetch when no tables
   });
 
   it('buildPlotDataItem returns merged logs from used tables', async () => {
@@ -99,22 +111,19 @@ describe('buildPlotDataItem', () => {
       } as any,
     };
 
-    // Mock logsActions.get to return some data for TableA
-    (mockLogsActions.get as any).mockResolvedValue({
-      logs: [
-        {
-          entries: { x: 1, y: 10 },
-          params: {},
-        },
-        {
-          entries: { x: 2, y: 20 },
-          params: {},
-        },
-      ],
-      count: 2,
-      params: {},
-      groups: {},
-    } as unknown as LogsResponseProps);
+    // Mock successful fetch response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        logs: [
+          { type: 'ungrouped', id: 1, entries: { x: 1, y: 10 }, params: {} },
+          { type: 'ungrouped', id: 2, entries: { x: 2, y: 20 }, params: {} },
+        ],
+        count: 2,
+        params: {},
+        groups: [],
+      }),
+    });
 
     const result = await buildPlotDataItem(
       plotTile,
@@ -122,15 +131,18 @@ describe('buildPlotDataItem', () => {
       plotArguments,
       [baseFields], // Fields for TableA
       'proj-1',
-      mockLogsActions
+      dummyLogsActions
     );
 
+    // Verify fetch was called with correct URL pattern
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const fetchUrl = mockFetch.mock.calls[0][0] as string;
+    expect(fetchUrl).toContain('/api/logs');
+    expect(fetchUrl).toContain('project=proj-1');
+    expect(fetchUrl).toContain('from_fields=x%26y'); // URL encoded
+
     expect(result.plotLogs).toHaveLength(2);
-    // Keys should be prefixed with table name, and nested under entries/params
     const log1 = result.plotLogs[0] as any;
-    // The structure is flattened but namespaced. 
-    // Based on buildPlotDataItem:
-    // `${tableId}.entries` -> { `${tableId}.x`: 1, ... }
     expect(log1['TableA.entries']).toBeDefined();
     expect(log1['TableA.entries']['TableA.x']).toBe(1);
     expect(log1['TableA.entries']['TableA.y']).toBe(10);
@@ -138,7 +150,7 @@ describe('buildPlotDataItem', () => {
     expect(result.plotFields).toHaveProperty('TableA.entries/val');
   });
 
-  it('buildPlotDataItem handles aggregated metrics from logsActions.getMetrics', async () => {
+  it('buildPlotDataItem handles aggregated metrics from API', async () => {
     const plotTile: TileData = {
       id: 'plot-agg',
       name: 'Agg Plot',
@@ -158,6 +170,7 @@ describe('buildPlotDataItem', () => {
         name: 'TableA',
         type: 'Table',
         position: makePosition(),
+        context: 'test-context',
       },
     ];
 
@@ -168,14 +181,20 @@ describe('buildPlotDataItem', () => {
       } as any,
     };
 
-    // Mock getMetrics
-    const mockMetrics: any = {
-      'val1': {
-        mean: 50,
-        count: 10,
-      }
-    };
-    (mockLogsActions.getMetrics as any).mockResolvedValue(mockMetrics);
+    // Mock metrics endpoint response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        'group1': {
+          mean: 50,
+          count: 10,
+        },
+        'group2': {
+          mean: 75,
+          count: 5,
+        }
+      }),
+    });
 
     const result = await buildPlotDataItem(
       plotTile,
@@ -183,58 +202,99 @@ describe('buildPlotDataItem', () => {
       plotArguments,
       [baseFields],
       'proj-1',
-      mockLogsActions
+      dummyLogsActions
     );
 
-    // Verify logic calls getMetrics and processes result
-    expect(mockLogsActions.getMetrics).toHaveBeenCalled();
-    // The conversion logic is internal, but we expect result.plotLogs to be populated
-    // Note: convertMetricsToLogs behavior depends on implementation details (group fields matching keys etc)
-    // Here we mainly test that it doesn't crash and attempts to fetch.
-    // Since our mockMetrics keys might not match exact expectations of convertMetricsToLogs without precise setup,
-    // we'll check if it returned an object.
+    // Verify fetch was called with metrics endpoint
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const fetchUrl = mockFetch.mock.calls[0][0] as string;
+    expect(fetchUrl).toContain('/api/logs/mean'); // metric name in URL
+
     expect(result).toBeDefined();
+    expect(result.plotLogs).toBeDefined();
   });
 
-  it('buildPlotDataItem handles logsActions failures gracefully', async () => {
+  it('buildPlotDataItem handles API failures gracefully', async () => {
     const plotTile: TileData = {
-        id: 'plot-error',
-        name: 'Error Plot',
-        type: 'Plot',
+      id: 'plot-error',
+      name: 'Error Plot',
+      type: 'Plot',
+      position: makePosition(),
+      plot_tile: {
+        x_axis: 'TableA.x',
+        y_axis: 'TableA.y',
+      },
+    };
+
+    const tableTiles: TileData[] = [
+      {
+        id: 'table-a',
+        name: 'TableA',
+        type: 'Table',
         position: makePosition(),
-        plot_tile: {
-          x_axis: 'TableA.x',
-          y_axis: 'TableA.y',
-        },
-      };
-  
-      const tableTiles: TileData[] = [
-        {
-          id: 'table-a',
-          name: 'TableA',
-          type: 'Table',
-          position: makePosition(),
-        },
-      ];
-  
-      const plotArguments: PlotArguments = {
-        TableA: {
-          subset: 'x&y',
-        } as any,
-      };
-  
-      // Mock logsActions.get to reject
-      (mockLogsActions.get as any).mockRejectedValue(new Error("API Error"));
-  
-      // Expect the promise to reject (since Promise.all is used without catch inside)
-      await expect(buildPlotDataItem(
-        plotTile,
-        tableTiles,
-        plotArguments,
-        [baseFields],
-        'proj-1',
-        mockLogsActions
-      )).rejects.toThrow("API Error");
+      },
+    ];
+
+    const plotArguments: PlotArguments = {
+      TableA: {
+        subset: 'x&y',
+      } as any,
+    };
+
+    // Mock API to return error
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ detail: 'API Error' }),
+    });
+
+    await expect(buildPlotDataItem(
+      plotTile,
+      tableTiles,
+      plotArguments,
+      [baseFields],
+      'proj-1',
+      dummyLogsActions
+    )).rejects.toThrow('Failed to fetch plot logs: 500');
+  });
+
+  it('buildPlotDataItem handles network failures', async () => {
+    const plotTile: TileData = {
+      id: 'plot-network-error',
+      name: 'Network Error Plot',
+      type: 'Plot',
+      position: makePosition(),
+      plot_tile: {
+        x_axis: 'TableA.x',
+        y_axis: 'TableA.y',
+      },
+    };
+
+    const tableTiles: TileData[] = [
+      {
+        id: 'table-a',
+        name: 'TableA',
+        type: 'Table',
+        position: makePosition(),
+      },
+    ];
+
+    const plotArguments: PlotArguments = {
+      TableA: {
+        subset: 'x&y',
+      } as any,
+    };
+
+    // Mock network error
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+    await expect(buildPlotDataItem(
+      plotTile,
+      tableTiles,
+      plotArguments,
+      [baseFields],
+      'proj-1',
+      dummyLogsActions
+    )).rejects.toThrow('Network error');
   });
 });
-

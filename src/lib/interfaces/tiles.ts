@@ -13,7 +13,7 @@ import {
 
 // List tiles in tab
 export const listTiles = async (apiKey: string) => {
-    return async (tab_id: string, type?: string, checkpoint: boolean = false) => {
+    return async (tab_id: string, type?: string, checkpoint: boolean = false, signal?: AbortSignal) => {
         "use server";
 
         let url = `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&checkpoint=${checkpoint}`;
@@ -25,6 +25,7 @@ export const listTiles = async (apiKey: string) => {
             method: "GET",
             headers: { apiKey: apiKey },
             cache: "no-store",
+            signal,
         });
         
         if (!response.ok) {

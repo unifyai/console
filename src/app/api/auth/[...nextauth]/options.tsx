@@ -3,7 +3,6 @@ import { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { OrchestraAdapter } from "@/lib/orchestra/orchestra-adapter";
-import { getUserByEmail } from "@/lib/user/user";
 import { TokensBreakdownPlot } from "@/components/Pages/Usage/Plots/TokensBreakdown";
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;

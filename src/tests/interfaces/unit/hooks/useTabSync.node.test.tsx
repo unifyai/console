@@ -45,7 +45,8 @@ const deleteTileMutate = vi.fn();
 
 vi.mock('@/hooks/Interfaces/Query/useTilesQuery', () => ({
   useCreateTileQuery: () => ({
-    mutateAsync: createTileMutateAsync,
+    mutate: createTileMutateAsync, // wrapInitTile uses .mutate()
+    mutateAsync: createTileMutateAsync, // wrapDuplicateTile uses .mutateAsync()
   }),
   useUpdateTileQuery: () => ({
     mutate: vi.fn(),

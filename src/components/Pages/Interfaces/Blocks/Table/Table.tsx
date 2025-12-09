@@ -17,6 +17,7 @@ import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, S
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
+import { isEffectiveContextNotFound } from "@/utils/interfaces/contextValidation";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
@@ -79,6 +80,7 @@ import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
 import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
+import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -143,6 +145,8 @@ const LogsTable = ({
   const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
   const focusPaneOpen = useStoreContext(state => state.focusPaneOpen);
   const context_ = tabDataState?.globalContext;
+  // Retry state for error screen
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Use granular hooks for better performance
   const {
@@ -164,7 +168,7 @@ const LogsTable = ({
   } = useTableDataQueryWithTracking(tileId, tabId);
 
   const listContextsQuery = useListContextsQuery(projectId || null, contextActions);
-  const availableContexts = listContextsQuery.data || [];
+  const availableContexts = useMemo(() => Array.isArray(listContextsQuery.data) ? listContextsQuery.data : [], [listContextsQuery.data]);
 
   // Use the existing table data item as single source of truth
   const {
@@ -177,6 +181,7 @@ const LogsTable = ({
     newCells,
     error,
     isLoading: isTableDataLoading,
+    contextNotFound,
   } = tableDataItem;
 
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
@@ -270,7 +275,19 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = isInteractive;
-  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
+  const pending = !!(tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending);
+
+  // Wire up manual refresh for Retry using the auto-update hook's queryFn
+  const { manualRefresh: manualTableRefresh } = useTableAutoUpdateQuery(
+    tileId,
+    tabId,
+    (projectId || "") as string,
+    pending,
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions,
+  );
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -998,13 +1015,31 @@ const LogsTable = ({
     Select a Context
   </Button>
 
+  // Show error UI if data fetch failed - moved after all hooks
+  // For contextNotFound, don't show generic error - show the contextNotFound overlay instead
+  const showError = error && typeof error === 'string' && !isTableDataLoading && !contextNotFound;
+  const isTimeout = error?.includes('timeout') || error?.includes('504');
+
+  // Check if context should be treated as "not found" - handles both API 404s and 
+  // deleted contexts that don't properly return 404 (returns 200 with empty data instead)
+  const effectiveContextNotFound = useMemo(() => isEffectiveContextNotFound({
+    apiContextNotFound: contextNotFound,
+    context,
+    availableContexts,
+    isLoadingContexts: listContextsQuery.isLoading,
+  }), [contextNotFound, context, availableContexts, listContextsQuery.isLoading]);
+
+  // Determine overlay mode: contextNotFound takes priority
+  const overlayMode = effectiveContextNotFound 
+    ? "contextNotFound" 
+    : (availableContexts.length > 0 && !context ? "context" : "new");
+    
   // Empty table overlay display and content
+  // For contextNotFound, show immediately (don't wait for spinner to finish)
   const showOverlay =
-    !showSpinner &&
-    logs.length === 0 &&
-    !listContextsQuery.isLoading &&
-    !overlayDismissed;
-  const overlayMode = availableContexts.length > 0 && !context ? "context" : "new";
+    effectiveContextNotFound
+      ? !overlayDismissed  // Show immediately for deleted contexts
+      : (!showSpinner && logs.length === 0 && !listContextsQuery.isLoading && !overlayDismissed);
 
   const showActions =
     (grouping.length > 0) ||
@@ -1241,7 +1276,7 @@ const LogsTable = ({
               {renderSectionToggle(setMonitoringSectionVisible, monitoringSectionVisible, "Monitoring")}
               <div className={cn("flex items-center gap-2", !monitoringSectionVisible && "hidden")}>
                   <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
-                  <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />
+                  <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} onRefresh={() => infiniteLogsQuery.refetch()} />
               </div>
             </div>
         )}
@@ -1353,8 +1388,46 @@ const LogsTable = ({
       className="flex-1 flex flex-col gap-2 w-full h-full p-2 bg-background rounded-md min-h-0 overflow-hidden"
       onClick={onContainerClick}
     >
-      {/* If truly pending or logs not present, show a spinner */}
-      {showSpinner ? (
+      {/* Show error UI if data fetch failed */}
+      {showError ? (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+          {isRetrying ? (
+            <div className="flex items-center justify-center gap-3">
+              <Loader2 className="animate-spin" />
+              <span className="text-body">Retrying…</span>
+            </div>
+          ) : (
+            <>
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-h4 mb-2">Failed to Load Table Data</h3>
+                <p className="text-body text-muted-foreground max-w-md">
+                  {isTimeout 
+                    ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
+                    : error}
+                </p>
+              </div>
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsRetrying(true);
+                    await manualTableRefresh();
+                  } finally {
+                    setTimeout(() => setIsRetrying(false), 300);
+                  }
+                }}
+                disabled={isRetrying}
+              >
+                Retry Loading Data
+              </Button>
+            </>
+          )}
+        </div>
+      ) : showSpinner ? (
         <div className="flex justify-center items-center h-full w-full">
           <Loader2 className="animate-spin my-36" />
         </div>
@@ -1369,8 +1442,13 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? selectContextButton : createLogRedirectButton}
-                withPulse={true}
+                actionButton={
+                  overlayMode === "contextNotFound" 
+                    ? selectContextButton 
+                    : (overlayMode === "context" ? selectContextButton : createLogRedirectButton)
+                }
+                withPulse={overlayMode !== "contextNotFound"}
+                contextName={effectiveContextNotFound ? ((item?.context || tileDataState?.context) ?? undefined) : undefined}
               />
             )}
               {/* <div className="min-w-max w-full"> */}
@@ -1387,6 +1465,18 @@ const LogsTable = ({
                         overflowY: "visible",
                       }}
                     >
+                    {error && (
+                      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/30 px-2 py-1 rounded">
+                        <span className="text-caption">{String(error)}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => infiniteLogsQuery.refetch()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    )}
                       <DataTable<LogProps | GroupedLogProps>
                         className="LogsTable"
                         interactive={interactive}
@@ -1718,6 +1808,7 @@ const LogsTable = ({
                                       filterExpression={filterExpression}
                                       logsLength={logs.length}
                                       logsActions={logsActions}
+                                      enabled={showMetricsRow}
                                     />
                                   : null
                             }

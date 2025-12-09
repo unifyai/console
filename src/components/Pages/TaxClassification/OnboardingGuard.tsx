@@ -28,6 +28,9 @@ export default function OnboardingGuard({
   const [needsOnboarding, setNeedsOnboarding] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Track if we've already checked onboarding status this session
+  const [hasChecked, setHasChecked] = useState(false);
+
   useEffect(() => {
     const isAllowedPath = allowedPaths.some(path => 
       pathname.startsWith(path) || pathname === path
@@ -44,6 +47,11 @@ export default function OnboardingGuard({
       return;
     }
 
+    // Only check once per session, not on every session object change
+    if (hasChecked && status === "authenticated") {
+      return;
+    }
+
     const checkOnboardingStatus = async () => {
       if (status === "unauthenticated") {
         setIsLoading(false);
@@ -51,9 +59,12 @@ export default function OnboardingGuard({
         return;
       }
 
-      if (status === "loading" || !session) {
+      if (status === "loading") {
         return;
       }
+
+      // Mark as checked to prevent re-running
+      setHasChecked(true);
 
       try {
         const cached = localStorage.getItem(ONBOARDING_STATUS_CACHE_KEY);
@@ -104,7 +115,8 @@ export default function OnboardingGuard({
     };
 
     checkOnboardingStatus();
-  }, [session, status, router, redirectTo, allowedPaths, pathname, isRedirecting]);
+  // Removed 'session' from deps - only care about status changes, not session object reference
+  }, [status, router, redirectTo, allowedPaths, pathname, isRedirecting, hasChecked]);
 
   if (isLoading || status === "loading") {
     return <LoadingScreen />;

@@ -24,10 +24,12 @@ import { buildTabArguments } from '@/utils/arguments/buildTabArguments';
 import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
 import { selectTilesForTab } from '@/contexts/selectors/tile';
 import { convertTileToTileData } from '@/contexts/utils/sliceUtils';
-import { fetchOrBuildFields, fetchOrBuildProjectsAndContexts } from '@/utils/data/buildServerData';
+// Note: Avoid heavy blocking fetches inside onMutate. We rely on cache and do
+// opportunistic background prefetches where helpful.
 import { selectProjectById } from '@/contexts/selectors/project';
 import { buildAvailableFieldsForTile } from '@/utils/arguments/buildTableArguments';
 import { Tile } from '@/contexts/slices/selectors/tile';
+import { showErrorToast } from '@/components/Common/Toasts/notifications';
 
 /**
  * Debug flag for performance logging
@@ -190,66 +192,38 @@ export function usePatchTileQueryOptimistic() {
         ).toFixed(2)} ms`
       );
 
-      // Build or fetch projects and contexts
-      const tProjectsAndContexts = performance.now();
-      const projectsAndContexts = await fetchOrBuildProjectsAndContexts(
-        queryClient,
-        projectId,
-        refetchProjects,
-        refetchContexts,
-        projectsActions,
-        contextActions
-      );
-      perfLog(
-        `[perf] onMutate(${name}) – fetchOrBuildProjectsAndContexts: ${(
-          performance.now() - tProjectsAndContexts
-        ).toFixed(2)} ms`
-      );
-      const projects = projectsAndContexts.projects;
-      const contexts = projectsAndContexts.contexts;
+      // Avoid extra network work entirely here; do not prefetch projects/contexts/fields.
+      // These are expensive and not required to rebuild the table immediately.
 
-      // Update the contexts in the store
-      if (refetchProjects) {
-        storeApi.setState({
-          ...state,
-          projects: projects,
-        });
-      }
-
-      if (refetchContexts) {
-        storeApi.setState({
-          ...state,
-          projectsById: {
-            ...state.projectsById,
-            [projectId]: {
-              ...projectData,
-              contexts: contexts
-            }
+      // Resolve fields for table tiles from cache only to stay non-blocking
+      const fieldsArray: LogFieldsResponseProps[] = tableTilesData.map((t) =>
+        (queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, t.context ?? null]) || {}) as LogFieldsResponseProps
+      );
+      // Opportunistically prefetch missing fields in the background when asked
+      if (refetchFields) {
+        tableTilesData.forEach((t, idx) => {
+          const cached = fieldsArray[idx];
+          const context = t.context ?? null;
+          if (context && (!cached || Object.keys(cached).length === 0)) {
+            queryClient.prefetchQuery({
+              queryKey: ["fields", projectId, context],
+              queryFn: async () => {
+                const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
+                const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+                if (!res.ok) throw new Error(`Fields ${res.status}`);
+                return res.json();
+              },
+            }).catch(() => {});
           }
         });
       }
-
-      // Build or fetch fields for all table tiles
-      const tFields = performance.now();
-      const fieldsArray: LogFieldsResponseProps[] = await fetchOrBuildFields(
-        queryClient,
-        tableTilesData,
-        projectId,
-        refetchFields,
-        fieldsActions
-      );
-      perfLog(
-        `[perf] onMutate(${name}) – fetchOrBuildFields: ${(
-          performance.now() - tFields
-        ).toFixed(2)} ms`
-      );
 
       // Get existing table and plot arguments from cache
       const tBuildArgs = performance.now();
       const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tab_id]) || {} as TableArguments;
       const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
 
-      // Build arguments for all tiles
+      // Build arguments for all tiles using cache-only fields
       if (tableTilesData.length > 0 || plotTilesData.length > 0) {
         const { tableArguments: newTableArguments, plotArguments: newPlotArguments } = 
         buildTabArguments(tilesInTabData, fieldsArray, existingTableArgs, existingPlotArgs);
@@ -274,8 +248,20 @@ export function usePatchTileQueryOptimistic() {
       if (tileType === "Table" && rebuildTableData) {
         try {
 
-          // Get fields from cache
-          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]) || {} as LogFieldsResponseProps;
+          // Get fields from cache - but check if they exist for the NEW context!
+          // The fetchOrBuildFields call above used the OLD tile data, so we may need to fetch again
+          let fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]);
+          
+          // If fields not in cache for new context, fetch them now
+          if (!fields && optimisticTileData?.context) {
+            fields = await queryClient.fetchQuery({
+              queryKey: ["fields", projectId, optimisticTileData.context],
+              queryFn: () => fieldsActions.get(projectId, optimisticTileData.context ?? null),
+            });
+          }
+          
+          // Fallback to empty fields if still not available
+          fields = fields || {} as LogFieldsResponseProps;
           
           // Build the new TableDataItem
           if (optimisticTileData && optimisticTile) {
@@ -315,6 +301,8 @@ export function usePatchTileQueryOptimistic() {
           
             // Update the TableDataItem in the cache
             queryClient.setQueryData(['tableDataItem', optimisticTileData.id], tableDataItem);
+            // Invalidate internal data query so dependency manager re-checks render readiness
+            queryClient.refetchQueries({ queryKey: ["internalData", optimisticTileData.id], type: 'active' });
           }
         } catch (error) {
           console.error("Error building optimistic TableDataItem:", error);
@@ -388,29 +376,11 @@ export function usePatchTileQueryOptimistic() {
     },
     
     onError: (error, variables, context) => {
-      // Roll back to the previous state if there was an error
-      const { id, tab_id, name } = variables;
-      
-      if (!context) return;
-      
-      // Restore the tile data if available
-      if (context.previousTiles) {
-        queryClient.setQueryData(['tiles', tab_id], context.previousTiles);
-      }
-      
-      // Restore table arguments
-      if (context.previousTableArgs && tab_id) {
-        queryClient.setQueryData(['tableArguments', tab_id], context.previousTableArgs);
-      }
-      
-      // Restore plot arguments
-      if (context.previousPlotArgs && tab_id) {
-        queryClient.setQueryData(['plotArguments', tab_id], context.previousPlotArgs);
-      }
-      
-      // No need to restore the TableDataItem and PlotDataItem,
-      // since they'll be refetched if needed based on the restored tiles
-      
+      // Do NOT rollback local state; keep the user's changes visible.
+      showErrorToast(
+        error,
+        'Could not save changes. Your local edits are still visible. Use Save to persist.'
+      );
       console.error(`Error patching tile:`, error);
     },
     

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -10,35 +10,67 @@ import {
 } from '@/hooks/Interfaces/Query/useInterfacesQuery';
 import type { GranularInterfaceActions, InterfaceData } from '@/types/interfaces/grid';
 
+// Mock fetch - useListInterfacesQuery now uses dedupedJson which calls fetch directly
+const mockFetch = vi.fn();
+
+// Helper to create mock fetch response with proper headers
+const createMockResponse = (data: any, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: (name: string) => name === 'etag' ? 'mock-etag' : null },
+  json: async () => data,
+});
+
 const mockInterface: InterfaceData = {
   id: 'interface-1',
   name: 'Main Interface',
   project_id: 'project-1',
 };
 
-const queryClient = new QueryClient({
+const createQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: { retry: false },
   },
 });
 
-const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-);
+const createWrapper = (qc: QueryClient): React.FC<{ children: React.ReactNode }> => {
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+  );
+  Wrapper.displayName = 'QueryClientWrapper';
+  return Wrapper;
+};
 
 describe('Interfaces query hooks (integration-style)', () => {
-  it('useListInterfacesQuery calls actions.list when projectId is set and is disabled when projectId is null', async () => {
-    const list = vi.fn(async (projectId: string) => [
-      { ...mockInterface, project_id: projectId } as InterfaceData,
-    ]);
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('useListInterfacesQuery calls API route when projectId is set and is disabled when projectId is null', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+
+    // Mock fetch to return interfaces
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/interface')) {
+        return createMockResponse([{ ...mockInterface, project_id: 'project-1' }]);
+      }
+      return createMockResponse({}, 404);
+    });
 
     const actions = {
-      list,
+      list: vi.fn(), // Not used - hook uses direct fetch
     } as unknown as GranularInterfaceActions;
 
     const { result, rerender } = renderHook(
       ({ projectId }) => useListInterfacesQuery(projectId, actions),
-      { initialProps: { projectId: 'project-1' }, wrapper },
+      { initialProps: { projectId: 'project-1' as string | null }, wrapper },
     );
 
     await waitFor(() => {
@@ -47,8 +79,11 @@ describe('Interfaces query hooks (integration-style)', () => {
       expect(result.current.data?.[0].name).toBe('Main Interface');
     });
 
-    expect(list).toHaveBeenCalledTimes(1);
-    expect(list).toHaveBeenCalledWith('project-1');
+    // Verify fetch was called instead of actions.list
+    expect(mockFetch).toHaveBeenCalled();
+    expect(mockFetch.mock.calls.some((call: unknown[]) => 
+      (call[0] as string).includes('/api/interface?project=project-1')
+    )).toBe(true);
 
     // When projectId becomes null, the query should be disabled and not refetch;
     // data stays undefined rather than becoming an empty array.
@@ -60,6 +95,9 @@ describe('Interfaces query hooks (integration-style)', () => {
   });
 
   it('useGetInterfaceQuery calls getByName only when both projectId and name are provided', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+
     const getByName = vi.fn(async (projectId: string, name: string) => ({
       ...mockInterface,
       project_id: projectId,
@@ -72,7 +110,7 @@ describe('Interfaces query hooks (integration-style)', () => {
 
     const { result, rerender } = renderHook(
       ({ projectId, name }) => useGetInterfaceQuery(projectId, name, actions),
-      { initialProps: { projectId: 'project-1', name: 'Main Interface' }, wrapper },
+      { initialProps: { projectId: 'project-1' as string | null, name: 'Main Interface' as string | null }, wrapper },
     );
 
     await waitFor(() => {
@@ -91,6 +129,9 @@ describe('Interfaces query hooks (integration-style)', () => {
   });
 
   it('useGetInterfaceByIdQuery calls getById only when id is provided', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+
     const getById = vi.fn(async (id: string) => ({
       ...mockInterface,
       id,
@@ -102,7 +143,7 @@ describe('Interfaces query hooks (integration-style)', () => {
 
     const { result, rerender } = renderHook(
       ({ id }) => useGetInterfaceByIdQuery(id, actions),
-      { initialProps: { id: 'interface-1' }, wrapper },
+      { initialProps: { id: 'interface-1' as string | null }, wrapper },
     );
 
     await waitFor(() => {
@@ -122,6 +163,9 @@ describe('Interfaces query hooks (integration-style)', () => {
   });
 
   it('useGetInterfaceWithTabsQuery calls getInterfaceWithTabs only when hook is enabled', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+
     const getInterfaceWithTabs = vi.fn(
       async (projectId: string, name: string) => ({
         interface: { ...mockInterface, project_id: projectId, name },
@@ -150,6 +194,9 @@ describe('Interfaces query hooks (integration-style)', () => {
   });
 
   it('useGetInterfaceUnifiedQuery routes to getById or getByName based on parameters', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+
     const getById = vi.fn(async (id: string) => ({ ...mockInterface, id }));
     const getByName = vi.fn(
       async (projectId: string, name: string, checkpoint?: boolean) => ({
@@ -200,5 +247,3 @@ describe('Interfaces query hooks (integration-style)', () => {
     expect(getByName).toHaveBeenCalledTimes(1);
   });
 });
-
-

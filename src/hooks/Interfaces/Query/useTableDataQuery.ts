@@ -62,14 +62,22 @@ export function useTableDataQuery(
   // Get tile meta information using the useTileMeta hook
   const { tileId } = useTileMeta(tileIdOrName, tabIdOrName || null);
 
+  const queryClient = useQueryClient();
+  
   return useQuery<TableDataItem>({
     queryKey: ["tableDataItem", tileId],
+    queryFn: () => {
+      // Return cached data if available, otherwise placeholder
+      // This queryFn is needed to prevent "No queryFn" errors when React Query
+      // attempts to refetch but data was prefetched without a queryFn
+      const cached = queryClient.getQueryData<TableDataItem>(["tableDataItem", tileId]);
+      return cached ?? EMPTY_TABLEDATAITEM;
+    },
     placeholderData: EMPTY_TABLEDATAITEM,
     // The data is prefetched manually on the client
-    // so we don't need to provide a queryFn
     // Configure staleness to allow re-renders while preventing unnecessary refetches:
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 0, // Always consider stale (allows updates)
+    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes (was 0 - caused data loss!)
     enabled: !!(tileId),
   });
 }
@@ -138,7 +146,6 @@ export function useTableDataQueryWithTracking(
     }
   ) => {
     if (!tileId || rowIds.length === 0) {
-      console.log("[DEBUG] Aborting updateLogsByRowIds – missing tileId or empty rowIds");
       return;
     }
 
@@ -146,7 +153,6 @@ export function useTableDataQueryWithTracking(
     const currentLogs = tableDataItem.logs;
 
     if (!currentLogs) {
-      console.log("[DEBUG] No currentLogs found – aborting");
       return; // safety guard
     }
 
@@ -170,7 +176,6 @@ export function useTableDataQueryWithTracking(
     });
 
     if (!changed) {
-      console.log("[DEBUG] updateLogsByRowIds detected no changes – skipping state merge");
       return; // nothing mutated
     }
 
@@ -207,7 +212,6 @@ export function useTableDataQueryWithTracking(
     currentOffsets?: { globalOffset: number; groupOffset: number } // Previous offsets to build upon
   ): { globalOffset: number; groupOffset: number } => {
     if (!tileId) {
-      console.log("[DEBUG] Aborting updateLogs – missing tileId");
       return { globalOffset: 0, groupOffset: 0 };
     }
 
@@ -485,9 +489,17 @@ export function useTableArgumentsQuery(
 ) {
   // Get tab meta information using the useTabMeta hook
   const { tabId } = useTabMeta(tabIdOrName, interfaceIdOrName || null);
+  const queryClient = useQueryClient();
 
   return useQuery<TableArguments>({
     queryKey: ["tableArguments", tabId],
+    queryFn: () => {
+      // Return cached data if available, otherwise empty object
+      // This queryFn is needed to prevent "No queryFn" errors when React Query
+      // attempts to refetch but data was prefetched without a queryFn
+      const cached = queryClient.getQueryData<TableArguments>(["tableArguments", tabId]);
+      return cached ?? ({} as TableArguments);
+    },
     // No stale time or gc time for table arguments
     staleTime: 0,
     gcTime: 0,

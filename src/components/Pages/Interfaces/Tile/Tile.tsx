@@ -2,7 +2,7 @@
 
 import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
 import { useEffect, Suspense, lazy } from "react";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { Loader2 } from "lucide-react";
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
@@ -155,7 +155,7 @@ const TableTile: React.FC<TableTileProps> = ({ tileId, tabId, interfaceId, proje
   return (
     <Suspense fallback={
         <div className="w-full h-full flex items-center justify-center">
-            <SkeletonLoader />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
     }>
         <LogsTable
@@ -183,7 +183,7 @@ const PlotTile: React.FC<PlotTileProps> = ({ tileId, tabId, interfaceId, project
   return (
     <Suspense fallback={
         <div className="w-full h-full flex items-center justify-center">
-            <SkeletonLoader />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
     }>
         <LogsPlot
@@ -213,7 +213,7 @@ const ViewTile: React.FC<ViewTileProps> = ({ tileId, tabId, interfaceId, project
       <ExpandProvider>
         <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center">
-                <SkeletonLoader />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
         }>
             <Selection

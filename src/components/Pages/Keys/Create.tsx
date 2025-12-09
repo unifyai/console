@@ -37,12 +37,12 @@ const CreateKey = ({choices, paths, creationFunction}: {
         { name: "value", label: "Value", description: "API key value."},
     ]
     const Fields =  <> {entries.map((entry, index) => 
-        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} choices={entry.choices} form={form}/>
+        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} choices={entry.choices} form={form as any}/>
     )} </>
     const type = choices ? "provider key" : "custom key"
     
     return (
-        <CreateDialog type={type} creationFunction={creationFunction} CreateSchema={CreateSchema} Fields={Fields} form={form}/>
+        <CreateDialog type={type} creationFunction={creationFunction} CreateSchema={CreateSchema} Fields={Fields} form={form as any}/>
     )
 }
 

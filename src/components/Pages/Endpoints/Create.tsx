@@ -52,7 +52,7 @@ const CreateEndpoint = ({type, paths, keys, creationFunction}: {
         { name: "model_arg", label: "Model Argument", description: "The value passed to the model arugment of the underlying API which is being wrapped into Unify. For example, you might call your endpoint llama-3-baseten@custom to distinguish the custom endpoint within Unify, but under the hood need to pass llama-3.2-90b-chat to the Baseten endpoint."}
     ]
     const Fields =  <> {entries.map((entry, index) => 
-        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} choices={entry.choices} form={form}/>)
+        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} choices={entry.choices} form={form as any}/>)
     } </>
             
     return (
@@ -62,7 +62,7 @@ const CreateEndpoint = ({type, paths, keys, creationFunction}: {
                 creationFunction={creationFunction}
                 CreateSchema={CreateSchema}
                 Fields={Fields}
-                form={form}
+                form={form as any}
             />
         </div>
     )

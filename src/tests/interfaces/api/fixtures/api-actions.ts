@@ -40,6 +40,39 @@ export function getTestApiKey(): string {
 }
 
 /**
+ * Check if the dev server is reachable.
+ * Used by @real tests to skip gracefully if server isn't running.
+ */
+export async function isServerReachable(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch(BASE_URL, { 
+      method: 'HEAD',
+      signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
+    return response.ok || response.status === 307; // 307 is redirect to login
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Skip test if server is not reachable.
+ * Call this in beforeAll() of @real tests.
+ */
+export async function skipIfServerNotReachable(): Promise<void> {
+  const reachable = await isServerReachable();
+  if (!reachable) {
+    throw new Error(
+      `Server at ${BASE_URL} is not reachable. ` +
+      'Start the dev server with `npm run dev` before running @real tests.'
+    );
+  }
+}
+
+/**
  * API error with status code and response body
  */
 export class ApiError extends Error {

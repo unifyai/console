@@ -1,6 +1,11 @@
 import { loadEnvConfig } from '@next/env';
 loadEnvConfig(process.cwd());
 
+// Ensure NEXTAUTH_URL is set for API calls in tests
+if (!process.env.NEXTAUTH_URL) {
+    process.env.NEXTAUTH_URL = 'http://localhost:3000';
+}
+
 import { beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { http, passthrough } from 'msw';

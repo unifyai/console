@@ -103,6 +103,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
         group_limit: 20,
         group_offset: 0,
         logsActions,
+        headers: { apiKey: TEST_API_KEY },
       };
 
       const result = await fetchLogsCore(params);
@@ -154,6 +155,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
         group_limit: 20,
         group_offset: 0,
         logsActions,
+        headers: { apiKey: TEST_API_KEY },
       };
 
       const result = await fetchLogsCore(params);
@@ -202,6 +204,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
           group_limit: 20,
           group_offset: 0,
           logsActions,
+          headers: { apiKey: TEST_API_KEY },
         };
 
         const result = await fetchLogsCore(params);

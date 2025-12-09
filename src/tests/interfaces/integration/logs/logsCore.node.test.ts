@@ -1,21 +1,71 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchLogsCore, type CoreLogFetchParams } from '@/utils/interfaces/logsCore';
 import type { LogsActions } from '@/types/interfaces/grid';
 import type { LogProps } from '@/types/interfaces/logs';
-import { getLogs } from '@/lib/interfaces/logs';
+import { createMockLogs, MOCK_LOGS_TOTAL_COUNT } from '@/tests/interfaces/mocks/fixtures/logs';
+
+// Mock fetch - fetchLogsCore now uses direct fetch to /api/logs
+const mockFetch = vi.fn();
+
+// Helper to create mock fetch response with proper headers
+const createMockResponse = (data: any, status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  headers: { get: () => null },
+  json: async () => data,
+});
 
 describe('logsCore + getLogs (MSW integration)', () => {
-  it('fetchLogsCore uses logsActions.get and returns correct metadata for ungrouped logs', async () => {
-    const apiKey = 'test-api-key';
-    const getLogsFn = await getLogs(apiKey);
+  let allLogs: ReturnType<typeof createMockLogs>;
+  let fetchCallUrls: string[];
 
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+    fetchCallUrls = [];
+    
+    // Create mock data
+    allLogs = createMockLogs(MOCK_LOGS_TOTAL_COUNT, { offset: 0, totalCount: MOCK_LOGS_TOTAL_COUNT });
+    
+    // Setup fetch mock to return logs
+    mockFetch.mockImplementation(async (url: string) => {
+      fetchCallUrls.push(url);
+      
+      if (url.includes('/api/logs')) {
+        // Parse limit and offset from URL
+        const urlObj = new URL(url, 'http://localhost');
+        const limit = parseInt(urlObj.searchParams.get('limit') || '20');
+        const offset = parseInt(urlObj.searchParams.get('offset') || '0');
+        
+        // Return paginated logs
+        const paginatedLogs = (allLogs.logs as LogProps[]).slice(offset, offset + limit);
+        
+        return createMockResponse({
+          params: allLogs.params,
+          logs: paginatedLogs,
+          count: allLogs.count,
+          groups: allLogs.groups || [],
+        });
+      }
+      
+      return createMockResponse({}, 404);
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('fetchLogsCore uses direct fetch and returns correct metadata for ungrouped logs', async () => {
+    // logsActions is still passed for type compatibility but not used for fetching
     const logsActions = {
-      create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
-      getLatest: async () => '',
-      getMetrics: async () => ({}),
-      delete: async () => ({ detail: 'not-used' }),
-      update: async () => ({ detail: 'not-used' }),
+      create: vi.fn(),
+      get: vi.fn(), // Not used - fetchLogsCore uses direct fetch
+      getLatest: vi.fn(),
+      getMetrics: vi.fn(),
+      delete: vi.fn(),
+      update: vi.fn(),
     } as unknown as LogsActions;
 
     const params: CoreLogFetchParams = {
@@ -35,32 +85,31 @@ describe('logsCore + getLogs (MSW integration)', () => {
 
     const result = await fetchLogsCore(params);
 
-    // MSW interfaceHandlers return 20 ungrouped logs by default
-    expect(result.response.count).toBe(20);
-    expect(result.totalCount).toBe(20);
+    // Verify fetch was called
+    expect(mockFetch).toHaveBeenCalled();
+    expect(fetchCallUrls.some(url => url.includes('/api/logs'))).toBe(true);
+
+    // response.count is the TOTAL count (100), not the page size
+    expect(result.response.count).toBe(MOCK_LOGS_TOTAL_COUNT);
+    expect(result.totalCount).toBe(MOCK_LOGS_TOTAL_COUNT);
+    // currentCount = offset + fetched logs = 0 + 20 = 20
     expect(result.currentCount).toBe(20);
-    expect(result.hasMore).toBe(false);
+    // hasMore is true because 20 < 100
+    expect(result.hasMore).toBe(true);
     expect(result.useGroupPagination).toBe(false);
     expect(result.effectiveLimit).toBe(20);
     expect(result.effectiveOffset).toBe(0);
 
-    // Converted logs should mirror the raw logs, with type set to "ungrouped"
+    // Converted logs should be paginated (first 20 of 100)
     expect(result.convertedLogs.length).toBe(20);
     const first = result.convertedLogs[0] as LogProps;
     expect(first.type).toBe('ungrouped');
   });
 
   it('fetchLogsCore passes limit/offset vs group_limit/group_offset correctly based on groupingExpression', async () => {
-    const getSpy = vi.fn(async () => ({
-      params: {},
-      logs: [],
-      count: 0,
-      groups: {},
-    }));
-
     const logsActions = {
       create: vi.fn(),
-      get: getSpy,
+      get: vi.fn(),
       getLatest: vi.fn(),
       getMetrics: vi.fn(),
       delete: vi.fn(),
@@ -85,18 +134,31 @@ describe('logsCore + getLogs (MSW integration)', () => {
 
     await fetchLogsCore(ungroupedParams);
 
-    expect(getSpy).toHaveBeenCalledTimes(1);
-    const ungroupedArgs = getSpy.mock.calls[0];
-    // limit/offset should be used, group_* should be null
-    // Args: project, context, columnContext, filter, sorting, grouping, groupSorting,
-    //       from_ids, from_fields, exclude_fields, limit, offset, group_limit, group_offset, group_depth
-    expect(ungroupedArgs[10]).toBe(20); // limit
-    expect(ungroupedArgs[11]).toBe(40); // offset
-    expect(ungroupedArgs[12]).toBeNull(); // group_limit
-    expect(ungroupedArgs[13]).toBeNull(); // group_offset
-    expect(ungroupedArgs[14]).toBeNull(); // group_depth
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const ungroupedUrl = fetchCallUrls[0];
+    const ungroupedUrlObj = new URL(ungroupedUrl, 'http://localhost');
+    
+    // limit/offset should be used for ungrouped
+    expect(ungroupedUrlObj.searchParams.get('limit')).toBe('20');
+    expect(ungroupedUrlObj.searchParams.get('offset')).toBe('40');
+    // group_* should NOT be in URL for ungrouped
+    expect(ungroupedUrlObj.searchParams.has('group_limit')).toBe(false);
+    expect(ungroupedUrlObj.searchParams.has('group_offset')).toBe(false);
 
-    getSpy.mockClear();
+    // Reset for grouped call
+    mockFetch.mockClear();
+    fetchCallUrls = [];
+
+    // Setup mock for grouped response
+    mockFetch.mockImplementation(async (url: string) => {
+      fetchCallUrls.push(url);
+      return createMockResponse({
+        params: {},
+        logs: [],
+        count: 0,
+        groups: [],
+      });
+    });
 
     // Grouped call
     const groupedParams: CoreLogFetchParams = {
@@ -116,15 +178,18 @@ describe('logsCore + getLogs (MSW integration)', () => {
 
     await fetchLogsCore(groupedParams);
 
-    expect(getSpy).toHaveBeenCalledTimes(1);
-    const groupedArgs = getSpy.mock.calls[0];
-    // group_* should be used, limit/offset should be null
-    expect(groupedArgs[10]).toBeNull(); // limit
-    expect(groupedArgs[11]).toBeNull(); // offset
-    expect(groupedArgs[12]).toBe(50); // group_limit
-    expect(groupedArgs[13]).toBe(10); // group_offset
-    expect(groupedArgs[14]).toBe(0); // group_depth
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const groupedUrl = fetchCallUrls[0];
+    const groupedUrlObj = new URL(groupedUrl, 'http://localhost');
+    
+    // group_* should be used for grouped
+    expect(groupedUrlObj.searchParams.get('group_limit')).toBe('50');
+    expect(groupedUrlObj.searchParams.get('group_offset')).toBe('10');
+    expect(groupedUrlObj.searchParams.get('group_depth')).toBe('0');
+    // limit/offset should NOT be in URL for grouped
+    expect(groupedUrlObj.searchParams.has('limit')).toBe(false);
+    expect(groupedUrlObj.searchParams.has('offset')).toBe(false);
+    // grouping should be in URL
+    expect(groupedUrlObj.searchParams.get('group_by')).toBe('entries/group');
   });
 });
-
-

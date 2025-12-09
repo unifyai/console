@@ -76,11 +76,14 @@ export interface TableDataItem {
     error: string | undefined,
     isLoading: boolean,  // Flag to indicate the table data is loading/being built. Might remove this later.
     newCells?: string[],
+    contextNotFound?: boolean,  // Set when the context returns 404 (deleted/doesn't exist)
 }
 
 export interface PlotDataItem {
     plotLogs: LogProps[];
     plotFields: LogFieldsResponseProps;
+    error?: string;
+    isLoading?: boolean;
 }
 
 export interface TableDataProps {
@@ -637,7 +640,7 @@ export interface DerivedEntryActions {
 }
 
 export interface FieldsActions {
-    get: (project: string, context: string | null) => Promise<LogFieldsResponseProps>,
+    get: (project: string, context: string | null, signal?: AbortSignal) => Promise<LogFieldsResponseProps>,
     rename: (project: string, context: string | null, oldFieldName: string, newFieldName: string) => Promise<ResponseProps>
 }
 

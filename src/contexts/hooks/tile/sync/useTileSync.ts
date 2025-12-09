@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePatchTileQuery } from "@/hooks/Interfaces/Query/useTilesQuery";
-import { GranularTileActions, LogsActions, FieldsActions, ProjectsActions, ContextActions } from "@/types/interfaces/grid";
+import { GranularTileActions, LogsActions, FieldsActions, ProjectsActions, ContextActions, TableDataItem } from "@/types/interfaces/grid";
 import { useTile, TileActions } from "../useTile";
 import { usePlotTileSync, PlotTileSyncResult } from "./usePlotTileSync";
 import { useTableTileSync, TableTileSyncResult } from "./useTableTileSync";
@@ -123,6 +124,9 @@ export function useTileSync(
 
   // Get the store API reference - can be used to get state outside of React's render cycle
   const storeApi = useStoreApiContext();
+  
+  // Get queryClient for cache invalidation during context switches
+  const queryClient = useQueryClient();
 
   // Create individual mutation hooks for each property
   const nameMutation = usePatchTileQueryOptimistic();
@@ -325,6 +329,9 @@ export function useTileSync(
     });
   };
 
+  /**
+   * Updates tile context - OPTIMIZED to not rebuild table data synchronously.
+   */
   const wrapContext = async (context?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
@@ -341,31 +348,51 @@ export function useTileSync(
     const state = storeApi.getState();
     const tile = selectTileByTabIdAndName(state, tabId, tileName);
 
-    // 2) Optimistic server update
+    // 2) Optimistic server update - DON'T rebuild table data synchronously
     await contextMutation.mutateAsync({
       id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { context: context ?? null } as Partial<TileData>,
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: true,
-      rebuildPlotData: true,
+      refetchProjects: false,  // Not needed for context switch
+      refetchContexts: false,  // Not needed for context switch
+      refetchFields: true,     // Fields may change with new context
+      rebuildTableData: false, // DON'T rebuild synchronously - causes UI flash
+      rebuildPlotData: false,  // DON'T rebuild synchronously - causes UI flash
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
       logsActions: logsActions as LogsActions,
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
-      // 3. Refresh the router - UI states already set
+      // 3. Invalidate caches to trigger refetch with new context
+      if (tile?.id) {
+        const existingTableData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tile.id]);
+        if (existingTableData) {
+          queryClient.setQueryData(["tableDataItem", tile.id], {
+            ...existingTableData,
+            isLoading: true,
+            logs: [],
+          });
+        }
+        queryClient.invalidateQueries({ 
+          predicate: (q: any) => {
+            const k0 = q?.queryKey?.[0] as string;
+            const k1 = q?.queryKey?.[1] as string;
+            return k0 === 'infiniteLogs' && k1 === tile.id;
+          }
+        });
+      }
       debugLog("[wrapContext] onSettled:", context);
       uiActions.setLoading(false);
       uiActions.setPending(false);
     });
   };
 
+  /**
+   * Updates tile column context - OPTIMIZED to not rebuild table data synchronously.
+   */
   const wrapColumnContext = async (columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
     
@@ -382,25 +409,42 @@ export function useTileSync(
     const state = storeApi.getState();
     const tile = selectTileByTabIdAndName(state, tabId, tileName);
     
-    // 2) Optimistic server update
+    // 2) Optimistic server update - DON'T rebuild table data synchronously
     await columnContextMutation.mutateAsync({
       id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { column_context: columnContext ?? null } as Partial<TileData>,
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: true,
-      rebuildPlotData: true,
+      refetchProjects: false,  // Not needed
+      refetchContexts: false,  // Not needed
+      refetchFields: false,    // Column context doesn't change available fields
+      rebuildTableData: false, // DON'T rebuild synchronously - causes UI flash
+      rebuildPlotData: false,  // DON'T rebuild synchronously - causes UI flash
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
       logsActions: logsActions as LogsActions,
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
-      // 3. Refresh the router - UI states already set
+      // 3. Invalidate caches to trigger refetch with new column context
+      if (tile?.id) {
+        const existingTableData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tile.id]);
+        if (existingTableData) {
+          queryClient.setQueryData(["tableDataItem", tile.id], {
+            ...existingTableData,
+            isLoading: true,
+            logs: [],
+          });
+        }
+        queryClient.invalidateQueries({ 
+          predicate: (q: any) => {
+            const k0 = q?.queryKey?.[0] as string;
+            const k1 = q?.queryKey?.[1] as string;
+            return k0 === 'infiniteLogs' && k1 === tile.id;
+          }
+        });
+      }
       debugLog("[wrapColumnContext] onSettled:", columnContext);
       uiActions.setLoading(false);
       uiActions.setPending(false);
@@ -410,6 +454,9 @@ export function useTileSync(
   /**
    * Efficiently updates both context and column_context together in a single operation
    * to minimize UI flickering and reduce the number of router refreshes.
+   * 
+   * OPTIMIZED: Does NOT rebuild TableDataItem synchronously to avoid UI flash.
+   * Instead, invalidates the cache and lets React Query refetch naturally.
    */
   const wrapContextAndColumnContext = async (context?: string, columnContext?: string) => {
     if (!dataActions || !tileName || !tabId || !granularTileActions) return;
@@ -434,25 +481,46 @@ export function useTileSync(
       column_context: columnContext ?? null
     } as Partial<TileData>;
     
-    // 2) Single optimistic server update with both changes
+    // 2) Optimistic server update - DON'T rebuild table data synchronously
+    // This prevents the UI flash that happens when we await fetch inside onMutate
     await contextAndColumnContextMutation.mutateAsync({
       id: tile?.id || "",
       tab_id: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData,
-      refetchProjects: true,
-      refetchContexts: true,
-      refetchFields: true,
-      rebuildTableData: true,
-      rebuildPlotData: true,
+      refetchProjects: false,  // Don't refetch projects - expensive and not needed
+      refetchContexts: false,  // Don't refetch contexts - expensive and not needed
+      refetchFields: true,     // Fields may change with new context
+      rebuildTableData: false, // DON'T rebuild synchronously - causes UI flash
+      rebuildPlotData: false,  // DON'T rebuild synchronously - causes UI flash
       actions: granularTileActions,
       projectsActions: projectsActions as ProjectsActions,
       contextActions: contextActions as ContextActions,
       logsActions: logsActions as LogsActions,
       fieldsActions: fieldsActions as FieldsActions,
     }).then(() => {
-      // 3. Single router refresh for both changes
+      // 3. Invalidate caches to trigger refetch with new context
+      // The infinite logs query will automatically refetch with the updated context
+      if (tile?.id) {
+        // Mark the existing tableDataItem as loading before clearing
+        const existingTableData = queryClient.getQueryData<TableDataItem>(["tableDataItem", tile.id]);
+        if (existingTableData) {
+          queryClient.setQueryData(["tableDataItem", tile.id], {
+            ...existingTableData,
+            isLoading: true,
+            logs: [], // Clear logs to show loading state
+          });
+        }
+        // Invalidate infinite logs queries for this tile to trigger refetch
+        queryClient.invalidateQueries({ 
+          predicate: (q: any) => {
+            const k0 = q?.queryKey?.[0] as string;
+            const k1 = q?.queryKey?.[1] as string;
+            return k0 === 'infiniteLogs' && k1 === tile.id;
+          }
+        });
+      }
       debugLog("[wrapContextAndColumnContext] onSettled:", context, columnContext);
       uiActions.setLoading(false);
       uiActions.setPending(false);

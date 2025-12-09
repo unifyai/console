@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { Tile, TileType } from "@/contexts/slices/selectors/tile";
-import { useStoreApiContext } from '@/contexts/providers/StoreProvider';
+import { useStoreApiContext, useStoreContext } from '@/contexts/providers/StoreProvider';
+import { useShallow } from 'zustand/react/shallow';
 import { selectTileById, selectTilesForTab } from "@/contexts/selectors/tile";
 import { useEnsureTableTileData } from '@/hooks/Interfaces/Query/useEnsureTableTileData';
 import { useEnsurePlotTileData } from '@/hooks/Interfaces/Query/useEnsurePlotTileData';
@@ -258,11 +259,15 @@ export function useTileDependencyGraphForTab(
   tabId: string,
   config?: Partial<DependencyManagerConfig>
 ): DependencyGraphResult {
-  const storeApi = useStoreApiContext();
-  const state = storeApi.getState();
-
-  const tiles = selectTilesForTab(state, tabId);
-  return buildTileDependencyGraph(tiles, config);
+  // Use useShallow to prevent infinite loops from array recreation
+  const tiles = useStoreContext(
+    useShallow(state => selectTilesForTab(state, tabId))
+  );
+  
+  return useMemo(() => 
+    buildTileDependencyGraph(tiles, config),
+    [tiles, config]
+  );
 }
 
 /**
@@ -276,11 +281,16 @@ export function useDependencyAwareSortedTilesForTab(
   sortedTiles: Tile[];
   dependencyGraph: DependencyGraphResult;
 } {
-  const storeApi = useStoreApiContext();
-  const state = storeApi.getState();
-    
-  const tiles = selectTilesForTab(state, tabId);
-  const dependencyGraph = buildTileDependencyGraph(tiles, config);
+  // Use useShallow to prevent infinite loops from array recreation
+  // This does shallow comparison of array elements
+  const tiles = useStoreContext(
+    useShallow(state => selectTilesForTab(state, tabId))
+  );
+  
+  const dependencyGraph = useMemo(() => 
+    buildTileDependencyGraph(tiles, config),
+    [tiles, config]
+  );
   
   const sortedTiles = useMemo(() => {
     const tileById = new Map(tiles.map(t => [t.id, t]));
@@ -347,15 +357,11 @@ export function useEnsureTabArguments(
         return { tableArguments: emptyTableArgs, plotArguments: emptyPlotArgs };
       }
 
-      // Build dependencies
+      // Build dependencies (actions removed - now using API routes for reads)
       const dependencies: OptimisticUpdateDependencies = {
         queryClient,
         projectId,
         tabId,
-        projectsActions: actions.projectsActions,
-        contextActions: actions.contextActions,
-        fieldsActions: actions.fieldsActions,
-        logsActions: actions.logsActions,
       };
 
       // Get table tiles to fetch fields
@@ -458,7 +464,7 @@ function useExternalDependenciesQuery(
     },
     enabled: !!tile && !!config.needsExternalDependencies,
     staleTime: 0, // Always check fresh
-    refetchInterval: 1000, // Re-check every second to catch dependency changes
+    refetchInterval: false, // Don't poll - use cache invalidation instead
     refetchOnWindowFocus: false
   });
 }
@@ -483,15 +489,16 @@ function useInternalDataQuery(
         return { isReady: true, missingData: [] };
       }
       
-      debugLog(`🔍 [internalDataQuery] Checking internal data for ${tile.name} (${tileType})`);
+      console.log(`[internalDataQuery] Running check for ${tile.name} (${tileId})`);
       const result = config.checkInternalDataReadiness(tileId, tabId, queryClient);
       
-      debugLog(`🔍 [internalDataQuery] Internal data check for ${tile.name}:`, result);
+      console.log(`[internalDataQuery] Result for ${tile.name}:`, result);
       return result;
     },
     enabled: !!tile,
-    staleTime: 0, // Always check fresh
-    refetchInterval: 1000, // Re-check every second to catch data changes
+    staleTime: 0, // Always check fresh - VERY IMPORTANT for reactivity
+    gcTime: 0, // Don't cache - always run fresh
+    refetchInterval: false, // Don't poll - use cache invalidation instead
     refetchOnWindowFocus: false
   });
 }

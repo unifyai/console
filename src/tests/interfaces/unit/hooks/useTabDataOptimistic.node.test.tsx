@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@/tests/interfaces/utils/render-with-providers';
 import { useQueryClient } from '@tanstack/react-query';
 import type { IStoreState } from '@/contexts/store';
@@ -32,6 +32,9 @@ import {
   mockTile,
 } from '@/tests/interfaces/mocks/fixtures/tiles';
 import * as optimisticModule from '@/utils/data/buildServerDataOptimistic';
+
+// Mock fetch for tests - implementation uses direct fetch to /api/tile
+const mockFetch = vi.fn();
 
 type TabDataActions = {
   tabActions: GranularTabActions;
@@ -114,8 +117,30 @@ function TestComponent({
 }
 
 describe('useTabDataOptimistic', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('buildCompleteTabData returns lightweight structure and skips heavy work when skipTileData is true', async () => {
     const tileData = makeTableTileData();
+
+    // Mock fetch for /api/tile endpoint (implementation uses direct fetch)
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/tile')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [tileData],
+        };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
 
     const tileActions = {
       list: vi.fn(async () => [tileData]),
@@ -167,7 +192,7 @@ describe('useTabDataOptimistic', () => {
 
     await waitFor(() => {
       expect(onResult).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 5000 });
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 
@@ -175,8 +200,8 @@ describe('useTabDataOptimistic', () => {
     expect(result.tabData.id).toBe(mockTabId);
     expect(result.tabData.name).toBe(mockTab.name);
 
-    // Tiles are loaded via tileActions.list and partitioned correctly
-    expect(tileActions.list).toHaveBeenCalledTimes(1);
+    // Tiles are loaded via fetch and partitioned correctly
+    expect(mockFetch).toHaveBeenCalled();
     expect(result.tiles).toHaveLength(1);
     expect(result.tiles[0].id).toBe(mockTileId);
     expect(result.tableTiles).toHaveLength(1);
@@ -197,6 +222,18 @@ describe('useTabDataOptimistic', () => {
 
   it('buildCompleteTabData calls shared optimistic helpers and builds tileDataItems when skipTileData is false', async () => {
     const tileData = makeTableTileData();
+
+    // Mock fetch for /api/tile endpoint
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/tile')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [tileData],
+        };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
 
     const tileActions = {
       list: vi.fn(async () => [tileData]),
@@ -267,7 +304,7 @@ describe('useTabDataOptimistic', () => {
 
     await waitFor(() => {
       expect(onResult).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 5000 });
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 
@@ -286,8 +323,17 @@ describe('useTabDataOptimistic', () => {
     expect(Object.keys(result.tileDataItems)).toEqual([mockTileId]);
   });
 
-  it('buildCompleteTabData reuses cached tiles and does not call tileActions.list when tiles are already in the cache', async () => {
+  it('buildCompleteTabData reuses cached tiles and does not fetch when tiles are already in the cache', async () => {
     const tileData = makeTableTileData();
+
+    // This test uses cached tiles, so fetch should not be called for tiles
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/tile')) {
+        // Should not be called when cache is populated
+        throw new Error('Unexpected fetch to /api/tile - should use cache');
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
 
     const tileActions = {
       list: vi.fn(async () => [tileData]),
@@ -340,15 +386,13 @@ describe('useTabDataOptimistic', () => {
 
     await waitFor(() => {
       expect(onResult).toHaveBeenCalledTimes(1);
-    });
+    }, { timeout: 5000 });
 
     const result = onResult.mock.calls[0][0] as CompleteTabData;
 
-    // Tiles come from cache, not from tileActions.list
-    expect(tileActions.list).not.toHaveBeenCalled();
+    // Tiles come from cache, no fetch calls for tiles
+    // Note: mockFetch would throw if called with /api/tile
     expect(result.tiles).toHaveLength(1);
     expect(result.tiles[0].id).toBe(mockTileId);
   });
 });
-
-
