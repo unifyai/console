@@ -47,27 +47,35 @@ interface AssistantProfilePanelProps {
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
-    React.ElementRef<typeof AccordionTrigger>,
-    React.ComponentPropsWithoutRef<typeof AccordionTrigger> & {
-        buttonSlot?: React.ReactNode;
-    }
+  React.ElementRef<typeof AccordionTrigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionTrigger> & {
+    buttonSlot?: React.ReactNode;
+  }
 >(({ children, buttonSlot, ...props }, ref) => (
-    <AccordionTrigger
-        ref={ref}
-        {...props}
-        className="hover:no-underline py-3.5 border-b"
-        hideChevron // Hide the primitive's default chevron
-    >
-        <div className="flex items-center justify-between w-full px-4">
-            <div className="flex items-center gap-2">
-                <div className="flex-grow text-left text-title">{children}</div>
-                <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-            </div>
-            <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                {buttonSlot}
-            </div>
-        </div>
-    </AccordionTrigger>
+  <AccordionTrigger
+    ref={ref}
+    {...props}
+    className="hover:no-underline py-3.5 border-b group"
+    hideChevron // Hide the primitive's default chevron
+  >
+    <div className="flex items-center justify-between w-full px-4">
+      <div className="flex items-center gap-2">
+        <div className="flex-grow text-left text-title">{children}</div>
+        <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+      </div>
+
+      {/* Show only when accordion is open */}
+      <div
+        className={cn(
+          "flex-shrink-0 transition-opacity",
+          "group-data-[state=closed]:hidden group-data-[state=open]:flex"
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {buttonSlot}
+      </div>
+    </div>
+  </AccordionTrigger>
 ));
 AccordionTriggerWithButtons.displayName = AccordionTrigger.displayName;
 

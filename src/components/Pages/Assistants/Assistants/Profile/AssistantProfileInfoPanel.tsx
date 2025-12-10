@@ -157,7 +157,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
                 {/* About Section */}
                 <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1" onClick={onEdit}>
+                    <div className="text-caption prose max-w-none prose-p:my-1 cursor-pointer" onClick={onEdit}>
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>
