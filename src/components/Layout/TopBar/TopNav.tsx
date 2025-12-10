@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
-import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen, Check, Building2 } from 'lucide-react'
+import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen, Check, Building2, Building } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Button } from '@/components/UI/button'
 import {
@@ -223,6 +223,12 @@ export default function TopNav() {
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
+                  <Link href="/organizations" className="flex items-center text-body hover:text-[color:var(--foreground)]">
+                  <Building className="mr-2 h-4 w-4" />
+                  <span>Organizations</span>
+                  </Link>
               </DropdownMenuItem>
               {canManageBilling && (
                 <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
