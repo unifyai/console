@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import { User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/UI/select';
+import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 interface ProfileData {
   name: string;
   lastName: string;
   jobTitle: string;
   bio: string;
+  timezone: string;
 }
 
 interface ProfileSetupFormProps {
@@ -31,8 +34,11 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
       lastName: '',
       jobTitle: '',
       bio: '',
+      timezone: '',
       ...initialData
     });
+
+    const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
 
     useImperativeHandle(ref, () => ({
       submit: () => {
@@ -53,18 +59,30 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
     return formData.name.trim() !== '' && formData.lastName.trim() !== '';
   }, [formData]);
 
-    // Effect to update form data when initialData changes
+  // Effect to update form data when initialData changes and auto-detect timezone if missing
   useEffect(() => {
     if (initialData) {
-        setFormData(prev => ({...prev, ...initialData}));
+      // If initialData has a timezone, use it.
+      // If not, fall back to current formData timezone (which might be user edited or empty).
+      // If both are empty, try to detect from browser.
+      let newTimezone = initialData.timezone || formData.timezone;
+      if (!newTimezone) {
+        newTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      }
+
+      setFormData(prev => ({
+        ...prev, 
+        ...initialData,
+        timezone: newTimezone
+      }));
     }
   }, [initialData]);
 
-    // Effect to update validation state
-    useEffect(() => {
-      const valid = isFormValid();
-      onValidationChange(valid);
-    }, [formData, onValidationChange, isFormValid]);
+  // Effect to update validation state
+  useEffect(() => {
+    const valid = isFormValid();
+    onValidationChange(valid);
+  }, [formData, onValidationChange, isFormValid]);
 
   return (
       <div className="w-full space-y-8">
@@ -125,6 +143,25 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
             className="h-12 text-base"
           />
         </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="timezone" className="text-base font-medium">Timezone</Label>
+          <Select 
+            value={formData.timezone} 
+            onValueChange={(val) => handleInputChange('timezone', val)}
+          >
+            <SelectTrigger id="timezone" className="h-12 text-base">
+              <SelectValue placeholder="Select a timezone..." />
+            </SelectTrigger>
+            <SelectContent>
+              {timezoneOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );
@@ -133,4 +170,4 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
 
 ProfileSetupForm.displayName = 'ProfileSetupForm';
 
-export default ProfileSetupForm; 
+export default ProfileSetupForm;
