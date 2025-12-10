@@ -25,9 +25,23 @@ export interface User {
 	organization: {
 		name: string;
 		level: string;
-	}
+	},
+	organizations: UserOrganization[],
 	assistant_hiring_approval: ApprovalStatus,
 	has_claimed_approval_link: string
+}
+
+export interface UserOrganization {
+  id: number;
+  name: string;
+  level: string;
+  apiKey: string;
+}
+
+export interface UserWorkspace {
+  id: string;
+  name: string;
+  type: 'personal' | 'organization';
 }
 
 export interface UserUpdateRequest {

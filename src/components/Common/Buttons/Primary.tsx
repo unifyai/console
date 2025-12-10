@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import BaseButton from "./Base";
+import { ReactNode } from "react";
 
 /**
  * A styled primary button with a loading state and an optional success message.
@@ -18,9 +19,10 @@ import BaseButton from "./Base";
  * @param {string} [className=""] - Additional CSS classes to add to the button.
  * @param {string} [type=""] - Optional button type.
  */
-const PrimaryButton = ({ onClick, label, isLoading = false, disabled = false, successMessage, showSuccess = false, className = "", type = "button"}: {
+const PrimaryButton = ({ onClick, label, icon = null, isLoading = false, disabled = false, successMessage, showSuccess = false, className = "", type = "button"}: {
   onClick?: () => void;
   label: string;
+  icon?: ReactNode;
   isLoading?: boolean;
   disabled?: boolean;
   successMessage?: string;
@@ -35,6 +37,7 @@ const PrimaryButton = ({ onClick, label, isLoading = false, disabled = false, su
         disabled={disabled || isLoading}
         type={type}
         text={isLoading ? "Loading..." : label}
+        icon={icon}
         onClick={onClick}
       />
       {showSuccess && successMessage && (

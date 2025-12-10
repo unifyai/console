@@ -7,6 +7,7 @@ import {OrchestraAdminClient} from "@/lib/orchestra/orchestra-client";
 import { Storage } from "@google-cloud/storage";
 import { Session, User, UserUpdateRequest } from "@/types/user";
 import { ConstructionOutlined } from "@mui/icons-material";
+import { cookies, headers } from "next/headers";
 
 /**
  * Retrieves the current user's session information.
@@ -93,22 +94,82 @@ export async function getOnPremUser(): Promise<User | null> {
  */
 export async function getCurrentUser(): Promise<User | null> {
   const session = await getSession();
+  let user: User | null = null;
+
+  // 1. Fetch User Identity
   if (process.env.ON_PREM) {
-    return getOnPremUser();
+    user = await getOnPremUser();
   } else {
-    const email = session?.user?.email;
-    if (email) {
-      try {
-        return await getUserByEmail(email);
-      } catch (error) {
-        console.error("[getCurrentUser] Failed to fetch user:", error);
-        return null;
-      }
+    if (session && session.user?.email) {
+      user = await getUserByEmail(session.user.email);
     } else {
       console.error("No user email found in session");
       return null;
     }
   }
+
+  if (!user) return null;
+
+  // 2. Apply Workspace Context
+  const cookieStore = cookies();
+  const workspaceId = cookieStore.get("unify_workspace_id")?.value;
+  let contextResolved = false;
+
+
+  // Priority 1: Header API Key
+  let headerApiKey: string | null = null;
+  try {
+    const headerStore = headers();
+    headerApiKey = headerStore.get("apiKey");
+  } catch (e) {
+    // Ignore context errors
+  }
+
+  if (headerApiKey) {
+    // Check if the header key matches the default personal key
+    if (user.apiKey === headerApiKey) {
+      contextResolved = true;
+    } 
+    // Check if the header key matches any of the user's organizations
+    else if (user.organizations) {
+      const targetOrg = user.organizations.find(org => org.apiKey === headerApiKey);
+      if (targetOrg) {
+        user.apiKey = targetOrg.apiKey;
+        contextResolved = true;
+      }
+    }
+  }
+
+  // Priority 2: Cookie (if not resolved by header)
+  if (!contextResolved && workspaceId) {
+    if (workspaceId === 'personal') {
+      // Explicitly personal. user.apiKey is already personal default.
+      contextResolved = true;
+    } else {
+      // Check if user still belongs to this org
+      const targetOrg = user.organizations?.find(
+        (org) => org.id.toString() === workspaceId
+      );
+
+      if (targetOrg) {
+        user.apiKey = targetOrg.apiKey;
+        contextResolved = true;
+      }
+      // If targetOrg not found (e.g. user removed from org), contextResolved remains false
+      // and we fall through to default logic below.
+    }
+  }
+
+  // Case B: No Cookie set, or Cookie ID was invalid (orphaned)
+  // if (!contextResolved) {
+  //   // Default to the first Organization if available
+  //   if (user.organizations && user.organizations.length > 0) {
+  //     user.apiKey = user.organizations[0].apiKey;
+  //   }
+  //   // Else: User has no organizations, default to personal (user.apiKey is unmodified)
+  // }
+
+  return user;
 }
   
 

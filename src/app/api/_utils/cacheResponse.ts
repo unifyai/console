@@ -70,6 +70,8 @@ export async function withCacheHeaders(
   // Set caching headers
   if (cacheControl) {
     headers.set('Cache-Control', cacheControl);
+    headers.append('Vary', 'Cookie');
+    headers.append('Vary', 'apiKey');
   }
   
   // Ensure content type is set
