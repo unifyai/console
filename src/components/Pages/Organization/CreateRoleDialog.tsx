@@ -47,7 +47,7 @@ const CreateRoleDialog = ({ onCreate, availablePermissions }: CreateRoleDialogPr
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
-              <Button size="icon" variant="outline">
+              <Button size="icon" variant="outline" aria-label="Create new role">
                 <Plus className="h-4 w-4" />
               </Button>
             </DialogTrigger>

@@ -82,7 +82,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 w-9 h-9">
+              <Button variant="outline" size="sm" className="gap-2 w-9 h-9" aria-label="Invite a new member">
                 <UserPlus className="h-8 w-8" />
               </Button>
             </DialogTrigger>
@@ -95,7 +95,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
       
       <DialogContent className="sm:max-w-[425px]">
         <div className="flex flex-col gap-2">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6 py-4" noValidate>
             
             {/* Input Container with Error Message */}
             <div className="space-y-2">

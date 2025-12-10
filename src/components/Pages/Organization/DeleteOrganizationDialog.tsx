@@ -32,7 +32,7 @@ const DeleteOrganizationDialog = ({
             <AlertDialogTrigger asChild>
               <Button 
                 variant="ghost" 
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2" aria-label="Delete organization"
               >
                 <Trash2 className="h-4 w-4"/>
               </Button>

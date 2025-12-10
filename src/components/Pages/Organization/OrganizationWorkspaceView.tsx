@@ -268,6 +268,7 @@ const OrganizationWorkspaceView = ({
                                         variant={showRolePanel ? "primary" : "outline"} 
                                         size="icon"
                                         onClick={toggleRolePanel}
+                                        aria-label={showRolePanel ? "Close Roles" : "Manage Roles"}
                                     >
                                         <Shield className="h-4 w-4" />
                                     </Button>
@@ -286,6 +287,7 @@ const OrganizationWorkspaceView = ({
                                         variant={showTeamPanel ? "primary" : "outline"} 
                                         size="icon"
                                         onClick={toggleTeamPanel}
+                                        aria-label={showTeamPanel ? "Close Teams" : "View Teams"}
                                      >
                                         <Users className="h-4 w-4" />
                                     </Button>

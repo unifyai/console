@@ -41,7 +41,7 @@ const UpdateOrgDialog = ({ currentName, onUpdate }: UpdateOrgDialogProps) => {
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Update organization">
                 <Pencil className="h-4 w-4" />
               </Button>
             </DialogTrigger>

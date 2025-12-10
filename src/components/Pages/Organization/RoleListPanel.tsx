@@ -70,7 +70,7 @@ const RoleListPanel = ({
   }
 
   return (
-    <div className="h-full flex flex-col border-l bg-background shadow-xl w-full">
+    <div className="h-full flex flex-col border-l bg-background shadow-xl w-full" data-testid="role-list-panel">
       {/* Header */}
       <div className="p-4 border-b flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
@@ -140,7 +140,7 @@ const RoleListPanel = ({
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More role">
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>

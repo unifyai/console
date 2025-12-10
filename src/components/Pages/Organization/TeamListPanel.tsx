@@ -105,7 +105,7 @@ const TeamListPanel = ({ teams, members, onCreateTeam, onUpdateTeam, onDeleteTea
   });
 
   return (
-    <div className="h-full flex flex-col border-l bg-background shadow-xl w-full">
+    <div className="h-full flex flex-col border-l bg-background shadow-xl w-full" data-testid="team-list-panel">
       {/* Header */}
       <div className="p-4 border-b flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
@@ -160,7 +160,7 @@ const TeamListPanel = ({ teams, members, onCreateTeam, onUpdateTeam, onDeleteTea
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More team">
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
