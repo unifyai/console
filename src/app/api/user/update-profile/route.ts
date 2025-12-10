@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, lastName, jobTitle } = body;
+    const { name, lastName, jobTitle, bio } = body;
 
     // Update user properties in db
     const userUpdateRequest: UserUpdateRequest = {
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       name,
       last_name: lastName,
       job_title: jobTitle,
+      bio: bio,
       image: null // We don't update image in onboarding
     };
     

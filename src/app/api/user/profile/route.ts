@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       name: user.name || null,
       lastName: user.lastName || null,
       jobTitle: user.jobTitle || null,
+      bio: user.bio || null,
       email: user.email
     });
   } catch (error) {

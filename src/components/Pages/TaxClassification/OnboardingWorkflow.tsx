@@ -18,6 +18,7 @@ interface ProfileData {
   name: string;
   lastName: string;
   jobTitle: string;
+  bio: string;
 }
 
 interface OnboardingStep {
@@ -59,7 +60,8 @@ export default function OnboardingWorkflow() {
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
     lastName: '',
-    jobTitle: ''
+    jobTitle: '',
+    bio: ''
   });
   const [taxData, setTaxData] = useState<TaxClassificationFormData | null>(null);
   const [newsletterData, setNewsletterData] = useState<string[]>([]);
@@ -143,7 +145,8 @@ export default function OnboardingWorkflow() {
         setProfileData({
           name: userData.name || '',
           lastName: userData.lastName || '',
-          jobTitle: userData.jobTitle || ''
+          jobTitle: userData.jobTitle || '',
+          bio: userData.bio || '',
         });
         setIsProfileValid(userData.name && userData.lastName);
         console.log('✅ Pre-populated profile data');
@@ -200,7 +203,8 @@ export default function OnboardingWorkflow() {
         body: JSON.stringify({
           name: data.name,
           lastName: data.lastName,
-          jobTitle: data.jobTitle
+          jobTitle: data.jobTitle,
+          bio: data.bio
         })
       });
 

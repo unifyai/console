@@ -21,6 +21,7 @@ export interface OrganizationMember {
   name?: string;
   email?: string;
   jobTitle?: string;
+  bio?: string;
 }
 
 export interface OrganizationPermission {

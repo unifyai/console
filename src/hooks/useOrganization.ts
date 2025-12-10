@@ -13,6 +13,7 @@ export interface UnifiedMember {
     roleId: number | null;
     status: 'active' | 'pending';
     jobTitle?: string;
+    bio?: string;
     isInvite?: boolean;
 }
 
@@ -102,6 +103,7 @@ export const useOrganization = (
           role: m.role_name || "Member",
           roleId: m.role_id,
           jobTitle: m.jobTitle,
+          bio: m.bio,
           status: 'active',
           isInvite: false
       }));

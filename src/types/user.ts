@@ -16,6 +16,7 @@ export interface User {
 	name: string;
 	lastName: string;
 	jobTitle: string;
+	bio: string;
 	image: string;
 	timezone: string | null;
 	email: string;
@@ -51,6 +52,7 @@ export interface UserUpdateRequest {
 	name: string;
 	last_name: string;
 	job_title: string;
+	bio: string;
 	timezone?: string | null;
 }
 
@@ -141,6 +143,7 @@ export interface CreateUserWithBusinessInfoRequest {
 	name: string;
 	last_name: string;
 	job_title?: string;
+	bio?: string;
 	account_type: AccountType;
 	business_info?: BusinessInfo;
 }

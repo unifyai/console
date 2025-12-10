@@ -9,6 +9,7 @@ interface ProfileData {
   name: string;
   lastName: string;
   jobTitle: string;
+  bio: string;
 }
 
 interface ProfileSetupFormProps {
@@ -29,6 +30,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
       name: '',
       lastName: '',
       jobTitle: '',
+      bio: '',
       ...initialData
     });
 
@@ -69,7 +71,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
         <div className="flex items-center space-x-3 mb-6">
         <User className="h-6 w-6 text-primary" />
         <p className="text-base text-muted-foreground">
-          {(initialData?.name || initialData?.lastName || initialData?.jobTitle) 
+          {(initialData?.name || initialData?.lastName || initialData?.jobTitle || initialData?.bio) 
             ? "Please review and update your profile information as needed."
             : "Let's start by getting to know you."
           }
@@ -109,6 +111,17 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
             value={formData.jobTitle}
             onChange={(e) => handleInputChange('jobTitle', e.target.value)}
             placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
+            className="h-12 text-base"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="bio" className="text-base font-medium">About (Optional)</Label>
+          <Input
+            id="bio"
+            value={formData.bio}
+            onChange={(e) => handleInputChange('bio', e.target.value)}
+            placeholder="e.g., Data Scientist passionate with AI and analytics"
             className="h-12 text-base"
           />
         </div>

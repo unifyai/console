@@ -30,6 +30,7 @@ const ProfileForm = ({user, onPrem}: {
     name: user.name || "",
     lastName: user.lastName || "",
     jobTitle: user.jobTitle || "",
+    bio: user.bio || "",
     timezone: user.timezone || "",
   });
   const [initialFormState, setInitialFormState] = useState({ ...formState });
@@ -66,6 +67,7 @@ const ProfileForm = ({user, onPrem}: {
         formData.append('name', user.name || '');
         formData.append('lastName', user.lastName || '');
         formData.append('jobTitle', user.jobTitle || '');
+        formData.append('bio', user.bio || '');
         formData.append('email', user.email || '');
         formData.append('timezone', tz);
 
@@ -94,7 +96,7 @@ const ProfileForm = ({user, onPrem}: {
             autoUpdateTimezone(browserTimezone);
         }
     }
-  }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.email]);
+  }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.bio, user.email]);
 
   const preferencesChanged = useMemo(() => {
     if (subscriptions.length !== initialSubscriptions.length) return true;

@@ -6,7 +6,7 @@ import { generateTimezoneOptions } from "@/utils/assistants/timezone-utils";
 import * as React from 'react';
 
 const UserInfo = ({ formState, user, handleInputChange, handleTimezoneChange, onPrem }: {
-  formState: { name: any; lastName: any; jobTitle: any; timezone: any; },
+  formState: { name: any; lastName: any; jobTitle: any; bio: any; timezone: any; },
   user: User,
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
   handleTimezoneChange: (value: string) => void,
@@ -57,6 +57,17 @@ const UserInfo = ({ formState, user, handleInputChange, handleTimezoneChange, on
             type="text" 
             name="jobTitle" 
             value={formState.jobTitle} 
+            className="w-full" 
+            onChange={handleInputChange} 
+            readOnly={Boolean(onPrem)}
+          />
+        </div>
+        <div className="mt-2 col-span-2">
+          <Label>About</Label>
+          <Input 
+            type="text" 
+            name="bio" 
+            value={formState.bio} 
             className="w-full" 
             onChange={handleInputChange} 
             readOnly={Boolean(onPrem)}

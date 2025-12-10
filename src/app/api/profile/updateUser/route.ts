@@ -13,6 +13,7 @@ import { NextRequest } from "next/server";
  * - `lastName`: The new last name of the user.
  * - `image`: The new profile image as a base64 encoded string.
  * - `jobTitle`: The new job title of the user.
+ * - `bio`: The new user bio. 
  * 
  * @param request The request object.
  * 
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     name: formData.get("name") as string,
     last_name: formData.get("lastName") as string,
     job_title: formData.get("jobTitle") as string,
+    bio: formData.get("bio") as string,
     timezone: formData.get("timezone") as string | null
   };
   
