@@ -47,7 +47,6 @@ const CreateTeamDialog = ({ onCreate }: CreateTeamDialogProps) => {
 
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
-          <h3 className="text-lg font-medium">Create New Team</h3>
           <Input
             placeholder="Team Name"
             value={name}
