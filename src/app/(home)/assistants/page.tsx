@@ -26,6 +26,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     }
     const apiKey = user.apiKey;
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
+    const userName = `${user.name}${user.lastName}`;
 
     const assistantActions: AssistantActions = {
         "assistant": {
@@ -57,7 +58,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             design: await designVoiceCreateFromPreview(apiKey),
         },
         "chat": {
-            getTranscripts: await getTranscripts(apiKey),
+            getTranscripts: await getTranscripts(apiKey, userName),
             message: await messageAssistant(apiKey),
         },
         "contact": {
@@ -68,9 +69,9 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             verifySocialAccount: await verifySocialAccount(adminKey),
         },
         "secret": {
-            get: await getSecrets(apiKey),
-            create: await createSecret(apiKey),
-            delete: await deleteSecret(apiKey),
+            get: await getSecrets(apiKey, userName),
+            create: await createSecret(apiKey, userName),
+            delete: await deleteSecret(apiKey, userName),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),
@@ -89,8 +90,8 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     }
 
     const taskActions: TaskActions = {
-        get: await getTasks(apiKey),
-        update: await updateTask(apiKey),
+        get: await getTasks(apiKey, userName),
+        update: await updateTask(apiKey, userName),
     }
 
     const userMeta = { image: user.image, timezone: user.timezone };

@@ -6,12 +6,12 @@ import { ResponseProps } from "@/types/common";
 import { LogProps, LogsResponseProps } from "@/types/interfaces/logs";
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from "@/constants/assistants/settings";
 
-export const getTranscripts = async (apiKey: string) => {
+export const getTranscripts = async (apiKey: string, userContext: string) => {
     return async (assistantContext: string, beforeMessageId?: number): Promise<ChatMessage[] | ResponseProps> => {
         "use server";
         try {
             const project = "Assistants";
-            const context = `${assistantContext}/Transcripts`;
+            const context = `${userContext}/${assistantContext}/Transcripts`;
             const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
             let filter_expr = `medium == "unify_message" and (sender_id == 1 or sender_id == 0)`;
             if (beforeMessageId !== undefined) {

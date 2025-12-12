@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
             });
         }
         const apiKey = user.apiKey;
-        const userName = user.name || "the user";
+        const userName = `${user.name}${user.lastName}` || "the user";
 
         // `messages` here is the full client-side session history
         const { messages, assistantName, assistantAge, assistantBio, assistantNationality, assistantId, type, preHireChat } = await request.json();
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
             }
             
             // Fetch recent history using the provided name context
-            const getTranscriptsAction = await getTranscripts(apiKey);
+            const getTranscriptsAction = await getTranscripts(apiKey, userName);
             const historyResult = await getTranscriptsAction(assistantName);
 
             if ('detail' in historyResult) {

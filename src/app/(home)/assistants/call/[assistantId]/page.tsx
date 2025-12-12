@@ -13,12 +13,12 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     if (!user) {
         redirect('/login');
     }
-
+    const userName = `${user.name}${user.lastName}`;
     const apiKey = user.apiKey;
 
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
-            getTranscripts: await getTranscripts(apiKey),
+            getTranscripts: await getTranscripts(apiKey, userName),
             message: await messageAssistant(apiKey),
         },
         "call": {

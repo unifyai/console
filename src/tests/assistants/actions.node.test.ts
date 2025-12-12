@@ -36,7 +36,11 @@ const getTestAssistant = async (key: string) : Promise<Assistant> => {
 }
 
 const getTestSecret = async (key: string, assistant_context: string) : Promise<Secret> => {
-    const getAction = await SecretActions.getSecrets(key);
+    const user = await UserActions.getCurrentUser();
+    if (!user || !user.id) throw new Error("No user found for test.");
+    const userName = `${user.name}${user.lastName}`;
+
+    const getAction = await SecretActions.getSecrets(key, userName);
     const getRes = await getAction(assistant_context);
     if (!Array.isArray(getRes) || getRes.length === 0 || !getRes[0].log_id) throw new Error(`No secret found. Skipping test.`);
     return getRes[0];
@@ -186,10 +190,14 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
         it('getTranscripts: should return chat history', async () => {
 
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
 
-            const action = await ChatActions.getTranscripts(API_KEY);
+            const action = await ChatActions.getTranscripts(API_KEY, userName);
             const res = await action(assistantName);
             
             expect(isError(res)).toBe(false);
@@ -238,7 +246,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
         }, 30000);
 
         it('listAvailableSocialPlatforms: should return platform list', async () => {
-            const action = await ContactActions.listAvailableSocialPlatforms(ADMIN_KEY);
+            const action = await ContactActions.listAvailableSocialPlatforms(ADMIN_KEY as string);
             const res = await action();
             expect(isError(res)).toBe(false);
             expect(Array.isArray(res)).toBe(true);
@@ -248,7 +256,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
         }, 30000);
 
         it('listAllAssistantEmails: should return list of emails', async () => {
-            const action = await ContactActions.listAllAssistantEmails(ADMIN_KEY);
+            const action = await ContactActions.listAllAssistantEmails(ADMIN_KEY as string);
             const res = await action();
             expect(isError(res)).toBe(false);
             expect(Array.isArray(res)).toBe(true);
@@ -292,13 +300,39 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
     describe('lib/assistants/desktop.ts', () => {
 
-        it('getLiveviewUrl: should return url or error', async () => {
+        it('getLiveviewUrl: should setup call, dispatch assistant, then return url', async () => {
 
+            // 1. Setup Data
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
+            const assistantName = assistant.first_name;
 
-            const action = await DesktopActions.getLiveviewUrl("test-user-id", "test-key");
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userId = user.id;
+
+            // 2. Setup Call Room
+            const connAction = await CallActions.getCallConnectionDetails(API_KEY);
+            const connDetails = await connAction(assistantId, assistantName);
+            if (isError(connDetails)) throw new Error(`Failed to get connection details: ${connDetails.detail}`);
+            
+            const roomName = connDetails.roomName;
+            console.log(`Room setup: ${roomName}`);
+
+            // 3. Dispatch Assistant to Room
+            const dispatchAction = await CallActions.dispatchAssistantToCall(API_KEY);
+            const dispatchRes = await dispatchAction(assistantId, assistantName, roomName);
+            if (isError(dispatchRes)) throw new Error(`Failed to dispatch assistant: ${dispatchRes.detail}`);
+            console.log("Assistant dispatched.");
+
+            // 4. Wait for assistant to join/initialize
+            console.log("Waiting for initialization...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            // 5. Get LiveView URL
+            const action = await DesktopActions.getLiveviewUrl(userId, API_KEY);
             const res = await action(assistantId);
+            
             if (isError(res)) {
                 expect(res.detail).toBeDefined();
             } else {
@@ -307,7 +341,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             console.log("========== TEST RESULT ==========")
             console.log(res)
-        }, 30000);
+        }, 60000);
 
         it('sendSystemEvent: should send pause/resume event', async () => {
 
@@ -526,10 +560,14 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
         it('createSecret: should add a log to the Secrets context table with the correct values', async () => {
 
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
 
-            const createAction = await SecretActions.createSecret(API_KEY);
+            const createAction = await SecretActions.createSecret(API_KEY, userName);
             const createRes = await createAction(assistantId, { 
                 name: `TEST_SECRET_${Date.now()}`, 
                 value: "test_value",
@@ -543,10 +581,14 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
         it('getSecrets: should get the log from the Secrets context with the correct values', async () => {
 
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
 
-            const getAction = await SecretActions.getSecrets(API_KEY);
+            const getAction = await SecretActions.getSecrets(API_KEY, userName);
             const res = await getAction(assistantId);
             expect(isError(res)).toBe(false);
             if (Array.isArray(res) && res.length > 0) {
@@ -562,6 +604,10 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
         it('deleteSecret: should delete the log from the Secrets context', async () => {
 
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
             const assistantName = `${assistant.first_name}${assistant.surname}`;
@@ -569,7 +615,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
             const secret = await getTestSecret(API_KEY, assistantName);
             const secretId = secret.log_id;
 
-            const deleteAction = await SecretActions.deleteSecret(API_KEY);
+            const deleteAction = await SecretActions.deleteSecret(API_KEY, userName);
             const res = await deleteAction(assistantId, secretId);
             expect(isError(res)).toBe(false);
 
@@ -582,10 +628,15 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
     describe('lib/assistants/task.ts', () => {
 
         it('getTasks: should retrieve tasks for assistant', async () => {
+
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
 
-            const action = await TaskActions.getTasks(API_KEY);
+            const action = await TaskActions.getTasks(API_KEY, userName);
             const res = await action(assistantName, null, 10, 0);
             expect(isError(res)).toBe(false);
             expect(res).toHaveProperty('logs');
@@ -595,10 +646,15 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
         }, 30000);
 
         it('getUniqueFieldValues: should return values for a field', async () => {
+
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
 
-            const action = await TaskActions.getUniqueFieldValues(API_KEY);
+            const action = await TaskActions.getUniqueFieldValues(API_KEY, userName);
             const res = await action(assistantName, 'status');
             if (isError(res)) {
                 expect(res.detail).toBeDefined();
@@ -611,14 +667,19 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
         }, 30000);
 
         it('updateTask: should attempt to update a task', async () => {
+
+            const user = await UserActions.getCurrentUser();
+            if (!user || !user.id) throw new Error("No user found for test.");
+            const userName = `${user.name}${user.lastName}`;
+
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
 
-            const getAction = await TaskActions.getTasks(API_KEY);
+            const getAction = await TaskActions.getTasks(API_KEY, userName);
             const res = await getAction(assistantName, null, 1, 0);
             if (!isError(res) && res.logs && res.logs.length > 0) {
                 const taskLogId = res.logs[0].id;
-                const updateAction = await TaskActions.updateTask(API_KEY);
+                const updateAction = await TaskActions.updateTask(API_KEY, userName);
                 const updateRes = await updateAction(assistantName, [parseInt(taskLogId)], { status: 'active' });
                 expect(isError(updateRes)).toBe(false);
             }

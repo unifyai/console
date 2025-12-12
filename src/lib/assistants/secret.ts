@@ -21,11 +21,11 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
     };
 };
 
-export const getSecrets = async (apiKey: string) => {
+export const getSecrets = async (apiKey: string, userContext: string) => {
     return async (assistantContext: string): Promise<Secret[] | ResponseProps> => {
         "use server";
         try {
-            const context = `${assistantContext}${CONTEXT_SUFFIX}`;
+            const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
             const url = `${process.env.NEXTAUTH_URL}/api/logs?project=${PROJECT}&context=${context}`;
             
             const response = await fetch(url, { method: "GET", headers: { apiKey } });
@@ -48,11 +48,11 @@ export const getSecrets = async (apiKey: string) => {
     };
 };
 
-export const createSecret = async (apiKey: string) => {
+export const createSecret = async (apiKey: string, userContext: string) => {
     return async (assistantContext: string, payload: SecretPayload): Promise<ResponseProps> => {
         "use server";
         try {
-            const context = `${assistantContext}${CONTEXT_SUFFIX}`;
+            const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
             const body = { project: PROJECT, context, entries: [payload] };
             
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
@@ -74,11 +74,11 @@ export const createSecret = async (apiKey: string) => {
     };
 };
 
-export const deleteSecret = async (apiKey: string) => {
+export const deleteSecret = async (apiKey: string, userContext: string) => {
     return async (assistantContext: string, log_id: number): Promise<ResponseProps> => {
         "use server";
         try {
-            const context = `${assistantContext}${CONTEXT_SUFFIX}`;
+            const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
             const url = `${process.env.NEXTAUTH_URL}/api/logs`;
             const body = {
                 project: PROJECT,
