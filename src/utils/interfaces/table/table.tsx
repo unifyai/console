@@ -1212,11 +1212,11 @@ export function isHiddenByDefault(
     return false; // Not underscore-prefixed, don't hide
   }
 
-  // Exception: Assistants project with "All" in context - keep _assistant visible
+  // Exception: Assistants project with "All" in context - keep _assistant and _user visible
   if (projectId === "Assistants" && context?.includes("All")) {
     const columnName = id.split("/").pop(); // Get the last segment
-    if (columnName === "_assistant") {
-      return false; // Don't hide _assistant column
+    if (columnName === "_assistant" || columnName === "_user") {
+      return false; // Don't hide _assistant or _user columns
     }
   }
 
