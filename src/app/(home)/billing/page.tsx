@@ -34,8 +34,8 @@ const BillingPage: React.FC = async () => {
   if (workspaceId && workspaceId !== 'personal') {
     const activeOrg = user.organizations?.find(o => o.id.toString() === workspaceId);    
     if (activeOrg) {
-        const level = activeOrg.level.toLowerCase();
-        if (level !== 'owner' && level !== 'admin') {
+        const roleName = activeOrg.role_name?.toLowerCase();
+        if (roleName !== 'owner' && roleName !== 'admin') {
             redirect('/profile');
         }
     } else {

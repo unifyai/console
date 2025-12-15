@@ -162,7 +162,6 @@ const OrganizationWorkspaceView = ({
         id: -1, // Mock ID, not used in InviteMemberDialog
         user_id: m.user_id!,
         organization_id: organization.id,
-        level: 'user', // Default, logic handled elsewhere
         role_id: m.roleId,
         role_name: m.role,
         created_at: '',
@@ -182,7 +181,7 @@ const OrganizationWorkspaceView = ({
                     <h2 className="text-xl font-semibold flex items-center gap-2">
                         {organization.name}
                         <span className="text-xs font-normal text-muted-foreground border px-2 py-0.5 rounded-full capitalize">
-                            {organization.level || 'Member'}
+                            {organization.role_name || 'Member'}
                         </span>
                     </h2>
                 </div>

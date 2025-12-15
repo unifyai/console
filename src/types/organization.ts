@@ -6,7 +6,8 @@ export interface Organization {
   owner_id?: string;
   billing_user_id?: string;
   created_at?: string;
-  level?: string;
+  role_id?: number;
+  role_name?: string;
   apiKey?: string;
 }
 
@@ -14,7 +15,6 @@ export interface OrganizationMember {
   id: number;
   user_id: string;
   organization_id: number;
-  level: string;
   role_id: number | null;
   role_name: string | null;
   created_at: string;
@@ -65,7 +65,6 @@ export interface OrganizationInvite {
   invited_by_name?: string;
   role_id: number;
   role_name?: string;
-  level: string;
   expires_at: string;
   created_at: string;
 }

@@ -19,7 +19,8 @@ const OrganizationPage = async () => {
   const organizations: Organization[] = user.organizations?.map((org: any) => ({
     id: org.id,
     name: org.name,
-    level: org.level,
+    role_id: org.role_id,
+    role_name: org.role_name,
     apiKey: org.apiKey,
   })) || [];
 

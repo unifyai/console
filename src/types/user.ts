@@ -25,7 +25,8 @@ export interface User {
 	stripe_customer_id: string,
 	organization: {
 		name: string;
-		level: string;
+		role_id: number;
+		role_name: string;
 	},
 	organizations: UserOrganization[],
 	assistant_hiring_approval: ApprovalStatus,
@@ -35,7 +36,8 @@ export interface User {
 export interface UserOrganization {
   id: number;
   name: string;
-  level: string;
+  role_id: number;
+  role_name: string;
   apiKey: string;
 }
 

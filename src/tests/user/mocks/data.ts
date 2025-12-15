@@ -71,7 +71,8 @@ export const mockOrganizations: Organization[] = [
         id: 1,
         name: "Acme Corp",
         owner_id: mockUser.id,
-        level: "enterprise",
+        role_id: 1,
+        role_name: "Owner",
         apiKey: "key_123",
         created_at: new Date().toISOString()
     },
@@ -79,7 +80,8 @@ export const mockOrganizations: Organization[] = [
         id: 2,
         name: "Stark Industries",
         owner_id: "other_user",
-        level: "pro",
+        role_id: 2,
+        role_name: "Member",
         apiKey: "key_456",
         created_at: new Date().toISOString()
     }
@@ -90,7 +92,6 @@ export const mockMembers: OrganizationMember[] = [
         id: 1,
         user_id: mockUser.id,
         organization_id: 1,
-        level: "admin",
         role_id: 1,
         role_name: "Owner",
         created_at: new Date().toISOString(),
@@ -102,7 +103,6 @@ export const mockMembers: OrganizationMember[] = [
         id: 2,
         user_id: "user_2",
         organization_id: 1,
-        level: "user",
         role_id: 2,
         role_name: "Member",
         created_at: new Date().toISOString(),
@@ -121,7 +121,7 @@ export const mockInvites: OrganizationInvite[] = [
         invitee_email: "pending@acme.com",
         invited_by_user_id: mockUser.id,
         role_id: 2,
-        level: "user",
+        role_name: "Member",
         expires_at: new Date(Date.now() + 86400000).toISOString(),
         created_at: new Date().toISOString()
     }

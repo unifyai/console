@@ -105,7 +105,7 @@ export const inviteMemberAction = async (apiKey: string) => {
       headers: getHeaders(apiKey),
       body: JSON.stringify({ 
           email: email,
-          level: "user"
+          role_id: roleId
       }),
     }, "inviteMember");
   };
