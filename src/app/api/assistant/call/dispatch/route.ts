@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         
         // Append '-staging' if in a staging/preview environment (using Vercel's env var as an example)
         const isStaging = baseUrl.includes("staging");
-        const DISPATCH_URL = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/call`
+        const DISPATCH_URL = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/meet`
         const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
         if (!ADMIN_KEY) {
