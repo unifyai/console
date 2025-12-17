@@ -30,7 +30,9 @@ import {
   FileInput,
   FileOutput,
   Check,
-  FolderTree
+  FolderTree,
+  Share2,
+  ArrowRightLeft
 } from 'lucide-react'
 // import { BreadcrumbNav } from './BreadcrumbNav'
 import { 
@@ -71,21 +73,8 @@ import { IconSelector } from '@/components/UI/icon-selector'
 import SubmitButton from '@/components/Common/Buttons/Submit'
 import { HexColorPicker } from "react-colorful"
 import { showLoadingToast, showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications'
-import { 
-  ProjectsActions,
-  GranularInterfaceActions,
-  GranularTabActions,
-  GranularTileActions,
-  FileActions,
-  LogsActions,
-  ContextActions,
-  CodeActions,
-  FavouritesActions,
-  Favourite,
-  FieldsActions,
-  TemplateExportResponse,
-  InterfaceTemplateSchema
-} from '@/types/interfaces/grid'
+import type { ProjectsActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, LogsActions, ContextActions, CodeActions, FavouritesActions, Favourite, FieldsActions, TemplateExportResponse, InterfaceTemplateSchema } from '@/types/interfaces/grid'
+import { ResourcesActions } from '@/types/resource'
 import {
   createProject,
   renameProject,
@@ -119,11 +108,15 @@ import {
 import { FileUpload } from './Buttons/FileUpload'
 import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { ProjectPicker, InterfacePicker, renderSidebarIcon as renderSidebarIconUtil } from './Nav'
+import { User } from '@/types/user'
 import { CreateProjectDialog } from './Dialogs/CreateProjectDialog'
 import { CreateInterfaceDialog } from './Dialogs/CreateInterfaceDialog'
 import { CreateTabDialog } from './Dialogs/CreateTabDialog'
 import { RenameProjectDialog } from './Dialogs/RenameProjectDialog'
 import ContextTreePicker from '@/components/Common/Dropdowns/ContextTreePicker'
+import { ShareProjectDialog } from './Dialogs/ShareProjectDialog'
+import { TransferProjectDialog } from './Dialogs/TransferProjectDialog'
+import { useProjectPermissions } from '@/contexts/hooks/interface/useProjectPermissions'
 
 interface ProjectInterface {
   id: string;
@@ -162,7 +155,9 @@ interface InterfaceNavProps {
   codeActions: CodeActions
   favouritesActions: FavouritesActions
   initialFavourites: Favourite[]
-  setIsSwitchingInterface: React.Dispatch<React.SetStateAction<boolean>>
+  resourcesActions: ResourcesActions
+  setIsSwitchingInterface: (isSwitching: boolean) => void
+  userMeta: Pick<User, "organizations" | "id">
   setLoadingMessage: React.Dispatch<React.SetStateAction<string>>
   onAddTile: () => void
   fieldsActions: FieldsActions
@@ -370,13 +365,15 @@ export default function InterfaceNav({
   codeActions,
   favouritesActions,
   initialFavourites,
+  resourcesActions,
   setIsSwitchingInterface,
   setLoadingMessage,
   onAddTile,
   onRefresh,
   refreshStatus,
   fieldsActions,
-  syncedInterfaceUIActions
+  syncedInterfaceUIActions,
+  userMeta
 }: InterfaceNavProps) {
 
   // Initialize sidebar state from cookies
@@ -455,6 +452,19 @@ export default function InterfaceNav({
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false)
   const [isDeletingProject, setIsDeletingProject] = useState(false)
   
+  // Share and Transfer dialog states
+  const [shareProjectOpen, setShareProjectOpen] = useState(false)
+  const [transferProjectOpen, setTransferProjectOpen] = useState(false)
+  
+  // Permissions hook
+  const permissions = useProjectPermissions({
+    userId: userMeta.id || '',
+    selectedProject: selectedProject,
+    getProject: projectActions.getProject,
+    fetchPermissions: resourcesActions.listAccess,
+    fetchRoles: resourcesActions.listRoles
+  })
+
   // Interface action states
   const [createInterfaceOpen, setCreateInterfaceOpen] = useState(false)
   const [selectedInterfaceForAction, setSelectedInterfaceForAction] = useState<ProjectInterface | null>(null)
@@ -1951,41 +1961,42 @@ export default function InterfaceNav({
                       <Plus className="h-4 w-4 mr-2" />
                       Create Project
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }} className="text-body-sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Interface
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setRenameProjectOpen(true) }} className="text-body-sm">
-                      <Edit3 className="h-4 w-4 mr-2" />
-                      Rename Project
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setNewProjectIconEdit(currentProjectData?.icon || 'folder'); setProjectIconOpen(true) }} className="text-body-sm">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Change Icon
-                    </DropdownMenuItem>
-                    {interfaceId && (
-                      <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                        <DropdownMenuItem className="text-body-sm">
-                          <Palette className="h-4 w-4 mr-2" />
-                          Set Project Color
-                        </DropdownMenuItem>
-                      </ColorPicker>
-                    )}
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => setProjectContextOpen(true)} className="text-body-sm">
-                      <FolderTree className="h-4 w-4 mr-2" />
-                      Set Project Context
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }} className="text-body-sm">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import Interface
-                    </DropdownMenuItem>
-                    {selectedProject !== 'Usage' && (
-                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setFileUploadOpen(true) }} className="text-body-sm">
-                        <FileInput className="h-4 w-4 mr-2" />
-                        Upload Logs
-                      </DropdownMenuItem>
-                    )}
+                    {(permissions.hasWrite && (
+                        <>
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setRenameProjectOpen(true) }} className="text-body-sm">
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Rename Project
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setNewProjectIconEdit(currentProjectData?.icon || 'folder'); setProjectIconOpen(true) }} className="text-body-sm">
+                            <Settings className="h-4 w-4 mr-2" />
+                            Change Icon
+                          </DropdownMenuItem>
+                          {interfaceId && (
+                            <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                              <DropdownMenuItem className="text-body-sm">
+                                <Palette className="h-4 w-4 mr-2" />
+                                Set Project Color
+                              </DropdownMenuItem>
+                            </ColorPicker>
+                          )}
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => setProjectContextOpen(true)} className="text-body-sm">
+                            <FolderTree className="h-4 w-4 mr-2" />
+                            Set Project Context
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setImportProjectName(selectedProject); setImportInterfaceOpen(true) }} className="text-body-sm">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import Interface
+                          </DropdownMenuItem>
+                          {selectedProject !== 'Usage' && (
+                            <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setFileUploadOpen(true) }} className="text-body-sm">
+                              <FileInput className="h-4 w-4 mr-2" />
+                              Upload Logs
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )
+                    )}                    
                     <DropdownMenuItem disabled={!selectedProject} onSelect={() => handleToggleFavourite()} className="text-body-sm">
                       <Star className={cn("h-4 w-4 mr-2", currentProjectData?.favorite && "fill-current")} />
                       {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
@@ -1997,11 +2008,30 @@ export default function InterfaceNav({
                     </DropdownMenuItem>
                     {selectedProject !== 'Usage' && (
                       <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setDeleteProjectOpen(true) }} className="text-destructive text-body-sm">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Project
-                        </DropdownMenuItem>
+                        {(permissions.hasWrite || permissions.isOwner) && permissions.isOrgProject && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setShareProjectOpen(true) }} className="text-body-sm">
+                              <Share2 className="h-4 w-4 mr-2" />
+                              Share Project
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {permissions.isOwner && (
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setTransferProjectOpen(true) }} className="text-body-sm">
+                            <ArrowRightLeft className="h-4 w-4 mr-2" />
+                            Transfer Project
+                          </DropdownMenuItem>
+                        )}
+                        {permissions.hasDelete && (
+                            <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setDeleteProjectOpen(true) }} className="text-destructive text-body-sm">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Project
+                            </DropdownMenuItem>
+                            </>
+                        )}
                       </>
                     )}
                   </DropdownMenuContent>
@@ -2026,60 +2056,64 @@ export default function InterfaceNav({
                     onOpenChange={setInterfacePopoverOpen}
                   />
                   {/* Interface Context Menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSaveInterfaceOpen(true) } }} className="text-body-sm">
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Interface
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setSaveAsNewInterfaceOpen(true) } }} className="text-body-sm">
-                        <div className="h-4 w-4 mr-2 relative">
-                          <Save className="h-4 w-4" />
-                          <Plus className="h-2.5 w-2.5 absolute -top-1 -right-1 rounded-full bg-background text-foreground" />
-                        </div>
-                        Save as New Int...
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }} className="text-body-sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Interface
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setRenameInterfaceOpen(true) } }} className="text-body-sm">
-                        <Edit3 className="h-4 w-4 mr-2" />
-                        Rename Interface
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setNewInterfaceIcon(currentInterface.icon || 'layout-grid'); setInterfaceIconOpen(true) } }} className="text-body-sm">
-                        <Settings className="h-4 w-4 mr-2" />
-                        Change Icon
-                      </DropdownMenuItem>
-                      {interfaceId && (
-                        <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
-                          <DropdownMenuItem className="text-body-sm">
-                            <Palette className="h-4 w-4 mr-2" />
-                            Set Interface Color
+                  {permissions.hasWrite && (
+                    <>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSaveInterfaceOpen(true) } }} className="text-body-sm">
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Interface
                           </DropdownMenuItem>
-                        </ColorPicker>
-                      )}
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }} className="text-body-sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export as Template
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => setInterfaceContextOpen(true)} className="text-body-sm">
-                        <FolderTree className="h-4 w-4 mr-2" />
-                        Set Interface Context
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive text-body-sm">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Interface
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setSaveAsNewInterfaceOpen(true) } }} className="text-body-sm">
+                            <div className="h-4 w-4 mr-2 relative">
+                              <Save className="h-4 w-4" />
+                              <Plus className="h-2.5 w-2.5 absolute -top-1 -right-1 rounded-full bg-background text-foreground" />
+                            </div>
+                            Save as New Int...
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!selectedProject} onSelect={() => { setActiveProject(selectedProject); setCreateInterfaceOpen(true) }} className="text-body-sm">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Interface
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setRenameInterfaceOpen(true) } }} className="text-body-sm">
+                            <Edit3 className="h-4 w-4 mr-2" />
+                            Rename Interface
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setNewInterfaceIcon(currentInterface.icon || 'layout-grid'); setInterfaceIconOpen(true) } }} className="text-body-sm">
+                            <Settings className="h-4 w-4 mr-2" />
+                            Change Icon
+                          </DropdownMenuItem>
+                          {interfaceId && (
+                            <ColorPicker value={pickerColor} onChange={handleThemeChange} useDialog={true} showReset={true} onReset={handleThemeReset}>
+                              <DropdownMenuItem className="text-body-sm">
+                                <Palette className="h-4 w-4 mr-2" />
+                                Set Interface Color
+                              </DropdownMenuItem>
+                            </ColorPicker>
+                          )}
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); handleExportTemplate() } }} className="text-body-sm">
+                            <Download className="h-4 w-4 mr-2" />
+                            Export as Template
+                          </DropdownMenuItem>
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => setInterfaceContextOpen(true)} className="text-body-sm">
+                            <FolderTree className="h-4 w-4 mr-2" />
+                            Set Interface Context
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem disabled={!currentInterface} onSelect={() => { if (currentInterface) { setSelectedInterfaceForAction(currentInterface); setDeleteInterfaceOpen(true) } }} className="text-destructive text-body-sm">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Interface
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                    )}
                 </div>
               </div>
             )}
@@ -2099,7 +2133,7 @@ export default function InterfaceNav({
               <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
                 <div className="flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
                   <label className="text-body-sm text-muted-foreground flex items-center leading-none flex-shrink-0 select-none">Tabs:</label>
-                  {interfaceId && (
+                  {interfaceId && permissions.hasWrite && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -2305,13 +2339,15 @@ export default function InterfaceNav({
         {/* Mode Controls */}
         {!isCollapsed && !isCompletelyHidden && showModeControls && (
           <div className="px-2 py-1.5 space-y-1.5 bg-[color:var(--background)] flex-shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-x-hidden">
-            <div className="flex items-center justify-between gap-1.5">
-              <label className="text-body-sm flex items-center gap-1 min-w-0 select-none">
-                <Hammer className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')} />
-                  <span className="truncate">Edit Mode</span>
-                </label>
-              <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} className="scale-75 flex-shrink-0 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input" />
-              </div>
+              {permissions.hasWrite && (
+                <div className="flex items-center justify-between gap-1.5">
+                  <label className="text-body-sm flex items-center gap-1 min-w-0 select-none">
+                    <Hammer className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')} />
+                      <span className="truncate">Edit Mode</span>
+                    </label>
+                  <Switch checked={isEditMode} onCheckedChange={onEditModeToggle} className="scale-75 flex-shrink-0 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input" />
+                </div>
+              )}
 
             <div className="flex items-center justify-between gap-1.5">
               <label className="text-body-sm flex items-center gap-1 min-w-0 select-none">
@@ -2579,6 +2615,42 @@ export default function InterfaceNav({
             </div>
           }
         />, document.body
+      )}
+      
+      {/* Share Project Dialog */}
+      {selectedProject && permissions.projectId && (
+        <ShareProjectDialog
+          open={shareProjectOpen}
+          onOpenChange={setShareProjectOpen}
+          projectId={permissions.projectId}
+          projectName={selectedProject}
+          resourcesActions={resourcesActions}
+          accessEntries={permissions.accessEntries}
+          availableRoles={permissions.availableRoles}
+          availableTeams={permissions.availableTeams}
+          availableMembers={permissions.availableMembers}
+          onAccessUpdated={() => {
+            permissions.refetch()
+          }}
+        />
+      )}
+      
+      {/* Transfer Project Dialog */}
+      {selectedProject && permissions.projectId && (
+        <TransferProjectDialog
+          open={transferProjectOpen}
+          onOpenChange={setTransferProjectOpen}
+          projectId={permissions.projectId}
+          projectName={selectedProject}
+          projectActions={projectActions}
+          isOrgProject={permissions.isOrgProject}
+          currentOrganizationId={permissions.organizationId}
+          availableOrganizations={userMeta.organizations || []}
+          onTransferComplete={() => {
+            permissions.refetch()
+            refetchProjectTree()
+          }}
+        />
       )}
       
       {/* Interface Dialogs */}

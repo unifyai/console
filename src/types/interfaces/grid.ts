@@ -572,8 +572,12 @@ export interface ProjectsActions {
     update: (name: string, data: { icon?: string }) => Promise<ResponseProps>,
     delete: (name: string) => Promise<ResponseProps>,
     exportTemplate: (params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>, options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>) => Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }>,
-    importTemplate: (template: ProjectTemplateSchema, options: Omit<ImportProjectTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>
+    importTemplate: (template: ProjectTemplateSchema, options: Omit<ImportProjectTemplateRequest, 'template'>) => Promise<TemplateImportResponse | { error: string }>,
+    getProject: (name: string) => Promise<any>,
+    transferToOrg: (projectId: number, organizationId: number) => Promise<any>,
+    transferToPersonal: (projectId: number) => Promise<any>
 }
+
 
 export interface LogsActions {
     create: (
@@ -629,7 +633,7 @@ export interface LogsActions {
         groupingExpression: string | null,
         metricName: string,
         keyNames: string[]
-    ) => Promise<{ [key: string]: number } | { [key:string]: { [key: string]: { [key: string]: number } } }>;
+    ) => Promise<{ [key: string]: number } | { [key: string]: { [key: string]: { [key: string]: number } } }>;
     delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
     update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
 }
@@ -679,10 +683,10 @@ export interface GranularInterfaceActions {
     getById: (interface_id: string, checkpoint?: boolean) => Promise<InterfaceData | null>;
     // Unified get method
     get: (params: { interface_id?: string; projectId?: string; name?: string; checkpoint?: boolean }) => Promise<InterfaceData | null>;
-    
+
     // Create interface (no change, always needs projectId) - reuses CreateInterfaceRequest
     create: (projectId: string, name: string, color?: string) => Promise<InterfaceData>;
-    
+
     // Update methods - reuse UpdateInterfaceRequest
     updateByName: (projectId: string, name: string, data: UpdateInterfaceRequest, checkpoint?: boolean) => Promise<InterfaceData>;
     updateById: (interface_id: string, data: UpdateInterfaceRequest, checkpoint?: boolean) => Promise<InterfaceData>;
@@ -693,15 +697,15 @@ export interface GranularInterfaceActions {
         data: UpdateInterfaceRequest;
         checkpoint?: boolean;
     }) => Promise<InterfaceData>;
-    
+
     // Delete methods
     deleteByName: (projectId: string, name: string) => Promise<ResponseProps>;
     deleteById: (interface_id: string) => Promise<ResponseProps>;
     delete: (params: { interface_id?: string; projectId?: string; name?: string }) => Promise<ResponseProps>;
-    
+
     // List interfaces (no change needed)
     list: (projectId: string, checkpoint?: boolean) => Promise<InterfaceData[]>;
-    
+
     // Checkpoint methods
     checkpointByName: (projectId: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (interface_id: string, description: string) => Promise<ResponseProps>;
@@ -724,15 +728,15 @@ export interface GranularTabActions {
     getById: (id: string, checkpoint?: boolean) => Promise<TabData | null>;
     // Unified get method
     get: (params: { id?: string; interface_id?: string; name?: string; checkpoint?: boolean }) => Promise<TabData | null>;
-    
+
     // Get tab with tiles - same pattern
     getTabWithTilesByName: (interface_id: string, name: string, checkpoint?: boolean) => Promise<TabData | null>;
     getTabWithTilesById: (id: string, checkpoint?: boolean) => Promise<TabData | null>;
     getTabWithTiles: (params: { id?: string; interface_id?: string; name?: string; checkpoint?: boolean }) => Promise<TabData | null>;
-    
+
     // Create tab (parent id + name pattern) - reuses CreateTabRequest fields
     create: (interface_id: string, name: string, data: Omit<CreateTabRequest, 'tab_id' | 'interface_id' | 'name'>, tab_id?: string) => Promise<TabData>;
-    
+
     // Update methods - reuse UpdateTabRequest
     updateByName: (interface_id: string, name: string, data: UpdateTabRequest, checkpoint?: boolean) => Promise<TabData>;
     updateById: (id: string, data: UpdateTabRequest, checkpoint?: boolean) => Promise<TabData>;
@@ -743,15 +747,15 @@ export interface GranularTabActions {
         data: UpdateTabRequest;
         checkpoint?: boolean;
     }) => Promise<TabData>;
-    
+
     // Delete methods
     deleteByName: (interface_id: string, name: string) => Promise<ResponseProps>;
     deleteById: (id: string) => Promise<ResponseProps>;
     delete: (params: { id?: string; interface_id?: string; name?: string }) => Promise<ResponseProps>;
-    
+
     // List tabs in an interface
     list: (interface_id: string, checkpoint?: boolean) => Promise<TabData[]>;
-    
+
     // Checkpoint methods
     checkpointByName: (interface_id: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (id: string, description: string) => Promise<ResponseProps>;
@@ -774,65 +778,65 @@ export interface GranularTileActions {
     getById: (id: string, checkpoint?: boolean) => Promise<TileData | null>;
     // Unified get method that accepts either ID or tab_id+name
     get: (params: { id?: string; tab_id?: string; name?: string; checkpoint?: boolean }) => Promise<TileData | null>;
-    
+
     // Create tile (single parent id + name pattern) - reuses CreateTileRequest fields
     create: (tab_id: string, name: string, position: TilePosition, data: Omit<CreateTileRequest, 'tile_id' | 'tab_id' | 'name' | 'position'>, tile_id?: string, type?: string) => Promise<TileData>;
-    
+
     // Update methods - reuse UpdateTileRequest
     updateByName: (tab_id: string, name: string, data: UpdateTileRequest, checkpoint?: boolean) => Promise<TileData>;
     updateById: (id: string, data: UpdateTileRequest, checkpoint?: boolean) => Promise<TileData>;
-    update: (params: { 
-        id?: string; 
-        tab_id?: string; 
-        name?: string; 
-        data: UpdateTileRequest; 
-        checkpoint?: boolean 
+    update: (params: {
+        id?: string;
+        tab_id?: string;
+        name?: string;
+        data: UpdateTileRequest;
+        checkpoint?: boolean
     }) => Promise<TileData>;
-    
+
     // Patch methods - reuse UpdateTileRequest
     patchByName: (tab_id: string, name: string, updateData: Partial<UpdateTileRequest>, checkpoint?: boolean) => Promise<TileData>;
     patchById: (id: string, updateData: Partial<UpdateTileRequest>, checkpoint?: boolean) => Promise<TileData>;
     patch: (params: {
-        id?: string; 
-        tab_id?: string; 
+        id?: string;
+        tab_id?: string;
         name?: string;
         updateData: Partial<UpdateTileRequest>;
         checkpoint?: boolean;
     }) => Promise<TileData>;
-    
+
     // Specialized patch methods follow the same pattern
     patchSpecializedByName: (
-        tab_id: string, 
-        name: string, 
-        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal", 
-        updateData: Record<string, any>, 
+        tab_id: string,
+        name: string,
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
+        updateData: Record<string, any>,
         checkpoint?: boolean
     ) => Promise<TileData>;
-    
+
     patchSpecializedById: (
-        id: string, 
-        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal", 
-        updateData: Record<string, any>, 
+        id: string,
+        tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
+        updateData: Record<string, any>,
         checkpoint?: boolean
     ) => Promise<TileData>;
-    
+
     patchSpecialized: (params: {
-        id?: string; 
-        tab_id?: string; 
+        id?: string;
+        tab_id?: string;
         name?: string;
         tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal";
         updateData: Record<string, any>;
         checkpoint?: boolean
     }) => Promise<TileData>;
-    
+
     // Delete methods
     deleteByName: (tab_id: string, name: string) => Promise<ResponseProps>;
     deleteById: (id: string) => Promise<ResponseProps>;
     delete: (params: { id?: string; tab_id?: string; name?: string }) => Promise<ResponseProps>;
-    
+
     // List tiles in a tab
     list: (tab_id: string, type?: string, checkpoint?: boolean) => Promise<TileData[]>;
-    
+
     // Checkpoint methods
     checkpointByName: (tab_id: string, name: string, description: string) => Promise<ResponseProps>;
     checkpointById: (id: string, description: string) => Promise<ResponseProps>;
@@ -869,10 +873,10 @@ export interface FileActions {
 }
 
 export interface Favourite {
-  id: number;
-  project: string;
-  icon: string;
-  position: number;
+    id: number;
+    project: string;
+    icon: string;
+    position: number;
 }
 
 export interface FavouritesActions {

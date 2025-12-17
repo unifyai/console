@@ -9,10 +9,13 @@ import * as tiles from "@/lib/interfaces/tiles";
 import * as logs from "@/lib/interfaces/logs";
 import * as contexts from "@/lib/interfaces/contexts";
 import * as favourites from "@/lib/interfaces/favourites";
+import * as resourceAccess from "@/lib/user/resource-access";
+import * as organizations from "@/lib/user/organization";
 
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { GranularInterfaceActions, GranularTabActions, GranularTileActions, Favourite } from "@/types/interfaces/grid";
+import { ResourcesActions } from "@/types/resource";
 import { createInterfaceActions, createTabActions, createTileActions } from "./utils";
 import Main from "@/components/Pages/Interfaces/Server/Main.server";
 import { SearchParams } from "nuqs";
@@ -60,7 +63,10 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         update:         await projects.patchProject(apiKey),
         delete:         await projects.deleteProject(apiKey),
         exportTemplate: await projects.exportProjectAsTemplate(apiKey),
-        importTemplate: await projects.importProjectFromTemplate(apiKey)
+        importTemplate: await projects.importProjectFromTemplate(apiKey),
+        getProject:     await projects.getProject(apiKey),
+        transferToOrg:  await projects.transferProjectToOrg(apiKey),
+        transferToPersonal: await projects.transferProjectToPersonal(apiKey)
     };
 
     const logsActions = {
@@ -202,6 +208,18 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         apiKey
     );
 
+    const resourcesActions: ResourcesActions = {
+        grantAccess: await resourceAccess.grantResourceAccessAction(apiKey),
+        revokeAccess: await resourceAccess.revokeResourceAccessAction(apiKey),
+        updateAccess: await resourceAccess.updateResourceAccessAction(apiKey),
+        listAccess: await resourceAccess.listResourceAccessAction(apiKey),
+        listRoles: await organizations.getOrganizationRolesAction(apiKey),
+    };
+
+    const userMeta = {
+        organizations: user.organizations,
+        id: user.id
+    }
     return (
         <Main
             project={searchParams?.project as string | null}
@@ -221,9 +239,11 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
                     tabActions,
                     tileActions,
                     favouritesActions,
+                    resourcesActions,
                 }
             }
             initialFavourites={initialFavourites}
+            userMeta={userMeta}
         />
     );
 };

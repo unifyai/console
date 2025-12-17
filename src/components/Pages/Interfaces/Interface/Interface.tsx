@@ -15,6 +15,8 @@ import { Icon } from "../../../UI/icon-picker";
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
+import { ResourcesActions } from '@/types/resource';
+import { User } from '@/types/user';
 import { debounce } from 'lodash';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
@@ -91,7 +93,9 @@ interface InterfaceComponentProps {
   codeActions: CodeActions;
   fileActions: FileActions;
   favouritesActions: FavouritesActions;
+  resourcesActions: ResourcesActions;
   initialFavourites: Favourite[];
+  userMeta: Pick<User, "organizations" | "id">;
 }
 
 const Interface = ({ 
@@ -107,7 +111,9 @@ const Interface = ({
   codeActions,
   fileActions,
   favouritesActions,
+  resourcesActions,
   initialFavourites,
+  userMeta,
 }: InterfaceComponentProps) => {
 
   const router = useRouter();
@@ -1272,6 +1278,8 @@ const Interface = ({
         contextActions={contextActions}
         codeActions={codeActions}
         favouritesActions={favouritesActions}
+        resourcesActions={resourcesActions}
+        userMeta={userMeta}
         initialFavourites={initialFavourites}
         setIsSwitchingInterface={setIsSwitchingInterface}
         setLoadingMessage={setLoadingMessage}

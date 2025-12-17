@@ -24,6 +24,8 @@ import type {
   FavouritesActions,
   Favourite
 } from "@/types/interfaces/grid";
+import { ResourcesActions } from "@/types/resource";
+import { User } from "@/types/user";
 import { redirect } from "next/navigation";
 
 /**
@@ -54,6 +56,7 @@ type InterfaceWrapperActions = {
   tileActions: GranularTileActions;
   fileActions: FileActions;
   favouritesActions: FavouritesActions;
+  resourcesActions: ResourcesActions;
 };
 
 export default async function Main({
@@ -62,11 +65,13 @@ export default async function Main({
   actions,
   initialFavourites,
   searchParams,
+  userMeta,
 }: {
   project: string | null;
   interface_: string | null;  // This is the interface name from query param
   actions: InterfaceWrapperActions;
   initialFavourites: Favourite[];
+  userMeta: Pick<User, "organizations" | "id">;
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
 
@@ -390,7 +395,9 @@ export default async function Main({
           codeActions={actions.codeActions}
           fileActions={actions.fileActions}
           favouritesActions={actions.favouritesActions}
+          resourcesActions={actions.resourcesActions}
           initialFavourites={initialFavourites}
+          userMeta={userMeta}
         />
       </HydrationBoundary>
     </StoreInitializer>
