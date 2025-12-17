@@ -22,6 +22,7 @@ const Main = ({ initialOrganizations, userId, actions, teamActions, roleActions 
 
   // 1. Organization Logic
   const {
+      organizations,
       currentOrg,
       members,
       unifiedMembers,
@@ -100,6 +101,7 @@ const Main = ({ initialOrganizations, userId, actions, teamActions, roleActions 
             <PersonalWorkspaceView 
               onCreateOrg={handleCreateOrg} 
               checkNameAvailability={actions.getAllOrganizations}
+              isAlreadyInOrganization={organizations.length > 0}
             />
           )}
 

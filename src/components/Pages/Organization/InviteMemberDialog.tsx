@@ -10,13 +10,13 @@ import {
 import { Input } from "@/components/UI/input";
 import PrimaryButton from "@/components/Common/Buttons/Primary";
 import SecondaryButton from "@/components/Common/Buttons/Secondary";
-import { UserPlus, AlertCircle } from "lucide-react";
+import { UserPlus, AlertCircle, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Button } from "@/components/UI/button";
 import { OrganizationMember } from "@/types/organization";
 
 interface InviteMemberDialogProps {
-  onInvite: (email: string) => void;
+  onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
   existingMembers: OrganizationMember[];
 }
 
@@ -24,6 +24,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Clear error when email changes to improve UX
   useEffect(() => {
@@ -35,7 +36,7 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
     return re.test(email);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
 
@@ -61,11 +62,20 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
       return;
     }
 
-    // If valid, proceed
-    onInvite(trimmedEmail);
-    setOpen(false);
-    setEmail("");
-    setError(null);
+    // If valid, proceed with invite (which now checks if user is in another org)
+    setIsSubmitting(true);
+    try {
+      const result = await onInvite(trimmedEmail);
+      if (result.success) {
+        setOpen(false);
+        setEmail("");
+        setError(null);
+      } else if (result.error) {
+        setError(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -119,8 +129,13 @@ const InviteMemberDialog = ({ onInvite, existingMembers }: InviteMemberDialogPro
             </div>
 
             <div className="flex justify-end gap-2">
-                <SecondaryButton label="Cancel" onClick={() => handleOpenChange(false)}/>
-                <PrimaryButton label="Invite" type="submit" />
+                <SecondaryButton label="Cancel" onClick={() => handleOpenChange(false)} disabled={isSubmitting} />
+                <PrimaryButton 
+                  label={isSubmitting ? "Checking..." : "Invite"} 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  icon={isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+                />
             </div>
             </form>
         </div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
-import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen, Check, Building2, Building } from 'lucide-react'
+import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen, Check, Building2, Building, AlertTriangle } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Button } from '@/components/UI/button'
 import {
@@ -19,6 +19,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
 } from '@/components/UI/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
@@ -35,10 +45,25 @@ export default function TopNav() {
   const [profileName, setProfileName] = useState("Profile")
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([])
+  const [showPersonalWorkspaceConfirm, setShowPersonalWorkspaceConfirm] = useState(false)
 
   const { workspaces, activeWorkspace, switchWorkspace } = useWorkspace();
 
   const router = useRouter()
+
+  const handlePersonalWorkspaceSwitch = () => {
+    // Only show confirmation if switching FROM an organization to personal
+    if (activeWorkspace?.type === 'organization') {
+      setShowPersonalWorkspaceConfirm(true)
+    } else {
+      switchWorkspace('personal')
+    }
+  }
+
+  const confirmPersonalWorkspaceSwitch = () => {
+    setShowPersonalWorkspaceConfirm(false)
+    switchWorkspace('personal')
+  }
 
   const handleSignOut = async () => {
     // Prevent the dropdown from closing before signOut completes
@@ -183,7 +208,7 @@ export default function TopNav() {
                                 {workspaces.filter(w => w.type === 'personal').map(w => (
                                     <DropdownMenuItem
                                         key={w.id}
-                                        onSelect={() => switchWorkspace(w.id)}
+                                        onSelect={() => handlePersonalWorkspaceSwitch()}
                                         className="gap-2 cursor-pointer"
                                     >
                                         <User className="h-4 w-4" />
@@ -253,6 +278,35 @@ export default function TopNav() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Personal Workspace Confirmation Dialog */}
+      <AlertDialog open={showPersonalWorkspaceConfirm} onOpenChange={setShowPersonalWorkspaceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Switch to Personal Workspace?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-3">
+              <p>
+                Switching to your personal workspace means:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>You will only see resources in your personal account</li>
+                <li>Organization resources will not be visible until you switch back</li>
+                <li>Any billable usage will be billed to your personal account</li>
+                <li>You won&apos;t have access to shared team resources</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPersonalWorkspaceSwitch}>
+              Switch to Personal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { Organization, OrganizationMember, OrganizationRole, OrganizationListResponse, OrganizationInviteListResponse } from "@/types/organization";
+import { Organization, OrganizationMember, OrganizationRole, OrganizationListResponse, OrganizationInviteListResponse, UserOrganizationCheckResult } from "@/types/organization";
 import { ResponseProps } from "@/types/common";
 
 const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
@@ -192,7 +192,7 @@ export const transferOwnershipAction = async (apiKey: string) => {
   };
 };
 
-export const createGetAllOrganizationsAction = async () => {
+export const getAllOrganizationsAction = async () => {
     return async (nameFilter?: string): Promise<OrganizationListResponse | ResponseProps> => {
         "use server";
         const query = nameFilter ? `?name=${encodeURIComponent(nameFilter)}` : "";
@@ -205,5 +205,38 @@ export const createGetAllOrganizationsAction = async () => {
                 "Authorization": `Bearer ${adminKey}`
             },
         }, "getAllOrganizations");
+    };
+};
+
+export const checkUserOrganizationAction = async () => {
+    return async (email: string): Promise<UserOrganizationCheckResult | ResponseProps> => {
+        "use server";
+        try {
+            // Use admin endpoint to fetch user by email
+            const result = await safeFetch(`${backendUrl}/admin/auth-user/by-email?email=${encodeURIComponent(email)}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "accept": "application/json",
+                    "Authorization": `Bearer ${adminKey}`
+                },
+            }, "checkUserOrganization");
+
+            // If error or user not found, assume they're not in an organization
+            if (!result || "detail" in result) {
+                return { isInOrganization: false };
+            }
+
+            // Check if user has organizations
+            const hasOrganizations = result.organizations && result.organizations.length > 0;
+            
+            return {
+                isInOrganization: hasOrganizations,
+                organizationName: hasOrganizations ? result.organizations[0].name : undefined
+            };
+        } catch (error) {
+            console.error("Failed to check user organization:", error);
+            return { isInOrganization: false };
+        }
     };
 };

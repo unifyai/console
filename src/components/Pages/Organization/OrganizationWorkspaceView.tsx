@@ -44,7 +44,7 @@ interface OrganizationWorkspaceViewProps {
   isLoadingMembers: boolean;
   onDeleteOrg: () => void;
   onUpdateOrg: (name: string) => void;
-  onInvite: (email: string) => void;
+  onInvite: (email: string) => Promise<{ success: boolean; error?: string }>;
   onCancelInvite: (inviteId: string) => void;
   onResendInvite: (email: string) => void;
   onRemoveMember: (userId: string) => void;

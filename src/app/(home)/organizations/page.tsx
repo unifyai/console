@@ -36,7 +36,8 @@ const OrganizationPage = async () => {
       transferOwnership: await OrganizationActions.transferOwnershipAction(apiKey),
       getMembers: await OrganizationActions.getMembersAction(apiKey),
       getRoles: await OrganizationActions.getOrganizationRolesAction(apiKey),
-      getAllOrganizations: await OrganizationActions.createGetAllOrganizationsAction(),
+      getAllOrganizations: await OrganizationActions.getAllOrganizationsAction(),
+      checkUserOrganization: await OrganizationActions.checkUserOrganizationAction(),
   };
 
   const teamActions = {

@@ -182,18 +182,32 @@ export const useOrganization = (
     }
   };
 
-  const handleInvite = async (email: string) => {
-    if (!currentOrg) return;
+  const handleInvite = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    if (!currentOrg) return { success: false, error: "No organization selected" };
+    
     try {
+        // Check if user is already in an organization
+        if (actions.checkUserOrganization) {
+            const checkResult = await actions.checkUserOrganization(email);
+            if (checkResult && !("detail" in checkResult) && checkResult.isInOrganization) {
+                const errorMessage = "This user is already a member of another organization.";
+                toast.error(errorMessage);
+                return { success: false, error: errorMessage };
+            }
+        }
+
         const result = await actions.inviteMember(currentOrg.id, email);
         if (result && "detail" in result) {
             toast.error(result.detail);
+            return { success: false, error: result.detail };
         } else {
             toast.success(`Invite sent to ${email}`);
             fetchData();
+            return { success: true };
         }
     } catch (error) {
         toast.error("Failed to invite member");
+        return { success: false, error: "Failed to invite member" };
     }
   };
 

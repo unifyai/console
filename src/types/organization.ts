@@ -73,6 +73,11 @@ export interface OrganizationInviteListResponse {
   invites: OrganizationInvite[];
 }
 
+export interface UserOrganizationCheckResult {
+  isInOrganization: boolean;
+  organizationName?: string;
+}
+
 export interface OrganizationActions {
   createOrg: (name: string) => Promise<Organization | ResponseProps>;
   deleteOrg: (id: number) => Promise<void | ResponseProps>;
@@ -86,4 +91,5 @@ export interface OrganizationActions {
   getAllOrganizations: (nameFilter?: string) => Promise<OrganizationListResponse | ResponseProps>;
   getInvites: (orgId: number) => Promise<OrganizationInviteListResponse | ResponseProps>;
   cancelInvite: (orgId: number, inviteId: string) => Promise<void | ResponseProps>;
+  checkUserOrganization?: (email: string) => Promise<UserOrganizationCheckResult | ResponseProps>;
 }
