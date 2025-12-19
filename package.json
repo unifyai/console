@@ -145,6 +145,7 @@
     "@testing-library/react": "^16.3.0",
     "@types/d3": "^7.4.3",
     "@types/diff": "^6.0.0",
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.16",
     "@types/papaparse": "^5.3.15",

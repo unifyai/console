@@ -22,7 +22,7 @@ import { IStoreState } from '../../../../contexts/store';
 // Types
 // =============================================================================
 
-export type PlotType = 'scatter' | 'line' | 'bar';
+export type PlotType = 'scatter' | 'line' | 'bar' | 'histogram';
 
 export interface DataPoint {
   x: number;
@@ -31,6 +31,8 @@ export interface DataPoint {
   category?: string;
 }
 
+export type ScaleType = 'linear' | 'log';
+
 export interface PlotTileCallbacks {
   onXAxisChange?: (column: string) => void;
   onYAxisChange?: (column: string) => void;
@@ -38,6 +40,11 @@ export interface PlotTileCallbacks {
   onColorByChange?: (column: string | null) => void;
   onSettingsToggle?: (open: boolean) => void;
   onFocusModeToggle?: (focused: boolean) => void;
+  onScaleXChange?: (scale: ScaleType) => void;
+  onScaleYChange?: (scale: ScaleType) => void;
+  onZoomChange?: (enabled: boolean) => void;
+  onRegressionChange?: (show: boolean) => void;
+  onBinCountChange?: (count: number) => void;
 }
 
 export interface PlotTileTestOptions {
@@ -59,6 +66,16 @@ export interface PlotTileTestOptions {
   initialFocusMode?: boolean;
   /** Callbacks for actions */
   callbacks?: PlotTileCallbacks;
+  /** Initial X scale type */
+  initialScaleX?: ScaleType;
+  /** Initial Y scale type */
+  initialScaleY?: ScaleType;
+  /** Initial zoom enabled state */
+  initialZoomEnabled?: boolean;
+  /** Initial regression line visibility */
+  initialShowRegression?: boolean;
+  /** Initial bin count for histogram */
+  initialBinCount?: number;
 }
 
 export interface PlotTileTestResult extends RenderResult {
@@ -86,6 +103,26 @@ export interface PlotTileTestResult extends RenderResult {
   toggleSettings: () => void;
   /** Toggle focus mode */
   toggleFocusMode: () => void;
+  /** Get X scale type */
+  getScaleX: () => ScaleType;
+  /** Get Y scale type */
+  getScaleY: () => ScaleType;
+  /** Set X scale type */
+  setScaleX: (scale: ScaleType) => void;
+  /** Set Y scale type */
+  setScaleY: (scale: ScaleType) => void;
+  /** Check if zoom is enabled */
+  isZoomEnabled: () => boolean;
+  /** Toggle zoom */
+  toggleZoom: () => void;
+  /** Check if regression line is shown */
+  isRegressionShown: () => boolean;
+  /** Toggle regression line */
+  toggleRegression: () => void;
+  /** Get bin count */
+  getBinCount: () => number;
+  /** Set bin count */
+  setBinCount: (count: number) => void;
 }
 
 // =============================================================================
@@ -119,6 +156,16 @@ interface StateContainer {
   setColorBy: (column: string | null) => void;
   toggleSettings: () => void;
   toggleFocusMode: () => void;
+  getScaleX: () => ScaleType;
+  getScaleY: () => ScaleType;
+  setScaleX: (scale: ScaleType) => void;
+  setScaleY: (scale: ScaleType) => void;
+  isZoomEnabled: () => boolean;
+  toggleZoom: () => void;
+  isRegressionShown: () => boolean;
+  toggleRegression: () => void;
+  getBinCount: () => number;
+  setBinCount: (count: number) => void;
 }
 
 // =============================================================================
@@ -141,6 +188,11 @@ function PlotTileInner({
   columns = ['x', 'y', 'score', 'timestamp', 'category'],
   initialSettingsOpen = false,
   initialFocusMode = false,
+  initialScaleX = 'linear',
+  initialScaleY = 'linear',
+  initialZoomEnabled = false,
+  initialShowRegression = false,
+  initialBinCount = 10,
   callbacks = {},
   stateContainerRef,
 }: PlotTileInnerProps) {
@@ -153,6 +205,12 @@ function PlotTileInner({
   const [settingsOpen, setSettingsOpen] = useState(initialSettingsOpen);
   const [focusMode, setFocusMode] = useState(initialFocusMode);
   const [hoveredPoint, setHoveredPoint] = useState<DataPoint | null>(null);
+  const [scaleX, setScaleX] = useState<ScaleType>(initialScaleX);
+  const [scaleY, setScaleY] = useState<ScaleType>(initialScaleY);
+  const [zoomEnabled, setZoomEnabled] = useState(initialZoomEnabled);
+  const [showRegression, setShowRegression] = useState(initialShowRegression);
+  const [binCount, setBinCount] = useState(initialBinCount);
+  const [zoomTransform, setZoomTransform] = useState({ k: 1, x: 0, y: 0 });
 
   // ==========================================================================
   // Handlers
@@ -194,6 +252,41 @@ function PlotTileInner({
     });
   }, [callbacks]);
 
+  const handleSetScaleX = useCallback((scale: ScaleType) => {
+    setScaleX(scale);
+    callbacks.onScaleXChange?.(scale);
+  }, [callbacks]);
+
+  const handleSetScaleY = useCallback((scale: ScaleType) => {
+    setScaleY(scale);
+    callbacks.onScaleYChange?.(scale);
+  }, [callbacks]);
+
+  const handleToggleZoom = useCallback(() => {
+    setZoomEnabled((prev) => {
+      const newValue = !prev;
+      callbacks.onZoomChange?.(newValue);
+      if (!newValue) {
+        // Reset zoom transform when disabling
+        setZoomTransform({ k: 1, x: 0, y: 0 });
+      }
+      return newValue;
+    });
+  }, [callbacks]);
+
+  const handleToggleRegression = useCallback(() => {
+    setShowRegression((prev) => {
+      const newValue = !prev;
+      callbacks.onRegressionChange?.(newValue);
+      return newValue;
+    });
+  }, [callbacks]);
+
+  const handleSetBinCount = useCallback((count: number) => {
+    setBinCount(count);
+    callbacks.onBinCountChange?.(count);
+  }, [callbacks]);
+
   // ==========================================================================
   // Expose state to test via ref
   // ==========================================================================
@@ -212,6 +305,16 @@ function PlotTileInner({
       setColorBy: handleSetColorBy,
       toggleSettings: handleToggleSettings,
       toggleFocusMode: handleToggleFocusMode,
+      getScaleX: () => scaleX,
+      getScaleY: () => scaleY,
+      setScaleX: handleSetScaleX,
+      setScaleY: handleSetScaleY,
+      isZoomEnabled: () => zoomEnabled,
+      toggleZoom: handleToggleZoom,
+      isRegressionShown: () => showRegression,
+      toggleRegression: handleToggleRegression,
+      getBinCount: () => binCount,
+      setBinCount: handleSetBinCount,
     };
   });
 
@@ -230,6 +333,16 @@ function PlotTileInner({
       setColorBy: handleSetColorBy,
       toggleSettings: handleToggleSettings,
       toggleFocusMode: handleToggleFocusMode,
+      getScaleX: () => scaleX,
+      getScaleY: () => scaleY,
+      setScaleX: handleSetScaleX,
+      setScaleY: handleSetScaleY,
+      isZoomEnabled: () => zoomEnabled,
+      toggleZoom: handleToggleZoom,
+      isRegressionShown: () => showRegression,
+      toggleRegression: handleToggleRegression,
+      getBinCount: () => binCount,
+      setBinCount: handleSetBinCount,
     };
   }
 
@@ -306,44 +419,108 @@ function PlotTileInner({
             </div>
 
             {/* Data points */}
-            <svg className="w-full h-full" data-testid="plot-svg">
-              {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && data.map((point, i) => (
-                <circle
-                  key={i}
-                  cx={`${(point.x / 200) * 100}%`}
-                  cy={`${100 - (point.y / 100) * 100}%`}
-                  r={6}
-                  fill={getPointColor(point)}
-                  className="cursor-pointer"
-                  data-testid={`data-point-${i}`}
-                  onMouseEnter={() => setHoveredPoint(point)}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                />
-              ))}
-              {plotTile.plot_type === 'line' && (
-                <polyline
-                  points={data.map((p, i) => 
-                    `${(p.x / 200) * 100}%,${100 - (p.y / 100) * 100}%`
-                  ).join(' ')}
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  data-testid="line-path"
-                />
-              )}
-              {plotTile.plot_type === 'bar' && data.slice(0, 10).map((point, i) => (
-                <rect
-                  key={i}
-                  x={`${i * 10}%`}
-                  y={`${100 - point.y}%`}
-                  width="8%"
-                  height={`${point.y}%`}
-                  fill={getPointColor(point)}
-                  data-testid={`bar-${i}`}
-                  onMouseEnter={() => setHoveredPoint(point)}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                />
-              ))}
+            <svg 
+              className="w-full h-full" 
+              data-testid="plot-svg"
+              data-zoom-enabled={zoomEnabled}
+              data-scale-x={scaleX}
+              data-scale-y={scaleY}
+            >
+              {/* Zoom container */}
+              <g 
+                data-testid="zoom-container"
+                transform={`translate(${zoomTransform.x},${zoomTransform.y}) scale(${zoomTransform.k})`}
+              >
+                {/* Scatter plot points */}
+                {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && data.map((point, i) => (
+                  <circle
+                    key={i}
+                    cx={`${(point.x / 200) * 100}%`}
+                    cy={`${100 - (point.y / 100) * 100}%`}
+                    r={hoveredPoint === point ? 8 : 6}
+                    fill={getPointColor(point)}
+                    opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
+                    className="cursor-pointer transition-all"
+                    data-testid={`data-point-${i}`}
+                    data-point-label={point.label}
+                    onMouseEnter={() => setHoveredPoint(point)}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                  />
+                ))}
+                
+                {/* Regression line (for scatter) */}
+                {showRegression && (plotTile.plot_type === 'scatter' || !plotTile.plot_type) && (
+                  <g data-testid="regression-group">
+                    <line
+                      x1="10%"
+                      y1="80%"
+                      x2="90%"
+                      y2="20%"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      strokeDasharray="5,5"
+                      data-testid="regression-line"
+                    />
+                    <text
+                      x="75%"
+                      y="30%"
+                      fontSize="10"
+                      fill="#ef4444"
+                      data-testid="regression-text"
+                    >
+                      r = 0.85
+                    </text>
+                  </g>
+                )}
+                
+                {/* Line chart */}
+                {plotTile.plot_type === 'line' && (
+                  <polyline
+                    points={data.map((p) => 
+                      `${(p.x / 200) * 100}%,${100 - (p.y / 100) * 100}%`
+                    ).join(' ')}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    data-testid="line-path"
+                  />
+                )}
+                
+                {/* Bar chart */}
+                {plotTile.plot_type === 'bar' && data.slice(0, 10).map((point, i) => (
+                  <rect
+                    key={i}
+                    x={`${i * 10}%`}
+                    y={`${100 - point.y}%`}
+                    width="8%"
+                    height={`${point.y}%`}
+                    fill={getPointColor(point)}
+                    opacity={hoveredPoint && hoveredPoint !== point ? 0.3 : 1}
+                    data-testid={`bar-${i}`}
+                    onMouseEnter={() => setHoveredPoint(point)}
+                    onMouseLeave={() => setHoveredPoint(null)}
+                  />
+                ))}
+                
+                {/* Histogram */}
+                {plotTile.plot_type === 'histogram' && Array.from({ length: binCount }, (_, i) => {
+                  const binHeight = Math.random() * 80 + 10;
+                  return (
+                    <rect
+                      key={i}
+                      x={`${(i / binCount) * 100}%`}
+                      y={`${100 - binHeight}%`}
+                      width={`${90 / binCount}%`}
+                      height={`${binHeight}%`}
+                      fill="#3b82f6"
+                      opacity={0.8}
+                      data-testid={`histogram-bin-${i}`}
+                      onMouseEnter={() => setHoveredPoint({ x: i, y: binHeight, label: `Bin ${i + 1}` })}
+                      onMouseLeave={() => setHoveredPoint(null)}
+                    />
+                  );
+                })}
+              </g>
             </svg>
 
             {/* Tooltip */}
@@ -446,6 +623,88 @@ function PlotTileInner({
                 ))}
               </select>
             </div>
+
+            {/* X Scale (for scatter/line) */}
+            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">X Scale</label>
+                <select
+                  value={scaleX}
+                  onChange={(e) => handleSetScaleX(e.target.value as ScaleType)}
+                  className="w-full border rounded px-2 py-1"
+                  data-testid="scale-x-select"
+                >
+                  <option value="linear">Linear</option>
+                  <option value="log">Log</option>
+                </select>
+              </div>
+            )}
+
+            {/* Y Scale (for scatter/line) */}
+            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Y Scale</label>
+                <select
+                  value={scaleY}
+                  onChange={(e) => handleSetScaleY(e.target.value as ScaleType)}
+                  className="w-full border rounded px-2 py-1"
+                  data-testid="scale-y-select"
+                >
+                  <option value="linear">Linear</option>
+                  <option value="log">Log</option>
+                </select>
+              </div>
+            )}
+
+            {/* Zoom Toggle (for scatter/line) */}
+            {(plotTile.plot_type === 'scatter' || plotTile.plot_type === 'line' || !plotTile.plot_type) && (
+              <div className="mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={zoomEnabled}
+                    onChange={handleToggleZoom}
+                    className="rounded"
+                    data-testid="zoom-toggle"
+                  />
+                  <span className="text-sm font-medium">Enable Zoom</span>
+                </label>
+              </div>
+            )}
+
+            {/* Regression Toggle (for scatter) */}
+            {(plotTile.plot_type === 'scatter' || !plotTile.plot_type) && (
+              <div className="mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showRegression}
+                    onChange={handleToggleRegression}
+                    className="rounded"
+                    data-testid="regression-toggle"
+                  />
+                  <span className="text-sm font-medium">Show Regression</span>
+                </label>
+              </div>
+            )}
+
+            {/* Bin Count (for histogram) */}
+            {plotTile.plot_type === 'histogram' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">
+                  Bin Count: <span data-testid="bin-count-value">{binCount}</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={50}
+                  value={binCount}
+                  onChange={(e) => handleSetBinCount(parseInt(e.target.value, 10))}
+                  className="w-full"
+                  data-testid="bin-count-slider"
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -531,6 +790,16 @@ export function renderPlotTile(options: PlotTileTestOptions = {}): PlotTileTestR
     setColorBy: (column) => stateContainerRef.current?.setColorBy(column),
     toggleSettings: () => stateContainerRef.current?.toggleSettings(),
     toggleFocusMode: () => stateContainerRef.current?.toggleFocusMode(),
+    getScaleX: () => stateContainerRef.current?.getScaleX() ?? 'linear',
+    getScaleY: () => stateContainerRef.current?.getScaleY() ?? 'linear',
+    setScaleX: (scale) => stateContainerRef.current?.setScaleX(scale),
+    setScaleY: (scale) => stateContainerRef.current?.setScaleY(scale),
+    isZoomEnabled: () => stateContainerRef.current?.isZoomEnabled() ?? false,
+    toggleZoom: () => stateContainerRef.current?.toggleZoom(),
+    isRegressionShown: () => stateContainerRef.current?.isRegressionShown() ?? false,
+    toggleRegression: () => stateContainerRef.current?.toggleRegression(),
+    getBinCount: () => stateContainerRef.current?.getBinCount() ?? 10,
+    setBinCount: (count) => stateContainerRef.current?.setBinCount(count),
   };
 }
 
