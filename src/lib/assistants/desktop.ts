@@ -71,8 +71,6 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                     let liveviewUrl = latestLog.entries.liveview_url;
                     
                     const urlObj = new URL(liveviewUrl);
-                    urlObj.searchParams.set('resize', 'scale');
-                    urlObj.searchParams.set('autoconnect', '1');
                     urlObj.searchParams.set('password', userApiKey); // Use the user's key for the VNC password
                     
                     const finalUrl = urlObj.toString();
