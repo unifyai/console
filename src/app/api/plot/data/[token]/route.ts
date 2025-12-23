@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ORCHESTRA_URL =
-  process.env.NEXT_PUBLIC_ORCHESTRA_URL || "http://localhost:8000";
+  process.env.ORCHESTRA_URL || "http://localhost:8000";
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
 // ============================================================================

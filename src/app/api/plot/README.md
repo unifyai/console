@@ -351,7 +351,7 @@ Admin endpoint to retrieve plot including user_metadata. Used by console to fetc
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_ORCHESTRA_URL` | Yes | Orchestra backend URL |
+| `ORCHESTRA_URL` | Yes | Orchestra backend URL |
 | `ORCHESTRA_ADMIN_KEY` | Yes | Admin key for fetching plot configs and user data |
 | `NEXT_PUBLIC_APP_URL` | Yes | Base URL for the console (for plot URLs) |
 
