@@ -73,6 +73,23 @@ const nextConfig = {
 
         return config;
     },
+    async headers() {
+        return [
+            {
+                source: '/plot/view/:token*',
+                headers: [
+                    { key: 'X-Frame-Options', value: 'ALLOWALL' },
+                    { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+                ],
+            },
+            {
+                source: '/api/plot/data/:token*',
+                headers: [
+                    { key: 'Access-Control-Allow-Origin', value: '*' },
+                ],
+            },
+        ];
+    },
 };
 
 module.exports = nextConfig;

@@ -1,252 +1,188 @@
 "use client";
 
 import { useEffect, useRef, useId, useState, useMemo } from "react";
-import * as d3 from "d3";
-import { LogsActions, FieldsActions, GranularTileActions, ContextActions, ProjectsActions } from "@/types/interfaces/grid";
+import {
+  LogsActions,
+  FieldsActions,
+  GranularTileActions,
+  ContextActions,
+  ProjectsActions,
+} from "@/types/interfaces/grid";
 import { clearFixedTooltip } from "@/utils/interfaces/plots/tooltip";
-import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
-import { useTile, useTileItem } from '@/contexts/hooks/tile';
-import { useTab } from '@/contexts/hooks/tab';
+import { useTile, useTileItem } from "@/contexts/hooks/tile";
+import { useTab } from "@/contexts/hooks/tab";
 import PlotSettings from "./Sidebar";
-import { drawPlot } from "@/utils/interfaces/plots/main";
 import { usePlotArgumentsQuery, usePlotDataQueryWithTracking } from "@/hooks/Interfaces/Query/usePlotDataQuery";
-import { usePlotTileSync } from '@/contexts/hooks/tile/sync/usePlotTileSync';
+import { usePlotTileSync } from "@/contexts/hooks/tile/sync/usePlotTileSync";
 import { PlotArguments } from "@/types/interfaces/logs";
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
-import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
+import { useGlobalUIMode } from "@/contexts/hooks/useGlobalUIMode";
 import { Button } from "@/components/UI/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlotAutoUpdateQuery } from "@/hooks/Interfaces/Query/usePlotAutoUpdateQuery";
+import { PlotCanvas } from "@/components/Common/Plot/PlotCanvas";
 
-const LogsPlot = ({ 
+const LogsPlot = ({
+  tileId,
+  tabId,
+  interfaceId,
+  projectId,
+  tileActions,
+  projectsActions,
+  contextActions,
+  logsActions,
+  fieldsActions,
+}: {
+  tileId: string;
+  tabId: string;
+  interfaceId: string;
+  projectId: string;
+  tileActions: GranularTileActions;
+  projectsActions: ProjectsActions;
+  contextActions: ContextActions;
+  logsActions: LogsActions;
+  fieldsActions: FieldsActions;
+}) => {
+  // Use granular hooks for better performance
+  const {
+    ui: tileUIState,
+    dataActions: tileDataActions,
+    plotTile: plotTileState,
+  } = useTile(tileId, tabId);
+
+  // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
+  const { plotTileActions } = usePlotTileSync(
     tileId,
     tabId,
-    interfaceId,
-    projectId,
     tileActions,
     projectsActions,
     contextActions,
     logsActions,
-    fieldsActions,
-}: {
-    tileId: string,
-    tabId: string,
-    interfaceId: string,
-    projectId: string,
-    tileActions: GranularTileActions,
-    projectsActions: ProjectsActions,
-    contextActions: ContextActions,
-    logsActions: LogsActions,
-    fieldsActions: FieldsActions
-}) => {
+    fieldsActions
+  );
 
-    // Use granular hooks for better performance
-    const {
-        ui: tileUIState,
-        dataActions: tileDataActions,
-        plotTile: plotTileState,
-    } = useTile(tileId, tabId);
+  const { itemActions } = useTileItem(tileId, tabId);
 
-    // SYNCHRONISED PLOT-SPECIFIC ACTIONS (optimistic + router refresh)
-    const { plotTileActions } = usePlotTileSync(
-        tileId,
-        tabId,
-        tileActions,
-        projectsActions,
-        contextActions,
-        logsActions,
-        fieldsActions
-    );
+  // Get access to the tab context and actions with granular access
+  const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
+  const setFocusPaneOpen = useStoreContext((state) => state.setFocusPaneOpen);
+  const queryClient = useQueryClient();
 
-    const { itemActions } = useTileItem(tileId, tabId);
-    
-    // Get access to the tab context and actions with granular access
-    const { ui: tabUIState, uiActions: tabUIActions } = useTab(tabId, interfaceId);
-    const setFocusPaneOpen = useStoreContext(state => state.setFocusPaneOpen);
-    const queryClient = useQueryClient();
+  // Get the item representation for the current tile
+  const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
 
-    useEffect(() => {
-        if (containerRef.current) {
-            (containerRef.current as any).__hoveredLog = tabUIState?.hoveredLog;
-            (containerRef.current as any).__setHoveredLog = tabUIActions?.setHoveredLog;
-        }
-      }, [tabUIState?.hoveredLog, tabUIActions?.setHoveredLog]);
+  // Get global UI mode settings
+  const { isInteractive } = useGlobalUIMode();
 
-    // Get the item representation for the current tile
-    const item = useMemo(() => itemActions?.asTileItem(), [itemActions]);
-    
-    // Get global UI mode settings
-    const { isInteractive } = useGlobalUIMode();
+  // UI state from the tab
+  const interactive = isInteractive;
+  const pending = tabUIState?.pending || tileUIState?.pending || false;
 
-    // UI state from the tab
-    const interactive = isInteractive;
-    const pending = tabUIState?.pending || tileUIState?.pending || false;
+  // Use React Query to access plotDataItem and plotArguments
+  const {
+    plotDataItem,
+    isLoading: isPlotDataLoading,
+    isError: isPlotDataError,
+    error: plotDataError,
+  } = usePlotDataQueryWithTracking(tileId);
 
-    // Use React Query to access plotDataItem and plotArguments
-    const { 
-        plotDataItem,
-        isLoading: isPlotDataLoading,
-        isError: isPlotDataError,
-        error: plotDataError,
-    } = usePlotDataQueryWithTracking(tileId);
+  const { data: args } = usePlotArgumentsQuery(tabId);
 
-    const { data: args } = usePlotArgumentsQuery(tabId);
+  // Wire up manual refresh for Retry using the auto-update hook's queryFn
+  const { manualRefresh: manualPlotRefresh } = usePlotAutoUpdateQuery(
+    tileId,
+    tabId,
+    projectId,
+    pending,
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions
+  );
 
-    // Wire up manual refresh for Retry using the auto-update hook's queryFn
-    const { manualRefresh: manualPlotRefresh } = usePlotAutoUpdateQuery(
-      tileId,
-      tabId,
-      projectId,
-      pending,
-      logsActions,
-      projectsActions,
-      contextActions,
-      fieldsActions,
-    );
+  // Init logs and handle local updates
+  const { plotLogs: logs, plotFields: fields } = useMemo(
+    () => plotDataItem,
+    [plotDataItem]
+  );
 
-    // Init logs and handle local updates
-    const {plotLogs: logs, plotFields: fields} = useMemo(() => plotDataItem, [plotDataItem]);
+  // Show error UI flags if data fetch failed (rendered later, after all hooks)
+  const plotError = (plotDataItem as any)?.error as any;
+  const showPlotError = !!(
+    plotError &&
+    typeof plotError === "string" &&
+    !isPlotDataLoading
+  );
+  const isTimeout =
+    typeof plotError === "string" &&
+    (plotError.includes("timeout") || plotError.includes("504"));
+  
 
-    // Show error UI flags if data fetch failed (rendered later, after all hooks)
-    const plotError = (plotDataItem as any)?.error as any;
-    const showPlotError = !!(plotError && typeof plotError === 'string' && !isPlotDataLoading);
-    const isTimeout = typeof plotError === 'string' && (plotError.includes('timeout') || plotError.includes('504'));
+  // Initialize shared refs
+  let svgRef = useRef<SVGSVGElement>(null);
+  let containerRef = useRef<HTMLDivElement>(null);
+  let settingsRef = useRef<HTMLDivElement>(null);
 
-    // Initialize refs and container dimensions
-    let svgRef = useRef<SVGSVGElement>(null);
-    let containerRef = useRef<HTMLDivElement>(null);
-    let settingsRef = useRef<HTMLDivElement>(null);
-    const clipId = useId();
-    const dimensions = useDimensionsTracker(svgRef); // Dynamic resizing
-    const margins = useMemo(() => ({ top: 0, right: 15, bottom: 45, left: 55 }), []); // Optimized margins
-    const axisPadding = 15; // Extra padding between axes borders and plot borders
+  // Plot settings
+  let plotType = item?.plot_type;
+  plotType = plotType ? plotType : "Scatter Plot";
 
-    // Plot settings
-    let plotType = item?.plot_type;
-    plotType = plotType ? plotType : "Scatter Plot";    
+  let metric = item?.metric ? item?.metric : "mean";
+  let aggregateProperty = item?.plot_aggregate;
+  const groupings = Object.fromEntries(
+    Object.entries(args as PlotArguments)
+      .filter(([_, tableArgs]) => tableArgs.grouping)
+      .map(([table, tableArgs]) => [table, tableArgs.grouping.split(",")])
+  );
 
-    let metric = item?.metric ? item?.metric : "mean";
-    let aggregateProperty = item?.plot_aggregate;
-    const groupings = Object.fromEntries(Object.entries(args as PlotArguments).filter(([_, tableArgs]) => tableArgs.grouping).map(([table, tableArgs]) => ([table, tableArgs.grouping.split(",")])));
-    
-    let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
-    let [binCounts, setBinCounts] = useState([1, 100])
-    let showRegression = item?.regression_line === "true" ? "true" : "false";
+  let binCount = item?.bin_count ? parseFloat(item?.bin_count) : 10;
+  const [binCounts, setBinCounts] = useState([1, 100]);
+  let showRegression = item?.regression_line === "true" ? "true" : "false";
 
-    let scaleX = item?.plot_scale_x;
-    let scaleY = item?.plot_scale_y;
-    let [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
-    let [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
-    scaleX = scaleX ? scaleX : "linear";
-    scaleY = scaleY ? scaleY : "linear";
+  let scaleX = item?.plot_scale_x;
+  let scaleY = item?.plot_scale_y;
+  const [logScaleXEnabled, setLogScaleXEnabled] = useState(true);
+  const [logScaleYEnabled, setLogScaleYEnabled] = useState(true);
+  scaleX = scaleX ? scaleX : "linear";
+  scaleY = scaleY ? scaleY : "linear";
 
-    // Axes and grouping selected on the plot
-    const selectedXAxisProperty = item?.x_axis;
-    const selectedYAxisProperty = item?.y_axis;
-    const groupByProperty = item?.plot_group_by;
-    const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
-    useEffect(() => {
-        if (settingsRef.current) {
-            (settingsRef.current as any).__isGroupingKeyMinimized = isGroupingKeyMinimized;
-            (settingsRef.current as any).__setIsGroupingKeyMinimized = setIsGroupingKeyMinimized;
-        }
-    }, [isGroupingKeyMinimized, setIsGroupingKeyMinimized]);
+  // Axes and grouping selected on the plot
+  const selectedXAxisProperty = item?.x_axis;
+  const selectedYAxisProperty = item?.y_axis;
+  const groupByProperty = item?.plot_group_by;
+  const [isGroupingKeyMinimized, setIsGroupingKeyMinimized] = useState(false);
 
-    // Sort bars for bar chart
-    const [sortBars, setSortBars] = useState("asc")
-    
-    // Fixed tooltip states
-    const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
-    useEffect(() => {
-        if (settingsRef.current) {
-            (settingsRef.current as any).__isTooltipMinimized = isTooltipMinimized;
-            (settingsRef.current as any).__setIsTooltipMinimized = setIsTooltipMinimized;
-        }
-    }, [isTooltipMinimized, setIsTooltipMinimized]);
+  useEffect(() => {
+    if (settingsRef.current) {
+      (settingsRef.current as any).__isGroupingKeyMinimized = isGroupingKeyMinimized;
+      (settingsRef.current as any).__setIsGroupingKeyMinimized = setIsGroupingKeyMinimized;
+    }
+  }, [isGroupingKeyMinimized, setIsGroupingKeyMinimized]);
 
+  // Sort bars for bar chart
+  const [sortBars, setSortBars] = useState("asc");
 
-    // Set up containers
-    const container = d3.select(containerRef.current)
-    const placeholder = container.select(".placeholderText") as d3.Selection<SVGTextElement, unknown, null, undefined>;
-    const svg = d3.select(svgRef.current);
-    const settings = d3.select(settingsRef.current)
+  // Fixed tooltip states
+  const [isTooltipMinimized, setIsTooltipMinimized] = useState(false);
 
-    // Track zoom level and reset when changing plot type or axes
-    let zoomRef = useRef(d3.zoomIdentity);
-    const [zoomEnabled, setZoomEnabled] = useState(false);
-    useEffect(() => {
-        zoomRef.current = d3.zoomIdentity;
-        clearFixedTooltip(settings, setIsTooltipMinimized);
-    }, [selectedXAxisProperty, selectedYAxisProperty, plotType])
- 
-    // Draw plot
-    useEffect(() => {
-        drawPlot(
-            svg, 
-            container, 
-            settings, 
-            placeholder, 
-            dimensions, 
-            margins, 
-            axisPadding, 
-            plotType, 
-            logs, 
-            fields, 
-            selectedXAxisProperty, 
-            selectedYAxisProperty, 
-            groupByProperty,
-            aggregateProperty,
-            scaleX,
-            scaleY,
-            metric,
-            sortBars,
-            binCount,
-            binCounts,
-            setBinCounts,
-            showRegression,
-            zoomRef,
-            interactive,
-            zoomEnabled,
-            setIsTooltipMinimized,
-            svgRef,
-            containerRef,
-            setLogScaleXEnabled,
-            setLogScaleYEnabled,
-            plotTileActions,
-            plotTileState
-        );
-    }, [
-        logs,
-        dimensions,
-        scaleX,
-        scaleY,
-        selectedXAxisProperty,
-        selectedYAxisProperty,
-        plotType,
-        groupByProperty,
-        sortBars,
-        metric,
-        binCount,
-        binCounts,
-        showRegression,
-        aggregateProperty,
-        interactive,
-        zoomEnabled,
-        tileUIState?.color,
-        plotTileState?.plot_group_by_colors,
-        tabUIState?.hoveredLog,
-        container,
-        fields,
-        margins,
-        placeholder,
-        plotTileActions,
-        plotTileState,
-        settings,
-        svg
-    ]);
+  // Track zoom level
+  const [zoomEnabled, setZoomEnabled] = useState(false);
 
-return (
-    showPlotError ? (
+  // Handle scale changes from PlotCanvas
+  const handleScaleXChange = (scale: string) => {
+    plotTileActions?.setPlotScaleX(scale);
+  };
+
+  const handleScaleYChange = (scale: string) => {
+    plotTileActions?.setPlotScaleY(scale);
+  };
+
+  const handleBinCountChange = (count: number) => {
+    plotTileActions?.setBinCount(String(count));
+  };
+
+  if (showPlotError) {
+    return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
         <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
           <svg className="h-6 w-6 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -256,12 +192,12 @@ return (
         <div>
           <h3 className="text-h4 mb-2">Failed to Load Plot Data</h3>
           <p className="text-body text-muted-foreground max-w-md">
-            {isTimeout 
+            {isTimeout
               ? 'The request timed out. The server may be under heavy load or temporarily unavailable.'
               : String(plotError)}
           </p>
         </div>
-        <Button 
+        <Button
           onClick={async () => {
             await manualPlotRefresh();
           }}
@@ -269,88 +205,94 @@ return (
           Retry Loading Data
         </Button>
       </div>
-    ) : (
-    <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
-  
-      {/* Chart Container */}
-      <div
-        className="flex flex-1 h-full bg-background relative overflow-hidden"
-        ref={containerRef}
-      >
-        {/* Focus button moved to sidebar toolbar */}
-        {/* SVG content*/}
-        <svg ref={svgRef} className="w-full h-full absolute top-0 left-0 z-0">
-           <defs>
-             <clipPath id={clipId}>
-               <rect id={"clip-rect"} />
-             </clipPath>
-           </defs>
-           <rect className="zoom-layer" />
-           <g className="plotData" clipPath={`url(#${clipId})`} />
-           <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="placeholderText" stroke="var(--foreground)" strokeWidth="0.1" style={{ "fill": "var(--foreground)" }} />
-           <line className="bottomLine" stroke="var(--foreground)" stroke-width="0.5"/>
-           <line className="leftLine" stroke="var(--foreground)" stroke-width="0.5"/>
-           <line className="x-zero" stroke="var(--foreground)" strokeWidth="1" strokeDasharray="5,5" style={{ opacity: 0 }} />
-           <line className="y-zero" stroke="var(--foreground)" strokeWidth="1" strokeDasharray="5,5" style={{ opacity: 0 }} />
-           <g className="xAxis" transform={`translate(0, ${dimensions.height - margins.bottom})`} />
-           <g className="yAxis" transform={`translate(${margins.left}, 0)`} />
-        </svg>
-        {/* Hover Tooltip */}
-        <div style={{ position: "absolute", minWidth: "160px", maxWidth: "300px", pointerEvents: "none", background: "var(--background)", border: "1px solid var(--foreground)", padding: "8px", borderRadius: "4px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", transition: "opacity 0.2s", fontSize: "14px", opacity: 0, zIndex: 1000 }} className="plotTooltip gap-2 overflow-hidden" />
-      </div>
-  
-      {/* Settings Panel */}
-      <PlotSettings
-            showSettings={interactive}
-            tabUIState={tabUIState}
-            tabUIActions={tabUIActions}
-            setFocusPaneOpen={setFocusPaneOpen}
-            tileName={item?.name}
-            interactive={interactive}
-            pending={pending}
-            svgRef={svgRef}
-            containerRef={containerRef}
-            settingsRef={settingsRef}
-            plotType={plotType}
-            fields={fields}
-            selectedXAxisProperty={selectedXAxisProperty}
-            selectedYAxisProperty={selectedYAxisProperty}
-            logs={logs}
-            metric={metric}
-            scaleX={scaleX} 
-            scaleY={scaleY}
-            logScaleXEnabled={logScaleXEnabled} 
-            logScaleYEnabled={logScaleYEnabled}
-            groupByProperty={groupByProperty}
-            binCounts={binCounts}
-            binCount={binCount}
-            sortBars={sortBars}
-            setSortBars={setSortBars}
-            groupings={groupings}
-            aggregateProperty={aggregateProperty}
-            showRegression={showRegression}
-            zoomEnabled={zoomEnabled}
-            setZoomEnabled={setZoomEnabled}
-            tileId={tileId}
-            tabId={tabId}
-            interfaceId={interfaceId}
-            projectId={projectId}
-            serverTileActions={tileActions}
-            projectsActions={projectsActions}
-            contextActions={contextActions} 
-            logsActions={logsActions}
-            fieldsActions={fieldsActions}
-            plotTileState={plotTileState}
-            isTooltipMinimized={isTooltipMinimized}
-            setIsTooltipMinimized={setIsTooltipMinimized}
-            isGroupingKeyMinimized={isGroupingKeyMinimized}
-            setIsGroupingKeyMinimized={setIsGroupingKeyMinimized}
-            plotTileActions={plotTileActions}
-            tileDataActions={tileDataActions}
-        />
+    );
+  }
 
+  return (
+    <div className="flex flex-row w-full h-full items-stretch min-h-0 overflow-hidden">
+      {/* Chart Container - Uses PlotCanvas with shared refs */}
+      <div className="flex flex-1 h-full relative overflow-hidden">
+        <PlotCanvas
+          logs={logs}
+          fields={fields}
+          plotType={plotType}
+          xAxis={selectedXAxisProperty}
+          yAxis={selectedYAxisProperty}
+          groupBy={groupByProperty}
+          aggregate={aggregateProperty}
+          scaleX={scaleX}
+          scaleY={scaleY}
+          metric={metric}
+          binCount={binCount}
+          showRegression={showRegression}
+          sortBars={sortBars}
+          interactive={interactive}
+          zoomEnabled={zoomEnabled}
+          hoveredLog={tabUIState?.hoveredLog}
+          onHoverLog={tabUIActions?.setHoveredLog}
+          onScaleXChange={handleScaleXChange}
+          onScaleYChange={handleScaleYChange}
+          onBinCountChange={handleBinCountChange}
+          onLogScaleXEnabledChange={setLogScaleXEnabled}
+          onLogScaleYEnabledChange={setLogScaleYEnabled}
+          plotTileState={plotTileState}
+          // Pass shared refs so PlotSettings can access them
+          svgRef={svgRef}
+          containerRef={containerRef}
+          settingsRef={settingsRef}
+        />
+      </div>
+
+      {/* Settings Panel - shares refs with PlotCanvas */}
+      <PlotSettings
+        showSettings={interactive}
+        tabUIState={tabUIState}
+        tabUIActions={tabUIActions}
+        setFocusPaneOpen={setFocusPaneOpen}
+        tileName={item?.name}
+        interactive={interactive}
+        pending={pending}
+        svgRef={svgRef}
+        containerRef={containerRef}
+        settingsRef={settingsRef}
+        plotType={plotType}
+        fields={fields}
+        selectedXAxisProperty={selectedXAxisProperty}
+        selectedYAxisProperty={selectedYAxisProperty}
+        logs={logs}
+        metric={metric}
+        scaleX={scaleX}
+        scaleY={scaleY}
+        logScaleXEnabled={logScaleXEnabled}
+        logScaleYEnabled={logScaleYEnabled}
+        groupByProperty={groupByProperty}
+        binCounts={binCounts}
+        binCount={binCount}
+        sortBars={sortBars}
+        setSortBars={setSortBars}
+        groupings={groupings}
+        aggregateProperty={aggregateProperty}
+        showRegression={showRegression}
+        zoomEnabled={zoomEnabled}
+        setZoomEnabled={setZoomEnabled}
+        tileId={tileId}
+        tabId={tabId}
+        interfaceId={interfaceId}
+        projectId={projectId}
+        serverTileActions={tileActions}
+        projectsActions={projectsActions}
+        contextActions={contextActions}
+        logsActions={logsActions}
+        fieldsActions={fieldsActions}
+        plotTileState={plotTileState}
+        isTooltipMinimized={isTooltipMinimized}
+        setIsTooltipMinimized={setIsTooltipMinimized}
+        isGroupingKeyMinimized={isGroupingKeyMinimized}
+        setIsGroupingKeyMinimized={setIsGroupingKeyMinimized}
+        plotTileActions={plotTileActions}
+        tileDataActions={tileDataActions}
+      />
     </div>
-    )
   );
 };
 

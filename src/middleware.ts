@@ -6,6 +6,11 @@ import authOptions from "./app/api/auth/[...nextauth]/pages";
 export function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
     const { pathname, searchParams } = request.nextUrl;
     
+    // Allow public access to shareable plot view pages (no auth required)
+    if (pathname.startsWith('/plot/view/')) {
+        return NextResponse.next();
+    }
+    
     // Default to "Assistants" project when visiting /interfaces with no project specified
     // This runs BEFORE the server component, avoiding a double-render
     if (pathname === '/interfaces') {
