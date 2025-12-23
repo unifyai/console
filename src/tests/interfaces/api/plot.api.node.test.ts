@@ -77,12 +77,12 @@ describe("@real Plot API", () => {
     );
   });
 
-  //afterAll(async () => {
-  //  await safeDelete(
-  //    () => projectsApi.delete(testProject),
-  //    `project: ${testProject}`
-  //  );
-  //});
+  afterAll(async () => {
+    await safeDelete(
+      () => projectsApi.delete(testProject),
+      `project: ${testProject}`
+    );
+  });
 
   describe("POST /api/plot/create", () => {
     describe("Authentication", () => {
