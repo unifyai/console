@@ -490,7 +490,7 @@ describe("@real Plot API", () => {
         expect(data.metadata.title).toBe("Test Plot");
         expect(data.metadata.project_name).toBe(testProject);
         expect(data.metadata.created_at).toBeDefined();
-        expect(data.metadata.expires_at).toBeDefined();
+        // Note: expires_at is no longer present - plots don't expire
       });
 
       it(

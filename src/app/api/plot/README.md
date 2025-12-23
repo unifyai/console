@@ -11,7 +11,6 @@ A module for programmatic plot generation with token-gated public access. Create
 - [Data Flow](#data-flow)
 - [Configuration](#configuration)
 - [Security](#security)
-- [Testing](#testing)
 - [Usage Examples](#usage-examples)
 - [Troubleshooting](#troubleshooting)
 
@@ -30,11 +29,12 @@ The Plot API enables:
 
 | Feature | Description |
 |---------|-------------|
-| Token-based access | 12-character hex tokens with configurable TTL (default 24h) |
-| Encrypted credentials | User API keys encrypted at rest using AES-256-GCM |
-| LLM inference | Natural language → plot configuration via GPT-4o-mini |
+| Token-based access | 12-character hex tokens (permanent, no expiry) |
+| Backend storage | Plots stored in Orchestra database with project ownership |
+| LLM inference | Natural language → plot configuration via GPT-4o-mini (billed to user) |
 | Validation & fallbacks | Robust validation with intelligent fallbacks for LLM responses |
 | Shared rendering | Single `PlotCanvas` component powers both public viewer and UI tiles |
+| Project lifecycle | Plots auto-deleted when associated project is deleted |
 
 ---
 
@@ -42,139 +42,130 @@ The Plot API enables:
 
 ### High-Level Overview
 
+The Plot API uses a split architecture:
+
+1. **Orchestra Backend** - Handles plot creation, storage, LLM inference, and access control
+2. **Console Frontend** - Provides proxy endpoints and renders the plot viewer
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              External Client                             │
 │                    (Script, Notebook, Integration)                       │
-└─────────────────────────────────┬───────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         POST /api/plot/create                            │
-│                                                                          │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐   │
-│  │ Validate     │───▶│ Infer Config │───▶│ Store Token + Return URL │   │
-│  │ Request      │    │ (if desc.)   │    │                          │   │
-│  └──────────────┘    └──────────────┘    └──────────────────────────┘   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  │ Returns: { url, token, expires_in_hours }
-                                  ▼
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+            ┌─────────────────┴─────────────────┐
+            ▼                                   ▼
+┌───────────────────────┐           ┌───────────────────────────┐
+│   Console Proxy       │           │   Orchestra Backend       │
+│   (Optional)          │           │   (Primary API)           │
+│                       │           │                           │
+│ POST /api/plot/create │──────────▶│ POST /v0/logs/plot        │
+│   ↓ Proxies to        │           │   • Validate request      │
+│   Orchestra           │           │   • LLM inference         │
+│                       │           │   • Store in database     │
+└───────────────────────┘           │   • Return URL + token    │
+                                    └───────────────────────────┘
+                                              │
+                          Returns: { url, token, plot_config, ... }
+                                              ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              Public User                                 │
 │                         (Browser, Embed, etc.)                           │
-└─────────────────────────────────┬───────────────────────────────────────┘
-                                  │
-                                  ▼
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      /plot/view/[token] (Page)                           │
 │                                                                          │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐   │
-│  │ Fetch Data   │───▶│ Transform    │───▶│ Render PlotCanvas        │   │
-│  │ via Token    │    │ for D3       │    │                          │   │
-│  └──────────────┘    └──────────────┘    └──────────────────────────┘   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐   │
+│  │ GET /api/plot/   │───▶│ Admin: Get Plot  │───▶│ Admin: Get User  │   │
+│  │ data/{token}     │    │ Config + User    │    │ API Key          │   │
+│  └──────────────────┘    └──────────────────┘    └──────────────────┘   │
+│           │                                               │              │
+│           └───────────────────┬───────────────────────────┘              │
+│                               ▼                                          │
+│                   ┌──────────────────────┐                               │
+│                   │ GET /v0/logs         │                               │
+│                   │ (with user's key)    │                               │
+│                   └──────────────────────┘                               │
+│                               │                                          │
+│                               ▼                                          │
+│                   ┌──────────────────────┐                               │
+│                   │ Transform + Render   │                               │
+│                   │ PlotCanvas           │                               │
+│                   └──────────────────────┘                               │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Module Dependency Graph
+### Backend (Orchestra) Responsibilities
 
-```
-                    ┌─────────────────────────────────────┐
-                    │         API Routes (Orchestrators)   │
-                    │  ┌─────────────┐  ┌───────────────┐  │
-                    │  │ create/     │  │ data/[token]/ │  │
-                    │  │ route.ts    │  │ route.ts      │  │
-                    │  └──────┬──────┘  └───────┬───────┘  │
-                    └─────────┼─────────────────┼──────────┘
-                              │                 │
-          ┌───────────────────┼─────────────────┼───────────────────┐
-          │                   │                 │                   │
-          ▼                   ▼                 ▼                   ▼
-    ┌───────────┐      ┌─────────────┐   ┌───────────┐      ┌────────────┐
-    │validation │      │ llm-config  │   │   store   │      │ transform  │
-    │   .ts     │◀─────│    .ts      │   │   .ts     │      │    .ts     │
-    └───────────┘      └─────────────┘   └─────┬─────┘      └────────────┘
-          │                   │                │
-          │                   │                ▼
-          │                   │          ┌───────────┐
-          │                   │          │  crypto   │
-          │                   │          │   .ts     │
-          ▼                   ▼          └───────────┘
-    ┌──────────────────────────────┐
-    │      normalization.ts        │
-    │  (Pure utility functions)    │
-    └──────────────────────────────┘
-```
+- **Plot Storage**: Persistent storage in PostgreSQL with project/org relationships
+- **Access Control**: Project-based permissions (`project:read`, `project:write`)
+- **LLM Inference**: Infer plot configuration from natural language descriptions
+- **Token Generation**: Unique 12-character hex tokens with collision prevention
+- **Cascade Deletion**: Automatic cleanup when projects/users/orgs are deleted
+- **Project Transfer**: Update plot ownership when projects move between personal/org
 
-### Component Relationship
+### Frontend (Console) Responsibilities
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Plot Rendering                            │
-│                                                                  │
-│   ┌─────────────────────┐       ┌─────────────────────────────┐ │
-│   │   PlotViewer.tsx    │       │   Plot.tsx (Interface Tile) │ │
-│   │   (Public page)     │       │   (Dashboard UI)            │ │
-│   └──────────┬──────────┘       └──────────────┬──────────────┘ │
-│              │                                 │                 │
-│              │    ┌─────────────────────┐      │                 │
-│              └───▶│   PlotCanvas.tsx    │◀─────┘                 │
-│                   │   (Shared D3 core)  │                        │
-│                   └─────────┬───────────┘                        │
-│                             │                                    │
-│                             ▼                                    │
-│                   ┌─────────────────────┐                        │
-│                   │   drawPlot()        │                        │
-│                   │   (D3 rendering)    │                        │
-│                   └─────────────────────┘                        │
-└──────────────────────────────────────────────────────────────────┘
-```
+- **Proxy Endpoint**: Optional pass-through to Orchestra for plot creation
+- **Data Retrieval**: Fetch plot data using admin endpoints + user's API key
+- **Plot Rendering**: Transform data and render with D3-based PlotCanvas
+- **Public Viewer**: Token-based public access page
 
 ---
 
 ## Module Structure
 
+### Console Files
+
 ```
-console/src/lib/plot/
-├── README.md           # This file
-├── crypto.ts           # API key encryption/decryption
-├── normalization.ts    # Type normalization, query param building
-├── validation.ts       # Config validation with intelligent fallbacks
-├── llm-config.ts       # LLM inference from natural language
-├── store.ts            # Token storage with TTL
-└── transform.ts        # Data transformation for plot rendering
+console/src/app/api/plot/
+├── README.md                      # This file
+├── create/
+│   └── route.ts                   # Proxy to Orchestra POST /logs/plot
+└── data/
+    └── [token]/
+        └── route.ts               # Fetch plot data via admin endpoints
+
+console/src/app/plot/
+└── view/
+    └── [token]/
+        └── page.tsx               # Public plot viewer page
+
+console/src/components/Pages/Plot/
+└── PlotViewer.tsx                 # Plot viewer component
+
+console/src/components/Common/
+└── PlotCanvas.tsx                 # Shared D3 rendering component
 ```
 
-### File Descriptions
+### Orchestra Files
 
-| File | Responsibility | Dependencies |
-|------|----------------|--------------|
-| `crypto.ts` | Encrypts/decrypts API keys using AES-256-GCM | Node.js crypto |
-| `normalization.ts` | Normalizes plot types, builds query params | None (pure functions) |
-| `validation.ts` | Validates LLM responses, provides fallbacks | normalization.ts |
-| `llm-config.ts` | Calls Orchestra chat completions for inference | validation.ts |
-| `store.ts` | Manages NodeCache token storage | crypto.ts |
-| `transform.ts` | Transforms Orchestra data for PlotCanvas | None (pure functions) |
+```
+orchestra/orchestra/web/api/plot/
+├── README.md                      # Backend API documentation
+├── __init__.py                    # Router exports
+├── views.py                       # API endpoints
+├── schema.py                      # Pydantic request/response models
+└── llm_inference.py               # LLM configuration inference
 
-### Related Files (Outside lib/plot/)
-
-| Path | Description |
-|------|-------------|
-| `app/api/plot/create/route.ts` | POST endpoint for creating plot tokens |
-| `app/api/plot/data/[token]/route.ts` | GET endpoint for fetching plot data |
-| `app/plot/view/[token]/page.tsx` | Public plot viewer page |
-| `components/Pages/Plot/PlotViewer.tsx` | Plot viewer component |
-| `components/Common/PlotCanvas.tsx` | Shared D3 rendering component |
+orchestra/orchestra/db/
+├── models/orchestra_models.py     # Plot SQLAlchemy model
+├── dao/plot_dao.py                # Data access object
+└── migrations/versions/
+    └── ..._add_plot_table.py      # Database migration
+```
 
 ---
 
 ## API Endpoints
 
-### POST `/api/plot/create`
+### Console Endpoints
 
-Creates a new plot token and returns a shareable URL.
+#### POST `/api/plot/create` (Proxy)
+
+Proxies requests to Orchestra `POST /v0/logs/plot`. Optional - clients can call Orchestra directly.
 
 **Headers:**
 | Header | Required | Description |
@@ -182,39 +173,55 @@ Creates a new plot token and returns a shareable URL.
 | `Authorization` | Yes | `Bearer <user_api_key>` |
 | `Content-Type` | Yes | `application/json` |
 
+#### GET `/api/plot/data/[token]`
+
+Fetches plot data for rendering. No authentication required - token provides access.
+
+**Flow:**
+1. Fetch plot config from Orchestra admin endpoint
+2. Extract user_id and organization_id
+3. Fetch user's API key from admin endpoint
+4. Call `/v0/logs` with user's credentials
+5. Transform data for D3 rendering
+
+### Orchestra Endpoints (Primary API)
+
+#### POST `/v0/logs/plot` (User-scoped)
+
+Creates a new plot. Requires API key authentication.
+
 **Request Body (Direct Config):**
-```
+```json
 {
   "plot_config": {
     "type": "scatter|bar|histogram|line",
-    "x_axis": "field_name",           // Required
-    "y_axis": "field_name",           // Required for scatter/bar/line
-    "group_by": "field_name",         // Optional
+    "x_axis": "field_name",
+    "y_axis": "field_name",
+    "group_by": "field_name",
     "aggregate": "sum|mean|count|min|max",
     "scale_x": "linear|log",
     "scale_y": "linear|log",
     "metric": "mean|sum|count|min|max",
     "bin_count": 10,
     "show_regression": false,
-    "colors": { "group_value": "#hex" }
+    "sort_by": "x|y|value|name|count",
+    "sort_order": "asc|desc",
+    "title": "Plot Title",
+    "x_label": "X Axis Label",
+    "y_label": "Y Axis Label"
   },
   "project_config": {
-    "project_name": "my-project",     // Required
+    "project_name": "my-project",
     "context": "production",
     "filter_expr": "status == 'success'",
-    "sorting": "{\"timestamp\": \"descending\"}",
-    "limit": 1000,
-    "offset": 0,
-    "group_by": ["model", "region"],
-    "group_limit": 100,
-    "value_limit": 10000
+    "limit": 1000
   },
   "title": "My Plot Title"
 }
 ```
 
 **Request Body (LLM Description):**
-```
+```json
 {
   "description": "Show a scatter plot of latency vs tokens, grouped by model",
   "project_config": {
@@ -224,12 +231,24 @@ Creates a new plot token and returns a shareable URL.
 ```
 
 **Response (201 Created):**
-```
+```json
 {
   "url": "https://console.unify.ai/plot/view/abc123def456",
   "token": "abc123def456",
-  "expires_in_hours": 24,
-  "inferred_config": {        // Only present when using description
+  "plot_config": { ... },
+  "project_config": { ... },
+  "plot_metadata": {
+    "token": "abc123def456",
+    "title": "My Plot",
+    "project_name": "my-project",
+    "created_at": "2024-01-01T00:00:00Z",
+    "created_by": "user_123"
+  },
+  "user_metadata": {
+    "user_id": "user_123",
+    "organization_id": null
+  },
+  "inferred_config": {
     "type": "scatter",
     "x_axis": "latency_ms",
     "y_axis": "tokens",
@@ -240,125 +259,87 @@ Creates a new plot token and returns a shareable URL.
 }
 ```
 
-### GET `/api/plot/data/[token]`
+#### GET `/v0/logs/plots` (User-scoped)
 
-Fetches plot data for rendering. No authentication required (token is the auth).
+List plots accessible by the authenticated user.
 
-**Response (200 OK):**
-```
-{
-  "config": {
-    "type": "scatter",
-    "xAxis": "table1.latency_ms",
-    "yAxis": "table1.tokens",
-    "groupBy": "table1.model",
-    "scaleX": "linear",
-    "scaleY": "linear",
-    "metric": "mean",
-    "binCount": 10,
-    "showRegression": false
-  },
-  "data": [
-    {
-      "type": "ungrouped",
-      "table1.entries": {
-        "table1.latency_ms": 150,
-        "table1.tokens": 500
-      }
-    }
-  ],
-  "fields": {
-    "table1.latency_ms": { "data_type": "float" },
-    "table1.tokens": { "data_type": "int" }
-  },
-  "metadata": {
-    "title": "My Plot",
-    "project_name": "my-project",
-    "created_at": 1703260800000,
-    "expires_at": 1703347200000
-  }
-}
-```
+**Query Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `project_name` | Filter by project name |
+
+#### GET `/v0/logs/plots/{token}` (User-scoped)
+
+Get a specific plot by token.
+
+#### PATCH `/v0/logs/plots/{token}` (User-scoped)
+
+Update a plot's title or configuration.
+
+#### DELETE `/v0/logs/plots/{token}` (User-scoped)
+
+Delete a plot.
+
+#### GET `/v0/admin/logs/plot` (Admin-scoped)
+
+Admin endpoint to retrieve plot including user_metadata. Used by console to fetch user's API key.
 
 ---
 
 ## Data Flow
 
-### Token Creation Flow
+### Plot Creation Flow
 
 ```
-1. Client Request
+1. Client Request (to Orchestra or Console proxy)
    │
    ├─▶ Validate Authorization header
-   │   └─▶ Extract API key from "Bearer <key>"
+   │   └─▶ Extract API key, verify user access
    │
-   ├─▶ Parse and validate request body
-   │   ├─▶ Validate project_config.project_name exists
-   │   └─▶ Validate plot_config.x_axis OR description exists
+   ├─▶ Validate project access
+   │   └─▶ Check project:write permission
    │
    ├─▶ [If description] LLM Inference
-   │   ├─▶ Fetch available fields from Orchestra
+   │   ├─▶ Fetch available fields from /v0/logs/fields
    │   ├─▶ Build prompt with fields + description
-   │   ├─▶ Call Orchestra chat completions
+   │   ├─▶ Call Orchestra chat completions (billed to user)
    │   ├─▶ Parse JSON response
    │   └─▶ Validate + apply fallbacks
    │
-   ├─▶ Normalize plot configuration
-   │   └─▶ Map type names ("Scatter Plot" → "scatter")
+   ├─▶ Store plot in database
+   │   ├─▶ Generate unique 12-char hex token
+   │   └─▶ Link to project, user, organization
    │
-   ├─▶ Store token in cache
-   │   ├─▶ Generate 12-char hex token
-   │   ├─▶ Encrypt API key
-   │   └─▶ Set TTL (default 24h)
-   │
-   └─▶ Return { url, token, expires_in_hours }
+   └─▶ Return { url, token, configs, metadata }
 ```
 
-### Data Retrieval Flow
+### Data Retrieval Flow (Console)
 
 ```
-1. Browser/Client Request
+1. Browser Request to /plot/view/{token}
    │
-   ├─▶ Validate token format (12 hex chars)
+   ├─▶ Console fetches /api/plot/data/{token}
    │
-   ├─▶ Retrieve token data from cache
-   │   └─▶ Return 404 if not found/expired
+   ├─▶ Admin: GET /admin/logs/plot?token={token}
+   │   └─▶ Returns config, project_config, user_id, organization_id
    │
-   ├─▶ Decrypt stored API key
+   ├─▶ Admin: GET /admin/auth-user/by-user-id?user_id={user_id}
+   │   └─▶ Returns user's API keys (personal + org)
    │
-   ├─▶ Fetch data from Orchestra (parallel)
-   │   ├─▶ GET /v0/logs?project=...&<params>
-   │   └─▶ GET /v0/logs/fields?project=...
+   ├─▶ Select correct API key based on organization_id
+   │
+   ├─▶ GET /v0/logs with user's API key
+   │   └─▶ Returns log data
+   │
+   ├─▶ GET /v0/logs/fields with user's API key
+   │   └─▶ Returns field metadata
    │
    ├─▶ Transform data for PlotCanvas
-   │   ├─▶ Prefix field names with "table1." in fields object
-   │   ├─▶ Prefix field names with "table1." in log entries
-   │   ├─▶ Prefix axis values in config with "table1."
-   │   └─▶ Wrap entries in expected structure
+   │   ├─▶ Add table1. prefixes to field names
+   │   └─▶ Convert snake_case to camelCase
    │
    └─▶ Return { config, data, fields, metadata }
 ```
-
-### Data Format (table1 prefix)
-
-The Plot API and `PlotCanvas` component expect data in a specific format with `table1.` prefixes:
-
-| Component | Expected Format | Example |
-|-----------|-----------------|---------|
-| Config axes | `table1.field_name` | `xAxis: "table1.latency_ms"` |
-| Fields keys | `table1.field_name` | `fields["table1.latency_ms"]` |
-| Log entries | `log["table1.entries"]["table1.field_name"]` | `log["table1.entries"]["table1.latency_ms"]` |
-
-This format is required because the D3 plotting code (`getValue()`, `hasProperty()`) looks up values using:
-```
-fields[axisProperty].data_type        // e.g., fields["table1.latency_ms"]
-log[`${table}.entries`][axisProperty] // e.g., log["table1.entries"]["table1.latency_ms"]
-```
-
-The data route automatically transforms:
-1. **User input**: `x_axis: "latency_ms"` (simple field name)
-2. **Stored config**: `xAxis: "latency_ms"` (unchanged)
-3. **Returned config**: `xAxis: "table1.latency_ms"` (prefixed for PlotCanvas)
 
 ---
 
@@ -366,149 +347,69 @@ The data route automatically transforms:
 
 ### Environment Variables
 
+#### Console
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PLOT_TOKEN_SECRET` | No* | Secret for API key encryption (32+ chars recommended) |
-| `JWT_SECRET` | No* | Fallback secret if `PLOT_TOKEN_SECRET` not set |
-| `NEXT_PUBLIC_BASE_URL` | Yes | Base URL for generated plot links |
-| `ORCHESTRA_URL` | Yes | Orchestra backend URL |
+| `NEXT_PUBLIC_ORCHESTRA_URL` | Yes | Orchestra backend URL |
+| `ORCHESTRA_ADMIN_KEY` | Yes | Admin key for fetching plot configs and user data |
+| `NEXT_PUBLIC_APP_URL` | Yes | Base URL for the console (for plot URLs) |
 
-*One of `PLOT_TOKEN_SECRET` or `JWT_SECRET` must be set.
+#### Orchestra
 
-### Token TTL
-
-Default TTL is **24 hours**. Tokens are automatically purged from the cache after expiry.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ORCHESTRA_CONSOLE_URL` | No | Console URL for plot links (default: `https://console.unify.ai`) |
 
 ---
 
 ## Security
 
-### API Key Protection
+### Access Control
 
-1. **Encryption at Rest** - API keys are encrypted using AES-256-GCM before storage
-2. **Server-Side Only** - Encrypted keys never leave the server; only plot data is sent to browsers
-3. **Unique IVs** - Each encryption uses a random initialization vector
-4. **Auth Tags** - Encryption includes authentication tags for integrity verification
+| Action | Authentication | Authorization |
+|--------|----------------|---------------|
+| Create plot | User API key | `project:write` on target project |
+| List plots | User API key | Only shows plots for accessible projects |
+| Get plot | User API key | `project:read` on plot's project |
+| Update plot | User API key | `project:write` on plot's project |
+| Delete plot | User API key | `project:write` on plot's project |
+| View plot (public) | Token in URL | Token provides access |
 
 ### Token Security
 
-1. **Random Generation** - Tokens are 12-character hex strings from crypto.randomBytes
-2. **Time-Limited** - Tokens expire after TTL (default 24h)
-3. **No Enumeration** - Invalid tokens return same error as expired (timing attack resistant)
-4. **Format Validation** - Strict regex validation before cache lookup
+1. **Random Generation** - Tokens are 12-character hex strings from `secrets.token_hex(6)`
+2. **Collision Prevention** - Retry logic ensures uniqueness
+3. **No Expiration** - Tokens are permanent unless explicitly deleted
+4. **Project Lifecycle** - Tokens deleted with their project (CASCADE)
+5. **Organization Lifecycle** - Tokens deleted with their organization (CASCADE)
 
-### Access Control
+### API Key Handling
 
-| Endpoint | Authentication | Notes |
-|----------|----------------|-------|
-| `POST /api/plot/create` | Bearer token (API key) | Required to create plots |
-| `GET /api/plot/data/[token]` | Token in URL | Public access with valid token |
-| `/plot/view/[token]` | None | Public page, token provides access |
-
----
-
-## Testing
-
-### Test Files
-
-```
-console/src/tests/interfaces/unit/plot/
-├── crypto.node.test.ts         # 12 tests - Encryption/decryption
-├── normalization.node.test.ts  # 28 tests - Type normalization, params
-├── validation.node.test.ts     # 30 tests - Config validation, fallbacks
-├── llm-config.node.test.ts     # 13 tests - LLM inference
-├── store.node.test.ts          # 16 tests - Token storage
-├── routes.node.test.ts         # 23 tests - Route handler logic
-├── transform.node.test.ts      # 37 tests - Data transformation
-└── PlotCanvas.node.test.ts     # 58 tests - Component logic
-
-console/src/tests/interfaces/api/
-└── plot.api.node.test.ts       # Integration tests (requires server)
-```
-
-### Running Tests
-
-```bash
-# Run all plot unit tests
-npm run test:node -- --run src/tests/interfaces/unit/plot/
-
-# Run specific test file
-npm run test:node -- --run src/tests/interfaces/unit/plot/validation.node.test.ts
-
-# Run API integration tests (requires dev server)
-npm run dev  # In one terminal
-npm run test:interfaces:api -- --run plot  # In another
-```
-
-### Test Coverage Summary
-
-| Category | Tests | Description |
-|----------|-------|-------------|
-| Crypto | 12 | Encryption, decryption, key derivation, error handling |
-| Normalization | 28 | Plot type mapping, query param building |
-| Validation | 30 | Required fields, fallbacks, type checking |
-| LLM Config | 13 | Prompt building, response parsing, error handling |
-| Store | 16 | Token CRUD, TTL, encryption integration |
-| Routes | 23 | Request validation, response format, errors |
-| Transform | 37 | Data transformation, field prefixing |
-| PlotCanvas | 58 | Props, callbacks, state, rendering logic |
-| **Total Unit** | **217** | |
-| API Integration | ~25 | End-to-end flows with real server |
+- User API keys are **never stored** in the Plot table
+- Console fetches keys via admin endpoint when rendering plots
+- Keys are selected based on plot's `organization_id`
 
 ---
 
 ## Usage Examples
 
-### Setup: Create a Test Project with Sample Data
-
-Before running the examples, create a test project with sample log data:
+### Python: Create Plot via Orchestra (Recommended)
 
 ```python
 import requests
-import random
 
 API_KEY = "your-orchestra-api-key"
 ORCHESTRA_URL = "https://api.unify.ai"
-CONSOLE_URL = "https://console.unify.ai"
-PROJECT_NAME = "plot-api-test"
 
 headers = {
     "Authorization": f"Bearer {API_KEY}",
     "Content-Type": "application/json"
 }
 
-# Create project
-requests.post(f"{ORCHESTRA_URL}/v0/project", headers=headers, json={"name": PROJECT_NAME})
-
-# Add sample logs
-for _ in range(50):
-    requests.post(
-        f"{ORCHESTRA_URL}/v0/logs",
-        headers=headers,
-        json={
-            "project": PROJECT_NAME,
-            "entries": {
-                "latency_ms": random.uniform(100, 2000),
-                "tokens": random.randint(100, 4000),
-                "cost": random.uniform(0.001, 0.05),
-                "accuracy": random.uniform(0.7, 0.99),
-                "model": random.choice(["gpt-4", "gpt-3.5", "claude-3"]),
-                "status": random.choice(["success", "success", "success", "error"]),
-            }
-        }
-    )
-
-print(f"Created project '{PROJECT_NAME}' with 50 sample logs")
-```
-
-### Python: Create Plots Programmatically
-
-#### Scatter Plot
-
-```python
-# Scatter plot: Compare two numeric fields, optionally grouped
+# Create a scatter plot
 response = requests.post(
-    f"{CONSOLE_URL}/api/plot/create",
+    f"{ORCHESTRA_URL}/v0/logs/plot",
     headers=headers,
     json={
         "plot_config": {
@@ -516,101 +417,36 @@ response = requests.post(
             "x_axis": "latency_ms",
             "y_axis": "accuracy",
             "group_by": "model",
-            "show_regression": True
+            "show_regression": True,
+            "title": "Accuracy vs Latency",
+            "x_label": "Response Latency (ms)",
+            "y_label": "Accuracy Score"
         },
         "project_config": {
-            "project_name": PROJECT_NAME,
+            "project_name": "my-project",
             "filter_expr": "status == 'success'",
             "limit": 1000
         },
         "title": "Accuracy vs Latency by Model"
     }
 )
-print(f"Scatter Plot URL: {response.json()['url']}")
+
+result = response.json()
+print(f"Plot URL: {result['url']}")
+print(f"Token: {result['token']}")
 ```
 
-#### Bar Chart
+### Python: Create Plot with LLM Description
 
 ```python
-# Bar chart: Aggregate a numeric field by a categorical field
+# Uses LLM credits - billed to your account
 response = requests.post(
-    f"{CONSOLE_URL}/api/plot/create",
+    f"{ORCHESTRA_URL}/v0/logs/plot",
     headers=headers,
     json={
-        "plot_config": {
-            "type": "bar",
-            "x_axis": "model",
-            "y_axis": "latency_ms",
-            "metric": "mean"  # Options: mean, sum, count, min, max
-        },
+        "description": "Show me a bar chart comparing average latency across different models",
         "project_config": {
-            "project_name": PROJECT_NAME
-        },
-        "title": "Average Latency by Model"
-    }
-)
-print(f"Bar Chart URL: {response.json()['url']}")
-```
-
-#### Histogram
-
-```python
-# Histogram: Show distribution of a single numeric field
-response = requests.post(
-    f"{CONSOLE_URL}/api/plot/create",
-    headers=headers,
-    json={
-        "plot_config": {
-            "type": "histogram",
-            "x_axis": "cost",
-            "bin_count": 20
-        },
-        "project_config": {
-            "project_name": PROJECT_NAME
-        },
-        "title": "Cost Distribution"
-    }
-)
-print(f"Histogram URL: {response.json()['url']}")
-```
-
-#### Line Chart
-
-```python
-# Line chart: Show trends over a continuous variable, optionally grouped
-response = requests.post(
-    f"{CONSOLE_URL}/api/plot/create",
-    headers=headers,
-    json={
-        "plot_config": {
-            "type": "line",
-            "x_axis": "tokens",
-            "y_axis": "cost",
-            "group_by": "model"
-        },
-        "project_config": {
-            "project_name": PROJECT_NAME
-        },
-        "title": "Cost vs Tokens by Model"
-    }
-)
-print(f"Line Chart URL: {response.json()['url']}")
-```
-
-### Python: Create a Plot from Description
-
-```python
-# Let the LLM infer the plot configuration from a natural language description
-response = requests.post(
-    f"{CONSOLE_URL}/api/plot/create",
-    headers={
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    },
-    json={
-        "description": "Show me a histogram of response latencies",
-        "project_config": {
-            "project_name": PROJECT_NAME
+            "project_name": "my-project"
         }
     }
 )
@@ -618,10 +454,66 @@ response = requests.post(
 result = response.json()
 print(f"Inferred type: {result['inferred_config']['type']}")
 print(f"Confidence: {result['inferred_config']['confidence']}")
+print(f"Reasoning: {result['inferred_config']['reasoning']}")
 print(f"Plot URL: {result['url']}")
 ```
 
-### JavaScript: Embed in a Web Page
+### Python: List and Manage Plots
+
+```python
+# List all plots
+plots = requests.get(
+    f"{ORCHESTRA_URL}/v0/logs/plots",
+    headers=headers
+).json()
+
+for plot in plots["plots"]:
+    print(f"- {plot['token']}: {plot['title']} ({plot['project_name']})")
+
+# Get specific plot
+plot = requests.get(
+    f"{ORCHESTRA_URL}/v0/logs/plots/{token}",
+    headers=headers
+).json()
+
+# Update plot title
+requests.patch(
+    f"{ORCHESTRA_URL}/v0/logs/plots/{token}",
+    headers=headers,
+    json={"title": "Updated Title"}
+)
+
+# Delete plot
+requests.delete(
+    f"{ORCHESTRA_URL}/v0/logs/plots/{token}",
+    headers=headers
+)
+```
+
+### cURL: Quick Test
+
+```bash
+# Create a bar chart
+curl -X POST https://api.unify.ai/v0/logs/plot \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "plot_config": {
+      "type": "bar",
+      "x_axis": "model",
+      "y_axis": "latency_ms",
+      "aggregate": "mean",
+      "sort_by": "y",
+      "sort_order": "desc"
+    },
+    "project_config": {
+      "project_name": "my-project"
+    },
+    "title": "Average Latency by Model"
+  }'
+```
+
+### JavaScript: Embed in Web Page
 
 ```html
 <iframe 
@@ -632,27 +524,6 @@ print(f"Plot URL: {result['url']}")
 ></iframe>
 ```
 
-### cURL: Quick Test
-
-```bash
-# Create a bar chart showing average latency by model
-curl -X POST https://console.unify.ai/api/plot/create \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "plot_config": {
-      "type": "bar",
-      "x_axis": "model",
-      "y_axis": "latency_ms",
-      "metric": "mean"
-    },
-    "project_config": {
-      "project_name": "plot-api-test"
-    },
-    "title": "Average Latency by Model"
-  }'
-```
-
 ---
 
 ## Troubleshooting
@@ -661,11 +532,12 @@ curl -X POST https://console.unify.ai/api/plot/create \
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `401 Missing Authorization header` | No Bearer token provided | Add `Authorization: Bearer <key>` header |
+| `401 Unauthorized` | Missing or invalid API key | Add `Authorization: Bearer <key>` header |
 | `400 Missing project_config.project_name` | Project name not specified | Add project_name to request |
 | `400 Either plot_config or description is required` | No config provided | Add plot_config or description |
-| `404 Plot token not found or expired` | Token invalid or expired | Create a new plot token |
-| `502 Failed to fetch logs from Orchestra` | Orchestra API error | Check API key and project name |
+| `403 Forbidden` | No permission on project | Verify project access permissions |
+| `404 Plot not found` | Token invalid or plot deleted | Create a new plot |
+| `404 Project not found` | Project doesn't exist | Verify project name |
 | `500 LLM inference failed` | Chat completions error | Provide direct plot_config instead |
 
 ### Debug Tips
@@ -674,26 +546,21 @@ curl -X POST https://console.unify.ai/api/plot/create \
 2. **Verify API key** - Test with a direct Orchestra API call first
 3. **Check project exists** - Ensure project_name matches exactly
 4. **Review field names** - Fields in plot_config must exist in the project
-5. **Check TTL** - Tokens expire after 24 hours by default
-
-### Logs
-
-Token operations are logged with `[PlotTokenStore]` prefix:
-
-```
-[PlotTokenStore] Stored token: abc123def456, cache size: 5
-[PlotTokenStore] Get token: abc123def456, found: true, cache size: 5
-```
+5. **Check permissions** - User needs `project:write` to create, `project:read` to view
 
 ---
 
-## Future Considerations
+## Migration from Legacy System
 
-1. **Redis Backend** - Move from NodeCache to Redis for multi-instance deployments
-2. **Custom TTL** - Allow users to specify token expiry time
-3. **Rate Limiting** - Add rate limits to prevent abuse
-4. **Refresh Tokens** - Allow extending token TTL without re-creating
-5. **Webhook Notifications** - Notify when tokens are about to expire
-6. **Usage Analytics** - Track plot views and popular configurations
+The Plot API has been migrated from a console-based NodeCache storage to Orchestra-based PostgreSQL storage. Key changes:
 
+| Aspect | Legacy (Console) | Current (Orchestra) |
+|--------|------------------|---------------------|
+| Storage | NodeCache (in-memory) | PostgreSQL database |
+| Expiry | 24-hour TTL | No expiry (permanent) |
+| API Key | Encrypted in cache | Fetched via admin endpoint |
+| LLM Inference | Console server | Orchestra backend |
+| Access Control | Token-only | Project-based permissions |
+| Lifecycle | Independent | Tied to project/org lifecycle |
 
+The console `/api/plot/create` endpoint now acts as a proxy to Orchestra for backward compatibility.

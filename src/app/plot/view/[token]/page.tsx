@@ -26,6 +26,11 @@ interface PlotDataResponse {
     metric?: string;
     binCount?: number;
     showRegression?: boolean;
+    sortBy?: string;
+    sortOrder?: string;
+    title?: string;
+    xLabel?: string;
+    yLabel?: string;
   };
   data: LogProps[];
   fields: LogFieldsResponseProps;
@@ -33,7 +38,7 @@ interface PlotDataResponse {
     title?: string;
     project_name: string;
     created_at: string;
-    expires_at: string;
+    created_by?: string;
   };
 }
 
@@ -84,7 +89,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   
   if (!result.success) {
     return {
-      title: result.expired ? "Plot Expired" : "Plot Not Found",
+      title: "Plot Not Found",
       description: "This plot is no longer available.",
     };
   }
@@ -96,9 +101,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Expired plot message component
+ * Plot not found/deleted message component
  */
-function ExpiredPlotMessage() {
+function PlotNotFoundMessage() {
   return (
     <main className="min-h-screen bg-background flex items-center justify-center">
       <div className="text-center max-w-md px-6">
@@ -113,13 +118,13 @@ function ExpiredPlotMessage() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 2a10 10 0 100 20 10 10 0 000-20z"
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-semibold mb-2">Plot Link Expired</h1>
+        <h1 className="text-2xl font-semibold mb-2">Plot Not Found</h1>
         <p className="text-muted-foreground">
-          This plot link has expired and is no longer available.
+          This plot has been deleted or the link is invalid.
           Please request a new link from the original source.
         </p>
       </div>
@@ -161,11 +166,8 @@ export default async function PlotViewPage({ params }: PageProps) {
 
   // Handle errors
   if (!result.success) {
-    if (result.expired) {
-      return <ExpiredPlotMessage />;
-    }
-    if (result.status === 404) {
-      notFound();
+    if (result.status === 404 || result.expired) {
+      return <PlotNotFoundMessage />;
     }
     return <ErrorMessage message={result.error} />;
   }

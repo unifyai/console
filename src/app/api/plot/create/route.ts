@@ -1,41 +1,34 @@
 /**
  * POST /api/plot/create
  *
- * Endpoint to create shareable plot URLs.
- * Stores plot and project configuration, returns a URL to the plot viewer.
+ * Proxy endpoint to create shareable plot URLs via Orchestra backend.
+ *
+ * This route acts as a pass-through to the Orchestra POST /logs/plot endpoint,
+ * which handles:
+ * - Plot creation and storage in the database
+ * - LLM inference for description-based plots
+ * - Token generation
  *
  * Authentication: Requires user API key in Authorization header.
+ * The API key is forwarded to Orchestra for authentication and billing.
  *
  * Supports two modes:
  * 1. Direct config: Provide explicit plot_config
- * 2. Description-based: Provide a natural language description to infer config
+ * 2. Description-based: Provide a natural language description (uses LLM credits)
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { storePlotToken, PlotConfig, ProjectConfig } from "@/lib/plot/store";
-import { normalizeConfig, buildFieldsParams } from "@/lib/plot/normalization";
-import {
-  inferPlotConfigFromDescription,
-  InferredPlotConfig,
-} from "@/lib/plot/llm-config";
 
-const ORCHESTRA_URL = process.env.ORCHESTRA_URL;
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXTAUTH_URL ||
-  "http://localhost:3000";
-
-// Default TTL: 24 hours
-const DEFAULT_TTL_HOURS = 24;
+const ORCHESTRA_URL =
+  process.env.NEXT_PUBLIC_ORCHESTRA_URL || "http://localhost:8000";
 
 /**
- * Request body structure
+ * Request body structure (passthrough to Orchestra)
  */
 interface CreatePlotRequest {
   // Option 1: Direct config
   plot_config?: {
-    type?: string; // "scatter" | "bar" | "histogram" | "line" (or full names)
-    plot_type?: string; // Alternative: "Scatter Plot", "Bar Chart", etc.
+    type?: string;
     x_axis: string;
     y_axis?: string;
     group_by?: string;
@@ -46,9 +39,14 @@ interface CreatePlotRequest {
     bin_count?: number;
     show_regression?: boolean;
     colors?: Record<string, string>;
+    sort_by?: string;
+    sort_order?: string;
+    title?: string;
+    x_label?: string;
+    y_label?: string;
   };
 
-  // Option 2: Description-based (LLM inference)
+  // Option 2: Description-based (LLM inference - billed to user's account)
   description?: string;
 
   // Project configuration (required for both modes)
@@ -80,22 +78,6 @@ interface CreatePlotRequest {
 }
 
 /**
- * Response body structure
- */
-interface CreatePlotResponse {
-  url: string;
-  token: string;
-  inferred_config?: {
-    type: string;
-    x_axis: string;
-    y_axis?: string | null;
-    group_by?: string | null;
-    confidence: number;
-    reasoning?: string;
-  };
-}
-
-/**
  * Extract API key from Authorization header
  */
 function extractApiKey(request: NextRequest): string | null {
@@ -124,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Validate project config
+  // Basic validation before forwarding
   if (!body.project_config?.project_name) {
     return NextResponse.json(
       { error: "Missing project_config.project_name" },
@@ -132,7 +114,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Validate that either plot_config or description is provided
   if (!body.plot_config && !body.description) {
     return NextResponse.json(
       { error: "Either plot_config or description is required" },
@@ -140,161 +121,55 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let plotConfig: PlotConfig;
-  let inferredConfig: InferredPlotConfig | undefined;
+  try {
+    // Forward request to Orchestra backend
+    const orchestraResponse = await fetch(`${ORCHESTRA_URL}/v0/logs/plot`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-  // Mode 2: Description-based inference
-  if (body.description && !body.plot_config) {
-    if (!ORCHESTRA_URL) {
+    // Get response data
+    const responseData = await orchestraResponse.json();
+
+    // If Orchestra returned an error, pass it through
+    if (!orchestraResponse.ok) {
       return NextResponse.json(
-        { error: "Server configuration error - LLM inference not available" },
-        { status: 500 }
+        { error: responseData.detail || responseData.error || "Plot creation failed" },
+        { status: orchestraResponse.status }
       );
     }
 
-    // Build project config for fields fetch
-    const projectConfigForFields: ProjectConfig = {
-      project_name: body.project_config.project_name,
-      context: body.project_config.context,
-      column_context: body.project_config.column_context,
+    // Transform response to match expected console format
+    // Orchestra returns: { url, token, plot_config, project_config, plot_metadata, user_metadata, inferred_config? }
+    // Console expects: { url, token, inferred_config? }
+    const consoleResponse: Record<string, unknown> = {
+      url: responseData.url,
+      token: responseData.token,
     };
 
-    // Fetch fields first to know what's available
-    const fieldsParams = buildFieldsParams(projectConfigForFields);
-    const fieldsRes = await fetch(
-      `${ORCHESTRA_URL}/v0/logs/fields?${fieldsParams.toString()}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",
-        },
-      }
-    );
-
-    if (!fieldsRes.ok) {
-      const errorText = await fieldsRes.text();
-      console.error("[plot/create] Failed to fetch fields:", errorText);
-      return NextResponse.json(
-        { error: "Failed to fetch project fields for inference" },
-        { status: 502 }
-      );
-    }
-
-    const fields = await fieldsRes.json();
-
-    try {
-      // Infer config from description using Orchestra chat completions
-      inferredConfig = await inferPlotConfigFromDescription({
-        description: body.description,
-        available_fields: Object.keys(fields),
-        field_types: Object.fromEntries(
-          Object.entries(fields).map(([k, v]: [string, unknown]) => [
-            k,
-            (v as { data_type?: string }).data_type || "unknown",
-          ])
-        ),
-        apiKey, // Pass user's key for LLM billing
-      });
-
-      // Convert inferred config to internal format
-      plotConfig = {
-        type: inferredConfig.type,
-        xAxis: inferredConfig.x_axis,
-        yAxis: inferredConfig.y_axis || undefined,
-        groupBy: inferredConfig.group_by || undefined,
-        aggregate: inferredConfig.aggregate || undefined,
-        scaleX: inferredConfig.scale_x || "linear",
-        scaleY: inferredConfig.scale_y || "linear",
-        metric: inferredConfig.metric || "mean",
-        binCount: inferredConfig.bin_count || 10,
-        showRegression: inferredConfig.show_regression || false,
+    // Include inferred config if present
+    if (responseData.inferred_config) {
+      consoleResponse.inferred_config = {
+        type: responseData.inferred_config.type,
+        x_axis: responseData.inferred_config.x_axis,
+        y_axis: responseData.inferred_config.y_axis,
+        group_by: responseData.inferred_config.group_by,
+        confidence: responseData.inferred_config.confidence,
+        reasoning: responseData.inferred_config.reasoning,
       };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "LLM inference failed";
-      console.error("[plot/create] LLM inference failed:", message);
-      return NextResponse.json(
-        { error: `Failed to infer plot config: ${message}` },
-        { status: 500 }
-      );
-    }
-  }
-  // Mode 1: Direct config
-  else if (body.plot_config) {
-    // Validate required fields for direct config
-    if (!body.plot_config.x_axis) {
-      return NextResponse.json(
-        { error: "Missing plot_config.x_axis" },
-        { status: 400 }
-      );
     }
 
-    // Normalize the config
-    plotConfig = normalizeConfig(body.plot_config);
-  } else {
-    // Shouldn't reach here due to earlier validation
+    return NextResponse.json(consoleResponse, { status: 201 });
+  } catch (error) {
+    console.error("[plot/create] Failed to proxy to Orchestra:", error);
     return NextResponse.json(
-      { error: "Either plot_config or description is required" },
-      { status: 400 }
+      { error: "Failed to create plot" },
+      { status: 500 }
     );
   }
-
-  // Build project config with all parameters
-  const projectConfig: ProjectConfig = {
-    project_name: body.project_config.project_name,
-    context: body.project_config.context,
-    column_context: body.project_config.column_context,
-    filter_expr: body.project_config.filter_expr,
-    from_ids: body.project_config.from_ids,
-    exclude_ids: body.project_config.exclude_ids,
-    from_fields: body.project_config.from_fields,
-    exclude_fields: body.project_config.exclude_fields,
-    limit: body.project_config.limit ?? 1000,
-    offset: body.project_config.offset,
-    group_by: body.project_config.group_by,
-    group_limit: body.project_config.group_limit,
-    group_offset: body.project_config.group_offset,
-    group_depth: body.project_config.group_depth,
-    groups_only: body.project_config.groups_only,
-    nested_groups: body.project_config.nested_groups,
-    sorting: body.project_config.sorting,
-    group_sorting: body.project_config.group_sorting,
-    value_limit: body.project_config.value_limit,
-    randomize: body.project_config.randomize,
-    seed: body.project_config.seed,
-  };
-
-  // Calculate TTL
-  const ttlSeconds = DEFAULT_TTL_HOURS * 60 * 60;
-
-  // Store token with API key for later data fetching
-  const token = storePlotToken(
-    plotConfig,
-    projectConfig,
-    ttlSeconds,
-    body.title,
-    apiKey
-  );
-
-  // Build URL
-  const url = `${APP_URL}/plot/view/${token}`;
-
-  // Build response
-  const response: CreatePlotResponse = {
-    url,
-    token,
-    // Include inferred config if description was used
-    ...(inferredConfig && {
-      inferred_config: {
-        type: inferredConfig.type,
-        x_axis: inferredConfig.x_axis,
-        y_axis: inferredConfig.y_axis,
-        group_by: inferredConfig.group_by,
-        confidence: inferredConfig.confidence,
-        reasoning: inferredConfig.reasoning,
-      },
-    }),
-  };
-
-  return NextResponse.json(response, { status: 201 });
 }
