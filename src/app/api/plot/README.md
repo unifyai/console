@@ -226,7 +226,7 @@ Creates a new plot token and returns a shareable URL.
 **Response (201 Created):**
 ```
 {
-  "url": "https://console.example.com/plot/view/abc123def456",
+  "url": "https://console.unify.ai/plot/view/abc123def456",
   "token": "abc123def456",
   "expires_in_hours": 24,
   "inferred_config": {        // Only present when using description
@@ -459,46 +459,148 @@ npm run test:interfaces:api -- --run plot  # In another
 
 ## Usage Examples
 
-### Python: Create a Plot Programmatically
+### Setup: Create a Test Project with Sample Data
+
+Before running the examples, create a test project with sample log data:
 
 ```python
 import requests
+import random
 
 API_KEY = "your-orchestra-api-key"
-CONSOLE_URL = "https://console.yoursite.com"
+ORCHESTRA_URL = "https://api.unify.ai"
+CONSOLE_URL = "https://console.unify.ai"
+PROJECT_NAME = "plot-api-test"
 
-# Create plot with direct configuration
+headers = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Create project
+requests.post(f"{ORCHESTRA_URL}/v0/project", headers=headers, json={"name": PROJECT_NAME})
+
+# Add sample logs
+for _ in range(50):
+    requests.post(
+        f"{ORCHESTRA_URL}/v0/logs",
+        headers=headers,
+        json={
+            "project": PROJECT_NAME,
+            "entries": {
+                "latency_ms": random.uniform(100, 2000),
+                "tokens": random.randint(100, 4000),
+                "cost": random.uniform(0.001, 0.05),
+                "accuracy": random.uniform(0.7, 0.99),
+                "model": random.choice(["gpt-4", "gpt-3.5", "claude-3"]),
+                "status": random.choice(["success", "success", "success", "error"]),
+            }
+        }
+    )
+
+print(f"Created project '{PROJECT_NAME}' with 50 sample logs")
+```
+
+### Python: Create Plots Programmatically
+
+#### Scatter Plot
+
+```python
+# Scatter plot: Compare two numeric fields, optionally grouped
 response = requests.post(
     f"{CONSOLE_URL}/api/plot/create",
-    headers={
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    },
+    headers=headers,
     json={
         "plot_config": {
             "type": "scatter",
             "x_axis": "latency_ms",
-            "y_axis": "tokens",
+            "y_axis": "accuracy",
             "group_by": "model",
             "show_regression": True
         },
         "project_config": {
-            "project_name": "my-llm-project",
+            "project_name": PROJECT_NAME,
             "filter_expr": "status == 'success'",
             "limit": 1000
         },
-        "title": "Latency vs Token Usage"
+        "title": "Accuracy vs Latency by Model"
     }
 )
+print(f"Scatter Plot URL: {response.json()['url']}")
+```
 
-result = response.json()
-print(f"Plot URL: {result['url']}")
-# Output: Plot URL: https://console.yoursite.com/plot/view/abc123def456
+#### Bar Chart
+
+```python
+# Bar chart: Aggregate a numeric field by a categorical field
+response = requests.post(
+    f"{CONSOLE_URL}/api/plot/create",
+    headers=headers,
+    json={
+        "plot_config": {
+            "type": "bar",
+            "x_axis": "model",
+            "y_axis": "latency_ms",
+            "metric": "mean"  # Options: mean, sum, count, min, max
+        },
+        "project_config": {
+            "project_name": PROJECT_NAME
+        },
+        "title": "Average Latency by Model"
+    }
+)
+print(f"Bar Chart URL: {response.json()['url']}")
+```
+
+#### Histogram
+
+```python
+# Histogram: Show distribution of a single numeric field
+response = requests.post(
+    f"{CONSOLE_URL}/api/plot/create",
+    headers=headers,
+    json={
+        "plot_config": {
+            "type": "histogram",
+            "x_axis": "cost",
+            "bin_count": 20
+        },
+        "project_config": {
+            "project_name": PROJECT_NAME
+        },
+        "title": "Cost Distribution"
+    }
+)
+print(f"Histogram URL: {response.json()['url']}")
+```
+
+#### Line Chart
+
+```python
+# Line chart: Show trends over a continuous variable, optionally grouped
+response = requests.post(
+    f"{CONSOLE_URL}/api/plot/create",
+    headers=headers,
+    json={
+        "plot_config": {
+            "type": "line",
+            "x_axis": "tokens",
+            "y_axis": "cost",
+            "group_by": "model"
+        },
+        "project_config": {
+            "project_name": PROJECT_NAME
+        },
+        "title": "Cost vs Tokens by Model"
+    }
+)
+print(f"Line Chart URL: {response.json()['url']}")
 ```
 
 ### Python: Create a Plot from Description
 
 ```python
+# Let the LLM infer the plot configuration from a natural language description
 response = requests.post(
     f"{CONSOLE_URL}/api/plot/create",
     headers={
@@ -508,7 +610,7 @@ response = requests.post(
     json={
         "description": "Show me a histogram of response latencies",
         "project_config": {
-            "project_name": "my-llm-project"
+            "project_name": PROJECT_NAME
         }
     }
 )
@@ -523,7 +625,7 @@ print(f"Plot URL: {result['url']}")
 
 ```html
 <iframe 
-  src="https://console.yoursite.com/plot/view/abc123def456"
+  src="https://console.unify.ai/plot/view/abc123def456"
   width="800" 
   height="600"
   frameborder="0"
@@ -533,7 +635,8 @@ print(f"Plot URL: {result['url']}")
 ### cURL: Quick Test
 
 ```bash
-curl -X POST https://console.yoursite.com/api/plot/create \
+# Create a bar chart showing average latency by model
+curl -X POST https://console.unify.ai/api/plot/create \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -541,11 +644,12 @@ curl -X POST https://console.yoursite.com/api/plot/create \
       "type": "bar",
       "x_axis": "model",
       "y_axis": "latency_ms",
-      "aggregate": "mean"
+      "metric": "mean"
     },
     "project_config": {
-      "project_name": "my-project"
-    }
+      "project_name": "plot-api-test"
+    },
+    "title": "Average Latency by Model"
   }'
 ```
 
