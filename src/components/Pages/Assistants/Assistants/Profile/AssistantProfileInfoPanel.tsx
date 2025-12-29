@@ -16,9 +16,11 @@ interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
     userTimezone?: string | null;
     onEdit: () => void;
+    /** Whether the current user can edit this assistant */
+    canWrite?: boolean;
 }
 
-export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit, canWrite = true }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -135,7 +137,12 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
                 <div className="pt-4 group/assistant-timezone">
                     <h3 className="text-title">Timezone</h3>
                     <div className="grid grid-cols-2 items-center max-w-sm">
-                        <span className="text-caption cursor-pointer" onClick={onEdit}>{timezoneInfo.friendlyName}</span>
+                        <span 
+                            className={cn("text-caption", canWrite && "cursor-pointer hover:underline")} 
+                            onClick={canWrite ? onEdit : undefined}
+                        >
+                            {timezoneInfo.friendlyName}
+                        </span>
                         {timezoneInfo.relativeOffsetString && (
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
@@ -157,7 +164,10 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit }: A
                 {/* About Section */}
                 <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1 cursor-pointer" onClick={onEdit}>
+                    <div 
+                        className={cn("text-caption prose max-w-none prose-p:my-1", canWrite && "cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1")} 
+                        onClick={canWrite ? onEdit : undefined}
+                    >
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>

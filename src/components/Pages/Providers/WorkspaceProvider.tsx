@@ -2,11 +2,13 @@
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, UserWorkspace } from '@/types/user';
+import { User, UserOrganization, UserWorkspace } from '@/types/user';
 
 interface WorkspaceContextType {
   workspaces: UserWorkspace[];
   activeWorkspace: UserWorkspace | null;
+  activeOrganization: UserOrganization | null;
+  currentUserId: string | null;
   switchWorkspace: (workspaceId: string) => Promise<void>;
 }
 
@@ -48,18 +50,25 @@ export function WorkspaceProvider({
   // Since `user` prop comes from server where key-swapping happened, 
   // checking keys is the most robust way to sync Server <-> Client state.
   
+  // 2a. Determine Active Organization (full object with role_name)
+  const activeOrganization = useMemo(() => {
+    if (!user) return null;
+    return user.organizations?.find(o => o.apiKey === user.apiKey) || null;
+  }, [user]);
+
+  // 2b. Determine Active Workspace
   const activeWorkspace = useMemo(() => {
     if (!user) return null;
     
-    // Check if current key belongs to an org
-    const activeOrg = user.organizations?.find(o => o.apiKey === user.apiKey);
-    
-    if (activeOrg) {
-      return workspaces.find(w => w.id === activeOrg.id.toString()) || null;
+    if (activeOrganization) {
+      return workspaces.find(w => w.id === activeOrganization.id.toString()) || null;
     }
     
     return workspaces.find(w => w.id === 'personal') || null;
-  }, [user, workspaces]);
+  }, [user, workspaces, activeOrganization]);
+
+  // 2c. Current User ID
+  const currentUserId = user?.id || null;
 
 
   // 3. Switcher Logic
@@ -78,7 +87,7 @@ export function WorkspaceProvider({
   };
 
   return (
-    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, switchWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspaces, activeWorkspace, activeOrganization, currentUserId, switchWorkspace }}>
       {children}
     </WorkspaceContext.Provider>
   );

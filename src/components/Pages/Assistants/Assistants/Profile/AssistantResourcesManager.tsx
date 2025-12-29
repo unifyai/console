@@ -8,6 +8,8 @@ interface AssistantResourcesManagerProps {
     assistant: Assistant;
     assistantActions: AssistantActions;
     onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+    /** Whether the current user can edit this assistant's resources */
+    canWrite?: boolean;
 }
 
 const ContactItem: React.FC<{
@@ -69,7 +71,7 @@ const ContactItem: React.FC<{
 };
 
 
-export function AssistantResourcesManager({ assistant, assistantActions, onOpenContactManager }: AssistantResourcesManagerProps) {
+export function AssistantResourcesManager({ assistant, assistantActions, onOpenContactManager, canWrite = true }: AssistantResourcesManagerProps) {
     const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
     const assistantContext = `${assistant.first_name}${assistant.surname}`;
 
@@ -103,6 +105,7 @@ export function AssistantResourcesManager({ assistant, assistantActions, onOpenC
                     onClose={() => setIsSecretsManagerOpen(false)}
                     assistantContext={assistantContext}
                     secretActions={assistantActions.secret}
+                    canWrite={canWrite}
                 />
             )}
         </>

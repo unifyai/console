@@ -12,8 +12,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
     }
     
+    // Forward query parameters to Orchestra
+    const url = new URL(`${baseUrl}/assistant`);
+    const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
+    if (listAllOrg) {
+        url.searchParams.set('list_all_org', listAllOrg);
+    }
+    
     return await fetch(
-        `${baseUrl}/assistant`,
+        url.toString(),
         {
             method: "GET",
             headers: {

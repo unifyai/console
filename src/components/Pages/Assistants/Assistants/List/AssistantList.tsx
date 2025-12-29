@@ -23,6 +23,8 @@ interface AssistantListProps {
     onToggleFold: () => void;
     activeCallAssistantId: string | null;
     onHangUp: () => void;
+    /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
+    canHire?: boolean;
 }
 
 export function AssistantList({
@@ -39,6 +41,7 @@ export function AssistantList({
     onToggleFold,
     activeCallAssistantId,
     onHangUp,
+    canHire = true,
 }: AssistantListProps) {
 
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -53,6 +56,8 @@ export function AssistantList({
     }, [assistants, searchTerm]);
 
     const canHireNewAssistant = !assistantError && assistants.length < 2;
+    // Hide hire button if user doesn't have permission (org members who aren't Owner)
+    const showHireButton = canHire;
     const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
     return (
@@ -62,25 +67,27 @@ export function AssistantList({
             <div className="p-3 border-b flex-shrink-0">
                 {isFolded ? (
                      <div className="flex items-center justify-center">
-                        <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant={isFolded ? "ghost" : "outline"}
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={onOpenHireDialog}
-                                        disabled={isHireButtonDisabled}
-                                        aria-disabled={isHireButtonDisabled}
-                                    >
-                                        <UserPlus className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                 <TooltipContent side="right">
-                                    <p>Hire new assistant</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        {showHireButton && (
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant={isFolded ? "ghost" : "outline"}
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={onOpenHireDialog}
+                                            disabled={isHireButtonDisabled}
+                                            aria-disabled={isHireButtonDisabled}
+                                        >
+                                            <UserPlus className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        <p>Hire new assistant</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                      </div>
                 ) : (
                     <div className="flex items-center gap-2">
@@ -95,31 +102,33 @@ export function AssistantList({
                                 disabled={isLoading || !!error}
                             />
                         </div>
-                        <TooltipProvider delayDuration={100}>
-                            <Tooltip open={!canHireNewAssistant && !isLoading ? undefined : false}> {/* Conditionally control open state for tooltip */}
-                                <TooltipTrigger asChild>
-                                    {/* The button itself needs to be wrapped or be a direct child for TooltipTrigger to work correctly when disabled */}
-                                    <span tabIndex={isHireButtonDisabled ? 0 : -1}> 
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 items-center"
-                                            onClick={onOpenHireDialog}
-                                            disabled={isHireButtonDisabled}
-                                            aria-disabled={isHireButtonDisabled}
-                                        >
-                                            <UserPlus className="h-4 w-4" />
-                                            New
-                                        </Button>
-                                    </span>
-                                </TooltipTrigger>
-                                {!canHireNewAssistant && !isLoading && (
-                                    <TooltipContent side="bottom" align="end">
-                                        <p>More assistant hires available soon</p>
-                                    </TooltipContent>
-                                )}
-                            </Tooltip>
-                        </TooltipProvider>
+                        {showHireButton && (
+                            <TooltipProvider delayDuration={100}>
+                                <Tooltip open={!canHireNewAssistant && !isLoading ? undefined : false}> {/* Conditionally control open state for tooltip */}
+                                    <TooltipTrigger asChild>
+                                        {/* The button itself needs to be wrapped or be a direct child for TooltipTrigger to work correctly when disabled */}
+                                        <span tabIndex={isHireButtonDisabled ? 0 : -1}> 
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 items-center"
+                                                onClick={onOpenHireDialog}
+                                                disabled={isHireButtonDisabled}
+                                                aria-disabled={isHireButtonDisabled}
+                                            >
+                                                <UserPlus className="h-4 w-4" />
+                                                New
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    {!canHireNewAssistant && !isLoading && (
+                                        <TooltipContent side="bottom" align="end">
+                                            <p>More assistant hires available soon</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                     </div>
                 )}
             </div>

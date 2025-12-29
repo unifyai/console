@@ -8,6 +8,8 @@ import { SupportedLanguage, Gender } from '@cartesia/cartesia-js/api';
 export function createMockAssistant(overrides: Partial<Assistant> = {}): Assistant {
   return {
     agent_id: faker.string.uuid(),
+    user_id: faker.string.uuid(), // ID of the user who created this assistant
+    organization_id: null, // null for personal workspace assistants
     first_name: faker.person.firstName(),
     surname: faker.person.lastName(),
     email: faker.internet.email().toLowerCase(),

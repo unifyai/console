@@ -27,10 +27,11 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     const apiKey = user.apiKey;
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
     const userName = `${user.name}${user.lastName}`;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: AssistantActions = {
         "assistant": {
-            list: await listAssistants(apiKey),
+            list: await listAssistants(apiKey, isOrgContext),
             check: await checkHiringFunds(apiKey),
             create: await createAssistant(apiKey),
             update: await updateAssistant(apiKey),

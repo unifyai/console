@@ -19,6 +19,8 @@ export interface PreHireChatMessage {
 // Assistant profile types
 export interface Assistant {
   agent_id: string;
+  user_id: string; // ID of the user who created/owns the assistant - used for permission checks
+  organization_id: number | null; // Organization ID if org assistant, null for personal - reserved for future use
   first_name: string;
   surname: string;
   profile_photo: string | null;
@@ -64,7 +66,7 @@ export interface AssistantStatus {
 }
 
 export type AssistantPreset =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'>
+  Omit<Assistant, 'agent_id' | 'user_id' | 'organization_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'email' | 'phone' | 'user_phone' | 'user_whatsapp_number' | 'assistant_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'voice_id' | 'voice_provider'>
   & {
       gender?: 'male' | 'female';
       phone_country: string;
@@ -91,7 +93,7 @@ export interface SocialAccount {
 }
 
 export type AssistantFormData =
-  Omit<Assistant, 'agent_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'voice_provider' | 'email'>
+  Omit<Assistant, 'agent_id' | 'user_id' | 'organization_id' | 'created_at' | 'updated_at' | 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' | 'profile_photo' | 'profile_video' | 'phone' | 'assistant_whatsapp_number' | 'user_whatsapp_number' | 'weekly_limit' | 'max_parallel' | 'gender' | 'voice_id' | 'voice_provider' | 'email'>
   & {
       email?: string | null;
       isEmailAdded?: boolean;

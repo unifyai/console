@@ -2,13 +2,18 @@ import { ResponseProps } from "@/types/common";
 import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
 import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
 
-export const listAssistants = async (apiKey: string) => {
+export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
         "use server";
 
         try {
+            const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
+            if (listAllOrg) {
+                url.searchParams.set('list_all_org', 'true');
+            }
+            
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant`,
+                url.toString(),
                 {
                     method: "GET",
                     headers: { apiKey: apiKey },

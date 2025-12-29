@@ -44,6 +44,10 @@ interface AssistantProfilePanelProps {
     isCallConnected: boolean;
     isConnectingCall: boolean;
     userTimezone?: string | null;
+    /** Whether the current user can edit this assistant */
+    canWrite?: boolean;
+    /** Whether the current user can delete this assistant */
+    canDelete?: boolean;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
@@ -96,6 +100,8 @@ export function AssistantProfilePanel({
     isCallConnected,
     isConnectingCall,
     userTimezone,
+    canWrite = true,
+    canDelete = true,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -140,18 +146,20 @@ export function AssistantProfilePanel({
                             <AccordionTriggerWithButtons
                                 className="text-title"
                                 buttonSlot={
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
-                                                    <PenLine className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Edit Assistant</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    canWrite ? (
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
+                                                        <PenLine className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>Edit Assistant</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ) : null
                                 }
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200 p-1'>
@@ -167,6 +175,7 @@ export function AssistantProfilePanel({
                                     assistant={assistant} 
                                     userTimezone={userTimezone}
                                     onEdit={() => onEdit(assistant)}
+                                    canWrite={canWrite}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -189,6 +198,7 @@ export function AssistantProfilePanel({
                                     assistant={assistant} 
                                     assistantActions={assistantActions} 
                                     onOpenContactManager={onOpenContactManager}
+                                    canWrite={canWrite}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -281,14 +291,16 @@ export function AssistantProfilePanel({
                     </Accordion>
                     
                     {/* Footer Action Buttons */}
-                    <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-end items-center flex-shrink-0">
-                        <AlertDialogTrigger asChild>
-                            <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
-                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
-                                End contract
-                            </Button>
-                        </AlertDialogTrigger>
-                    </div>
+                    {canDelete && (
+                        <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-end items-center flex-shrink-0">
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
+                                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
+                                    End contract
+                                </Button>
+                            </AlertDialogTrigger>
+                        </div>
+                    )}
                 </div>
 
                 {/* Alert Dialog Content */}

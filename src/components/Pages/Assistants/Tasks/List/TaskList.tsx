@@ -34,6 +34,8 @@ interface TaskListProps {
     assistants: Assistant[];
     assistantFilter: string;
     setAssistantFilter: (value: string) => void;
+    /** Function to check if user can write to a specific assistant */
+    canWriteAssistant?: (assistant: Assistant) => boolean;
 }
 
 const ListFooter = React.memo(({ isLoadingMore }: { isLoadingMore: boolean }) => {
@@ -70,6 +72,7 @@ export function TaskList({
     assistants,
     assistantFilter,
     setAssistantFilter,
+    canWriteAssistant,
 }: TaskListProps) {
 
     const virtuosoRef = React.useRef(null);
@@ -83,6 +86,7 @@ export function TaskList({
     const renderTaskItem = React.useCallback((index: number, task: Task) => {
         const assistant = assistants.find(a => a.agent_id === task.assistant_id);
         if (!assistant) return null; // Don't render a task if its assistant isn't found
+        const canEditTask = canWriteAssistant ? canWriteAssistant(assistant) : true;
         return (
             <MemoizedTaskListItem
                 key={task.task_id} 
@@ -90,9 +94,10 @@ export function TaskList({
                 assistant={assistant}
                 updateTask={updateTask}
                 onTaskUpdate={onTaskUpdate}
+                canEditTask={canEditTask}
             />
         );
-    }, [updateTask, onTaskUpdate, assistants]); 
+    }, [updateTask, onTaskUpdate, assistants, canWriteAssistant]); 
 
     const sortedStatuses = React.useMemo(() => {
         return [...availableStatuses].sort((a, b) => {

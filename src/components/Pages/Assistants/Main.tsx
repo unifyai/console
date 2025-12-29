@@ -22,6 +22,7 @@ import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
 import { useAssistantHiringApproval } from '@/hooks/Assistants/useAssistantHiringApproval';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
+import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
@@ -108,6 +109,9 @@ export default function Main({
         assistants,
         assistantActions.assistant.status
     );
+
+    // --- Assistant Permissions ---
+    const { canHire, canWrite, canDelete } = useAssistantPermissions();
 
     // --- Task Filters & Data ---
     const {
@@ -515,6 +519,7 @@ export default function Main({
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
                         activeCallAssistantId={activeCallId}
                         onHangUp={handleHangUp}
+                        canHire={canHire}
                     />
                 </div>
 
@@ -550,6 +555,8 @@ export default function Main({
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
                                 userTimezone={userMeta.timezone}
+                                canWrite={canWrite(profileAssistant)}
+                                canDelete={canDelete(profileAssistant)}
                             />
                         </motion.div>,
                         <motion.div
@@ -588,6 +595,7 @@ export default function Main({
                         assistants={assistants}
                         assistantFilter={assistantFilter}
                         setAssistantFilter={setAssistantFilter}
+                        canWriteAssistant={canWrite}
                     />
                 </div>
             </div>
@@ -696,6 +704,7 @@ export default function Main({
                         availableSocialPlatforms={availableSocialPlatforms}
                         onSuccess={handleUpdateSuccess}
                         initialTab={contactManagerInitialTab}
+                        canWrite={canWrite(contactManagerAssistant)}
                     />
                 )}
             </FormProvider>

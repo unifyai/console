@@ -15,6 +15,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     }
     const userName = `${user.name}${user.lastName}`;
     const apiKey = user.apiKey;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
@@ -31,7 +32,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
         }
     };
 
-    const listAssistantsAction = await listAssistants(apiKey);
+    const listAssistantsAction = await listAssistants(apiKey, isOrgContext);
     const assistantsResult = await listAssistantsAction();
 
     if ('detail' in assistantsResult) {
