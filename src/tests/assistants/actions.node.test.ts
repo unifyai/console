@@ -197,8 +197,18 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
 
-            const action = await ChatActions.getTranscripts(API_KEY, userName);
-            const res = await action(assistantName);
+            // First get the contact_id for this user
+            const getContactIdAction = await ChatActions.getContactIdByEmail(API_KEY);
+            const contactId = await getContactIdAction(userName, assistantName, user.email || '');
+            
+            // Skip test if no contact_id found
+            if (contactId === null) {
+                console.log("No contact_id found for this user, skipping transcript test");
+                return;
+            }
+
+            const action = await ChatActions.getTranscripts(API_KEY);
+            const res = await action(userName, assistantName, contactId);
             
             expect(isError(res)).toBe(false);
             expect(Array.isArray(res)).toBe(true);

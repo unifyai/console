@@ -21,6 +21,8 @@ export interface Assistant {
   agent_id: string;
   user_id: string; // ID of the user who created/owns the assistant - used for permission checks
   organization_id: number | null; // Organization ID if org assistant, null for personal - reserved for future use
+  user_first_name?: string | null; // Owner's first name - used for transcript context resolution
+  user_last_name?: string | null; // Owner's last name - used for transcript context resolution
   first_name: string;
   surname: string;
   profile_photo: string | null;
@@ -303,8 +305,10 @@ export interface AssistantActions {
     design: (payload: VoiceDesignCreateFromPreviewRequest) => Promise<(Voice & {info?: string; is_preset?: boolean}) | ResponseProps>;
     },
     "chat": {
-        getTranscripts: (assistantContext: string, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
+        getContactId: (ownerContext: string, assistantContext: string, userEmail: string) => Promise<number | null>;
+        getTranscripts: (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
         message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
+        getAssistantOwnerById: (userId: string) => Promise<{ firstName: string; lastName: string } | null>;
     },
     "contact": {
     delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;

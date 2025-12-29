@@ -76,6 +76,7 @@ interface AssistantProfileChatPanelProps {
     assistantActions: Pick<AssistantActions, 'chat'>;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    userEmail: string | null | undefined;
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
@@ -86,6 +87,7 @@ export function AssistantProfileChatPanel({
     assistantActions,
     chatHistories,
     setChatHistories,
+    userEmail,
     isFirstView,
     preHireChat,
     onFirstViewCompleted,
@@ -108,12 +110,14 @@ export function AssistantProfileChatPanel({
         hasMoreMessages,
         isLoadingMore,
         loadMoreError,
-        hasFetchedHistory
+        hasFetchedHistory,
+        canChat,
     } = useAssistantProfileChat(
         assistant,
         assistantActions,
         chatHistories,
         setChatHistories,
+        userEmail,
         isFirstView,
         preHireChat,
         onFirstViewCompleted
@@ -223,7 +227,14 @@ export function AssistantProfileChatPanel({
                 ref={scrollAreaRef}
                 data-testid="chat-scroll-area"
             >
-                {initialLoadError ? (
+                {!canChat ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground animate-fade-in">
+                        <div className="text-center space-y-1">
+                            <p className="text-sm font-medium">Chat is not available</p>
+                            <p className="text-xs opacity-80">You may not have permission to chat with this assistant</p>
+                        </div>
+                    </div>
+                ) : initialLoadError ? (
                     <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground animate-fade-in">
                         <div className="text-center space-y-1">
                             <p className="text-sm font-medium">Failed to load chat history</p>
@@ -308,10 +319,10 @@ export function AssistantProfileChatPanel({
                     <Textarea
                         ref={textareaRef}
                         rows={1}
-                        placeholder={initialLoadError ? "Connection failed" : isLoading ? "Loading messages..." : "Send a message..."}
+                        placeholder={!canChat ? "Chat disabled" : initialLoadError ? "Connection failed" : isLoading ? "Loading messages..." : "Send a message..."}
                         value={inputValue}
                         onChange={handleInputChange}
-                        disabled={isLoading || initialLoadError || connectionStatus !== 'connected'}
+                        disabled={!canChat || isLoading || initialLoadError || connectionStatus !== 'connected'}
                         className="pr-10 resize-none overflow-y-hidden text-body min-h-[36px]"
                         autoComplete="off"
                         onKeyDown={sendMessageOnEnter}
@@ -322,7 +333,7 @@ export function AssistantProfileChatPanel({
                         aria-label="Send message"
                         size="icon"
                         className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                        disabled={isLoading || !inputValue.trim() || initialLoadError || connectionStatus !== 'connected'}
+                        disabled={!canChat || isLoading || !inputValue.trim() || initialLoadError || connectionStatus !== 'connected'}
                     >
                         {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

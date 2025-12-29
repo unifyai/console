@@ -10,6 +10,7 @@ export function useAssistantProfileChat(
     assistantActions: Pick<AssistantActions, 'chat'>,
     chatHistories: Record<string, ChatMessage[]>,
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
+    userEmail: string | null | undefined,
     isFirstView?: boolean,
     preHireChat?: ChatMessage[],
     onFirstViewCompleted?: () => void,
@@ -37,6 +38,19 @@ export function useAssistantProfileChat(
     const fetchInitiatedRef = React.useRef<Set<string>>(new Set());
     const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
 
+    // Contact ID caching and chat permission state
+    const [contactIdCache, setContactIdCache] = React.useState<Map<string, number>>(new Map());
+    const [canChat, setCanChat] = React.useState<boolean>(true);
+    
+    // Owner context cache: maps assistant_id -> owner context string
+    const ownerContextCacheRef = React.useRef<Map<string, string>>(new Map());
+
+    // Get the current user's contact_id for the active assistant
+    const currentContactId = React.useMemo(() => {
+        if (!assistantId) return null;
+        return contactIdCache.get(assistantId) ?? null;
+    }, [assistantId, contactIdCache]);
+
     // Reset UI state when assistant changes
     React.useEffect(() => {
         setHasMoreMessages(true);
@@ -44,6 +58,8 @@ export function useAssistantProfileChat(
         setLoadMoreError(false);
         setInitialLoadError(false);
         setHistoryLoadedForAssistantId(null);
+        // Reset canChat - will be determined during initialization
+        setCanChat(true);
     }, [assistantId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -90,14 +106,97 @@ export function useAssistantProfileChat(
         }
     }, []);
 
-    // Initial transcripts fetching logic
-    // Treats API error response (e.g. 500) as a blocking error to prevent SSE connection
+    /**
+     * Resolves the owner context string from an assistant.
+     * Uses user_first_name/user_last_name if available.
+     * Falls back to fetching user details via getAssistantOwnerById if names are missing.
+     * Caches results to avoid repeated lookups.
+     */
+    const resolveOwnerContext = React.useCallback(async (currentAssistant: Assistant): Promise<string | null> => {
+        // Check cache first
+        const cached = ownerContextCacheRef.current.get(currentAssistant.agent_id);
+        if (cached) return cached;
+
+        // Try direct names from assistant object
+        if (currentAssistant.user_first_name && currentAssistant.user_last_name) {
+            const context = `${currentAssistant.user_first_name}${currentAssistant.user_last_name}`;
+            ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+            return context;
+        }
+
+        // Fallback: fetch user details via server action
+        if (currentAssistant.user_id) {
+            try {
+                const userDetails = await assistantActions.chat.getAssistantOwnerById(currentAssistant.user_id);
+                if (userDetails && userDetails.firstName) {
+                    const context = `${userDetails.firstName}${userDetails.lastName || ''}`;
+                    ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
+                    return context;
+                }
+            } catch (error) {/* no-op */}
+        }
+
+        return null;
+    }, [assistantActions.chat]);
+
+    /**
+     * Initializes chat for an assistant:
+     * 1. Resolves owner context (uses user_first_name/user_last_name from assistant, or falls back to getAssistantOwnerById)
+     * 2. Looks up user's contact_id
+     * 3. Fetches transcripts if contact_id found
+     * 4. Sets canChat=false if contact_id not found
+     */
     const fetchInitialHistory = React.useCallback(async (currentAssistantId: string, currentAssistant: Assistant) => {
         setIsInitialLoading(true);
         setInitialLoadError(false);
-        const context = `${currentAssistant.first_name}${currentAssistant.surname}`;
+
+        // Check if we already have a cached contact_id
+        const cachedContactId = contactIdCache.get(currentAssistantId);
+        
+        // Resolve owner context (async with fallback)
+        const ownerContext = await resolveOwnerContext(currentAssistant);
+        if (!ownerContext) {
+            setCanChat(false);
+            setIsInitialLoading(false);
+            setInitialLoadError(true);
+            return;
+        }
+
+        const assistantContext = `${currentAssistant.first_name}${currentAssistant.surname}`;
+
         try {
-            const historyResult = await assistantActions.chat.getTranscripts(context);
+            let contactId: number;
+
+            // Lookup contact_id if not cached
+            if (cachedContactId !== undefined) {
+                contactId = cachedContactId;
+            } else {
+                if (!userEmail) {
+                    setCanChat(false);
+                    setIsInitialLoading(false);
+                    setInitialLoadError(true);
+                    return;
+                }
+
+                const lookedUpContactId = await assistantActions.chat.getContactId(ownerContext, assistantContext, userEmail);
+                
+                if (lookedUpContactId === null) {
+                    // User not in contacts - cannot chat with this assistant
+                    setCanChat(false);
+                    setIsInitialLoading(false);
+                    setChatHistories(prev => ({ ...prev, [currentAssistantId]: [] }));
+                    setHistoryLoadedForAssistantId(currentAssistantId);
+                    return;
+                }
+
+                contactId = lookedUpContactId;
+                // Cache the contact_id
+                setContactIdCache(prev => new Map(prev).set(currentAssistantId, contactId));
+            }
+
+            // Fetch transcripts with the contact_id
+            const historyResult = await assistantActions.chat.getTranscripts(ownerContext, assistantContext, contactId);
+            
             if ('detail' in historyResult) {
                 setInitialLoadError(true);
             } else {
@@ -107,6 +206,7 @@ export function useAssistantProfileChat(
                 if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
                     setHasMoreMessages(false);
                 }
+                setCanChat(true);
                 setHistoryLoadedForAssistantId(currentAssistantId); // Enable SSE
             }
         } catch (error) {
@@ -114,7 +214,7 @@ export function useAssistantProfileChat(
         } finally {
             setIsInitialLoading(false);
         }
-    }, [assistantActions.chat, recordTranscriptTimestamp, setChatHistories]);
+    }, [assistantActions.chat, recordTranscriptTimestamp, setChatHistories, userEmail, contactIdCache, resolveOwnerContext]);
 
     // Initial loading
     React.useEffect(() => {
@@ -137,9 +237,32 @@ export function useAssistantProfileChat(
             fetchInitiatedRef.current.add(assistantId);
             fetchInitialHistory(assistantId, assistant);
         } else {
+            // History already initialized - ensure contactId is also resolved
             if (!transcriptCutoffsRef.current[assistantId] && chatHistories[assistantId]?.length > 0) {
                  transcriptCutoffsRef.current[assistantId] = 0;
             }
+            
+            // If contactId isn't cached, we need to resolve it before enabling SSE
+            const cachedContactId = contactIdCache.get(assistantId);
+            if (cachedContactId === undefined && userEmail) {
+                // Resolve contactId asynchronously
+                (async () => {
+                    const ownerContext = await resolveOwnerContext(assistant);
+                    if (!ownerContext) {
+                        setCanChat(false);
+                        return;
+                    }
+                    const assistantContext = `${assistant.first_name}${assistant.surname}`;
+                    const contactId = await assistantActions.chat.getContactId(ownerContext, assistantContext, userEmail);
+                    if (contactId === null) {
+                        setCanChat(false);
+                    } else {
+                        setContactIdCache(prev => new Map(prev).set(assistantId, contactId));
+                        setCanChat(true);
+                    }
+                })();
+            }
+            
             if (historyLoadedForAssistantId !== assistantId) {
                 setHistoryLoadedForAssistantId(assistantId);
             }
@@ -148,7 +271,7 @@ export function useAssistantProfileChat(
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted]);
+    }, [assistantId, isFirstView, preHireChat, onFirstViewCompleted, userEmail, contactIdCache, resolveOwnerContext, assistantActions.chat]);
 
     const retryInitialLoad = () => {
         if (assistantId && assistant) {
@@ -158,18 +281,31 @@ export function useAssistantProfileChat(
 
     // Pagination: Load more messages
     const loadMoreMessages = async () => {
-        if (isLoadingMore || !hasMoreMessages || !assistant || !assistantId) return;
+        if (isLoadingMore || !hasMoreMessages || !assistant || !assistantId || !canChat) return;
+        
+        const contactId = contactIdCache.get(assistantId);
+        if (contactId === undefined) {
+            return;
+        }
+
         const oldestMessage = messages[0];
         if (!oldestMessage || oldestMessage.message_id === undefined) {
             setHasMoreMessages(false);
             return;
         }
         
+        // Use cached owner context (should be available since initial load succeeded)
+        const ownerContext = await resolveOwnerContext(assistant);
+        if (!ownerContext) {
+            setLoadMoreError(true);
+            return;
+        }
+
         setLoadMoreError(false);
         setIsLoadingMore(true);
-        const context = `${assistant.first_name}${assistant.surname}`; 
+        const assistantContext = `${assistant.first_name}${assistant.surname}`; 
         try {
-            const result = await assistantActions.chat.getTranscripts(context, oldestMessage.message_id);
+            const result = await assistantActions.chat.getTranscripts(ownerContext, assistantContext, contactId, oldestMessage.message_id);
             setHasFetchedHistory(true);
             if ('detail' in result) {
                 setLoadMoreError(true);
@@ -224,9 +360,13 @@ export function useAssistantProfileChat(
         };
     }, [assistantId, setChatHistories]);
 
-    // PubSub SSE Connection
+    // PubSub SSE Connection with contact_id filtering
     React.useEffect(() => {
-        if (!assistantId || historyLoadedForAssistantId !== assistantId) return;
+        if (!assistantId || historyLoadedForAssistantId !== assistantId || !canChat) return;
+
+        const userContactId = contactIdCache.get(assistantId);
+        // If we don't have a contact_id, we shouldn't be connecting to SSE
+        if (userContactId === undefined) return;
 
         setConnectionStatus('connecting');
         const eventSource = new EventSource(`/api/assistant/${assistantId}/events`);
@@ -248,6 +388,13 @@ export function useAssistantProfileChat(
             try {
                 const messagePayload: any = JSON.parse(event.data);
                 const ackId = messagePayload.__ackId;
+
+                // Filter by contact_id: only display and ACK messages for this user
+                const messageContactId = messagePayload.contact_id;
+                if (messageContactId !== undefined && messageContactId !== userContactId) {
+                    // Message is not for this user - don't ACK, let it be redelivered
+                    return;
+                }
 
                 // Check if message is older than the API Transcript
                 // If message is strictly older than what we loaded from the API, it's a zombie.
@@ -314,7 +461,7 @@ export function useAssistantProfileChat(
             stopReplying();
             eventSource.close();
         };
-    }, [assistantId, setChatHistories, stopReplying, historyLoadedForAssistantId]);
+    }, [assistantId, setChatHistories, stopReplying, historyLoadedForAssistantId, canChat, contactIdCache]);
 
     // Acknowledge displayed messages and cleanup __ackId from acknowledged messages
     // This only runs in the tab that successfully received the SSE message with the __ackId
@@ -342,10 +489,16 @@ export function useAssistantProfileChat(
         });
     }, [messages, assistantId, setChatHistories]);
 
-    // Send message
+    // Send message with contact_id
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputValue.trim() || isInitialLoading || initialLoadError || !assistant || !assistantId) return;
+        if (!inputValue.trim() || isInitialLoading || initialLoadError || !assistant || !assistantId || !canChat) return;
+
+        const contactId = contactIdCache.get(assistantId);
+        if (contactId === undefined) {
+            toast.error("Cannot send message: not connected to assistant");
+            return;
+        }
 
         clearTimers();
 
@@ -379,10 +532,10 @@ export function useAssistantProfileChat(
         channel.postMessage(payload);
         channel.close();
 
-        // 3. Send to Backend
+        // 3. Send to Backend with contact_id
         assistantActions.chat.message({
             assistant_id: parseInt(assistant.agent_id),
-            contact_id: 1,
+            contact_id: contactId,
             message: messageToSend
         }).then(response => {
             if (response.detail) {
@@ -413,6 +566,9 @@ export function useAssistantProfileChat(
         hasMoreMessages,
         isLoadingMore,
         loadMoreError,
-        hasFetchedHistory
+        hasFetchedHistory,
+        // Chat permission state
+        canChat,
+        currentContactId,
     };
 }

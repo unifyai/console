@@ -36,6 +36,7 @@ interface AssistantProfilePanelProps {
     onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    userEmail: string | null | undefined;
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
@@ -92,6 +93,7 @@ export function AssistantProfilePanel({
     onOpenContactManager,
     chatHistories,
     setChatHistories,
+    userEmail,
     isFirstView,
     preHireChat,
     onFirstViewCompleted,
@@ -282,6 +284,7 @@ export function AssistantProfilePanel({
                                     assistantActions={assistantActions} 
                                     chatHistories={chatHistories}
                                     setChatHistories={setChatHistories}
+                                    userEmail={userEmail}
                                     isFirstView={isFirstView}
                                     preHireChat={preHireChat}
                                     onFirstViewCompleted={onFirstViewCompleted}

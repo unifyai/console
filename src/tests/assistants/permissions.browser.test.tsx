@@ -105,6 +105,7 @@ describe('Assistant Permissions - Behavior Tests', () => {
             onOpenContactManager: vi.fn(),
             chatHistories: {},
             setChatHistories: vi.fn(),
+            userEmail: 'test@example.com',
             onStartCall: vi.fn(),
             activeCallAssistantId: null,
             isCallConnected: false,

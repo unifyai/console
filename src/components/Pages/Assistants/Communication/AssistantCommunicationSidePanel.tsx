@@ -25,6 +25,7 @@ interface AssistantCommunicationSidePanelProps {
     assistantActions?: Pick<AssistantActions, 'chat'>;
     chatHistories?: Record<string, ChatMessage[]>;
     setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    userEmail?: string | null;
     userImage?: string | null;
     assistantPhoto?: string | null;
     callType?: 'video' | 'audio' | null;
@@ -46,6 +47,7 @@ export function AssistantCommunicationSidePanel({
     assistantActions,
     chatHistories,
     setChatHistories,
+    userEmail,
     userImage,
     assistantPhoto,
     callType,
@@ -163,6 +165,7 @@ export function AssistantCommunicationSidePanel({
                         assistantActions={assistantActions}
                         chatHistories={chatHistories}
                         setChatHistories={setChatHistories}
+                        userEmail={userEmail}
                     />
                 )}
                 {panelType === 'settings' && (

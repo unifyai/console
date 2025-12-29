@@ -23,6 +23,7 @@ interface AssistantCommunicationFullScreenProps {
     user: {
         id: string;
         image: string | null | undefined;
+        email: string | null | undefined;
     };
 }
 
@@ -30,6 +31,7 @@ const FullScreenCallUI: React.FC<{
     room: Room;
     assistant: Assistant;
     userImage: string;
+    userEmail: string | null | undefined;
     callType: 'video' | 'audio' | null;
     isLoading: boolean;
     loadingMessage: string;
@@ -38,7 +40,7 @@ const FullScreenCallUI: React.FC<{
     assistantActions: AssistantActionsSubset;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
-}> = ({ room, assistant, userImage, callType, isLoading, loadingMessage, connectionError, onRetry, assistantActions, chatHistories, setChatHistories }) => {
+}> = ({ room, assistant, userImage, userEmail, callType, isLoading, loadingMessage, connectionError, onRetry, assistantActions, chatHistories, setChatHistories }) => {
     // Standard LiveKit hooks
     const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
     const { localParticipant } = useLocalParticipant();
@@ -138,6 +140,7 @@ const FullScreenCallUI: React.FC<{
                                 assistantActions={{ chat: assistantActions.chat }}
                                 chatHistories={chatHistories}
                                 setChatHistories={setChatHistories}
+                                userEmail={userEmail}
                                 userImage={userImage}
                                 assistantPhoto={assistantPhoto}
                             />
@@ -296,6 +299,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
                 room={room}
                 assistant={assistant}
                 userImage={user.image || ''}
+                userEmail={user.email}
                 callType={callData.callType}
                 isLoading={showLoadingState}
                 loadingMessage={loadingMessage}

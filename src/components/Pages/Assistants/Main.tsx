@@ -42,7 +42,7 @@ interface MainProps {
     taskActions: TaskActions;
     assistantActions: AssistantActions;
     oneTimeToken?: string | null;
-    userMeta: { image: string | null | undefined; timezone?: string | null; };
+    userMeta: { image: string | null | undefined; timezone?: string | null; email?: string | null; };
 }
 
 export default function Main({
@@ -547,6 +547,7 @@ export default function Main({
                                 onOpenContactManager={handleOpenContactManager}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
+                                userEmail={userMeta.email}
                                 isFirstView={isFirstViewAfterHire}
                                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
                                 onFirstViewCompleted={() => setNewlyHiredInfo(null)}
@@ -727,6 +728,7 @@ export default function Main({
                         chatHistories={profileChatHistories}
                         setChatHistories={setProfileChatHistories}
                         isConnecting={isConnectingCall}
+                        userEmail={userMeta.email}
                         userImage={userMeta.image}
                         isWaitingForAssistant={isWaitingForAssistant}
                         isCallConnected={isCallConnected}

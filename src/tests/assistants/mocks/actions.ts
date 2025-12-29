@@ -37,8 +37,10 @@ export const mockAssistantActions: AssistantActions = {
         design: vi.fn(async () => ({ voice_id: 'v_designed', name: 'Designed Voice', description: '', gender: 'female', language: 'en', provider: 'elevenlabs' })) 
     },
     chat: { 
-        getTranscripts: vi.fn(async (_context: string ) => []),
-        message: vi.fn(async () => ({ info: "Message sent" })) 
+        getContactId: vi.fn(async (_ownerContext: string, _assistantContext: string, _userEmail: string) => 1), // Default to owner contact_id
+        getTranscripts: vi.fn(async (_ownerContext: string, _assistantContext: string, _contactId: number, _beforeMessageId?: number) => []),
+        message: vi.fn(async () => ({ info: "Message sent" })),
+        getAssistantOwnerById: vi.fn(async (_userId: string) => ({ firstName: 'Test', lastName: 'Owner' })),
     },
     contact: { 
         delete: vi.fn(async () => ({ info: "Contact deleted", assistant: mockAssistants[0] })), 

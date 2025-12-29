@@ -25,6 +25,7 @@ interface AssistantCommunicationDialogContentProps {
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     assistantActions: AssistantActions;
     isConnecting: boolean;
+    userEmail: string | null | undefined;
     userImage: string | null | undefined;
     isWaitingForAssistant: boolean;
     connectionError: string | null;
@@ -48,6 +49,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     setChatHistories, 
     assistantActions, 
     isConnecting, 
+    userEmail,
     userImage, 
     isWaitingForAssistant, 
     connectionError, 
@@ -270,6 +272,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 assistantActions={{ chat: assistantActions.chat }}
                                 chatHistories={chatHistories}
                                 setChatHistories={setChatHistories}
+                                userEmail={userEmail}
                                 userImage={userImage}
                                 assistantPhoto={assistantPhoto}
                                 callType={callType}
@@ -311,6 +314,7 @@ interface AssistantCommunicationDialogProps {
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isConnecting: boolean;
+    userEmail: string | null | undefined;
     userImage: string | null | undefined;
     isWaitingForAssistant: boolean;
     connectionError: string | null;
@@ -336,6 +340,7 @@ export function AssistantCommunicationDialog({
     chatHistories,
     setChatHistories,
     isConnecting,
+    userEmail,
     userImage,
     isWaitingForAssistant,
     connectionError,
@@ -368,6 +373,7 @@ export function AssistantCommunicationDialog({
                     setChatHistories={setChatHistories}
                     assistantActions={assistantActions}
                     isConnecting={isConnecting}
+                    userEmail={userEmail}
                     userImage={userImage}
                     isWaitingForAssistant={isWaitingForAssistant}
                     connectionError={connectionError}

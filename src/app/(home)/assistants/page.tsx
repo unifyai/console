@@ -7,7 +7,7 @@ import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
-import { getTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { getTranscripts, messageAssistant, getContactIdByEmail, getAssistantOwnerById } from "@/lib/assistants/chat";
 import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
@@ -59,8 +59,10 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             design: await designVoiceCreateFromPreview(apiKey),
         },
         "chat": {
-            getTranscripts: await getTranscripts(apiKey, userName),
+            getContactId: await getContactIdByEmail(apiKey),
+            getTranscripts: await getTranscripts(apiKey),
             message: await messageAssistant(apiKey),
+            getAssistantOwnerById: await getAssistantOwnerById(),
         },
         "contact": {
             delete: await deleteAssistantContact(apiKey),
@@ -95,7 +97,7 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
         update: await updateTask(apiKey, userName),
     }
 
-    const userMeta = { image: user.image, timezone: user.timezone };
+    const userMeta = { image: user.image, timezone: user.timezone, email: user.email };
 
     return (
         <div className="w-full h-full">

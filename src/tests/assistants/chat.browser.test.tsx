@@ -9,6 +9,20 @@ import { AssistantActions, Assistant } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 
+/**
+ * Helper to create mock chat actions with the new signature.
+ * getContactId returns 1 (owner) by default.
+ * getTranscripts returns messages based on the provided mock function.
+ */
+const createMockChatActions = (
+    getTranscriptsMock?: (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => Promise<ChatMessage[] | { detail: string }>,
+    messageMock?: (payload: any) => Promise<{ info?: string; detail?: string }>
+) => ({
+    getContactId: vi.fn(async () => 1), // Default: owner contact_id
+    getTranscripts: getTranscriptsMock ? vi.fn(getTranscriptsMock) : vi.fn(async () => []),
+    message: messageMock ? vi.fn(messageMock) : vi.fn(async () => ({ info: "Message sent" })),
+});
+
 // --- Mock EventSource Infrastructure ---
 const originalEventSource = window.EventSource;
 let mockEventSourceInstance: ControllableMockEventSource | null = null;
@@ -82,7 +96,7 @@ class ControllableBroadcastChannel {
 
 // --- Helper: Real Fetch Implementation for Tests ---
 // This mimics the server action src/lib/assistants/chat.ts to hit the MSW handlers
-const fetchTranscriptsViaApi = async (assistantContext: string, beforeMessageId?: number): Promise<ChatMessage[] | any> => {
+const fetchTranscriptsViaApi = async (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number): Promise<ChatMessage[] | any> => {
     const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
     let filter_expr = `medium == "unify_chat" and (sender_id == 1 or sender_id == 0)`;
     if (beforeMessageId !== undefined) {
@@ -167,6 +181,7 @@ const ChatTestWrapper = ({
             onOpenContactManager={vi.fn()}
             chatHistories={histories}
             setChatHistories={setHistories}
+            userEmail="test@example.com"
             onStartCall={vi.fn()}
             activeCallAssistantId={null}
             isCallConnected={false}
@@ -211,15 +226,20 @@ describe('Assistant Profile Chat', () => {
         }, async () => {
             const failActions = {
                 chat: {
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: vi.fn(async () => []),
                     message: vi.fn(async () => {
                         await new Promise(r => setTimeout(r, 50));
                         throw new Error('Simulated Network Fail');
-                    })
+                    }),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 }
             };
 
-            render(<ChatTestWrapper initialHistory={[]} assistantActionsOverride={failActions} />);
+            render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={failActions} />);
+            
+            // Wait for async initialization (contact lookup) to complete and SSE to connect
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const user = userEvent.setup();
@@ -253,7 +273,8 @@ describe('Assistant Profile Chat', () => {
             } 
         }, async () => {
             vi.useFakeTimers();
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const input = screen.getByRole('textbox');
@@ -292,7 +313,8 @@ describe('Assistant Profile Chat', () => {
             } 
         }, async () => {
             vi.useFakeTimers();
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const input = screen.getByRole('textbox');
@@ -321,7 +343,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Both messages render correctly without crashing or overwriting'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
             const user = userEvent.setup();
             
@@ -366,8 +389,10 @@ describe('Assistant Profile Chat', () => {
 
             const slowFetchActions = {
                 chat: {
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: vi.fn(() => fetchPromise),
-                    message: vi.fn(async () => ({}))
+                    message: vi.fn(async () => ({})),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 }
             };
 
@@ -403,7 +428,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Message is rendered only once (stable state)'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
             
             act(() => {
@@ -443,7 +469,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Only messages with correct thread ID are rendered'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             act(() => {
@@ -475,7 +502,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: `All ${ASSISTANT_CHAT_LOADED_MESSAGES_COUNT} messages are rendered in order`
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const messageCount = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
@@ -550,7 +578,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'ACK API is called with the token'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const ackId = 'ack-token-xyz';
@@ -587,7 +616,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'API is called for each individual ACK token'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const msg1 = {
@@ -623,7 +653,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'ACK API is not called again'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             act(() => {
@@ -727,8 +758,10 @@ describe('Assistant Profile Chat', () => {
             const getTranscriptsMock = vi.fn(async () => [msgA]);
             const actionsOverride = {
                 chat: {
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(async () => ({})),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 }
             };
 
@@ -870,7 +903,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Second message is ignored as potential echo'
             } 
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             // 1. First message (No ID)
@@ -997,7 +1031,7 @@ describe('Assistant Profile Chat', () => {
                 return [];
             });
 
-            const actionsOverride = { chat: { getTranscripts: getTranscriptsMock, message: vi.fn() } };
+            const actionsOverride = { chat: { getContactId: vi.fn(async () => 1), getTranscripts: getTranscriptsMock, message: vi.fn(), getAssistantOwnerById: vi.fn(async () => null) } };
 
             const { rerender } = render(
                 <ChatTestWrapper
@@ -1084,8 +1118,10 @@ describe('Assistant Profile Chat', () => {
 
             const actionsOverride = {
                 chat: {
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 }
             };
 
@@ -1118,7 +1154,7 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Older messages are fetched and prepended'
             }
         }, async () => {
-            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            const apiOverride = { chat: { getContactId: vi.fn(async () => 1), getTranscripts: fetchTranscriptsViaApi, message: vi.fn(), getAssistantOwnerById: vi.fn(async () => null) } };
             
             // 1. Initial Render (loads first messages: IDs 75 -> 26)
             render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
@@ -1155,7 +1191,7 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'End of history indicator is shown'
             }
         }, async () => {
-            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            const apiOverride = { chat: { getContactId: vi.fn(async () => 1), getTranscripts: fetchTranscriptsViaApi, message: vi.fn(), getAssistantOwnerById: vi.fn(async () => null) } };
             render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
 
             // Wait for first batch
@@ -1188,7 +1224,7 @@ describe('Assistant Profile Chat', () => {
         }, async () => {
             // Use specific assistant name to trigger handler error (logic inside handlers.ts)
             const failAssistant = createMockAssistant({ first_name: 'FailPagination', surname: 'Test' });
-            const apiOverride = { chat: { getTranscripts: fetchTranscriptsViaApi } };
+            const apiOverride = { chat: { getContactId: vi.fn(async () => 1), getTranscripts: fetchTranscriptsViaApi, message: vi.fn(), getAssistantOwnerById: vi.fn(async () => null) } };
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
             render(<ChatTestWrapper initialHistory={undefined} assistantOverride={failAssistant} assistantActionsOverride={apiOverride} />);
@@ -1233,7 +1269,7 @@ describe('Assistant Profile Chat', () => {
             ] as ChatMessage[];
             
             let paginationAttempt = 0;
-            const getTranscriptsMock = vi.fn(async (context: string, beforeMessageId?: number) => {
+            const getTranscriptsMock = vi.fn(async (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => {
                 // Initial Load
                 if (beforeMessageId === undefined) {
                      return Array.from({ length: 50 }, (_, i) => ({
@@ -1253,7 +1289,7 @@ describe('Assistant Profile Chat', () => {
                 return successMessages;
             });
 
-            const apiOverride = { chat: { getTranscripts: getTranscriptsMock } };
+            const apiOverride = { chat: { getContactId: vi.fn(async () => 1), getTranscripts: getTranscriptsMock, message: vi.fn(), getAssistantOwnerById: vi.fn(async () => null) } };
 
             render(<ChatTestWrapper initialHistory={undefined} assistantActionsOverride={apiOverride} />);
 
@@ -1310,8 +1346,10 @@ describe('Assistant Profile Chat', () => {
 
             const actionsOverride = {
                 chat: {
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: getTranscriptsMock,
                     message: vi.fn(),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 }
             };
 
@@ -1372,8 +1410,10 @@ describe('Assistant Profile Chat', () => {
             const actionsOverride = { 
                 ...mockAssistantActions,
                 chat: { 
+                    getContactId: vi.fn(async () => 1),
                     getTranscripts: getTranscriptsMock, 
-                    message: vi.fn() 
+                    message: vi.fn(),
+                    getAssistantOwnerById: vi.fn(async () => null),
                 } 
             };
             const TransitionContainer = () => {
@@ -1385,6 +1425,7 @@ describe('Assistant Profile Chat', () => {
                         assistantActions={actionsOverride}
                         chatHistories={histories}
                         setChatHistories={setHistories}
+                        userEmail="test@example.com"
                         isFirstView={isFirstView}
                         preHireChat={isFirstView ? [greetingMsg] : undefined}
                         onFirstViewCompleted={() => setIsFirstView(false)}
@@ -1455,7 +1496,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Message is posted to BroadcastChannel'
             }
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
             const user = userEvent.setup();
 
@@ -1533,7 +1575,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Tab A broadcasts the message to Tab B'
             }
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             // Simulate incoming SSE message
@@ -1577,7 +1620,8 @@ describe('Assistant Profile Chat', () => {
                 behavior: 'Broadcasted message does NOT contain ackId'
             }
         }, async () => {
-            render(<ChatTestWrapper initialHistory={[]} />);
+            render(<ChatTestWrapper initialHistory={undefined} />);
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
             act(() => mockEventSourceInstance!.simulateOpen());
 
             const sseMessageWithAck = {
@@ -1637,6 +1681,609 @@ describe('Assistant Profile Chat', () => {
             // 4. Verify NO outgoing broadcast was triggered
             const postingChannels = mockBroadcastChannels.filter(c => c.postMessage.mock.calls.length > 0);
             expect(postingChannels.length).toBe(0);
+        });
+    });
+
+    // =========================================================================
+    // SECTION F: OWNER CONTEXT RESOLUTION
+    // =========================================================================
+    describe('F - Owner Context Resolution', () => {
+        it('uses user_first_name and user_last_name from assistant when available', {
+            meta: {
+                alias: 'Context-Direct',
+                scenario: 'Assistant has user_first_name and user_last_name fields populated',
+                behavior: 'getTranscripts is called with correct ownerContext path'
+            }
+        }, async () => {
+            const getTranscriptsMock = vi.fn(async () => []);
+            const getContactIdMock = vi.fn(async () => 1);
+            
+            const assistantWithOwnerNames = createMockAssistant({
+                agent_id: 'owner-context-test',
+                first_name: 'Ada',
+                surname: 'Lovelace',
+                user_first_name: 'John',
+                user_last_name: 'Doe',
+                user_id: 'user-123'
+            });
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantWithOwnerNames}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null), // Should NOT be called
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(getContactIdMock).toHaveBeenCalledWith(
+                    'JohnDoe', // ownerContext from user_first_name + user_last_name
+                    'AdaLovelace', // assistantContext
+                    'test@example.com' // userEmail
+                );
+            });
+
+            await waitFor(() => {
+                expect(getTranscriptsMock).toHaveBeenCalledWith(
+                    'JohnDoe', // ownerContext
+                    'AdaLovelace', // assistantContext
+                    1, // contactId returned by getContactIdMock
+                    undefined // beforeMessageId
+                );
+            });
+        });
+
+        it('falls back to getAssistantOwnerById when user names are missing', {
+            meta: {
+                alias: 'Context-Fallback',
+                scenario: 'Assistant is missing user_first_name/user_last_name',
+                behavior: 'getAssistantOwnerById is called with user_id to resolve owner context'
+            }
+        }, async () => {
+            const getTranscriptsMock = vi.fn(async () => []);
+            const getContactIdMock = vi.fn(async () => 1);
+            const getAssistantOwnerByIdMock = vi.fn(async () => ({ firstName: 'Jane', lastName: 'Smith' }));
+            
+            const assistantWithoutOwnerNames = createMockAssistant({
+                agent_id: 'fallback-context-test',
+                first_name: 'Ada',
+                surname: 'Lovelace',
+                user_first_name: null,
+                user_last_name: null,
+                user_id: 'owner-user-456'
+            });
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantWithoutOwnerNames}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: getAssistantOwnerByIdMock,
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(getAssistantOwnerByIdMock).toHaveBeenCalledWith('owner-user-456');
+            });
+
+            await waitFor(() => {
+                expect(getContactIdMock).toHaveBeenCalledWith(
+                    'JaneSmith', // ownerContext from getAssistantOwnerById result
+                    'AdaLovelace',
+                    'test@example.com'
+                );
+            });
+        });
+
+        it('sets canChat=false when owner context cannot be resolved', {
+            meta: {
+                alias: 'Context-Unresolvable',
+                scenario: 'Assistant has no user names and getAssistantOwnerById returns null',
+                behavior: 'Chat is disabled with error message'
+            }
+        }, async () => {
+            const getAssistantOwnerByIdMock = vi.fn(async () => null);
+            
+            const assistantUnresolvable = createMockAssistant({
+                agent_id: 'unresolvable-context-test',
+                first_name: 'Ada',
+                surname: 'Lovelace',
+                user_first_name: null,
+                user_last_name: null,
+                user_id: 'unknown-user'
+            });
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistantUnresolvable}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: vi.fn(async () => 1),
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: getAssistantOwnerByIdMock,
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByText('Chat is not available')).toBeInTheDocument();
+            });
+        });
+    });
+
+    // =========================================================================
+    // SECTION G: CONTACT ID LOOKUP AND CHAT PERMISSIONS
+    // =========================================================================
+    describe('G - Contact ID Lookup and Permissions', () => {
+        it('calls getContactId with correct parameters on init', {
+            meta: {
+                alias: 'ContactId-Init',
+                scenario: 'Chat panel opens for an assistant',
+                behavior: 'getContactId is called with ownerContext, assistantContext, and userEmail'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => 2);
+            
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(getContactIdMock).toHaveBeenCalled();
+                const callArgs = getContactIdMock.mock.calls[0] as unknown as [string, string, string];
+                expect(callArgs[0]).toBe('TestOwner'); // ownerContext from mock data
+                expect(callArgs[1]).toBe('StressTest'); // assistantContext: first_name + surname
+                expect(callArgs[2]).toBe('test@example.com'); // userEmail
+            });
+        });
+
+        it('disables chat when getContactId returns null', {
+            meta: {
+                alias: 'ContactId-NoAccess',
+                scenario: 'User is not in assistant contacts table',
+                behavior: 'Chat is disabled with appropriate message'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => null); // User not found
+            
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByText('Chat is not available')).toBeInTheDocument();
+                expect(screen.getByText(/may not have permission/i)).toBeInTheDocument();
+            });
+
+            // Input should be disabled
+            const input = screen.getByRole('textbox');
+            expect(input).toBeDisabled();
+        });
+
+        it('caches contactId and does not refetch on re-render', {
+            meta: {
+                alias: 'ContactId-Cache',
+                scenario: 'User switches away and back to the same assistant',
+                behavior: 'getContactId is only called once per assistant'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => 1);
+            const getTranscriptsMock = vi.fn(async () => []);
+            
+            const assistant = createMockAssistant({ agent_id: 'cache-test-id', first_name: 'Cache', surname: 'Test' });
+
+            const { rerender } = render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistant}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => expect(getContactIdMock).toHaveBeenCalledTimes(1));
+
+            // Re-render same component (no key change = same instance, cached state preserved)
+            rerender(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantOverride={assistant}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            // getContactId should still have been called only once (cache hit)
+            await new Promise(r => setTimeout(r, 100));
+            expect(getContactIdMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('passes contactId to getTranscripts', {
+            meta: {
+                alias: 'ContactId-Transcripts',
+                scenario: 'Chat loads transcripts',
+                behavior: 'getTranscripts is called with the resolved contactId'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => 42); // Custom contact_id
+            const getTranscriptsMock = vi.fn(async () => []);
+            
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(getTranscriptsMock).toHaveBeenCalled();
+                const callArgs = getTranscriptsMock.mock.calls[0] as unknown as [string, string, number, number | undefined];
+                expect(callArgs[2]).toBe(42); // contactId is 3rd argument
+            });
+        });
+    });
+
+    // =========================================================================
+    // SECTION H: MESSAGE SENDING WITH CONTACT_ID
+    // =========================================================================
+    describe('H - Message Sending with Contact ID', () => {
+        it('includes contactId in message payload', {
+            meta: {
+                alias: 'Send-ContactId',
+                scenario: 'User sends a message',
+                behavior: 'Message payload includes the correct contact_id'
+            }
+        }, async () => {
+            const messageMock = vi.fn(async () => ({ info: 'sent' }));
+            const getContactIdMock = vi.fn(async () => 7); // Custom contact_id
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: messageMock,
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+            
+            // Wait for async initialization to complete and SSE to connect
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            const user = userEvent.setup();
+            const input = await screen.findByRole('textbox');
+            await waitFor(() => expect(input).not.toBeDisabled());
+
+            await user.type(input, 'Hello with contact_id');
+            await user.keyboard('{Enter}');
+
+            await waitFor(() => {
+                expect(messageMock).toHaveBeenCalled();
+                const callArgs = messageMock.mock.calls[0] as unknown as [{ assistant_id: number; contact_id: number; message: string }];
+                expect(callArgs[0]).toMatchObject({
+                    assistant_id: expect.any(Number),
+                    contact_id: 7, // Should be the resolved contact_id
+                    message: 'Hello with contact_id'
+                });
+            });
+        });
+
+        it('prevents sending when contactId is not available', {
+            meta: {
+                alias: 'Send-NoContactId',
+                scenario: 'User tries to send but contactId lookup failed',
+                behavior: 'Send button is disabled'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => null);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByText('Chat is not available')).toBeInTheDocument();
+            });
+
+            const sendButton = screen.getByRole('button', { name: /send/i });
+            expect(sendButton).toBeDisabled();
+        });
+    });
+
+    // =========================================================================
+    // SECTION I: PUBSUB MESSAGE FILTERING BY CONTACT_ID
+    // =========================================================================
+    describe('I - PubSub Message Filtering', () => {
+        it('displays SSE messages that match user contactId', {
+            meta: {
+                alias: 'PubSub-Match',
+                scenario: 'SSE message arrives with matching contact_id',
+                behavior: 'Message is displayed in chat'
+            }
+        }, async () => {
+            const userContactId = 5;
+            const getContactIdMock = vi.fn(async () => userContactId);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+            
+            // Wait for async initialization to complete and SSE to connect
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // Simulate SSE message FOR this user
+            const sseMessage = {
+                thread: 'unify_message_outbound',
+                id: 'msg-for-me',
+                contact_id: userContactId, // Matches user's contact_id
+                publishTime: new Date().toISOString(),
+                event: { content: 'Message for me!' }
+            };
+
+            act(() => {
+                mockEventSourceInstance!.simulateMessage(sseMessage);
+            });
+
+            await waitFor(() => {
+                expect(screen.getByText('Message for me!')).toBeInTheDocument();
+            });
+        });
+
+        it('ignores SSE messages with different contact_id', {
+            meta: {
+                alias: 'PubSub-Ignore',
+                scenario: 'SSE message arrives with different contact_id',
+                behavior: 'Message is NOT displayed'
+            }
+        }, async () => {
+            const userContactId = 5;
+            const otherContactId = 99;
+            const getContactIdMock = vi.fn(async () => userContactId);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+            
+            // Wait for async initialization to complete and SSE to connect
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // Simulate SSE message for ANOTHER user
+            const sseMessage = {
+                thread: 'unify_message_outbound',
+                id: 'msg-for-other',
+                contact_id: otherContactId, // Different user
+                publishTime: new Date().toISOString(),
+                event: { content: 'Not for me!' }
+            };
+
+            act(() => {
+                mockEventSourceInstance!.simulateMessage(sseMessage);
+            });
+
+            // Wait a bit to ensure message processing
+            await new Promise(r => setTimeout(r, 100));
+            
+            expect(screen.queryByText('Not for me!')).not.toBeInTheDocument();
+        });
+
+        it('displays SSE messages without contact_id (legacy/broadcast)', {
+            meta: {
+                alias: 'PubSub-NoContactId',
+                scenario: 'SSE message arrives without contact_id field',
+                behavior: 'Message is displayed (backwards compatibility)'
+            }
+        }, async () => {
+            const getContactIdMock = vi.fn(async () => 5);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: getContactIdMock,
+                            getTranscripts: vi.fn(async () => []),
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+            
+            // Wait for async initialization to complete and SSE to connect
+            await waitFor(() => expect(mockEventSourceInstance).not.toBeNull());
+            act(() => mockEventSourceInstance!.simulateOpen());
+
+            // Simulate SSE message WITHOUT contact_id
+            const sseMessage = {
+                thread: 'unify_message_outbound',
+                id: 'msg-broadcast',
+                // No contact_id field
+                publishTime: new Date().toISOString(),
+                event: { content: 'Broadcast to all!' }
+            };
+
+            act(() => {
+                mockEventSourceInstance!.simulateMessage(sseMessage);
+            });
+
+            await waitFor(() => {
+                expect(screen.getByText('Broadcast to all!')).toBeInTheDocument();
+            });
+        });
+    });
+
+    // =========================================================================
+    // SECTION J: TRANSCRIPT ROLE MAPPING
+    // =========================================================================
+    describe('J - Transcript Role Mapping', () => {
+        it('maps sender_id=0 to assistant role', {
+            meta: {
+                alias: 'Role-Assistant',
+                scenario: 'Transcript log has sender_id=0 (assistant)',
+                behavior: 'Message is displayed as assistant message'
+            }
+        }, async () => {
+            const mockTranscripts: ChatMessage[] = [
+                {
+                    id: '1',
+                    role: 'assistant', // sender_id=0 maps to 'assistant'
+                    content: 'Hello from the assistant',
+                    timestamp: new Date(),
+                    message_id: 1
+                }
+            ];
+
+            const getTranscriptsMock = vi.fn(async () => mockTranscripts);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: vi.fn(async () => 1),
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                const bubble = screen.getByText('Hello from the assistant').closest('[data-testid="message-bubble"]');
+                expect(bubble).toHaveAttribute('data-role', 'assistant');
+            });
+        });
+
+        it('maps sender_id!=0 to user role', {
+            meta: {
+                alias: 'Role-User',
+                scenario: 'Transcript log has sender_id=1 or higher (human user)',
+                behavior: 'Message is displayed as user message'
+            }
+        }, async () => {
+            const mockTranscripts: ChatMessage[] = [
+                {
+                    id: '1',
+                    role: 'user', // sender_id!=0 maps to 'user'
+                    content: 'Hello from the user',
+                    timestamp: new Date(),
+                    message_id: 1
+                }
+            ];
+
+            const getTranscriptsMock = vi.fn(async () => mockTranscripts);
+
+            render(
+                <ChatTestWrapper
+                    initialHistory={undefined}
+                    assistantActionsOverride={{
+                        chat: {
+                            getContactId: vi.fn(async () => 1),
+                            getTranscripts: getTranscriptsMock,
+                            message: vi.fn(async () => ({})),
+                            getAssistantOwnerById: vi.fn(async () => null),
+                        }
+                    }}
+                />
+            );
+
+            await waitFor(() => {
+                const bubble = screen.getByText('Hello from the user').closest('[data-testid="message-bubble"]');
+                expect(bubble).toHaveAttribute('data-role', 'user');
+            });
         });
     });
 

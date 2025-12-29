@@ -10,6 +10,8 @@ export function createMockAssistant(overrides: Partial<Assistant> = {}): Assista
     agent_id: faker.string.uuid(),
     user_id: faker.string.uuid(), // ID of the user who created this assistant
     organization_id: null, // null for personal workspace assistants
+    user_first_name: 'Test', // Owner's first name for transcript context
+    user_last_name: 'Owner', // Owner's last name for transcript context
     first_name: faker.person.firstName(),
     surname: faker.person.lastName(),
     email: faker.internet.email().toLowerCase(),
