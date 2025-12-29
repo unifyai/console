@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
 
   // Update user properties in db
+  const phoneNumber = formData.get("phone_number") as string | null;
   const UserUpdateRequest: UserUpdateRequest = {
     email: formData.get("email") as string,
     user_id: id,
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest) {
     last_name: formData.get("lastName") as string,
     job_title: formData.get("jobTitle") as string,
     bio: formData.get("bio") as string,
-    timezone: formData.get("timezone") as string | null
+    timezone: formData.get("timezone") as string | null,
+    phone_number: phoneNumber === "" ? null : phoneNumber,
   };
   
   const response = await updateUser(UserUpdateRequest);

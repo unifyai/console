@@ -20,6 +20,7 @@ export interface User {
 	image: string;
 	timezone: string | null;
 	email: string;
+	phone_number: string | null;
 	createdAt: string;
 	apiKey: string;
 	stripe_customer_id: string,
@@ -56,6 +57,7 @@ export interface UserUpdateRequest {
 	job_title: string;
 	bio: string;
 	timezone?: string | null;
+	phone_number?: string | null;
 }
 
 export type BalanceDetails = {

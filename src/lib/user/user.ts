@@ -220,3 +220,52 @@ export async function updateUserImage(userID: string, image: File) {
     .file(file_name)
     .save(Buffer.from(buffer));
 }
+
+/**
+ * Sends a verification code to the user's phone number via SMS.
+ * Uses admin authentication to call the communication service.
+ * 
+ * @param phoneNumber The phone number to verify (international format, e.g., +15551234567)
+ * @returns The verification code and sent timestamp, or an error response.
+ */
+export async function verifyUserPhone(
+  phoneNumber: string
+): Promise<{ verification_code: string; sent_at: string } | { detail: string }> {
+  const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
+  const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+
+  if (!COMMUNICATION_URL || !ADMIN_KEY) {
+    console.error("[verifyUserPhone] Missing COMMUNICATION_URL or ORCHESTRA_ADMIN_KEY environment variable");
+    return { detail: "Server configuration error" };
+  }
+
+  try {
+    const response = await fetch(`${COMMUNICATION_URL}/social/verify`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${ADMIN_KEY}`,
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify({ 
+        platform: "phone", 
+        account_identifier: phoneNumber 
+      })
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      console.error(`[verifyUserPhone] Backend error (${response.status}):`, data);
+      return { detail: data?.detail || `Failed to send verification code: ${response.statusText}` };
+    }
+
+    if (data?.verification_code && data?.sent_at) {
+      return data as { verification_code: string; sent_at: string };
+    }
+
+    return { detail: "Verification succeeded but response format was unexpected." };
+  } catch (error) {
+    console.error("[verifyUserPhone] Fetch error:", error);
+    return { detail: error instanceof Error ? error.message : "Unknown error during phone verification." };
+  }
+}
