@@ -39,9 +39,9 @@ export async function getSession() {
  * @param id The ID of the user.
  * @returns The user with the given ID.
  */
-export async function getUserByID(userID: string) {
-  const response = await OrchestraAdminClient.get("/auth-user/by-id", {
-    params: { userID },
+export async function getUserByID(user_id: string) {
+  const response = await OrchestraAdminClient.get("/auth-user/by-user-id", {
+    params: { user_id },
   }) as { data: User };
   return response.data;
 }
