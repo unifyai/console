@@ -365,6 +365,9 @@ export async function GET(
     if (projectConfig.sorting) {
       logsParams.append("sorting", projectConfig.sorting as string);
     }
+    if (projectConfig.randomize) {
+      logsParams.append("randomize", String(projectConfig.randomize));
+    }
 
     const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
     const logsRes = await fetch(logsUrl, {

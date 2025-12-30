@@ -172,6 +172,8 @@ async function fetchPlotDataByTable(
     const filterExpression = plotArguments[tableName].filter_expr;
     const metric = plotArguments[tableName].metric;
     const grouping = plotArguments[tableName].grouping;
+    const limit = plotArguments[tableName].limit;
+    const randomize = plotArguments[tableName].randomize;
 
     // Get fields for this table context
     const tableFields = fields[tableTileIndex] || {};
@@ -246,8 +248,8 @@ async function fetchPlotDataByTable(
         if (columnContext) params.set('column_context', columnContext);
         if (filterExpression) params.set('filter_expr', filterExpression);
         if (subset) params.set('from_fields', subset);
-        params.set('limit', '1000');
-        params.set('randomize', 'True');
+        if (limit) params.set('limit', limit);
+        if (randomize) params.set('randomize', randomize);
 
         const logsRes = await fetch(`/api/logs?${params.toString()}`, {
           method: 'GET',

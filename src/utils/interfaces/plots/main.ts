@@ -117,7 +117,7 @@ export const drawPlot = async (
             // Draw selected plot type
             if (plotType === "Line Chart") {
                 if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    placeholder.text("");
                     const setScaleX = plotTileActions?.setPlotScaleX;
                     const setScaleY = plotTileActions?.setPlotScaleY;
                     if (!setScaleX || !setScaleY) {
@@ -156,7 +156,7 @@ export const drawPlot = async (
 
             else if (plotType === "Bar Chart") {
                 if (logs && selectedXAxisProperty && selectedYAxisProperty) {
-                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    placeholder.text("");
                     drawBarChart(
                         container,
                         svg,
@@ -188,7 +188,7 @@ export const drawPlot = async (
 
             else if (plotType === "Histogram") {
                 if (logs && selectedXAxisProperty) {
-                    if (logs.length >= 1000) placeholder.text("Too many data points. Using a random sample.").attr("text-anchor", "start").attr("x", `${margins.left + 10}px`).attr("y", `${dimensions.height - margins.bottom - 10}px`).attr("font-size", "10px"); else placeholder.text("");
+                    placeholder.text("");
                     const setBinCountAction = plotTileActions?.setBinCount;
                     if (!setBinCountAction) {
                         console.error("Required plotTileActions (setBinCount) not provided for Histogram.");
