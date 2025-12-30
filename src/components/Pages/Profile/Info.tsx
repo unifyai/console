@@ -3,7 +3,9 @@ import { Label } from "../../UI/label";
 import { Button } from "../../UI/button";
 import { User } from "@/types/user";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { generateTimezoneOptions } from "@/utils/assistants/timezone-utils";
+import { Info } from "lucide-react";
 import * as React from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { cn } from "@/lib/utils";
@@ -89,7 +91,19 @@ const UserInfo = ({
           />
         </div>
         <div className="mt-2 col-span-2">
-          <Label>About</Label>
+          <div className="flex flex-row gap-2 items-center pb-1">
+            <Label>About</Label>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs text-caption">
+                  <p>You can edit this field anytime. Your assistant(s) will also update it as they learn more about you.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Input 
             type="text" 
             name="bio" 
