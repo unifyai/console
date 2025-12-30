@@ -3,6 +3,8 @@
 import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/interfaces/logs";
 import { sanitizeKey } from "../../app/(home)/interfaces/utils";
 import { ResponseProps } from "@/types/common";
+import { SyncableLogEntry } from "@/types/assistants/contact-sync";
+import { maybeSyncContactFields } from "./contact-sync";
 
 // create logs
 export const createLogs = async (apiKey: string) => {
@@ -142,6 +144,41 @@ export const updateLogs = async (apiKey: string) => {
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
         }
+    };
+};
+
+/**
+ * Wrapped update with contact sync support.
+ * After a successful log update, checks if contact fields should be synced
+ * to user/assistant profiles (fire-and-forget).
+ * 
+ * @param apiKey - User's API key
+ * @returns Server action for updating logs with optional contact sync
+ */
+export const updateLogsWithSync = async (apiKey: string) => {
+    const baseUpdate = await updateLogs(apiKey);
+
+    return async (
+        project: string,
+        context: string | null,
+        logs: number[],
+        entries: LogItemProps,
+        params: LogItemProps,
+        overwrite: boolean = true,
+        affectedLogs?: SyncableLogEntry[]
+    ): Promise<ResponseProps> => {
+        "use server";
+
+        // 1. Call base update
+        const result = await baseUpdate(project, context, logs, entries, params, overwrite);
+
+        // 2. On success, trigger contact sync (fire-and-forget)
+        if (!result.detail && affectedLogs && affectedLogs.length > 0) {
+            maybeSyncContactFields(project, context, entries, params, affectedLogs)
+                .catch(err => console.warn('[ContactSync] Sync failed:', err));
+        }
+
+        return result;
     };
 };
 

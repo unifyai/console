@@ -916,13 +916,24 @@ const LogsTable = ({
       if ((!entriesKeys.length) && (!paramsKeys.length)) return;
     } catch (_) {}
 
+    // Build affected logs for contact sync
+    const affectedLogs = rowIds
+      .map(id => {
+        const log = (tableDataItem?.logs || []).find((l: any) => String(l.id) === String(id));
+        if (!log) return null;
+        return { id: Number(log.id), entries: (log.entries || {}) as Record<string, any> };
+      })
+      .filter((x): x is { id: number; entries: Record<string, any> } => x !== null);
+
     // Persist to server
     const res = await logsActions.update(
       projectId,
       item?.context || context_ || null,
       rowIds.map(id => parseInt(String(id), 10)),
       entriesUpdate,
-      paramsUpdate
+      paramsUpdate,
+      true,
+      affectedLogs
     );
     try {
       if ((res as any)?.detail) {

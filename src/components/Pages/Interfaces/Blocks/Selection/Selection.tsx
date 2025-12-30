@@ -366,13 +366,24 @@ export default function Selection({
         if ((!entriesKeys.length) && (!paramsKeys.length)) return;
       } catch (_) {}
 
+      // Build affected logs for contact sync
+      const affectedLogs = rowIds
+        .map(id => {
+          const log = prevLogs?.find((l: any) => String(l.id) === String(id));
+          if (!log) return null;
+          return { id: Number(log.id), entries: (log.entries || {}) as Record<string, any> };
+        })
+        .filter((x): x is { id: number; entries: Record<string, any> } => x !== null);
+
       try {
         const response = await logsActions.update(
           projectId,
           context,
           rowIds.map(id => parseInt(id, 10)),
           entriesUpdate,
-          paramsUpdate
+          paramsUpdate,
+          true,
+          affectedLogs
         );
         if (response.detail) {
           console.error("[DEBUG] handleSaveMany – error", response.detail);

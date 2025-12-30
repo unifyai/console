@@ -1,5 +1,6 @@
 import { ResponseProps } from "../common";
 import { getLogsParameters, LogFieldsProps, LogFieldsResponseProps, LogItemProps, LogProps, LogsResponseProps, GroupedLogProps, PlotArguments } from "./logs";
+import { SyncableLogEntry } from "../assistants/contact-sync";
 
 export interface TileProps {
     id: string;
@@ -635,7 +636,7 @@ export interface LogsActions {
         keyNames: string[]
     ) => Promise<{ [key: string]: number } | { [key: string]: { [key: string]: { [key: string]: number } } }>;
     delete: (project: string, context: string | null, ids_and_fields: LogFieldsProps) => Promise<ResponseProps>;
-    update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean) => Promise<ResponseProps>
+    update: (project: string, context: string | null, logs: number[], entries: LogItemProps, params: LogItemProps, overwrite?: boolean, affectedLogs?: SyncableLogEntry[]) => Promise<ResponseProps>
 }
 
 export interface DerivedEntryActions {

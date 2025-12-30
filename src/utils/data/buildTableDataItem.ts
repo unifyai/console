@@ -238,7 +238,18 @@ export async function fetchAndBuildTableDataItem(
       const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
       // Limit the subset to a reasonable number to keep payload small
       const MAX_SUBSET = 60;
-      const subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      let subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      
+      // Always include assistant_id fields for Contacts tables (needed for contact sync)
+      if (projectId === "Assistants" && tile.context?.endsWith("/Contacts")) {
+        const syncRequiredFields = ["_assistant_id", "assistant_id"];
+        for (const field of syncRequiredFields) {
+          if (!subsetIds.includes(field)) {
+            subsetIds = [...subsetIds, field];
+          }
+        }
+      }
+      
       if (subsetIds.length > 0) {
         // Merge back column_context for the API
         const subset = subsetIds

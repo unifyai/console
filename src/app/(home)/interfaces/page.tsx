@@ -75,7 +75,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         getMetrics: await logs.getLogMetrics(apiKey),
         delete:     await logs.deleteLogs(apiKey),
         getLatest:  await logs.getLatestTimestamp(apiKey),
-        update:     await logs.updateLogs(apiKey)
+        update:     await logs.updateLogsWithSync(apiKey)
     };
 
     const derivedEntryActions = {
