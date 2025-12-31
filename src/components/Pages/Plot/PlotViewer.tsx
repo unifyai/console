@@ -12,6 +12,7 @@
 import { useState, useMemo } from "react";
 import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { PlotCanvas } from "@/components/Common/Plot/PlotCanvas";
+import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
 
 /**
  * Plot configuration from the API
@@ -41,6 +42,8 @@ interface PlotViewerProps {
   data: LogProps[];
   fields: LogFieldsResponseProps;
   title?: string;
+  /** Pre-aggregated bar chart data from backend (optional) */
+  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
 }
 
 /**
@@ -111,7 +114,7 @@ function generateTitle(config: PlotViewerConfig): string {
  * Wraps PlotCanvas with a header, footer, and page-level layout.
  * Manages state for interactive plot configuration changes.
  */
-export function PlotViewer({ config, data, fields, title }: PlotViewerProps) {
+export function PlotViewer({ config, data, fields, title, preAggregatedBarData }: PlotViewerProps) {
   // State for user-adjustable plot settings
   const [scaleX, setScaleX] = useState(config.scaleX || "linear");
   const [scaleY, setScaleY] = useState(config.scaleY || "linear");
@@ -165,6 +168,7 @@ export function PlotViewer({ config, data, fields, title }: PlotViewerProps) {
           onLogScaleXEnabledChange={setLogScaleXEnabled}
           onLogScaleYEnabledChange={setLogScaleYEnabled}
           margins={config.margins || { top: 0, right: 15, bottom: 45, left: 55 }}
+          preAggregatedBarData={preAggregatedBarData}
         />
       </div>
 

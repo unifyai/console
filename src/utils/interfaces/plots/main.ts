@@ -13,6 +13,7 @@ import { clearFixedTooltip } from "./tooltip";
 import { PlotActions } from "@/contexts/hooks/tile/usePlotTile";
 import { PlotTile } from "@/contexts/slices/selectors/plotTile";
 import { withLoadingToastFn } from "@/components/Common/Toasts/notifications";
+import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
 
 /**
  * Main function orchestrating the drawing of different plot types (Scatter, Bar, Histogram, Line) within a specified SVG container.
@@ -90,7 +91,8 @@ export const drawPlot = async (
     setLogScaleXEnabled: (enabled: boolean) => void,
     setLogScaleYEnabled: (enabled: boolean) => void,
     plotTileActions?: PlotActions | null,
-    plotTileState?: PlotTile | null
+    plotTileState?: PlotTile | null,
+    preAggregatedBarData?: DataLabel[] | GroupedDataLabel[]
 ) => {
     try {
             // Update svg dimensions
@@ -155,7 +157,11 @@ export const drawPlot = async (
             }
 
             else if (plotType === "Bar Chart") {
-                if (logs && selectedXAxisProperty && selectedYAxisProperty) {
+                // Bar charts can render with pre-aggregated data OR raw logs
+                const hasPreAggregatedData = preAggregatedBarData && preAggregatedBarData.length > 0;
+                const hasRawLogsData = logs && logs.length > 0;
+                
+                if ((hasPreAggregatedData || hasRawLogsData) && selectedXAxisProperty && selectedYAxisProperty) {
                     placeholder.text("");
                     drawBarChart(
                         container,
@@ -178,7 +184,8 @@ export const drawPlot = async (
                         fields,
                         zoomRef,
                         groupByColors,
-                        interactive
+                        interactive,
+                        preAggregatedBarData
                     );
                 } else {
                     clearCanvas(svgRef, containerRef);

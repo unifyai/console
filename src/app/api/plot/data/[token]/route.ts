@@ -105,6 +105,10 @@ interface LogsResponse {
   params?: Record<string, unknown>;
 }
 
+// Pre-aggregated bar chart data types
+type DataLabel = [string, number];
+type GroupedDataLabel = [string, DataLabel];
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -181,6 +185,104 @@ function transformFieldsForFrontend(
     prefixedFields[`table1.${fieldName}`] = fieldMeta;
   }
   return prefixedFields;
+}
+
+// Metrics value type from backend
+interface MetricsValue {
+  [metric: string]: number | null | undefined;
+}
+
+/**
+ * Convert backend metrics response to DataLabel[] for non-grouped bar charts.
+ */
+function convertMetricsToDataLabels(
+  metricsResponse: Record<string, Record<string, MetricsValue>>,
+  yAxisField: string,
+  metric: string
+): DataLabel[] {
+  const fieldMetrics = metricsResponse[yAxisField] || {};
+  return Object.entries(fieldMetrics).map(([category, values]) => {
+    const value = values.shared_value ?? values[metric] ?? 0;
+    return [category, typeof value === 'number' ? value : 0] as DataLabel;
+  });
+}
+
+/**
+ * Convert backend metrics response to GroupedDataLabel[] for grouped bar charts.
+ */
+function convertMetricsToGroupedDataLabels(
+  metricsResponse: Record<string, Record<string, Record<string, MetricsValue>>>,
+  yAxisField: string,
+  metric: string
+): GroupedDataLabel[] {
+  const result: GroupedDataLabel[] = [];
+  const fieldMetrics = metricsResponse[yAxisField] || {};
+  
+  for (const [groupKey, categories] of Object.entries(fieldMetrics)) {
+    for (const [category, values] of Object.entries(categories as Record<string, MetricsValue>)) {
+      const value = values.shared_value ?? values[metric] ?? 0;
+      result.push([groupKey, [category, typeof value === 'number' ? value : 0]]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Fetch pre-aggregated bar chart data from backend metrics endpoint.
+ */
+async function fetchBarChartMetrics(
+  userApiKey: string,
+  projectName: string,
+  context: string | null,
+  xAxis: string,
+  yAxis: string,
+  metric: string,
+  groupBy: string | null,
+  filterExpr: string | null
+): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean } | null> {
+  try {
+    const params = new URLSearchParams();
+    params.set("project", projectName);
+    if (context) params.set("context", context);
+    params.set("key", JSON.stringify([yAxis]));
+    
+    // Build group_by: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
+    const groupByFields = groupBy ? [groupBy, xAxis] : [xAxis];
+    params.set("group_by", JSON.stringify(groupByFields));
+    
+    if (filterExpr) params.set("filter_expr", filterExpr);
+
+    const metricsUrl = `${ORCHESTRA_URL}/v0/logs/metric/${metric}?${params.toString()}`;
+    const response = await fetch(metricsUrl, {
+      headers: {
+        Authorization: `Bearer ${userApiKey}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.warn("[plot/data] Bar chart metrics fetch failed, falling back to raw logs");
+      return null;
+    }
+
+    const metricsData = await response.json();
+
+    if (groupBy) {
+      return {
+        data: convertMetricsToGroupedDataLabels(metricsData, yAxis, metric),
+        isGrouped: true,
+      };
+    } else {
+      return {
+        data: convertMetricsToDataLabels(metricsData, yAxis, metric),
+        isGrouped: false,
+      };
+    }
+  } catch (err) {
+    console.warn("[plot/data] Bar chart metrics fetch error:", err);
+    return null;
+  }
 }
 
 /**
@@ -434,6 +536,31 @@ export async function GET(
     const projectName =
       (projectConfig.project_name as string) || "Unknown Project";
 
+    // ========================================================================
+    // Step 6: For Bar Charts, fetch pre-aggregated data from backend
+    // ========================================================================
+    let preAggregatedBarData: DataLabel[] | GroupedDataLabel[] | undefined;
+    let isGroupedBarChart: boolean | undefined;
+
+    const isBarChart = plotConfig.config.type === "Bar Chart" || plotConfig.config.type === "bar";
+    if (isBarChart && plotConfig.config.x_axis && plotConfig.config.y_axis) {
+      const barChartResult = await fetchBarChartMetrics(
+        userApiKey,
+        projectName,
+        (projectConfig.context as string) || null,
+        plotConfig.config.x_axis,
+        plotConfig.config.y_axis,
+        plotConfig.config.metric || "mean",
+        plotConfig.config.group_by || null,
+        (projectConfig.filter_expr as string) || null
+      );
+
+      if (barChartResult) {
+        preAggregatedBarData = barChartResult.data;
+        isGroupedBarChart = barChartResult.isGrouped;
+      }
+    }
+
     return NextResponse.json({
       config: normalizedConfig,
       data: transformedData,
@@ -442,6 +569,11 @@ export async function GET(
         ...plotConfig.metadata,
         project_name: projectName,
       },
+      // Include pre-aggregated bar chart data if available
+      ...(preAggregatedBarData && {
+        preAggregatedBarData,
+        isGroupedBarChart,
+      }),
     });
   } catch (error) {
     console.error("[plot/data] Unexpected error:", error);

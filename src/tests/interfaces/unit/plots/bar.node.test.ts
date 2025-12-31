@@ -1367,6 +1367,228 @@ describe("Bar Chart Module", () => {
         });
     });
 
+    describe("Pre-Aggregated Data Support", () => {
+        const meta = {
+            scenario: "Testing bar chart with pre-aggregated data from backend",
+            behavior: "Bars should render correctly using pre-computed metrics"
+        };
+
+        it("renders bars directly from pre-aggregated DataLabel array", () => {
+            const meta = {
+                scenario: "Bar chart receives pre-aggregated data",
+                behavior: "Should skip client-side computation and render directly"
+            };
+
+            const preAggregatedData: DataLabel[] = [
+                ["Category A", 42.5],
+                ["Category B", 31.2],
+                ["Category C", 55.8]
+            ];
+
+            const containerElement = document.querySelector(".container") as HTMLDivElement;
+            const svgElement = document.querySelector(".plotSvg") as SVGSVGElement;
+            const settingsElement = document.querySelector(".settings") as HTMLDivElement;
+            
+            const container = d3.select(containerElement) as any;
+            const svg = d3.select(svgElement) as any;
+            const settings = d3.select(settingsElement) as any;
+            const zoomRef = { current: d3.zoomIdentity };
+
+            drawBarChart(
+                container, svg, settings,
+                "linear", "linear",
+                { width: 800, height: 600 },
+                { top: 20, right: 30, bottom: 40, left: 50 },
+                10,
+                "test.category", "test.value",
+                undefined, undefined, "mean", "unsorted",
+                "test", "test",
+                [], // Empty logs - using pre-aggregated data
+                createMockFields(),
+                zoomRef,
+                "schemeCategory10",
+                true,
+                preAggregatedData
+            );
+
+            const bars = svgElement.querySelectorAll("rect.bar-item");
+            expect(bars.length).toBe(3);
+        });
+
+        it("renders grouped bars from pre-aggregated GroupedDataLabel array", () => {
+            const meta = {
+                scenario: "Grouped bar chart receives pre-aggregated data",
+                behavior: "Should render bars with group colors correctly"
+            };
+
+            const preAggregatedData: GroupedDataLabel[] = [
+                ["Group1", ["Category A", 42.5]],
+                ["Group1", ["Category B", 31.2]],
+                ["Group2", ["Category A", 55.8]],
+                ["Group2", ["Category B", 22.1]]
+            ];
+
+            const fieldsWithGroup: LogFieldsResponseProps = {
+                ...createMockFields(),
+                "test.group": { 
+                    data_type: "str", 
+                    field_type: "entry",
+                    artifacts: "",
+                    mutable: "false",
+                    created_at: ""
+                }
+            };
+
+            const containerElement = document.querySelector(".container") as HTMLDivElement;
+            const svgElement = document.querySelector(".plotSvg") as SVGSVGElement;
+            const settingsElement = document.querySelector(".settings") as HTMLDivElement;
+            
+            const container = d3.select(containerElement) as any;
+            const svg = d3.select(svgElement) as any;
+            const settings = d3.select(settingsElement) as any;
+            const zoomRef = { current: d3.zoomIdentity };
+
+            drawBarChart(
+                container, svg, settings,
+                "linear", "linear",
+                { width: 800, height: 600 },
+                { top: 20, right: 30, bottom: 40, left: 50 },
+                10,
+                "test.category", "test.value",
+                "test.group", undefined, "mean", "unsorted",
+                "test", "test",
+                [], // Empty logs - using pre-aggregated data
+                fieldsWithGroup,
+                zoomRef,
+                "schemeCategory10",
+                true,
+                preAggregatedData
+            );
+
+            const bars = svgElement.querySelectorAll("rect.bar-item");
+            expect(bars.length).toBe(4); // 2 groups x 2 categories
+        });
+
+        it("sorts pre-aggregated data ascending when sortBars is 'asc'", () => {
+            const meta = {
+                scenario: "Pre-aggregated data with ascending sort",
+                behavior: "Bars should be sorted by value ascending"
+            };
+
+            const preAggregatedData: DataLabel[] = [
+                ["Category C", 55.8],
+                ["Category A", 42.5],
+                ["Category B", 31.2]
+            ];
+
+            const containerElement = document.querySelector(".container") as HTMLDivElement;
+            const svgElement = document.querySelector(".plotSvg") as SVGSVGElement;
+            const settingsElement = document.querySelector(".settings") as HTMLDivElement;
+            
+            const container = d3.select(containerElement) as any;
+            const svg = d3.select(svgElement) as any;
+            const settings = d3.select(settingsElement) as any;
+            const zoomRef = { current: d3.zoomIdentity };
+
+            drawBarChart(
+                container, svg, settings,
+                "linear", "linear",
+                { width: 800, height: 600 },
+                { top: 20, right: 30, bottom: 40, left: 50 },
+                10,
+                "test.category", "test.value",
+                undefined, undefined, "mean", "asc",
+                "test", "test",
+                [],
+                createMockFields(),
+                zoomRef,
+                "schemeCategory10",
+                true,
+                preAggregatedData
+            );
+
+            const bars = svgElement.querySelectorAll("rect.bar-item");
+            expect(bars.length).toBe(3);
+        });
+
+        it("falls back to raw logs when pre-aggregated data is empty", () => {
+            const meta = {
+                scenario: "Pre-aggregated data is empty array",
+                behavior: "Should fall back to client-side computation from logs"
+            };
+
+            const containerElement = document.querySelector(".container") as HTMLDivElement;
+            const svgElement = document.querySelector(".plotSvg") as SVGSVGElement;
+            const settingsElement = document.querySelector(".settings") as HTMLDivElement;
+            
+            const container = d3.select(containerElement) as any;
+            const svg = d3.select(svgElement) as any;
+            const settings = d3.select(settingsElement) as any;
+            const zoomRef = { current: d3.zoomIdentity };
+
+            drawBarChart(
+                container, svg, settings,
+                "linear", "linear",
+                { width: 800, height: 600 },
+                { top: 20, right: 30, bottom: 40, left: 50 },
+                10,
+                "test.category", "test.value",
+                undefined, undefined, "mean", "unsorted",
+                "test", "test",
+                createMockLogs(), // Has 5 logs -> 3 categories
+                createMockFields(),
+                zoomRef,
+                "schemeCategory10",
+                true,
+                [] // Empty pre-aggregated data
+            );
+
+            const bars = svgElement.querySelectorAll("rect.bar-item");
+            expect(bars.length).toBe(3); // Falls back to client-side aggregation
+        });
+
+        it("prefers pre-aggregated data over raw logs when both provided", () => {
+            const meta = {
+                scenario: "Both pre-aggregated data and logs provided",
+                behavior: "Should use pre-aggregated data and ignore logs"
+            };
+
+            const preAggregatedData: DataLabel[] = [
+                ["X", 100],
+                ["Y", 200]
+            ];
+
+            const containerElement = document.querySelector(".container") as HTMLDivElement;
+            const svgElement = document.querySelector(".plotSvg") as SVGSVGElement;
+            const settingsElement = document.querySelector(".settings") as HTMLDivElement;
+            
+            const container = d3.select(containerElement) as any;
+            const svg = d3.select(svgElement) as any;
+            const settings = d3.select(settingsElement) as any;
+            const zoomRef = { current: d3.zoomIdentity };
+
+            drawBarChart(
+                container, svg, settings,
+                "linear", "linear",
+                { width: 800, height: 600 },
+                { top: 20, right: 30, bottom: 40, left: 50 },
+                10,
+                "test.category", "test.value",
+                undefined, undefined, "mean", "unsorted",
+                "test", "test",
+                createMockLogs(), // Has 5 logs -> 3 categories (A, B, C)
+                createMockFields(),
+                zoomRef,
+                "schemeCategory10",
+                true,
+                preAggregatedData // Has 2 categories (X, Y)
+            );
+
+            const bars = svgElement.querySelectorAll("rect.bar-item");
+            expect(bars.length).toBe(2); // Uses pre-aggregated data (2 bars), not logs (3 bars)
+        });
+    });
+
     describe("Additional Mouse Events", () => {
         it("positions tooltip relative to pointer",
         {

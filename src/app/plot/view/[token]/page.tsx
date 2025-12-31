@@ -9,6 +9,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PlotViewer } from "@/components/Pages/Plot/PlotViewer";
 import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
+import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
 
 interface PageProps {
   params: { token: string };
@@ -40,6 +41,10 @@ interface PlotDataResponse {
     created_at: string;
     created_by?: string;
   };
+  /** Pre-aggregated bar chart data from backend (optional) */
+  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
+  /** Whether bar chart data uses secondary grouping */
+  isGroupedBarChart?: boolean;
 }
 
 interface PlotDataError {
@@ -174,8 +179,11 @@ export default async function PlotViewPage({ params }: PageProps) {
 
   const { data: plotData } = result;
 
-  // Handle empty data
-  if (!plotData.data || plotData.data.length === 0) {
+  // Handle empty data - for bar charts with pre-aggregated data, check that too
+  const hasPreAggregatedBarData = plotData.preAggregatedBarData && plotData.preAggregatedBarData.length > 0;
+  const hasRawData = plotData.data && plotData.data.length > 0;
+  
+  if (!hasRawData && !hasPreAggregatedBarData) {
     return (
       <ErrorMessage message="No data available for this plot. The project may be empty or the filters returned no results." />
     );
@@ -188,6 +196,7 @@ export default async function PlotViewPage({ params }: PageProps) {
         data={plotData.data}
         fields={plotData.fields}
         title={plotData.metadata?.title}
+        preAggregatedBarData={plotData.preAggregatedBarData}
       />
     </main>
   );

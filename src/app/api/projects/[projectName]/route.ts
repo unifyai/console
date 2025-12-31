@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user/user";
 
-const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+const baseUrl = `${process.env.ORCHESTRA_URL || 'http://localhost:8000'}/v0`;
 
 export async function POST(
     request: NextRequest,

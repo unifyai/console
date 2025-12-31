@@ -101,7 +101,7 @@ const LogsPlot = ({
   );
 
   // Init logs and handle local updates
-  const { plotLogs: logs, plotFields: fields } = useMemo(
+  const { plotLogs: logs, plotFields: fields, preAggregatedBarData } = useMemo(
     () => plotDataItem,
     [plotDataItem]
   );
@@ -240,6 +240,8 @@ const LogsPlot = ({
           svgRef={svgRef}
           containerRef={containerRef}
           settingsRef={settingsRef}
+          // Pass pre-aggregated bar chart data from backend
+          preAggregatedBarData={preAggregatedBarData}
         />
       </div>
 

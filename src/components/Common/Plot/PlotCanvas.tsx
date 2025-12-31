@@ -24,6 +24,7 @@ import * as d3 from "d3";
 import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { drawPlot } from "@/utils/interfaces/plots/main";
 import { clearFixedTooltip } from "@/utils/interfaces/plots/tooltip";
+import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
 
 /**
  * Props for the PlotCanvas component
@@ -76,6 +77,10 @@ export interface PlotCanvasProps {
   svgRef?: React.RefObject<SVGSVGElement>;
   containerRef?: React.RefObject<HTMLDivElement>;
   settingsRef?: React.RefObject<HTMLDivElement>;
+
+  // Optional pre-aggregated bar chart data from backend metrics endpoint
+  // When provided, bar chart skips client-side aggregation for better performance
+  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
 }
 
 /**
@@ -121,6 +126,7 @@ export function PlotCanvas({
   svgRef: externalSvgRef,
   containerRef: externalContainerRef,
   settingsRef: externalSettingsRef,
+  preAggregatedBarData,
 }: PlotCanvasProps) {
   // Internal refs (used when external refs not provided)
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -199,7 +205,11 @@ export function PlotCanvas({
 
   // Draw plot when dependencies change
   useEffect(() => {
-    if (!svgRef.current || !containerRef.current || !logs?.length) {
+    // Bar charts can render with pre-aggregated data OR raw logs
+    const hasPreAggregatedData = preAggregatedBarData && preAggregatedBarData.length > 0;
+    const hasRawLogsData = logs && logs.length > 0;
+    
+    if (!svgRef.current || !containerRef.current || (!hasRawLogsData && !hasPreAggregatedData)) {
       return;
     }
 
@@ -246,7 +256,8 @@ export function PlotCanvas({
         onLogScaleXEnabledChange ?? (() => {}),
         onLogScaleYEnabledChange ?? (() => {}),
         plotTileActions as any,
-        effectivePlotTileState
+        effectivePlotTileState,
+        preAggregatedBarData
       );
     } catch (err) {
       console.error("[PlotCanvas] drawPlot error:", err);
@@ -275,6 +286,7 @@ export function PlotCanvas({
     effectivePlotTileState,
     onLogScaleXEnabledChange,
     onLogScaleYEnabledChange,
+    preAggregatedBarData,
   ]);
 
   return (

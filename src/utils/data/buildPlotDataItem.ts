@@ -4,6 +4,7 @@ import { LogsActions } from "@/types/interfaces/grid";
 import { processContext } from "@/utils/interfaces/table/columnOperations";
 import { convertMetricsToLogs, replaceParamsIndicesWithValues } from "@/utils/interfaces/common";
 import { sanitizeKey } from "@/app/(home)/interfaces/utils";
+import { DataLabel, GroupedDataLabel } from "@/types/interfaces/plot";
 
 /**
  * Debug flag for performance logging
@@ -19,6 +20,103 @@ const perfLog = (...args: any[]) => {
     console.log(...args);
   }
 };
+
+// Metrics value type from backend - allows for any metric name as key
+interface MetricsValue {
+  [metric: string]: number | null | undefined;
+}
+
+/**
+ * Convert backend metrics response to DataLabel[] for non-grouped bar charts.
+ * Backend returns: { "yField": { "CategoryA": { "mean": 42.5 }, "CategoryB": { "mean": 31.2 } } }
+ * Output: [["CategoryA", 42.5], ["CategoryB", 31.2]]
+ */
+export function convertMetricsToDataLabels(
+  metricsResponse: Record<string, Record<string, MetricsValue>>,
+  yAxisField: string,
+  metric: string
+): DataLabel[] {
+  const fieldMetrics = metricsResponse[yAxisField] || {};
+  return Object.entries(fieldMetrics).map(([category, values]) => {
+    const value = values.shared_value ?? values[metric] ?? 0;
+    return [category, typeof value === 'number' ? value : 0] as DataLabel;
+  });
+}
+
+/**
+ * Convert backend metrics response to GroupedDataLabel[] for grouped bar charts.
+ * Backend returns nested: { "yField": { "GroupA": { "Cat1": { "mean": 10 } }, "GroupB": { "Cat1": { "mean": 20 } } } }
+ * Output: [["GroupA", ["Cat1", 10]], ["GroupB", ["Cat1", 20]]]
+ */
+export function convertMetricsToGroupedDataLabels(
+  metricsResponse: Record<string, Record<string, Record<string, MetricsValue>>>,
+  yAxisField: string,
+  metric: string
+): GroupedDataLabel[] {
+  const result: GroupedDataLabel[] = [];
+  const fieldMetrics = metricsResponse[yAxisField] || {};
+  
+  for (const [groupKey, categories] of Object.entries(fieldMetrics)) {
+    for (const [category, values] of Object.entries(categories as Record<string, MetricsValue>)) {
+      const value = values.shared_value ?? values[metric] ?? 0;
+      result.push([groupKey, [category, typeof value === 'number' ? value : 0]]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Fetch pre-aggregated bar chart data from backend metrics endpoint.
+ * Returns data in DataLabel[] or GroupedDataLabel[] format ready for D3 rendering.
+ */
+export async function fetchBarChartAggregatedData(
+  projectId: string,
+  context: string | null,
+  columnContext: string | null,
+  xAxis: string,           // Group-by field (categories for X-axis)
+  yAxis: string,           // Field to aggregate
+  metric: string,          // mean, sum, count, etc.
+  groupBy: string | null,  // Optional secondary grouping (color groups)
+  filterExpr: string | null,
+  signal?: AbortSignal
+): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean }> {
+  const params = new URLSearchParams();
+  params.set('project', projectId);
+  if (context) params.set('context', context);
+  params.set('key', JSON.stringify([sanitizeKey(yAxis)]));
+  
+  // Build group_by: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
+  // Otherwise just [xAxis] for simple category grouping
+  const groupByFields = groupBy ? [sanitizeKey(groupBy), sanitizeKey(xAxis)] : [sanitizeKey(xAxis)];
+  params.set('group_by', JSON.stringify(groupByFields));
+  
+  if (filterExpr) params.set('filter_expr', filterExpr);
+
+  const response = await fetch(`/api/logs/${metric}?${params.toString()}`, {
+    method: 'GET',
+    signal,
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch bar chart metrics: ${response.status}`);
+  }
+
+  const metricsData = await response.json();
+
+  // Convert to appropriate tuple type
+  if (groupBy) {
+    return {
+      data: convertMetricsToGroupedDataLabels(metricsData, sanitizeKey(yAxis), metric),
+      isGrouped: true
+    };
+  } else {
+    return {
+      data: convertMetricsToDataLabels(metricsData, sanitizeKey(yAxis), metric),
+      isGrouped: false
+    };
+  }
+}
 
 /**
  * Builds a PlotDataItem from plot data and other inputs
@@ -59,24 +157,36 @@ export async function buildPlotDataItem(
   let plotDataItem: PlotDataItem;
   
   if (Object.keys(plotDataByTable).length > 0) {
-    // If non-zero tables are used in the plot, merge the plot data
-    const minLogLength = Math.min(...Object.values(plotDataByTable).map(data => data.plotLogs.length));
-    plotDataItem = {
-      plotLogs: minLogLength > 0 ? Object.values(plotDataByTable)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
-        return Object.entries(plotDataByTable).reduce((acc, [tableId, data]) => {
-          const prefixedLog = Object.fromEntries(
-            Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
-              `${tableId}.${key}`,
-              (["params", "entries", "derived_entries"].includes(key) && value) 
-                ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
-                : value
-            ])
-          );
-          return { ...acc, ...prefixedLog };
-        }, {}) as LogProps;
-      }) : [],
-      plotFields: plotFields
-    };
+    // Check if we have pre-aggregated bar chart data
+    const firstTableData = Object.values(plotDataByTable)[0];
+    if (firstTableData.preAggregatedBarData) {
+      // Bar chart with pre-aggregated data - no need to merge logs
+      plotDataItem = {
+        plotLogs: [],
+        plotFields: plotFields,
+        preAggregatedBarData: firstTableData.preAggregatedBarData,
+        isGroupedBarChart: firstTableData.isGroupedBarChart
+      };
+    } else {
+      // If non-zero tables are used in the plot, merge the plot data
+      const minLogLength = Math.min(...Object.values(plotDataByTable).map(data => data.plotLogs.length));
+      plotDataItem = {
+        plotLogs: minLogLength > 0 ? Object.values(plotDataByTable)[0].plotLogs.slice(0, minLogLength).map((_, i) => {
+          return Object.entries(plotDataByTable).reduce((acc, [tableId, data]) => {
+            const prefixedLog = Object.fromEntries(
+              Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
+                `${tableId}.${key}`,
+                (["params", "entries", "derived_entries"].includes(key) && value) 
+                  ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
+                  : value
+              ])
+            );
+            return { ...acc, ...prefixedLog };
+          }, {}) as LogProps;
+        }) : [],
+        plotFields: plotFields
+      };
+    }
   }
   else {
     // If no tables are used in the plot, return empty plot data
@@ -141,6 +251,16 @@ function createPlotFields(tableTiles: TileData[], fields: LogFieldsResponseProps
 }
 
 /**
+ * Internal type for table data returned by fetchPlotDataByTable
+ */
+interface TablePlotData {
+  plotLogs: LogProps[];
+  plotFields: LogFieldsResponseProps;
+  preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
+  isGroupedBarChart?: boolean;
+}
+
+/**
  * Fetches plot data for each table using plotArguments
  */
 async function fetchPlotDataByTable(
@@ -153,7 +273,7 @@ async function fetchPlotDataByTable(
   projectId: string,
   logsActions: LogsActions,
   signal?: AbortSignal
-) {
+): Promise<Record<string, TablePlotData>> {
   const plotDataPromises = usedTableNames.map(async (tableName) => {
     // Find the table tile for this name
     const tableTile = tableTiles.find(t => t.name === tableName);
@@ -182,6 +302,7 @@ async function fetchPlotDataByTable(
     let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
 
     let [xAxis, yAxis, group] = [plotTile.plot_tile?.x_axis, plotTile.plot_tile?.y_axis, plotTile.plot_tile?.plot_group_by];
+    const plotType = plotTile.plot_tile?.plot_type;
     
     let subset = null;
     if (xAxis && xAxis.split(".").length > 1) {
@@ -201,6 +322,38 @@ async function fetchPlotDataByTable(
         subset += `&${group}`;
       }
       if (subset) plotArguments[tableName]["subset"] = subset;
+      
+      // BAR CHART: Use backend aggregation for better performance
+      if (plotType === "Bar Chart" && xAxis && yAxis) {
+        try {
+          const metricName = metric || "mean";
+          const { data: barData, isGrouped } = await fetchBarChartAggregatedData(
+            projectId,
+            context,
+            columnContext,
+            xAxis,
+            yAxis,
+            metricName,
+            group || null,
+            filterExpression,
+            signal
+          );
+          
+          perfLog(`[perf] Bar chart using pre-aggregated data: ${barData.length} bars, grouped: ${isGrouped}`);
+          
+          return {
+            [tableName]: {
+              plotLogs: [],  // Not needed for pre-aggregated bar charts
+              plotFields: plotFields,
+              preAggregatedBarData: barData,
+              isGroupedBarChart: isGrouped
+            }
+          };
+        } catch (err) {
+          // Fall through to regular fetch on error
+          perfLog(`[perf] Bar chart aggregation failed, falling back to raw logs:`, err);
+        }
+      }
       
       // Get raw logs values or grouped metrics as logs
       if (

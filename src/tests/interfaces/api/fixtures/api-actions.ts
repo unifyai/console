@@ -7,14 +7,14 @@
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-/** Default timeout for API requests */
-export const API_TIMEOUT_MS = 30000;
+/** Default timeout for API requests (staging backend can be slow) */
+export const API_TIMEOUT_MS = 90000;
 
 /** Default timeout for individual tests */
-export const TEST_TIMEOUT_MS = 15000;
+export const TEST_TIMEOUT_MS = 30000;
 
 /** Extended timeout for slower operations like import/export */
-export const TEST_TIMEOUT_EXTENDED_MS = 20000;
+export const TEST_TIMEOUT_EXTENDED_MS = 45000;
 
 /** Common test options for real API tests */
 export const realTestOptions = {
@@ -46,7 +46,7 @@ export function getTestApiKey(): string {
 export async function isServerReachable(): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const response = await fetch(BASE_URL, { 
       method: 'HEAD',
       signal: controller.signal 

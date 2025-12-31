@@ -85,6 +85,10 @@ export interface PlotDataItem {
     plotFields: LogFieldsResponseProps;
     error?: string;
     isLoading?: boolean;
+    /** Pre-aggregated bar chart data from backend metrics endpoint */
+    preAggregatedBarData?: [string, number][] | [string, [string, number]][];
+    /** Whether bar chart data uses secondary grouping */
+    isGroupedBarChart?: boolean;
 }
 
 export interface TableDataProps {

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildPlotDataItem, getUsedTableNames } from '@/utils/data/buildPlotDataItem';
+import { 
+  buildPlotDataItem, 
+  getUsedTableNames,
+  convertMetricsToDataLabels,
+  convertMetricsToGroupedDataLabels,
+} from '@/utils/data/buildPlotDataItem';
 import {
   TileData,
   LogsActions,
@@ -296,5 +301,134 @@ describe('buildPlotDataItem', () => {
       'proj-1',
       dummyLogsActions
     )).rejects.toThrow('Network error');
+  });
+});
+
+describe('convertMetricsToDataLabels', () => {
+  it('converts backend metrics response to DataLabel array', () => {
+    const metricsResponse = {
+      'sales': {
+        'CategoryA': { mean: 42.5, count: 10 },
+        'CategoryB': { mean: 31.2, count: 5 },
+        'CategoryC': { mean: 55.8, count: 8 },
+      },
+    };
+
+    const result = convertMetricsToDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toHaveLength(3);
+    expect(result).toContainEqual(['CategoryA', 42.5]);
+    expect(result).toContainEqual(['CategoryB', 31.2]);
+    expect(result).toContainEqual(['CategoryC', 55.8]);
+  });
+
+  it('uses shared_value when present', () => {
+    const metricsResponse = {
+      'sales': {
+        'CategoryA': { mean: 42.5, shared_value: 100 },
+        'CategoryB': { mean: 31.2, shared_value: null },
+      },
+    };
+
+    const result = convertMetricsToDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toContainEqual(['CategoryA', 100]); // Uses shared_value
+    expect(result).toContainEqual(['CategoryB', 31.2]); // Falls back to metric
+  });
+
+  it('returns empty array for missing field', () => {
+    const metricsResponse = {
+      'other_field': {
+        'CategoryA': { mean: 42.5 },
+      },
+    };
+
+    const result = convertMetricsToDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toEqual([]);
+  });
+
+  it('handles zero values correctly', () => {
+    const metricsResponse = {
+      'sales': {
+        'CategoryA': { mean: 0 },
+        'CategoryB': { mean: 42.5 },
+      },
+    };
+
+    const result = convertMetricsToDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toContainEqual(['CategoryA', 0]);
+    expect(result).toContainEqual(['CategoryB', 42.5]);
+  });
+});
+
+describe('convertMetricsToGroupedDataLabels', () => {
+  it('converts nested backend metrics to GroupedDataLabel array', () => {
+    const metricsResponse = {
+      'sales': {
+        'GroupA': {
+          'Cat1': { mean: 10 },
+          'Cat2': { mean: 20 },
+        },
+        'GroupB': {
+          'Cat1': { mean: 15 },
+          'Cat2': { mean: 25 },
+        },
+      },
+    };
+
+    const result = convertMetricsToGroupedDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toHaveLength(4);
+    expect(result).toContainEqual(['GroupA', ['Cat1', 10]]);
+    expect(result).toContainEqual(['GroupA', ['Cat2', 20]]);
+    expect(result).toContainEqual(['GroupB', ['Cat1', 15]]);
+    expect(result).toContainEqual(['GroupB', ['Cat2', 25]]);
+  });
+
+  it('uses shared_value when present in nested structure', () => {
+    const metricsResponse = {
+      'sales': {
+        'GroupA': {
+          'Cat1': { mean: 10, shared_value: 100 },
+        },
+      },
+    };
+
+    const result = convertMetricsToGroupedDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toContainEqual(['GroupA', ['Cat1', 100]]);
+  });
+
+  it('returns empty array for missing field', () => {
+    const metricsResponse = {
+      'other_field': {
+        'GroupA': {
+          'Cat1': { mean: 10 },
+        },
+      },
+    };
+
+    const result = convertMetricsToGroupedDataLabels(metricsResponse, 'sales', 'mean');
+
+    expect(result).toEqual([]);
+  });
+
+  it('handles single group with multiple categories', () => {
+    const metricsResponse = {
+      'sales': {
+        'OnlyGroup': {
+          'A': { sum: 100 },
+          'B': { sum: 200 },
+          'C': { sum: 300 },
+        },
+      },
+    };
+
+    const result = convertMetricsToGroupedDataLabels(metricsResponse, 'sales', 'sum');
+
+    expect(result).toHaveLength(3);
+    expect(result.every(r => r[0] === 'OnlyGroup')).toBe(true);
   });
 });

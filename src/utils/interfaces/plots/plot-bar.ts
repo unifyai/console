@@ -150,7 +150,8 @@ export const drawBarChart = (
     fields: LogFieldsResponseProps,
     zoomRef: any,
     groupByColors: string = "schemeCategory10",
-    interactive: boolean = true
+    interactive: boolean = true,
+    preAggregatedData?: DataLabel[] | GroupedDataLabel[]
 ) => {
 
     // Clear previous elements
@@ -168,7 +169,38 @@ export const drawBarChart = (
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     const yAxisProperty = selectedYAxisProperty && properties.includes(selectedYAxisProperty) ? selectedYAxisProperty : properties.at(0);
     let data: DataLabel[] | GroupedDataLabel[] = [];
-    if (xAxisProperty && yAxisProperty) {
+    
+    // Use pre-aggregated data if available (from backend), otherwise compute client-side
+    if (preAggregatedData && preAggregatedData.length > 0) {
+        data = preAggregatedData;
+        // Apply sorting to pre-aggregated data
+        if (!groupBy && sortBars !== "unsorted") {
+            (data as DataLabel[]).sort((a, b) => {
+                const yA = a[1];
+                const yB = b[1];
+                switch (sortBars) {
+                    case "asc":
+                        return yA - yB;
+                    case "desc":
+                        return yB - yA;
+                    default:
+                        return yA - yB;
+                }
+            });
+        } else {
+            // Sort by x-axis value (category)
+            if (groupBy) {
+                (data as GroupedDataLabel[]).every(item => !isNaN(Number(item[1][0])))
+                    ? (data as GroupedDataLabel[]).sort((a, b) => Number(a[1][0]) - Number(b[1][0]))
+                    : (data as GroupedDataLabel[]).sort((a, b) => a[1][0].localeCompare(b[1][0]));
+            } else {
+                (data as DataLabel[]).every(item => !isNaN(Number(item[0])))
+                    ? (data as DataLabel[]).sort((a, b) => Number(a[0]) - Number(b[0]))
+                    : (data as DataLabel[]).sort((a, b) => a[0].localeCompare(b[0]));
+            }
+        }
+    } else if (xAxisProperty && yAxisProperty) {
+        // Client-side computation fallback
         const filteredData = logs.filter(log => {
             const hasX = hasProperty(fields, xAxisProperty, log, xTable)
             const hasY = hasProperty(fields, yAxisProperty, log, yTable)
