@@ -5,7 +5,7 @@
  * from utils/interfaces/plots/data.ts
  */
 import { describe, it, expect, vi } from 'vitest';
-import { hasProperty, getValue } from '@/utils/interfaces/plots/data';
+import { hasProperty, getValue, inferDisplayType } from '@/utils/interfaces/plots/data';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 
 // =============================================================================
@@ -562,6 +562,470 @@ describe('B: getValue', () => {
             // Numeric timedelta (already in seconds)
             const timedelta2 = 3600; // 1 hour in seconds
             expect(timedelta2).toBe(3600);
+        });
+
+    });
+
+});
+
+// =============================================================================
+// C: inferDisplayType Function
+// =============================================================================
+
+describe('C: inferDisplayType', () => {
+
+    describe('C1: Non-Any Types Pass Through', () => {
+
+        it('returns original data_type for float fields',
+        {
+            meta: {
+                alias: 'Data-InferType-Float',
+                scenario: "Field has explicit float type.",
+                behavior: "Returns 'float' without runtime inference."
+            }
+        },
+        () => {
+            const fields = createMockFields();
+            const logs = [createMockLog()];
+            
+            const result = inferDisplayType(fields, 'table.floatField', logs, 'table');
+            
+            expect(result).toBe('float');
+        });
+
+        it('returns original data_type for timestamp fields',
+        {
+            meta: {
+                alias: 'Data-InferType-Timestamp',
+                scenario: "Field has explicit timestamp type.",
+                behavior: "Returns 'timestamp' without runtime inference."
+            }
+        },
+        () => {
+            const fields = createMockFields();
+            const logs = [createMockLog()];
+            
+            const result = inferDisplayType(fields, 'table.timestampField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+        it('returns original data_type for date fields',
+        {
+            meta: {
+                alias: 'Data-InferType-Date',
+                scenario: "Field has explicit date type.",
+                behavior: "Returns 'date' without runtime inference."
+            }
+        },
+        () => {
+            const fields = createMockFields();
+            const logs = [createMockLog()];
+            
+            const result = inferDisplayType(fields, 'table.dateField', logs, 'table');
+            
+            expect(result).toBe('date');
+        });
+
+    });
+
+    describe('C2: Any Type Inference', () => {
+
+        it('infers timestamp for date string values',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyDateString',
+                scenario: "Field has 'Any' type but contains ISO date strings.",
+                behavior: "Infers 'timestamp' for proper axis formatting."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyDateField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.anyDateField': '2025-12-01 11:13:12'
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyDateField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+        it('infers timestamp for ISO date string values',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyISODate',
+                scenario: "Field has 'Any' type but contains ISO 8601 date strings.",
+                behavior: "Infers 'timestamp' for proper axis formatting."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyDateField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.anyDateField': '2024-01-15T10:30:00.000Z'
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyDateField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+        it('infers float for numeric values',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyNumber',
+                scenario: "Field has 'Any' type but contains numeric values.",
+                behavior: "Infers 'float' for numeric axis formatting."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyNumericField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.anyNumericField': 42.5
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyNumericField', logs, 'table');
+            
+            expect(result).toBe('float');
+        });
+
+        it('defaults to float for empty logs',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyEmptyLogs',
+                scenario: "No logs available to sample for type inference.",
+                behavior: "Falls back to 'float' as default."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs: LogProps[] = [];
+            
+            const result = inferDisplayType(fields, 'table.anyField', logs, 'table');
+            
+            expect(result).toBe('float');
+        });
+
+        it('samples multiple logs for consistent inference',
+        {
+            meta: {
+                alias: 'Data-InferType-AnySampleMultiple',
+                scenario: "Multiple logs with consistent date values.",
+                behavior: "Infers type from first valid sample."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyDateField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.anyDateField': '2025-01-01 00:00:00'
+                    }
+                },
+                {
+                    type: 'ungrouped',
+                    id: 'log-2',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-2',
+                    'table.entries': {
+                        'table.anyDateField': '2025-01-02 00:00:00'
+                    }
+                },
+                {
+                    type: 'ungrouped',
+                    id: 'log-3',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-3',
+                    'table.entries': {
+                        'table.anyDateField': '2025-01-03 00:00:00'
+                    }
+                }
+            ] as unknown as LogProps[];
+            
+            const result = inferDisplayType(fields, 'table.anyDateField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+        it('handles null values gracefully',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyNullValue',
+                scenario: "First log has null value for the field.",
+                behavior: "Skips null values and continues sampling."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.anyField': null
+                    }
+                },
+                {
+                    type: 'ungrouped',
+                    id: 'log-2',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-2',
+                    'table.entries': {
+                        'table.anyField': '2025-06-15'
+                    }
+                }
+            ] as unknown as LogProps[];
+            
+            const result = inferDisplayType(fields, 'table.anyField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+        it('infers from params fields correctly',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyFromParams',
+                scenario: "Any type field is stored in params.",
+                behavior: "Correctly samples from params object."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyParamField': {
+                    data_type: 'Any',
+                    field_type: 'param',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.params': {
+                        'table.anyParamField': 123.456
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyParamField', logs, 'table');
+            
+            expect(result).toBe('float');
+        });
+
+        it('infers from derived_entries fields correctly',
+        {
+            meta: {
+                alias: 'Data-InferType-AnyFromDerived',
+                scenario: "Any type field is stored in derived_entries.",
+                behavior: "Correctly samples from derived_entries object."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyDerivedField': {
+                    data_type: 'Any',
+                    field_type: 'derived_entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.derived_entries': {
+                        'table.anyDerivedField': '2025-03-20T15:45:00Z'
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyDerivedField', logs, 'table');
+            
+            expect(result).toBe('timestamp');
+        });
+
+    });
+
+    describe('C3: Edge Cases', () => {
+
+        it('returns float for missing field metadata',
+        {
+            meta: {
+                alias: 'Data-InferType-MissingMetadata',
+                scenario: "Field is not defined in fields metadata.",
+                behavior: "Falls back to 'float' default."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {};
+            const logs = [createMockLog()];
+            
+            const result = inferDisplayType(fields, 'table.unknownField', logs, 'table');
+            
+            expect(result).toBe('float');
+        });
+
+        it('handles logs without the property',
+        {
+            meta: {
+                alias: 'Data-InferType-MissingProperty',
+                scenario: "Logs don't contain the requested property.",
+                behavior: "Skips logs without the property and defaults to 'float'."
+            }
+        },
+        () => {
+            const fields: LogFieldsResponseProps = {
+                'table.anyField': {
+                    data_type: 'Any',
+                    field_type: 'entry',
+                    artifacts: '',
+                    mutable: 'false',
+                    created_at: ''
+                }
+            };
+            const logs = [
+                {
+                    type: 'ungrouped',
+                    id: 'log-1',
+                    ts: new Date().toISOString(),
+                    params: {},
+                    entries: {},
+                    derived_entries: {},
+                    clipped_fields: [],
+                    'table.id': 'log-1',
+                    'table.entries': {
+                        'table.otherField': 'some value'
+                    }
+                } as unknown as LogProps
+            ];
+            
+            const result = inferDisplayType(fields, 'table.anyField', logs, 'table');
+            
+            expect(result).toBe('float');
         });
 
     });

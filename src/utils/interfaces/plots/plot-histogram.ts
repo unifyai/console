@@ -4,7 +4,7 @@ import * as d3 from "d3";
 import { LogProps, LogFieldsResponseProps } from "@/types/interfaces/logs";
 import { DataRange, GroupedDataRange, GroupedBin, GroupingColors, InfoCardData } from "@/types/interfaces/plot";
 import { formatTimeTypeValue } from "../format";
-import { getValue, hasProperty } from "./data";
+import { getValue, hasProperty, inferDisplayType } from "./data";
 import { drawAxes, generateTicks } from "./axes";
 import { getPrimaryColorFromNode } from "./common";
 import { renderGroupingKey } from "./key";
@@ -147,12 +147,12 @@ export const drawHistogram = (
     let data : DataRange | GroupedDataRange = [];
     const properties = Object
         .entries(fields)
-        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date" || data_type === "bool"))
+        .filter(([name, { data_type, field_type }]) => (data_type === "float" || data_type === "int" || data_type === "timestamp" || data_type === "time" || data_type === "timedelta" || data_type === "date" || data_type === "bool" || data_type === "Any"))
         .map(([name]) => name);
     const xAxisProperty = selectedXAxisProperty && properties.includes(selectedXAxisProperty) ? selectedXAxisProperty : properties.at(0);
     let xType : string | undefined;
     if (xAxisProperty) {
-        xType = fields[xAxisProperty].data_type
+        xType = inferDisplayType(fields, xAxisProperty, logs, table)
         const filteredData = logs.filter((log) => {
             const hasX = hasProperty(fields, xAxisProperty, log, table)
             const hasGroup = groupBy ? hasProperty(fields, groupBy, log, table) : true;
