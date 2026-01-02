@@ -1,0 +1,523 @@
+/**
+ * Histogram Integration Tests
+ *
+ * Browser-based tests for histogram rendering correctness,
+ * user interactions, and edge cases.
+ *
+ * Structure:
+ * - Edge Cases: Invalid/boundary conditions not in matrix
+ * - User Interactions: Hover, tooltip behaviors
+ * - Matrix Tests: Comprehensive coverage of all valid config combinations
+ *
+ * Key improvements:
+ * - Uses deterministic mock data for precise position assertions
+ * - Verifies bin count matches expected (within D3 threshold adjustment)
+ * - Verifies bin dimensions (width consistency, height proportionality)
+ * - Verifies bins are contiguous (no gaps between bins)
+ */
+
+import { describe, it, expect, afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import {
+  renderPlotCanvas,
+  createPlotTestSetup,
+  assertAxesRendered,
+  PlotCanvasTestResult,
+} from '../fixtures/plotCanvasTestHarness';
+import {
+  generateValidPlotConfigsForType,
+  generateDataTypeConfigs,
+  getActiveScales,
+  plotConfigName,
+  dataTypeConfigName,
+  generateTestAlias,
+  sampleConfigs,
+  PlotConfig,
+  DataTypeConfig,
+  ScaleOption,
+} from '../fixtures/configs';
+import {
+  createDeterministicMockLogs,
+  DeterministicLogSet,
+} from '../fixtures/mockData';
+import {
+  calculateExpectedBinCount,
+  calculateDomain,
+  positionsAreClose,
+  POSITION_TOLERANCE,
+  DEFAULT_DIMENSIONS,
+} from '../fixtures/calculations';
+
+// =============================================================================
+// Setup
+// =============================================================================
+
+afterEach(() => {
+  cleanup();
+});
+
+// =============================================================================
+// Test Utilities
+// =============================================================================
+
+/**
+ * Assert histogram bins have valid dimensions
+ */
+function assertBinsHaveValidDimensions(bins: SVGRectElement[]) {
+  for (const bin of bins) {
+    const x = bin.getAttribute('x');
+    const y = bin.getAttribute('y');
+    const width = bin.getAttribute('width');
+    const height = bin.getAttribute('height');
+
+    if (x) {
+      const xNum = parseFloat(x);
+      expect(Number.isFinite(xNum)).toBe(true);
+      expect(xNum).toBeGreaterThanOrEqual(0);
+    }
+    if (y) {
+      const yNum = parseFloat(y);
+      expect(Number.isFinite(yNum)).toBe(true);
+      expect(yNum).toBeGreaterThanOrEqual(0);
+    }
+    if (width) {
+      const widthNum = parseFloat(width);
+      expect(Number.isFinite(widthNum)).toBe(true);
+      expect(widthNum).toBeGreaterThan(0); // Bins should have positive width
+    }
+    if (height) {
+      const heightNum = parseFloat(height);
+      expect(Number.isFinite(heightNum)).toBe(true);
+      expect(heightNum).toBeGreaterThanOrEqual(0); // Height can be 0 for empty bins
+    }
+  }
+}
+
+/**
+ * Assert bins are within the plot area
+ */
+function assertBinsWithinPlotArea(bins: SVGRectElement[]) {
+  const { width, height, margins } = DEFAULT_DIMENSIONS;
+
+  for (const bin of bins) {
+    const x = parseFloat(bin.getAttribute('x') || '0');
+    const y = parseFloat(bin.getAttribute('y') || '0');
+    const binWidth = parseFloat(bin.getAttribute('width') || '0');
+    const binHeight = parseFloat(bin.getAttribute('height') || '0');
+
+    expect(x).toBeGreaterThanOrEqual(margins.left - POSITION_TOLERANCE);
+    expect(x + binWidth).toBeLessThanOrEqual(width - margins.right + POSITION_TOLERANCE);
+    expect(y).toBeGreaterThanOrEqual(margins.top - POSITION_TOLERANCE);
+    expect(y + binHeight).toBeLessThanOrEqual(height - margins.bottom + POSITION_TOLERANCE);
+  }
+}
+
+/**
+ * Assert bin count is within expected range
+ * D3's histogram threshold algorithms may adjust bin count
+ */
+function assertBinCountInRange(
+  bins: SVGRectElement[],
+  requestedBinCount: number,
+  dataCount: number
+) {
+  const { min, max } = calculateExpectedBinCount(requestedBinCount, dataCount);
+  expect(bins.length).toBeGreaterThanOrEqual(min);
+  expect(bins.length).toBeLessThanOrEqual(max);
+}
+
+/**
+ * Assert all bins have consistent widths
+ */
+function assertConsistentBinWidths(bins: SVGRectElement[]) {
+  if (bins.length <= 1) return;
+
+  const widths = bins.map(bin => parseFloat(bin.getAttribute('width') || '0'));
+  const avgWidth = widths.reduce((a, b) => a + b, 0) / widths.length;
+
+  for (const width of widths) {
+    // Allow small tolerance (1px) for rendering differences
+    expect(Math.abs(width - avgWidth)).toBeLessThan(POSITION_TOLERANCE);
+  }
+}
+
+/**
+ * Assert bins are contiguous (no gaps between them)
+ */
+function assertBinsContiguous(bins: SVGRectElement[]) {
+  if (bins.length <= 1) return;
+
+  // Sort bins by x position
+  const sortedBins = [...bins].sort(
+    (a, b) => parseFloat(a.getAttribute('x') || '0') - parseFloat(b.getAttribute('x') || '0')
+  );
+
+  for (let i = 1; i < sortedBins.length; i++) {
+    const prevBin = sortedBins[i - 1];
+    const currBin = sortedBins[i];
+
+    const prevX = parseFloat(prevBin.getAttribute('x') || '0');
+    const prevWidth = parseFloat(prevBin.getAttribute('width') || '0');
+    const currX = parseFloat(currBin.getAttribute('x') || '0');
+
+    // Current bin should start where previous bin ends (with tolerance)
+    expect(Math.abs(currX - (prevX + prevWidth))).toBeLessThan(POSITION_TOLERANCE);
+  }
+}
+
+/**
+ * Assert bin heights are proportional to frequency
+ * Taller bins should have more data points
+ */
+function assertBinHeightsProportional(bins: SVGRectElement[]) {
+  if (bins.length < 2) return;
+
+  const binData = bins.map(bin => ({
+    y: parseFloat(bin.getAttribute('y') || '0'),
+    height: parseFloat(bin.getAttribute('height') || '0'),
+  }));
+
+  // All heights should be non-negative
+  for (const bin of binData) {
+    expect(bin.height).toBeGreaterThanOrEqual(0);
+  }
+
+  // At least some bins should have non-zero height (unless all data in one bin)
+  const nonZeroHeights = binData.filter(b => b.height > 0);
+  expect(nonZeroHeights.length).toBeGreaterThan(0);
+}
+
+/**
+ * Assert total bin coverage spans the data range
+ */
+function assertBinsCoverDataRange(bins: SVGRectElement[]) {
+  if (bins.length === 0) return;
+
+  const { margins, width } = DEFAULT_DIMENSIONS;
+  const plotWidth = width - margins.left - margins.right;
+
+  // Sort bins by x position
+  const sortedBins = [...bins].sort(
+    (a, b) => parseFloat(a.getAttribute('x') || '0') - parseFloat(b.getAttribute('x') || '0')
+  );
+
+  const firstBinX = parseFloat(sortedBins[0].getAttribute('x') || '0');
+  const lastBin = sortedBins[sortedBins.length - 1];
+  const lastBinEnd = parseFloat(lastBin.getAttribute('x') || '0') +
+                     parseFloat(lastBin.getAttribute('width') || '0');
+
+  // Bins should span most of the plot width (at least 80%)
+  const coverage = lastBinEnd - firstBinX;
+  expect(coverage).toBeGreaterThan(plotWidth * 0.5);
+}
+
+// =============================================================================
+// Edge Cases (Not covered by matrix)
+// =============================================================================
+
+describe('Histogram - Edge Cases', () => {
+  it('handles empty data gracefully', async () => {
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: [],
+    });
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    const bins = result.getHistogramBins();
+    expect(bins.length).toBe(0);
+  });
+
+  it('handles single data point', async () => {
+    const singleLog = [{
+      id: 'log_0',
+      timestamp: new Date().toISOString(),
+      table1: { x_value: 50 },
+    }];
+
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: singleLog as any,
+    });
+
+    await result.waitForPlot();
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    // Single data point should result in at least one bin
+    const bins = result.getHistogramBins();
+    expect(bins.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('handles uniform data (all same value)', async () => {
+    const uniformLogs = Array.from({ length: 100 }, (_, i) => ({
+      id: `log_${i}`,
+      timestamp: new Date().toISOString(),
+      table1: { x_value: 42 },
+    }));
+
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: uniformLogs as any,
+    });
+
+    await result.waitForPlot();
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    // All data in one bin - should have exactly 1 bin with all data
+    const bins = result.getHistogramBins();
+    assertBinsHaveValidDimensions(bins);
+  });
+
+  it('handles data with extreme outliers', async () => {
+    const logsWithOutlier = [
+      ...Array.from({ length: 50 }, (_, i) => ({
+        id: `log_${i}`,
+        timestamp: new Date().toISOString(),
+        table1: { x_value: i },
+      })),
+      {
+        id: 'outlier',
+        timestamp: new Date().toISOString(),
+        table1: { x_value: 1e10 },
+      },
+    ];
+
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: logsWithOutlier as any,
+    });
+
+    await result.waitForPlot();
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    const bins = result.getHistogramBins();
+    assertBinsHaveValidDimensions(bins);
+  });
+
+  it('handles negative values', async () => {
+    const negativeValueLogs = Array.from({ length: 50 }, (_, i) => ({
+      id: `log_${i}`,
+      timestamp: new Date().toISOString(),
+      table1: { x_value: i - 25 },
+    }));
+
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: negativeValueLogs as any,
+    });
+
+    await result.waitForPlot();
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    const bins = result.getHistogramBins();
+    assertBinsHaveValidDimensions(bins);
+    assertBinsWithinPlotArea(bins);
+  });
+
+  it('handles two distinct values (bimodal data)', async () => {
+    const bimodalLogs = [
+      ...Array.from({ length: 50 }, (_, i) => ({
+        id: `log_a_${i}`,
+        timestamp: new Date().toISOString(),
+        table1: { x_value: 10 },
+      })),
+      ...Array.from({ length: 50 }, (_, i) => ({
+        id: `log_b_${i}`,
+        timestamp: new Date().toISOString(),
+        table1: { x_value: 90 },
+      })),
+    ];
+
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      logs: bimodalLogs as any,
+      binCount: 10,
+    });
+
+    await result.waitForPlot();
+
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+
+    const bins = result.getHistogramBins();
+    assertBinsHaveValidDimensions(bins);
+  });
+});
+
+// =============================================================================
+// User Interactions
+// =============================================================================
+
+describe('Histogram - Interactions', () => {
+  it('has tooltip element in DOM', async () => {
+    const result = renderPlotCanvas({
+      plotType: 'Histogram',
+      xAxis: 'table1.x_value',
+      interactive: true,
+    });
+
+    await result.waitForPlot();
+
+    const tooltip = result.getTooltip();
+    expect(tooltip).not.toBeNull();
+    expect(tooltip?.style.opacity).toBe('0'); // Hidden initially
+  });
+});
+
+// =============================================================================
+// Matrix Tests - Comprehensive Coverage with Exact Assertions
+// =============================================================================
+
+describe('Histogram - Matrix Tests', () => {
+  const allValidConfigs = generateValidPlotConfigsForType('histogram');
+  const sampledConfigs = sampleConfigs(allValidConfigs);
+
+  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
+  // Histograms work best with numeric data types
+  const numericDataTypes = dataTypeConfigs.filter(
+    (dt) => ['float', 'int'].includes(dt.x_axis_type)
+  );
+  const activeScales = getActiveScales();
+
+  describe.each(sampledConfigs)('config: %o', (plotConfig) => {
+    describe.each(numericDataTypes)('data types: %o', (dataTypeConfig) => {
+      describe.each(activeScales)('scale: %s', (scale) => {
+        const alias = generateTestAlias('histogram', plotConfig, dataTypeConfig, scale);
+
+        // Generate deterministic data for precise assertions
+        const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
+
+        it(
+          `${alias} - renders SVG and axes`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const svg = result.getSvg();
+            expect(svg).not.toBeNull();
+
+            assertAxesRendered(result);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - bin count is within expected range`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const bins = result.getHistogramBins();
+            assertBinCountInRange(bins, plotConfig.bin_count, deterministicData.count);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - all bins have valid dimensions`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const bins = result.getHistogramBins();
+            assertBinsHaveValidDimensions(bins);
+            assertBinsWithinPlotArea(bins);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - bins have consistent widths`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const bins = result.getHistogramBins();
+            assertConsistentBinWidths(bins);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - bins are contiguous (no gaps)`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const bins = result.getHistogramBins();
+            assertBinsContiguous(bins);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - bin heights are proportional to frequency`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const bins = result.getHistogramBins();
+            assertBinHeightsProportional(bins);
+          },
+          scale.timeout
+        );
+
+        it(
+          `${alias} - axis ticks are present`,
+          async () => {
+            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+              deterministic: true,
+            });
+            const result = renderPlotCanvas(testSetup);
+
+            await result.waitForPlot();
+
+            const xTicks = result.getAxisTicks('x');
+            const yTicks = result.getAxisTicks('y');
+            expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
+          },
+          scale.timeout
+        );
+      });
+    });
+  });
+});

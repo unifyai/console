@@ -1,3 +1,6 @@
+// Ensure NODE_ENV is set before loading env config so .env.test is loaded
+process.env.NODE_ENV = 'test';
+
 import { loadEnvConfig } from '@next/env';
 loadEnvConfig(process.cwd());
 
