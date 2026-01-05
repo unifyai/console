@@ -157,26 +157,30 @@ export function createPlotDataResponse(
   const fields = createMockFields(dataTypeConfig);
 
   // Transform logs to frontend format
+  // LogEntry has 'table1.entries' with the actual data
   const transformedLogs = logs.map((log) => ({
     type: 'ungrouped',
     id: log.id,
     ts: log.timestamp,
-    'table1.id': log.id,
+    'table1.id': log['table1.id'],
     'table1.ts': log.timestamp,
+    // Spread entries with table1. prefix (for PlotCanvas compatibility)
     ...Object.fromEntries(
-      Object.entries(log.table1).map(([key, value]) => [`table1.${key}`, value])
+      Object.entries(log['table1.entries']).map(([key, value]) => [key, value])
     ),
-    entries: log.table1,
+    'table1.entries': log['table1.entries'],
+    // Also include 'entries' for API test compatibility (real API returns this)
+    entries: log['table1.entries'],
     params: {},
   }));
 
-  // Transform fields to frontend format
+  // Fields are already in the correct format (Record<string, {...}>)
   const transformedFields: Record<string, unknown> = {};
-  for (const field of fields) {
-    transformedFields[field.path] = {
-      type: field.type,
-      display_type: field.display_type,
-      count: field.count,
+  for (const [path, fieldDef] of Object.entries(fields)) {
+    transformedFields[path] = {
+      type: fieldDef.data_type,
+      display_type: fieldDef.data_type,
+      count: 100,
     };
   }
 
@@ -399,7 +403,14 @@ export interface MatrixTestSetup {
   response: PlotDataResponse;
   metadata: PlotDataResponse['metadata'];
   logs: LogEntry[];
-  fields: FieldDefinition[];
+  fields: Record<string, {
+    data_type: string;
+    field_type: 'entry' | 'param' | 'derived_entry';
+    artifacts: string;
+    mutable: 'true' | 'false';
+    created_at: string;
+    description?: string;
+  }>;
 }
 
 /**

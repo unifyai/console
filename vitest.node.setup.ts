@@ -1,5 +1,8 @@
 // Ensure NODE_ENV is set before loading env config so .env.test is loaded
-process.env.NODE_ENV = 'test';
+// Use Object.defineProperty to avoid TypeScript read-only error
+if (process.env.NODE_ENV !== 'test') {
+  Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', writable: true });
+}
 
 import { loadEnvConfig } from '@next/env';
 loadEnvConfig(process.cwd());

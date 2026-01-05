@@ -95,9 +95,10 @@ export const projectConfigOptions = {
   limit: [100, 1000, 10000] as const,
   filter_expr: [undefined, "status == 'success'", 'value > 0'] as const,
   group_by: [undefined, ['category'], ['category', 'model']] as const,
+  // Sorting format: {"field_name": "ascending" | "descending"}
   sorting: [
     undefined,
-    JSON.stringify([{ field: 'timestamp', order: 'desc' }]),
+    JSON.stringify({ timestamp: 'descending' }),
   ] as const,
 };
 
@@ -107,10 +108,35 @@ export const dataTypeOptions = {
   group_by_type: ['str', 'bool'] as const,
 };
 
+/**
+ * Get the field name suffix for a given data type.
+ * Maps data types to their seeded field variants.
+ */
+export function getFieldForDataType(baseField: string, dataType: string): string {
+  // float is the default, no suffix needed
+  if (dataType === 'float') return baseField;
+  
+  // Other types have suffixed field names
+  return `${baseField}_${dataType}`;
+}
+
+/**
+ * Get the grouping field for a given group_by type.
+ */
+export function getGroupByFieldForType(groupByType: string): string {
+  if (groupByType === 'bool') return 'table1.bool_category';
+  return 'table1.category'; // default str
+}
+
+// Timeouts are higher when using real API to account for network latency
+const baseTimeouts = PLOT_TEST_API_REAL
+  ? { small: 20000, medium: 60000, large: 120000 }
+  : { small: 5000, medium: 15000, large: 30000 };
+
 export const scaleOptions = [
-  { name: 'small' as const, count: 100, skip: !shouldRunScale('small'), timeout: 5000 },
-  { name: 'medium' as const, count: 1000, skip: !shouldRunScale('medium'), timeout: 15000 },
-  { name: 'large' as const, count: 10000, skip: !shouldRunScale('large'), timeout: 30000 },
+  { name: 'small' as const, count: 100, skip: !shouldRunScale('small'), timeout: baseTimeouts.small },
+  { name: 'medium' as const, count: 1000, skip: !shouldRunScale('medium'), timeout: baseTimeouts.medium },
+  { name: 'large' as const, count: 10000, skip: !shouldRunScale('large'), timeout: baseTimeouts.large },
 ];
 
 // =============================================================================
@@ -139,6 +165,7 @@ export type PlotConfig = {
 
 export type ProjectConfig = {
   project_name: string;
+  context?: string;
   limit: number;
   filter_expr?: string;
   group_by?: string[];
@@ -406,6 +433,27 @@ export function generateTestAliasWithProject(
   scale: ScaleOption
 ): string {
   return `${testType}-${projectConfigName(projectConfig)}-${plotConfigName(plotConfig)}-${dataTypeConfigName(dataTypes)}-${scale.name}`;
+}
+
+/**
+ * Generate a deterministic test context for concurrent API test isolation.
+ * Uses a hash-like format based on test parameters to ensure unique,
+ * reproducible contexts that prevent database contention.
+ *
+ * Format: test-{plotType}-{configHash}-{dataTypeHash}-{scale}
+ */
+export function generateTestContext(
+  plotConfig: PlotConfig,
+  projectConfig: ProjectConfig,
+  dataTypes: DataTypeConfig,
+  scale: ScaleOption
+): string {
+  // Create a short, deterministic identifier for each dimension
+  const plotHash = `${plotConfig.type[0]}${plotConfig.scale_x[0]}${plotConfig.scale_y[0]}${plotConfig.aggregate?.[0] ?? 'n'}${plotConfig.group_by ? 'g' : 'u'}`;
+  const projHash = `${projectConfig.filter_expr ? 'f' : 'n'}${projectConfig.group_by?.length ?? 0}${projectConfig.sorting ? 's' : 'n'}`;
+  const dataHash = `${dataTypes.x_axis_type[0]}${dataTypes.y_axis_type[0]}${dataTypes.group_by_type[0]}`;
+
+  return `test-${plotHash}-${projHash}-${dataHash}-${scale.name}`;
 }
 
 // =============================================================================

@@ -27,7 +27,8 @@ export interface MockScaleOption {
 export type LogEntry = {
   id: string;
   timestamp: string;
-  table1: Record<string, unknown>;
+  'table1.id': string;
+  'table1.entries': Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -73,12 +74,14 @@ const valueGenerators: Record<string, (index: number, seed?: number) => unknown>
  */
 const deterministicValueGenerators: Record<string, (index: number, count: number) => unknown> = {
   float: (i, count) => {
-    // Generate values evenly spaced between 0 and 100
-    return (i / Math.max(1, count - 1)) * 100;
+    // Generate values evenly spaced between 1 and 100
+    // Start from 1 (not 0) to avoid log(0) issues with log scales
+    return 1 + (i / Math.max(1, count - 1)) * 99;
   },
   int: (i, count) => {
-    // Generate integer values evenly spaced
-    return Math.round((i / Math.max(1, count - 1)) * 100);
+    // Generate integer values evenly spaced between 1 and 100
+    // Start from 1 (not 0) to avoid log(0) issues with log scales
+    return Math.max(1, Math.round((i / Math.max(1, count - 1)) * 100));
   },
   str: (i) => `category_${i % 5}`,
   bool: (i) => i % 2 === 0,
@@ -164,26 +167,28 @@ export function createMockLogs(options: MockLogOptions): LogEntry[] {
       timestamp: deterministic
         ? new Date(new Date('2024-01-01').getTime() + i * 60000).toISOString()
         : new Date(Date.now() - i * 60000).toISOString(),
-      table1: {
-        x_value: isNullEntry
+      'table1.id': `log_${i}`,
+      'table1.entries': {
+        // Keys must include table prefix to match API response format
+        'table1.x_value': isNullEntry
           ? null
           : deterministic
             ? generateDeterministicValue(dataTypeConfig.x_axis_type, i, count)
             : generateValue(dataTypeConfig.x_axis_type, i, 0),
-        y_value: isNullEntry
+        'table1.y_value': isNullEntry
           ? null
           : deterministic
             ? generateDeterministicValue(dataTypeConfig.y_axis_type, i, count, 50) // offset by 50 for y
             : generateValue(dataTypeConfig.y_axis_type, i, 100),
-        category: generateValue(dataTypeConfig.group_by_type, i, 200),
-        status: i % 4 === 0 ? 'error' : i % 2 === 0 ? 'success' : 'pending',
-        value: deterministic
+        'table1.category': generateValue(dataTypeConfig.group_by_type, i, 200),
+        'table1.status': i % 4 === 0 ? 'error' : i % 2 === 0 ? 'success' : 'pending',
+        'table1.value': deterministic
           ? (i / Math.max(1, count - 1)) * 1000
           : generateValue('float', i, 300),
-        count: deterministic
+        'table1.count': deterministic
           ? i
           : generateValue('int', i, 400),
-        label: `Item ${i}`,
+        'table1.label': `Item ${i}`,
       },
     };
 
@@ -239,8 +244,8 @@ export function createDeterministicMockLogs(
   });
 
   // Pre-compute expected values for assertions
-  const xValues = logs.map(l => l.table1.x_value as number);
-  const yValues = logs.map(l => l.table1.y_value as number);
+  const xValues = logs.map(l => l['table1.entries']['table1.x_value'] as number);
+  const yValues = logs.map(l => l['table1.entries']['table1.y_value'] as number);
 
   const numericXValues = xValues.filter(v => typeof v === 'number' && Number.isFinite(v));
   const numericYValues = yValues.filter(v => typeof v === 'number' && Number.isFinite(v));
@@ -286,14 +291,15 @@ function createEdgeCaseLogs(
   edgeCases.push({
     id: `log_edge_null_${startIndex}`,
     timestamp: new Date().toISOString(),
-    table1: {
-      x_value: null,
-      y_value: null,
-      category: null,
-      status: 'success',
-      value: 0,
-      count: 0,
-      label: 'Null edge case',
+    'table1.id': `log_edge_null_${startIndex}`,
+    'table1.entries': {
+      'table1.x_value': null,
+      'table1.y_value': null,
+      'table1.category': null,
+      'table1.status': 'success',
+      'table1.value': 0,
+      'table1.count': 0,
+      'table1.label': 'Null edge case',
     },
   });
 
@@ -302,14 +308,15 @@ function createEdgeCaseLogs(
     edgeCases.push({
       id: `log_edge_zero_${startIndex + 1}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        x_value: 0,
-        y_value: 0,
-        category: 'zero_category',
-        status: 'success',
-        value: 0,
-        count: 0,
-        label: 'Zero edge case',
+      'table1.id': `log_edge_zero_${startIndex + 1}`,
+      'table1.entries': {
+        'table1.x_value': 0,
+        'table1.y_value': 0,
+        'table1.category': 'zero_category',
+        'table1.status': 'success',
+        'table1.value': 0,
+        'table1.count': 0,
+        'table1.label': 'Zero edge case',
       },
     });
   }
@@ -319,14 +326,15 @@ function createEdgeCaseLogs(
     edgeCases.push({
       id: `log_edge_negative_${startIndex + 2}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        x_value: -100,
-        y_value: -50,
-        category: 'negative_category',
-        status: 'error',
-        value: -999,
-        count: -1,
-        label: 'Negative edge case',
+      'table1.id': `log_edge_negative_${startIndex + 2}`,
+      'table1.entries': {
+        'table1.x_value': -100,
+        'table1.y_value': -50,
+        'table1.category': 'negative_category',
+        'table1.status': 'error',
+        'table1.value': -999,
+        'table1.count': -1,
+        'table1.label': 'Negative edge case',
       },
     });
   }
@@ -336,16 +344,17 @@ function createEdgeCaseLogs(
     edgeCases.push({
       id: `log_edge_large_${startIndex + 3}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        x_value:
+      'table1.id': `log_edge_large_${startIndex + 3}`,
+      'table1.entries': {
+        'table1.x_value':
           dataTypeConfig.x_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
-        y_value:
+        'table1.y_value':
           dataTypeConfig.y_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
-        category: 'large_category',
-        status: 'success',
-        value: 1e10,
-        count: 1000000,
-        label: 'Large value edge case',
+        'table1.category': 'large_category',
+        'table1.status': 'success',
+        'table1.value': 1e10,
+        'table1.count': 1000000,
+        'table1.label': 'Large value edge case',
       },
     });
   }
@@ -355,14 +364,15 @@ function createEdgeCaseLogs(
     edgeCases.push({
       id: `log_edge_empty_str_${startIndex + 4}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        x_value: '',
-        y_value: 0,
-        category: '',
-        status: 'success',
-        value: 0,
-        count: 0,
-        label: 'Empty string edge case',
+      'table1.id': `log_edge_empty_str_${startIndex + 4}`,
+      'table1.entries': {
+        'table1.x_value': '',
+        'table1.y_value': 0,
+        'table1.category': '',
+        'table1.status': 'success',
+        'table1.value': 0,
+        'table1.count': 0,
+        'table1.label': 'Empty string edge case',
       },
     });
   }
@@ -372,14 +382,15 @@ function createEdgeCaseLogs(
     edgeCases.push({
       id: `log_edge_future_date_${startIndex + 5}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        x_value: new Date(Date.now() + 365 * 86400000 * 100).toISOString(),
-        y_value: 9999,
-        category: 'future_category',
-        status: 'pending',
-        value: 0,
-        count: 0,
-        label: 'Future date edge case',
+      'table1.id': `log_edge_future_date_${startIndex + 5}`,
+      'table1.entries': {
+        'table1.x_value': new Date(Date.now() + 365 * 86400000 * 100).toISOString(),
+        'table1.y_value': 9999,
+        'table1.category': 'future_category',
+        'table1.status': 'pending',
+        'table1.value': 0,
+        'table1.count': 0,
+        'table1.label': 'Future date edge case',
       },
     });
   }
@@ -392,9 +403,56 @@ function createEdgeCaseLogs(
 // =============================================================================
 
 /**
- * Create mock field definitions based on data type config
+ * Create mock field definitions in LogFieldsResponseProps format
+ * This returns an object with field paths as keys, matching the API response format
  */
-export function createMockFields(dataTypeConfig: DataTypeConfig): FieldDefinition[] {
+export function createMockFields(dataTypeConfig: DataTypeConfig): Record<string, {
+  data_type: string;
+  field_type: 'entry' | 'param' | 'derived_entry';
+  artifacts: string;
+  mutable: 'true' | 'false';
+  created_at: string;
+  description?: string;
+}> {
+  const now = new Date().toISOString();
+  
+  const fieldDefs = [
+    { path: 'table1.x_value', type: dataTypeConfig.x_axis_type },
+    { path: 'table1.y_value', type: dataTypeConfig.y_axis_type },
+    { path: 'table1.category', type: dataTypeConfig.group_by_type },
+    { path: 'table1.status', type: 'str' },
+    { path: 'table1.value', type: 'float' },
+    { path: 'table1.count', type: 'int' },
+    { path: 'table1.label', type: 'str' },
+    { path: 'timestamp', type: 'datetime' },
+    { path: 'id', type: 'str' },
+  ];
+  
+  const result: Record<string, {
+    data_type: string;
+    field_type: 'entry' | 'param' | 'derived_entry';
+    artifacts: string;
+    mutable: 'true' | 'false';
+    created_at: string;
+  }> = {};
+  
+  for (const field of fieldDefs) {
+    result[field.path] = {
+      data_type: field.type,
+      field_type: 'entry',
+      artifacts: '',
+      mutable: 'false',
+      created_at: now,
+    };
+  }
+  
+  return result;
+}
+
+/**
+ * Create mock field definitions as array (legacy format for some tests)
+ */
+export function createMockFieldsArray(dataTypeConfig: DataTypeConfig): FieldDefinition[] {
   return [
     {
       path: 'table1.x_value',

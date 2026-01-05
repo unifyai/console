@@ -422,7 +422,7 @@ describe('Line Chart - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Line Chart - Matrix Tests', () => {
+describe.concurrent('Line Chart - Matrix Tests', () => {
   const allValidConfigs = generateValidPlotConfigsForType('line');
   const sampledConfigs = sampleConfigs(allValidConfigs);
 

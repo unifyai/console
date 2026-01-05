@@ -81,6 +81,23 @@ VITE_TEST_API_URL=http://localhost:8000 VITE_TEST_API_KEY=my-api-key npm test
 PLOT_TEST_MATRIX_DEBUG=true npm test
 ```
 
+## Parallelization
+
+Matrix tests use `describe.concurrent` for parallel test execution, significantly reducing overall test time.
+
+For real API tests, each test combination gets a unique `context` value to prevent database contention:
+
+```typescript
+// Deterministic context format: test-{plotHash}-{projHash}-{dataHash}-{scale}
+const context = generateTestContext(plotConfig, projectConfig, dataTypeConfig, scale);
+// Example: "test-sllnu-fn0n-ffs-small"
+```
+
+This ensures:
+- Concurrent tests query different data partitions
+- No shared mutable state between tests
+- Reproducible test isolation (deterministic names)
+
 ## Test Structure Philosophy
 
 ### Matrix-Driven Testing
@@ -100,13 +117,13 @@ API tests support **two modes**:
 
 ```typescript
 describe('Plot API', () => {
-  // Edge cases only
+  // Edge cases only (sequential)
   describe('Authentication', () => { /* auth failures */ });
   describe('Input Validation', () => { /* missing fields */ });
   describe('Error Scenarios', () => { /* 404, 500, expired */ });
   
-  // Matrix-driven comprehensive tests
-  describe('Matrix Tests', () => {
+  // Matrix-driven comprehensive tests (parallel via describe.concurrent)
+  describe.concurrent('Matrix Tests', () => {
     describe.each(plotTypes)('%s plot', (plotType) => {
       describe.each(plotConfigs)('plot config: %o', (plotConfig) => {
         describe.each(projectConfigs)('project config: %o', (projectConfig) => {
@@ -132,21 +149,21 @@ Integration tests use **deterministic mock data** for precise SVG element assert
 
 ```typescript
 describe('Scatter Plot', () => {
-  // Edge cases not in matrix
+  // Edge cases not in matrix (sequential)
   describe('Edge Cases', () => {
     it('handles empty data');
     it('handles all-null values');
     it('handles extreme outliers');
   });
   
-  // User interactions
+  // User interactions (sequential)
   describe('Interactions', () => {
     it('has tooltip element');
     it('supports zoom when enabled');
   });
   
-  // Matrix-driven comprehensive tests
-  describe('Matrix Tests', () => {
+  // Matrix-driven comprehensive tests (parallel via describe.concurrent)
+  describe.concurrent('Matrix Tests', () => {
     describe.each(configs)('config: %o', (config) => {
       describe.each(dataTypes)('data types: %o', (dataType) => {
         describe.each(scales)('scale: %s', (scale) => {

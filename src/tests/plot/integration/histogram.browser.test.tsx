@@ -383,7 +383,7 @@ describe('Histogram - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Histogram - Matrix Tests', () => {
+describe.concurrent('Histogram - Matrix Tests', () => {
   const allValidConfigs = generateValidPlotConfigsForType('histogram');
   const sampledConfigs = sampleConfigs(allValidConfigs);
 

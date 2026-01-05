@@ -403,7 +403,7 @@ describe('Scatter Plot - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Scatter Plot - Matrix Tests', () => {
+describe.concurrent('Scatter Plot - Matrix Tests', () => {
   const allValidConfigs = generateValidPlotConfigsForType('scatter');
   const sampledConfigs = sampleConfigs(allValidConfigs);
 

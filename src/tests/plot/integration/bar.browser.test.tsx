@@ -337,7 +337,7 @@ describe('Bar Chart - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Bar Chart - Matrix Tests', () => {
+describe.concurrent('Bar Chart - Matrix Tests', () => {
   const allValidConfigs = generateValidPlotConfigsForType('bar');
   const sampledConfigs = sampleConfigs(allValidConfigs);
 
