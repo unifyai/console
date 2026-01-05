@@ -118,23 +118,50 @@ function assertBarsWithinPlotArea(bars: SVGRectElement[]) {
 }
 
 /**
- * Assert exact bar count matches expected unique categories.
- * Bar charts always render one bar per unique category.
+ * Assert exact bar count matches expected bars.
+ * - Non-grouped: one bar per unique x-axis category
+ * - Grouped: one bar per unique (x-axis category, group value) pair in the data
+ *
+ * For bar charts:
+ * - X-axis labels = table1.x_value (str type in bar configs = 5 unique values)
+ * - Group colors = table1.category (bool or str based on group_by_type)
  */
 function assertExactBarCount(
   result: PlotCanvasTestResult,
   deterministicData: DeterministicLogSet,
-  categoryField: string
+  xAxisField: string,
+  isGrouped = false,
+  _groupByType: 'str' | 'bool' = 'str'
 ) {
   const bars = result.getBars();
-  const expectedCount = calculateExpectedBarCount(
-    deterministicData.logs.map(l => ({
-      [categoryField]: l['table1.entries']['table1.category'],
-    })),
-    categoryField
-  );
+  
+  let expectedCount: number;
 
-  // Strict assertion: bar count must match unique category count
+  if (isGrouped) {
+    // For grouped charts, count unique (x, group) pairs in the actual data
+    // This correctly handles the case where not all combinations exist
+    const uniquePairs = new Set(
+      deterministicData.logs
+        .filter(l => 
+          l['table1.entries'][xAxisField] !== null && 
+          l['table1.entries'][xAxisField] !== undefined &&
+          l['table1.entries']['table1.category'] !== null &&
+          l['table1.entries']['table1.category'] !== undefined
+        )
+        .map(l => `${l['table1.entries'][xAxisField]}|${l['table1.entries']['table1.category']}`)
+    );
+    expectedCount = uniquePairs.size;
+  } else {
+    // For non-grouped charts, count unique x-axis categories
+    const uniqueXCategories = new Set(
+      deterministicData.logs
+        .map(l => l['table1.entries'][xAxisField])
+        .filter(v => v !== null && v !== undefined)
+    );
+    expectedCount = uniqueXCategories.size;
+  }
+
+  // Strict assertion: bar count must match expected
   expect(bars.length).toBe(expectedCount);
 }
 
@@ -437,7 +464,7 @@ function generateBarChartMatrix(): BarMatrixConfig[] {
 
 /**
  * Define tests for a single bar chart configuration.
- * This function is called once per config in the matrix.
+ * All assertions are batched into a single test to minimize render overhead.
  */
 function defineBarChartTests(
   config: BarMatrixConfig,
@@ -446,131 +473,82 @@ function defineBarChartTests(
   const { plotConfig, dataTypeConfig, scale } = config;
   const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-  it('renders SVG and axes', async () => {
+  it('renders bar chart correctly', async () => {
     const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
       deterministic: true,
     });
     const result = renderPlotCanvas(testSetup);
     await result.waitForPlot();
+
+    // Core assertions - SVG and structure
     const svg = result.getSvg();
     expect(svg).not.toBeNull();
     assertAxesRendered(result);
-  }, scale.timeout);
 
-  it('renders exact number of bars', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
-    assertExactBarCount(result, deterministicData, 'table1.category');
-  }, scale.timeout);
+    // Bar count
+    assertExactBarCount(
+      result,
+      deterministicData,
+      'table1.x_value',
+      !!plotConfig.group_by,
+      dataTypeConfig.group_by_type
+    );
 
-  it('all bars have valid dimensions', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Bar dimensions and positions
     const bars = result.getBars();
     assertBarsHaveValidDimensions(bars);
     assertBarsWithinPlotArea(bars);
-  }, scale.timeout);
 
-  it('bars have consistent widths and spacing', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
-    const bars = result.getBars();
-    if (!plotConfig.group_by) {
-      assertConsistentBarWidths(bars);
-      assertBarsEvenlySpaced(bars);
-    }
-  }, scale.timeout);
-
-  it('bar heights are proportional to values', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Bar heights match aggregated values
     assertBarHeightsMatchAggregatedValues(
       result,
       deterministicData,
       (plotConfig.aggregate as AggregateType) ?? 'sum'
     );
-  }, scale.timeout);
 
-  it('axis ticks are present', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Axis ticks
     const xTicks = result.getAxisTicks('x');
     const yTicks = result.getAxisTicks('y');
     expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
-  }, scale.timeout);
 
-  // Conditional tests based on config
-  if (plotConfig.group_by) {
-    it('grouped bars have different colors', async () => {
-      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-        deterministic: true,
-      });
-      const result = renderPlotCanvas(testSetup);
-      await result.waitForPlot();
-      const bars = result.getBars();
-      if (bars.length > 1) {
-        const fillColors = new Set(
-          bars.map((b) => b.getAttribute('fill')).filter(Boolean)
-        );
-        expect(fillColors.size).toBeGreaterThan(1);
-      }
-    }, scale.timeout);
-  }
+    // Non-grouped: consistent widths and spacing
+    if (!plotConfig.group_by) {
+      assertConsistentBarWidths(bars);
+      assertBarsEvenlySpaced(bars);
+    }
 
-  if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by &&
-      (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y')) {
-    it('bars are sorted by height', async () => {
-      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-        deterministic: true,
-      });
-      const result = renderPlotCanvas(testSetup);
-      await result.waitForPlot();
-      const bars = result.getBars();
-      if (bars.length > 1) {
-        const heights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
-        if (plotConfig.sort_order === 'asc') {
-          for (let i = 1; i < heights.length; i++) {
-            expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1] - POSITION_TOLERANCE);
-          }
-        } else if (plotConfig.sort_order === 'desc') {
-          for (let i = 1; i < heights.length; i++) {
-            expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
-          }
+    // Grouped: different colors
+    if (plotConfig.group_by && bars.length > 1) {
+      const fillColors = new Set(
+        bars.map((b) => b.getAttribute('fill')).filter(Boolean)
+      );
+      expect(fillColors.size).toBeGreaterThan(1);
+    }
+
+    // Sorting assertions
+    if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by &&
+        (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y') && bars.length > 1) {
+      const heights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
+      if (plotConfig.sort_order === 'asc') {
+        for (let i = 1; i < heights.length; i++) {
+          expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1] - POSITION_TOLERANCE);
+        }
+      } else if (plotConfig.sort_order === 'desc') {
+        for (let i = 1; i < heights.length; i++) {
+          expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
         }
       }
-    }, scale.timeout);
-  }
+    }
 
-  if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
-    it('grouped bars are positioned correctly', async () => {
-      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-        deterministic: true,
-      });
-      const result = renderPlotCanvas(testSetup);
-      await result.waitForPlot();
-      const bars = result.getBars();
+    // Grouped bar positions
+    if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
       expect(bars.length).toBeGreaterThan(0);
       const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0'));
       for (const x of xPositions) {
         expect(x).toBeGreaterThanOrEqual(0);
       }
-    }, scale.timeout);
-  }
+    }
+  }, scale.timeout);
 }
 
 /**
@@ -583,7 +561,7 @@ export const matrixTests = defineMatrixTests<BarMatrixConfig>({
   name: 'Bar Chart - Matrix Tests',
   getMatrix: generateBarChartMatrix,
   defineTests: defineBarChartTests,
-  chunkSize: 10,
+  chunkSize: 25,
   getConfigAlias: (config) =>
     generateTestAlias('bar', config.plotConfig, config.dataTypeConfig, config.scale),
 });

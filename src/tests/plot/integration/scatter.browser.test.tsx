@@ -427,13 +427,14 @@ function defineScatterTests(
   const { plotConfig, dataTypeConfig, scale } = config;
   const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-  it('renders exact number of points', async () => {
+  it('renders scatter plot correctly', async () => {
     const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
       deterministic: true,
     });
     const result = renderPlotCanvas(testSetup);
     await result.waitForPlot();
 
+    // Point count
     const logsForCounting = deterministicData.logs.map(l => ({
       'table1.x_value': l['table1.entries']['table1.x_value'],
       'table1.y_value': l['table1.entries']['table1.y_value'],
@@ -444,89 +445,50 @@ function defineScatterTests(
       'table1.y_value'
     );
     assertExactPointCount(result, expectedCount);
-  }, scale.timeout);
 
-  it('all points have valid positions within plot area', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Point positions
     const points = result.getScatterPoints();
     assertPointsHaveValidPositions(points);
-  }, scale.timeout);
-
-  it('point positions match expected data values', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
     assertPointPositionsMatchData(
       result,
       deterministicData,
       plotConfig.scale_x,
       plotConfig.scale_y
     );
-  }, scale.timeout);
 
-  it('points have consistent dimensions', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Point dimensions
     assertPointDimensions(result);
-  }, scale.timeout);
 
-  it('renders axes correctly', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+    // Axes
     assertAxesRendered(result);
     const xTicks = result.getAxisTicks('x');
     const yTicks = result.getAxisTicks('y');
     expect(xTicks.length).toBeGreaterThan(0);
     expect(yTicks.length).toBeGreaterThan(0);
-  }, scale.timeout);
 
-  if (plotConfig.show_regression) {
-    it('renders regression line', async () => {
-      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-        deterministic: true,
-      });
-      const result = renderPlotCanvas(testSetup);
-      await result.waitForPlot();
+    // Regression line (if enabled)
+    if (plotConfig.show_regression) {
       const plotData = result.getPlotDataGroup();
       expect(plotData).not.toBeNull();
       const lines = plotData?.querySelectorAll('line, path.regression-line');
       expect(lines?.length).toBeGreaterThanOrEqual(0);
-    }, scale.timeout);
-  }
+    }
 
-  if (plotConfig.group_by) {
-    it('points have different colors for groups', async () => {
-      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-        deterministic: true,
-      });
-      const result = renderPlotCanvas(testSetup);
-      await result.waitForPlot();
-      const points = result.getScatterPoints();
+    // Grouped: different colors for groups
+    if (plotConfig.group_by) {
       const fillColors = new Set(
         points.map((p) => p.getAttribute('fill')).filter(Boolean)
       );
       expect(fillColors.size).toBeGreaterThanOrEqual(1);
-    }, scale.timeout);
-  }
+    }
+  }, scale.timeout);
 }
 
 export const matrixTests = defineMatrixTests<ScatterMatrixConfig>({
   name: 'Scatter Plot - Matrix Tests',
   getMatrix: generateScatterMatrix,
   defineTests: defineScatterTests,
-  chunkSize: 10,
+  chunkSize: 25,
   getConfigAlias: (config) =>
     generateTestAlias('scatter', config.plotConfig, config.dataTypeConfig, config.scale),
 });

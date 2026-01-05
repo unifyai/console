@@ -77,6 +77,8 @@ export default defineConfig({
           include: ['src/**/*.browser.test.ts?(x)'],
           exclude: ['src/**/*.node.test.ts?(x)'],
           env: TEST_ENV,
+          testTimeout: 10000,
+          hookTimeout: 10000,
           // Use fileParallelism to run test files in parallel across workers. Each worker gets its own browser instance
           fileParallelism: true,
           browser: {

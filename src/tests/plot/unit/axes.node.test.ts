@@ -178,13 +178,19 @@ describe('checkLogScalability', () => {
   const mockSetScale = () => {};
   const mockSetLogScaleEnabled = () => {};
 
+  // Helper to create proper log structure
+  const createLog = (value: number) => ({
+    'table1.entries': { 'table1.value': value },
+  });
+
+  // Helper to create proper fields structure
+  const createFields = () => ({
+    'table1.value': { data_type: 'float', field_type: 'entry' },
+  });
+
   it('returns linear for data with zeros', () => {
-    const logs = [
-      { 'table1.value': 0 },
-      { 'table1.value': 10 },
-      { 'table1.value': 100 },
-    ];
-    const fields = { 'table1.value': { type: 'float' } };
+    const logs = [createLog(0), createLog(10), createLog(100)];
+    const fields = createFields();
 
     const result = checkLogScalability(
       logs as any,
@@ -197,16 +203,12 @@ describe('checkLogScalability', () => {
     );
 
     // Should fallback to linear when zeros are present
-    expect(['linear', 'log']).toContain(result);
+    expect(result).toBe('linear');
   });
 
   it('returns linear for data with negative values', () => {
-    const logs = [
-      { 'table1.value': -10 },
-      { 'table1.value': 10 },
-      { 'table1.value': 100 },
-    ];
-    const fields = { 'table1.value': { type: 'float' } };
+    const logs = [createLog(-10), createLog(10), createLog(100)];
+    const fields = createFields();
 
     const result = checkLogScalability(
       logs as any,
@@ -218,17 +220,13 @@ describe('checkLogScalability', () => {
       mockSetLogScaleEnabled
     );
 
-    // Should handle negative values appropriately
-    expect(['linear', 'log']).toContain(result);
+    // Mixed positive/negative is not all positive or all negative
+    expect(result).toBe('linear');
   });
 
   it('allows log scale for all positive data', () => {
-    const logs = [
-      { 'table1.value': 1 },
-      { 'table1.value': 10 },
-      { 'table1.value': 100 },
-    ];
-    const fields = { 'table1.value': { type: 'float' } };
+    const logs = [createLog(1), createLog(10), createLog(100)];
+    const fields = createFields();
 
     const result = checkLogScalability(
       logs as any,
@@ -245,12 +243,8 @@ describe('checkLogScalability', () => {
   });
 
   it('returns linear when linear scale is requested', () => {
-    const logs = [
-      { 'table1.value': 1 },
-      { 'table1.value': 10 },
-      { 'table1.value': 100 },
-    ];
-    const fields = { 'table1.value': { type: 'float' } };
+    const logs = [createLog(1), createLog(10), createLog(100)];
+    const fields = createFields();
 
     const result = checkLogScalability(
       logs as any,

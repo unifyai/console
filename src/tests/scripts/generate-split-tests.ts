@@ -96,43 +96,19 @@ interface MatrixMetadata {
 }
 
 /**
- * Get matrix metadata by running vitest with a discovery test.
+ * Get matrix metadata by running the discover-matrix.ts script.
+ * This script mocks vitest and extracts the matrix size from the test file.
  */
 function getMatrixMetadata(
   sourceFile: string,
-  exportName: string
+  _exportName: string
 ): MatrixMetadata | null {
-  // Calculate relative import path from src/tests to the source file
-  const sourceDir = path.dirname(sourceFile);
-  const relativeImport = './' + path.relative('src/tests', sourceFile).replace(/\\/g, '/').replace('.tsx', '');
-
-  // Create a temporary discovery test file in src/tests (so it matches vitest include pattern)
-  const discoveryScript = `
-import { describe, it, expect } from 'vitest';
-import { ${exportName} } from '${relativeImport}';
-
-describe('Matrix Discovery', () => {
-  it('outputs metadata', () => {
-    const matrix = ${exportName}.getMatrix();
-    const metadata = {
-      totalConfigs: matrix.length,
-      chunkSize: ${exportName}.chunkSize || 10,
-      numChunks: Math.ceil(matrix.length / (${exportName}.chunkSize || 10)),
-    };
-    console.log('__MATRIX_METADATA__' + JSON.stringify(metadata) + '__END__');
-    expect(true).toBe(true);
-  });
-});
-`;
-
-  const tempPath = path.join(projectRoot, 'src/tests/.temp-discover.node.test.ts');
+  const absolutePath = path.resolve(projectRoot, sourceFile);
+  const discoveryScript = path.join(__dirname, 'discover-matrix.ts');
 
   try {
-    fs.writeFileSync(tempPath, discoveryScript);
-
-    // Run vitest with the discovery test (suppress most output, just capture stdout)
     const result = execSync(
-      `npm run test:node -- --run ${tempPath} 2>&1`,
+      `npx tsx "${discoveryScript}" "${absolutePath}"`,
       {
         cwd: projectRoot,
         encoding: 'utf-8',
@@ -141,34 +117,43 @@ describe('Matrix Discovery', () => {
           PLOT_TEST_SAMPLE_RATE: process.env.PLOT_TEST_SAMPLE_RATE || '100',
         },
         timeout: 60000,
+        stdio: ['pipe', 'pipe', 'pipe'],
       }
     );
 
-    // Extract metadata from output
     const match = result.match(/__MATRIX_METADATA__(.+?)__END__/);
     if (match) {
       return JSON.parse(match[1]) as MatrixMetadata;
     }
 
+    const errorMatch = result.match(/__MATRIX_ERROR__(.+?)__END__/);
+    if (errorMatch) {
+      console.log(`        Discovery error: ${errorMatch[1]}`);
+    }
+
     return null;
   } catch (error: any) {
-    // Try to extract metadata even from failed output (discovery test may fail due to browser deps)
-    const output = error?.stdout || error?.message || '';
+    const output = error?.stdout || error?.stderr || error?.message || '';
+
+    // Try to extract metadata even from error output
     const match = output.match(/__MATRIX_METADATA__(.+?)__END__/);
     if (match) {
       return JSON.parse(match[1]) as MatrixMetadata;
     }
-    return null;
-  } finally {
-    try {
-      fs.unlinkSync(tempPath);
-    } catch {
-      // Ignore cleanup errors
+
+    const errorMatch = output.match(/__MATRIX_ERROR__(.+?)__END__/);
+    if (errorMatch) {
+      console.log(`        Discovery error: ${errorMatch[1]}`);
+    } else {
+      const errorMsg = error.message?.split('\n')[0] || 'Unknown error';
+      console.log(`        Discovery failed: ${errorMsg}`);
     }
+
+    return null;
   }
 }
 
-async function main() {
+function main() {
   console.log('🔧 Generating split test files...\n');
 
   // Detect all matrix test files recursively
@@ -203,28 +188,21 @@ async function main() {
     console.log(`  📂 ${directory}/`);
 
     for (const file of files) {
-      const absolutePath = path.join(projectRoot, file.filePath);
-
       console.log(`     📊 Analyzing ${file.fileName}...`);
       const metadata = getMatrixMetadata(file.filePath, MATRIX_EXPORT_NAME);
 
-      let numChunks: number;
-      let metadataSource: string;
-
-      if (metadata) {
-        numChunks = metadata.numChunks;
-        metadataSource = `${metadata.totalConfigs} configs`;
-        console.log(`        Found: ${metadata.totalConfigs} configs, ${metadata.chunkSize} per chunk`);
-      } else {
-        numChunks = estimateChunkCount(absolutePath);
-        metadataSource = 'estimated';
-        console.log(`        Using heuristic estimation`);
+      if (!metadata) {
+        console.error(`     ❌ Failed to get matrix metadata for ${file.fileName}`);
+        console.error(`        Ensure the file exports 'matrixTests' with a valid getMatrix() function`);
+        process.exit(1);
       }
 
-      const chunks = generateChunks(file, generatedDir, MATRIX_EXPORT_NAME, numChunks);
+      console.log(`        Found: ${metadata.totalConfigs} configs, ${metadata.chunkSize} per chunk`);
+
+      const chunks = generateChunks(file, generatedDir, MATRIX_EXPORT_NAME, metadata.numChunks);
       totalChunksGenerated += chunks.length;
 
-      console.log(`     ✅ ${file.fileName}: ${chunks.length} chunks (${metadataSource})`);
+      console.log(`     ✅ ${file.fileName}: ${chunks.length} chunks`);
     }
   }
 
@@ -265,25 +243,6 @@ function generateChunks(
   return chunks;
 }
 
-function estimateChunkCount(sourceFile: string): number {
-  const content = fs.readFileSync(sourceFile, 'utf-8');
-
-  const chunkSizeMatch = content.match(/chunkSize:\s*(\d+)/);
-  const chunkSize = chunkSizeMatch ? parseInt(chunkSizeMatch[1], 10) : 10;
-
-  const fileName = path.basename(sourceFile);
-  let baseMatrixSize = 100;
-
-  if (fileName.includes('bar')) baseMatrixSize = 400;
-  else if (fileName.includes('scatter') || fileName.includes('line')) baseMatrixSize = 300;
-  else if (fileName.includes('histogram')) baseMatrixSize = 200;
-
-  const sampleRate = parseInt(process.env.PLOT_TEST_SAMPLE_RATE || '100', 10);
-  const estimatedConfigs = Math.ceil((baseMatrixSize * sampleRate) / 100);
-
-  return Math.max(1, Math.ceil(estimatedConfigs / chunkSize));
-}
-
 function generateChunkFileContent(options: {
   baseName: string;
   exportName: string;
@@ -311,8 +270,10 @@ runMatrixChunk(${exportName}, ${chunkIndex});
 `;
 }
 
-main().catch((error) => {
+try {
+  main();
+} catch (error) {
   console.error('Failed to generate split tests:', error);
   process.exit(1);
-});
+}
 

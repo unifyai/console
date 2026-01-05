@@ -49,8 +49,17 @@ export type FieldDefinition = {
 const valueGenerators: Record<string, (index: number, seed?: number) => unknown> = {
   float: (i, seed = 0) => (i + seed) * 1.5 + Math.sin(i) * 10,
   int: (i, seed = 0) => Math.floor((i + seed) * 2.5),
-  str: (i) => `category_${i % 5}`,
-  bool: (i) => i % 2 === 0,
+  // Use seed to create independent distributions for different fields
+  // X-axis (seed=0): category_0, category_1, category_2, category_3, category_4, category_0, ...
+  // Group (seed=200): use different pattern so x and group aren't correlated
+  str: (i, seed = 0) => {
+    // When seed > 0 (group-by field), use a different modulo cycle
+    // This ensures x=0 can have group=0,1,2,3,4 across different logs
+    const groupOffset = seed > 0 ? Math.floor(i / 5) : 0;
+    return `category_${(i + groupOffset) % 5}`;
+  },
+  // For bool, alternate by index and use seed to shift the pattern
+  bool: (i, seed = 0) => (seed > 0 ? (i + 1) : i) % 2 === 0,
   datetime: (i) =>
     new Date(Date.now() - i * 86400000).toISOString(),
   time: (i) =>
