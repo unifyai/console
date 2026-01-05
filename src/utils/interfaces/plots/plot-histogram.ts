@@ -199,17 +199,23 @@ export const drawHistogram = (
         return groupedBinsForThisGroup;
     })
     : binGenerator(data as number[]);
-    if (binCounts[1] != data.length) {
-        const newBinCounts = [1, data.length]
+    
+    // For grouped data, use total data point count, not group count
+    const totalDataCount = groupBy 
+        ? (data as GroupedDataRange).reduce((sum, [_, values]) => sum + values.length, 0)
+        : (data as DataRange).length;
+    
+    if (binCounts[1] != totalDataCount) {
+        const newBinCounts = [1, totalDataCount]
         setbinCounts(newBinCounts)
-        if (data.length > 0 && binCount === 0) {
-            const newCount = Math.min(10, data.length);
+        if (totalDataCount > 0 && binCount === 0) {
+            const newCount = Math.min(10, totalDataCount);
             setbinCount(newCount.toString());
         }
         return;
     }
     if (binCount > binCounts[1]) {
-        const count = Math.min(10, data.length)
+        const count = Math.min(10, totalDataCount)
         setbinCount(count.toString())
         return;
     }

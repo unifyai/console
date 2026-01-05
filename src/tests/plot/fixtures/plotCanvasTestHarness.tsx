@@ -192,8 +192,7 @@ function PlotCanvasWrapper({
         }) as unknown as LogProps[]));
 
   const fields =
-    options.fields ??
-    (createMockFields(dataTypeConfigToUse) as unknown as LogFieldsResponseProps);
+    options.fields ?? createMockFields(dataTypeConfigToUse);
 
   const { width = 800, height = 600 } = options.containerDimensions ?? {};
 
@@ -214,7 +213,7 @@ function PlotCanvasWrapper({
         aggregate={options.aggregate ?? options.plotConfig?.aggregate}
         scaleX={options.scaleX ?? options.plotConfig?.scale_x ?? 'linear'}
         scaleY={options.scaleY ?? options.plotConfig?.scale_y ?? 'linear'}
-        metric={options.metric ?? 'table1.value'}
+        metric={options.metric ?? 'sum'}
         binCount={options.binCount ?? options.plotConfig?.bin_count ?? 10}
         showRegression={
           (options.showRegression ?? options.plotConfig?.show_regression ?? false)
@@ -252,7 +251,7 @@ export function renderPlotCanvas(
   } | null> = { current: null };
 
   const renderResult = render(
-    <PlotCanvasWrapper initialOptions={options} onPropsRef={propsRef} />
+    <PlotCanvasWrapper initialOptions={options} onPropsRef={propsRef} />,
   );
 
   // Helper to get SVG
@@ -273,22 +272,21 @@ export function renderPlotCanvas(
   const getScatterPoints = (): SVGCircleElement[] => {
     const plotData = getPlotDataGroup();
     if (!plotData) return [];
-    return Array.from(plotData.querySelectorAll('circle'));
+    return Array.from(plotData.querySelectorAll('circle.data-point'));
   };
 
   // Helper to get bar rectangles
   const getBars = (): SVGRectElement[] => {
     const plotData = getPlotDataGroup();
     if (!plotData) return [];
-    // Bar charts use rect elements with specific class or data attribute
-    return Array.from(plotData.querySelectorAll('rect.bar, rect[data-bar]'));
+    return Array.from(plotData.querySelectorAll('rect.bar-item'));
   };
 
   // Helper to get histogram bins
   const getHistogramBins = (): SVGRectElement[] => {
     const plotData = getPlotDataGroup();
     if (!plotData) return [];
-    return Array.from(plotData.querySelectorAll('rect.bin, rect[data-bin]'));
+    return Array.from(plotData.querySelectorAll('rect.hist-item'));
   };
 
   // Helper to get line path
@@ -342,16 +340,30 @@ export function renderPlotCanvas(
   };
 
   // Wait for plot to render (D3 updates are async)
+  // Increased timeout for browser tests where ResizeObserver may be slower
   const waitForPlot = async (): Promise<void> => {
     await waitFor(
       () => {
+        const svg = getSvg();
         const plotData = getPlotDataGroup();
-        if (!plotData || plotData.children.length === 0) {
-          throw new Error('Plot not yet rendered');
+        
+        // Debug: log what we're seeing
+        if (!plotData) {
+          throw new Error('Plot not yet rendered: plotData group not found');
+        }
+        if (plotData.children.length === 0) {
+          // Check if SVG exists and has dimensions
+          const svgWidth = svg?.getAttribute('width') || svg?.clientWidth;
+          const svgHeight = svg?.getAttribute('height') || svg?.clientHeight;
+          throw new Error(`Plot not yet rendered: plotData is empty (svg: ${svgWidth}x${svgHeight})`);
         }
       },
-      { timeout: 5000 }
+      { timeout: 10000 }
     );
+    
+    // Wait for D3 transitions to complete (histograms animate height over 500ms)
+    // Add buffer time for transition completion
+    await new Promise(resolve => setTimeout(resolve, 600));
   };
 
   return {
@@ -396,6 +408,7 @@ export function createPlotTestSetup(
   scale: ScaleOption,
   options: PlotTestSetupOptions = {}
 ): PlotCanvasTestOptions {
+    
   return {
     plotConfig,
     dataTypeConfig,
@@ -409,6 +422,7 @@ export function createPlotTestSetup(
     scaleY: plotConfig.scale_y as ScaleType,
     binCount: plotConfig.bin_count,
     showRegression: plotConfig.show_regression,
+    sortBars: plotConfig.sort_order ?? 'asc',
     deterministic: options.deterministic ?? false,
   };
 }
@@ -470,4 +484,3 @@ export function assertAxesRendered(result: PlotCanvasTestResult) {
     throw new Error('Y axis not rendered');
   }
 }
-

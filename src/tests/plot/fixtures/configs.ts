@@ -26,7 +26,12 @@
 const VALID_SCALES = ['small', 'medium', 'large', 'all'] as const;
 type ValidScale = (typeof VALID_SCALES)[number];
 
-const rawScale = (process.env.PLOT_TEST_SCALE ?? 'small').toLowerCase();
+// Use import.meta.env for browser tests (Vite injects these at compile time)
+// Fallback to process.env for Node.js tests
+const rawScaleEnv = typeof import.meta !== 'undefined' && (import.meta as any).env?.PLOT_TEST_SCALE
+  ? String((import.meta as any).env.PLOT_TEST_SCALE)
+  : process.env.PLOT_TEST_SCALE;
+const rawScale = (rawScaleEnv ?? 'small').toLowerCase();
 const isValidScale = (s: string): s is ValidScale => VALID_SCALES.includes(s as ValidScale);
 
 // Warn if invalid scale provided
@@ -49,8 +54,13 @@ const shouldRunScale = (scaleName: string): boolean => {
  * Example:
  *   PLOT_TEST_SAMPLE_RATE=25 npm test  # Test 25% of config combinations
  */
+// Use import.meta.env for browser tests (Vite injects these at compile time)
+// Fallback to process.env for Node.js tests
+const rawSampleRate = typeof import.meta !== 'undefined' && (import.meta as any).env?.PLOT_TEST_SAMPLE_RATE
+  ? String((import.meta as any).env.PLOT_TEST_SAMPLE_RATE)
+  : process.env.PLOT_TEST_SAMPLE_RATE;
 export const PLOT_TEST_SAMPLE_RATE = Math.max(1, Math.min(100,
-  parseInt(process.env.PLOT_TEST_SAMPLE_RATE ?? '100', 10)
+  parseInt(rawSampleRate ?? '100', 10)
 ));
 
 /**
@@ -284,6 +294,7 @@ export function generateAllPlotConfigs(): PlotConfig[] {
  * - sort_by/sort_order: bar-only
  * - aggregate: requires group_by (valid for ALL plot types)
  * - y_axis: required for non-histogram
+ * - log scales: histograms always use linear (scale params ignored)
  */
 export function filterValidPlotConfigs(configs: PlotConfig[]): PlotConfig[] {
   return configs.filter((config) => {
@@ -305,6 +316,12 @@ export function filterValidPlotConfigs(configs: PlotConfig[]): PlotConfig[] {
 
     // y_axis: required for non-histogram
     if (config.type !== 'histogram' && !config.y_axis) return false;
+
+    // Histograms always use linear scales (component ignores scale_x/scale_y)
+    // Only test histograms with linear scales to match actual behavior
+    if (config.type === 'histogram' && (config.scale_x === 'log' || config.scale_y === 'log')) {
+      return false;
+    }
 
     return true;
   });

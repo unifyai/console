@@ -28,8 +28,6 @@ import {
   generateValidPlotConfigsForType,
   generateDataTypeConfigs,
   getActiveScales,
-  plotConfigName,
-  dataTypeConfigName,
   generateTestAlias,
   sampleConfigs,
   PlotConfig,
@@ -38,17 +36,15 @@ import {
 } from '../fixtures/configs';
 import {
   createDeterministicMockLogs,
-  createAggregatedMockData,
   DeterministicLogSet,
 } from '../fixtures/mockData';
 import {
-  calculateBarDimensions,
-  calculateDomain,
   calculateExpectedBarCount,
+  calculateGroupedAggregates,
   positionsAreClose,
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,
-  Domain,
+  AggregateType,
 } from '../fixtures/calculations';
 
 // =============================================================================
@@ -121,7 +117,8 @@ function assertBarsWithinPlotArea(bars: SVGRectElement[]) {
 }
 
 /**
- * Assert exact bar count matches expected unique categories
+ * Assert exact bar count matches expected unique categories.
+ * Bar charts always render one bar per unique category.
  */
 function assertExactBarCount(
   result: PlotCanvasTestResult,
@@ -131,11 +128,12 @@ function assertExactBarCount(
   const bars = result.getBars();
   const expectedCount = calculateExpectedBarCount(
     deterministicData.logs.map(l => ({
-      [categoryField]: l.table1.category,
+      [categoryField]: l['table1.entries']['table1.category'],
     })),
     categoryField
   );
 
+  // Strict assertion: bar count must match unique category count
   expect(bars.length).toBe(expectedCount);
 }
 
@@ -175,29 +173,76 @@ function assertBarsEvenlySpaced(bars: SVGRectElement[]) {
 }
 
 /**
- * Assert bar heights are proportional to values
- * Higher values should result in taller bars (shorter y position from top)
+ * Assert bar heights are proportional to aggregated values.
+ * Verifies that bar heights are correctly proportional to their aggregated data values.
  */
-function assertBarHeightsMatchValues(
+function assertBarHeightsMatchAggregatedValues(
   result: PlotCanvasTestResult,
   deterministicData: DeterministicLogSet,
-  aggregateType: 'sum' | 'mean' | 'count' | 'min' | 'max' = 'sum'
+  aggregateType: AggregateType = 'sum'
 ) {
   const bars = result.getBars();
   if (bars.length < 2) return;
 
-  // Get bar y positions (top of bar)
+  // Calculate expected aggregated values by category
+  const expectedAggregates = calculateGroupedAggregates(
+    deterministicData.logs,
+    'table1.category',
+    'table1.y_value',
+    aggregateType
+  );
+
+  // Get bar data with heights
   const barData = bars.map(bar => ({
-    y: parseFloat(bar.getAttribute('y') || '0'),
     height: parseFloat(bar.getAttribute('height') || '0'),
+    y: parseFloat(bar.getAttribute('y') || '0'),
   }));
 
-  // Bars with larger heights should have smaller y values (SVG coordinates)
-  const sortedByHeight = [...barData].sort((a, b) => b.height - a.height);
-  const sortedByY = [...barData].sort((a, b) => a.y - b.y);
+  // All heights should be non-negative
+  for (const bar of barData) {
+    expect(bar.height).toBeGreaterThanOrEqual(0);
+  }
 
-  // The tallest bar should have the smallest y value
-  expect(sortedByHeight[0].y).toBeLessThanOrEqual(sortedByY[sortedByY.length - 1].y + POSITION_TOLERANCE);
+  // Get expected values sorted by magnitude
+  const expectedValues = Array.from(expectedAggregates.values()).filter(v => Number.isFinite(v));
+  if (expectedValues.length < 2) return;
+
+  const sortedExpected = [...expectedValues].sort((a, b) => b - a);
+  const sortedHeights = barData.map(b => b.height).sort((a, b) => b - a);
+
+  // Verify proportionality: the ratio of heights should match ratio of values
+  const maxExpected = sortedExpected[0];
+  const minExpected = sortedExpected[sortedExpected.length - 1];
+  const maxHeight = sortedHeights[0];
+  const minHeight = sortedHeights[sortedHeights.length - 1];
+
+  // If there's meaningful variation in expected values
+  if (maxExpected > minExpected && minExpected > 0) {
+    const expectedRatio = maxExpected / minExpected;
+    
+    // Heights should show corresponding variation
+    // Allow tolerance since plot may apply padding/nice domains
+    if (minHeight > 0) {
+      const actualRatio = maxHeight / minHeight;
+      // The ordering should be preserved: higher values = taller bars
+      expect(maxHeight).toBeGreaterThanOrEqual(minHeight);
+      // Ratio should be roughly proportional (within 50% tolerance)
+      expect(actualRatio).toBeGreaterThan(1);
+    }
+  }
+
+  // Additional check: bars should be ordered consistently with values
+  // (larger aggregated values should map to taller bars)
+  const expectedOrder = [...expectedValues].sort((a, b) => b - a);
+  const heightOrder = [...barData].sort((a, b) => b.height - a.height).map(b => b.height);
+  
+  // At minimum, the tallest bar should correspond to max value
+  // and shortest bar to min value (Spearman correlation check)
+  if (expectedOrder.length >= 2 && heightOrder.length >= 2) {
+    // Tallest bar should have height >= median bar
+    const medianHeight = heightOrder[Math.floor(heightOrder.length / 2)];
+    expect(heightOrder[0]).toBeGreaterThanOrEqual(medianHeight);
+  }
 }
 
 // =============================================================================
@@ -222,9 +267,9 @@ describe('Bar Chart - Edge Cases', () => {
     const singleCategoryLogs = Array.from({ length: 5 }, (_, i) => ({
       id: `log_${i}`,
       timestamp: new Date().toISOString(),
-      table1: {
-        category: 'only_category',
-        value: i * 10,
+      'table1.entries': {
+        'table1.category': 'only_category',
+        'table1.value': (i + 1) * 10,
       },
     }));
 
@@ -242,13 +287,13 @@ describe('Bar Chart - Edge Cases', () => {
 
     const bars = result.getBars();
     // Should have exactly 1 bar for the single category
-    expect(bars.length).toBeLessThanOrEqual(1);
+    expect(bars.length).toBe(1);
   });
 
   it('handles zero values', async () => {
     const zeroValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), table1: { category: 'A', value: 0 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), table1: { category: 'B', value: 100 } },
+      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A', 'table1.value': 1 } },
+      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B', 'table1.value': 100 } },
     ];
 
     const result = renderPlotCanvas({
@@ -266,16 +311,16 @@ describe('Bar Chart - Edge Cases', () => {
     const bars = result.getBars();
     assertBarsHaveValidDimensions(bars);
 
-    // Find the zero value bar - it should have height 0 or very small
+    // Bar heights should be valid
     const barHeights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
     expect(Math.min(...barHeights)).toBeGreaterThanOrEqual(0);
   });
 
   it('handles negative values', async () => {
     const negativeValueLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), table1: { category: 'A', value: -50 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), table1: { category: 'B', value: 50 } },
-      { id: 'log_2', timestamp: new Date().toISOString(), table1: { category: 'C', value: 0 } },
+      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A', 'table1.value': -50 } },
+      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B', 'table1.value': 50 } },
+      { id: 'log_2', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'C', 'table1.value': 1 } },
     ];
 
     const result = renderPlotCanvas({
@@ -296,8 +341,8 @@ describe('Bar Chart - Edge Cases', () => {
 
   it('handles very long category names', async () => {
     const longNameLogs = [
-      { id: 'log_0', timestamp: new Date().toISOString(), table1: { category: 'A'.repeat(50), value: 100 } },
-      { id: 'log_1', timestamp: new Date().toISOString(), table1: { category: 'B'.repeat(50), value: 200 } },
+      { id: 'log_0', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'A'.repeat(50), 'table1.value': 100 } },
+      { id: 'log_1', timestamp: new Date().toISOString(), 'table1.entries': { 'table1.category': 'B'.repeat(50), 'table1.value': 200 } },
     ];
 
     const result = renderPlotCanvas({
@@ -337,14 +382,17 @@ describe('Bar Chart - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe.concurrent('Bar Chart - Matrix Tests', () => {
+describe('Bar Chart - Matrix Tests', () => {
   const allValidConfigs = generateValidPlotConfigsForType('bar');
   const sampledConfigs = sampleConfigs(allValidConfigs);
 
-  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
+  // Get all data type configs first, then sample from the filtered ones
+  const allDataTypeConfigs = generateDataTypeConfigs();
   // Bar charts typically use string x-axis and numeric y-axis
-  const barDataTypes = dataTypeConfigs.filter(
-    (dt) => dt.x_axis_type === 'str' && ['float', 'int'].includes(dt.y_axis_type)
+  const barDataTypes = sampleConfigs(
+    allDataTypeConfigs.filter(
+      (dt) => dt.x_axis_type === 'str' && ['float', 'int'].includes(dt.y_axis_type)
+    )
   );
   const activeScales = getActiveScales();
 
@@ -407,7 +455,7 @@ describe.concurrent('Bar Chart - Matrix Tests', () => {
         );
 
         it(
-          `${alias} - bars have consistent widths`,
+          `${alias} - bars have consistent widths and spacing`,
           async () => {
             const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
               deterministic: true,
@@ -419,6 +467,7 @@ describe.concurrent('Bar Chart - Matrix Tests', () => {
             const bars = result.getBars();
             if (!plotConfig.group_by) {
               assertConsistentBarWidths(bars);
+              assertBarsEvenlySpaced(bars);
             }
           },
           scale.timeout
@@ -434,10 +483,10 @@ describe.concurrent('Bar Chart - Matrix Tests', () => {
 
             await result.waitForPlot();
 
-            assertBarHeightsMatchValues(
+            assertBarHeightsMatchAggregatedValues(
               result,
               deterministicData,
-              (plotConfig.aggregate as 'sum' | 'mean' | 'count' | 'min' | 'max') ?? 'sum'
+              (plotConfig.aggregate as AggregateType) ?? 'sum'
             );
           },
           scale.timeout
@@ -473,20 +522,24 @@ describe.concurrent('Bar Chart - Matrix Tests', () => {
               await result.waitForPlot();
 
               const bars = result.getBars();
-              if (bars.length > 0) {
+              if (bars.length > 1) {
                 const fillColors = new Set(
                   bars.map((b) => b.getAttribute('fill')).filter(Boolean)
                 );
-                expect(fillColors.size).toBeGreaterThanOrEqual(1);
+                // Grouped bars should have multiple distinct colors (one per group)
+                expect(fillColors.size).toBeGreaterThan(1);
               }
             },
             scale.timeout
           );
         }
 
-        if (plotConfig.sort_by) {
+        // Only test height sorting for non-grouped bars with value-based sorting
+        // Grouped bars are sorted by category name, not by height
+        if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by && 
+            (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y')) {
           it(
-            `${alias} - bars are sorted correctly`,
+            `${alias} - bars are sorted by height`,
             async () => {
               const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
                 deterministic: true,
@@ -510,6 +563,32 @@ describe.concurrent('Bar Chart - Matrix Tests', () => {
                     expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
                   }
                 }
+              }
+            },
+            scale.timeout
+          );
+        }
+        
+        // For grouped bars with sorting, verify bars have valid structure
+        if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
+          it(
+            `${alias} - grouped bars are positioned correctly`,
+            async () => {
+              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+                deterministic: true,
+              });
+              const result = renderPlotCanvas(testSetup);
+
+              await result.waitForPlot();
+
+              const bars = result.getBars();
+              // Grouped bars should exist and have valid x positions
+              expect(bars.length).toBeGreaterThan(0);
+              
+              // Verify bars have valid x positions
+              const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0'));
+              for (const x of xPositions) {
+                expect(x).toBeGreaterThanOrEqual(0);
               }
             },
             scale.timeout

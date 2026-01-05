@@ -4,8 +4,12 @@
  * Helper functions to calculate expected pixel positions, dimensions,
  * and counts for plot elements based on data values.
  *
+ * Uses D3 directly to match exact behavior of plot rendering code.
+ *
  * Used for precise assertions in integration tests.
  */
+
+import * as d3 from 'd3';
 
 // =============================================================================
 // Types
@@ -51,10 +55,92 @@ export const DEFAULT_DIMENSIONS: PlotDimensions = {
   margins: { top: 0, right: 15, bottom: 45, left: 55 },
 };
 
+// Axis padding used in actual plot code
+export const AXIS_PADDING = 10;
+
 export const POSITION_TOLERANCE = 5; // Pixels tolerance for position comparisons
 
 // =============================================================================
-// Domain Calculation
+// D3 Scale Creation (matches actual plot code)
+// =============================================================================
+
+/**
+ * Create D3 scales that match the actual plot rendering code.
+ * This is the single source of truth for position calculations.
+ */
+export function createD3Scales(
+  xValues: number[],
+  yValues: number[],
+  scaleX: 'linear' | 'log',
+  scaleY: 'linear' | 'log',
+  dimensions: PlotDimensions = DEFAULT_DIMENSIONS
+): {
+  x: d3.ScaleLinear<number, number> | d3.ScaleLogarithmic<number, number>;
+  y: d3.ScaleLinear<number, number> | d3.ScaleLogarithmic<number, number>;
+  xDomain: [number, number];
+  yDomain: [number, number];
+} {
+  const { width, height, margins } = dimensions;
+
+  // Get extent (matching plot code)
+  const [minX = 0, maxX = 0] = d3.extent(xValues) as [number, number];
+  const [minY = 0, maxY = 0] = d3.extent(yValues) as [number, number];
+
+  // Determine scale functions
+  const xScaleFn = scaleX === 'log' ? d3.scaleLog : d3.scaleLinear;
+  const yScaleFn = scaleY === 'log' ? d3.scaleLog : d3.scaleLinear;
+
+  // Check if we need to reverse for negative log values
+  const reverseX = scaleX === 'log' && xValues.every(v => v < 0);
+  const reverseY = scaleY === 'log' && yValues.every(v => v < 0);
+
+  // Calculate domains (matching reverseOrKeepDomain in axes.ts)
+  const xDomain = reverseX
+    ? [Math.max(...xValues.map(Math.abs)), Math.min(...xValues.map(Math.abs))] as [number, number]
+    : [minX, maxX] as [number, number];
+
+  const yDomain = reverseY
+    ? [Math.max(...yValues.map(Math.abs)), Math.min(...yValues.map(Math.abs))] as [number, number]
+    : [minY, maxY] as [number, number];
+
+  // Calculate ranges (matching plot code with axisPadding)
+  const xRange: [number, number] = [
+    margins.left + AXIS_PADDING,
+    width - margins.right - AXIS_PADDING,
+  ];
+  const yRange: [number, number] = [
+    height - margins.bottom - AXIS_PADDING,
+    margins.top + AXIS_PADDING,
+  ];
+
+  // Create scales
+  const x = xScaleFn().domain(xDomain).range(xRange);
+  const y = yScaleFn().domain(yDomain).range(yRange);
+
+  return { x, y, xDomain, yDomain };
+}
+
+/**
+ * Calculate expected position using actual D3 scales
+ */
+export function calculatePositionWithD3Scales(
+  xValue: number,
+  yValue: number,
+  xValues: number[],
+  yValues: number[],
+  scaleX: 'linear' | 'log',
+  scaleY: 'linear' | 'log',
+  dimensions: PlotDimensions = DEFAULT_DIMENSIONS
+): PointPosition {
+  const { x, y } = createD3Scales(xValues, yValues, scaleX, scaleY, dimensions);
+  return {
+    cx: x(xValue),
+    cy: y(yValue),
+  };
+}
+
+// =============================================================================
+// Domain Calculation (legacy - kept for backwards compatibility)
 // =============================================================================
 
 /**
@@ -334,6 +420,32 @@ export function calculateExpectedPointCount(
 }
 
 /**
+ * Calculate expected point count when aggregation is applied.
+ * When aggregate + group_by are set, we get one point per unique group.
+ */
+export function calculateExpectedAggregatedPointCount(
+  logs: Array<{ [key: string]: unknown }>,
+  groupByField: string,
+  xField: string,
+  yField: string
+): number {
+  const validLogs = logs.filter(log => {
+    const xValue = log[xField];
+    const yValue = log[yField];
+    const groupValue = log[groupByField];
+    return groupValue !== null && groupValue !== undefined &&
+           xValue !== null && xValue !== undefined &&
+           yValue !== null && yValue !== undefined;
+  });
+
+  const uniqueGroups = new Set(
+    validLogs.map(log => String(log[groupByField]))
+  );
+
+  return uniqueGroups.size;
+}
+
+/**
  * Calculate expected number of bars (unique categories)
  */
 export function calculateExpectedBarCount(
@@ -377,6 +489,99 @@ export function positionsAreClose(
   tolerance: number = POSITION_TOLERANCE
 ): boolean {
   return Math.abs(actual - expected) <= tolerance;
+}
+
+// =============================================================================
+// Aggregate Calculations
+// =============================================================================
+
+export type AggregateType = 'sum' | 'mean' | 'count' | 'min' | 'max';
+
+/**
+ * Calculate aggregate value from an array of numbers.
+ * Matches the computeStatistic function used in actual plot code.
+ */
+export function calculateAggregate(
+  values: number[],
+  aggregateType: AggregateType
+): number {
+  if (values.length === 0) return 0;
+
+  switch (aggregateType) {
+    case 'sum':
+      return values.reduce((a, b) => a + b, 0);
+    case 'mean':
+      return values.reduce((a, b) => a + b, 0) / values.length;
+    case 'count':
+      return values.length;
+    case 'min':
+      return Math.min(...values);
+    case 'max':
+      return Math.max(...values);
+    default:
+      return values.reduce((a, b) => a + b, 0); // Default to sum
+  }
+}
+
+/**
+ * Group data by category and calculate aggregate for each group.
+ * Returns a map of category -> aggregated value.
+ */
+export function calculateGroupedAggregates(
+  logs: Array<{ [key: string]: unknown }>,
+  categoryField: string,
+  valueField: string,
+  aggregateType: AggregateType
+): Map<string, number> {
+  const groups = new Map<string, number[]>();
+
+  // Group values by category
+  for (const log of logs) {
+    // Handle both flat and nested log structures
+    const category = getNestedValue(log, categoryField);
+    const value = getNestedValue(log, valueField);
+
+    if (category === null || category === undefined) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+
+    const catKey = String(category);
+    if (!groups.has(catKey)) {
+      groups.set(catKey, []);
+    }
+    groups.get(catKey)!.push(value);
+  }
+
+  // Calculate aggregate for each group
+  const result = new Map<string, number>();
+  groups.forEach((values, category) => {
+    result.set(category, calculateAggregate(values, aggregateType));
+  });
+
+  return result;
+}
+
+/**
+ * Helper to get nested value from log (handles 'table1.entries' structure)
+ */
+function getNestedValue(log: Record<string, unknown>, field: string): unknown {
+  // Try direct access first
+  if (field in log) {
+    return log[field];
+  }
+
+  // Try table1.entries structure
+  const entries = log['table1.entries'] as Record<string, unknown> | undefined;
+  if (entries && field in entries) {
+    return entries[field];
+  }
+
+  // Try without table prefix
+  const shortField = field.replace(/^table1\./, '');
+  if (entries && shortField in entries) {
+    return entries[shortField];
+  }
+
+  return undefined;
 }
 
 /**
