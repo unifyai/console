@@ -1,16 +1,3 @@
-// Ensure NODE_ENV is set before loading env config so .env.test is loaded
-// Use Object.defineProperty to avoid TypeScript read-only error
-if (process.env.NODE_ENV !== 'test') {
-  Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', writable: true });
-}
-
-import { loadEnvConfig } from '@next/env';
-loadEnvConfig(process.cwd());
-
-// Ensure NEXTAUTH_URL is set for API calls in tests
-if (!process.env.NEXTAUTH_URL) {
-    process.env.NEXTAUTH_URL = 'http://localhost:3000';
-}
 
 import { beforeAll, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { setupServer } from 'msw/node';

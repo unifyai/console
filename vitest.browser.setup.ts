@@ -6,26 +6,6 @@ import { UserEvent } from '@testing-library/user-event';
 import { http, passthrough } from 'msw';
 import '@/styles/globals.css';
 
-// Polyfill process.env for browser environment (Next.js components use this)
-if (typeof window !== 'undefined' && typeof (window as any).process === 'undefined') {
-  (window as any).process = {
-    env: {
-      NEXT_PUBLIC_DEBUG_PERFORMANCE: 'false',
-      NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES: 'false',
-      NODE_ENV: 'test',
-    },
-  };
-}
-// Also define globally
-if (typeof globalThis !== 'undefined' && typeof (globalThis as any).process === 'undefined') {
-  (globalThis as any).process = {
-    env: {
-      NEXT_PUBLIC_DEBUG_PERFORMANCE: 'false',
-      NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES: 'false',
-      NODE_ENV: 'test',
-    },
-  };
-}
 
 export const worker = setupWorker(...handlers);
 
@@ -41,7 +21,7 @@ const slugify = (text: string): string => {
 };
 
 const takeActionScreenshot = async (stepName = 'action') => {
-  if (String(import.meta.env.VITE_TAKE_SCREENSHOTS) !== 'true' || !page) return;
+  if (process.env.VITE_TAKE_SCREENSHOTS !== 'true' || !page) return;
   actionCounter++;
   const step = stepName === 'action' ? `action-${String(actionCounter).padStart(2, '0')}` : stepName;
   const fileName = `${currentTestName}-${step}.png`;

@@ -26,12 +26,8 @@
 const VALID_SCALES = ['small', 'medium', 'large', 'all'] as const;
 type ValidScale = (typeof VALID_SCALES)[number];
 
-// Use import.meta.env for browser tests (Vite injects these at compile time)
-// Fallback to process.env for Node.js tests
-const rawScaleEnv = typeof import.meta !== 'undefined' && (import.meta as any).env?.PLOT_TEST_SCALE
-  ? String((import.meta as any).env.PLOT_TEST_SCALE)
-  : process.env.PLOT_TEST_SCALE;
-const rawScale = (rawScaleEnv ?? 'small').toLowerCase();
+// process.env is injected by vitest.config.ts for both Node and Browser tests
+const rawScale = (process.env.PLOT_TEST_SCALE ?? 'small').toLowerCase();
 const isValidScale = (s: string): s is ValidScale => VALID_SCALES.includes(s as ValidScale);
 
 // Warn if invalid scale provided
@@ -54,13 +50,8 @@ const shouldRunScale = (scaleName: string): boolean => {
  * Example:
  *   PLOT_TEST_SAMPLE_RATE=25 npm test  # Test 25% of config combinations
  */
-// Use import.meta.env for browser tests (Vite injects these at compile time)
-// Fallback to process.env for Node.js tests
-const rawSampleRate = typeof import.meta !== 'undefined' && (import.meta as any).env?.PLOT_TEST_SAMPLE_RATE
-  ? String((import.meta as any).env.PLOT_TEST_SAMPLE_RATE)
-  : process.env.PLOT_TEST_SAMPLE_RATE;
 export const PLOT_TEST_SAMPLE_RATE = Math.max(1, Math.min(100,
-  parseInt(rawSampleRate ?? '100', 10)
+  parseInt(process.env.PLOT_TEST_SAMPLE_RATE ?? '100', 10)
 ));
 
 /**
