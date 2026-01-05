@@ -47,6 +47,7 @@ import {
   DEFAULT_DIMENSIONS,
   Domain,
 } from '../fixtures/calculations';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
 
 // =============================================================================
 // Setup
@@ -431,194 +432,151 @@ describe('Line Chart - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Line Chart - Matrix Tests', () => {
-  const allValidConfigs = generateValidPlotConfigsForType('line');
-  const sampledConfigs = sampleConfigs(allValidConfigs);
+interface LineMatrixConfig {
+  plotConfig: PlotConfig;
+  dataTypeConfig: DataTypeConfig;
+  scale: ScaleOption;
+}
 
-  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
-  // Line charts work with numeric and datetime x-axis
-  const lineDataTypes = dataTypeConfigs.filter(
+function generateLineMatrix(): LineMatrixConfig[] {
+  const allPlotConfigs = generateValidPlotConfigsForType('line');
+  const allDataTypes = generateDataTypeConfigs().filter(
     (dt) => ['float', 'int', 'datetime'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 
-  describe.each(sampledConfigs)('config: %o', (plotConfig) => {
-    describe.each(lineDataTypes)('data types: %o', (dataTypeConfig) => {
-      describe.each(activeScales)('scale: %s', (scale) => {
-        const alias = generateTestAlias('line', plotConfig, dataTypeConfig, scale);
+  const fullMatrix: LineMatrixConfig[] = [];
+  for (const plotConfig of allPlotConfigs) {
+    for (const dataTypeConfig of allDataTypes) {
+      for (const scale of activeScales) {
+        fullMatrix.push({ plotConfig, dataTypeConfig, scale });
+      }
+    }
+  }
 
-        // Generate deterministic data for precise assertions
-        const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
+  return sampleConfigs(fullMatrix);
+}
 
-        it(
-          `${alias} - renders SVG and axes`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
+function defineLineTests(
+  config: LineMatrixConfig,
+  { it, expect }: TestUtils
+): void {
+  const { plotConfig, dataTypeConfig, scale } = config;
+  const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-            await result.waitForPlot();
-
-            const svg = result.getSvg();
-            expect(svg).not.toBeNull();
-
-            assertAxesRendered(result);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - line path is valid (no NaN/Infinity)`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const linePath = result.getLinePath();
-            assertLinePathIsValid(linePath);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - line is within plot area bounds`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const linePath = result.getLinePath();
-            assertLineWithinPlotArea(linePath);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - line segment count matches data`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const linePath = result.getLinePath();
-            assertLineSegmentCount(linePath, deterministicData);
-          },
-          scale.timeout
-        );
-
-        // Test that line passes through data points (non-grouped only for precision)
-        if (!plotConfig.group_by) {
-          it(
-            `${alias} - line passes through data points`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const linePath = result.getLinePath();
-              assertLinePassesThroughPoints(
-                linePath,
-                deterministicData,
-                plotConfig.scale_x as 'linear' | 'log',
-                plotConfig.scale_y as 'linear' | 'log'
-              );
-            },
-            scale.timeout
-          );
-        }
-
-        it(
-          `${alias} - axis ticks are present`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            // Check that axes are rendered (ticks may vary by D3 implementation)
-            const svg = result.getSvg();
-            expect(svg).not.toBeNull();
-            
-            // Try to find tick elements - D3 uses various class patterns
-            const xTicks = result.getAxisTicks('x');
-            const yTicks = result.getAxisTicks('y');
-            
-            // If standard ticks aren't found, just verify axes exist
-            if (xTicks.length + yTicks.length === 0) {
-              const xAxis = result.getXAxis();
-              const yAxis = result.getYAxis();
-              // At least one axis should be rendered
-              expect(xAxis !== null || yAxis !== null).toBe(true);
-            }
-          },
-          scale.timeout
-        );
-
-        if (plotConfig.group_by) {
-          it(
-            `${alias} - renders multiple lines for groups`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const plotData = result.getPlotDataGroup();
-              const paths = plotData?.querySelectorAll('path.line-item') ?? [];
-              // With grouping, should have multiple paths (one per group)
-              // Mock data has 5 categories, so expect multiple paths
-              expect(paths.length).toBeGreaterThan(1);
-
-              // Each path should be valid
-              for (const path of Array.from(paths)) {
-                assertLinePathIsValid(path as SVGPathElement);
-              }
-            },
-            scale.timeout
-          );
-
-          it(
-            `${alias} - grouped lines have different colors`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const plotData = result.getPlotDataGroup();
-              const paths = plotData?.querySelectorAll('path.line-item') ?? [];
-
-              if (paths.length > 1) {
-                const strokeColors = new Set(
-                  Array.from(paths).map(p => p.getAttribute('stroke')).filter(Boolean)
-                );
-                // Different groups should have different colors
-                expect(strokeColors.size).toBeGreaterThan(1);
-              }
-            },
-            scale.timeout
-          );
-        }
-      });
+  it('renders SVG and axes', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
     });
-  });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+    assertAxesRendered(result);
+  }, scale.timeout);
+
+  it('line path is valid (no NaN/Infinity)', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const linePath = result.getLinePath();
+    assertLinePathIsValid(linePath);
+  }, scale.timeout);
+
+  it('line is within plot area bounds', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const linePath = result.getLinePath();
+    assertLineWithinPlotArea(linePath);
+  }, scale.timeout);
+
+  it('line segment count matches data', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const linePath = result.getLinePath();
+    assertLineSegmentCount(linePath, deterministicData);
+  }, scale.timeout);
+
+  if (!plotConfig.group_by) {
+    it('line passes through data points', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const linePath = result.getLinePath();
+      assertLinePassesThroughPoints(
+        linePath,
+        deterministicData,
+        plotConfig.scale_x as 'linear' | 'log',
+        plotConfig.scale_y as 'linear' | 'log'
+      );
+    }, scale.timeout);
+  }
+
+  it('axis ticks are present', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+    const xTicks = result.getAxisTicks('x');
+    const yTicks = result.getAxisTicks('y');
+    if (xTicks.length + yTicks.length === 0) {
+      const xAxis = result.getXAxis();
+      const yAxis = result.getYAxis();
+      expect(xAxis !== null || yAxis !== null).toBe(true);
+    }
+  }, scale.timeout);
+
+  if (plotConfig.group_by) {
+    it('renders multiple lines for groups', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const plotData = result.getPlotDataGroup();
+      const paths = plotData?.querySelectorAll('path.line-item') ?? [];
+      expect(paths.length).toBeGreaterThan(1);
+      for (const path of Array.from(paths)) {
+        assertLinePathIsValid(path as SVGPathElement);
+      }
+    }, scale.timeout);
+
+    it('grouped lines have different colors', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const plotData = result.getPlotDataGroup();
+      const paths = plotData?.querySelectorAll('path.line-item') ?? [];
+      if (paths.length > 1) {
+        const strokeColors = new Set(
+          Array.from(paths).map(p => p.getAttribute('stroke')).filter(Boolean)
+        );
+        expect(strokeColors.size).toBeGreaterThan(1);
+      }
+    }, scale.timeout);
+  }
+}
+
+export const matrixTests = defineMatrixTests<LineMatrixConfig>({
+  name: 'Line Chart - Matrix Tests',
+  getMatrix: generateLineMatrix,
+  defineTests: defineLineTests,
+  chunkSize: 10,
+  getConfigAlias: (config) =>
+    generateTestAlias('line', config.plotConfig, config.dataTypeConfig, config.scale),
 });

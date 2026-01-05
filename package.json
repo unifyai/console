@@ -9,6 +9,10 @@
     "lint": "next lint",
     "test:node": "vitest --project node",
     "test:browser": "vitest --project browser",
+    "test:browser:parallel": "bash src/tests/scripts/test-browser-parallel.sh",
+    "test:browser:generate": "npx tsx src/tests/scripts/generate-split-tests.ts",
+    "test:browser:split": "npm run test:browser:generate && MATRIX_TEST_SPLIT=true npm run test:browser -- --run",
+    "test:browser:clean": "rm -rf src/tests/plot/integration/generated/",
     "test:browser:screenshots": "VITE_TAKE_SCREENSHOTS=true vitest --project browser",
     "test:interfaces": "vitest --project node src/tests/interfaces",
     "test:interfaces:real": "npm run dev & DEV_PID=$!; sleep 10 && npm run test:interfaces; EXIT_CODE=$?; kill $DEV_PID 2>/dev/null; exit $EXIT_CODE",
@@ -173,6 +177,7 @@
     "react-virtuoso": "^4.12.6",
     "tailwindcss": "^3.4.14",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.0.8",
     "zustand": "^5.0.3"

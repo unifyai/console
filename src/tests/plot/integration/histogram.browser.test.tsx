@@ -44,6 +44,7 @@ import {
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,
 } from '../fixtures/calculations';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
 
 // =============================================================================
 // Setup
@@ -454,175 +455,134 @@ describe('Histogram - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Histogram - Matrix Tests', () => {
-  const allValidConfigs = generateValidPlotConfigsForType('histogram');
-  // Include both grouped and non-grouped histograms
-  // Grouped histograms use group-aware assertions (assertGroupedBinsValid, groupBinsByColor)
-  const sampledConfigs = sampleConfigs(allValidConfigs);
+interface HistogramMatrixConfig {
+  plotConfig: PlotConfig;
+  dataTypeConfig: DataTypeConfig;
+  scale: ScaleOption;
+}
 
-  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
-  // Histograms work best with numeric data types
-  const numericDataTypes = dataTypeConfigs.filter(
+function generateHistogramMatrix(): HistogramMatrixConfig[] {
+  const allPlotConfigs = generateValidPlotConfigsForType('histogram');
+  const allDataTypes = generateDataTypeConfigs().filter(
     (dt) => ['float', 'int'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 
-  describe.each(sampledConfigs)('config: %o', (plotConfig) => {
-    describe.each(numericDataTypes)('data types: %o', (dataTypeConfig) => {
-      describe.each(activeScales)('scale: %s', (scale) => {
-        const alias = generateTestAlias('histogram', plotConfig, dataTypeConfig, scale);
+  const fullMatrix: HistogramMatrixConfig[] = [];
+  for (const plotConfig of allPlotConfigs) {
+    for (const dataTypeConfig of allDataTypes) {
+      for (const scale of activeScales) {
+        fullMatrix.push({ plotConfig, dataTypeConfig, scale });
+      }
+    }
+  }
 
-        // Generate deterministic data for precise assertions
-        const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
+  return sampleConfigs(fullMatrix);
+}
 
-        it(
-          `${alias} - renders SVG and axes`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
+function defineHistogramTests(
+  config: HistogramMatrixConfig,
+  { it, expect }: TestUtils
+): void {
+  const { plotConfig, dataTypeConfig, scale } = config;
+  const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-            await result.waitForPlot();
-
-            const svg = result.getSvg();
-            expect(svg).not.toBeNull();
-
-            assertAxesRendered(result);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - bin count is within expected range`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const bins = result.getHistogramBins();
-            const isGrouped = !!plotConfig.group_by;
-            assertBinCountInRange(bins, plotConfig.bin_count, deterministicData.count, isGrouped);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - all bins have valid dimensions`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const bins = result.getHistogramBins();
-            
-            if (plotConfig.group_by) {
-              // Use group-aware validation for grouped histograms
-              assertGroupedBinsValid(bins);
-            } else {
-              assertBinsHaveValidDimensions(bins);
-            }
-            assertBinsWithinPlotArea(bins);
-          },
-          scale.timeout
-        );
-
-        // Consistent width test - grouped histograms use group-aware validation
-        if (!plotConfig.group_by) {
-          it(
-            `${alias} - bins have consistent widths`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bins = result.getHistogramBins();
-              assertConsistentBinWidths(bins);
-            },
-            scale.timeout
-          );
-        }
-
-        // Contiguous test - only for non-grouped (grouped bins overlap by design)
-        if (!plotConfig.group_by) {
-          it(
-            `${alias} - bins are contiguous (no gaps)`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bins = result.getHistogramBins();
-              assertBinsContiguous(bins);
-            },
-            scale.timeout
-          );
-        }
-
-        it(
-          `${alias} - bin heights are proportional to frequency`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const bins = result.getHistogramBins();
-            assertBinHeightsProportional(bins);
-          },
-          scale.timeout
-        );
-
-        // Data coverage test - only for non-grouped (grouped overlaps make coverage check complex)
-        if (!plotConfig.group_by) {
-          it(
-            `${alias} - bins cover the data range`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bins = result.getHistogramBins();
-              assertBinsCoverDataRange(bins);
-            },
-            scale.timeout
-          );
-        }
-
-        it(
-          `${alias} - axis ticks are present`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const xTicks = result.getAxisTicks('x');
-            const yTicks = result.getAxisTicks('y');
-            expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
-          },
-          scale.timeout
-        );
-      });
+  it('renders SVG and axes', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
     });
-  });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+    assertAxesRendered(result);
+  }, scale.timeout);
+
+  it('bin count is within expected range', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const bins = result.getHistogramBins();
+    const isGrouped = !!plotConfig.group_by;
+    assertBinCountInRange(bins, plotConfig.bin_count, deterministicData.count, isGrouped);
+  }, scale.timeout);
+
+  it('all bins have valid dimensions', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const bins = result.getHistogramBins();
+    if (plotConfig.group_by) {
+      assertGroupedBinsValid(bins);
+    } else {
+      assertBinsHaveValidDimensions(bins);
+    }
+    assertBinsWithinPlotArea(bins);
+  }, scale.timeout);
+
+  if (!plotConfig.group_by) {
+    it('bins have consistent widths', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bins = result.getHistogramBins();
+      assertConsistentBinWidths(bins);
+    }, scale.timeout);
+
+    it('bins are contiguous (no gaps)', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bins = result.getHistogramBins();
+      assertBinsContiguous(bins);
+    }, scale.timeout);
+
+    it('bins cover the data range', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bins = result.getHistogramBins();
+      assertBinsCoverDataRange(bins);
+    }, scale.timeout);
+  }
+
+  it('bin heights are proportional to frequency', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const bins = result.getHistogramBins();
+    assertBinHeightsProportional(bins);
+  }, scale.timeout);
+
+  it('axis ticks are present', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const xTicks = result.getAxisTicks('x');
+    const yTicks = result.getAxisTicks('y');
+    expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
+  }, scale.timeout);
+}
+
+export const matrixTests = defineMatrixTests<HistogramMatrixConfig>({
+  name: 'Histogram - Matrix Tests',
+  getMatrix: generateHistogramMatrix,
+  defineTests: defineHistogramTests,
+  chunkSize: 10,
+  getConfigAlias: (config) =>
+    generateTestAlias('histogram', config.plotConfig, config.dataTypeConfig, config.scale),
 });

@@ -12,6 +12,9 @@ node_modules
 # vitest / playwright screenshots
 screenshots/
 
+# generated test files (matrix test splits)
+src/tests/**/generated/
+
 # next.js
 .next/
 /out/

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { playwright } from '@vitest/browser-playwright';
 import { loadEnvConfig } from '@next/env';
+import * as os from "os";
 
 // Load .env.test file before config
 loadEnvConfig(process.cwd(), true); // true = force test mode
@@ -107,6 +108,8 @@ export default defineConfig({
             enabled: true,
             provider: playwright(),
             headless: true,
+            // Single browser instance per process
+            // Use sharding (--shard) to distribute tests across multiple processes
             instances: [{ browser: 'chromium' }],
             // Disable screenshots to allow concurrent test execution
             screenshotFailures: false,

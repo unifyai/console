@@ -46,6 +46,7 @@ import {
   DEFAULT_DIMENSIONS,
   AggregateType,
 } from '../fixtures/calculations';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
 
 // =============================================================================
 // Setup
@@ -382,219 +383,207 @@ describe('Bar Chart - Interactions', () => {
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
 // =============================================================================
 
-describe('Bar Chart - Matrix Tests', () => {
-  const allValidConfigs = generateValidPlotConfigsForType('bar');
-  const sampledConfigs = sampleConfigs(allValidConfigs);
+// Interface for matrix test configuration
+interface BarMatrixConfig {
+  plotConfig: PlotConfig;
+  dataTypeConfig: DataTypeConfig;
+  scale: ScaleOption;
+}
 
-  // Get all data type configs first, then sample from the filtered ones
-  const allDataTypeConfigs = generateDataTypeConfigs();
-  // Bar charts typically use string x-axis and numeric y-axis
-  const barDataTypes = sampleConfigs(
-    allDataTypeConfigs.filter(
-      (dt) => dt.x_axis_type === 'str' && ['float', 'int'].includes(dt.y_axis_type)
-    )
+/**
+ * Generate the full matrix of test configurations.
+ * This is called once to build all config combinations.
+ * Sampling is applied to the final matrix (not individual dimensions)
+ * to ensure consistent coverage across all dimensions.
+ */
+function generateBarChartMatrix(): BarMatrixConfig[] {
+  // Get all valid plot configs for bar charts (no sampling yet)
+  const allPlotConfigs = generateValidPlotConfigsForType('bar');
+
+  // Get all valid data type configs for bar charts (string x-axis, numeric y-axis)
+  const allDataTypes = generateDataTypeConfigs().filter(
+    (dt) => dt.x_axis_type === 'str' && ['float', 'int'].includes(dt.y_axis_type)
   );
+
   const activeScales = getActiveScales();
 
-  describe.each(sampledConfigs)('config: %o', (plotConfig) => {
-    describe.each(barDataTypes)('data types: %o', (dataTypeConfig) => {
-      describe.each(activeScales)('scale: %s', (scale) => {
-        const alias = generateTestAlias('bar', plotConfig, dataTypeConfig, scale);
+  // Build the full matrix first
+  const fullMatrix: BarMatrixConfig[] = [];
+  for (const plotConfig of allPlotConfigs) {
+    for (const dataTypeConfig of allDataTypes) {
+      for (const scale of activeScales) {
+        fullMatrix.push({ plotConfig, dataTypeConfig, scale });
+      }
+    }
+  }
 
-        // Generate deterministic data for precise assertions
-        const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
+  // Debug logging
+  if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
+    console.log(`[Bar Matrix] Plot configs: ${allPlotConfigs.length}`);
+    console.log(`[Bar Matrix] Data types: ${allDataTypes.length}`);
+    console.log(`[Bar Matrix] Scales: ${activeScales.length}`);
+    console.log(`[Bar Matrix] Full matrix: ${fullMatrix.length}`);
+  }
 
-        it(
-          `${alias} - renders SVG and axes`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
+  // Sample the final matrix once (not each dimension separately)
+  const sampledMatrix = sampleConfigs(fullMatrix);
+  
+  if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
+    console.log(`[Bar Matrix] Sampled matrix: ${sampledMatrix.length}`);
+  }
 
-            await result.waitForPlot();
+  return sampledMatrix;
+}
 
-            const svg = result.getSvg();
-            expect(svg).not.toBeNull();
+/**
+ * Define tests for a single bar chart configuration.
+ * This function is called once per config in the matrix.
+ */
+function defineBarChartTests(
+  config: BarMatrixConfig,
+  { it, expect }: TestUtils
+): void {
+  const { plotConfig, dataTypeConfig, scale } = config;
+  const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-            assertAxesRendered(result);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - renders exact number of bars`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            assertExactBarCount(result, deterministicData, 'table1.category');
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - all bars have valid dimensions`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const bars = result.getBars();
-            assertBarsHaveValidDimensions(bars);
-            assertBarsWithinPlotArea(bars);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - bars have consistent widths and spacing`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const bars = result.getBars();
-            if (!plotConfig.group_by) {
-              assertConsistentBarWidths(bars);
-              assertBarsEvenlySpaced(bars);
-            }
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - bar heights are proportional to values`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            assertBarHeightsMatchAggregatedValues(
-              result,
-              deterministicData,
-              (plotConfig.aggregate as AggregateType) ?? 'sum'
-            );
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - axis ticks are present`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const xTicks = result.getAxisTicks('x');
-            const yTicks = result.getAxisTicks('y');
-            // At least some ticks should be present
-            expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
-          },
-          scale.timeout
-        );
-
-        if (plotConfig.group_by) {
-          it(
-            `${alias} - grouped bars have different colors`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bars = result.getBars();
-              if (bars.length > 1) {
-                const fillColors = new Set(
-                  bars.map((b) => b.getAttribute('fill')).filter(Boolean)
-                );
-                // Grouped bars should have multiple distinct colors (one per group)
-                expect(fillColors.size).toBeGreaterThan(1);
-              }
-            },
-            scale.timeout
-          );
-        }
-
-        // Only test height sorting for non-grouped bars with value-based sorting
-        // Grouped bars are sorted by category name, not by height
-        if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by && 
-            (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y')) {
-          it(
-            `${alias} - bars are sorted by height`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bars = result.getBars();
-              if (bars.length > 1) {
-                const heights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
-
-                if (plotConfig.sort_order === 'asc') {
-                  // Heights should be in ascending order
-                  for (let i = 1; i < heights.length; i++) {
-                    expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1] - POSITION_TOLERANCE);
-                  }
-                } else if (plotConfig.sort_order === 'desc') {
-                  // Heights should be in descending order
-                  for (let i = 1; i < heights.length; i++) {
-                    expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
-                  }
-                }
-              }
-            },
-            scale.timeout
-          );
-        }
-        
-        // For grouped bars with sorting, verify bars have valid structure
-        if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
-          it(
-            `${alias} - grouped bars are positioned correctly`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const bars = result.getBars();
-              // Grouped bars should exist and have valid x positions
-              expect(bars.length).toBeGreaterThan(0);
-              
-              // Verify bars have valid x positions
-              const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0'));
-              for (const x of xPositions) {
-                expect(x).toBeGreaterThanOrEqual(0);
-              }
-            },
-            scale.timeout
-          );
-        }
-      });
+  it('renders SVG and axes', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
     });
-  });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const svg = result.getSvg();
+    expect(svg).not.toBeNull();
+    assertAxesRendered(result);
+  }, scale.timeout);
+
+  it('renders exact number of bars', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    assertExactBarCount(result, deterministicData, 'table1.category');
+  }, scale.timeout);
+
+  it('all bars have valid dimensions', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const bars = result.getBars();
+    assertBarsHaveValidDimensions(bars);
+    assertBarsWithinPlotArea(bars);
+  }, scale.timeout);
+
+  it('bars have consistent widths and spacing', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const bars = result.getBars();
+    if (!plotConfig.group_by) {
+      assertConsistentBarWidths(bars);
+      assertBarsEvenlySpaced(bars);
+    }
+  }, scale.timeout);
+
+  it('bar heights are proportional to values', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    assertBarHeightsMatchAggregatedValues(
+      result,
+      deterministicData,
+      (plotConfig.aggregate as AggregateType) ?? 'sum'
+    );
+  }, scale.timeout);
+
+  it('axis ticks are present', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const xTicks = result.getAxisTicks('x');
+    const yTicks = result.getAxisTicks('y');
+    expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
+  }, scale.timeout);
+
+  // Conditional tests based on config
+  if (plotConfig.group_by) {
+    it('grouped bars have different colors', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bars = result.getBars();
+      if (bars.length > 1) {
+        const fillColors = new Set(
+          bars.map((b) => b.getAttribute('fill')).filter(Boolean)
+        );
+        expect(fillColors.size).toBeGreaterThan(1);
+      }
+    }, scale.timeout);
+  }
+
+  if (plotConfig.sort_by && plotConfig.sort_order && !plotConfig.group_by &&
+      (plotConfig.sort_by === 'value' || plotConfig.sort_by === 'y')) {
+    it('bars are sorted by height', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bars = result.getBars();
+      if (bars.length > 1) {
+        const heights = bars.map(bar => parseFloat(bar.getAttribute('height') || '0'));
+        if (plotConfig.sort_order === 'asc') {
+          for (let i = 1; i < heights.length; i++) {
+            expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1] - POSITION_TOLERANCE);
+          }
+        } else if (plotConfig.sort_order === 'desc') {
+          for (let i = 1; i < heights.length; i++) {
+            expect(heights[i]).toBeLessThanOrEqual(heights[i - 1] + POSITION_TOLERANCE);
+          }
+        }
+      }
+    }, scale.timeout);
+  }
+
+  if (plotConfig.sort_by && plotConfig.sort_order && plotConfig.group_by) {
+    it('grouped bars are positioned correctly', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const bars = result.getBars();
+      expect(bars.length).toBeGreaterThan(0);
+      const xPositions = bars.map(bar => parseFloat(bar.getAttribute('x') || '0'));
+      for (const x of xPositions) {
+        expect(x).toBeGreaterThanOrEqual(0);
+      }
+    }, scale.timeout);
+  }
+}
+
+/**
+ * Matrix test definition - exported for use by generated chunk files.
+ *
+ * When run normally: executes all tests in the matrix.
+ * When MATRIX_TEST_SPLIT=true: skips (generated files handle it).
+ */
+export const matrixTests = defineMatrixTests<BarMatrixConfig>({
+  name: 'Bar Chart - Matrix Tests',
+  getMatrix: generateBarChartMatrix,
+  defineTests: defineBarChartTests,
+  chunkSize: 10,
+  getConfigAlias: (config) =>
+    generateTestAlias('bar', config.plotConfig, config.dataTypeConfig, config.scale),
 });

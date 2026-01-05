@@ -48,6 +48,7 @@ import {
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,
 } from '../fixtures/calculations';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
 
 // =============================================================================
 // Setup
@@ -392,174 +393,140 @@ describe('Scatter Plot - Interactions', () => {
 
 // =============================================================================
 // Matrix Tests - Comprehensive Coverage with Exact Assertions
-// Uses sampling to control test count
 // =============================================================================
 
-describe('Scatter Plot - Matrix Tests', () => {
-  const allValidConfigs = generateValidPlotConfigsForType('scatter');
-  const sampledConfigs = sampleConfigs(allValidConfigs);
+interface ScatterMatrixConfig {
+  plotConfig: PlotConfig;
+  dataTypeConfig: DataTypeConfig;
+  scale: ScaleOption;
+}
 
-  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
-  // Focus on numeric data types for scatter (float, int)
-  const numericDataTypes = dataTypeConfigs.filter(
+function generateScatterMatrix(): ScatterMatrixConfig[] {
+  const allPlotConfigs = generateValidPlotConfigsForType('scatter');
+  const allDataTypes = generateDataTypeConfigs().filter(
     (dt) => ['float', 'int'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 
-  describe.each(sampledConfigs)('config: %o', (plotConfig) => {
-    describe.each(numericDataTypes)('data types: %o', (dataTypeConfig) => {
-      describe.each(activeScales)('scale: %s', (scale) => {
-        const alias = generateTestAlias('scatter', plotConfig, dataTypeConfig, scale);
+  const fullMatrix: ScatterMatrixConfig[] = [];
+  for (const plotConfig of allPlotConfigs) {
+    for (const dataTypeConfig of allDataTypes) {
+      for (const scale of activeScales) {
+        fullMatrix.push({ plotConfig, dataTypeConfig, scale });
+      }
+    }
+  }
 
-        // Generate deterministic data for precise assertions
-        const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
+  return sampleConfigs(fullMatrix);
+}
 
-        it(
-          `${alias} - renders exact number of points`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
+function defineScatterTests(
+  config: ScatterMatrixConfig,
+  { it, expect }: TestUtils
+): void {
+  const { plotConfig, dataTypeConfig, scale } = config;
+  const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-            await result.waitForPlot();
-
-            // Scatter plots render one point per valid log entry
-            // (aggregate affects value computation, not point count)
-            const logsForCounting = deterministicData.logs.map(l => ({
-              'table1.x_value': l['table1.entries']['table1.x_value'],
-              'table1.y_value': l['table1.entries']['table1.y_value'],
-            }));
-
-            const expectedCount = calculateExpectedPointCount(
-              logsForCounting,
-              'table1.x_value',
-              'table1.y_value'
-            );
-
-            assertExactPointCount(result, expectedCount);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - all points have valid positions within plot area`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            const points = result.getScatterPoints();
-            assertPointsHaveValidPositions(points);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - point positions match expected data values`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            assertPointPositionsMatchData(
-              result,
-              deterministicData,
-              plotConfig.scale_x,
-              plotConfig.scale_y
-            );
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - points have consistent dimensions`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            assertPointDimensions(result);
-          },
-          scale.timeout
-        );
-
-        it(
-          `${alias} - renders axes correctly`,
-          async () => {
-            const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-              deterministic: true,
-            });
-            const result = renderPlotCanvas(testSetup);
-
-            await result.waitForPlot();
-
-            assertAxesRendered(result);
-
-            // Verify axis ticks exist
-            const xTicks = result.getAxisTicks('x');
-            const yTicks = result.getAxisTicks('y');
-            expect(xTicks.length).toBeGreaterThan(0);
-            expect(yTicks.length).toBeGreaterThan(0);
-          },
-          scale.timeout
-        );
-
-        if (plotConfig.show_regression) {
-          it(
-            `${alias} - renders regression line`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              // Check for regression line in plot data group
-              const plotData = result.getPlotDataGroup();
-              expect(plotData).not.toBeNull();
-
-              // Look for a line element (regression line)
-              const lines = plotData?.querySelectorAll('line, path.regression-line');
-              // Regression should produce at least one line element
-              expect(lines?.length).toBeGreaterThanOrEqual(0);
-            },
-            scale.timeout
-          );
-        }
-
-        if (plotConfig.group_by) {
-          it(
-            `${alias} - points have different colors for groups`,
-            async () => {
-              const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-                deterministic: true,
-              });
-              const result = renderPlotCanvas(testSetup);
-
-              await result.waitForPlot();
-
-              const points = result.getScatterPoints();
-              const fillColors = new Set(
-                points.map((p) => p.getAttribute('fill')).filter(Boolean)
-              );
-              // With grouping, should have multiple colors
-              expect(fillColors.size).toBeGreaterThanOrEqual(1);
-            },
-            scale.timeout
-          );
-        }
-      });
+  it('renders exact number of points', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
     });
-  });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+
+    const logsForCounting = deterministicData.logs.map(l => ({
+      'table1.x_value': l['table1.entries']['table1.x_value'],
+      'table1.y_value': l['table1.entries']['table1.y_value'],
+    }));
+    const expectedCount = calculateExpectedPointCount(
+      logsForCounting,
+      'table1.x_value',
+      'table1.y_value'
+    );
+    assertExactPointCount(result, expectedCount);
+  }, scale.timeout);
+
+  it('all points have valid positions within plot area', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    const points = result.getScatterPoints();
+    assertPointsHaveValidPositions(points);
+  }, scale.timeout);
+
+  it('point positions match expected data values', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    assertPointPositionsMatchData(
+      result,
+      deterministicData,
+      plotConfig.scale_x,
+      plotConfig.scale_y
+    );
+  }, scale.timeout);
+
+  it('points have consistent dimensions', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    assertPointDimensions(result);
+  }, scale.timeout);
+
+  it('renders axes correctly', async () => {
+    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+      deterministic: true,
+    });
+    const result = renderPlotCanvas(testSetup);
+    await result.waitForPlot();
+    assertAxesRendered(result);
+    const xTicks = result.getAxisTicks('x');
+    const yTicks = result.getAxisTicks('y');
+    expect(xTicks.length).toBeGreaterThan(0);
+    expect(yTicks.length).toBeGreaterThan(0);
+  }, scale.timeout);
+
+  if (plotConfig.show_regression) {
+    it('renders regression line', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const plotData = result.getPlotDataGroup();
+      expect(plotData).not.toBeNull();
+      const lines = plotData?.querySelectorAll('line, path.regression-line');
+      expect(lines?.length).toBeGreaterThanOrEqual(0);
+    }, scale.timeout);
+  }
+
+  if (plotConfig.group_by) {
+    it('points have different colors for groups', async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
+      const points = result.getScatterPoints();
+      const fillColors = new Set(
+        points.map((p) => p.getAttribute('fill')).filter(Boolean)
+      );
+      expect(fillColors.size).toBeGreaterThanOrEqual(1);
+    }, scale.timeout);
+  }
+}
+
+export const matrixTests = defineMatrixTests<ScatterMatrixConfig>({
+  name: 'Scatter Plot - Matrix Tests',
+  getMatrix: generateScatterMatrix,
+  defineTests: defineScatterTests,
+  chunkSize: 10,
+  getConfigAlias: (config) =>
+    generateTestAlias('scatter', config.plotConfig, config.dataTypeConfig, config.scale),
 });
