@@ -18,6 +18,7 @@ const TEST_ENV = {
   // Next.js debug flags
   NEXT_PUBLIC_DEBUG_PERFORMANCE: 'false',
   NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES: 'false',
+  NEXT_PUBLIC_DEBUG_PERF_TELEMETRY: 'false',
   // Plot test configuration
   PLOT_TEST_SCALE: process.env.PLOT_TEST_SCALE || 'small',
   PLOT_TEST_SAMPLE_RATE: process.env.PLOT_TEST_SAMPLE_RATE || '100',
@@ -41,6 +42,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  // Define process.env for browser tests (Next.js components use this)
+  define: {
+    'process.env': JSON.stringify(TEST_ENV),
   },
 
   // Project-specific configs
@@ -66,19 +71,13 @@ export default defineConfig({
         css: {
           postcss: './postcss.config.js',
         },
-        define: {
-          // Define process.env for browser tests (Next.js components use this)
-          'process.env': JSON.stringify(TEST_ENV),
-        },
         test: {
           name: 'browser',
           setupFiles: ['./vitest.browser.setup.ts'],
           include: ['src/**/*.browser.test.ts?(x)'],
           exclude: ['src/**/*.node.test.ts?(x)'],
-          // Env vars for test collection (happens in Node.js context)
           env: TEST_ENV,
-          // Use fileParallelism to run test files in parallel across workers
-          // Each worker gets its own browser instance
+          // Use fileParallelism to run test files in parallel across workers. Each worker gets its own browser instance
           fileParallelism: true,
           browser: {
             enabled: true,

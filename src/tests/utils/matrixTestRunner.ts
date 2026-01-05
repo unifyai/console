@@ -146,14 +146,19 @@ export function defineMatrixTests<T>(
   const matrix = getMatrix();
 
   // Check if we're running a specific chunk (used by generated files)
-  const chunkIndexStr = process.env.MATRIX_TEST_CHUNK;
+  const chunkIndexStr = getEnvVar('MATRIX_TEST_CHUNK');
   let configsToRun: T[];
   let startIndex = 0;
 
-  if (chunkIndexStr !== undefined) {
+  // Only use chunk mode if MATRIX_TEST_CHUNK is a non-empty string with a valid number
+  if (chunkIndexStr && chunkIndexStr.trim() !== '') {
     const chunkIndex = parseInt(chunkIndexStr, 10);
-    startIndex = chunkIndex * chunkSize;
-    configsToRun = matrix.slice(startIndex, startIndex + chunkSize);
+    if (!isNaN(chunkIndex)) {
+      startIndex = chunkIndex * chunkSize;
+      configsToRun = matrix.slice(startIndex, startIndex + chunkSize);
+    } else {
+      configsToRun = matrix;
+    }
   } else {
     configsToRun = matrix;
   }
