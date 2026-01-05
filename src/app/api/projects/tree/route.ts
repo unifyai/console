@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   let apiKey = request.headers.get("apiKey") || "";
   if(!apiKey){
     const user = await getCurrentUser();
-    apiKey = user?.apiKey ?? "";
+    apiKey = user?.api_key ?? "";
   }
   try {
     const url = `${baseUrl}/projects/tree`;

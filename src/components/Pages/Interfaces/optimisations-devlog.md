@@ -453,7 +453,7 @@ const apiKey = request.headers.get("apiKey");
 
 // After  
 const session = await getServerSession(authOptions);
-const apiKey = session?.user?.apiKey;
+const apiKey = session?.user?.api_key;
 ```
 
 **Routes Updated:**

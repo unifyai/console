@@ -81,12 +81,12 @@ interface UserOrganization {
   name: string;
   role_id: number;
   role_name: string;
-  apiKey: string;
+  api_key: string;
 }
 
 interface AdminUserResponse {
   id: string;
-  apiKey: string; // Personal API key
+  api_key: string; // Personal API key
   organizations: UserOrganization[];
 }
 
@@ -401,8 +401,8 @@ export async function GET(
       const targetOrg = userData.organizations?.find(
         (org) => org.id === plotConfig.organization_id
       );
-      if (targetOrg?.apiKey) {
-        userApiKey = targetOrg.apiKey;
+      if (targetOrg?.api_key) {
+        userApiKey = targetOrg.api_key;
       } else {
         console.error(
           `[plot/data] User ${plotConfig.user_id} has no API key for org ${plotConfig.organization_id}`
@@ -414,7 +414,7 @@ export async function GET(
       }
     } else {
       // Use personal API key
-      userApiKey = userData.apiKey;
+      userApiKey = userData.api_key;
     }
 
     if (!userApiKey) {

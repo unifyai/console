@@ -14,7 +14,7 @@ export async function GET(
   let apiKey = request.headers.get("apiKey") || "";
   if (!apiKey) {
     const user = await getCurrentUser();
-    apiKey = user?.apiKey ?? "";
+    apiKey = user?.api_key ?? "";
   }
   
   try {

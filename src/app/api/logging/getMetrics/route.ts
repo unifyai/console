@@ -10,7 +10,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const apiKey = user.apiKey;
+    const apiKey = user.api_key;
 
     const url = new URL(req.url);
     const start_time = url.searchParams.get("start_time") || undefined;

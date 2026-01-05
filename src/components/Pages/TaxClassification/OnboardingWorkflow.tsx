@@ -16,8 +16,8 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface ProfileData {
   name: string;
-  lastName: string;
-  jobTitle: string;
+  last_name: string;
+  job_title: string;
   bio: string;
   timezone: string;
 }
@@ -60,8 +60,8 @@ export default function OnboardingWorkflow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
-    lastName: '',
-    jobTitle: '',
+    last_name: '',
+    job_title: '',
     bio: '',
     timezone: ''
   });
@@ -146,12 +146,12 @@ export default function OnboardingWorkflow() {
       if (userData) {
         setProfileData({
           name: userData.name || '',
-          lastName: userData.lastName || '',
-          jobTitle: userData.jobTitle || '',
+          last_name: userData.last_name || '',
+          job_title: userData.job_title || '',
           bio: userData.bio || '',
           timezone: userData.timezone || ''
         });
-        setIsProfileValid(userData.name && userData.lastName);
+        setIsProfileValid(userData.name && userData.last_name);
         console.log('✅ Pre-populated profile data');
       }
 
@@ -178,7 +178,7 @@ export default function OnboardingWorkflow() {
       }
 
       // Determine starting step based on available data
-      const hasCompleteProfile = userData && userData.name && userData.lastName;
+      const hasCompleteProfile = userData && userData.name && userData.last_name;
 
       if (hasCompleteProfile) {
         setCurrentStep(1); // Skip to tax classification step
@@ -205,8 +205,8 @@ export default function OnboardingWorkflow() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data.name,
-          lastName: data.lastName,
-          jobTitle: data.jobTitle,
+          last_name: data.last_name,
+          job_title: data.job_title,
           bio: data.bio,
           timezone: data.timezone
         })

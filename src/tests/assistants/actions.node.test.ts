@@ -38,7 +38,7 @@ const getTestAssistant = async (key: string) : Promise<Assistant> => {
 const getTestSecret = async (key: string, assistant_context: string) : Promise<Secret> => {
     const user = await UserActions.getCurrentUser();
     if (!user || !user.id) throw new Error("No user found for test.");
-    const userName = `${user.name}${user.lastName}`;
+    const userName = `${user.name}${user.last_name}`;
 
     const getAction = await SecretActions.getSecrets(key, userName);
     const getRes = await getAction(assistant_context);
@@ -192,7 +192,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
@@ -572,7 +572,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
@@ -593,7 +593,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
@@ -616,7 +616,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantId = assistant.agent_id;
@@ -641,7 +641,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
@@ -659,7 +659,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;
@@ -680,7 +680,7 @@ describe('Assistants Server Actions (Integration)', { meta: { mock: false } }, (
 
             const user = await UserActions.getCurrentUser();
             if (!user || !user.id) throw new Error("No user found for test.");
-            const userName = `${user.name}${user.lastName}`;
+            const userName = `${user.name}${user.last_name}`;
 
             const assistant = await getTestAssistant(API_KEY);
             const assistantName = `${assistant.first_name}${assistant.surname}`;

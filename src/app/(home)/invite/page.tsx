@@ -39,7 +39,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
   }
 
   // 3. Initialize Server Action with API Key
-  const acceptAction = await acceptInviteAction(user.apiKey);
+  const acceptAction = await acceptInviteAction(user.api_key);
 
   // 4. Render Client View
   return (

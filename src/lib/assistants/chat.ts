@@ -168,10 +168,10 @@ export const messageAssistant = async (apiKey: string) => {
  * Used as a fallback when assistant.user_first_name/user_last_name are missing.
  * 
  * @param userId - The user ID to look up
- * @returns Object with firstName and lastName, or null if lookup fails
+ * @returns Object with first_name and last_name, or null if lookup fails
  */
 export const getAssistantOwnerById = async () => {
-    return async (userId: string): Promise<{ firstName: string; lastName: string } | null> => {
+    return async (userId: string): Promise<{ first_name: string; last_name: string } | null> => {
         "use server";
         try {
             // Import here to avoid circular dependencies
@@ -184,8 +184,8 @@ export const getAssistantOwnerById = async () => {
             }
             
             return {
-                firstName: user.name,
-                lastName: user.lastName || '',
+                first_name: user.name,
+                last_name: user.last_name || '',
             };
         } catch (error) {
             console.error(`[getAssistantOwnerById] Error fetching user:`, error);

@@ -9,7 +9,7 @@ export async function POST(
     { params }: { params: { projectName: string } }
 ) {
     const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    const apiKey = user?.api_key || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });

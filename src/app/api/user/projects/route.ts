@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const fetchProjects = await getProjects(user.apiKey);
+    const fetchProjects = await getProjects(user.api_key);
     const projects = await fetchProjects();
     return NextResponse.json(projects, { status: 200 });
   } catch (err) {

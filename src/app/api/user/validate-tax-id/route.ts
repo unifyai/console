@@ -5,13 +5,13 @@ import { validateTaxId } from '@/lib/user/tax';
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
 
-  if (!user || !user.apiKey) {
+  if (!user || !user.api_key) {
     return NextResponse.json({ error: 'User not found or missing API key' }, { status: 404 });
   }
 
   try {
     const requestBody = await request.json();
-    const data = await validateTaxId(user.apiKey, requestBody);
+    const data = await validateTaxId(user.api_key, requestBody);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error validating tax ID:', error);

@@ -11,15 +11,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, lastName, jobTitle, bio, timezone } = body;
+    const { name, last_name, job_title, bio, timezone } = body;
 
     // Update user properties in db
     const userUpdateRequest: UserUpdateRequest = {
       email: user.email,
       user_id: user.id,
       name,
-      last_name: lastName,
-      job_title: jobTitle,
+      last_name,
+      job_title,
       bio: bio,
       timezone: timezone || null,
       image: null // We don't update image in onboarding

@@ -128,8 +128,8 @@ export function useAssistantProfileChat(
         if (currentAssistant.user_id) {
             try {
                 const userDetails = await assistantActions.chat.getAssistantOwnerById(currentAssistant.user_id);
-                if (userDetails && userDetails.firstName) {
-                    const context = `${userDetails.firstName}${userDetails.lastName || ''}`;
+                if (userDetails && userDetails.first_name) {
+                    const context = `${userDetails.first_name}${userDetails.last_name || ''}`;
                     ownerContextCacheRef.current.set(currentAssistant.agent_id, context);
                     return context;
                 }

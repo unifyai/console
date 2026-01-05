@@ -127,14 +127,14 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (headerApiKey) {
     // Check if the header key matches the default personal key
-    if (user.apiKey === headerApiKey) {
+    if (user.api_key === headerApiKey) {
       contextResolved = true;
     } 
     // Check if the header key matches any of the user's organizations
     else if (user.organizations) {
-      const targetOrg = user.organizations.find(org => org.apiKey === headerApiKey);
+      const targetOrg = user.organizations.find(org => org.api_key === headerApiKey);
       if (targetOrg) {
-        user.apiKey = targetOrg.apiKey;
+        user.api_key = targetOrg.api_key;
         contextResolved = true;
       }
     }
@@ -143,7 +143,7 @@ export async function getCurrentUser(): Promise<User | null> {
   // Priority 2: Cookie (if not resolved by header)
   if (!contextResolved && workspaceId) {
     if (workspaceId === 'personal') {
-      // Explicitly personal. user.apiKey is already personal default.
+      // Explicitly personal. user.api_key is already personal default.
       contextResolved = true;
     } else {
       // Check if user still belongs to this org
@@ -152,7 +152,7 @@ export async function getCurrentUser(): Promise<User | null> {
       );
 
       if (targetOrg) {
-        user.apiKey = targetOrg.apiKey;
+        user.api_key = targetOrg.api_key;
         contextResolved = true;
       }
       // If targetOrg not found (e.g. user removed from org), contextResolved remains false
@@ -164,9 +164,9 @@ export async function getCurrentUser(): Promise<User | null> {
   // if (!contextResolved) {
   //   // Default to the first Organization if available
   //   if (user.organizations && user.organizations.length > 0) {
-  //     user.apiKey = user.organizations[0].apiKey;
+  //     user.api_key = user.organizations[0].api_key;
   //   }
-  //   // Else: User has no organizations, default to personal (user.apiKey is unmodified)
+  //   // Else: User has no organizations, default to personal (user.api_key is unmodified)
   // }
 
   return user;

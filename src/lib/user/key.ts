@@ -29,5 +29,5 @@ export async function regenerateUserKey(userID: string, organizationID?: string)
 export async function regenerateOnPremUserKey() {
   const userResponse = await fetch(`${process.env.NEXTAUTH_URL}/userInfo.json`);
   const userInfo = (await userResponse.json()) as User;
-  return userInfo?.apiKey || null;
+  return userInfo?.api_key || null;
 };

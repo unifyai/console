@@ -8,7 +8,7 @@ export interface Organization {
   created_at?: string;
   role_id?: number;
   role_name?: string;
-  apiKey?: string;
+  api_key?: string;
 }
 
 export interface OrganizationMember {
@@ -20,7 +20,7 @@ export interface OrganizationMember {
   created_at: string;
   name?: string;
   email?: string;
-  jobTitle?: string;
+  job_title?: string;
   bio?: string;
 }
 

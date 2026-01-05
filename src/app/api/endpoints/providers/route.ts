@@ -20,6 +20,6 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const model = url.searchParams.get("model");
-    const providers = await listProviders(user.apiKey, model!);
+    const providers = await listProviders(user.api_key, model!);
     return NextResponse.json(providers);
 }

@@ -7,7 +7,7 @@ import { UpdateBusinessInfoRequest } from '@/types/user';
 export async function PATCH(request: NextRequest) {
   const user = await getCurrentUser();
 
-  if (!user || !user.apiKey) {
+  if (!user || !user.api_key) {
     return NextResponse.json({ error: "User not found or missing API key" }, { status: 404 });
   }
 
@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest) {
     const requestBody: UpdateBusinessInfoRequest = await request.json();
     
     // 1. Update business info in Orchestra
-    const data = await updateBusinessInfo(user.apiKey, requestBody);
+    const data = await updateBusinessInfo(user.api_key, requestBody);
     
     // 2. Sync Stripe
     syncStripeCustomer({

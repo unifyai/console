@@ -7,9 +7,9 @@ import { getMailchimpUser, addMailchimpUser, updateMailchimpInterests, updateMai
    * 
    * - `email`: The new email address of the user.
    * - `name`: The new first name of the user.
-   * - `lastName`: The new last name of the user.
+   * - `last_name`: The new last name of the user.
    * - `image`: The new profile image as a base64 encoded string.
-   * - `jobTitle`: The new job title of the user.
+   * - `job_title`: The new job title of the user.
    * 
    * @param request The request object.
    * 
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const email = formData.get("email") as string;
   const name = formData.get("name") as string;
-  const lastName = formData.get("lastName") as string;
+  const last_name = formData.get("last_name") as string;
   const subscriptions = JSON.parse(formData.get("subscriptions") as string);
 
   const user = await getMailchimpUser(email);
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     await addMailchimpUser(email)
   }
 
-  await updateMailchimpUser(email, name, lastName);
+  await updateMailchimpUser(email, name, last_name);
 
   //turn list of subscriptions into dict with true values
   const updatedInterests: { [key: string]: boolean } = {};

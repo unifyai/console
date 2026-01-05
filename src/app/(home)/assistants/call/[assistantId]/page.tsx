@@ -13,8 +13,8 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     if (!user) {
         redirect('/login');
     }
-    const apiKey = user.apiKey;
-    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
+    const apiKey = user.api_key;
+    const isOrgContext = user.organizations?.some(org => org.api_key === apiKey) ?? false;
 
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
@@ -28,7 +28,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
             dispatchToCall: await dispatchAssistantToCall(apiKey),
         },
         "desktop": {
-            getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
+            getLiveviewUrl: await getLiveviewUrl(user.id, user.api_key),
             sendSystemEvent: await sendSystemEvent(),
         }
     };

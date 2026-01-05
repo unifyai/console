@@ -73,7 +73,7 @@ export const mockOrganizations: Organization[] = [
         owner_id: mockUser.id,
         role_id: 1,
         role_name: "Owner",
-        apiKey: "key_123",
+        api_key: "key_123",
         created_at: new Date().toISOString()
     },
     {
@@ -82,7 +82,7 @@ export const mockOrganizations: Organization[] = [
         owner_id: "other_user",
         role_id: 2,
         role_name: "Member",
-        apiKey: "key_456",
+        api_key: "key_456",
         created_at: new Date().toISOString()
     }
 ];
@@ -97,7 +97,7 @@ export const mockMembers: OrganizationMember[] = [
         created_at: new Date().toISOString(),
         name: mockUser.name,
         email: mockUser.email,
-        jobTitle: "CTO"
+        job_title: "CTO"
     },
     {
         id: 2,
@@ -108,7 +108,7 @@ export const mockMembers: OrganizationMember[] = [
         created_at: new Date().toISOString(),
         name: "Jane Doe",
         email: "jane@acme.com",
-        jobTitle: "Engineer"
+        job_title: "Engineer"
     }
 ];
 

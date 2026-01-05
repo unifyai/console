@@ -53,7 +53,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         redirect('/login');
     }
     const userId = user.id;
-    const apiKey = user.apiKey;
+    const apiKey = user.api_key;
 
     // get server actions - Legacy actions for backward compatibility
     const projectsActions = {

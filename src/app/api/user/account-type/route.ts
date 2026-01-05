@@ -7,13 +7,13 @@ import { syncStripeCustomer } from '@/lib/user/billing/stripe/customer-sync';
 export async function PUT(request: NextRequest) {
   const user = await getCurrentUser();
 
-  if (!user || !user.apiKey) {
+  if (!user || !user.api_key) {
     return NextResponse.json({ error: "User not found or missing API key" }, { status: 404 });
   }
 
   try {
     const requestBody: UpdateAccountTypeRequest = await request.json();
-    const data = await updateUserAccountType(user.apiKey, requestBody);
+    const data = await updateUserAccountType(user.api_key, requestBody);
 
     // Sync Stripe
     syncStripeCustomer({

@@ -6,23 +6,23 @@ export interface Session {
 		name: string;
 		email: string;
 		image: string;
-		createdAt: string;
-		apiKey: string;
+		created_at: string;
+		api_key: string;
 	};
 }
 
 export interface User {
 	id: string;
 	name: string;
-	lastName: string;
-	jobTitle: string;
+	last_name: string;
+	job_title: string;
 	bio: string;
 	image: string;
 	timezone: string | null;
 	email: string;
 	phone_number: string | null;
-	createdAt: string;
-	apiKey: string;
+	created_at: string;
+	api_key: string;
 	stripe_customer_id: string,
 	organization: {
 		name: string;
@@ -39,7 +39,7 @@ export interface UserOrganization {
   name: string;
   role_id: number;
   role_name: string;
-  apiKey: string;
+  api_key: string;
 }
 
 export interface UserWorkspace {

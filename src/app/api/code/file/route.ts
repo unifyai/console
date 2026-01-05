@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    const apiKey = user?.api_key || request.headers.get("apiKey");
     
     const { user_id: userId, project, filename, content } = await request.json();
 

@@ -35,7 +35,13 @@ export function OrchestraAdapter(): Adapter {
       await OrchestraAdminClient.delete("/auth-user", { params: { user_id: userId } });
     },
     async linkAccount(account: AdapterAccount): Promise<void> {
-      await OrchestraAdminClient.post("/account", account);
+      // Transform NextAuth's camelCase fields to orchestra's snake_case
+      const { providerAccountId, userId, ...rest } = account;
+      await OrchestraAdminClient.post("/account", {
+        ...rest,
+        provider_account_id: providerAccountId,
+        user_id: userId,
+      });
     },
     async unlinkAccount({
       providerAccountId,
@@ -45,7 +51,7 @@ export function OrchestraAdapter(): Adapter {
       provider: string;
     }): Promise<void> {
       await OrchestraAdminClient.delete("/account", {
-        params: { providerAccountId, provider },
+        params: { provider_account_id: providerAccountId, provider },
       });
     },
   };

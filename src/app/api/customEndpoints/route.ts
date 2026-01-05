@@ -6,7 +6,7 @@ const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 export async function POST(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    const apiKey = user?.api_key || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    const apiKey = user?.api_key || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
