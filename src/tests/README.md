@@ -79,10 +79,14 @@ src/tests/assistants/
 
 ### **Naming Convention**
 
-| Purpose          | File Pattern            | Runs In        |
-| ---------------- | ----------------------- | -------------- |
-| Node-only tests  | `*.node.test.ts?(x)`    | Node (`jsdom`) |
-| Browser UI tests | `*.browser.test.ts?(x)` | Real browser   |
+| Purpose              | File Pattern                      | Runs In        |
+| -------------------- | --------------------------------- | -------------- |
+| Node-only tests      | `*.node.test.ts?(x)`              | Node (`jsdom`) |
+| Node matrix tests    | `*.matrix.node.test.ts?(x)`       | Node (`jsdom`) |
+| Browser UI tests     | `*.browser.test.ts?(x)`           | Real browser   |
+| Browser matrix tests | `*.matrix.browser.test.ts?(x)`    | Real browser   |
+
+**Matrix tests** are test files that iterate over large configuration matrices. They support sharding for parallel CI execution. Use the `.matrix.` suffix to easily identify and target these files.
 
 ### **Test Blocks**
 Tests should be wrapped in a block containing:
@@ -201,19 +205,20 @@ export const matrixTests = defineMatrixTests({
 
 **CI Parallelization:**
 
-Browser tests are expensive (each needs a Chromium instance). For large matrices, use file splitting:
+Browser matrix tests are expensive (each needs a Chromium instance). Use the unified command that handles generate → run → cleanup:
 
 ```bash
-# Generate chunk files
-npm run test:browser:generate
+# Run with 8 parallel shards (auto-generates chunk files, runs, then cleans up)
+npm run test:browser:matrix 8
 
-# Run in parallel with sharding
-MATRIX_TEST_SPLIT=true bash src/tests/scripts/test-browser-parallel.sh 4
+# Via environment variable
+SHARDS=8 npm run test:browser:matrix
 ```
 
-Environment variables:
-- `MATRIX_TEST_SPLIT=true` - Skip original files, run generated chunks
-- `MATRIX_TEST_CHUNK=N` - Run only chunk N (used by generated files)
+The script automatically:
+1. Generates chunk files for parallel execution
+2. Runs tests across multiple shards
+3. Cleans up generated files on success
 
 ### **Node Matrix Tests** (`matrixTestRunnerNode.ts`)
 
@@ -240,3 +245,17 @@ defineNodeMatrixTests<MyConfig>({
   getConfigAlias: (config) => `${config.type}-${config.scale}`,
 });
 ```
+
+**CI Parallelization for Node Matrix Tests:**
+
+Node matrix tests support sharding via the `MATRIX_SHARD` environment variable:
+
+```bash
+# Run in parallel with custom shard count
+npm run test:node:matrix 8
+
+# Via environment variable
+SHARDS=8 npm run test:node:matrix
+```
+
+The script launches multiple Node.js processes, each with a different `MATRIX_SHARD` value (e.g., `1/4`, `2/4`, etc.).

@@ -6,7 +6,7 @@
  *
  * Used by:
  * - API tests (plot.api.node.test.ts)
- * - Integration tests (scatter/bar/histogram/line.browser.test.tsx)
+ * - Integration tests (scatter/bar/histogram/line.matrix.browser.test.tsx)
  */
 
 // =============================================================================
@@ -131,7 +131,7 @@ export function getGroupByFieldForType(groupByType: string): string {
 
 // Timeouts are higher when using real API to account for network latency
 const baseTimeouts = PLOT_TEST_API_REAL
-  ? { small: 20000, medium: 60000, large: 120000 }
+  ? { small: 60000, medium: 120000, large: 180000 }
   : { small: 5000, medium: 15000, large: 30000 };
 
 export const scaleOptions = [

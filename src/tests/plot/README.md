@@ -14,13 +14,24 @@ src/tests/plot/
 │   ├── plotCanvasTestHarness.tsx       # Direct PlotCanvas testing harness
 │   └── handlers.ts                     # MSW handlers for API mocking
 ├── api/
-│   └── plot.api.node.test.ts           # API endpoint tests (Node.js)
+│   ├── plot.api.node.test.ts             # API edge case tests (Node.js)
+│   ├── plot.api.matrix.node.test.ts      # API matrix tests (Node.js, shardable)
+│   └── _api-helpers.ts                   # Shared API test utilities
 ├── integration/
-│   ├── scatter.browser.test.tsx        # Scatter plot integration tests
-│   ├── bar.browser.test.tsx            # Bar chart integration tests
-│   ├── histogram.browser.test.tsx      # Histogram integration tests
-│   ├── line.browser.test.tsx           # Line chart integration tests
-│   └── transitions.browser.test.tsx    # Plot type transition tests
+│   ├── bar.browser.test.tsx              # Bar chart edge cases & interactions
+│   ├── bar.matrix.browser.test.tsx       # Bar chart matrix tests
+│   ├── scatter.browser.test.tsx          # Scatter plot edge cases & interactions
+│   ├── scatter.matrix.browser.test.tsx   # Scatter plot matrix tests
+│   ├── histogram.browser.test.tsx        # Histogram edge cases & interactions
+│   ├── histogram.matrix.browser.test.tsx # Histogram matrix tests
+│   ├── line.browser.test.tsx             # Line chart edge cases & interactions
+│   ├── line.matrix.browser.test.tsx      # Line chart matrix tests
+│   ├── transitions.browser.test.tsx      # Plot type transition tests
+│   ├── _bar-test-helpers.ts              # Shared bar chart test utilities
+│   ├── _scatter-test-helpers.ts          # Shared scatter plot test utilities
+│   ├── _line-test-helpers.ts             # Shared line chart test utilities
+│   ├── _histogram-test-helpers.ts        # Shared histogram test utilities
+│   └── generated/                        # Auto-generated chunk files for parallelism
 ├── unit/
 │   ├── data.node.test.ts               # Data utility unit tests
 │   ├── axes.node.test.ts               # Axes utility unit tests

@@ -7,15 +7,18 @@
 #   SHARDS=8 ./test-node-parallel.sh [TEST_PATH]
 #
 # Examples:
-#   ./test-node-parallel.sh 8                           # 8 shards, default path
-#   ./test-node-parallel.sh 4 'src/tests/plot/api/*.ts' # 4 shards, custom path
-#   SHARDS=8 ./test-node-parallel.sh                    # 8 shards via env var
-#   PLOT_TEST_SAMPLE_RATE=100 ./test-node-parallel.sh 8 # With sampling
+#   ./test-node-parallel.sh 8                                      # 8 shards, matrix tests
+#   ./test-node-parallel.sh 4 src/tests/plot/api/                  # 4 shards, specific path
+#   SHARDS=8 ./test-node-parallel.sh                               # 8 shards via env var
+#   PLOT_TEST_SAMPLE_RATE=100 ./test-node-parallel.sh 8            # With sampling
 #
 # Environment variables:
-#   SHARDS              - Number of parallel shards (default: 4)
+#   SHARDS                - Number of parallel shards (default: 4)
 #   PLOT_TEST_SAMPLE_RATE - Percentage of matrix configs to run (1-100)
 #   PLOT_TEST_API_REAL    - Use real API instead of mocks (true/false)
+#
+# Note: This script targets *.matrix.node.test.ts files by default.
+# Only matrix tests support sharding - regular tests run in a single process.
 #
 
 set -e
@@ -38,7 +41,8 @@ fi
 
 # Apply defaults
 SHARD_COUNT="${SHARD_COUNT:-${SHARDS:-4}}"
-TEST_PATH="${TEST_PATH:-src/tests/plot/api/}"
+# Default to matrix tests only (*.matrix.node.test.ts)
+TEST_PATH="${TEST_PATH:-src/tests/}"
 
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║           Node Matrix Tests - Parallel Execution               ║"

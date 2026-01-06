@@ -80,8 +80,8 @@ async function main() {
   }
 
   try {
-    const module = await import(testFilePath);
-    const matrixExport = module.matrixTests;
+    const testModule = await import(testFilePath);
+    const matrixExport = testModule.matrixTests;
 
     if (!matrixExport || typeof matrixExport.getMatrix !== 'function') {
       console.log('__MATRIX_ERROR__matrixTests export not found or missing getMatrix()__END__');
