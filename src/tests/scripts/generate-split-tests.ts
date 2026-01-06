@@ -263,7 +263,7 @@ function generateChunkFileContent(options: {
  */
 
 import { ${exportName} } from '../${baseName}.browser.test';
-import { runMatrixChunk } from '${relativeToUtils}/matrixTestRunner';
+import { runMatrixChunk } from '${relativeToUtils}/matrixTestRunnerBrowser';
 
 // Run chunk ${chunkIndex} of the matrix tests
 runMatrixChunk(${exportName}, ${chunkIndex});

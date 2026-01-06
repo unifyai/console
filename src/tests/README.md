@@ -165,3 +165,78 @@ export const handlers = [
 ```
 
 `vitest.setup.browser.ts` automatically loads and starts the MSW worker.
+
+
+## 🔢 **Matrix Testing**
+
+Matrix tests run the same test logic across many configuration combinations (e.g., plot types × data types × scales). Two utilities support this pattern:
+
+### **Browser Matrix Tests** (`matrixTestRunnerBrowser.ts`)
+
+For browser-based integration tests with React components. Supports file chunking for CI parallelization.
+
+```typescript
+import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
+
+export const matrixTests = defineMatrixTests({
+  name: 'Bar Chart - Matrix Tests',
+  
+  // Function returning all test configurations
+  getMatrix: () => generateAllConfigs(),
+  
+  // Tests to run for each config
+  defineTests: (config, { it, expect }) => {
+    it('renders correctly', async () => {
+      // Test logic using config
+    });
+  },
+  
+  // Configs per chunk file (for parallel CI)
+  chunkSize: 25,
+  
+  // Generate readable test names
+  getConfigAlias: (config, index) => `${config.type}-${config.scale}`,
+});
+```
+
+**CI Parallelization:**
+
+Browser tests are expensive (each needs a Chromium instance). For large matrices, use file splitting:
+
+```bash
+# Generate chunk files
+npm run test:browser:generate
+
+# Run in parallel with sharding
+MATRIX_TEST_SPLIT=true bash src/tests/scripts/test-browser-parallel.sh 4
+```
+
+Environment variables:
+- `MATRIX_TEST_SPLIT=true` - Skip original files, run generated chunks
+- `MATRIX_TEST_CHUNK=N` - Run only chunk N (used by generated files)
+
+### **Node Matrix Tests** (`matrixTestRunnerNode.ts`)
+
+For Node.js API tests. Uses `describe.concurrent` for in-process parallelism. Same `getMatrix` API as browser tests.
+
+```typescript
+import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
+
+defineNodeMatrixTests<MyConfig>({
+  name: 'Plot API - Matrix Tests',
+  concurrent: true,  // Use describe.concurrent
+  
+  // Function returning all test configurations (same as browser)
+  getMatrix: () => generateAllConfigs(),
+  
+  // Tests to run for each config
+  defineTests: (config, { it, expect }) => {
+    it('returns valid response', async () => {
+      // Test logic using config
+    });
+  },
+  
+  // Generate readable test names
+  getConfigAlias: (config) => `${config.type}-${config.scale}`,
+});
+```

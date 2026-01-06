@@ -47,7 +47,7 @@ import {
   DEFAULT_DIMENSIONS,
   Domain,
 } from '../fixtures/calculations';
-import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunnerBrowser';
 
 // =============================================================================
 // Setup

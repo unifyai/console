@@ -61,7 +61,7 @@ export default defineConfig({
           setupFiles: ['./vitest.node.setup.ts'],
           include: ['src/**/*.node.test.ts?(x)'],
           exclude: ['src/**/*.browser.test.ts?(x)'],
-          maxConcurrency: 50,
+          maxConcurrency: 30,
           env: TEST_ENV,
         },
       },

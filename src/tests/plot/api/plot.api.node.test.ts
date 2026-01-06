@@ -38,9 +38,6 @@ import {
   generateDataTypeConfigs,
   generateProjectConfigs,
   getActiveScales,
-  plotConfigName,
-  dataTypeConfigName,
-  projectConfigName,
   generateTestAliasWithProject,
   sampleConfigs,
   getFieldForDataType,
@@ -59,6 +56,7 @@ import {
   createMockLogs,
   createMockFields,
 } from '../fixtures/mockData';
+import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
 
 // =============================================================================
 // Test Project Setup/Teardown Helpers
@@ -884,224 +882,197 @@ describe('Plot API - Error Scenarios', () => {
 
 // =============================================================================
 // Matrix Tests - Comprehensive Config/Data/Fields/Preprocessing Validation
-// Uses describe.concurrent for parallel test execution.
+// Uses defineNodeMatrixTests for declarative matrix test definition.
 // For real API tests, each test gets a unique context to prevent DB contention.
 // =============================================================================
 
-describe.concurrent('Plot API - Matrix Tests', () => {
+/**
+ * Context for each matrix test combination.
+ */
+interface ApiMatrixTestContext {
+  plotType: string;
+  plotConfig: PlotConfig;
+  projectConfig: ProjectConfig;
+  dataTypeConfig: DataTypeConfig;
+  scale: ScaleOption;
+  // Derived/adjusted configs
+  adjustedPlotConfig: PlotConfig;
+  scaleAdjustedProjectConfig: ProjectConfig;
+}
+
+/**
+ * Build the full matrix of test configurations.
+ * Generates all combinations of: plotType × plotConfig × projectConfig × dataTypeConfig × scale
+ */
+function buildApiTestMatrix(): ApiMatrixTestContext[] {
   const plotTypes = ['scatter', 'bar', 'histogram', 'line'] as const;
-  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
   const projectConfigs = sampleConfigs(generateProjectConfigs());
-  const activeScales = getActiveScales();
+  const dataTypeConfigs = sampleConfigs(generateDataTypeConfigs());
+  const scales = getActiveScales();
 
-  // Log matrix size
-  if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
-    console.log(`[Matrix] Data type configs (sampled): ${dataTypeConfigs.length}`);
-    console.log(`[Matrix] Project configs (sampled): ${projectConfigs.length}`);
-    console.log(`[Matrix] Active scales: ${activeScales.length}`);
-  }
+  const matrix: ApiMatrixTestContext[] = [];
 
-  describe.each(plotTypes)('%s plot', (plotType) => {
-    // Sample valid plot configs based on PLOT_TEST_SAMPLE_RATE
-    const allValidConfigs = generateValidPlotConfigsForType(plotType);
-    const sampledPlotConfigs = sampleConfigs(allValidConfigs);
+  for (const plotType of plotTypes) {
+    const plotConfigs = sampleConfigs(generateValidPlotConfigsForType(plotType));
 
-    if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
-      console.log(`[Matrix] ${plotType} plot configs: ${allValidConfigs.length} total, ${sampledPlotConfigs.length} sampled`);
-    }
-
-    describe.each(sampledPlotConfigs)('plot config: %o', (plotConfig) => {
-      describe.each(projectConfigs)('project config: %o', (projectConfig) => {
-        const projConfigName = projectConfigName(projectConfig);
-
-        describe.each(dataTypeConfigs)('data types: %o', (dataTypeConfig) => {
-          const dataTypeName = dataTypeConfigName(dataTypeConfig);
-
-          describe.each(activeScales)('scale: %s', (scale) => {
-            // For real API tests, we don't use context since the project is fresh
-            // For mocked tests, context could be used for test isolation in concurrent runs
+    for (const plotConfig of plotConfigs) {
+      for (const projectConfig of projectConfigs) {
+        for (const dataTypeConfig of dataTypeConfigs) {
+          for (const scale of scales) {
+            // Adjust project config with scale limit
             const scaleAdjustedProjectConfig: ProjectConfig = {
               ...projectConfig,
               limit: scale.count,
-              // Context is not set for real API tests - project is created fresh each run
             };
 
             // Adjust field names based on data type config for real API testing
-            // The seeded data has type-specific field variants (x_value, x_value_int, x_value_datetime, etc.)
-            const adjustedPlotConfig = PLOT_TEST_API_REAL ? {
-              ...plotConfig,
-              x_axis: `table1.${getFieldForDataType('x_value', dataTypeConfig.x_axis_type)}`,
-              y_axis: plotConfig.y_axis
-                ? `table1.${getFieldForDataType('y_value', dataTypeConfig.y_axis_type)}`
-                : undefined,
-              group_by: plotConfig.group_by
-                ? getGroupByFieldForType(dataTypeConfig.group_by_type)
-                : undefined,
-            } : plotConfig;
-
-            const alias = generateTestAliasWithProject('api', scaleAdjustedProjectConfig, adjustedPlotConfig, dataTypeConfig, scale);
-
-            /**
-             * Helper to get mock response for this specific test combination.
-             * For concurrent mocked tests, we bypass MSW to avoid handler conflicts
-             * and directly use the mock response object.
-             */
-            function getMockResponse() {
-              return setupMatrixTestHandlers(adjustedPlotConfig, dataTypeConfig, scale, {
-                projectName: scaleAdjustedProjectConfig.project_name,
-                includeEdgeCases: true,
-              });
-            }
-
-            it(
-              `${alias} - returns correct config structure`,
-              async () => {
-                if (PLOT_TEST_API_REAL) {
-                  // Real API: make HTTP requests with type-adjusted field names
-                  const createResponse = await createPlotRequest({
-                    project_config: scaleAdjustedProjectConfig,
-                    plot_config: {
-                      type: adjustedPlotConfig.type,
-                      x_axis: adjustedPlotConfig.x_axis,
-                      y_axis: adjustedPlotConfig.y_axis,
-                      scale_x: adjustedPlotConfig.scale_x,
-                      scale_y: adjustedPlotConfig.scale_y,
-                      aggregate: adjustedPlotConfig.aggregate,
-                      group_by: adjustedPlotConfig.group_by,
-                      show_regression: adjustedPlotConfig.show_regression,
-                      sort_by: adjustedPlotConfig.sort_by,
-                      sort_order: adjustedPlotConfig.sort_order,
-                      bin_count: adjustedPlotConfig.bin_count,
-                    },
-                  });
-                  if (createResponse.status !== 201) {
-                    console.error(`[Matrix Test] Plot creation failed:`, createResponse.data);
-                  }
-                  expect(createResponse.status).toBe(201);
-                  const result = await getPlotDataRequest(createResponse.data.token);
-                  if (result.status !== 200) {
-                    console.error(`[Matrix Test] Get plot data failed for token ${createResponse.data.token}:`, result.data);
-                  }
-                  expect(result.status).toBe(200);
-                  assertConfigCorrectness(result.data.config, adjustedPlotConfig);
-                } else {
-                  // Mocked: use mock response directly (no MSW to avoid race conditions)
-                  const mockSetup = getMockResponse();
-                  assertConfigCorrectness(mockSetup.response.config, adjustedPlotConfig);
+            const adjustedPlotConfig: PlotConfig = PLOT_TEST_API_REAL
+              ? {
+                  ...plotConfig,
+                  x_axis: `table1.${getFieldForDataType('x_value', dataTypeConfig.x_axis_type)}`,
+                  y_axis: plotConfig.y_axis
+                    ? `table1.${getFieldForDataType('y_value', dataTypeConfig.y_axis_type)}`
+                    : undefined,
+                  group_by: plotConfig.group_by
+                    ? getGroupByFieldForType(dataTypeConfig.group_by_type)
+                    : undefined,
                 }
-              },
-              scale.timeout
-            );
+              : plotConfig;
 
-            it(
-              `${alias} - returns correctly structured data`,
-              async () => {
-                if (PLOT_TEST_API_REAL) {
-                  const createResponse = await createPlotRequest({
-                    project_config: scaleAdjustedProjectConfig,
-                    plot_config: adjustedPlotConfig,
-                  });
-                  const result = await getPlotDataRequest(createResponse.data.token);
-                  if (result.status !== 200) {
-                    console.error(`[Matrix Test] Get plot data failed:`, result.data);
-                  }
-                  expect(result.status).toBe(200);
-                  // Debug: Log first entry structure for real API
-                  if (result.data?.data?.[0] && process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
-                    console.log('[Matrix Test] First data entry:', JSON.stringify(result.data.data[0], null, 2));
-                  }
-                  assertDataCorrectness(
-                    result.data.data,
-                    adjustedPlotConfig,
-                    dataTypeConfig,
-                    scale,
-                    undefined,
-                    scaleAdjustedProjectConfig
-                  );
-                } else {
-                  const mockSetup = getMockResponse();
-                  assertDataCorrectness(
-                    mockSetup.response.data,
-                    adjustedPlotConfig,
-                    dataTypeConfig,
-                    scale,
-                    mockSetup.logs,
-                    scaleAdjustedProjectConfig
-                  );
-                }
-              },
-              scale.timeout
-            );
+            matrix.push({
+              plotType,
+              plotConfig,
+              projectConfig,
+              dataTypeConfig,
+              scale,
+              adjustedPlotConfig,
+              scaleAdjustedProjectConfig,
+            });
+          }
+        }
+      }
+    }
+  }
 
-            it(
-              `${alias} - applies correct data preprocessing`,
-              async () => {
-                if (PLOT_TEST_API_REAL) {
-                  const createResponse = await createPlotRequest({
-                    project_config: scaleAdjustedProjectConfig,
-                    plot_config: adjustedPlotConfig,
-                  });
-                  const result = await getPlotDataRequest(createResponse.data.token);
-                  expect(result.status).toBe(200);
-                  assertDataPreprocessing(result.data.data, adjustedPlotConfig, dataTypeConfig, scaleAdjustedProjectConfig);
-                } else {
-                  const mockSetup = getMockResponse();
-                  assertDataPreprocessing(mockSetup.response.data, adjustedPlotConfig, dataTypeConfig, scaleAdjustedProjectConfig);
-                }
-              },
-              scale.timeout
-            );
+  return matrix;
+}
 
-            it(
-              `${alias} - returns correctly transformed fields`,
-              async () => {
-                if (PLOT_TEST_API_REAL) {
-                  const createResponse = await createPlotRequest({
-                    project_config: scaleAdjustedProjectConfig,
-                    plot_config: adjustedPlotConfig,
-                  });
-                  const result = await getPlotDataRequest(createResponse.data.token);
-                  expect(result.status).toBe(200);
-                  // Debug: Log fields structure for real API
-                  if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
-                    console.log('[Matrix Test] Fields keys:', Object.keys(result.data.fields || {}));
-                  }
-                  assertFieldsCorrectness(result.data.fields, dataTypeConfig);
-                } else {
-                  const mockSetup = getMockResponse();
-                  assertFieldsCorrectness(mockSetup.response.fields, dataTypeConfig);
-                }
-              },
-              scale.timeout
-            );
-
-            it(
-              `${alias} - includes complete metadata`,
-              async () => {
-                if (PLOT_TEST_API_REAL) {
-                  const createResponse = await createPlotRequest({
-                    project_config: scaleAdjustedProjectConfig,
-                    plot_config: adjustedPlotConfig,
-                  });
-                  const result = await getPlotDataRequest(createResponse.data.token);
-                  expect(result.status).toBe(200);
-                  assertMetadataCorrectness(
-                    result.data.metadata,
-                    scaleAdjustedProjectConfig.project_name
-                  );
-                } else {
-                  const mockSetup = getMockResponse();
-                  assertMetadataCorrectness(
-                    mockSetup.response.metadata,
-                    scaleAdjustedProjectConfig.project_name
-                  );
-                }
-              },
-              scale.timeout
-            );
-          });
-        });
-      });
-    });
+/**
+ * Helper to get mock response for a specific test combination.
+ * For concurrent mocked tests, we bypass MSW to avoid handler conflicts
+ * and directly use the mock response object.
+ */
+function getMockResponse(ctx: ApiMatrixTestContext) {
+  return setupMatrixTestHandlers(ctx.adjustedPlotConfig, ctx.dataTypeConfig, ctx.scale, {
+    projectName: ctx.scaleAdjustedProjectConfig.project_name,
+    includeEdgeCases: true,
   });
+}
+
+defineNodeMatrixTests<ApiMatrixTestContext>({
+  name: 'Plot API - Matrix Tests',
+  concurrent: true,
+
+  getMatrix: buildApiTestMatrix,
+
+  getConfigAlias: (ctx) =>
+    generateTestAliasWithProject(
+      'api',
+      ctx.scaleAdjustedProjectConfig,
+      ctx.adjustedPlotConfig,
+      ctx.dataTypeConfig,
+      ctx.scale
+    ),
+
+  defineTests: (ctx, { it, expect }) => {
+    // Single test with all assertions to minimize API calls and test overhead
+    it('validates config, data, preprocessing, fields, and metadata', async () => {
+      if (PLOT_TEST_API_REAL) {
+        // Real API: single API call for all assertions
+        const createResponse = await createPlotRequest({
+          project_config: ctx.scaleAdjustedProjectConfig,
+          plot_config: {
+            type: ctx.adjustedPlotConfig.type,
+            x_axis: ctx.adjustedPlotConfig.x_axis,
+            y_axis: ctx.adjustedPlotConfig.y_axis,
+            scale_x: ctx.adjustedPlotConfig.scale_x,
+            scale_y: ctx.adjustedPlotConfig.scale_y,
+            aggregate: ctx.adjustedPlotConfig.aggregate,
+            group_by: ctx.adjustedPlotConfig.group_by,
+            show_regression: ctx.adjustedPlotConfig.show_regression,
+            sort_by: ctx.adjustedPlotConfig.sort_by,
+            sort_order: ctx.adjustedPlotConfig.sort_order,
+            bin_count: ctx.adjustedPlotConfig.bin_count,
+          },
+        });
+        if (createResponse.status !== 201) {
+          console.error(`[Matrix Test] Plot creation failed:`, createResponse.data);
+        }
+        expect(createResponse.status).toBe(201);
+
+        const result = await getPlotDataRequest(createResponse.data.token);
+        if (result.status !== 200) {
+          console.error(
+            `[Matrix Test] Get plot data failed for token ${createResponse.data.token}:`,
+            result.data
+          );
+        }
+        expect(result.status).toBe(200);
+
+        // Debug logging
+        if (process.env.PLOT_TEST_MATRIX_DEBUG === 'true') {
+          if (result.data?.data?.[0]) {
+            console.log(
+              '[Matrix Test] First data entry:',
+              JSON.stringify(result.data.data[0], null, 2)
+            );
+          }
+          console.log('[Matrix Test] Fields keys:', Object.keys(result.data.fields || {}));
+        }
+
+        // All assertions on the same response
+        assertConfigCorrectness(result.data.config, ctx.adjustedPlotConfig);
+        assertDataCorrectness(
+          result.data.data,
+          ctx.adjustedPlotConfig,
+          ctx.dataTypeConfig,
+          ctx.scale,
+          undefined,
+          ctx.scaleAdjustedProjectConfig
+        );
+        assertDataPreprocessing(
+          result.data.data,
+          ctx.adjustedPlotConfig,
+          ctx.dataTypeConfig,
+          ctx.scaleAdjustedProjectConfig
+        );
+        assertFieldsCorrectness(result.data.fields, ctx.dataTypeConfig);
+        assertMetadataCorrectness(result.data.metadata, ctx.scaleAdjustedProjectConfig.project_name);
+      } else {
+        // Mocked: single mock setup for all assertions
+        const mockSetup = getMockResponse(ctx);
+
+        assertConfigCorrectness(mockSetup.response.config, ctx.adjustedPlotConfig);
+        assertDataCorrectness(
+          mockSetup.response.data,
+          ctx.adjustedPlotConfig,
+          ctx.dataTypeConfig,
+          ctx.scale,
+          mockSetup.logs,
+          ctx.scaleAdjustedProjectConfig
+        );
+        assertDataPreprocessing(
+          mockSetup.response.data,
+          ctx.adjustedPlotConfig,
+          ctx.dataTypeConfig,
+          ctx.scaleAdjustedProjectConfig
+        );
+        assertFieldsCorrectness(mockSetup.response.fields, ctx.dataTypeConfig);
+        assertMetadataCorrectness(
+          mockSetup.response.metadata,
+          ctx.scaleAdjustedProjectConfig.project_name
+        );
+      }
+    }, ctx.scale.timeout);
+  },
 });

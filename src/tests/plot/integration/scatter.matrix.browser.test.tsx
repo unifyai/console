@@ -48,7 +48,7 @@ import {
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,
 } from '../fixtures/calculations';
-import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunner';
+import { defineMatrixTests, TestUtils } from '../../utils/matrixTestRunnerBrowser';
 
 // =============================================================================
 // Setup
