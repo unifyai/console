@@ -1,47 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
+import { getCurrentUser } from "@/lib/user/user";
+import { buildCacheControl } from "../../_utils/cacheResponse";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
-  const apiKeyOrError = await requireApiKey(request);
-  if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-  const apiKey = apiKeyOrError;
-  
+  // Try to get API key from header; if not available fallback to user session
+  let apiKey = request.headers.get("apiKey") || "";
+  if(!apiKey){
+    const user = await getCurrentUser();
+    apiKey = user?.apiKey ?? "";
+  }
   try {
     const url = `${baseUrl}/projects/tree`;
-    const startedAt = Date.now();
-    const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
     const res = await fetch(url, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         accept: "application/json",
       },
-      cache: "no-store",
-      signal: controller.signal,
     });
-    clearTimeout(ttl);
     const body = await res.text();
-    const latencyMs = Date.now() - startedAt;
-    if (!res.ok) {
-      console.warn(JSON.stringify({
-        route: "/api/projects/tree",
-        upstream: url,
-        status: res.status,
-        latencyMs,
-      }));
-    }
-    return new NextResponse(body, { status: res.status, headers: {
+    
+    // Build response with caching headers (5 minutes - tree rarely changes)
+    const headers: HeadersInit = { 
       "Content-Type": "application/json",
-      // Enable edge caching with short TTL and SWR
-      "Cache-Control": "s-maxage=60, stale-while-revalidate=120",
-    } });
-  } catch (e: any) {
-    const msg = e?.message || "Failed to fetch project tree";
-    const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
-    console.error('[/api/projects/tree] Error:', msg);
-    return NextResponse.json({ detail: msg }, { status });
+    };
+    
+    // Only cache successful responses
+    if (res.ok) {
+      const cacheControl = buildCacheControl('LONG');
+      if (cacheControl) {
+        headers["Cache-Control"] = cacheControl;
+      }
+    }
+    
+    return new NextResponse(body, { status: res.status, headers });
+  } catch (e) {
+    return NextResponse.json({ detail: "Failed to fetch project tree" }, { status: 500 });
   }
 } 

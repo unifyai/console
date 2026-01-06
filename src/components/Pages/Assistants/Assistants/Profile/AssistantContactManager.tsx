@@ -16,7 +16,6 @@ import { getCountryFlag } from '@/utils/assistants/country-utils';
 import { toast } from 'sonner';
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from "@/lib/utils";
-import { getPlatformIcon } from '@/utils/assistants/platform-utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 
@@ -265,6 +264,8 @@ interface AssistantContactManagerProps {
     availableSocialPlatforms: AvailableSocialPlatform[];
     onSuccess: () => void;
     initialTab?: 'email' | 'phone' | 'whatsapp';
+    /** Whether the current user can edit contact details */
+    canWrite?: boolean;
 }
 
 const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
@@ -313,6 +314,7 @@ export function AssistantContactManager({
     availableSocialPlatforms,
     onSuccess,
     initialTab,
+    canWrite = true,
 }: AssistantContactManagerProps) {
     const { register, setValue, formState: { errors }, getValues, control } = formMethods;
     
@@ -385,7 +387,7 @@ export function AssistantContactManager({
                         <TabsContent value="email" className="py-4">
                             {assistant.email ? (
                                 <DisplayContactField label="Email Address" value={assistant.email} />
-                            ) : (
+                            ) : canWrite ? (
                                 <div className="space-y-2">
                                     <Label htmlFor="email_local_part">Email address</Label>
                                     <div className="flex items-center rounded-md">
@@ -408,12 +410,14 @@ export function AssistantContactManager({
                                     })} />
                                     {errors.email && <p className="text-body text-strong text-destructive mt-1">{errors.email.message}</p>}
                                 </div>
+                            ) : (
+                                <p className="text-muted-foreground text-body">No email configured.</p>
                             )}
                         </TabsContent>
                         <TabsContent value="phone" className="py-4">
                             {assistant.phone ? (
                                 <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
-                            ) : (
+                            ) : canWrite ? (
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">
@@ -436,12 +440,14 @@ export function AssistantContactManager({
                                         <PhoneVerificationSection assistantActions={assistantActions} />
                                     </div>
                                 </div>
+                            ) : (
+                                <p className="text-muted-foreground text-body">No phone number configured.</p>
                             )}
                         </TabsContent>
                         <TabsContent value="whatsapp" className="py-4">
                             {assistant.assistant_whatsapp_number ? (
                                 <DisplayContactField label="WhatsApp Number" value={assistant.assistant_whatsapp_number} />
-                            ) : (
+                            ) : canWrite ? (
                                 <div>
                                     <div className="flex flex-row gap-2 items-center pb-1">
                                         <Label htmlFor="user_whatsapp">Your WhatsApp Number</Label>
@@ -449,6 +455,8 @@ export function AssistantContactManager({
                                     </div>
                                     <WhatsAppVerificationSection assistantActions={assistantActions} cost={creationCost} />
                                 </div>
+                            ) : (
+                                <p className="text-muted-foreground text-body">No WhatsApp number configured.</p>
                             )}
                         </TabsContent>
                     </Tabs>
@@ -465,13 +473,13 @@ export function AssistantContactManager({
                                 Proceed
                             </Button>
                         </div>
-                    ) : showDeleteButton ? (
+                    ) : showDeleteButton && canWrite ? (
                         <div className="w-full flex justify-end items-center">
                              <Button variant="destructive" onClick={() => setConfirmDelete(activeTab as any)} disabled={isSubmitting}>
                                 Delete
                             </Button>
                         </div>
-                    ) : showCreateButton ? (
+                    ) : showCreateButton && canWrite ? (
                         <div className="w-full flex justify-between items-center">
                             <p className="text-body text-muted-foreground">
                                 Cost: <span className="text-strong text-foreground">{creationCost.toFixed(2)} Credits</span>

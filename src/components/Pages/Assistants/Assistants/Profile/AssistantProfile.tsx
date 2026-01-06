@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from "@/components/UI/button";
-import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, Maximize2, Minus, ChevronRight, Briefcase, Contact, Phone, Video } from "lucide-react";
+import { Trash2, Loader2, AlertTriangle, PenLine, User, MessageSquare, ChevronRight, Briefcase, Phone, Video } from "lucide-react";
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import {
@@ -14,7 +14,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/UI/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/UI/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
 import {
@@ -37,6 +36,7 @@ interface AssistantProfilePanelProps {
     onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    userEmail: string | null | undefined;
     isFirstView?: boolean;
     preHireChat?: ChatMessage[];
     onFirstViewCompleted?: () => void;
@@ -45,30 +45,42 @@ interface AssistantProfilePanelProps {
     isCallConnected: boolean;
     isConnectingCall: boolean;
     userTimezone?: string | null;
+    /** Whether the current user can edit this assistant */
+    canWrite?: boolean;
+    /** Whether the current user can delete this assistant */
+    canDelete?: boolean;
 }
 
 const AccordionTriggerWithButtons = React.forwardRef<
-    React.ElementRef<typeof AccordionTrigger>,
-    React.ComponentPropsWithoutRef<typeof AccordionTrigger> & {
-        buttonSlot?: React.ReactNode;
-    }
+  React.ElementRef<typeof AccordionTrigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionTrigger> & {
+    buttonSlot?: React.ReactNode;
+  }
 >(({ children, buttonSlot, ...props }, ref) => (
-    <AccordionTrigger
-        ref={ref}
-        {...props}
-        className="hover:no-underline py-3.5 border-b"
-        hideChevron // Hide the primitive's default chevron
-    >
-        <div className="flex items-center justify-between w-full px-4">
-            <div className="flex items-center gap-2">
-                <div className="flex-grow text-left text-title">{children}</div>
-                <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-            </div>
-            <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                {buttonSlot}
-            </div>
-        </div>
-    </AccordionTrigger>
+  <AccordionTrigger
+    ref={ref}
+    {...props}
+    className="hover:no-underline py-3.5 border-b group"
+    hideChevron // Hide the primitive's default chevron
+  >
+    <div className="flex items-center justify-between w-full px-4">
+      <div className="flex items-center gap-2">
+        <div className="flex-grow text-left text-title">{children}</div>
+        <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+      </div>
+
+      {/* Show only when accordion is open */}
+      <div
+        className={cn(
+          "flex-shrink-0 transition-opacity",
+          "group-data-[state=closed]:hidden group-data-[state=open]:flex"
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {buttonSlot}
+      </div>
+    </div>
+  </AccordionTrigger>
 ));
 AccordionTriggerWithButtons.displayName = AccordionTrigger.displayName;
 
@@ -81,6 +93,7 @@ export function AssistantProfilePanel({
     onOpenContactManager,
     chatHistories,
     setChatHistories,
+    userEmail,
     isFirstView,
     preHireChat,
     onFirstViewCompleted,
@@ -89,6 +102,8 @@ export function AssistantProfilePanel({
     isCallConnected,
     isConnectingCall,
     userTimezone,
+    canWrite = true,
+    canDelete = true,
 }: AssistantProfilePanelProps) {
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -133,23 +148,25 @@ export function AssistantProfilePanel({
                             <AccordionTriggerWithButtons
                                 className="text-title"
                                 buttonSlot={
-                                    <TooltipProvider delayDuration={100}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
-                                                    <PenLine className="h-4 w-4" />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>Edit Assistant</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    canWrite ? (
+                                        <TooltipProvider delayDuration={100}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(assistant)}>
+                                                        <PenLine className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>Edit Assistant</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ) : null
                                 }
                             >
-                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
+                                <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200 p-1'>
                                     <User className="h-4 w-4" />
-                                    <span className="text-body">{`${assistant.first_name}'s Profile`}</span>
+                                    <span className="text-body">Profile</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                             <AccordionContent
@@ -159,6 +176,8 @@ export function AssistantProfilePanel({
                                 <AssistantProfileInfoPanel 
                                     assistant={assistant} 
                                     userTimezone={userTimezone}
+                                    onEdit={() => onEdit(assistant)}
+                                    canWrite={canWrite}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -170,7 +189,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <Briefcase className="h-4 w-4" />
-                                    <span className="text-body">{`Manage ${assistant.first_name}'s resources`}</span>
+                                    <span className="text-body">Resources</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                             <AccordionContent
@@ -181,6 +200,7 @@ export function AssistantProfilePanel({
                                     assistant={assistant} 
                                     assistantActions={assistantActions} 
                                     onOpenContactManager={onOpenContactManager}
+                                    canWrite={canWrite}
                                 />
                             </AccordionContent>
                         </AccordionItem>
@@ -195,7 +215,15 @@ export function AssistantProfilePanel({
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => onStartCall(assistant, 'video')} disabled={isCallButtonDisabled}>
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7" 
+                                                            onClick={() => onStartCall(assistant, 'video')} 
+                                                            disabled={isCallButtonDisabled}
+                                                            data-testid="call-return-button"
+                                                        >
                                                             {(isConnectingCall) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
                                                         </Button>
                                                     </TooltipTrigger>
@@ -210,7 +238,14 @@ export function AssistantProfilePanel({
                                                     <Tooltip>
                                                         <DropdownMenuTrigger asChild>
                                                             <TooltipTrigger asChild>
-                                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={isCallButtonDisabled}>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    variant="ghost" 
+                                                                    size="icon" 
+                                                                    className="h-7 w-7" 
+                                                                    disabled={isCallButtonDisabled}
+                                                                    data-testid="call-menu-trigger"
+                                                                >
                                                                     <Phone className="h-4 w-4" />
                                                                 </Button>
                                                             </TooltipTrigger>
@@ -221,11 +256,11 @@ export function AssistantProfilePanel({
                                                     </Tooltip>
                                                 </TooltipProvider>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')}>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'video')} data-testid="call-option-video">
                                                         <Video className="mr-2 h-4 w-4" />
                                                         <span>Video Call</span>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')}>
+                                                    <DropdownMenuItem onClick={() => onStartCall(assistant, 'audio')} data-testid="call-option-audio">
                                                         <Phone className="mr-2 h-4 w-4" />
                                                         <span>Audio Call</span>
                                                     </DropdownMenuItem>
@@ -237,7 +272,7 @@ export function AssistantProfilePanel({
                             >
                                 <div className='flex gap-2 items-center text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors duration-200'>
                                     <MessageSquare className="h-4 w-4" />
-                                    <span className="text-body">Chat with {assistant.first_name}</span>
+                                    <span className="text-body">Chat</span>
                                 </div>
                             </AccordionTriggerWithButtons>
                              <AccordionContent
@@ -249,6 +284,7 @@ export function AssistantProfilePanel({
                                     assistantActions={assistantActions} 
                                     chatHistories={chatHistories}
                                     setChatHistories={setChatHistories}
+                                    userEmail={userEmail}
                                     isFirstView={isFirstView}
                                     preHireChat={preHireChat}
                                     onFirstViewCompleted={onFirstViewCompleted}
@@ -258,14 +294,16 @@ export function AssistantProfilePanel({
                     </Accordion>
                     
                     {/* Footer Action Buttons */}
-                    <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-end items-center flex-shrink-0">
-                        <AlertDialogTrigger asChild>
-                            <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
-                                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
-                                End contract
-                            </Button>
-                        </AlertDialogTrigger>
-                    </div>
+                    {canDelete && (
+                        <div className="px-4 py-3 sm:px-6 sm:py-4 flex justify-end items-center flex-shrink-0">
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
+                                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
+                                    End contract
+                                </Button>
+                            </AlertDialogTrigger>
+                        </div>
+                    )}
                 </div>
 
                 {/* Alert Dialog Content */}

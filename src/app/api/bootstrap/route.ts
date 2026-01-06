@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
@@ -7,9 +7,13 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const project = url.searchParams.get("project") || undefined;
   
-  const apiKeyOrError = await requireApiKey(request);
-  if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-  const apiKey = apiKeyOrError;
+  // Get API key from session (fallback to header for backwards compatibility)
+  const user = await getCurrentUser();
+  const apiKey = user?.apiKey || request.headers.get("apiKey");
+  
+  if (!apiKey) {
+    return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  }
 
   const controller = new AbortController();
   const ttl = setTimeout(() => controller.abort(), 90000); // 90s timeout - bootstrap aggregates multiple slow endpoints
@@ -87,6 +91,3 @@ export async function GET(request: NextRequest) {
     clearTimeout(ttl);
   }
 }
-
-
-

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import { cn } from '@/utils/misc/cn'
-import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen } from 'lucide-react'
+import { User, CreditCard, Key, LogOut, ExternalLink, Bot, LayoutGrid, BookOpen, Check, Building2, Building, AlertTriangle } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Button } from '@/components/UI/button'
 import {
@@ -13,27 +13,57 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuSubContent,
+  DropdownMenuLabel,
 } from '@/components/UI/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/UI/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar'
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle'
 import ivyLogoOnly from "@/public/ivy_logo_only.png";
-import { useSession } from 'next-auth/react'
+import { getCurrentUser } from '@/lib/user/user'
 import Image from 'next/image';
-
-// Removed favourites handling
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { UserOrganization } from '@/types/user';
 
 export default function TopNav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  // Removed unused theme hook
-  // Removed favourites handling
   const [profileName, setProfileName] = useState("Profile")
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null)
+  const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([])
+  const [showPersonalWorkspaceConfirm, setShowPersonalWorkspaceConfirm] = useState(false)
+
+  const { workspaces, activeWorkspace, switchWorkspace } = useWorkspace();
 
   const router = useRouter()
-  const { data: session } = useSession();
+
+  const handlePersonalWorkspaceSwitch = () => {
+    // Only show confirmation if switching FROM an organization to personal
+    if (activeWorkspace?.type === 'organization') {
+      setShowPersonalWorkspaceConfirm(true)
+    } else {
+      switchWorkspace('personal')
+    }
+  }
+
+  const confirmPersonalWorkspaceSwitch = () => {
+    setShowPersonalWorkspaceConfirm(false)
+    switchWorkspace('personal')
+  }
 
   const handleSignOut = async () => {
     // Prevent the dropdown from closing before signOut completes
@@ -43,25 +73,40 @@ export default function TopNav() {
 
   // Populate user info from session provider
   useEffect(() => {
-    const userName = session?.user?.name || "Profile";
-    const imageUrl = session?.user?.image || "";
-    setProfileName(userName)
-    const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
-    setAvatarJSX(
-      <Avatar className="h-6 w-6">
-        <AvatarImage src={imageUrl} alt="User Avatar"/>
-        <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
-      </Avatar>
-    )
-  }, [session])
-
-  // Removed favourites fetching effect
+    (async () => {
+      try {
+        const user = await getCurrentUser()
+        if (user) {
+            const userName = user.name || "Profile"
+            const imageUrl = user.image || ""
+            setProfileName(userName)
+            setUserOrgs(user.organizations || [])
+            const getInitials = (name: string) => name.split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2)
+            setAvatarJSX(
+            <Avatar className="h-6 w-6">
+                <AvatarImage src={imageUrl} alt="User Avatar"/>
+                <AvatarFallback className="text-xs">{getInitials(userName)}</AvatarFallback>
+            </Avatar>
+            )
+        }
+      } catch (err) {
+        console.error("Failed to fetch user info", err)
+      }
+    })()
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Implement search logic here
     console.log('Searching for:', searchQuery)
   }
+
+  // Determine if billing should be shown
+  const currentOrg = activeWorkspace?.type === 'organization' 
+    ? userOrgs.find(o => o.id.toString() === activeWorkspace.id)
+    : null;
+  
+  const canManageBilling = !currentOrg || ['owner', 'admin'].includes(currentOrg.role_name?.toLowerCase() ?? '');
 
   return (
     <div className="fixed top-0 left-0 right-0 h-10 bg-[color:var(--background)]/80 backdrop-blur-lg border-b border-[color:var(--border)] z-50">
@@ -84,7 +129,7 @@ export default function TopNav() {
               href="/assistants"
               className={cn(
                 "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
-                pathname === '/assistants' || pathname.startsWith('/assistants/')
+                pathname === '/assistants' || pathname?.startsWith('/assistants/')
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
@@ -97,7 +142,7 @@ export default function TopNav() {
               href="/interfaces"
               className={cn(
                 "px-1 first:pl-0 py-1 text-label rounded-md transition-colors flex items-center gap-1.5",
-                pathname === '/interfaces' && searchParams.get('project') !== 'Usage'
+                pathname === '/interfaces' && searchParams?.get('project') !== 'Usage'
                   ? "text-[color:var(--primary)]"
                   : "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]"
               )}
@@ -123,52 +168,12 @@ export default function TopNav() {
 
         {/* Right side */}
         <div className="flex items-center gap-4">
-          {/* Search - temporarily hidden */}
-          {/*
-          <div className={cn(
-            "flex items-center transition-all duration-200",
-            isSearchExpanded ? "w-64" : "w-auto"
-          )}>
-            {isSearchExpanded ? (
-              <form onSubmit={handleSearch} className="relative w-full">
-                <Input
-                  type="search"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-8 h-8"
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-8 w-8 p-0"
-                  onClick={() => {
-                    setIsSearchExpanded(false)
-                    setSearchQuery('')
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </form>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setIsSearchExpanded(true)}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-          */}
-
           {/* Upgrade Button */}
-          <Button variant="primary" className="relative h-6 w-fit p-2 text-sm" onClick={(e) => window.open('/billing', '_blank')}>
-            Upgrade
-          </Button>
+          {canManageBilling && (
+            <Button variant="primary" className="relative h-6 w-fit p-2 text-sm" onClick={(e) => window.open('/billing', '_blank')}>
+                Upgrade
+            </Button>
+          )}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
@@ -181,24 +186,83 @@ export default function TopNav() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <div className="flex items-center justify-start gap-2 p-2">
-                <div className="flex flex-col space-y-1 leading-none">
-                  <p className="text-label">{profileName}</p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
+              
+              {activeWorkspace && (
+                  <>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="cursor-pointer">
+                            <div className="flex items-center gap-2 truncate">
+                                {activeWorkspace.type === 'personal' ? (
+                                    <User className="h-4 w-4" />
+                                ) : (
+                                    <Building2 className="h-4 w-4" />
+                                )}
+                                <span className="truncate max-w-[120px]">{activeWorkspace.name}&apos;s Workspace</span>
+                            </div>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent className="w-[200px] p-0">
+                                <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                                    Personal
+                                </DropdownMenuLabel>
+                                {workspaces.filter(w => w.type === 'personal').map(w => (
+                                    <DropdownMenuItem
+                                        key={w.id}
+                                        onSelect={() => handlePersonalWorkspaceSwitch()}
+                                        className="gap-2 cursor-pointer"
+                                    >
+                                        <User className="h-4 w-4" />
+                                        {w.name}
+                                        {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                                    </DropdownMenuItem>
+                                ))}
+
+                                <DropdownMenuSeparator />
+                                
+                                <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                                    Organizations
+                                </DropdownMenuLabel>
+                                {workspaces.filter(w => w.type === 'organization').length === 0 && (
+                                    <div className="px-2 py-1.5 text-sm text-muted-foreground italic">No organizations</div>
+                                )}
+                                {workspaces.filter(w => w.type === 'organization').map(w => (
+                                    <DropdownMenuItem
+                                        key={w.id}
+                                        onSelect={() => switchWorkspace(w.id)}
+                                        className="gap-2 cursor-pointer"
+                                    >
+                                        <Building2 className="h-4 w-4" />
+                                        {w.name}
+                                        {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                  </>
+              )}
+
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
                 <Link href="/profile" className="flex items-center text-body hover:text-[color:var(--foreground)]">
                   <User className="mr-2 h-4 w-4" />
-                  <span>{profileName}</span>
+                  <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
-                <Link href="/billing" className="flex items-center text-body hover:text-[color:var(--foreground)]">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  <span>Billing</span>
-                </Link>
+                  <Link href="/organizations" className="flex items-center text-body hover:text-[color:var(--foreground)]">
+                  <Building className="mr-2 h-4 w-4" />
+                  <span>Organizations</span>
+                  </Link>
               </DropdownMenuItem>
+              {canManageBilling && (
+                <DropdownMenuItem asChild className="hover:bg-transparent cursor-pointer">
+                    <Link href="/billing" className="flex items-center text-body hover:text-[color:var(--foreground)]">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Billing</span>
+                    </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={(e) => {
@@ -214,6 +278,35 @@ export default function TopNav() {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Personal Workspace Confirmation Dialog */}
+      <AlertDialog open={showPersonalWorkspaceConfirm} onOpenChange={setShowPersonalWorkspaceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Switch to Personal Workspace?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-3">
+              <p>
+                Switching to your personal workspace means:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>You will only see resources in your personal account</li>
+                <li>Organization resources will not be visible until you switch back</li>
+                <li>Any billable usage will be billed to your personal account</li>
+                <li>You won&apos;t have access to shared team resources</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPersonalWorkspaceSwitch}>
+              Switch to Personal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
-} 
+}

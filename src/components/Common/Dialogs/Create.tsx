@@ -17,7 +17,7 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     type: string;
     creationFunction: (...args: any[]) => Promise<ResponseProps>
     CreateSchema: z.ZodObject<any>,
-    form: UseFormReturn<any, any, undefined>
+    form: UseFormReturn<any>
     Fields: ReactNode,
     extraFormActions?: (data: z.infer<typeof CreateSchema>) => void,
     customOpen?: boolean,
@@ -69,11 +69,11 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
         ? null 
         : error 
             ?   <RetryButton onClick={() => setError(false)}/>
-            :   <SubmitButton text="Create" disabled={loading} onClick={form.handleSubmit(onSubmit)} loading={loading}/>
+            :   <SubmitButton text="Create" disabled={loading} onClick={(form as any).handleSubmit(onSubmit)} loading={loading}/>
     
     // Hotkey to trigger form submission when pressing enter
     useKey("Enter", () => {
-        form.handleSubmit(onSubmit)()
+        (form as any).handleSubmit(onSubmit)()
     });
     
     return (

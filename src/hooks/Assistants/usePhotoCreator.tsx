@@ -6,7 +6,7 @@ import { StopCircle } from 'lucide-react';
 import { AssistantActions, GenerateSpeechPayload, PhotoCreationResponse, ReplicatePredictionResponse, VoiceOption } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
-import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
+import { getAudioDuration, getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { Button } from '@/components/UI/button';
 
 const ANIMATION_POLLING_INTERVAL = 5000;
@@ -28,10 +28,8 @@ const fetchBalance = async (): Promise<number> => {
         if (balanceData && typeof balanceData.fullBalance === 'number') {
             return balanceData.fullBalance;
         }
-        console.warn("Could not fetch user balance or format was incorrect.");
         return 0;
     } catch (error) {
-        console.error("Error fetching balance:", error);
         toast.error("Could not verify your credit balance.");
         return 0;
     }
@@ -201,7 +199,6 @@ export function usePhotoCreator(
 
         } catch (error: any) {
             toast.error(`Photo generation failed.`, { id: toastId });
-            console.error("[usePhotoCreator] generate error:", error);
         } finally {
             setIsProcessing(false);
         }
@@ -267,7 +264,6 @@ export function usePhotoCreator(
 
         } catch (error: any) {
             toast.error(`Photo editing failed.`, { id: toastId });
-            console.error("[usePhotoCreator] edit error:", error);
         } finally {
             setIsProcessing(false);
         }
@@ -288,20 +284,10 @@ export function usePhotoCreator(
         }
 
         setIsProcessing(true);
-        toastIdRef.current = toast.loading("Checking your balance...");
+        toastIdRef.current = toast.loading("Generating video speech...");
 
         try {
-            const currentBalance = await fetchBalance();
-            if (currentBalance < videoAnimationCost) {
-                insufficientFundsToast("animation");
-                setIsProcessing(false);
-                toast.dismiss(toastIdRef.current);
-                toastIdRef.current = undefined;
-                return;
-            }
-    
-            toast.loading("Generating audio for animation...", { id: toastIdRef.current });
-    
+        
             const ttsPayload: GenerateSpeechPayload = {
                 text: ttsPrompt, provider: selectedVoice.provider, voice_id: selectedVoice.voice_id, output_format: "mp3",
                 ...(selectedVoice.provider === 'cartesia' && { model_id: 'sonic-2', cartesia_language: selectedVoice.language as SupportedLanguage }),
@@ -315,7 +301,22 @@ export function usePhotoCreator(
     
             const audioUint8Array = base64ToUint8Array(ttsResult.audioBase64) as any;
             const audioFile = new File([audioUint8Array], "tts_audio_for_animation.mp3", { type: ttsResult.contentType });
-    
+            let audioDuration = 0;
+            try {
+                audioDuration = await getAudioDuration(audioFile);
+            } catch (e) {/* no-op */}
+
+            toast.loading("Checking your balance...", { id: toastIdRef.current });
+
+            const currentBalance = await fetchBalance();
+            if (currentBalance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
+                insufficientFundsToast("animation");
+                setIsProcessing(false);
+                toast.dismiss(toastIdRef.current);
+                toastIdRef.current = undefined;
+                return;
+            }
+
             toast.loading("Starting animation job...", { id: toastIdRef.current });
             
             const formData = new FormData();
@@ -328,7 +329,10 @@ export function usePhotoCreator(
                 }
                 formData.append('image_url', imageSource);
             }
-    
+            if (audioDuration > 0) {
+                formData.append('duration', audioDuration.toString());
+            }
+
             const createResult = await photoActions.animate(formData);
             if ('detail' in createResult) {
                 throw new Error(createResult.detail);
@@ -385,7 +389,6 @@ export function usePhotoCreator(
                     const statusResult = await photoActions.getAnimation(prediction.id);
 
                     if ('detail' in statusResult) {
-                        console.warn(`Polling warning: ${statusResult.detail}`);
                         pollIntervalRef.current = setTimeout(poll, 20000);
                         return;
                     }
@@ -407,7 +410,6 @@ export function usePhotoCreator(
                         }
 
                         if (!outputUrl) {
-                            console.error("Animation succeeded but no valid output URL was found.", currentStatus);
                             toast.error("Animation succeeded but the video URL was missing or invalid.", { id: toastIdRef.current });
                             toastIdRef.current = undefined;
                             setIsProcessing(false);
@@ -416,7 +418,6 @@ export function usePhotoCreator(
                         
                         const videoFetchResponse = await fetch(outputUrl);
                         if (!videoFetchResponse.ok) {
-                            console.error(`Failed to download animated video.`);
                             toast.error("Failed to retrieve the final video.", { id: toastIdRef.current });
                             toastIdRef.current = undefined;
                             setIsProcessing(false);
@@ -436,7 +437,6 @@ export function usePhotoCreator(
                         stopPolling();
                         if (toastIdRef.current) {
                             if (currentStatus.status === 'failed') {
-                                console.error("[usePhotoCreator] Animation poll failed:", currentStatus.error);
                                 toast.error(`Animation failed. Please try again.`, { id: toastIdRef.current, duration: 5000 });
                             } else {
                                 toast.info("Animation was canceled.", { id: toastIdRef.current, duration: 5000 });
@@ -461,7 +461,6 @@ export function usePhotoCreator(
     
         } catch (error: any) {
             if(toastIdRef.current) {
-                console.error("[usePhotoCreator] Animate Error:", error.message);
                 toast.error("Failed to start animation. Please try again.", { id: toastIdRef.current });
             }
             toastIdRef.current = undefined;

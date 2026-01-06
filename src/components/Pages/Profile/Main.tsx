@@ -17,7 +17,11 @@ const Main = async ({user, onPrem}: {
                               <h1 className="text-h2">API Key</h1>
               <div className="flex flex-col gap-2 mt-4">
                 <p className="text-title">Grab or update your API key</p>
-                <UnifyKey initialApiKey={user.apiKey} onPrem={onPrem} />
+                <UnifyKey 
+                    initialApiKey={user.apiKey} 
+                    userId={user.id}
+                    onPrem={onPrem} 
+                />
               </div>
             </div>
             <div className="xl:w-[900px] w-full h-full">

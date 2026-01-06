@@ -7,7 +7,7 @@ import {OrchestraAdminClient} from "@/lib/orchestra/orchestra-client";
 import { Storage } from "@google-cloud/storage";
 import { Session, User, UserUpdateRequest } from "@/types/user";
 import { ConstructionOutlined } from "@mui/icons-material";
-import { readConsoleCookie } from "@/lib/auth/consoleCookie";
+import { cookies, headers } from "next/headers";
 
 /**
  * Retrieves the current user's session information.
@@ -39,9 +39,9 @@ export async function getSession() {
  * @param id The ID of the user.
  * @returns The user with the given ID.
  */
-export async function getUserByID(userID: string) {
-  const response = await OrchestraAdminClient.get("/auth-user/by-id", {
-    params: { userID },
+export async function getUserByID(user_id: string) {
+  const response = await OrchestraAdminClient.get("/auth-user/by-user-id", {
+    params: { user_id },
   }) as { data: User };
   return response.data;
 }
@@ -94,47 +94,82 @@ export async function getOnPremUser(): Promise<User | null> {
  */
 export async function getCurrentUser(): Promise<User | null> {
   const session = await getSession();
+  let user: User | null = null;
+
+  // 1. Fetch User Identity
   if (process.env.ON_PREM) {
-    return getOnPremUser();
+    user = await getOnPremUser();
   } else {
-    const email = session?.user?.email;
-    if (email) {
-      try {
-        // Primary path: fetch authoritative user from Orchestra
-        return await getUserByEmail(email);
-      } catch (error) {
-        console.error("[getCurrentUser] Admin lookup failed; entering degraded mode:", error);
-        // Degraded path: try to recover apiKey from cookie and synthesize minimal user
-        try {
-          const cookie = readConsoleCookie();
-          const apiKeyFromCookie = cookie?.apiKey ?? "";
-          const synthesizedUser: User = {
-            // NextAuth's Session.user doesn't reliably include an id; fall back to email
-            id: email || "unknown",
-            name: session?.user?.name || email.split("@")[0],
-            lastName: "",
-            jobTitle: "",
-            image: session?.user?.image || "",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-            email,
-            createdAt: new Date().toISOString(),
-            apiKey: apiKeyFromCookie, // empty string if unavailable; server routes can fall back to cookie
-            stripe_customer_id: "",
-            organization: { name: "", level: "" },
-            assistant_hiring_approval: null,
-            has_claimed_approval_link: "false",
-          };
-          return synthesizedUser;
-        } catch (cookieError) {
-          console.error("[getCurrentUser] Failed to synthesize user from cookie:", cookieError);
-          return null;
-        }
-      }
+    if (session && session.user?.email) {
+      user = await getUserByEmail(session.user.email);
     } else {
       console.error("No user email found in session");
       return null;
     }
   }
+
+  if (!user) return null;
+
+  // 2. Apply Workspace Context
+  const cookieStore = cookies();
+  const workspaceId = cookieStore.get("unify_workspace_id")?.value;
+  let contextResolved = false;
+
+
+  // Priority 1: Header API Key
+  let headerApiKey: string | null = null;
+  try {
+    const headerStore = headers();
+    headerApiKey = headerStore.get("apiKey");
+  } catch (e) {
+    // Ignore context errors
+  }
+
+  if (headerApiKey) {
+    // Check if the header key matches the default personal key
+    if (user.apiKey === headerApiKey) {
+      contextResolved = true;
+    } 
+    // Check if the header key matches any of the user's organizations
+    else if (user.organizations) {
+      const targetOrg = user.organizations.find(org => org.apiKey === headerApiKey);
+      if (targetOrg) {
+        user.apiKey = targetOrg.apiKey;
+        contextResolved = true;
+      }
+    }
+  }
+
+  // Priority 2: Cookie (if not resolved by header)
+  if (!contextResolved && workspaceId) {
+    if (workspaceId === 'personal') {
+      // Explicitly personal. user.apiKey is already personal default.
+      contextResolved = true;
+    } else {
+      // Check if user still belongs to this org
+      const targetOrg = user.organizations?.find(
+        (org) => org.id.toString() === workspaceId
+      );
+
+      if (targetOrg) {
+        user.apiKey = targetOrg.apiKey;
+        contextResolved = true;
+      }
+      // If targetOrg not found (e.g. user removed from org), contextResolved remains false
+      // and we fall through to default logic below.
+    }
+  }
+
+  // Case B: No Cookie set, or Cookie ID was invalid (orphaned)
+  // if (!contextResolved) {
+  //   // Default to the first Organization if available
+  //   if (user.organizations && user.organizations.length > 0) {
+  //     user.apiKey = user.organizations[0].apiKey;
+  //   }
+  //   // Else: User has no organizations, default to personal (user.apiKey is unmodified)
+  // }
+
+  return user;
 }
   
 
@@ -184,4 +219,53 @@ export async function updateUserImage(userID: string, image: File) {
     .bucket("console-app-profile-images")
     .file(file_name)
     .save(Buffer.from(buffer));
+}
+
+/**
+ * Sends a verification code to the user's phone number via SMS.
+ * Uses admin authentication to call the communication service.
+ * 
+ * @param phoneNumber The phone number to verify (international format, e.g., +15551234567)
+ * @returns The verification code and sent timestamp, or an error response.
+ */
+export async function verifyUserPhone(
+  phoneNumber: string
+): Promise<{ verification_code: string; sent_at: string } | { detail: string }> {
+  const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
+  const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+
+  if (!COMMUNICATION_URL || !ADMIN_KEY) {
+    console.error("[verifyUserPhone] Missing COMMUNICATION_URL or ORCHESTRA_ADMIN_KEY environment variable");
+    return { detail: "Server configuration error" };
+  }
+
+  try {
+    const response = await fetch(`${COMMUNICATION_URL}/social/verify`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${ADMIN_KEY}`,
+        "Content-Type": "application/json" 
+      },
+      body: JSON.stringify({ 
+        platform: "phone", 
+        account_identifier: phoneNumber 
+      })
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      console.error(`[verifyUserPhone] Backend error (${response.status}):`, data);
+      return { detail: data?.detail || `Failed to send verification code: ${response.statusText}` };
+    }
+
+    if (data?.verification_code && data?.sent_at) {
+      return data as { verification_code: string; sent_at: string };
+    }
+
+    return { detail: "Verification succeeded but response format was unexpected." };
+  } catch (error) {
+    console.error("[verifyUserPhone] Fetch error:", error);
+    return { detail: error instanceof Error ? error.message : "Unknown error during phone verification." };
+  }
 }

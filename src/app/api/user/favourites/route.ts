@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
 import { getFavourites } from "@/lib/interfaces/favourites";
 
 export async function GET(req: NextRequest) {
   try {
-    const apiKeyOrError = await requireApiKey(req);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    const apiKey = req.headers.get("apiKey");
+    
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key required" }, { status: 401 });
+    }
     
     const favourites = await getFavourites(apiKey);
     return NextResponse.json(favourites, { status: 200 });
@@ -14,4 +15,4 @@ export async function GET(req: NextRequest) {
     console.error("/api/user/favourites error", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-} 
+}

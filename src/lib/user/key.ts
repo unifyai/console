@@ -4,13 +4,18 @@ import { User } from "@/types/user";
 
 
 /**
- * Regenerates the API key for a user.
+ * Regenerates the API key for a user or an organization.
  * 
- * @param id - The ID of the user whose API key will be regenerated.
+ * @param userID - The ID of the user whose API key will be regenerated.
+ * @param organizationID - The ID of the organization (optional). If provided, resets org key.
  * @returns {Promise<any>} The new API key.
  */
-export async function regenerateUserKey(userID: string) {
-  let response = await OrchestraAdminClient.post("/api_key/reset", null, { params: { user_id: userID } });
+export async function regenerateUserKey(userID: string, organizationID?: string) {
+  const params: Record<string, string | number> = { user_id: userID };
+  if (organizationID) {
+    params.organization_id = organizationID;
+  }
+  let response = await OrchestraAdminClient.post("/api_key/reset", null, { params });
   const key = response.data;
   return key;
 };

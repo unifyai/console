@@ -129,6 +129,8 @@ export function useTableAutoUpdateQuery(
       // Update BOTH the auto-update cache AND the main cache to keep them in sync
       queryClient.setQueryData(autoUpdateQueryKey, tableDataItem);
       queryClient.setQueryData(mainQueryKey, tableDataItem);
+      // Invalidate internal data query so dependency manager re-checks render readiness
+      queryClient.refetchQueries({ queryKey: ["internalData", tileId], type: 'active' });
 
       return tableDataItem;
     } catch (e: any) {

@@ -54,7 +54,7 @@ const Main = ({ apiKey, onPrem, providers, customKeys, customKeyActions }: {
                         "Unify Key",
                         "Your Unify API key is available below. You can generate a new key if needed to overwrite your current key.",
                         null,
-                        <UnifyKey initialApiKey={apiKey} onPrem={onPrem} />
+                        <UnifyKey initialApiKey={apiKey} userId="dummy" onPrem={onPrem} />
                     )}
                     {section(
                         "Provider Keys",

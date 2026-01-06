@@ -1,13 +1,19 @@
 import { ResponseProps } from "@/types/common";
-import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider } from "@/types/assistants/assistant";
+import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
+import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
 
-export const listAssistants = async (apiKey: string) => {
+export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
         "use server";
 
         try {
+            const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
+            if (listAllOrg) {
+                url.searchParams.set('list_all_org', 'true');
+            }
+            
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/assistant`,
+                url.toString(),
                 {
                     method: "GET",
                     headers: { apiKey: apiKey },
@@ -170,7 +176,7 @@ export const createAssistant = async (apiKey: string) => {
     return async (
         first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
         profile_photo: string | null, profile_video: string | null, about: string | null, 
-        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: "sts" | "tts",
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
         email: string | null, user_phone: string | null, phone_country: string | null,
         user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
         pre_hire_chat?: PreHireChatMessage[]
@@ -238,6 +244,38 @@ export const createAssistant = async (apiKey: string) => {
             console.error(`[actions.ts createAssistant] Error creating assistant:`, error);
             const errorMessage = error instanceof Error ? error.message : "Unknown server error occurred.";
             return { detail: errorMessage };
+        }
+    };
+};
+
+export const checkHiringFunds = async (apiKey: string) => {
+    return async (hiringFee: number): Promise<AssistantHiringSufficientFunds | ResponseProps> => {
+        "use server";
+        try {
+            const orchestraUrl = process.env.ORCHESTRA_URL || "";
+            if (orchestraUrl.includes("staging")) return {sufficient: true};
+
+            const response = await fetch(`${process.env.ORCHESTRA_URL}/v0/billing/balance`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                },
+                cache: "no-store",
+            });
+
+            if (!response.ok) return { detail: `Failed to fetch balance: ${response.statusText}` };
+
+            const balanceData = await response.json() as { balance: string; fullBalance: number };
+            const currentBalance = typeof balanceData.fullBalance === 'number' ? balanceData.fullBalance : 0;
+            const fee = hiringFee ?? ASSISTANT_ONBOARDING_FEE;
+            if (currentBalance < fee) return {sufficient: false}
+
+            return {sufficient: true};
+        } catch (error) {
+            console.error("[Server Action checkHiringFunds] Error:", error);
+            const message = error instanceof Error ? error.message : "Unknown error checking balance.";
+            return { detail: message };
         }
     };
 };

@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { demos } from "@/constants/logs";
 import { CodeSandbox } from "@codesandbox/sdk";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const templateId = process.env.CODESANDBOX_TEMPLATE_ID;
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
     const userId = body.user_id;
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
     const sandbox = await sdk.sandbox.open(sandboxId);
     let envVars: { [key: string]: string } = {
-        UNIFY_KEY: request.headers.get("apiKey") as string,
+        UNIFY_KEY: apiKey as string,
         UNIFY_PROJECT: project,
     };
     if (baseUrl.includes("staging")) {

@@ -45,9 +45,24 @@ export function durationToTimeDelta(durationInMilliseconds: number) {
 }
 
 export function timeDeltaValueToDuration (value: string) {
+    // Parse Python timedelta format: "X days, HH:MM:SS" or "X day, HH:MM:SS"
+    // Also handles negative: "-X days, HH:MM:SS"
+    const match = value.match(/^(-?\d+)\s+days?,?\s*(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d+))?$/);
+    if (match) {
+        const [, days, hours, minutes, seconds, microseconds] = match;
+        const totalMs = 
+            parseInt(days, 10) * 86400000 +  // days to ms
+            parseInt(hours, 10) * 3600000 +  // hours to ms
+            parseInt(minutes, 10) * 60000 +  // minutes to ms
+            parseInt(seconds, 10) * 1000 +   // seconds to ms
+            (microseconds ? parseInt(microseconds.padEnd(3, '0').slice(0, 3), 10) : 0); // microseconds to ms
+        return totalMs;
+    }
+    
+    // Fallback: try moment.js parsing for other formats (ISO 8601, etc.)
     const duration = moment.duration(value);
     const milliseconds = duration.asMilliseconds();
-    return milliseconds
+    return milliseconds;
 }
 
 export function timeValueToTime (value: string) {

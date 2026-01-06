@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 
 export async function GET(request: NextRequest) {
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
+    
+    // Forward query parameters to Orchestra
+    const url = new URL(`${baseUrl}/assistant`);
+    const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
+    if (listAllOrg) {
+        url.searchParams.set('list_all_org', listAllOrg);
+    }
+    
     return await fetch(
-        `${baseUrl}/assistant`,
+        url.toString(),
         {
             method: "GET",
             headers: {
-                "Authorization": `Bearer ${request.headers.get("apiKey")}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "accept": "application/json",
             }
         },
@@ -16,7 +32,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const apiKey = request.headers.get("apiKey");
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
+    
     const requestBody = await request.json();
 
     try {

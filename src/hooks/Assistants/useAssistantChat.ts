@@ -138,7 +138,6 @@ export function useAssistantChat(
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            console.error("Failed to get chat response:", errorMessage);
 
             if (errorMessage.includes("INSUFFICIENT_CREDITS")) {
                 setHistories(prev => {
@@ -150,8 +149,7 @@ export function useAssistantChat(
                     return { ...prev, [configKey]: updatedHistory };
                 });
             } else {
-                toast.error(`Sorry, I couldn't get a response. Please try again.`);
-                // Remove the empty assistant message placeholder on error
+                toast.error(`Failed to get a response. Please try again.`);
                 setHistories(prev => ({
                     ...prev,
                     [configKey]: prev[configKey].filter(msg => msg.id !== assistantResponseId)

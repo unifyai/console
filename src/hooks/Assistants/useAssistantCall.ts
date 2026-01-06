@@ -5,6 +5,8 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 
 const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
 
 export function useAssistantCall(
     room: Room,
@@ -63,7 +65,6 @@ export function useAssistantCall(
         isCancelledRef.current = false;
 
         if (room.state !== 'disconnected') {
-            console.warn("[useAssistantCall] Connect called while room is not in disconnected state.");
             return;
         }
         if (!assistant) return;
@@ -75,23 +76,43 @@ export function useAssistantCall(
         setConnectionError(null);
         try {
             const assistantName = `${assistant.first_name}${assistant.surname}`;
-            
-            // Step 1: Get connection details for the user
-            const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
-            if (isCancelledRef.current) return;
-            if ('detail' in details) {
-                throw new Error(details.detail || 'Could not get call details.');
-            }
-            
-            const connDetails = details as ConnectionDetails;
-            setConnectionDetails(connDetails);
+            let connDetails: ConnectionDetails | null = null;
 
-            // Step 2: Dispatch the assistant to join the room
-            const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
-            if (isCancelledRef.current) return;
-            if (dispatchResult.detail) {
-                throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
+            // Retry loop for connection setup
+            for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+                if (isCancelledRef.current) return;
+
+                try {
+                    // Step 1: Get connection details for the user
+                    const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
+                    if (isCancelledRef.current) return;
+                    if ('detail' in details) {
+                        throw new Error(details.detail || 'Could not get call details.');
+                    }
+                    connDetails = details as ConnectionDetails;
+                    setConnectionDetails(connDetails);
+
+                    // Step 2: Dispatch the assistant to join the room
+                    const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
+                    if (isCancelledRef.current) return;
+                    if (dispatchResult.detail) {
+                        throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
+                    }
+
+                    // If we get here, both steps succeeded
+                    break;
+
+                } catch (err: any) {
+                    if (attempt > MAX_RETRIES) {
+                        throw err; // Rethrow on final attempt to trigger catch block below
+                    }
+                    
+                    const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
+
+            if (!connDetails) return; // Should be covered by throw above, but safety check
 
             // Step 3: Connect the user's client
             await room.connect(connDetails.serverUrl, connDetails.token);
@@ -106,24 +127,27 @@ export function useAssistantCall(
             setIsConnecting(false); // User is connected, now wait for assistant
 
             if (room.numParticipants < 2) { // Check if assistant isn't already there
-                setIsWaitingForAssistant(true);
+                setIsWaitingForAssistant(true);                
+                const timeoutDuration = (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) || ASSISTANT_JOIN_TIMEOUT;
                 assistantJoinTimeoutRef.current = setTimeout(() => {
                     if (isCancelledRef.current) return;
                     setConnectionError(`${assistant.first_name} is taking too long to join.`);
                     setIsWaitingForAssistant(false);
-                }, ASSISTANT_JOIN_TIMEOUT);
+                }, timeoutDuration);
             } else {
                 setIsWaitingForAssistant(false); // Assistant was already present
             }
 
         } catch (e: any) {
             setIsConnecting(false);
-            if (isCancelledRef.current) {
-                console.log("Connection process was cancelled by the user.");
-            } else {
-                console.error("Failed to connect to LiveKit room", e);
+            if (isCancelledRef.current) {/* no-op */} 
+            else {
                 toast.error(`Failed to start call. Please try again.`);
                 setError(`Failed to start call: ${e.message}`);
+            }
+            // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
+            if (room.state !== 'disconnected') {
+                room.disconnect().catch(console.error);
             }
             onDisconnected();
         }
@@ -180,7 +204,7 @@ export function useAssistantCall(
         }
 
         setIsRemoteControlLoading(true);
-        const toastId = toast.loading("Starting remote control session...");
+        const toastId = toast.loading("Starting assistant screen sharing...");
         
         try {
             const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agent_id);
@@ -188,13 +212,13 @@ export function useAssistantCall(
                 setLiveviewUrl(result.liveviewUrl);
                 setIsRemoteControlActive(true);
                 setIsRemoteControlInteractive(false); // Start in view-only mode
-                toast.success("Remote control session started.", { id: toastId });
+                toast.success("Assistant screen sharing started.", { id: toastId });
             } else {
                  throw new Error("Could not retrieve session URL.");
             }
         } catch (e: any) {
             console.error("[useAssistantCall] Toggle remote control failed:", e.message);
-            toast.error("Could not start remote control session. Please try again.", { id: toastId });
+            toast.error("The assistant could not share their screen. Please try again.", { id: toastId });
         } finally {
             setIsRemoteControlLoading(false);
         }
@@ -237,6 +261,15 @@ export function useAssistantCall(
             clearAssistantJoinTimeout();
         };
     }, [room, onDisconnected, clearAssistantJoinTimeout]);
+
+    // Ensure proper cleanup on component unmount
+    React.useEffect(() => {
+        return () => {
+            if (room.state !== 'disconnected') {
+                room.disconnect();
+            }
+        };
+    }, [room]);
 
     return {
         room,

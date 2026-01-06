@@ -2,19 +2,21 @@
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
 import { Loader2, Search, Plus, RefreshCw } from "lucide-react";
-import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/notifications';
+import { showSuccessToast, showErrorToast, showLoadingToast } from '@/components/Common/Toasts/notifications';
 import { useRouter } from "next/navigation";
+import { toast } from 'sonner';
 import { Tabs, TabsContent } from "../../../UI/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../UI/dialog";
 import ActionButton from "../../../Common/Buttons/Action";
 import { Button } from "../../../UI/button";
 import { Icon } from "../../../UI/icon-picker";
-import SkeletonLoader from "../../../Common/Loaders/SkeletonLoader";
 // InterfaceButtons is loaded lazily to reduce initial JS
 // import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from "./Buttons/ProjectButtons";
 import { useQueryState } from "nuqs";
 import { ProjectsActions, LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularInterfaceActions, GranularTabActions, GranularTileActions, FileActions, Favourite, FavouritesActions } from '@/types/interfaces/grid';
+import { ResourcesActions } from '@/types/resource';
+import { User } from '@/types/user';
 import { debounce } from 'lodash';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
@@ -46,6 +48,7 @@ import { useListContextsQuery } from '@/hooks/Interfaces/Query/useContextsQuery'
 import { 
   createInterfaceUrl,
   createCompleteDefaultInterface,
+  ensureInterfaceLoadable,
 } from "@/utils/interfaces/interfaceSelector"
 
 function getUniqueDefaultInterfaceName(baseProject: string, actions: GranularInterfaceActions) {
@@ -90,7 +93,9 @@ interface InterfaceComponentProps {
   codeActions: CodeActions;
   fileActions: FileActions;
   favouritesActions: FavouritesActions;
+  resourcesActions: ResourcesActions;
   initialFavourites: Favourite[];
+  userMeta: Pick<User, "organizations" | "id">;
 }
 
 const Interface = ({ 
@@ -106,7 +111,9 @@ const Interface = ({
   codeActions,
   fileActions,
   favouritesActions,
+  resourcesActions,
   initialFavourites,
+  userMeta,
 }: InterfaceComponentProps) => {
 
   const router = useRouter();
@@ -142,6 +149,7 @@ const Interface = ({
   const lastNoticeKeyRef = useRef<string | null>(null);
   const navTokenRef = useRef(0);
   const beginNavigation = useCallback(() => { navTokenRef.current += 1; return navTokenRef.current; }, []);
+  const navToastIdRef = useRef<string | number | null>(null);
   const storeApi = useStoreApiContext(); // storeApi for seeding and queue worker
   const queryClient = useQueryClient();
   // Global bootstrap error overlay state
@@ -282,7 +290,7 @@ const Interface = ({
   }, [bootstrapData, projectQueryParam, queryClient]);
 
   // Fetch project tree with icons
-  const { data: projectTree = [], isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
+  const { data: projectTree = [], isLoading: isLoadingProjectTree, isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
     Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
@@ -304,7 +312,12 @@ const Interface = ({
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
   const currentProjectData = safeProjectTree.find(p => p.project === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
-  const isLoadingInterfacesForSelection = showInterfaceSelection && safeProjectTree.length === 0;
+  // Show loading if: projectTree is loading, OR no tree data yet, OR tree exists but current project has no interfaces yet (still fetching)
+  const isLoadingInterfacesForSelection = showInterfaceSelection && (
+    isLoadingProjectTree || 
+    safeProjectTree.length === 0 ||
+    (projectQueryParam && !currentProjectData)
+  );
 
   // Show toast notification for project tree errors (non-blocking, for dropdowns)
   const projectTreeErrorShownRef = useRef(false);
@@ -339,6 +352,18 @@ const Interface = ({
     setLoadingProjectName(null);
     setLoadingInterfaceId(null);    
   }, [interfaceQueryParam]);
+
+  // Toast-driven feedback for navigation/refresh (replaces frosted overlay)
+  useEffect(() => {
+    const active = isSwitchingInterface || isRefreshingInterface;
+    if (active && navToastIdRef.current == null) {
+      const msg = isRefreshingInterface ? 'Refreshing interface...' : (loadingMessage || 'Loading interface...');
+      navToastIdRef.current = showLoadingToast(msg);
+    } else if (!active && navToastIdRef.current != null) {
+      toast.dismiss(navToastIdRef.current);
+      navToastIdRef.current = null;
+    }
+  }, [isSwitchingInterface, isRefreshingInterface, loadingMessage]);
 
   useEffect(() => {
     // Reset failure count when the project changes
@@ -549,6 +574,7 @@ const Interface = ({
     setProjectQueryParam,
     setTabQueryParam: setTabQueryParamFromSync,
     setInterfaceQueryParam,
+    setSelectProjectParam,
     projectActions: projectsActions,
     interfaceActions,
     tabActions,
@@ -670,6 +696,8 @@ const Interface = ({
             const latestInterface = sortedInterfaces[0];
             
             if (latestInterface) {
+              // Update message since interfaces are loaded - now loading the interface/tiles
+              setLoadingMessage(`Loading ${latestInterface.name}...`);
               const searchParams = new URLSearchParams(window.location.search);
               const newUrl = createInterfaceUrl(searchParams, latestInterface.name);
               if (tokenAtStart === navTokenRef.current) {
@@ -870,11 +898,12 @@ const Interface = ({
       );
     }
 
-    // Show loading state while tab is being fetched
-    if (tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending) {
+    // Show loading state while tabStreamingQuery initializes or tab is being fetched
+    if (!tabStreamingQuery || tabStreamingQuery.activeTab.isLoading || tabStreamingQuery.activationPending) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <SkeletonLoader />
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-base text-muted-foreground">Loading tiles...</p>
         </div>
       );
     }
@@ -951,8 +980,9 @@ const Interface = ({
     // Guard against race condition: ensure tab data matches current active tab
     if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
       return (
-        <div className="flex items-center justify-center h-full">
-          <SkeletonLoader />
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh]">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-base text-muted-foreground">Switching tabs...</p>
         </div>
       );
     }
@@ -961,7 +991,7 @@ const Interface = ({
       <div className="w-full h-full">
         <Suspense fallback={
           <div className="w-full h-full flex items-center justify-center">
-            <SkeletonLoader />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         }>
           <Tab
@@ -977,6 +1007,7 @@ const Interface = ({
             contextActions={contextActions}
             codeActions={codeActions}
             fileActions={fileActions}
+            isLoadingTiles={tabStreamingQuery?.activeTab.isLoading || tabStreamingQuery?.activationPending}
           />
         </Suspense>
       </div>
@@ -1203,6 +1234,16 @@ const Interface = ({
     },
     setInterface: async (projectId, interfaceName) => {
       const token = beginNavigation();
+      try {
+        const ac = new AbortController();
+        await ensureInterfaceLoadable(projectId, interfaceName, ac.signal);
+      } catch (err) {
+        setIsSwitchingInterface(false);
+        setLoadingMessage('Loading...');
+        setSelectInterfaceParam('true'); // Return to interface selection
+        showErrorToast('Failed to load interface');
+        return;
+      }
       const newParams = new URLSearchParams(window.location.search);
       newParams.set('project', projectId);
       newParams.set('interface', interfaceName);
@@ -1237,15 +1278,14 @@ const Interface = ({
         contextActions={contextActions}
         codeActions={codeActions}
         favouritesActions={favouritesActions}
+        resourcesActions={resourcesActions}
+        userMeta={userMeta}
         initialFavourites={initialFavourites}
         setIsSwitchingInterface={setIsSwitchingInterface}
         setLoadingMessage={setLoadingMessage}
         onAddTile={handleSidebarAddTile}
         fieldsActions={fieldsActions}
         syncedInterfaceUIActions={syncedInterfaceUIActions}
-        projectTree={safeProjectTree}
-        refetchProjectTree={refetchProjectTree}
-        onHoverPrefetchTab={tabStreamingQuery.prefetchTab}
       />
       
       {/* Main Content Area */}
@@ -1444,16 +1484,27 @@ const Interface = ({
                   interfacesForSelection.map((iface) => {
                     // Interface already comes from projectTree, so icon is directly available
                     const icon = iface.icon;
-                    const isLoading = loadingInterfaceId === iface.id;
+                    const rowKey = iface.id || iface.name; // Fallback to name when id is missing
+                    const isLoading = loadingInterfaceId === rowKey;
                     const isDisabled = loadingInterfaceId !== null;
                     
                     return (
                       <button
-                        key={iface.id}
-                        onClick={() => {
-                          setLoadingInterfaceId(iface.id);
+                        key={rowKey}
+                        onClick={async () => {
+                          setLoadingInterfaceId(rowKey);
                           setLoadingMessage(`Loading interface...`);
                           setIsSwitchingInterface(true);
+                          try {
+                            const ac = new AbortController();
+                            await ensureInterfaceLoadable(projectQueryParam || '', iface.name, ac.signal);
+                          } catch (err) {
+                            setIsSwitchingInterface(false);
+                            setLoadingMessage('Loading...');
+                            showErrorToast('Failed to load interface');
+                            // Stay on selection screen
+                            return;
+                          }
                           const newParams = new URLSearchParams(window.location.search);
                           newParams.set('interface', iface.name);
                           newParams.delete('selectInterface');
@@ -1538,19 +1589,6 @@ const Interface = ({
             }}
           >
           <div className="relative flex-1 min-w-0 h-full">
-          {(isSwitchingInterface || isRefreshingInterface) && (
-            <div
-              className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm bg-background/70"
-              style={{ left: 'var(--interface-nav-width, 256px)', top: '2.5rem', right: 0, bottom: 0 }}
-            >
-              <div className="flex flex-col items-center gap-4 bg-background border border-border shadow-lg rounded-xl px-6 py-8">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-body text-muted-foreground text-center whitespace-nowrap">
-                  {isRefreshingInterface ? 'Refreshing interface...' : loadingMessage}
-                </p>
-              </div>
-            </div>
-          )}
           <ScrollArea ref={pageScrollContainerRef} className="flex-1 min-w-0 h-full">
                      <div className="relative bg-background pt-3" ref={gridRef}>
           <Toaster richColors position="bottom-right" closeButton />
@@ -1561,7 +1599,7 @@ const Interface = ({
           <Suspense
             fallback={
               <div className="w-full h-full flex items-center justify-center">
-                <SkeletonLoader />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             }
             >
@@ -1615,7 +1653,25 @@ const Interface = ({
               }}
               >
               {tabNames.length === 0 ? (
-                (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
+                (projectQueryParam && interfaceQueryParam && !tabUIState?.pending) ? (
+                  // Show empty state when interface has no tabs
+                  <div className="flex flex-col items-center justify-center h-full p-6 text-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+                      <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium mb-1">No Tabs Yet</h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Create a tab to start building your interface. Tabs help you organize your data views and dashboards.
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Use the <span className="font-medium">+</span> button in the sidebar to create your first tab
+                    </p>
+                  </div>
+                ) : (projectQueryParam && (!interfaceQueryParam || tabUIState?.pending)) ? (
                   null
                 ) : !projectQueryParam && !interfaceQueryParam ? (
                   hasAssistantsProject ? (
@@ -1661,7 +1717,7 @@ const Interface = ({
                         )}
                       </div>
                     ) : (
-                      <Suspense fallback={<div className="w-full h-full"><SkeletonLoader /></div>}>
+                      <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
                         <div className="w-full h-full relative">
                           {/* Use renderActiveTab instead of direct Tab component render */}
                           {renderActiveTab()}
@@ -1753,19 +1809,7 @@ const Interface = ({
             onComplete={hideOverlay}
           />
 
-          {/* Initial Interface Load Overlay - shows between navbar and interface paint */}
-          {isInitialInterfaceLoad && !isSwitchingTab && (
-            <div 
-              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm"
-              style={{ left: sidebarWidth }}
-            >
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Loading interface...</p>
-              </div>
-            </div>
-          )}
-
+          
           
         </Suspense>
 
@@ -1799,7 +1843,7 @@ const Interface = ({
             <DialogContent className="!w-[98vw] !max-w-[98vw] !h-[98vh] !flex !flex-col !p-0 !overflow-hidden">
               <DialogTitle className="sr-only">Focus Mode</DialogTitle>
               <DialogDescription className="sr-only">View and interact with multiple tiles in focus mode</DialogDescription>
-              <Suspense fallback={<SkeletonLoader />}>
+              <Suspense fallback={<div className="flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
                 <FocusDialog
                   tabIdOrName={activeTabId || ""}
                   interfaceId={interfaceId}
@@ -1821,7 +1865,7 @@ const Interface = ({
 
         {/* Edit Tile Name Dialog */}
         {isEditMode && tabUIState?.editTile && (
-          <Suspense fallback={<div className="w-full h-16"><SkeletonLoader /></div>}>
+          <Suspense fallback={<div className="w-full h-16 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}>
             <EditTileName
               tabIdOrName={activeTabId || ""}
               interfaceId={interfaceId}

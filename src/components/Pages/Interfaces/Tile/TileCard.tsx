@@ -4,7 +4,7 @@ import React, { ReactNode, Suspense, lazy, useEffect } from "react";
 import { cn } from "@/utils/misc/cn";
 import { DerivedEntryActions, FieldsActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions, GranularTabActions } from "@/types/interfaces/grid";
 import { LogsActions } from "@/types/interfaces/grid";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { Loader2 } from "lucide-react";
 import UnlinkedTileOverlay from "./UnlinkedTileOverlay";
 import NewTileOverlay from './NewTileOverlay';
 import { TileColorContext } from '@/contexts/TileColorContext';
@@ -172,7 +172,7 @@ const TileCard = ({
               key={tileId}
               fallback={
                 <div className="w-full h-full flex-1 flex items-center justify-center">
-                  <SkeletonLoader />
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               }
             >

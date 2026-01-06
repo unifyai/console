@@ -8,7 +8,7 @@ import { AssistantCommunicationMainView } from '@/components/Pages/Assistants/Co
 import { AssistantCommunicationUserView } from '@/components/Pages/Assistants/Communication/AssistantCommunicationUserView';
 import { AssistantCommunicationControls } from '@/components/Pages/Assistants/Communication/AssistantCommunicationControls';
 import { AssistantCommunicationSidePanel } from '@/components/Pages/Assistants/Communication/AssistantCommunicationSidePanel';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -23,6 +23,7 @@ interface AssistantCommunicationFullScreenProps {
     user: {
         id: string;
         image: string | null | undefined;
+        email: string | null | undefined;
     };
 }
 
@@ -30,6 +31,7 @@ const FullScreenCallUI: React.FC<{
     room: Room;
     assistant: Assistant;
     userImage: string;
+    userEmail: string | null | undefined;
     callType: 'video' | 'audio' | null;
     isLoading: boolean;
     loadingMessage: string;
@@ -38,7 +40,7 @@ const FullScreenCallUI: React.FC<{
     assistantActions: AssistantActionsSubset;
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
-}> = ({ room, assistant, userImage, callType, isLoading, loadingMessage, connectionError, onRetry, assistantActions, chatHistories, setChatHistories }) => {
+}> = ({ room, assistant, userImage, userEmail, callType, isLoading, loadingMessage, connectionError, onRetry, assistantActions, chatHistories, setChatHistories }) => {
     // Standard LiveKit hooks
     const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
     const { localParticipant } = useLocalParticipant();
@@ -52,7 +54,7 @@ const FullScreenCallUI: React.FC<{
     // UI State
     const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
     const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
-    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | 'transcriptions' | null>(null);
+    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);
 
     // Device selection state
     const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -60,7 +62,6 @@ const FullScreenCallUI: React.FC<{
     const { devices: audioInputDevices, activeDeviceId: activeAudioInputDeviceId, setActiveMediaDevice: setActiveAudioInputDevice } = useMediaDeviceSelect({ kind: 'audioinput', room });
     const { devices: audioOutputDevices, activeDeviceId: activeAudioOutputDeviceId, setActiveMediaDevice: setActiveAudioOutputDevice } = useMediaDeviceSelect({ kind: 'audiooutput', room });
 
-    const isAudioOnly = callType === 'audio';
 
     React.useEffect(() => {
         const getDevices = async () => {
@@ -95,7 +96,7 @@ const FullScreenCallUI: React.FC<{
         <div className="h-full w-full flex flex-col bg-background text-foreground">
             <div className="flex-1 flex min-h-0 relative">
                 <div className="flex-1 flex flex-col items-center justify-center relative bg-background/80">
-                    {isUserViewMaximized && userTrackRef && !isAudioOnly ? (
+                    {isUserViewMaximized && userTrackRef ? (
                         <AssistantCommunicationUserView imageUrl={userImage} trackRef={userTrackRef} isCameraOn={camToggle.enabled || screenShareToggle.enabled} participant={localParticipant} onMinimize={() => setIsUserViewMaximized(false)} maximized />
                     ) : (
                         <>
@@ -110,7 +111,7 @@ const FullScreenCallUI: React.FC<{
                                 onRetry={onRetry}
                             />
                             <AnimatePresence>
-                                {isUserViewVisible && !isLoading && !connectionError && !isAudioOnly && (
+                                {isUserViewVisible && !isLoading && !connectionError && (
                                     <motion.div key="user-view-pip" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.2 }} className="absolute bottom-4 left-4">
                                         <AssistantCommunicationUserView imageUrl={userImage} trackRef={userTrackRef} isCameraOn={camToggle.enabled || screenShareToggle.enabled} participant={localParticipant} onMinimize={() => setIsUserViewVisible(false)} onMaximize={() => setIsUserViewMaximized(true)} />
                                     </motion.div>
@@ -118,7 +119,7 @@ const FullScreenCallUI: React.FC<{
                             </AnimatePresence>
                         </>
                     )}
-                    {!isUserViewMaximized && !isUserViewVisible && !isLoading && !connectionError && !isAudioOnly && (
+                    {!isUserViewMaximized && !isUserViewVisible && !isLoading && !connectionError && (
                          <motion.div key="user-view-minimized" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.2 }} className="absolute bottom-4 left-4">
                              <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><button onClick={() => setIsUserViewVisible(true)} className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-primary"><Avatar className="h-12 w-12 border-2 border-border"><AvatarImage src={userImage || undefined} alt="Your profile" /><AvatarFallback className="bg-muted text-muted-foreground">U</AvatarFallback></Avatar></button></TooltipTrigger><TooltipContent side="top"><p>Show self-view</p></TooltipContent></Tooltip></TooltipProvider>
                          </motion.div>
@@ -139,6 +140,7 @@ const FullScreenCallUI: React.FC<{
                                 assistantActions={{ chat: assistantActions.chat }}
                                 chatHistories={chatHistories}
                                 setChatHistories={setChatHistories}
+                                userEmail={userEmail}
                                 userImage={userImage}
                                 assistantPhoto={assistantPhoto}
                             />
@@ -153,7 +155,6 @@ const FullScreenCallUI: React.FC<{
                 onHangUp={() => room.disconnect()}
                 onToggleChat={() => setActiveSidePanel(p => p === 'chat' ? null : 'chat')}
                 onToggleSettings={() => setActiveSidePanel(p => p === 'settings' ? null : 'settings')}
-                onToggleTranscriptions={() => setActiveSidePanel(p => p === 'transcriptions' ? null : 'transcriptions')}
                 isRemoteControlActive={false} onToggleRemoteControl={() => {}} isRemoteControlLoading={false}
                 isRemoteControlInteractive={false} onToggleRemoteControlInteractive={() => {}}
                 isConnectionEstablished={room.state === 'connected'}
@@ -298,6 +299,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
                 room={room}
                 assistant={assistant}
                 userImage={user.image || ''}
+                userEmail={user.email}
                 callType={callData.callType}
                 isLoading={showLoadingState}
                 loadingMessage={loadingMessage}

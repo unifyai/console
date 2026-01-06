@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/user/user";
 import { redirect } from "next/navigation";
-import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { getTranscripts, messageAssistant, getContactIdByEmail, getAssistantOwnerById } from "@/lib/assistants/chat";
 import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
 import { getLiveviewUrl, sendSystemEvent } from "@/lib/assistants/desktop";
 import { listAssistants } from "@/lib/assistants/assistant";
@@ -13,14 +13,15 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     if (!user) {
         redirect('/login');
     }
-
     const apiKey = user.apiKey;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
+            getContactId: await getContactIdByEmail(apiKey),
             getTranscripts: await getTranscripts(apiKey),
-            updateTranscripts: await updateTranscripts(apiKey),
             message: await messageAssistant(apiKey),
+            getAssistantOwnerById: await getAssistantOwnerById(),
         },
         "call": {
             getConnectionDetails: await getCallConnectionDetails(apiKey),
@@ -32,7 +33,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
         }
     };
 
-    const listAssistantsAction = await listAssistants(apiKey);
+    const listAssistantsAction = await listAssistants(apiKey, isOrgContext);
     const assistantsResult = await listAssistantsAction();
 
     if ('detail' in assistantsResult) {
@@ -46,7 +47,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
         notFound();
     }
 
-    const userForClient = { id: user.id, image: user.image };
+    const userForClient = { id: user.id, image: user.image, email: user.email };
 
     return (
         <AssistantCommunicationFullScreen assistant={assistant} assistantActions={assistantActions} user={userForClient} />

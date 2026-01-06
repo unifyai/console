@@ -3,7 +3,7 @@ import { Badge } from "@/components/UI/badge";
 import { Save, Undo2, Loader2, AlertTriangle, CalendarDays, Zap, Minus } from "lucide-react"; 
 import { Task, TaskActions, Status as TaskStatusEnum, Priority as TaskPriorityEnum } from "@/types/assistants/task"; 
 import { Assistant } from '@/types/assistants/assistant';
-import ActionButton from '../../../../Common/Buttons/Action';
+import ActionButton from '@/components/Common/Buttons/Action';
 import { Textarea } from "@/components/UI/textarea";
 import { cn } from '@/lib/utils';
 import {
@@ -25,9 +25,11 @@ interface TaskListItemProps {
     assistant: Assistant;
     updateTask: TaskActions['update'];
     onTaskUpdate: (taskId: number, updatedFields: Partial<Task>) => void;
+    /** Whether the current user can edit this task (based on assistant write permission) */
+    canEditTask?: boolean;
 }
 
-export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: TaskListItemProps) {
+export function TaskListItem({ task, assistant, updateTask, onTaskUpdate, canEditTask = true }: TaskListItemProps) {
 
     const [description, setDescription] = React.useState(task.description);
     const [isEditing, setIsEditing] = React.useState(false);
@@ -222,17 +224,19 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate }: Task
                             value={description}
                             onChange={handleDescriptionChange}
                             placeholder="Task description..."
-                            disabled={isSaving}
+                            disabled={isSaving || !canEditTask}
+                            readOnly={!canEditTask}
                             className={cn(
                                 "text-body text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 resize-none w-full block",
                                 "!border-0 !outline-none !ring-0 !shadow-none p-2",
                                 "min-h-[80px]", 
-                                isEditing ? "bg-background" : "bg-transparent"
+                                isEditing ? "bg-background" : "bg-transparent",
+                                !canEditTask && "cursor-default"
                             )}
                             rows={Math.max(3, description?.split('\n').length ?? 1)}
                         />
                     </ScrollArea>
-                     {(isEditing || isSaving) && (
+                     {canEditTask && (isEditing || isSaving) && (
                         <div className="absolute bottom-2 right-2 flex justify-end gap-1 opacity-0 group-hover/desc:opacity-100 focus-within:opacity-100 transition-opacity z-10">
                             <ActionButton
                                 tooltip="Save changes"

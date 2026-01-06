@@ -5,7 +5,7 @@ import ActionButton from "@/components/Common/Buttons/Action";
 import DeleteDialog from "@/components/Common/Dialogs/Delete";
 import { useTabUI, useTile } from "@/contexts/hooks";
 import { useTabData } from "@/contexts/hooks";
-import { Maximize2, EyeOff, CopyPlus, Grip, X, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
+import { Maximize2, Eye, EyeOff, CopyPlus, Grip, X, Grid2x2, Palette, Loader2, Edit, Trash2, Replace, Check, FolderTree } from "lucide-react";
 import { Badge } from "@/components/UI/badge";
 import Tooltip from "@/components/Common/Misc/Tooltip";
 import ContextSelector from "../Blocks/Table/Content/ContextSelector";
@@ -213,9 +213,9 @@ const TileHeader = ({tileId, tabId, interfaceId, projectId, tabActions, tileActi
                     <>
                         <ActionButton
                             className="cursor-pointer"
-                            onClick={() => syncedTileUIActions?.setVisible(false)}
-                            icon={<EyeOff />}
-                            tooltip={"Hide"}
+                            onClick={() => syncedTileUIActions?.setVisible(tileUIState?.visible === false ? true : false)}
+                            icon={tileUIState?.visible === false ? <EyeOff className="text-muted-foreground" /> : <Eye />}
+                            tooltip={tileUIState?.visible === false ? "Show Tile (currently hidden)" : "Hide Tile"}
                             variant="ghost"
                             size="icon"
                         />

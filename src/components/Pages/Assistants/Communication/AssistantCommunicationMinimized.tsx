@@ -10,7 +10,6 @@ import {
     Maximize2,
     Volume2,
     VolumeX,
-    Loader2,
     AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
@@ -44,7 +43,7 @@ const ControlButton: React.FC<{ tooltip: string; children: React.ReactNode; clas
                 <TooltipTrigger asChild>
                     {/* This span allows hover events for the tooltip even when the button is disabled. */}
                     <span>
-                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} {...props}>
+                        <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white", className)} onPointerDown={(e) => e.stopPropagation()} aria-label={tooltip} {...props}>
                             {children}
                         </Button>
                     </span>
@@ -66,7 +65,6 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
     const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
     const showLoadingState = isConnecting || isWaitingForAssistant;
     const loadingMessage = isConnecting ? "Connecting..." : `Waiting for ${assistant.first_name}...`;
-    const isAudioOnly = callType === 'audio';
 
     if (connectionError) {
         return (
@@ -120,15 +118,13 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
                 >
                     {isSpeakerMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                 </ControlButton>
-                {!isAudioOnly && (
-                    <ControlButton 
-                        tooltip={!isCallConnected ? "Available after connecting" : (camToggle.enabled ? "Turn Off Camera" : "Turn On Camera")}
-                        {...camToggle.buttonProps}
-                        disabled={!isCallConnected || camToggle.buttonProps.disabled} 
-                    >
-                        {camToggle.enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
-                    </ControlButton>
-                )}
+                <ControlButton 
+                    tooltip={!isCallConnected ? "Available after connecting" : (camToggle.enabled ? "Turn Off Camera" : "Turn On Camera")}
+                    {...camToggle.buttonProps}
+                    disabled={!isCallConnected || camToggle.buttonProps.disabled} 
+                >
+                    {camToggle.enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+                </ControlButton>
             </div>
              {/* Expand Button */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">

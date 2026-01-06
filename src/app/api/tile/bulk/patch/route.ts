@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
@@ -30,10 +30,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ results: [], errors: [] }, { status: 200 });
   }
 
-  const apiKeyOrError = await requireApiKey(request);
-  if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-  const apiKey = apiKeyOrError;
-
+  // Get API key from session (fallback to header for backwards compatibility)
+  const user = await getCurrentUser();
+  const apiKey = user?.apiKey || request.headers.get("apiKey");
+  
+  if (!apiKey) {
+    return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+  }
   const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
 
   const results: any[] = [];
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
         }
 
         const controller = new AbortController();
-        const ttl = setTimeout(() => controller.abort(), 30000);
+        const ttl = setTimeout(() => controller.abort(), 60000);
         try {
           const res = await fetch(url, {
             method: "PATCH",
@@ -114,5 +117,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ results, errors }, { status: 200 });
 }
-
-

@@ -34,22 +34,39 @@ export function useAssistantContactManager({
     const [confirmDelete, setConfirmDelete] = React.useState<'email' | 'phone' | 'whatsapp' | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
-
     React.useEffect(() => {
         if (isOpen) {
-            const currentEmail = getValues("email");
-            if (currentEmail && currentEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-                setEmailLocalPart(currentEmail.substring(0, currentEmail.length - EMAIL_DOMAIN_WITH_AT.length));
+            if (assistant.email) {
+                const currentEmail = getValues("email");
+                if (currentEmail && currentEmail.endsWith(EMAIL_DOMAIN_WITH_AT)) {
+                    setEmailLocalPart(currentEmail.substring(0, currentEmail.length - EMAIL_DOMAIN_WITH_AT.length));
+                } else {
+                    setEmailLocalPart(currentEmail || '');
+                }
             } else {
-                setEmailLocalPart(currentEmail || '');
+                const baseLocalPart = `${assistant.first_name}.${assistant.surname}`
+                    .toLowerCase()
+                    .replace(/\s+/g, '.')
+                    .replace(/[^a-z0-9.]/g, '');
+
+                let finalLocalPart = baseLocalPart;
+                let counter = 1;                
+                while (allAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
+                    finalLocalPart = `${baseLocalPart}${counter}`;
+                    counter++;
+                }
+                setEmailLocalPart(finalLocalPart);
+                setValue("email", `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, { shouldValidate: true, shouldDirty: true });
+                setValue("isEmailAdded", true, { shouldDirty: true });
+                setValue("emailManuallyEdited", false);
             }
-            // Reset confirm delete state when dialog opens/changes assistant
+
             setConfirmDelete(null);
             if (initialTab) {
                 setActiveTab(initialTab);
             }
         }
-    }, [isOpen, assistant, getValues, initialTab]);
+    }, [isOpen, assistant, initialTab, allAssistantEmails, setValue, getValues]);
 
     const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const newLocalPart = event.target.value.replace(/[@\s]/g, '');
@@ -76,7 +93,6 @@ export function useAssistantContactManager({
             setConfirmDelete(null);
             onSuccess(); // This closes the dialog & refreshes assistants list
         } catch (error: any) {
-            console.error("[useAssistantContactManager] Delete Error:", error.message);
             toast.error(`Failed to delete contact. Please try again.`, { id: toastId });
         } finally {
             setIsDeleting(false);

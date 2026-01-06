@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
 import { updateFavourite, deleteFavourite } from "@/lib/interfaces/favourites";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKeyOrError = await requireApiKey(req);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    const apiKey = req.headers.get("apiKey");
+    
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key required" }, { status: 401 });
+    }
     
     const body = await req.json();
     const updateFav = await updateFavourite(apiKey);
@@ -20,9 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const apiKeyOrError = await requireApiKey(req);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    const apiKey = req.headers.get("apiKey");
+    
+    if (!apiKey) {
+      return NextResponse.json({ error: "API key required" }, { status: 401 });
+    }
     
     const deleteFav = await deleteFavourite(apiKey);
     const success = await deleteFav(Number(params.id));
@@ -31,4 +34,4 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     console.error("/api/user/favourites/[id] DELETE error", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-} 
+}

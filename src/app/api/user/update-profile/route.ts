@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, lastName, jobTitle } = body;
+    const { name, lastName, jobTitle, bio, timezone } = body;
 
     // Update user properties in db
     const userUpdateRequest: UserUpdateRequest = {
@@ -20,9 +20,11 @@ export async function POST(request: NextRequest) {
       name,
       last_name: lastName,
       job_title: jobTitle,
+      bio: bio,
+      timezone: timezone || null,
       image: null // We don't update image in onboarding
     };
-    
+
     const response = await updateUser(userUpdateRequest);
 
     // Sync name change with Stripe (if provided)
@@ -37,4 +39,4 @@ export async function POST(request: NextRequest) {
     console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

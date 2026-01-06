@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user/user";
 
 export async function POST(request: NextRequest) {
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -7,9 +8,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Server configuration error." }, { status: 500 });
     }
 
-    const apiKey = request.headers.get("apiKey");
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
     if (!apiKey) {
-        return NextResponse.json({ detail: "API key is missing" }, { status: 401 });
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
     }
 
     let requestBody;
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { assistant_id, message } = requestBody;
+    const { assistant_id, contact_id, message } = requestBody;
 
     if (!assistant_id || !message) {
         return NextResponse.json({ detail: "Missing 'assistant_id' or 'message'" }, { status: 400 });
@@ -28,12 +32,9 @@ export async function POST(request: NextRequest) {
     const orchestraUrl = process.env.ORCHESTRA_URL || "";
     const is_staging = orchestraUrl.includes("staging");
 
-    const webhook_url = (
-        "https://us-central1-gcp-project-runtime.cloudfunctions.net/unify-message-webhook"
-        + (is_staging ? "-staging" : "")
-    );
+    const webhook_url = `https://unity-adapters-${is_staging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/message`;
 
-    const payload = { "assistant_id": assistant_id, "body": message };
+    const payload = { "assistant_id": assistant_id, "contact_id": contact_id, "body": message };
 
     try {
         const webhookResponse = await fetch(

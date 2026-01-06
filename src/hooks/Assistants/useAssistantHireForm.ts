@@ -1,14 +1,16 @@
 import * as React from 'react';
 import { useForm } from "react-hook-form";
-import { AssistantFormData, AssistantActions, Voice, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AvailableSocialPlatform, AssistantUpdatePayload, SocialAccount, PreHireChatMessage, UserLocalDesktop } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, Assistant, AssistantPreset, PhotoUploadResponse, VoiceOption, AssistantUpdatePayload, SocialAccount, UserLocalDesktop, AssistantHiringSufficientFunds } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from "@/constants/assistants/voice_presets.js";
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
+import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { AvailablePhoneCountry } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE, EMAIL_DOMAIN_WITH_AT, FALLBACK_DEFAULT_COUNTRY_CODE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
+import { v4 as uuidv4 } from 'uuid';
 
 export function useAssistantHireForm(
     assistantActions: AssistantActions,
@@ -18,18 +20,7 @@ export function useAssistantHireForm(
     isDialogOpen?: boolean
 ) {
     const toastIdRef = React.useRef<string | number | undefined>(undefined);
-
-    // Find a default voice that matches the current PRIMARY_VOICE_PROVIDER
-    const getDefaultVoiceForProvider = () => {
-        let suitableDefault = (voicePresetsConstant as Voice[]).find(vp => vp.provider === PRIMARY_VOICE_PROVIDER);
-        if (!suitableDefault && voicePresetsConstant.length > 0) {
-            suitableDefault = (voicePresetsConstant as Voice[])[0]; // Fallback to first preset if no provider match
-        }
-        if (!suitableDefault) { // Absolute fallback if voicePresetsConstant is empty
-            return { voice_id: '', name: 'Default', language: 'en', description: 'Default voice', gender: 'female', provider: PRIMARY_VOICE_PROVIDER };
-        }
-        return suitableDefault;
-    };
+    
     const defaultVoice = getDefaultVoiceForProvider();
 
     const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<AvailablePhoneCountry[]>([]);
@@ -87,29 +78,33 @@ export function useAssistantHireForm(
     React.useEffect(() => {
         async function loadCountries() {
             setIsLoadingCountries(true);
-            const countries = await assistantActions.contact.listAvailablePhoneCountries();
-            setAvailablePhoneCountries(countries);
-            // Optionally set a default country from the fetched list if needed
-            // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
-            if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                 setValue("phone_country", countries[0].code);
-            } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                // Ensure the default value is set explicitly if it exists
-                setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
-            } else if (countries.length === 0) {
-                 // Handle case where no countries are returned (should be at least US from fallback in fetch)
-                 const usName = getCountryName("US") || "United States";
-                 const usFlag = getCountryFlag("US");
-                 setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
-                 setValue("phone_country", "US");
+            try {
+                const countries = await assistantActions.contact.listAvailablePhoneCountries();
+                setAvailablePhoneCountries(countries);
+                // Optionally set a default country from the fetched list if needed
+                // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
+                if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                    setValue("phone_country", countries[0].code);
+                } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
+                    // Ensure the default value is set explicitly if it exists
+                    setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
+                } else if (countries.length === 0) {
+                    throw new Error("No countries returned");
+                }
+            } catch (error) {
+                // Fallback for error or empty list
+                const usName = getCountryName("US") || "United States";
+                const usFlag = getCountryFlag("US");
+                setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
+                setValue("phone_country", "US");
+            } finally {
+                setIsLoadingCountries(false);
             }
-            setIsLoadingCountries(false);
         }
         if(isDialogOpen) {
             loadCountries();
         }
     }, [isDialogOpen, setValue]);
-
 
     const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -125,12 +120,10 @@ export function useAssistantHireForm(
                     if (Array.isArray(result)) {
                         setFetchedAssistantEmails(result);
                     } else {
-                        console.error(`[useAssistantHireForm] ${(result as ResponseProps).detail || "Could not fetch existing assistant emails."}`);
                         setFetchedAssistantEmails([]);
                     }
                 })
                 .catch(err => {
-                    console.error("[useAssistantHireForm] Failed to fetch assistant emails.");
                     setFetchedAssistantEmails([]);
                 })
                 .finally(() => {
@@ -262,7 +255,6 @@ export function useAssistantHireForm(
         );
 
         if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
-            console.warn(`Voice ID ${providerSpecificVoiceId} found in assistant preset but not in voice_presets.js. Using fallback.`);
             selectedPresetVoiceDetails = {
                 voice_id: providerSpecificVoiceId, name: "Preset Voice", description: "Preset voice",
                 gender: preset.gender === 'male' ? 'male' : 'female', language: 'en', provider: finalProvider,
@@ -274,7 +266,6 @@ export function useAssistantHireForm(
                  selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
                  selectedPresetVoiceDetails.is_preset = true;
             }
-            console.warn(`No corresponding voice_id found in preset. Using default voice.`);
         }
 
         setValue("voice_id", selectedPresetVoiceDetails.voice_id);
@@ -528,7 +519,6 @@ export function useAssistantHireForm(
              else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
 
              toastIdRef.current = undefined;
-             console.error(`[useAssistantHireForm] Update process failed: ${error.message}`, error);
         } finally {
             setIsSubmitting(false);
         }
@@ -568,6 +558,29 @@ export function useAssistantHireForm(
                 throw new Error("No voice selected.");
             }
 
+            // Generate initial greeting if no pre-hire chat exists
+            let finalChatHistory = chatHistory;
+            if (!chatHistory || chatHistory.length === 0) {
+                try {
+                    const greetingResponse = await fetch('/api/assistant/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'post-hire-greeting',
+                            assistantName: `${data.first_name} ${data.surname}`,
+                            assistantAge: data.age,
+                            assistantBio: data.about,
+                            assistantNationality: data.nationality,
+                            preHireChat: []
+                        }),
+                    });
+                    if (!greetingResponse.ok) throw new Error("Failed to generate assistant's first message.");
+                    const { content } = await greetingResponse.json();
+                    if (!content) throw new Error("Generated an empty greeting.");
+                    finalChatHistory = [{ id: uuidv4(), role: 'assistant', content, timestamp: new Date() }];
+                } catch (greetingError) {/* no-op */}
+            }
+
             // Registering voices / uploading custom photos/videos
             let finalImageUrlToSend: string | null = data.profile_photo_url || null;
             let finalVideoUrlToSend: string | null = data.profile_video_url || null;
@@ -605,7 +618,7 @@ export function useAssistantHireForm(
             }
             
             const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
-            const formattedPreHireChat = chatHistory?.map(({ role, content }) => ({ role, msg: content }));
+            const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({ role, msg: content }));
             const voice_mode = data.fast_mode ? "sts" : "tts";
 
             // Loading message updated to finalizing hire
@@ -620,7 +633,7 @@ export function useAssistantHireForm(
                 toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
-                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, chatHistory);
+                if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, finalChatHistory);
             } else {
                 const errorDetail = (assistantCreationResult as ResponseProps).detail || "Failed to hire assistant (unknown error)";
                 throw new Error(errorDetail);
@@ -644,7 +657,6 @@ export function useAssistantHireForm(
                  if(toastIdRef.current) toast.dismiss(toastIdRef.current);
             }
             toastIdRef.current = undefined;
-            console.error(`[useAssistantHireForm] Hiring process failed: ${error.message}`, error);
 
         } finally {
             setIsSubmitting(false);
@@ -655,7 +667,6 @@ export function useAssistantHireForm(
 
     const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
         if (isSubmitting || isCheckingBalance || isLoadingEmails || isLoadingCountries) {
-            if(isLoadingEmails || isLoadingCountries)
             return;
         }
 
@@ -669,32 +680,17 @@ export function useAssistantHireForm(
         toastIdRef.current = toast.loading("Checking your balance...");
 
         try {
-            const fetchBalance = async () => {
-                try {
-                    const balanceData  = await fetch(`/api/billing/balance`). then((response) => response.json());
-                    if (!balanceData) return {detail: "Failed to fetch balance data"};
-                    return balanceData as {balance: string, fullBalance: number}
-                } catch (error) {
-                    console.error("Error fetching balance:", error);
-                    return {detail: "Failed to fetch balance data"};
-                }
-            };
+            const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE); 
 
-            const balanceResult = await fetchBalance();
-
-            if ('detail' in balanceResult || !balanceResult) {
-                console.error(`[useAssistantHireForm] ${(balanceResult as ResponseProps)?.detail || "Failed to check balance."}`);
+            if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
                 toast.error("Failed to check balance.", { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 setIsCheckingBalance(false);
                 return;
             }
 
-            const currentBalance = (balanceResult as {balance: string, fullBalance: number}).fullBalance;
-            const totalOnboardingFee = ASSISTANT_ONBOARDING_FEE;
-
-
-            if (currentBalance < totalOnboardingFee) {
+            const hasSufficientFunds = hiringFundsResponse as AssistantHiringSufficientFunds;
+            if (!hasSufficientFunds.sufficient) {
                 setShowInsufficientFundsHint(true);
                 if(toastIdRef.current) toast.dismiss(toastIdRef.current);
                 toastIdRef.current = undefined;
@@ -703,7 +699,6 @@ export function useAssistantHireForm(
             }
         } catch (error) {
             toast.error("Error during balance check process.", { id: toastIdRef.current });
-            console.error("[useAssistantHireForm] Balance check/hire attempt error:", error);
             toastIdRef.current = undefined;
         } finally {
             setIsCheckingBalance(false);

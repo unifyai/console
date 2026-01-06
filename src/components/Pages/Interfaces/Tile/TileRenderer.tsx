@@ -2,7 +2,7 @@
 
 import React, { lazy, Suspense, useMemo } from "react";
 import { useEnsureTileDataBeforeRender } from "@/utils/interfaces/tileDependencies";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { Loader2 } from "lucide-react";
 import { LogsActions, FieldsActions, DerivedEntryActions, ContextActions, CodeActions, GranularTileActions, ProjectsActions, FileActions } from "@/types/interfaces/grid";
 import { useTileMeta } from "@/contexts/hooks/tile/useTileMeta";
 
@@ -66,11 +66,11 @@ const TileRenderer: React.FC<TileRendererProps> = ({
     return null;
   }
         
-  // Render skeleton if data isn't ready
+  // Render spinner if data isn't ready
   if (shouldShowSkeleton) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <SkeletonLoader />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         {DEBUG_TILE_DEPENDENCIES && renderState?.missingDependencies?.length && renderState?.missingDependencies?.length > 0 && (
           <div className="absolute bottom-2 left-2 text-caption text-muted-foreground">
             <div>Waiting for:</div>
@@ -87,7 +87,7 @@ const TileRenderer: React.FC<TileRendererProps> = ({
   return (
     <Suspense fallback={
       <div className="w-full h-full flex items-center justify-center">
-        <SkeletonLoader />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     }>
       <Tile

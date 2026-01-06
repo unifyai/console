@@ -71,8 +71,6 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
                     let liveviewUrl = latestLog.entries.liveview_url;
                     
                     const urlObj = new URL(liveviewUrl);
-                    urlObj.searchParams.set('resize', 'scale');
-                    urlObj.searchParams.set('autoconnect', '1');
                     urlObj.searchParams.set('password', userApiKey); // Use the user's key for the VNC password
                     
                     const finalUrl = urlObj.toString();
@@ -110,9 +108,8 @@ export const sendSystemEvent = async () => {
         const orchestraUrl = process.env.ORCHESTRA_URL || "";
         const isStaging = orchestraUrl.includes("staging");
 
-        const baseWebhookUrl = "https://us-central1-gcp-project-runtime.cloudfunctions.net/unity-system-event-webhook";
-        const webhookUrl = isStaging ? `${baseWebhookUrl}-staging` : baseWebhookUrl;
-
+        const webhookUrl = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unity/system-event`;
+        
         const payload = {
             assistant_id: parseInt(assistantId), // The webhook likely expects an integer ID
             event_type: eventType,

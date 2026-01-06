@@ -40,12 +40,12 @@ export function useListInterfacesQuery(
       return Array.isArray(json) ? json : [];
     },
     enabled: !!projectId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - prevents duplicate fetches
+    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
     retry: 2, // Retry twice on failure
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false, // Don't refetch on network reconnect (slow backend)
+    refetchOnReconnect: false, // Dont refetch on network reconnect (slow backend)
   });
 }
 
@@ -64,6 +64,8 @@ export function useGetInterfaceQuery(
       return actions.getByName(projectId, interfaceName);
     },
     enabled: !!projectId && !!interfaceName,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -81,6 +83,8 @@ export function useGetInterfaceByIdQuery(
       return actions.getById(interfaceId);
     },
     enabled: !!interfaceId,
+    staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
   });
 }
 
@@ -117,6 +121,8 @@ export function useGetInterfaceUnifiedQuery(
       return null;
     },
     enabled: usingId || usingPath,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

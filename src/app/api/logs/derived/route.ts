@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
     
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -30,7 +35,7 @@ export async function POST(request: NextRequest) {
             },
         );
         clearTimeout(ttl);
-        if (!res.ok) {
+        if (!res.ok && DEBUG_API) {
             console.warn(JSON.stringify({ route: "/api/logs/derived", method: "POST", upstream: `${baseUrl}/logs/derived`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
         }
         return res;
@@ -46,12 +51,16 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     const body = await request.json();
     
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -70,7 +79,7 @@ export async function PUT(request: NextRequest) {
             },
         );
         clearTimeout(ttl);
-        if (!res.ok) {
+        if (!res.ok && DEBUG_API) {
             console.warn(JSON.stringify({ route: "/api/logs/derived", method: "PUT", upstream: `${baseUrl}/logs/derived`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
         }
         return res;

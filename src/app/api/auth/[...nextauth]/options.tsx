@@ -4,8 +4,6 @@ import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { OrchestraAdapter } from "@/lib/orchestra/orchestra-adapter";
 import { TokensBreakdownPlot } from "@/components/Pages/Usage/Plots/TokensBreakdown";
-import { createConsoleCookie, clearConsoleCookie } from "@/lib/auth/consoleCookie";
-import { getUserByEmail } from "@/lib/user/user";
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
@@ -136,30 +134,10 @@ const authOptions: AuthOptions = {
               session.user.email = token.email;
               session.user.name = token.name;
               session.user.image = token.picture || null;
-              // Issue short-lived HttpOnly cookie for API auth bridging (server-only use)
-              if (session.user.email) {
-                try {
-                  // Attempt to fetch Orchestra apiKey once per session refresh; ignore errors
-                  let apiKey: string | undefined = undefined;
-                  try {
-                    const user = await getUserByEmail(session.user.email);
-                    apiKey = user?.apiKey || undefined;
-                  } catch {}
-                  createConsoleCookie(session.user.email, apiKey);
-                } catch {}
-              }
             }
             return session;
           },
     }
-};
-
-// Ensure cookie cleanup on sign-out
-// @ts-ignore - NextAuth allows events property
-authOptions.events = {
-  async signOut() {
-    try { clearConsoleCookie(); } catch {}
-  }
 };
 
 export default authOptions;

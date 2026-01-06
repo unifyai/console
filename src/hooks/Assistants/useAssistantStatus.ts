@@ -26,7 +26,6 @@ export function useAssistantStatus(
                 // Don't log error here as it can be noisy, the action itself logs.
                 return { assistantId: assistant.agent_id, status: null };
             } catch (error) {
-                console.error(`Error fetching status for assistant ${assistant.agent_id} in bulk fetch:`, error);
                 return { assistantId: assistant.agent_id, status: null };
             }
         });

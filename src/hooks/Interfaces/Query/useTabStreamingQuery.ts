@@ -151,15 +151,32 @@ export function useTabStreamingQuery(
     return () => clearTimeout(t);
   }, [activeTabName]);
 
-  // Cancel heavy queries immediately on tab change
+  // Cancel heavy queries for OTHER tabs when active tab changes
+  // We need to preserve the query for the NEW active tab
+  const prevActiveTabRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeTabName) return;
-    queryClient.cancelQueries({
-      predicate: (q: any) => {
-        const k0 = q?.queryKey?.[0] as string;
-        return k0 === 'tabCompleteData' || k0 === 'logs';
-      }
-    });
+    
+    // Only cancel queries if we're switching from one tab to another
+    const prevTab = prevActiveTabRef.current;
+    prevActiveTabRef.current = activeTabName;
+    
+    if (prevTab && prevTab !== activeTabName) {
+      // Cancel queries only for the PREVIOUS tab, not the new one
+      queryClient.cancelQueries({
+        predicate: (q: any) => {
+          const k0 = q?.queryKey?.[0] as string;
+          const tabName = q?.queryKey?.[2] as string;
+          // Only cancel if it's a tab query for the OLD tab
+          if (k0 === 'tabCompleteData') {
+            return tabName === prevTab;
+          }
+          // For logs queries, check if they were for the old tab's tiles
+          // We can't easily determine this, so just don't cancel logs queries
+          return false;
+        }
+      });
+    }
   }, [activeTabName, queryClient]);
 
   // Determine whether active query should be enabled
@@ -241,7 +258,7 @@ export function useTabStreamingQuery(
     try {
       tiles.forEach((t) => {
         if (!t?.id) return;
-        // initTile is idempotent (skips if exists); provide minimal initial state
+        // initTile will create tile if missing, or update type/name if they're missing
         initTile(String(tabId), String(t.id), {
           id: String(t.id),
           name: t.name,
@@ -253,6 +270,7 @@ export function useTabStreamingQuery(
           tabId: String(tabId),
         } as any);
       });
+      
       // Seed React Query tiles list to satisfy any listTiles consumers without refetch
       try {
         queryClient.setQueryData(["tiles", String(tabId), null], tiles);

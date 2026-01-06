@@ -41,7 +41,21 @@ export const selectTileByTabIdAndName = (state: IStoreState, tabId: string, name
  */
 export const selectTilesForTab = (state: IStoreState, tabId: string) => {
   const ids = selectTileIdsForTab(state, tabId);
-  return ids.map(id => state.tilesById?.[id]).filter(Boolean);
+  const tiles = ids.map(id => state.tilesById?.[id]);
+  const filtered = tiles.filter(Boolean);
+  
+  // Debug: log when tiles are missing from tilesById
+  if (tiles.length !== filtered.length) {
+    const missingIds = ids.filter(id => !state.tilesById?.[id]);
+    console.warn('[selectTilesForTab] Missing tiles in tilesById:', {
+      tabId,
+      tileIds: ids,
+      missingIds,
+      tilesById: Object.keys(state.tilesById || {})
+    });
+  }
+  
+  return filtered;
 };
 
 /**
@@ -63,6 +77,16 @@ export const selectVisibleTilesForTab = (state: IStoreState, tabId: string) => {
   return ids
     .map(id => state.tilesById?.[id])
     .filter(tile => tile && tile.visible !== false);
+};
+
+/**
+ * Select all hidden tiles for a specific tab
+ */
+export const selectHiddenTilesForTab = (state: IStoreState, tabId: string) => {
+  const ids = selectTileIdsForTab(state, tabId);
+  return ids
+    .map(id => state.tilesById?.[id])
+    .filter(tile => tile && tile.visible === false);
 };
 
 /**

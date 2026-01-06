@@ -84,8 +84,11 @@ async function buildTableDataItem(
   previousLogs?: LogProps[] | GroupedLogProps[]
 ): Promise<TableDataItem> {
 
+  // Check if fields indicates context not found (from buildServerData.ts)
+  const fieldsContextNotFound = '__contextNotFound' in fields && (fields as any).__contextNotFound === true;
+  
   // Process column contexts
-  const prefixes = Object.keys(fields).map(
+  const prefixes = Object.keys(fields).filter(k => k !== '__contextNotFound').map(
     key => key.includes("/") ? key.split("/").slice(0, -1).join("/") : null
   ).filter(key => key != null);
 
@@ -120,6 +123,9 @@ async function buildTableDataItem(
   // Extract total count using utility function
   const totalCount = getTotalCountFromLogsResponse(logsData);
   const error = "detail" in logsData ? logsData["detail"] : undefined;
+  // Context not found if either fields or logs returned 404
+  const logsContextNotFound = "contextNotFound" in logsData ? logsData["contextNotFound"] as boolean : false;
+  const contextNotFound = fieldsContextNotFound || logsContextNotFound || undefined;
 
   // Construct table data item (without metrics and boundaries for now)
   const tableDataItem: TableDataItem = {
@@ -132,7 +138,8 @@ async function buildTableDataItem(
     params,
     isLoading: false,
     newCells: newCells,
-    error: error
+    error: error,
+    contextNotFound: contextNotFound,
   };
 
   return tableDataItem;
@@ -231,7 +238,18 @@ export async function fetchAndBuildTableDataItem(
       const visibleLeafIds = leafIds.filter((id) => !hiddenSet.has(id));
       // Limit the subset to a reasonable number to keep payload small
       const MAX_SUBSET = 60;
-      const subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      let subsetIds = visibleLeafIds.slice(0, MAX_SUBSET);
+      
+      // Always include assistant_id fields for Contacts tables (needed for contact sync)
+      if (projectId === "Assistants" && tile.context?.endsWith("/Contacts")) {
+        const syncRequiredFields = ["_assistant_id", "assistant_id"];
+        for (const field of syncRequiredFields) {
+          if (!subsetIds.includes(field)) {
+            subsetIds = [...subsetIds, field];
+          }
+        }
+      }
+      
       if (subsetIds.length > 0) {
         // Merge back column_context for the API
         const subset = subsetIds
@@ -265,6 +283,25 @@ export async function fetchAndBuildTableDataItem(
     }));
     perfEnd(pFetch, { status: res.status });
 
+    // Handle 404 (context not found) specially - don't throw, return contextNotFound flag
+    if (res.status === 404) {
+      const errorData = await res.json().catch(() => ({ detail: `Context not found` }));
+      console.warn('[buildTableDataItem] Context not found for tile:', tile.name, errorData.detail);
+      return {
+        columnContexts: [],
+        fields,
+        totalCount: 0,
+        entriesProperties: [],
+        paramsProperties: [],
+        logs: [],
+        params: {} as any,
+        isLoading: false,
+        error: errorData.detail || `Context '${tile.context}' not found`,
+        contextNotFound: true,  // Key flag for overlay
+        newCells: [],
+      } as TableDataItem;
+    }
+    
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ detail: `Logs ${res.status}` }));
       throw new Error(errorData.detail || `Failed to fetch logs: ${res.status}`);
@@ -273,9 +310,11 @@ export async function fetchAndBuildTableDataItem(
     logsData = await res.json();
   } catch (err: any) {
     const errorMsg = err?.message || 'Failed to fetch logs';
+    // Check if error message indicates context not found (from our 404 handler or API)
+    const isContextNotFound = errorMsg.toLowerCase().includes('not found');
     console.error('[buildTableDataItem] Logs fetch failed for tile:', tile.name, errorMsg);
     
-    // Gracefully surface a minimal item so the tile can display Retry
+    // Gracefully surface a minimal item so the tile can display Retry or Context Not Found
     return {
       columnContexts: [],
       fields,
@@ -286,6 +325,7 @@ export async function fetchAndBuildTableDataItem(
       params: {} as any,
       isLoading: false,
       error: errorMsg,
+      contextNotFound: isContextNotFound,
       newCells: [],
     } as TableDataItem;
   }

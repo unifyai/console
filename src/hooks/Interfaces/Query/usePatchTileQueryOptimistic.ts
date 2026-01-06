@@ -248,8 +248,20 @@ export function usePatchTileQueryOptimistic() {
       if (tileType === "Table" && rebuildTableData) {
         try {
 
-          // Get fields from cache
-          const fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]) || {} as LogFieldsResponseProps;
+          // Get fields from cache - but check if they exist for the NEW context!
+          // The fetchOrBuildFields call above used the OLD tile data, so we may need to fetch again
+          let fields = queryClient.getQueryData<LogFieldsResponseProps>(["fields", projectId, optimisticTileData?.context]);
+          
+          // If fields not in cache for new context, fetch them now
+          if (!fields && optimisticTileData?.context) {
+            fields = await queryClient.fetchQuery({
+              queryKey: ["fields", projectId, optimisticTileData.context],
+              queryFn: () => fieldsActions.get(projectId, optimisticTileData.context ?? null),
+            });
+          }
+          
+          // Fallback to empty fields if still not available
+          fields = fields || {} as LogFieldsResponseProps;
           
           // Build the new TableDataItem
           if (optimisticTileData && optimisticTile) {
@@ -289,6 +301,8 @@ export function usePatchTileQueryOptimistic() {
           
             // Update the TableDataItem in the cache
             queryClient.setQueryData(['tableDataItem', optimisticTileData.id], tableDataItem);
+            // Invalidate internal data query so dependency manager re-checks render readiness
+            queryClient.refetchQueries({ queryKey: ["internalData", optimisticTileData.id], type: 'active' });
           }
         } catch (error) {
           console.error("Error building optimistic TableDataItem:", error);

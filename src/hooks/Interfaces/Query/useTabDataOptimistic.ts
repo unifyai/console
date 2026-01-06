@@ -268,6 +268,7 @@ export function useTabDataOptimistic() {
               const tableTileIndex = tableTilesData.findIndex(t => t.id === tileId);
               if (tableTileIndex === -1) throw new Error(`Table tile not found: ${tileId}`);
               const fields = fieldsArray[tableTileIndex];
+              console.log(`[processTile] ${tileData.name}: tableTileIndex=${tableTileIndex}, fieldsArray.length=${fieldsArray.length}, fields=${JSON.stringify(fields ? Object.keys(fields).slice(0, 3) : null)}...`);
               const tableDataItem = await buildOptimisticTableDataItem(
                 dependencies,
                 tileData,
@@ -296,9 +297,14 @@ export function useTabDataOptimistic() {
               break;
           }
         } catch (error: any) {
-          showErrorToast(error, `Error processing tile ${tileData.name}`);
+          const errorMsg = error?.message || 'Failed to load';
+          // Don't show toast for "not found" errors - those are expected when context is deleted
+          if (!errorMsg.toLowerCase().includes('not found')) {
+            showErrorToast(error, `Error processing tile ${tileData.name}`);
+          }
           if (tileData.type === 'Table') {
-            tileDataItems[tileId] = {
+            const isContextNotFound = errorMsg.toLowerCase().includes('not found');
+            const tableDataItem = {
               columnContexts: [],
               fields: {} as any,
               totalCount: 0,
@@ -307,9 +313,25 @@ export function useTabDataOptimistic() {
               logs: [],
               params: {} as any,
               isLoading: false,
-              error: error?.message || 'Failed to load',
+              error: errorMsg,
+              contextNotFound: isContextNotFound,
               newCells: [],
             } as any;
+            tileDataItems[tileId] = tableDataItem;
+            // Also update the cache so dependency manager sees it
+            queryClient.setQueryData(['tableDataItem', tileId], tableDataItem);
+            queryClient.refetchQueries({ queryKey: ['internalData', tileId], type: 'active' });
+          } else if (tileData.type === 'Plot') {
+            // Handle Plot tile errors - store error state so UI can show retry
+            const plotDataItem = {
+              plotLogs: [],
+              plotFields: {} as any,
+              error: errorMsg,
+              isLoading: false,
+            };
+            tileDataItems[tileId] = plotDataItem;
+            // Update cache so the plot component can display the error
+            queryClient.setQueryData(['plotDataItem', tileId], plotDataItem);
           }
         }
       };

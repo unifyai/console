@@ -17,6 +17,8 @@ interface AssistantSecretsManagerProps {
     onClose: () => void;
     assistantContext: string | null;
     secretActions: SecretActions;
+    /** Whether the current user can create/edit/delete secrets */
+    canWrite?: boolean;
 }
 
 const SecretsListSkeleton = () => (
@@ -32,6 +34,7 @@ export function AssistantSecretsManager({
     onClose,
     assistantContext,
     secretActions,
+    canWrite = true,
 }: AssistantSecretsManagerProps) {
     const {
         secrets,
@@ -90,9 +93,11 @@ export function AssistantSecretsManager({
     const renderEmptyState = () => (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <h3 className="text-lg font-medium">No secret found</h3>
-            <Button variant="outline" className="mt-4" onClick={handleStartCreate}>
-                Add a secret
-            </Button>
+            {canWrite && (
+                <Button variant="outline" className="mt-4" onClick={handleStartCreate}>
+                    Add a secret
+                </Button>
+            )}
         </div>
     );
 
@@ -103,40 +108,44 @@ export function AssistantSecretsManager({
                 <ScrollArea className="flex-1 p-2">
                     {isLoading ? <SecretsListSkeleton /> : (
                         <div className="space-y-1">
-                            {secrets.map((secret) => (
-                                <div
-                                    key={secret.log_id}
-                                    className={cn(
-                                        "flex items-center justify-between p-2 rounded-md cursor-pointer",
-                                        selectedSecret?.log_id === secret.log_id
-                                            ? "bg-muted font-semibold"
-                                            : "hover:bg-muted/50"
-                                    )}
-                                    onClick={() => handleSelect(secret)}
-                                >
-                                    <span className="truncate text-sm">{secret.name}</span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteSecret(secret);
-                                        }}
-                                        disabled={isSubmitting}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+                                            {secrets.map((secret) => (
+                                                <div
+                                                    key={secret.log_id}
+                                                    className={cn(
+                                                        "flex items-center justify-between p-2 rounded-md cursor-pointer",
+                                                        selectedSecret?.log_id === secret.log_id
+                                                            ? "bg-muted font-semibold"
+                                                            : "hover:bg-muted/50"
+                                                    )}
+                                                    onClick={() => handleSelect(secret)}
+                                                >
+                                                    <span className="truncate text-sm">{secret.name}</span>
+                                                    {canWrite && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteSecret(secret);
+                                                            }}
+                                                            disabled={isSubmitting}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                     )}
                 </ScrollArea>
-                <div className="p-2 border-t">
-                    <Button variant="outline" className="w-full" onClick={handleStartCreate} disabled={isSubmitting}>
-                        New
-                    </Button>
-                </div>
+                {canWrite && (
+                    <div className="p-2 border-t">
+                        <Button variant="outline" className="w-full" onClick={handleStartCreate} disabled={isSubmitting}>
+                            New
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Right Panel: Form */}

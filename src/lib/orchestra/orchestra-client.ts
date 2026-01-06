@@ -1,8 +1,8 @@
 import axios from "axios";
 
-// Fixed timeout to prevent long hangs that block SSR.
-// Keep this conservative; adjust in code if needed rather than via env.
-const ADMIN_TIMEOUT_MS = 10_000;
+// Admin client timeout in milliseconds.
+// Using a higher value here avoids spurious auth failures when Orchestra is slow.
+const ADMIN_TIMEOUT_MS = 60_000;
 
 export const OrchestraAdminClient = axios.create({
 	baseURL: process.env.ORCHESTRA_URL + "/v0/admin",

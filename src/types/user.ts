@@ -16,18 +16,36 @@ export interface User {
 	name: string;
 	lastName: string;
 	jobTitle: string;
+	bio: string;
 	image: string;
 	timezone: string | null;
 	email: string;
+	phone_number: string | null;
 	createdAt: string;
 	apiKey: string;
 	stripe_customer_id: string,
 	organization: {
 		name: string;
-		level: string;
-	}
+		role_id: number;
+		role_name: string;
+	},
+	organizations: UserOrganization[],
 	assistant_hiring_approval: ApprovalStatus,
 	has_claimed_approval_link: string
+}
+
+export interface UserOrganization {
+  id: number;
+  name: string;
+  role_id: number;
+  role_name: string;
+  apiKey: string;
+}
+
+export interface UserWorkspace {
+  id: string;
+  name: string;
+  type: 'personal' | 'organization';
 }
 
 export interface UserUpdateRequest {
@@ -37,7 +55,9 @@ export interface UserUpdateRequest {
 	name: string;
 	last_name: string;
 	job_title: string;
+	bio: string;
 	timezone?: string | null;
+	phone_number?: string | null;
 }
 
 export type BalanceDetails = {
@@ -127,6 +147,7 @@ export interface CreateUserWithBusinessInfoRequest {
 	name: string;
 	last_name: string;
 	job_title?: string;
+	bio?: string;
 	account_type: AccountType;
 	business_info?: BusinessInfo;
 }

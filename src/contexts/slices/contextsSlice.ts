@@ -76,14 +76,14 @@ export const createContextsSlice: StateCreator<
 		} else if (scope === "tab") {
 			state.tabContexts[targetId] = ctx === "" ? null : ctx;
 			// Also write-through to tab slice so UI updates immediately
-			if (state.updateTab) {
-				state.updateTab(targetId, { globalContext: ctx === "" ? undefined : ctx });
+			if (state.tabsById?.[targetId]) {
+				state.tabsById[targetId].globalContext = ctx === "" ? undefined : ctx;
 			}
 		} else if (scope === "tile") {
 			state.tileContexts[targetId] = ctx === "" ? null : ctx;
 			// Write-through to tile slice
-			if (state.updateTile) {
-				state.updateTile(targetId, { context: ctx === "" ? undefined : ctx, column_context: "" as any });
+			if (state.tilesById?.[targetId]) {
+				state.tilesById[targetId].context = ctx === "" ? undefined : ctx;
 			}
 		}
 	}),
@@ -116,7 +116,7 @@ export const createContextsSlice: StateCreator<
 
 	setProcessingQueue: (processing) => set(s => { s.processingQueue = processing; }),
 
-	clearInvalidContexts: (projectId) => set(async (state) => {
+	clearInvalidContexts: (projectId) => set(state => {
 		const validSet = new Set((state.projectContexts[projectId] || []));
 		// Unset interface contexts not in valid set
 		Object.entries(state.interfaceContexts).forEach(([id, value]) => {
@@ -125,13 +125,17 @@ export const createContextsSlice: StateCreator<
 		Object.entries(state.tabContexts).forEach(([id, value]) => {
 			if (value && !validSet.has(value)) {
 				state.tabContexts[id] = null;
-				if (state.updateTab) state.updateTab(id, { globalContext: undefined });
+				if (state.tabsById?.[id]) {
+					state.tabsById[id].globalContext = undefined;
+				}
 			}
 		});
 		Object.entries(state.tileContexts).forEach(([id, value]) => {
 			if (value && !validSet.has(value)) {
 				state.tileContexts[id] = null;
-				if (state.updateTile) state.updateTile(id, { context: undefined });
+				if (state.tilesById?.[id]) {
+					state.tilesById[id].context = undefined;
+				}
 			}
 		});
 	}),
@@ -150,12 +154,16 @@ export const createContextsSlice: StateCreator<
 			const tabIds: string[] = (state.interfacesById?.[ifaceId]?.tabIds || []) as string[];
 			tabIds.forEach(tabId => {
 				if (state.tabContexts[tabId] === from) state.tabContexts[tabId] = to;
-				if (state.tabsById?.[tabId]?.globalContext === from && state.updateTab) state.updateTab(tabId, { globalContext: to });
+				if (state.tabsById?.[tabId]?.globalContext === from) {
+					state.tabsById[tabId].globalContext = to;
+				}
 				// Tiles
 				const tileIds: string[] = (state.tabsById?.[tabId]?.tileIds || []) as string[];
 				tileIds.forEach(tileId => {
 					if (state.tileContexts[tileId] === from) state.tileContexts[tileId] = to;
-					if (state.tilesById?.[tileId]?.context === from && state.updateTile) state.updateTile(tileId, { context: to });
+					if (state.tilesById?.[tileId]?.context === from) {
+						state.tilesById[tileId].context = to;
+					}
 				});
 			});
 		});
@@ -173,11 +181,15 @@ export const createContextsSlice: StateCreator<
 			const tabIds: string[] = (state.interfacesById?.[ifaceId]?.tabIds || []) as string[];
 			tabIds.forEach(tabId => {
 				if (state.tabContexts[tabId] === name) state.tabContexts[tabId] = null;
-				if (state.tabsById?.[tabId]?.globalContext === name && state.updateTab) state.updateTab(tabId, { globalContext: undefined });
+				if (state.tabsById?.[tabId]?.globalContext === name) {
+					state.tabsById[tabId].globalContext = undefined;
+				}
 				const tileIds: string[] = (state.tabsById?.[tabId]?.tileIds || []) as string[];
 				tileIds.forEach(tileId => {
 					if (state.tileContexts[tileId] === name) state.tileContexts[tileId] = null;
-					if (state.tilesById?.[tileId]?.context === name && state.updateTile) state.updateTile(tileId, { context: undefined });
+					if (state.tilesById?.[tileId]?.context === name) {
+						state.tilesById[tileId].context = undefined;
+					}
 				});
 			});
 		});

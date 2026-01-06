@@ -31,4 +31,4 @@ jobs:
         env:
           CODESANDBOX_API_KEY: ${{ secrets.CODESANDBOX_API_KEY }}
           CODESANDBOX_TEMPLATE_ID: ${{ secrets.CODESANDBOX_TEMPLATE_ID }}
-          UNIFY_KEY: ${{ secrets.USER_API_KEY }}
+          UNIFY_KEY: ${{ secrets.UNIFY_API_KEY }}

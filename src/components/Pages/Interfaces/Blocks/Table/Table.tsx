@@ -17,6 +17,7 @@ import { Loader2, SquareSplitHorizontal, Layers, Maximize2, StretchHorizontal, S
 import { useStoreContext } from "@/contexts/providers/StoreProvider";
 import { useGlobalUIMode } from '@/contexts/hooks/useGlobalUIMode';
 import { buildTree, nestedColumns, encodeRenderedDepth, formatCellValue } from "@/utils/interfaces/table/table";
+import { isEffectiveContextNotFound } from "@/utils/interfaces/contextValidation";
 import { Badge } from "@/components/UI/badge";
 import ColumnFilter from "./Buttons/Filters/Main";
 import AggregatedCell from "./Content/AggregatedCell";
@@ -79,6 +80,7 @@ import { castToPythonType } from "@/components/Pages/Interfaces/Blocks/Selection
 import { showErrorToast, showSuccessToast } from "@/components/Common/Toasts/notifications";
 import { FolderTree } from "lucide-react";
 import { useDimensionsTracker } from "@/hooks/Interfaces/useDimensionsTracker";
+import { useTableAutoUpdateQuery } from "@/hooks/Interfaces/Query/useTableAutoUpdateQuery";
 
 // Check if advanced table features should be shown
 const showAdvancedFeatures = process.env.NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES === 'true';
@@ -179,6 +181,7 @@ const LogsTable = ({
     newCells,
     error,
     isLoading: isTableDataLoading,
+    contextNotFound,
   } = tableDataItem;
 
   const {data: tableArguments = {} as TableArguments} = useTableArgumentsQuery(tabId || null);
@@ -272,7 +275,19 @@ const LogsTable = ({
 
   // UI state from the tab
   const interactive = isInteractive;
-  const pending = tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending;
+  const pending = !!(tabUIState?.pending || tabUIState?.dataPending || tileUIState?.pending);
+
+  // Wire up manual refresh for Retry using the auto-update hook's queryFn
+  const { manualRefresh: manualTableRefresh } = useTableAutoUpdateQuery(
+    tileId,
+    tabId,
+    (projectId || "") as string,
+    pending,
+    logsActions,
+    projectsActions,
+    contextActions,
+    fieldsActions,
+  );
 
   // Basic states for quick feedback
   const [summaryPending, setSummaryPending] = useState(false);
@@ -423,20 +438,37 @@ const LogsTable = ({
     tableTileActions?.setColumnOrder(order.join(","));
   }, [tableTileActions, setManualColumnOrderOverride]);
 
-  // Auto-hide underscores once per context when enabled
+  // Auto-hide underscores when enabled, and auto-show exception columns (e.g., _assistant in Assistants/All)
   useEffect(() => {
     if (!defaultHidden) return;
     const currentHidden = hiddenColumns != null
       ? hiddenColumns.split(",").filter(x => x)
       : [];
-    // Compute underscore-prefixed IDs
-    const underscoreIds = columnIDs.filter(id => isHiddenByDefault(id));
-    // Only hide those not already hidden
-    const toHide = underscoreIds.filter(id => !currentHidden.includes(id));
-    if (toHide.length && tableTileActions) {
-      tableTileActions.setHiddenColumns([...currentHidden, ...toHide].join(","));
+    
+    // Columns that should be hidden by default (respecting exceptions like _assistant in Assistants/All)
+    const shouldBeHidden = columnIDs.filter(id => isHiddenByDefault(id, projectId, context));
+    
+    // Columns that are underscore-prefixed but should NOT be hidden (exception applies)
+    const shouldBeVisible = columnIDs.filter(id => {
+      const hasUnderscore = id.split("/").some(segment => segment.startsWith("_"));
+      return hasUnderscore && !isHiddenByDefault(id, projectId, context);
+    });
+    
+    // Add new columns that should be hidden
+    const toHide = shouldBeHidden.filter(id => !currentHidden.includes(id));
+    
+    // Remove columns that are hidden but should now be visible (exception kicked in)
+    const toShow = shouldBeVisible.filter(id => currentHidden.includes(id));
+    
+    // Only update if there are actual changes
+    if ((toHide.length > 0 || toShow.length > 0) && tableTileActions) {
+      const newHiddenList = [
+        ...currentHidden.filter(id => !toShow.includes(id)),  // Remove exception columns
+        ...toHide  // Add new columns to hide
+      ];
+      tableTileActions.setHiddenColumns(newHiddenList.length ? newHiddenList.join(",") : "");
     }
-  }, [columnIDs, context, defaultHidden, tableTileActions]);
+  }, [columnIDs, context, defaultHidden, tableTileActions, projectId, hiddenColumns]);
 
   // Compute column visibility map: user override or default underscore hide when enabled
   const hiddenList = hiddenColumns != null
@@ -448,10 +480,10 @@ const LogsTable = ({
       hiddenList !== undefined
         ? !hiddenList.includes(id)
         : defaultHidden
-          ? !isHiddenByDefault(id)
+          ? !isHiddenByDefault(id, projectId, context)
           : true
     ])
-  ), [columnIDs, hiddenList, defaultHidden]);
+  ), [columnIDs, hiddenList, defaultHidden, projectId, context]);
 
   // Toggle handler for updating hiddenColumns from visibility map
   const setColumnVisibility = useCallback((v: { [key: string]: boolean }) => { 
@@ -884,13 +916,24 @@ const LogsTable = ({
       if ((!entriesKeys.length) && (!paramsKeys.length)) return;
     } catch (_) {}
 
+    // Build affected logs for contact sync
+    const affectedLogs = rowIds
+      .map(id => {
+        const log = (tableDataItem?.logs || []).find((l: any) => String(l.id) === String(id));
+        if (!log) return null;
+        return { id: Number(log.id), entries: (log.entries || {}) as Record<string, any> };
+      })
+      .filter((x): x is { id: number; entries: Record<string, any> } => x !== null);
+
     // Persist to server
     const res = await logsActions.update(
       projectId,
       item?.context || context_ || null,
       rowIds.map(id => parseInt(String(id), 10)),
       entriesUpdate,
-      paramsUpdate
+      paramsUpdate,
+      true,
+      affectedLogs
     );
     try {
       if ((res as any)?.detail) {
@@ -984,16 +1027,30 @@ const LogsTable = ({
   </Button>
 
   // Show error UI if data fetch failed - moved after all hooks
-  const showError = error && typeof error === 'string' && !isTableDataLoading;
+  // For contextNotFound, don't show generic error - show the contextNotFound overlay instead
+  const showError = error && typeof error === 'string' && !isTableDataLoading && !contextNotFound;
   const isTimeout = error?.includes('timeout') || error?.includes('504');
 
+  // Check if context should be treated as "not found" - handles both API 404s and 
+  // deleted contexts that don't properly return 404 (returns 200 with empty data instead)
+  const effectiveContextNotFound = useMemo(() => isEffectiveContextNotFound({
+    apiContextNotFound: contextNotFound,
+    context,
+    availableContexts,
+    isLoadingContexts: listContextsQuery.isLoading,
+  }), [contextNotFound, context, availableContexts, listContextsQuery.isLoading]);
+
+  // Determine overlay mode: contextNotFound takes priority
+  const overlayMode = effectiveContextNotFound 
+    ? "contextNotFound" 
+    : (availableContexts.length > 0 && !context ? "context" : "new");
+    
   // Empty table overlay display and content
+  // For contextNotFound, show immediately (don't wait for spinner to finish)
   const showOverlay =
-    !showSpinner &&
-    logs.length === 0 &&
-    !listContextsQuery.isLoading &&
-    !overlayDismissed;
-  const overlayMode = availableContexts.length > 0 && !context ? "context" : "new";
+    effectiveContextNotFound
+      ? !overlayDismissed  // Show immediately for deleted contexts
+      : (!showSpinner && logs.length === 0 && !listContextsQuery.isLoading && !overlayDismissed);
 
   const showActions =
     (grouping.length > 0) ||
@@ -1230,7 +1287,7 @@ const LogsTable = ({
               {renderSectionToggle(setMonitoringSectionVisible, monitoringSectionVisible, "Monitoring")}
               <div className={cn("flex items-center gap-2", !monitoringSectionVisible && "hidden")}>
                   <FreezeLogs tileId={tileId} tabId={tabId} interfaceId={interfaceId} projectId={projectId} />
-                  <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} />
+                  <RefreshLogs tileId={tileId} tabId={tabId} projectId={projectId} pending={showSpinner} filterExpression={filterExpression} sortingExpression={sortingExpression} groupingExpression={groupingExpression} groupSortingExpression={groupSortingExpression} tileActions={tileActions} logsActions={logsActions} projectsActions={projectsActions} contextActions={contextActions} fieldsActions={fieldsActions} onRefresh={() => infiniteLogsQuery.refetch()} />
               </div>
             </div>
         )}
@@ -1369,8 +1426,7 @@ const LogsTable = ({
                 onClick={async () => {
                   try {
                     setIsRetrying(true);
-                    await queryClient.invalidateQueries({ queryKey: ['tableDataItem', tileId] });
-                    await queryClient.invalidateQueries({ queryKey: ['fields', projectId, context_ ?? null] });
+                    await manualTableRefresh();
                   } finally {
                     setTimeout(() => setIsRetrying(false), 300);
                   }
@@ -1397,8 +1453,13 @@ const LogsTable = ({
                 tileName={tileName}
                 mode={overlayMode}
                 onDismiss={() => setOverlayDismissed(true)}
-                actionButton={overlayMode === "context" ? selectContextButton : createLogRedirectButton}
-                withPulse={true}
+                actionButton={
+                  overlayMode === "contextNotFound" 
+                    ? selectContextButton 
+                    : (overlayMode === "context" ? selectContextButton : createLogRedirectButton)
+                }
+                withPulse={overlayMode !== "contextNotFound"}
+                contextName={effectiveContextNotFound ? ((item?.context || tileDataState?.context) ?? undefined) : undefined}
               />
             )}
               {/* <div className="min-w-max w-full"> */}
@@ -1770,7 +1831,7 @@ const LogsTable = ({
                         ExtraCellContent={(cell, isCellExpanded, setExpandedCells) =>
                           <CellPopover flatLogs={flatLogs} paramsValues={paramsValues} cell={cell} isCellExpanded={isCellExpanded} setExpandedCells={setExpandedCells} />
                         }
-                        error={error}
+                        error={undefined} // Error is handled by Table.tsx's own error UI, don't show DataTable's fallback
                         onRenameColumn={renameColumn}
                       />
                     </div>

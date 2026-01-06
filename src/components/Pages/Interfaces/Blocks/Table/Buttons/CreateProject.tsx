@@ -38,7 +38,7 @@ const CreateProject = ({paths, creationFunction, createProjectOpen, setCreatePro
         { name: "name", label: "Name", description: "Name of the project."},
     ]
     const Fields =  <> {entries.map((entry, index) => 
-        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} form={form}/>
+        <FormEntry key={index} name={entry.name} label={entry.label} description={entry.description} form={form as any}/>
     )} </>
     
     // Select created project
@@ -56,7 +56,7 @@ const CreateProject = ({paths, creationFunction, createProjectOpen, setCreatePro
             creationFunction={creationFunction} 
             CreateSchema={CreateSchema} 
             Fields={Fields} 
-            form={form}
+            form={form as any}
             extraFormActions={(data) => updateProject(data.name)}
             customOpen={createProjectOpen}
             setCustomOpen={setCreateProjectOpen}

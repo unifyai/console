@@ -21,7 +21,8 @@ const RefreshLogs = ({
   logsActions, 
   projectsActions,
   contextActions,
-  fieldsActions 
+  fieldsActions,
+  onRefresh,
 }: {
   tileId: string,
   tabId: string,
@@ -35,7 +36,9 @@ const RefreshLogs = ({
   logsActions: LogsActions,
   projectsActions: ProjectsActions,
   contextActions: ContextActions,
-  fieldsActions: FieldsActions
+  fieldsActions: FieldsActions,
+  /** Callback to trigger data refetch - used when auto_update is OFF */
+  onRefresh?: () => Promise<unknown>,
 }) => {
   const { data: tileDataState } = useTileData(tileId, tabId);
   const { actions: syncedTileActions } = useTileSync(
@@ -180,7 +183,14 @@ const RefreshLogs = ({
 
           if (latestTs >= lastCheckTs) {
             // Do the actual refresh
-            const result = await manualRefresh();
+            // Use onRefresh callback when provided (for when auto_update is OFF)
+            // Fall back to manualRefresh (for when auto_update is ON)
+            const isAutoUpdating = tileDataState?.auto_update === "true";
+            const result = isAutoUpdating 
+              ? await manualRefresh()
+              : onRefresh 
+                ? await onRefresh()
+                : await manualRefresh(); // Fallback if onRefresh not provided
             
             if (isMounted.current) {
               setLastUpdated(latest);

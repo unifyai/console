@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiKey } from "@/lib/auth/requireApiKey";
+import { withCacheHeaders } from "../_utils/cacheResponse";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
@@ -7,12 +8,16 @@ const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === "true";
 export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -31,9 +36,12 @@ export async function GET(request: NextRequest) {
         );
         clearTimeout(ttl);
         if (!res.ok) {
-            console.warn(JSON.stringify({ route: "/api/logs", method: "GET", upstream: `${baseUrl}/logs${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            if (DEBUG_API) {
+                console.warn(JSON.stringify({ route: "/api/logs", method: "GET", upstream: `${baseUrl}/logs${url.search}`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            }
         }
-        return res;
+        // Cache logs for 30 seconds - data changes frequently
+        return withCacheHeaders(res, 'SHORT');
     } catch (e: any) {
         clearTimeout(ttl);
         const msg = e?.message || "Request failed";
@@ -46,12 +54,16 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     const body = await request.json();
     
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -71,7 +83,9 @@ export async function DELETE(request: NextRequest) {
         );
         clearTimeout(ttl);
         if (!res.ok) {
-            console.warn(JSON.stringify({ route: "/api/logs", method: "DELETE", upstream: `${baseUrl}/logs?delete_empty_logs=True`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            if (DEBUG_API) {
+                console.warn(JSON.stringify({ route: "/api/logs", method: "DELETE", upstream: `${baseUrl}/logs?delete_empty_logs=True`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            }
         }
         return res;
     } catch (e: any) {
@@ -86,12 +100,16 @@ export async function DELETE(request: NextRequest) {
 export async function POST(request: NextRequest) {
     const body = await request.json();
     
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -111,7 +129,9 @@ export async function POST(request: NextRequest) {
         );
         clearTimeout(ttl);
         if (!res.ok) {
-            console.warn(JSON.stringify({ route: "/api/logs", method: "POST", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            if (DEBUG_API) {
+                console.warn(JSON.stringify({ route: "/api/logs", method: "POST", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            }
         }
         return res;
     } catch (e: any) {
@@ -124,9 +144,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-    const apiKeyOrError = await requireApiKey(request);
-    if (apiKeyOrError instanceof NextResponse) return apiKeyOrError;
-    const apiKey = apiKeyOrError;
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
 
     let body;
     try {
@@ -137,7 +161,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const controller = new AbortController();
-    const ttl = setTimeout(() => controller.abort(), 30000);
+    const ttl = setTimeout(() => controller.abort(), 60000);
     const startedAt = Date.now();
     const correlationId = request.headers.get("x-correlation-id") || crypto.randomUUID();
     
@@ -158,7 +182,9 @@ export async function PUT(request: NextRequest) {
         );
         clearTimeout(ttl);
         if (!res.ok) {
-            console.warn(JSON.stringify({ route: "/api/logs", method: "PUT", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            if (DEBUG_API) {
+                console.warn(JSON.stringify({ route: "/api/logs", method: "PUT", upstream: `${baseUrl}/logs`, status: res.status, latencyMs: Date.now() - startedAt, correlationId }));
+            }
         }
         return res;
     } catch (e: any) {

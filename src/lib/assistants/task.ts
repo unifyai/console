@@ -1,13 +1,13 @@
 import { ResponseProps } from "@/types/common";
 import { GroupedLogPropsRaw, LogItemProps, LogsResponseProps } from "@/types/interfaces/logs";
 
-export const getTasks = async (apiKey: string) => {
-    return async (context: string, filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {
+export const getTasks = async (apiKey: string, userContext: string) => {
+    return async (assistantContext: string, filterExpression: string | null, limit: number | null, offset: number | null): Promise<LogsResponseProps | ResponseProps> => {
         "use server";
 
         try {
 
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${context}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${userContext}/${assistantContext}/Tasks`;
             if (filterExpression) {
                 url += `&filter_expr=${encodeURIComponent(filterExpression)}`;
             }
@@ -53,12 +53,12 @@ export const getTasks = async (apiKey: string) => {
     };
 };
 
-export const getUniqueFieldValues = async (apiKey: string) => {
-    return async (context: string, groupByField: string): Promise<string[] | ResponseProps> => {
+export const getUniqueFieldValues = async (apiKey: string, userContext: string) => {
+    return async (assistantContext: string, groupByField: string): Promise<string[] | ResponseProps> => {
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${context}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${userContext}/${assistantContext}/Tasks`;
             url += `&group_by=${encodeURIComponent(groupByField)}`;
             url += `&group_depth=0`;
 
@@ -110,9 +110,8 @@ export const getUniqueFieldValues = async (apiKey: string) => {
     };
 };
 
-
-export const updateTask = async (apiKey: string) => {
-    return async (context: string, logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
+export const updateTask = async (apiKey: string, userContext: string) => {
+    return async (assistantContext: string, logs: number[], entries: LogItemProps): Promise<ResponseProps> => {
         "use server";
 
         try {
@@ -127,7 +126,7 @@ export const updateTask = async (apiKey: string) => {
                     body: JSON.stringify({
                         logs: logs,
                         project: "Assistants",
-                        context: `${context}/Tasks`,
+                        context: `${userContext}/${assistantContext}/Tasks`,
                         params: {},
                         entries: entries,
                         overwrite: true

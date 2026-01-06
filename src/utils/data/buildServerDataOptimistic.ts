@@ -188,7 +188,15 @@ export async function buildOptimisticTableDataItem(
 
   // Update cache
   if (updateCache) {
+    console.log(`[buildOptimisticTableDataItem] Setting cache for tile ${tileData.name} (${tileData.id}): contextNotFound=${tableDataItem.contextNotFound}, error=${tableDataItem.error}`);
     queryClient.setQueryData(["tableDataItem", tileData.id], tableDataItem);
+    // Force refetch the internal data query so the dependency manager re-checks render readiness
+    // Use refetchQueries instead of invalidateQueries for immediate effect
+    // Important: queryKey must include tabId to match the actual internalDataQuery key
+    queryClient.refetchQueries({ 
+      queryKey: ["internalData", tileData.id, tabId],
+      type: 'active' 
+    });
   }
 
   return tableDataItem;

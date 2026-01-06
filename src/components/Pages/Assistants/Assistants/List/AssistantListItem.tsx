@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/UI/avatar";
 import { Phone, Mail, PhoneCall } from "lucide-react";
@@ -14,7 +13,6 @@ interface AssistantListItemProps {
     status: AssistantStatus | null;
     isSelected: boolean;
     onShowProfile: (id: string) => void;
-    onShowActivityLog: (id: string) => void;
     onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
     isFolded: boolean;
     isCallActive: boolean;
@@ -25,7 +23,6 @@ export function AssistantListItem({
     status,
     isSelected,
     onShowProfile,
-    onShowActivityLog,
     onOpenContactManager,
     isFolded,
     isCallActive,
@@ -34,11 +31,6 @@ export function AssistantListItem({
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onShowProfile(assistant.agent_id);
-    }
-
-    const handleActivityLogClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onShowActivityLog(assistant.agent_id);
     }
 
     const displayName = `${assistant.first_name} ${assistant.surname}`;
@@ -98,6 +90,7 @@ export function AssistantListItem({
                 </Avatar>
                 {status !== null && (
                     <span
+                        role="status"
                         className={cn(
                             "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
                             isOnline ? "bg-green-500" : "bg-gray-400"
@@ -127,6 +120,7 @@ export function AssistantListItem({
 
     return (
         <div
+            data-testid={`assistant-list-item-${assistant.agent_id}`}
             className={cn(
                 "flex items-center justify-between p-2 rounded-md group cursor-pointer",
                 !isSelected && "hover:bg-muted",
@@ -144,6 +138,8 @@ export function AssistantListItem({
                             </Avatar>
                             {status !== null && (
                                 <span
+                                    role='status'
+                                    data-testid={`status-indicator-${assistant.agent_id}`}
                                     className={cn(
                                         "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
                                         isOnline ? "bg-green-500" : "bg-gray-400"

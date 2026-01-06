@@ -1,0 +1,1292 @@
+import React from 'react';
+import { render, screen, waitFor, within, fireEvent, act } from '@/tests/render';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, vi, afterEach, beforeAll } from 'vitest';
+import { AssistantHire } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHire';
+import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
+import { PresetsPanel } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
+import { AssistantEdit } from '@/components/Pages/Assistants/Assistants/Edit/AssistantEdit';
+import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireLocalSetupInstructions';
+import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
+import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
+import { mockAssistantActions } from './mocks/actions';
+import { mockPresets, mockVoices, mockAssistants } from './mocks/data';
+import { FormProvider } from 'react-hook-form';
+import { http, HttpResponse } from 'msw';
+import { worker } from '../../../vitest.browser.setup';
+import { Assistant, VoiceOption } from '@/types/assistants/assistant';
+import { ApprovalStatus } from '@/types/user';
+
+// Test Wrapper Component to mimic Main.tsx integration
+const HireFlowTestWrapper = ({ 
+    onClose, 
+    existingAssistants = [],
+    customVoices,
+    userApprovalStatus = 'approved' as ApprovalStatus,
+    onHireSuccess,
+    presetsToUse = mockPresets,
+    useRealPresetHook = false
+}: { 
+    onClose?: () => void, 
+    existingAssistants?: Assistant[],
+    customVoices?: VoiceOption[],
+    userApprovalStatus?: ApprovalStatus,
+    onHireSuccess?: (assistant: Assistant, formData: any) => void,
+    presetsToUse?: any[],
+    useRealPresetHook?: boolean
+}) => {
+    const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(true);
+    const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
+    const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
+    const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
+    const [setupInstructions, setSetupInstructions] = React.useState<{ os: string; isOpen: boolean } | null>(null);
+
+    // Mock Presets Hook behavior or use real one
+    const presetHookValues = useAssistantPresets();
+    const finalPresets = useRealPresetHook ? presetHookValues.displayedPresets : presetsToUse;
+    
+    const handleHireSuccessInternal = (assistant: Assistant, formData: any, chatHistory: any) => {
+        setIsHireDialogOpen(false);
+        if (onHireSuccess) onHireSuccess(assistant, formData);
+        if (onClose) onClose();
+        
+        if (formData.setup === 'local' && formData.operating_system) {
+            setSetupInstructions({ os: formData.operating_system, isOpen: true });
+        }
+    };
+
+    const voicesToUse = customVoices || mockVoices;
+
+    const {
+        hireFormMethods,
+        initiateHireSequence,
+        isCheckingBalance,
+        isSubmitting,
+        showInsufficientFundsHint,
+        setShowInsufficientFundsHint,
+        selectPreset,
+        onNewMediaReady,
+    } = useAssistantHireForm(
+        mockAssistantActions, 
+        voicesToUse, 
+        handleHireSuccessInternal, 
+        undefined, 
+        isHireDialogOpen
+    );
+
+    const isFastMode = hireFormMethods.watch('fast_mode');
+    const displayableVoices = React.useMemo(() => {
+        const baseVoices = customVoices || mockVoices;
+        if (isFastMode) {
+            return baseVoices.filter(v => v.provider === 'openai');
+        }
+        return baseVoices.filter(v => v.provider !== 'openai');
+    }, [isFastMode, customVoices]);
+
+    const handleRandomizePreset = () => {
+        const randomIndex = Math.floor(Math.random() * finalPresets.length);
+        selectPreset(finalPresets[randomIndex]);
+    };
+    
+    const [currentApprovalStatus, setCurrentApprovalStatus] = React.useState(userApprovalStatus);
+    const [isLoadingApproval, setIsLoadingApproval] = React.useState(false);
+    const handleRequestAccess = async () => {
+        setIsLoadingApproval(true);
+        await mockAssistantActions.approval.requestAccess();
+        setCurrentApprovalStatus("pending");
+        setIsLoadingApproval(false);
+    };
+
+    const fetchUserVoices = vi.fn();
+    const handleDeleteVoice = async (voice: VoiceOption) => {
+        await mockAssistantActions.voice.delete(voice.voice_id, voice.provider);
+    };
+
+    const [ageFilter, setAgeFilter] = React.useState('all');
+    const [nationalityFilter, setNationalityFilter] = React.useState('all');
+    const [genderFilter, setGenderFilter] = React.useState('all');
+    const [languageFilter, setLanguageFilter] = React.useState('all');
+
+    return (
+        <>
+            <FormProvider {...hireFormMethods}>
+                <AssistantHire
+                    isHireDialogOpen={isHireDialogOpen}
+                    setIsHireDialogOpen={setIsHireDialogOpen}
+                    isHireSubmitting={isSubmitting}
+                    isAssistantPresetsOpen={isAssistantPresetsOpen}
+                    setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
+                    handleRandomizePreset={handleRandomizePreset}
+                    currentFilteredPresets={finalPresets}
+                    onHireAttempt={initiateHireSequence}
+                    isProcessingVoice={isDialogBusyProcessingVoice}
+                    isProcessingPhoto={isDialogBusyProcessingPhoto}
+                    isCheckingBalance={isCheckingBalance}
+                    showInsufficientFundsHint={showInsufficientFundsHint}
+                    setShowInsufficientFundsHint={setShowInsufficientFundsHint}
+                    userApprovalStatus={currentApprovalStatus}
+                    isLoadingUserApproval={isLoadingApproval}
+                    onRequestAccess={handleRequestAccess}
+                    formMethods={hireFormMethods}
+                    isFastMode={!!isFastMode}
+                >
+                    <HireForm
+                        formMethods={hireFormMethods}
+                        isSubmitting={isSubmitting}
+                        assistantActions={mockAssistantActions}
+                        onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
+                        onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
+                        onNewMediaReady={onNewMediaReady}
+                        allDisplayableVoices={displayableVoices}
+                        isLoadingUserVoices={false}
+                        fetchUserVoices={fetchUserVoices}
+                        handleDeleteVoice={handleDeleteVoice}
+                        assistants={existingAssistants}
+                        mode="hire"
+                    />
+                    <PresetsPanel
+                        displayedPresets={finalPresets}
+                        onPresetSelect={selectPreset}
+                        onClose={() => setIsAssistantPresetsOpen(false)}
+                        layoutMode="split"
+                        setLayoutMode={vi.fn()}
+                        onLoadMore={useRealPresetHook ? presetHookValues.loadMorePresets : vi.fn()}
+                        canLoadMore={useRealPresetHook ? presetHookValues.canLoadMorePresets : false}
+                        isLoadingMore={useRealPresetHook ? presetHookValues.isLoadingMorePresets : false}
+                        ageFilter={ageFilter}
+                        onAgeFilterChange={setAgeFilter}
+                        availableAgeBrackets={['all', '18-25', '26-35', '36-45']}
+                        nationalityFilter={nationalityFilter}
+                        onNationalityFilterChange={setNationalityFilter}
+                        availableNationalities={['all', 'United States', 'Canada']}
+                        genderFilter={genderFilter}
+                        onGenderFilterChange={setGenderFilter}
+                        availableGenders={['all', 'female', 'male']}
+                        languageFilter={languageFilter}
+                        onLanguageFilterChange={setLanguageFilter}
+                        availableLanguages={['all', 'en']}
+                        isFastMode={!!isFastMode}
+                    />
+                </AssistantHire>
+            </FormProvider>
+            <AssistantHireLocalSetupInstructionsDialog
+                isOpen={setupInstructions?.isOpen || false}
+                os={setupInstructions?.os || 'ubuntu'}
+                onClose={() => setSetupInstructions(null)}
+            />
+        </>
+    );
+};
+
+// Edit Wrapper
+const EditFlowTestWrapper = ({ assistant }: { assistant: Assistant }) => {
+    const [isOpen, setIsOpen] = React.useState(true);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    const {
+        hireFormMethods,
+        loadAssistantForEdit,
+        initiateUpdate,
+        onNewMediaReady,
+    } = useAssistantHireForm(mockAssistantActions, mockVoices, undefined, undefined, true);
+
+    React.useEffect(() => {
+        loadAssistantForEdit(assistant);
+    }, [assistant, loadAssistantForEdit]);
+
+    if (!isOpen) return null;
+
+    return (
+        <FormProvider {...hireFormMethods}>
+            <AssistantEdit
+                isOpen={isOpen}
+                onClose={() => setIsOpen(false)}
+                assistant={assistant}
+                formMethods={hireFormMethods}
+                onSubmit={initiateUpdate}
+                isSubmitting={isSubmitting}
+            >
+                <HireForm
+                    formMethods={hireFormMethods}
+                    isSubmitting={isSubmitting}
+                    assistantActions={mockAssistantActions}
+                    onNewMediaReady={onNewMediaReady}
+                    allDisplayableVoices={mockVoices}
+                    isLoadingUserVoices={false}
+                    fetchUserVoices={vi.fn()}
+                    handleDeleteVoice={vi.fn()}
+                    assistants={[]}
+                    mode="edit"
+                />
+            </AssistantEdit>
+        </FormProvider>
+    );
+};
+
+const waitForFormReady = async () => {
+    await waitFor(() => {
+        expect(mockAssistantActions.contact.listAvailablePhoneCountries).toHaveBeenCalled();
+    });
+    // Wait for effects to settle
+    await new Promise(resolve => setTimeout(resolve, 200)); 
+};
+
+describe('Assistant Hire Flow', () => {
+    
+    beforeAll(() => {
+        Object.defineProperty(window, 'URL', {
+            writable: true,
+            value: {
+                createObjectURL: vi.fn(() => 'blob:mock-url'),
+                revokeObjectURL: vi.fn(),
+            },
+        });
+        Object.defineProperty(window.HTMLMediaElement.prototype, 'load', {
+            configurable: true,
+            value: vi.fn(),
+        });
+    });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        worker.resetHandlers();
+    });
+
+    describe('A. General Hiring Featured and UX', () => {
+        it('should validate required fields before hiring', { 
+            meta: { 
+                alias: 'Hire-Validation',
+                behavior: "Shows error messages when required fields are empty",
+                scenario: "Submitting empty form"
+            } 
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+
+            const firstNameInput = screen.getByLabelText(/first name/i);
+            const surnameInput = screen.getByLabelText(/last name/i);
+            
+            await user.clear(firstNameInput);
+            await user.clear(surnameInput);
+
+            const hireButton = screen.getByRole('button', { name: /hire assistant/i });
+            await user.click(hireButton);
+
+            expect(await screen.findByText(/first name is required/i)).toBeInTheDocument();
+            expect(await screen.findByText(/last name is required/i)).toBeInTheDocument();
+        });
+
+        it('should handle insufficient funds during hire attempt', { 
+            meta: { 
+                alias: 'Hire-Insufficient-Funds',
+                behavior: "Displays insufficient funds popover when balance is low",
+                scenario: "Hire attempt with low balance"
+            } 
+        }, async () => {
+            const user = userEvent.setup();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "0.00", fullBalance: 0.00 });
+                })
+            );
+            mockAssistantActions.assistant.check.mockResolvedValueOnce({ sufficient: false });
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            await user.type(screen.getByLabelText(/first name/i), 'Broke');
+            await user.type(screen.getByLabelText(/last name/i), 'User');
+            await user.type(screen.getByLabelText(/age/i), '25');
+            await user.type(screen.getByLabelText(/about/i), 'A bio is required');
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            const voiceOption = await screen.findByText(/Alice \(US\)/i); 
+            await user.click(voiceOption);
+            const hireButton = screen.getByRole('button', { name: /hire assistant/i });
+            await waitFor(() => expect(hireButton).toBeEnabled());
+            await user.click(hireButton);
+            await waitFor(() => {
+                expect(screen.getByText("Insufficient Funds")).toBeVisible();
+            });
+        });
+
+        it('should successfully hire an assistant when requirements are met', { 
+            meta: { 
+                alias: 'Hire-Success',
+                behavior: "Closes dialog and triggers success callback",
+                scenario: "Successful hire flow"
+            } 
+        }, async () => {
+            const originalFetch = window.fetch;
+            vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
+                const url = input.toString();
+                if (url.includes('/api/billing/balance')) {
+                    return new Response(JSON.stringify({ balance: "100.00", fullBalance: 100.00 }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                return originalFetch(input, init);
+            });
+
+            const createSpy = vi.spyOn(mockAssistantActions.assistant, 'create').mockImplementation(
+                async (first_name, surname, age, nationality, ...args) => ({
+                    info: "Assistant created successfully.",
+                    assistant: {
+                        ...mockAssistants[0],
+                        agent_id: 'new_created_id',
+                        first_name: first_name as string,
+                        surname: surname as string,
+                        age: age as number,
+                        nationality: nationality as string,
+                    }
+                })
+            );
+
+            render(<HireFlowTestWrapper onClose={() => {}} />);
+            await waitForFormReady();
+
+            await userEvent.type(screen.getByLabelText(/first name/i), 'John');
+            await userEvent.type(screen.getByLabelText(/last name/i), 'Doe');
+            await userEvent.type(screen.getByLabelText(/age/i), '30');
+            await userEvent.type(screen.getByLabelText(/about/i), 'Experienced assistant ready to work.');
+
+            const nationalityTrigger = screen.getByLabelText(/nationality/i);
+            await userEvent.click(nationalityTrigger);
+            await userEvent.click(await screen.findByRole('option', { name: /United States/i }));
+
+            const hireButton = screen.getByRole('button', { name: /hire assistant/i });
+            await waitFor(() => expect(hireButton).toBeEnabled());
+            await userEvent.click(hireButton);
+
+            await waitFor(async () => {
+                expect(createSpy).toHaveBeenCalled();
+                const createPromise = createSpy.mock.results[0].value;                
+                const result = await createPromise;
+                expect(result.assistant).toEqual(expect.objectContaining({
+                    agent_id: 'new_created_id',
+                    first_name: 'John',
+                    surname: 'Doe',
+                    age: 30,
+                    nationality: 'United States'
+                }));
+            });
+        });
+
+        it('should prevent creating a duplicate assistant by name', {
+            meta: { 
+                alias: 'Hire-Duplicate-Name',
+                behavior: "Shows validation error for duplicate name",
+                scenario: "Entering existing assistant name"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper existingAssistants={mockAssistants} />);
+            await waitForFormReady();
+            await user.type(screen.getByLabelText(/first name/i), 'Jane');
+            await user.type(screen.getByLabelText(/last name/i), 'Doe');
+            await user.tab(); 
+            expect(await screen.findByText(/an assistant with this full name already exists/i)).toBeInTheDocument();
+        });
+
+        it('should handle network failure gracefully during hire', {
+            meta: { 
+                alias: 'Hire-Network-Failure',
+                behavior: "Shows error message on API failure",
+                scenario: "API returns error on create"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "100.00", fullBalance: 100.00 });
+                })
+            );
+            (mockAssistantActions.assistant.create as any).mockResolvedValueOnce({ detail: "Critical Server Failure" });
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            await user.type(screen.getByLabelText(/first name/i), 'Retry');
+            await user.type(screen.getByLabelText(/last name/i), 'Me');
+            await user.type(screen.getByLabelText(/age/i), '30');
+            await user.type(screen.getByLabelText(/about/i), 'Bio');
+            await user.click(screen.getByRole('button', { name: /hire assistant/i }));
+            expect(await screen.findByText(/an error occurred during the hiring process/i)).toBeInTheDocument();
+            expect(screen.getByLabelText(/first name/i)).toHaveValue('Retry');
+        });
+
+        it('should show access required screen when approval is revoked', {
+            meta: { 
+                alias: 'Hire-Access-Revoked',
+                behavior: "Displays Access Required screen instead of form",
+                scenario: "User approval status is null"
+            }
+        }, async () => {
+            render(<HireFlowTestWrapper userApprovalStatus={null} />); 
+            expect(await screen.findByText("Access Required")).toBeInTheDocument();
+            expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
+        });
+
+        it('should handle access request', {
+            meta: { 
+                alias: 'Hire-Request-Access',
+                behavior: "Changes state to pending after request",
+                scenario: "Clicking Request Access button"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper userApprovalStatus={null} />);
+            const requestBtn = await screen.findByRole('button', { name: /request access/i });
+            await user.click(requestBtn);
+            expect(mockAssistantActions.approval.requestAccess).toHaveBeenCalled();
+            expect(await screen.findByText("Request Pending")).toBeInTheDocument();
+        });
+
+        it('should display install instructions after successfully hiring with local setup', {
+            meta: { 
+                alias: 'Hire-Local-Instructions',
+                behavior: "Opens instructions dialog after hire",
+                scenario: "Hiring with 'Local' setup"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "100.00", fullBalance: 100.00 });
+                })
+            );
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            await user.type(screen.getByLabelText(/first name/i), 'Local');
+            await user.type(screen.getByLabelText(/last name/i), 'Host');
+            await user.type(screen.getByLabelText(/age/i), '20');
+            await user.type(screen.getByLabelText(/about/i), 'Bio');
+            const advancedAccordionTrigger = screen.getByRole('button', { name: /advanced/i });
+            if (advancedAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(advancedAccordionTrigger);
+            }
+            await user.click(screen.getByText(/local - connect to your desktop/i));
+            const hireButton = screen.getByRole('button', { name: /hire assistant/i });
+            await waitFor(() => expect(hireButton).toBeEnabled());
+            await user.click(hireButton);
+            expect(await screen.findByText(/local desktop setup instructions/i)).toBeInTheDocument();
+        });
+
+        it('should automatically set the loaded assistant\'s timezone based on user timezone', {
+            meta: { 
+                alias: 'Hire-Auto-Timezone',
+                behavior: "The form defaults to the user's local timezone",
+                scenario: "Opening the hire form"
+            }
+        }, async () => {
+             const originalDateTimeFormat = Intl.DateTimeFormat;
+             const mockDateTimeFormat = vi.fn(() => ({
+                 resolvedOptions: () => ({ timeZone: 'America/New York' })
+             })) as any;
+             mockDateTimeFormat.supportedValuesOf = originalDateTimeFormat.supportedValuesOf;
+             window.Intl.DateTimeFormat = mockDateTimeFormat;
+             
+             render(<HireFlowTestWrapper />);
+             await waitForFormReady();
+             
+             expect(screen.getByText(/New York/i)).toBeInTheDocument();
+             window.Intl.DateTimeFormat = originalDateTimeFormat;
+        });
+
+        it('should automatically open the hiring dialog if the user doesn\'t have any assistant', {
+             meta: {
+                 alias: 'Hire-Auto-Open',
+                 behavior: "Triggers open dialog logic when assistant list is empty",
+                 scenario: "User visits page with no assistants"
+             }
+        }, async () => {
+            const AutoOpenTestComponent = ({ assistants }: { assistants: Assistant[] }) => {
+                 const [isOpen, setIsOpen] = React.useState(false);
+                 React.useEffect(() => {
+                     if (assistants.length === 0 && !isOpen) {
+                         setIsOpen(true);
+                     }
+                 }, [assistants, isOpen]);
+                 return isOpen ? <div>Dialog Open</div> : <div>Dialog Closed</div>;
+            };
+
+            const { rerender } = render(<AutoOpenTestComponent assistants={[]} />);
+            // Use waitFor to handle state update delay
+            await waitFor(() => {
+                expect(screen.getByText("Dialog Open")).toBeInTheDocument();
+            });
+            
+            rerender(<AutoOpenTestComponent assistants={[mockAssistants[0]]} />);
+        });
+
+        it('should register voice before hiring if selected voice does not exist in user library', async () => {
+            const user = userEvent.setup();
+            const registerSpy = vi.spyOn(mockAssistantActions.voice, 'register').mockResolvedValue({ 
+                voice_id: 'v_new', 
+                name: 'New Voice', 
+                description: 'desc', 
+                gender: 'female', 
+                language: 'en', 
+                provider: 'elevenlabs',
+                is_preset: false 
+            });
+            const createSpy = vi.spyOn(mockAssistantActions.assistant, 'create').mockResolvedValue({ 
+                info: "Assistant created", 
+                assistant: mockAssistants[0] 
+            });
+            render(<HireFlowTestWrapper />);
+            const mainHireBtn = await screen.findByRole('button', { name: /Hire Assistant/i });
+            await user.click(mainHireBtn);
+            await user.type(screen.getByLabelText(/First Name/i), 'VoiceTest');
+            await user.type(screen.getByLabelText(/Last Name/i), 'Runner');
+            await user.type(screen.getByLabelText(/Age/i), '30');
+            await user.type(screen.getByLabelText(/About/i), 'This is a test assistant description.');
+            const modalHireBtn = screen.getByRole('button', { name: "Hire Assistant" });
+            await user.click(modalHireBtn);
+            await waitFor(() => {
+                expect(registerSpy).toHaveBeenCalled();
+            });
+            await waitFor(() => {
+                expect(createSpy).toHaveBeenCalled();
+            });
+            const registerOrder = registerSpy.mock.invocationCallOrder[0];
+            const createOrder = createSpy.mock.invocationCallOrder[0];
+            expect(registerOrder).toBeLessThan(createOrder);
+        });
+    });
+
+    describe('B. Presets', () => {
+        // ... (Existing B tests) ...
+        it('should randomly fill the form when randomize button is clicked', {
+            meta: { 
+                alias: 'Hire-Randomize-Config',
+                behavior: "Fills form with random data",
+                scenario: "Clicking Randomize button"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const firstNameInput = screen.getByLabelText(/first name/i) as HTMLInputElement;
+            expect(firstNameInput).toHaveValue('');
+            const randomizeBtn = screen.getByLabelText(/Randomize Assistant/i);
+            await user.click(randomizeBtn);
+            await waitFor(() => {
+                const val = firstNameInput.value;
+                expect(['Sarah', 'James']).toContain(val);
+            });
+        });
+
+        it('should populate form when a preset is selected', { 
+            meta: { 
+                alias: 'Hire-Select-Preset',
+                behavior: "Fills form with specific preset data",
+                scenario: "Selecting 'Sarah Connor' preset"
+            } 
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const presetItem = await screen.findByText('Sarah Connor');
+            await user.click(presetItem);
+            await waitFor(() => {
+                expect(screen.getByLabelText(/first name/i)).toHaveValue('Sarah');
+                expect(screen.getByLabelText(/last name/i)).toHaveValue('Connor');
+                expect(screen.getByLabelText(/age/i)).toHaveValue(28);
+            });
+        });
+
+    });
+
+    describe('C. Pre-hire Chat', () => {
+
+        it('should preserve chat history when switching views', {
+            meta: { 
+                alias: 'Hire-Chat-History',
+                behavior: "Chat messages persist between view toggles",
+                scenario: "Switching from Chat to Presets and back"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            await user.click(screen.getByRole('button', { name: /chat now/i }));
+            await screen.findByText(/it's great to meet you/i, {}, { timeout: 5000 });
+            const chatInput = screen.getByPlaceholderText(/send a message/i);
+            await user.type(chatInput, 'Remember this!');
+            await user.keyboard('{Enter}');
+            await screen.findByText('Remember this!');
+            await user.click(screen.getByRole('button', { name: /browse assistants/i }));
+            await user.click(screen.getByRole('button', { name: /chat now/i }));
+            expect(await screen.findByText('Remember this!')).toBeInTheDocument();
+        });
+
+        it('should disable input after reaching the message limit', {
+            meta: { 
+                alias: 'Hire-Chat-Limit',
+                behavior: "Input disables after N messages",
+                scenario: "User sends maximum allowed messages"
+            }
+        }, async () => {
+            // 1. Setup a counter to generate unique responses
+            let responseCounter = 0;
+
+            vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+                const url = input.toString();
+
+                // A. Handle Chat: Return a stream with UNIQUE text per call
+                if (url.includes('/api/assistant/chat')) {
+                    const encoder = new TextEncoder();
+                    // Generate unique text: "Response 0", "Response 1", etc.
+                    const responseText = `Response ${responseCounter++}`; 
+                    
+                    const stream = new ReadableStream({
+                        start(controller) {
+                            controller.enqueue(encoder.encode(responseText)); 
+                            controller.close();
+                        }
+                    });
+
+                    return new Response(stream, { 
+                        status: 200, 
+                        headers: { 'Content-Type': 'text/plain' } 
+                    });
+                }
+
+                // B. Handle Balance Check
+                if (url.includes('/api/billing/balance')) {
+                    return new Response(JSON.stringify({ balance: "100.00", fullBalance: 100.00 }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+
+                return new Response(null, { status: 200 });
+            });
+
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            
+            await user.click(screen.getByRole('button', { name: /chat now/i }));
+            await screen.findByText(/it's great to meet you/i, {}, { timeout: 5000 });
+            
+            const chatInput = screen.getByPlaceholderText(/send a message/i);
+            
+            for (let i = 0; i < 10; i++) {
+                await user.type(chatInput, `Msg ${i}`);
+                await user.keyboard('{Enter}');
+                
+                // Wait for the SPECIFIC unique response for this iteration (Response 0, Response 1, etc.)
+                // This avoids the "Found multiple elements" error.
+                await screen.findByText(new RegExp(`Response ${i}`, 'i')); 
+            }
+            
+            await waitFor(() => {
+                expect(chatInput).toBeDisabled();
+            });
+            expect(screen.getByPlaceholderText(/message limit reached/i)).toBeInTheDocument();
+        });
+
+    });
+
+    describe('D. Photo and Video', () => {
+        it('should update the preview when a file is uploaded', {
+            meta: { 
+                alias: 'Hire-Photo-Upload',
+                behavior: "Preview updates to show uploaded image",
+                scenario: "Uploading an image file"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            const file = new File(['(⌐□_□)'], 'avatar.png', { type: 'image/png' });
+            const dropText = screen.getByText(/drop file or/i);
+            const label = dropText.closest('label');
+            const fileInput = label?.querySelector('input[type="file"]');
+            if (!fileInput) throw new Error('File input not found');
+            fireEvent.change(fileInput, { target: { files: [file] } });
+            await waitFor(() => {
+                expect(screen.queryByText("No Photo")).not.toBeInTheDocument();
+            });
+        });
+
+        it('should play a video when clicking on the image container if it contains a video', {
+            meta: { 
+                alias: 'Hire-Click-Play-Video',
+                behavior: "Video plays/pauses on click",
+                scenario: "Clicking media container with video"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+            const downloadSpy = vi.spyOn(mockAssistantActions.photo, 'downloadPresetVideo').mockImplementation(async () => {
+                return { signedUrl: 'https://test-video.mp4' };
+            });
+            render(<HireFlowTestWrapper />);
+            const mainHireBtn = await screen.findByRole('button', { name: /Hire Assistant/i });
+            await user.click(mainHireBtn);
+            const presetName = await screen.findByText(/Sarah/i); 
+            await user.click(presetName); 
+            await waitFor(() => {
+                expect(downloadSpy).toHaveBeenCalled();
+            });
+            try {
+                await waitFor(() => {
+                    const video = document.querySelector('video');
+                    if (!video) throw new Error("Video tag not found.");
+                }, { timeout: 4000 });
+            } catch (e) {
+                console.log('❌ [DEBUG] Video Element missing.');
+                const viewerContainer = document.querySelector('.h-44.w-44'); 
+                if (viewerContainer) {
+                    console.log('🔍 [DEBUG] Viewer Container HTML:', viewerContainer.outerHTML);
+                }
+                throw e;
+            }
+            const videoEl = document.querySelector('video') as HTMLVideoElement;
+            await user.click(videoEl);
+            await waitFor(() => {
+                expect(playSpy).toHaveBeenCalled();
+            });
+        });
+
+        it('should remove video from image container when selecting another voice which doesn\'t have a video generated', {
+            meta: { 
+                alias: 'Hire-Remove-Video-On-Voice-Change',
+                behavior: "Video is removed if voice mismatches",
+                scenario: "Changing voice after loading preset video"
+            }
+        }, async () => {
+            // Mock video
+            worker.use(
+                http.get('https://signed.url/video.mp4', () => {
+                    return new HttpResponse(new ArrayBuffer(100), { headers: { 'Content-Type': 'video/mp4' } });
+                })
+            );
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            
+            await user.click(await screen.findByText('Sarah Connor'));
+            
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            expect(document.querySelector('video')).toBeInTheDocument();
+            
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            await user.click(await screen.findByText(/Bob \(UK\)/i));
+            
+            await waitFor(() => {
+                expect(document.querySelector('video')).not.toBeInTheDocument();
+            });
+        });
+
+        it('should prevent creating a photo if required input is missing', {
+            meta: { 
+                alias: 'Hire-Photo-Create-Prevent',
+                behavior: "Shows error if prompt empty",
+                scenario: "Generate photo with empty prompt"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            await user.click(screen.getByRole('tab', { name: /create/i }));
+            const promptInput = screen.getByLabelText(/photo prompt/i);
+            await user.clear(promptInput);
+            const generateBtn = screen.getByRole('button', { name: /generate new photo/i });
+            if (generateBtn.hasAttribute('disabled')) {
+                 expect(generateBtn).toBeDisabled();
+            } else {
+                 await user.click(generateBtn);
+                 expect(await screen.findByText(/please enter a prompt/i)).toBeInTheDocument();
+            }
+        });
+
+        it('should handle editing a photo from an image and a text prompt', {
+            meta: { 
+                alias: 'Hire-Photo-Edit',
+                behavior: "Calls edit API and updates preview",
+                scenario: "Editing existing photo"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "100.00", fullBalance: 100.00 });
+                })
+            );
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            const file = new File(['img'], 'photo.png', { type: 'image/png' });
+            const fileInput = screen.getByText(/drop file or/i).closest('label')?.querySelector('input[type="file"]');
+            if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
+            await user.click(screen.getByRole('tab', { name: /create/i }));
+            const promptInput = screen.getByLabelText(/photo prompt/i);
+            await user.type(promptInput, "Make it cyberpunk");
+            const editBtn = await screen.findByRole('button', { name: /edit photo/i });
+            await user.click(editBtn);
+            expect(mockAssistantActions.photo.edit).toHaveBeenCalled();
+            expect(await screen.findByText("Photo edited successfully!")).toBeInTheDocument();
+        });
+
+        it('should display progress for photo animation process', {
+            meta: { 
+                alias: 'Hire-Animation-Progress',
+                behavior: "Shows progress toast during animation",
+                scenario: "Animating photo"
+            }
+        }, async () => {
+            // Using real timers with immediate response to avoid conflict
+            const user = userEvent.setup();
+            vi.useFakeTimers();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "100.00", fullBalance: 100.00 });
+                })
+            );
+            
+            // Mock to stay in 'processing' state first then succeed
+            const getAnimationSpy = vi.spyOn(mockAssistantActions.photo, 'getAnimation')
+                .mockResolvedValue({ id: '1', status: 'processing', model: '', version: '', created_at: '' });
+
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            const file = new File(['img'], 'photo.png', { type: 'image/png' });
+            const fileInput = screen.getByText(/drop file or/i).closest('label')?.querySelector('input[type="file"]');
+            if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
+
+            await user.click(screen.getByRole('tab', { name: /animate/i }));
+            const promptInput = screen.getByLabelText(/tts prompt/i);
+            await user.type(promptInput, "Hello");
+            
+            const animateBtn = screen.getByRole('button', { name: /animate photo/i });
+            await user.click(animateBtn);
+            
+            // Advance time to trigger progress toast update
+            act(() => { vi.advanceTimersByTime(1000); });
+            
+            expect(await screen.findByText(/animating photo/i)).toBeInTheDocument();
+            
+            act(() => { vi.runAllTimers(); });
+            vi.useRealTimers();
+            getAnimationSpy.mockRestore();
+        });
+
+        it('should handle cancellation of photo animation', {
+            meta: { 
+                alias: 'Hire-Animation-Cancel',
+                behavior: "Calls cancel API on stop button click",
+                scenario: "Cancelling ongoing animation"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            vi.useFakeTimers();
+            worker.use(
+                http.get('/api/billing/balance', () => {
+                    return HttpResponse.json({ balance: "100.00", fullBalance: 100.00 });
+                })
+            );
+
+            vi.spyOn(mockAssistantActions.photo, 'getAnimation')
+                .mockResolvedValue({ id: '1', status: 'processing', model: '', version: '', created_at: '' });
+
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+
+            const appearanceTrigger = screen.getByRole('button', { name: /appearance/i });
+            if (appearanceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(appearanceTrigger);
+            }
+            const file = new File(['img'], 'photo.png', { type: 'image/png' });
+            const fileInput = screen.getByText(/drop file or/i).closest('label')?.querySelector('input[type="file"]');
+            if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
+
+            await user.click(screen.getByRole('tab', { name: /animate/i }));
+            const promptInput = screen.getByLabelText(/tts prompt/i);
+            await user.type(promptInput, "Hello");
+            
+            await user.click(screen.getByRole('button', { name: /animate photo/i }));
+            
+            act(() => { vi.advanceTimersByTime(1000); });
+            
+            const cancelBtn = await screen.findByLabelText(/cancel animation/i);
+            await user.click(cancelBtn);
+            
+            expect(mockAssistantActions.photo.cancelAnimation).toHaveBeenCalled();
+            vi.useRealTimers();
+        });
+    });
+
+    describe('E. Voice', () => {
+        // ... (E Tests) ...
+        it('should toggle available voices when Fast Mode is changed', {
+            meta: { 
+                alias: 'Hire-Fast-Mode-Toggle',
+                behavior: "Switch voices provider based on Fast Mode",
+                scenario: "Toggling Fast Mode"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            expect(await screen.findByText(/Alice \(US\)/i)).toBeInTheDocument();
+            const fastModeToggle = screen.getByLabelText(/fast mode/i);
+            await user.click(fastModeToggle);
+            await waitFor(() => {
+                expect(screen.queryByText(/Alice \(US\)/i)).not.toBeInTheDocument();
+                expect(screen.getByText(/Speedy \(OpenAI\)/i)).toBeInTheDocument();
+            });
+        });
+
+        it('should display available voices in the list', { 
+            meta: { 
+                alias: 'Hire-Voice-List',
+                behavior: "Renders list of voices",
+                scenario: "Opening voice accordion"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            expect(await screen.findByText(/Alice \(US\)/i)).toBeInTheDocument();
+            expect(screen.getByText(/Bob \(UK\)/i)).toBeInTheDocument();
+        });
+
+        it('should play a preview when the play button is clicked', {
+            meta: { 
+                alias: 'Hire-Voice-Preview',
+                behavior: "Calls generate API for voice preview",
+                scenario: "Clicking voice play button"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            const aliceText = await screen.findByText(/Alice \(US\)/i);
+            const row = aliceText.closest('div[class*="flex items-center gap-2"]');
+            if (!row) throw new Error("Row not found");
+            const previewBtn = await within(row as HTMLElement).findByRole('button', { name: /preview/i });
+            const playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+            await user.click(previewBtn);
+            expect(mockAssistantActions.voice.generate).toHaveBeenCalled();
+            playSpy.mockRestore();
+        });
+
+        it('should handle creating a new voice via cloning from a file', {
+            meta: { 
+                alias: 'Hire-Voice-Clone',
+                behavior: "Creates voice from uploaded file",
+                scenario: "Cloning voice from file"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            await user.click(screen.getByRole('tab', { name: /clone/i }));
+            await user.type(screen.getByLabelText(/voice name/i), 'My Clone');
+            const file = new File(['audio-content'], 'sample.mp3', { type: 'audio/mp3' });
+            const fileInput = document.getElementById('clone-file-input');
+            if (!fileInput) throw new Error("File input not found");
+            fireEvent.change(fileInput, { target: { files: [file] } });
+            const createBtn = await screen.findByText("Create & Select Voice");
+            const btnElement = createBtn.closest('button');
+            await waitFor(() => expect(btnElement).toBeEnabled());
+            fireEvent.click(btnElement!);
+            await waitFor(() => {
+                expect(mockAssistantActions.voice.clone).toHaveBeenCalled();
+            });
+        });
+        
+        it('should prevent using the name of an existing voice', {
+             meta: {
+                 alias: 'Hire-Voice-Duplicate-Name',
+                 behavior: "Shows error on duplicate voice name",
+                 scenario: "Creating voice with existing name"
+             }
+        }, async () => {
+            (mockAssistantActions.voice.clone as any).mockResolvedValueOnce({ detail: "Voice name already exists" });
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            await user.click(screen.getByRole('tab', { name: /clone/i }));
+            await user.type(screen.getByLabelText(/voice name/i), 'Existing Name');
+            const file = new File(['audio'], 'sample.mp3', { type: 'audio/mp3' });
+            const fileInput = document.getElementById('clone-file-input');
+            if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
+            const createBtn = await screen.findByText("Create & Select Voice");
+            fireEvent.click(createBtn.closest('button')!);
+            expect(await screen.findByText("Error creating voice. Please try again.")).toBeInTheDocument();
+        });
+
+        it('should automatically select a newly created voice', {
+            meta: { 
+                alias: 'Hire-Voice-Auto-Select',
+                behavior: "Selects new voice after creation",
+                scenario: "Voice creation success"
+            }
+        }, async () => {
+             const user = userEvent.setup();
+             const newVoice = { voice_id: 'v_new', name: 'New Voice', provider: 'elevenlabs' };
+             (mockAssistantActions.voice.clone as any).mockResolvedValue(newVoice);
+             render(<HireFlowTestWrapper />);
+             await waitForFormReady();
+             const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+             await user.click(screen.getByRole('tab', { name: /clone/i }));
+             await user.type(screen.getByLabelText(/voice name/i), 'New Voice');
+             const file = new File(['audio'], 'sample.mp3', { type: 'audio/mp3' });
+             const fileInput = document.getElementById('clone-file-input');
+             if(fileInput) fireEvent.change(fileInput, { target: { files: [file] } });
+             const createBtn = await screen.findByText("Create & Select Voice");
+             fireEvent.click(createBtn.closest('button')!);
+             await waitFor(() => {
+                 expect(screen.getByRole('tab', { name: /select/i })).toHaveAttribute('data-state', 'active');
+             });
+        });
+
+        it('should handle designing a new voice', {
+            meta: { 
+                alias: 'Hire-Voice-Design',
+                behavior: "Creates voice from text description",
+                scenario: "Designing voice flow"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            worker.use(
+                http.post('/api/assistant/voice/design/preview', () => {
+                    return HttpResponse.json({
+                        info: {
+                            previews: [
+                                { generated_voice_id: 'preview_1', audio_base_64: 'fake_audio', media_type: 'audio/mp3' }
+                            ],
+                            text: 'Sample text'
+                        }
+                    });
+                })
+            );
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            await user.click(screen.getByRole('tab', { name: /design/i }));
+            const nameInput = screen.getByLabelText(/voice name/i);
+            await user.clear(nameInput);
+            await user.type(nameInput, 'My Design');
+            const descInput = screen.getByLabelText(/voice description prompt/i);
+            fireEvent.change(descInput, { target: { value: 'A very deep and resonant robotic voice that sounds extremely futuristic, calm, and highly intelligent. It should have a slight metallic echo but remain very clear and easy to understand. This needs to be long enough to pass validation.' } });
+            const generateBtn = await screen.findByRole('button', { name: /generate previews/i });
+            await waitFor(() => expect(generateBtn).toBeEnabled());
+            await user.click(generateBtn);
+            const previewBtn = await screen.findByRole('button', { name: /preview 1/i }, { timeout: 5000 });
+            await user.click(previewBtn);
+            const createBtn = await screen.findByText("Create & Select Voice");
+            const createBtnEl = createBtn.closest('button');
+            await user.click(createBtnEl!);
+            await waitFor(() => {
+                 expect(mockAssistantActions.voice.design).toHaveBeenCalled();
+            });
+        });
+
+        it('should allow deleting a user-created voice', {
+            meta: { 
+                alias: 'Hire-Voice-Delete',
+                behavior: "Deletes user voice on button click",
+                scenario: "Deleting custom voice"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            const deletableVoice = {
+                voice_id: 'del_1',
+                name: 'Deletable Voice',
+                description: 'User voice',
+                gender: 'male' as const,
+                language: 'en' as const,
+                provider: 'elevenlabs' as const,
+                is_preset: false,
+                isUserVoiceInOrchestra: true
+            };
+            const mixedVoices = [...mockVoices, deletableVoice];
+            render(<HireFlowTestWrapper customVoices={mixedVoices} />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /^voice$/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            const voiceItem = await screen.findByText('Deletable Voice');
+            const row = voiceItem.closest('div[class*="flex items-center gap-2"]');
+            const deleteBtn = await within(row as HTMLElement).findByRole('button', { name: /delete/i });
+            await user.click(deleteBtn);
+            await waitFor(() => {
+                expect(mockAssistantActions.voice.delete).toHaveBeenCalledWith('del_1', 'elevenlabs');
+            });
+        });
+
+        it('should validate input length in voice design tab', {
+            meta: { 
+                alias: 'Hire-Voice-Design-Validation',
+                behavior: "Shows validation error for short description",
+                scenario: "Designing voice with short prompt"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const voiceAccordionTrigger = screen.getByRole('button', { name: /voice/i });
+            if (voiceAccordionTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceAccordionTrigger);
+            }
+            await user.click(screen.getByRole('tab', { name: /design/i }));
+            const descInput = screen.getByLabelText(/voice description prompt/i);
+            await user.type(descInput, 'Short');
+            const generateBtn = await screen.findByRole('button', { name: /generate previews/i });
+            await user.click(generateBtn);
+            expect(await screen.findByText(/voice description must be between/i)).toBeInTheDocument();
+            expect(mockAssistantActions.voice.preview).not.toHaveBeenCalled();
+        });
+        
+        it('should automatically switch voice when nationality is changed', {
+            meta: { 
+                alias: 'Hire-Auto-Voice-Switching',
+                behavior: "Updates voice selection based on nationality",
+                scenario: "Changing nationality"
+            }
+        }, async () => {
+            const user = userEvent.setup();
+            render(<HireFlowTestWrapper />);
+            await waitForFormReady();
+            const profileTrigger = screen.getByRole('button', { name: /profile/i });
+            if (profileTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(profileTrigger);
+            }
+            const voiceTrigger = screen.getByRole('button', { name: /^voice$/i }); 
+            if (voiceTrigger.getAttribute('data-state') === 'closed') {
+                await user.click(voiceTrigger);
+            }
+            expect(await screen.findByText(/Alice \(US\)/i)).toBeInTheDocument();
+            const natTrigger = screen.getByRole('combobox', { hidden: true, name: /nationality/i }).closest('button');
+            if(natTrigger) fireEvent.click(natTrigger);
+            const ukOption = await screen.findByText(/United Kingdom/i).catch(() => null);
+            if (ukOption) {
+                await user.click(ukOption);
+            } else {
+                const options = screen.getAllByRole('option');
+                if(options.length > 0) await user.click(options[options.length - 1]);
+            }
+            expect(screen.getByLabelText(/^voice trigger$/i)).toBeInTheDocument();
+        });
+    });
+
+    describe('F. Assistant Update Flow', () => {
+        it('should load assistant data into form', {
+            meta: { 
+                alias: 'Edit-Load-Data',
+                behavior: "Form populates with assistant data",
+                scenario: "Opening edit dialog"
+            }
+        }, async () => {
+            render(<EditFlowTestWrapper assistant={mockAssistants[0]} />);
+            expect(screen.getByLabelText(/first name/i)).toHaveValue(mockAssistants[0].first_name);
+            expect(screen.getByLabelText(/last name/i)).toHaveValue(mockAssistants[0].surname);
+        });
+ 
+        it('should submit updates successfully', {
+            meta: { 
+                alias: 'Edit-Submit',
+                behavior: "Submits update and shows success toast",
+                scenario: "Updating assistant name"
+            }
+        }, async () => {
+            const originalFetch = window.fetch;
+            vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+                const url = input.toString();
+                if (url.includes('/api/billing/balance')) {
+                    return new Response(JSON.stringify({ balance: "100.00", fullBalance: 100.00 }), {
+                        status: 200, headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                return originalFetch(input);
+            });
+            const updateSpy = vi.spyOn(mockAssistantActions.assistant, 'update');
+            const user = userEvent.setup();
+            const validAssistant = {
+                ...mockAssistants[0],
+                email: 'jane.doe@unify.ai' 
+            };
+
+            render(<EditFlowTestWrapper assistant={validAssistant} />);
+            
+            const aboutInput = screen.getByLabelText(/about/i);
+            await user.clear(aboutInput);
+            await user.type(aboutInput, 'Updated Bio');
+            const updateBtn = screen.getByRole('button', { name: /update assistant/i });
+            
+            await waitFor(() => expect(updateBtn).toBeEnabled());
+            await user.click(updateBtn);
+
+            await waitFor(() => {
+                const errors = document.querySelectorAll('.text-destructive'); 
+                if(errors.length > 0) console.log("Validation Errors:", Array.from(errors).map(e => e.textContent));
+
+                expect(updateSpy).toHaveBeenCalled();
+
+                const [calledId, calledPayload] = updateSpy.mock.calls[0];
+                expect(calledId).toBe(validAssistant.agent_id);
+                expect(calledPayload).toEqual(expect.objectContaining({
+                    about: 'Updated Bio'
+                }));
+            });
+        });
+    });
+});

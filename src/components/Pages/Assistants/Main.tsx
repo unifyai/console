@@ -4,29 +4,25 @@ import * as React from 'react';
 import { AssistantList } from "@/components/Pages/Assistants/Assistants/List/AssistantList";
 import { TaskList } from "@/components/Pages/Assistants/Tasks/List/TaskList";
 import { cn } from '@/lib/utils';
-import { Assistant, AssistantActions, AssistantPreset, AssistantStatus, AssistantUpdatePayload, AvailableSocialPlatform, VoiceOption } from '@/types/assistants/assistant';
-import { ActivityLogActions } from '@/types/assistants/activity';
+import { Assistant, AssistantActions, AssistantPreset, AssistantUpdatePayload, AvailableSocialPlatform, VoiceOption } from '@/types/assistants/assistant';
 import { TaskActions, Status as TaskStatusEnum } from '@/types/assistants/task';
 import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { AssistantProfilePanel } from './Assistants/Profile/AssistantProfile';
-import { AssistantActivityLogPanel } from './Assistants/Activity/AssistantActivityLogPanel';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Assistants/Hire/AssistantHire';
 import { AssistantEdit } from './Assistants/Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { PresetsPanel } from './Assistants/Hire/Presets/AssistantHirePresetsList';
-
-// Import Hooks
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useTaskFilters } from '@/hooks/Assistants/useTaskFilters';
 import { useTasks } from '@/hooks/Assistants/useTasks';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantHireForm } from '@/hooks/Assistants/useAssistantHireForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
-import { useActivityLogs } from '@/hooks/Assistants/useActivityLogs';
 import { useAssistantHiringApproval } from '@/hooks/Assistants/useAssistantHiringApproval';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
+import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { FormProvider } from 'react-hook-form';
 import { ResponseProps } from '@/types/common';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
@@ -39,23 +35,19 @@ import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { Room } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
-import { User } from 'next-auth';
 import { AssistantCommunicationMinimized } from './Communication/AssistantCommunicationMinimized';
-import { Z_VERSION_ERROR } from 'zlib';
 
 
 interface MainProps {
     taskActions: TaskActions;
     assistantActions: AssistantActions;
-    activityLogActions: ActivityLogActions;
     oneTimeToken?: string | null;
-    userMeta: { image: string | null | undefined; timezone?: string | null; };
+    userMeta: { image: string | null | undefined; timezone?: string | null; email?: string | null; };
 }
 
 export default function Main({
     taskActions, 
     assistantActions, 
-    activityLogActions,
     oneTimeToken,
     userMeta,
 }: MainProps) {
@@ -63,8 +55,6 @@ export default function Main({
     const {
         profileAssistantId, isProfileOpen,
         handleShowProfile, handleProfileClose,
-        activityLogAssistantId, isActivityLogOpen,
-        handleShowActivityLog, handleActivityLogClose,
     } = usePanelManager();
 
     const [profilePanelWidth, setProfilePanelWidth] = React.useState(350);
@@ -120,6 +110,9 @@ export default function Main({
         assistantActions.assistant.status
     );
 
+    // --- Assistant Permissions ---
+    const { canHire, canWrite, canDelete } = useAssistantPermissions();
+
     // --- Task Filters & Data ---
     const {
         searchTermInput, setSearchTermInput,
@@ -137,14 +130,6 @@ export default function Main({
         isLoadingInitial: isLoadingInitialTasks, initialLoadError: taskLoadError,
         updateLocalTask,
     } = useTasks(taskActions, assistants, assistantFilter, filterExpression, initialTaskFetchTriggered);
-
-    // --- Activity Log Data ---
-    const {
-        summary: activitySummary,
-        isLoading: isLoadingActivity,
-        error: activityError,
-    } = useActivityLogs(activityLogActions, activityLogAssistantId);
-
 
     const availableTaskStatuses = React.useMemo(() => {
         return ['all', ...Object.values(TaskStatusEnum)];
@@ -470,9 +455,6 @@ export default function Main({
         const success = await deleteAssistant(assistant);
         if (success) {
             handleProfileClose(); 
-            if (activityLogAssistantId === assistant.agent_id) { 
-                handleActivityLogClose();
-            }
         } else {
             throw new Error("Deletion failed in hook.");
         }
@@ -506,19 +488,15 @@ export default function Main({
 
     // --- Memoized values for props ---
     const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
-    const activityLogPanelAssistant = React.useMemo(() => assistants.find(a => a.agent_id === activityLogAssistantId) || null, [assistants, activityLogAssistantId]);
     const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
     const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
     
     // Determine active panel for width calculations
     const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
-    const activeSidePanelCount = (isProfileOpen ? 1 : 0) + (isActivityLogOpen ? 1 : 0);
+    const activeSidePanelCount = (isProfileOpen ? 1 : 0);
     const assistantListWidth = isAssistantListFolded ? "w-12"
-                             : activeSidePanelCount === 2 ? "w-1/4 lg:w-[300px] xl:w-[350px]" 
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[300px] xl:w-[350px]" 
                              : "w-1/3 lg:w-[400px] xl:w-[450px]"; 
-    const panelBaseWidth = activeSidePanelCount === 2 ? "20%" : "25%";
-
 
     return (
         <>
@@ -531,18 +509,17 @@ export default function Main({
                         assistants={assistants}
                         assistantStatuses={assistantStatuses}
                         assistantError={assistantError}
-                        isLoading={isLoadingAssistants || (isHireDialogOpen && (isLoadingEmails || isLoadingSocialPlatforms))}
+                        isLoading={isLoadingAssistants}
                         error={assistantError}
                         profileAssistantId={profileAssistantId}
-                        activityLogAssistantId={activityLogAssistantId}
                         onShowProfile={handleShowProfile}
-                        onShowActivityLog={handleShowActivityLog}
                         onOpenHireDialog={handleOpenHireDialog}
                         onOpenContactManager={handleOpenContactManager}
                         isFolded={isAssistantListFolded}
                         onToggleFold={() => setIsAssistantListFolded(prev => !prev)}
                         activeCallAssistantId={activeCallId}
                         onHangUp={handleHangUp}
+                        canHire={canHire}
                     />
                 </div>
 
@@ -570,6 +547,7 @@ export default function Main({
                                 onOpenContactManager={handleOpenContactManager}
                                 chatHistories={profileChatHistories}
                                 setChatHistories={setProfileChatHistories}
+                                userEmail={userMeta.email}
                                 isFirstView={isFirstViewAfterHire}
                                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
                                 onFirstViewCompleted={() => setNewlyHiredInfo(null)}
@@ -578,6 +556,8 @@ export default function Main({
                                 isCallConnected={isCallConnected}
                                 isConnectingCall={isConnectingCall}
                                 userTimezone={userMeta.timezone}
+                                canWrite={canWrite(profileAssistant)}
+                                canDelete={canDelete(profileAssistant)}
                             />
                         </motion.div>,
                         <motion.div
@@ -592,30 +572,6 @@ export default function Main({
                         />
                     ]}
                 </AnimatePresence>
-
-
-                {/* Assistant Activity Log Panel */}
-                <AnimatePresence initial={false}>
-                    {isActivityLogOpen && activityLogPanelAssistant && (
-                        <motion.div
-                            key="assistant-activity-log"
-                            initial={{ width: "0%", opacity: 0, x: isProfileOpen ? "0%" : "-1%" }} 
-                            animate={{ width: panelBaseWidth, opacity: 1, x: "0%" }}
-                            exit={{ width: "0%", opacity: 0, x: isProfileOpen ? "0%" : "-1%" }}
-                            transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-                            className="h-full flex-shrink-0 border-r overflow-hidden bg-background"
-                        >
-                            <AssistantActivityLogPanel
-                                assistant={activityLogPanelAssistant}
-                                summary={activitySummary}
-                                isLoading={isLoadingActivity}
-                                error={activityError}
-                                onClose={handleActivityLogClose}
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
 
                 {/* Task List */}
                 <div className="flex-1 h-full min-w-0 overflow-hidden relative">
@@ -640,6 +596,7 @@ export default function Main({
                         assistants={assistants}
                         assistantFilter={assistantFilter}
                         setAssistantFilter={setAssistantFilter}
+                        canWriteAssistant={canWrite}
                     />
                 </div>
             </div>
@@ -748,6 +705,7 @@ export default function Main({
                         availableSocialPlatforms={availableSocialPlatforms}
                         onSuccess={handleUpdateSuccess}
                         initialTab={contactManagerInitialTab}
+                        canWrite={canWrite(contactManagerAssistant)}
                     />
                 )}
             </FormProvider>
@@ -770,6 +728,7 @@ export default function Main({
                         chatHistories={profileChatHistories}
                         setChatHistories={setProfileChatHistories}
                         isConnecting={isConnectingCall}
+                        userEmail={userMeta.email}
                         userImage={userMeta.image}
                         isWaitingForAssistant={isWaitingForAssistant}
                         isCallConnected={isCallConnected}

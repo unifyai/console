@@ -5,7 +5,8 @@ import { WidthProvider, Responsive, Layout } from "react-grid-layout";
 import { useStoreContext } from '@/contexts/providers/StoreProvider';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import { FieldsActions, LogsActions, DerivedEntryActions, TileProps, ContextActions, CodeActions, GranularTileActions, GranularTabActions, TileLayout, ProjectsActions, FileActions } from "@/types/interfaces/grid";
-import SkeletonLoader from "@/components/Common/Loaders/SkeletonLoader";
+import { Loader2, Plus, LayoutGrid } from "lucide-react";
+import { Button } from "@/components/UI/button";
 import { getAnyTileLoading } from "@/contexts/utils/sliceUtils";
 import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
 import { useTabSync } from "@/contexts/hooks/tab/sync/useTabSync";
@@ -34,6 +35,8 @@ interface TabComponentProps {
   contextActions: ContextActions;
   codeActions: CodeActions;
   fileActions: FileActions;
+  /** Whether tiles are currently being loaded */
+  isLoadingTiles?: boolean;
 }
 
 const Tab = ({
@@ -49,6 +52,7 @@ const Tab = ({
   contextActions,
   codeActions,
   fileActions,
+  isLoadingTiles = false,
 }: TabComponentProps) => {
   const widthFactor = 4;
   const heightFactor = 105;
@@ -87,14 +91,6 @@ const Tab = ({
     }
   );
 
-  useEffect(() => {
-    tabLog('[Tab] Render state', {
-      tabId,
-      interfaceId,
-      tileIdsLength: tileIds.length,
-      sortedTiles: sortedTiles.map(t => ({ id: t.id, name: t.name, type: t.type }))
-    });
-  }, [tabId, interfaceId, tileIds, sortedTiles]);
 
   // Get the unregisterTileRefs function from Zustand
   const unregisterTileRefs = useStoreContext(state => state.unregisterTileRefs);
@@ -174,7 +170,7 @@ const Tab = ({
             key={tile.id}
             fallback={
               <div className="w-full h-full flex items-center justify-center border p-4">
-                <SkeletonLoader />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             }
           >
@@ -224,7 +220,47 @@ const Tab = ({
   if (!tabDataState || !tabUIState) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <SkeletonLoader />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Show loading state when:
+  // 1. Tiles are explicitly loading
+  // 2. Tab has tileIds but sortedTiles haven't loaded into store yet
+  const hasTileIds = tileIds.length > 0;
+  const tilesNotYetHydrated = hasTileIds && sortedTiles.length === 0;
+  
+  if (isLoadingTiles || tilesNotYetHydrated) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading tiles...</p>
+      </div>
+    );
+  }
+
+  // Show empty state when there are no tiles
+  if (sortedTiles.length === 0 && !isLoadingTiles) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center gap-4 p-8">
+        <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center">
+          <LayoutGrid className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <div className="text-center max-w-md">
+          <h3 className="text-lg font-medium mb-2">No tiles yet</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {isEditMode 
+              ? "Click the 'Add tile' button below to create your first tile."
+              : "Enable Edit Mode to add tiles to this tab."}
+          </p>
+        </div>
+        {isEditMode && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Plus className="h-4 w-4" />
+            <span>Use the <strong>Add tile</strong> button in the bottom left</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -251,7 +287,8 @@ const Tab = ({
         preventCollision={true}
       >
         {tilesToRender.map(({ tileId, tile, element }) => {
-          if (!tile.visible) return null;
+          // In edit mode, show all tiles; otherwise respect visibility setting
+          if (!isEditMode && tile.visible === false) return null;
 
           return (
             <div

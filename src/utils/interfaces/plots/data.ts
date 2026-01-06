@@ -48,6 +48,64 @@ export const getValue = (fields: LogFieldsResponseProps, axisProperty: string, l
     if (dataType === "timestamp" || dataType === "date") value = new Date(value).getTime()
     if (dataType === "timedelta") value = timeDeltaValueToDuration(value)
     if (dataType === "time") value = timeValueToTime(value).getTime()
-    if (dataType === "bool") value = Number(typeof value === "string" ? value === "true" : value) 
+    if (dataType === "bool") value = Number(typeof value === "string" ? value === "true" : value)
+    
+    // Runtime type inference for "Any" type fields
+    if (dataType === "Any" && value !== undefined && value !== null) {
+        // Try parsing as date
+        value = new Date(value).getTime();
+        if (!isNaN(value)) return value;
+        // Try parsing as number first
+        value = Number(value);
+        if (!isNaN(value)) return value;
+    }
+    
     return value
+}
+
+/**
+ * Infers the display type for "Any" type fields based on actual data values.
+ * Used to determine proper axis formatting when the field type is "Any".
+ * 
+ * @param {LogFieldsResponseProps} fields - Metadata describing the fields.
+ * @param {string} axisProperty - The name of the property to check.
+ * @param {LogProps[]} logs - Array of log objects to sample for type inference.
+ * @param {string} table - The table name associated with the logs.
+ * @returns {string} The inferred display type ("timestamp", "float", or the original data_type).
+ */
+export const inferDisplayType = (
+    fields: LogFieldsResponseProps, 
+    axisProperty: string, 
+    logs: LogProps[], 
+    table: string
+): string => {
+    const dataType = fields[axisProperty]?.data_type;
+    if (dataType !== "Any") return dataType || "float";
+    
+    // Sample up to 5 logs to infer type
+    const sampleSize = Math.min(5, logs.length);
+    for (let i = 0; i < sampleSize; i++) {
+        const log = logs[i];
+        if (!hasProperty(fields, axisProperty, log, table)) continue;
+        
+        const fieldType = fields[axisProperty]?.field_type || "entry";
+        const value = fieldType === "derived_entry"
+            ? (log[`${table}.derived_entries`] as LogItemProps)?.[axisProperty]
+            : fieldType === "param"
+                ? (log[`${table}.params`] as LogItemProps)?.[axisProperty]
+                : (log[`${table}.entries`] as LogItemProps)?.[axisProperty];
+        
+        if (value === undefined || value === null) continue;
+        
+        // Check if it looks like a date string
+        if (typeof value === "string") {
+            const dateMs = new Date(value).getTime();
+            if (!isNaN(dateMs)) return "timestamp";
+        }
+        
+        // If it's already a number, return float
+        if (typeof value === "number") return "float";
+    }
+    
+    return "float"; // Default fallback
 }

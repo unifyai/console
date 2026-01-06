@@ -240,6 +240,7 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="photo-prompt"
+                            aria-label="Photo Prompt"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                             onKeyDown={handleCreateKeyDown}
@@ -249,7 +250,7 @@ export function PhotoCustomization({
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-caption text-muted-foreground px-1">
-                                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits
+                                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits per image
                             </p>
                             <div className="flex gap-1">
                                 <TooltipProvider delayDuration={100}>
@@ -258,6 +259,7 @@ export function PhotoCustomization({
                                             {/* Wrap the disabled button in a span to allow tooltip events */}
                                             <span tabIndex={0}>
                                                 <Button
+                                                    aria-label="Edit photo"
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
@@ -279,6 +281,7 @@ export function PhotoCustomization({
                                         <TooltipTrigger asChild>
                                             <span tabIndex={0}>
                                                 <Button
+                                                    aria-label="Generate new photo"
                                                     type="button"
                                                     variant="ghost"
                                                     size="icon"
@@ -304,6 +307,7 @@ export function PhotoCustomization({
                     <div className="relative w-full h-full rounded-lg border bg-background flex flex-col p-2.5">
                         <Textarea
                             id="tts-prompt"
+                            aria-label="TTS Prompt"
                             value={ttsPrompt}
                             onChange={(e) => setTtsPrompt(e.target.value)}
                             onKeyDown={handleAnimateKeyDown}
@@ -313,7 +317,7 @@ export function PhotoCustomization({
                         />
                         <div className="flex justify-between items-center pt-1">
                              <p className="text-caption text-muted-foreground px-1">
-                                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits
+                                Cost: {VIDEO_ANIMATION_COST.toFixed(2)} credits per second
                             </p>
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>

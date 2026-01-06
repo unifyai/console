@@ -14,9 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { RoomAudioRenderer, RoomContext, useTrackToggle, useVoiceAssistant, useLocalParticipant, TrackReference, useTracks, useMediaDeviceSelect } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
 import { ChatMessage } from '@/types/assistants/chat';
-import { Loader2, AlertTriangle } from 'lucide-react';
-import { User } from 'next-auth';
-import { Button } from '@/components/UI/button';
 import { ConnectionDetails } from '@/types/assistants/call';
 import { toast } from 'sonner';
 
@@ -28,6 +25,7 @@ interface AssistantCommunicationDialogContentProps {
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     assistantActions: AssistantActions;
     isConnecting: boolean;
+    userEmail: string | null | undefined;
     userImage: string | null | undefined;
     isWaitingForAssistant: boolean;
     connectionError: string | null;
@@ -51,6 +49,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     setChatHistories, 
     assistantActions, 
     isConnecting, 
+    userEmail,
     userImage, 
     isWaitingForAssistant, 
     connectionError, 
@@ -79,7 +78,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
 
     const [isUserViewVisible, setIsUserViewVisible] = React.useState(true);
     const [isUserViewMaximized, setIsUserViewMaximized] = React.useState(false);
-    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | 'transcriptions' | null>(null);
+    const [activeSidePanel, setActiveSidePanel] = React.useState<'chat' | 'settings' | null>(null);
 
     const [videoDevices, setVideoDevices] = React.useState<MediaDeviceInfo[]>([]);
     const [selectedVideoDevice, setSelectedVideoDevice] = React.useState<string>('');
@@ -172,7 +171,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     const displayName = `${assistant.first_name} ${assistant.surname}`;
     const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
 
-    const handleToggleSidePanel = (panel: 'chat' | 'settings' | 'transcriptions') => {
+    const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
         setActiveSidePanel(current => current === panel ? null : panel);
     };
 
@@ -181,14 +180,12 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         ? "Setting up a connection..."
         : `Waiting for ${assistant.first_name} to join...`;
 
-    const isAudioOnly = callType === 'audio';
-
     return (
         <>
             <AssistantCommunicationHeader assistantName={displayName} onMinimize={onMinimize} onPopOut={handlePopOut} isPopOutDisabled={!connectionDetails} />
             <div className="flex-1 flex min-h-0 relative">
                 <div className="flex-1 flex flex-col items-center justify-center relative bg-background/80">
-                    {isUserViewMaximized && userTrackRef && !isAudioOnly ? (
+                    {isUserViewMaximized && userTrackRef ? (
                         <AssistantCommunicationUserView
                             imageUrl={userImage}
                             trackRef={userTrackRef}
@@ -213,7 +210,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 onRetry={onRetry}
                             />
                             <AnimatePresence>
-                                {isUserViewVisible && !isConnecting && !isAudioOnly && (
+                                {isUserViewVisible && !isConnecting && (
                                     <motion.div
                                         key="user-view-pip" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
                                         transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -231,7 +228,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                             </AnimatePresence>
                         </>
                     )}
-                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && !isAudioOnly && (
+                     {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
                          <motion.div
                              key="user-view-minimized" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                              transition={{ duration: 0.2 }} className="absolute bottom-4 left-4"
@@ -275,6 +272,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                                 assistantActions={{ chat: assistantActions.chat }}
                                 chatHistories={chatHistories}
                                 setChatHistories={setChatHistories}
+                                userEmail={userEmail}
                                 userImage={userImage}
                                 assistantPhoto={assistantPhoto}
                                 callType={callType}
@@ -294,7 +292,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onHangUp={onHangUp}
                 onToggleChat={() => handleToggleSidePanel('chat')}
                 onToggleSettings={() => handleToggleSidePanel('settings')}
-                onToggleTranscriptions={() => handleToggleSidePanel('transcriptions')}
                 isRemoteControlActive={isRemoteControlActive}
                 isRemoteControlLoading={isRemoteControlLoading}
                 onToggleRemoteControl={toggleRemoteControl}
@@ -317,6 +314,7 @@ interface AssistantCommunicationDialogProps {
     chatHistories: Record<string, ChatMessage[]>;
     setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
     isConnecting: boolean;
+    userEmail: string | null | undefined;
     userImage: string | null | undefined;
     isWaitingForAssistant: boolean;
     connectionError: string | null;
@@ -342,6 +340,7 @@ export function AssistantCommunicationDialog({
     chatHistories,
     setChatHistories,
     isConnecting,
+    userEmail,
     userImage,
     isWaitingForAssistant,
     connectionError,
@@ -374,6 +373,7 @@ export function AssistantCommunicationDialog({
                     setChatHistories={setChatHistories}
                     assistantActions={assistantActions}
                     isConnecting={isConnecting}
+                    userEmail={userEmail}
                     userImage={userImage}
                     isWaitingForAssistant={isWaitingForAssistant}
                     connectionError={connectionError}

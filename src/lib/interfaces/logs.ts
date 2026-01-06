@@ -3,6 +3,8 @@
 import { LogFieldsProps, LogItemProps, getLogsParameters } from "@/types/interfaces/logs";
 import { sanitizeKey } from "../../app/(home)/interfaces/utils";
 import { ResponseProps } from "@/types/common";
+import { SyncableLogEntry } from "@/types/assistants/contact-sync";
+import { maybeSyncContactFields } from "./contact-sync";
 
 // create logs
 export const createLogs = async (apiKey: string) => {
@@ -58,12 +60,19 @@ export const getLogs = async (apiKey: string) => {
                 + (randomize ? `&randomize=${randomize}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, next: { tags: [`logs_${_timestamp}`] }, signal },
             );
+            
+            // Handle 404 - context not found
+            if (response.status === 404) {
+                console.warn(`[getLogs] Context not found: ${context} in project ${project}`);
+                return { params: {}, logs: [], count: 0, groups: [], contextNotFound: true };
+            }
+            
             const json = await response.json();
             if (!response.ok)
                 return { params: {}, logs: [], count: 0, groups: [], detail: json.detail };
             return await json;
-        } catch (e) {
-            console.log(`Failed to get logs error: ${e}`)
+        } catch (e: any) {
+            console.log(`Failed to get logs error: ${e?.message || e}`)
             return {"params":{},"logs":[],"count":0, "groups": []}
         }
     };
@@ -138,17 +147,68 @@ export const updateLogs = async (apiKey: string) => {
     };
 };
 
+/**
+ * Wrapped update with contact sync support.
+ * After a successful log update, checks if contact fields should be synced
+ * to user/assistant profiles (fire-and-forget).
+ * 
+ * @param apiKey - User's API key
+ * @returns Server action for updating logs with optional contact sync
+ */
+export const updateLogsWithSync = async (apiKey: string) => {
+    const baseUpdate = await updateLogs(apiKey);
+
+    return async (
+        project: string,
+        context: string | null,
+        logs: number[],
+        entries: LogItemProps,
+        params: LogItemProps,
+        overwrite: boolean = true,
+        affectedLogs?: SyncableLogEntry[]
+    ): Promise<ResponseProps> => {
+        "use server";
+
+        // 1. Call base update
+        const result = await baseUpdate(project, context, logs, entries, params, overwrite);
+
+        // 2. On success, trigger contact sync (fire-and-forget)
+        if (!result.detail && affectedLogs && affectedLogs.length > 0) {
+            maybeSyncContactFields(project, context, entries, params, affectedLogs)
+                .catch(err => console.warn('[ContactSync] Sync failed:', err));
+        }
+
+        return result;
+    };
+};
+
 // get log fields
 export const getLogFields = async (apiKey: string) => {
     return async (project: string, context: string | null, signal?: AbortSignal) => {
         "use server";
 
-        const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
-            + (context ? `&context=${context}` : ""),
-            { method: "GET", headers: { apiKey: apiKey }, signal }
-        );
-        return await response.json();
+        try {
+            const response = await fetch(
+                `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
+                + (context ? `&context=${context}` : ""),
+                { method: "GET", headers: { apiKey: apiKey }, signal }
+            );
+            
+            // Return empty object for 404 (context not found) or other errors
+            if (response.status === 404) {
+                console.warn(`[getLogFields] Context not found: ${context}`);
+                return {};
+            }
+            if (!response.ok) {
+                console.error(`[getLogFields] Error: ${response.status}`);
+                return {};
+            }
+            
+            return await response.json();
+        } catch (e) {
+            console.error(`[getLogFields] Network error:`, e);
+            return {};
+        }
     };
 };
 

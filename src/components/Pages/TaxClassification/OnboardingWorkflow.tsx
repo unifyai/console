@@ -18,6 +18,8 @@ interface ProfileData {
   name: string;
   lastName: string;
   jobTitle: string;
+  bio: string;
+  timezone: string;
 }
 
 interface OnboardingStep {
@@ -59,7 +61,9 @@ export default function OnboardingWorkflow() {
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
     lastName: '',
-    jobTitle: ''
+    jobTitle: '',
+    bio: '',
+    timezone: ''
   });
   const [taxData, setTaxData] = useState<TaxClassificationFormData | null>(null);
   const [newsletterData, setNewsletterData] = useState<string[]>([]);
@@ -143,7 +147,9 @@ export default function OnboardingWorkflow() {
         setProfileData({
           name: userData.name || '',
           lastName: userData.lastName || '',
-          jobTitle: userData.jobTitle || ''
+          jobTitle: userData.jobTitle || '',
+          bio: userData.bio || '',
+          timezone: userData.timezone || ''
         });
         setIsProfileValid(userData.name && userData.lastName);
         console.log('✅ Pre-populated profile data');
@@ -173,7 +179,7 @@ export default function OnboardingWorkflow() {
 
       // Determine starting step based on available data
       const hasCompleteProfile = userData && userData.name && userData.lastName;
-      
+
       if (hasCompleteProfile) {
         setCurrentStep(1); // Skip to tax classification step
         console.log('🚀 Starting at tax classification step (profile complete)');
@@ -191,7 +197,7 @@ export default function OnboardingWorkflow() {
     setProfileData(data);
     setError(null);
     setIsSubmitting(true);
-    
+
     try {
       // Update user profile
       const response = await fetch('/api/user/update-profile', {
@@ -200,7 +206,9 @@ export default function OnboardingWorkflow() {
         body: JSON.stringify({
           name: data.name,
           lastName: data.lastName,
-          jobTitle: data.jobTitle
+          jobTitle: data.jobTitle,
+          bio: data.bio,
+          timezone: data.timezone
         })
       });
 
@@ -210,7 +218,7 @@ export default function OnboardingWorkflow() {
       }
 
       console.log('✅ Profile updated successfully');
-      
+
       // Move to next step
       setCurrentStep(1);
     } catch (err) {
@@ -226,7 +234,7 @@ export default function OnboardingWorkflow() {
     setTaxData(data);
     setError(null);
     setIsSubmitting(true);
-    
+
     try {
       if (data.account_type === 'individual') {
         // simple update for personal accounts
@@ -430,7 +438,7 @@ export default function OnboardingWorkflow() {
               Step {currentStep + 1} of {ONBOARDING_STEPS.length}
             </div>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="w-full">
             <Progress value={progress} className="h-2" />
@@ -503,7 +511,7 @@ export default function OnboardingWorkflow() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            
+
             <div className="flex items-center space-x-4">
               {currentStep === 2 && (
                 <Button 
@@ -515,7 +523,7 @@ export default function OnboardingWorkflow() {
                   Skip for now
                 </Button>
               )}
-              
+
               <Button 
                 onClick={goNext}
                 disabled={!getCurrentStepValid() || isSubmitting}
@@ -542,4 +550,4 @@ export default function OnboardingWorkflow() {
       </div>
     </div>
   );
-} 
+}

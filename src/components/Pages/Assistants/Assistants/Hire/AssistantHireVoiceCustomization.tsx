@@ -8,22 +8,16 @@ import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { toast } from 'sonner';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { AssistantActions, VoiceOption, VoiceDesignPreviewItem, AssistantFormData } from '@/types/assistants/assistant';
-import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, Hourglass, X, Slash, TimerOff, Zap } from 'lucide-react';
+import { Trash2, UploadCloud, Loader2, Info, CheckCircle2, Play, Wand2, MicVocal, PauseCircle, PlayCircle, Mic, Square, Clapperboard, TimerOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
-import { SupportedLanguage } from "@cartesia/cartesia-js/api"; 
 import { VoiceListItemSkeleton } from './AssistantHireVoiceItemSkeleton';
 import { Checkbox } from "@/components/UI/checkbox";
 import { useFormContext, Controller } from 'react-hook-form';
-
-// Import Hooks
 import { useVoiceCreator } from '@/hooks/Assistants/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
-
-// Import Utils/Constants
-import { getLanguageFlag, getLanguageLabel } from '@/utils/assistants/voice-utils'; 
+import { getLanguageFlag } from '@/utils/assistants/voice-utils'; 
 import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 
 interface VoiceCustomizationProps {
@@ -255,7 +249,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                         {videoSourceVoiceId === voice.voice_id && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
+                                    <Button type="button" variant="ghost" size="icon" aria-label="Current video source" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
                                         <Clapperboard className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                                     </Button>
                                 </TooltipTrigger>
@@ -268,7 +262,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                         {voice.provider === "openai" && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
+                                    <Button type="button" variant="ghost" size="icon" aria-label="Low latency" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
                                         <TimerOff className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                                     </Button>
                                 </TooltipTrigger>
@@ -279,7 +273,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
 
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()} disabled={itemIsDisabled}>
+                            <Button type="button" variant="ghost" size="icon" aria-label={`Description: ${voice.description || "No description."}`} className={cn("h-7 w-7", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} onClick={(e) => e.stopPropagation()} disabled={itemIsDisabled}>
                                 <Info className={cn("h-4 w-4", isSelected ? "text-primary-foreground" : "text-muted-foreground")} />
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{voice.description || "No description."}</p></TooltipContent></Tooltip>
@@ -287,7 +281,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
 
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null) }>
+                            <Button type="button" variant="ghost" size="icon" aria-label={`Preview "${voice.name}"`} className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null) }>
                                 {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
@@ -296,7 +290,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                     {!voice.is_preset && voice.isUserVoiceInOrchestra && (
                         <TooltipProvider delayDuration={100}>
                             <Tooltip><TooltipTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon" className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); handleDeleteVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" aria-label={`Delete "${voice.name}"`} className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-destructive/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10")} onClick={(e) => { e.stopPropagation(); handleDeleteVoice(voice); }} disabled={itemIsDisabled}><Trash2 className="h-4 w-4" /></Button>
                             </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{`Delete "${voice.name}"`}</p></TooltipContent></Tooltip>
                         </TooltipProvider>
                     )}

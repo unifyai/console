@@ -1,7 +1,7 @@
 "use server";
 
 import { ProjectTemplateSchema } from "@/types/interfaces/grid";
-import { 
+import {
     ExportProjectTemplateRequest,
     ImportProjectTemplateRequest,
     TemplateImportResponse,
@@ -32,6 +32,19 @@ export const getProjects = async (apiKey: string) => {
 
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/projects`,
+            { method: "GET", headers: { apiKey: apiKey }, cache: "no-store" }
+        );
+        return await response.json();
+    };
+};
+
+// get project details
+export const getProject = async (apiKey: string) => {
+    return async (name: string) => {
+        "use server";
+
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/project/${encodeURIComponent(name)}`,
             { method: "GET", headers: { apiKey: apiKey }, cache: "no-store" }
         );
         return await response.json();
@@ -150,6 +163,51 @@ export const importProjectFromTemplate = async (apiKey: string) => {
             return { error: `Failed to import project template: ${response.status}`, success: false };
         }
 
+        return await response.json();
+    };
+};
+
+// Transfer project to organization
+export const transferProjectToOrg = (apiKey: string) => {
+    return async (projectId: number, organizationId: number) => {
+        "use server";
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/projects/${projectId}/transfer?type=organization`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apiKey": apiKey
+                },
+                body: JSON.stringify({ organization_id: organizationId })
+            }
+        );
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || `Failed to transfer project: ${response.status}`);
+        }
+        return await response.json();
+    };
+};
+
+// Transfer project to personal
+export const transferProjectToPersonal = (apiKey: string) => {
+    return async (projectId: number) => {
+        "use server";
+        const response = await fetch(
+            `${process.env.NEXTAUTH_URL}/api/projects/${projectId}/transfer?type=personal`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "apiKey": apiKey
+                }
+            }
+        );
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.detail || `Failed to transfer project: ${response.status}`);
+        }
         return await response.json();
     };
 };

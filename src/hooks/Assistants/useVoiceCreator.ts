@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Voice, AssistantActions, VoiceOption, VoiceDesignPreviewItem, VoiceDesignGeneratePreviewsRequest, AssistantFormData } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
-import { SupportedLanguage } from "@cartesia/cartesia-js/api";
 import { PRIMARY_VOICE_PROVIDER, DESIGN_VOICE_DESC_MIN_LENGTH, DESIGN_VOICE_DESC_MAX_LENGTH, DESIGN_SAMPLE_TEXT_MIN_LENGTH, DESIGN_SAMPLE_TEXT_MAX_LENGTH } from '@/constants/assistants/settings';
 import { useFormContext } from 'react-hook-form';
 
@@ -40,6 +39,7 @@ export function useVoiceCreator(
     }, []);
 
     const handleGenerateDesignPreviews = async () => {
+        
         if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
             toast.error("Voice design is only available for the ElevenLabs provider.");
             return;
@@ -54,12 +54,10 @@ export function useVoiceCreator(
             toast.error(`Voice description must be between ${DESIGN_VOICE_DESC_MIN_LENGTH} and ${DESIGN_VOICE_DESC_MAX_LENGTH} characters.`);
             return;
         }
-        
         if (includeBio && !bioText?.trim()) {
             toast.error("Profile bio cannot be empty when 'Include profile bio' is checked.");
             return;
         }
-
         if (trimmedSampleText.length > 0 && (trimmedSampleText.length < DESIGN_SAMPLE_TEXT_MIN_LENGTH || trimmedSampleText.length > DESIGN_SAMPLE_TEXT_MAX_LENGTH)) {
             toast.error(`If sample text is provided, it must be between ${DESIGN_SAMPLE_TEXT_MIN_LENGTH} and ${DESIGN_SAMPLE_TEXT_MAX_LENGTH} characters.`);
             return;
@@ -68,10 +66,10 @@ export function useVoiceCreator(
         setIsGeneratingPreviews(true);
         setDesignPreviews([]); 
         setSelectedPreviewId(null);
+        
         const toastId = toast.loading("Generating voice design previews...");
         try {
             const payload: VoiceDesignGeneratePreviewsRequest = {};
-
             if (includeBio) {
                 payload.bio = bioText;
                 if (trimmedVoiceDesc) {
@@ -80,7 +78,6 @@ export function useVoiceCreator(
             } else {
                 payload.voice_description = trimmedVoiceDesc;
             }
-
             if (trimmedSampleText.length > 0) {
                 payload.text = trimmedSampleText;
             } else {
@@ -88,9 +85,7 @@ export function useVoiceCreator(
             }
 
             const result = await assistantVoiceActions.preview(payload);
-
             if ('detail' in result) {
-                console.error(`[useVoiceCreator] ${(result as ResponseProps).detail || "Failed to generate previews."}`)
                 toast.error("Failed to generate previews.", { id: toastId });
             } else { 
                 setDesignPreviews(result.previews || []);
@@ -101,7 +96,6 @@ export function useVoiceCreator(
                 }
             }
         } catch (error: any) {
-            console.error(`[useVoiceCreator] Preview generation failed: ${error.message}`)
             toast.error(`Preview generation failed.`, { id: toastId });
         } finally {
             setIsGeneratingPreviews(false);
@@ -125,7 +119,9 @@ export function useVoiceCreator(
                 if (cloneDescription) formData.append('description', cloneDescription);
                 formData.append('provider', PRIMARY_VOICE_PROVIDER);
                 backendResponse = await assistantVoiceActions.clone(formData);
-            } else if (createMode === 'design') {
+            } 
+            
+            else if (createMode === 'design') {
                 if (PRIMARY_VOICE_PROVIDER !== 'elevenlabs') {
                     toast.error("Design mode is only available for ElevenLabs provider.", { id: toastId });
                     setIsProcessingCreate(false); return;
@@ -135,9 +131,7 @@ export function useVoiceCreator(
                     setIsProcessingCreate(false); return;
                 }
                 
-                // Find the selected preview to get its audio data
                 const selectedPreview = designPreviews.find(p => p.generated_voice_id === selectedPreviewId);
-
                 backendResponse = await assistantVoiceActions.design({
                     generated_voice_id: selectedPreviewId,
                     voice_name: designFinalVoiceName,
@@ -146,20 +140,20 @@ export function useVoiceCreator(
                     media_type: selectedPreview?.media_type || null
                     // labels: {} // Optional labels
                 });
-            } else {
+            } 
+            
+            else {
                 toast.error("Invalid voice creation mode.", { id: toastId });
                 setIsProcessingCreate(false); return;
             }
             
-
             if (backendResponse && (backendResponse as ResponseProps).detail) {
                 const errorDetail = (backendResponse as ResponseProps).detail || `Unknown ${createMode} error.`;
-                console.error(`Error creating voice: ${errorDetail}`);
                 toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
-            } 
+            }
+
             else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
                 const voiceDataFromBackend = backendResponse as VoiceOption;
-
                 const fullNewVoice: VoiceOption = {
                     ...voiceDataFromBackend,
                     provider: voiceDataFromBackend.provider || PRIMARY_VOICE_PROVIDER, 
@@ -170,14 +164,13 @@ export function useVoiceCreator(
                 if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);
                 if (fetchUserVoices) fetchUserVoices(); 
                 resetCreateForm();
-            } 
+            }
+
             else { 
-                console.error(`Error creating voice: Unexpected response structure from backend.`, backendResponse);
                 toast.error(`Error creating voice: Unexpected response.`, { id: toastId, duration: 7000 });
             }
 
         } catch (error: any) {
-            console.error(`Error creating voice: ${error.message}`);
             toast.error(`Voice creation process failed.`, { id: toastId, duration: 7000 });
         } finally {
             setIsProcessingCreate(false);

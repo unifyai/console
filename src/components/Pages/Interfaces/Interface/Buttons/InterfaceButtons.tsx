@@ -279,8 +279,9 @@ const InterfaceButtons = ({
             setShowImportSuccess(true);
             setTimeout(async () => {
                 setImportOpen(false);
-                await refetchInterfaces();
-                const newInterface = (await interfaceActions.list(project!)).find(i => i.name === importInterfaceName.trim());
+                // Refetch and use the cached data - no duplicate API call
+                const { data: refreshedInterfaces } = await refetchInterfaces();
+                const newInterface = refreshedInterfaces?.find((i: { name: string }) => i.name === importInterfaceName.trim());
                 if (newInterface) {
                     const url = new URL(window.location.href);
                     url.searchParams.set('interface', newInterface.name);
@@ -289,7 +290,7 @@ const InterfaceButtons = ({
             }, 2000);
         } catch (error) { setFileError((error as Error).message);
         } finally { setIsImporting(false); }
-    }, [selectedFile, templateData, importInterfaceName, validateImportName, interfaceActions, project, refetchInterfaces, router]);
+    }, [selectedFile, templateData, importInterfaceName, validateImportName, interfaceActions, project, refetchInterfaces, router, importInterfaceName]);
 
     return (
         <div className="flex items-center gap-2">

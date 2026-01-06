@@ -252,6 +252,8 @@ T extends TileType
         
           // Update the TableDataItem in the cache
           queryClient.setQueryData(['tableDataItem', optimisticTileData.id], tableDataItem);
+          // Invalidate internal data query so dependency manager re-checks render readiness
+          queryClient.refetchQueries({ queryKey: ["internalData", optimisticTileData.id], type: 'active' });
         } catch (error) {
           showErrorToast(error, `Error building optimistic TableDataItem for ${optimisticTileData.name}`);
           throw error;

@@ -424,7 +424,12 @@ export const drawAxes = (
     yAxis.select("path").style("opacity", 0);
     xAxis.style("opacity", 1)
     
-    if (plotType === "Bar Chart") xAxis.style("opacity", 0)         // (Temporary: Hide x axis for bar charts)
+    // Hide tick labels and lines for bar charts, but keep axis label visible
+    if (plotType === "Bar Chart") {
+        xAxis.selectAll(".tick text").style("opacity", 0);  // Hide tick labels
+        xAxis.selectAll(".tick line").style("opacity", 0);  // Hide tick lines
+        xAxis.selectAll(".domain").style("opacity", 0);     // Hide axis line
+    }
 
     // --- Add Axis Labels ---
     const labelFontSize = "12px";

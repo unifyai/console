@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get user data from Orchestra
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -16,11 +16,13 @@ export async function GET(request: NextRequest) {
       name: user.name || null,
       lastName: user.lastName || null,
       jobTitle: user.jobTitle || null,
+      bio: user.bio || null,
+      timezone: user.timezone || null,
       email: user.email
     });
   } catch (error) {
     console.error('Error fetching user profile from Orchestra:', error);
-    
+
     // Return a more specific error message
     if (error instanceof Error) {
       return NextResponse.json({ 
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
         details: error.message 
       }, { status: 500 });
     }
-    
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

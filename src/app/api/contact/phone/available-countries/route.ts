@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processPhoneCountryCodes } from "@/utils/assistants/country-utils";
+import { getCurrentUser } from "@/lib/user/user";
 
 const baseUrl = `${process.env.COMMUNICATION_URL}`;
 
 export async function GET(request: NextRequest) {
-    const apiKey = request.headers.get("apiKey");
+    // Get API key from session (fallback to header for backwards compatibility)
+    const user = await getCurrentUser();
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    
+    if (!apiKey) {
+        return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
+    }
     try {
         const response = await fetch(
             `${baseUrl}/phone/available-countries`,

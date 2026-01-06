@@ -2,16 +2,15 @@
 
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { X, MessageSquare, Settings, Video, Mic, Volume2, Captions } from 'lucide-react';
+import { X, MessageSquare, Settings, Video, Mic, Volume2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
 import { Label } from '@/components/UI/label';
 import { AssistantProfileChatPanel } from '../Assistants/Profile/AssistantProfileChatPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
-import { AssistantCommunicationTranscriptionsPanel } from './AssistantCommunicationTranscriptionsPanel';
 
 interface AssistantCommunicationSidePanelProps {
-    panelType: 'chat' | 'settings' | 'transcriptions' | null;
+    panelType: 'chat' | 'settings' | null;
     onClose: () => void;
     videoDevices?: MediaDeviceInfo[];
     selectedVideoDevice?: string;
@@ -26,6 +25,7 @@ interface AssistantCommunicationSidePanelProps {
     assistantActions?: Pick<AssistantActions, 'chat'>;
     chatHistories?: Record<string, ChatMessage[]>;
     setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+    userEmail?: string | null;
     userImage?: string | null;
     assistantPhoto?: string | null;
     callType?: 'video' | 'audio' | null;
@@ -47,6 +47,7 @@ export function AssistantCommunicationSidePanel({
     assistantActions,
     chatHistories,
     setChatHistories,
+    userEmail,
     userImage,
     assistantPhoto,
     callType,
@@ -54,35 +55,33 @@ export function AssistantCommunicationSidePanel({
 
     const renderSettings = () => (
         <div className="space-y-4">
-            {callType !== 'audio' && (
-                <div className="space-y-2">
-                    <Label htmlFor="camera-select" className="text-sm font-medium flex items-center gap-2">
-                        <Video className="h-4 w-4" /> Camera
-                    </Label>
-                    <Select
-                        value={selectedVideoDevice}
-                        onValueChange={onVideoDeviceChange}
-                        disabled={videoDevices.length === 0}
-                    >
-                        <SelectTrigger id="camera-select">
-                            <SelectValue placeholder="Select a camera..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {videoDevices.length > 0 ? (
-                                videoDevices.map(device => (
-                                    <SelectItem key={device.deviceId} value={device.deviceId}>
-                                        {device.label || `Camera ${videoDevices.indexOf(device) + 1}`}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <SelectItem value="no-camera" disabled>
-                                    No cameras found
+            <div className="space-y-2">
+                <Label htmlFor="camera-select" className="text-sm font-medium flex items-center gap-2">
+                    <Video className="h-4 w-4" /> Camera
+                </Label>
+                <Select
+                    value={selectedVideoDevice}
+                    onValueChange={onVideoDeviceChange}
+                    disabled={videoDevices.length === 0}
+                >
+                    <SelectTrigger id="camera-select">
+                        <SelectValue placeholder="Select a camera..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {videoDevices.length > 0 ? (
+                            videoDevices.map(device => (
+                                <SelectItem key={device.deviceId} value={device.deviceId}>
+                                    {device.label || `Camera ${videoDevices.indexOf(device) + 1}`}
                                 </SelectItem>
-                            )}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
+                            ))
+                        ) : (
+                            <SelectItem value="no-camera" disabled>
+                                No cameras found
+                            </SelectItem>
+                        )}
+                    </SelectContent>
+                </Select>
+            </div>
             <div className="space-y-2">
                 <Label htmlFor="mic-select" className="text-sm font-medium flex items-center gap-2">
                     <Mic className="h-4 w-4" /> Microphone
@@ -141,10 +140,6 @@ export function AssistantCommunicationSidePanel({
             icon: <Settings className="h-5 w-5 text-muted-foreground" />,
             title: "Settings",
         },
-        transcriptions: {
-            icon: <Captions className="h-5 w-5 text-muted-foreground" />,
-            title: "Transcriptions",
-        },
     };
 
     if (!panelType) return null;
@@ -170,18 +165,13 @@ export function AssistantCommunicationSidePanel({
                         assistantActions={assistantActions}
                         chatHistories={chatHistories}
                         setChatHistories={setChatHistories}
+                        userEmail={userEmail}
                     />
                 )}
                 {panelType === 'settings' && (
                     <div className="p-4">
                         {renderSettings()}
                     </div>
-                )}
-                {panelType === 'transcriptions' && (
-                    <AssistantCommunicationTranscriptionsPanel
-                        userImage={userImage}
-                        assistantPhoto={assistantPhoto}
-                    />
                 )}
             </div>
         </div>

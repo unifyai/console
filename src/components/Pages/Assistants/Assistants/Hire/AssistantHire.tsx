@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AssistantFormData, AssistantPreset, AssistantActions, AvailableSocialPlatform } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantPreset } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/UI/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/UI/dialog";
 import { Button } from '@/components/UI/button';
-import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, PanelRightClose, PanelRightOpen, Maximize2, Minimize2, Minus, X, LayoutList, MessageSquare } from 'lucide-react';
+import { Loader2, Shuffle, AlertTriangle, Lock, Info, Timer, Maximize2, Minimize2, Minus, X, LayoutList, MessageSquare } from 'lucide-react';
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
@@ -97,15 +97,6 @@ export function AssistantHire ({
         }
     };
 
-    const handleToggleRightPanel = () => {
-        setIsAssistantPresetsOpen(prev => {
-            const isClosing = prev;
-            if (isClosing && layoutMode === 'right') {
-                setLayoutMode('split'); 
-            }
-            return !prev;
-        });
-    };
     const handleToggleView = () => setRightPanelView(p => p === 'presets' ? 'chat' : 'presets');
 
     const isUserApproved = userApprovalStatus === "approved";
@@ -268,7 +259,7 @@ export function AssistantHire ({
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
+                                                    <Button aria-label="Randomize Assistant" type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRandomizePreset} disabled={isPrimaryActionDisabled}>
                                                         <Shuffle className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>

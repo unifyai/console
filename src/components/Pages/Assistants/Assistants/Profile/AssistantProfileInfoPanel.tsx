@@ -1,8 +1,5 @@
 import * as React from 'react';
-import { Mail, Phone, PenLine, Check, Info, Clock } from "lucide-react";
-import { SiGooglemeet } from "react-icons/si";
-import { BiLogoMicrosoftTeams, BiLogoZoom } from "react-icons/bi";
-import { WhatsApp } from '@mui/icons-material';
+import { Clock } from "lucide-react";
 import type { Assistant } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/UI/popover";
@@ -18,56 +15,12 @@ import { Button } from '@/components/UI/button';
 interface AssistantProfileInfoPanelProps {
     assistant: Assistant;
     userTimezone?: string | null;
+    onEdit: () => void;
+    /** Whether the current user can edit this assistant */
+    canWrite?: boolean;
 }
 
-const ContactItem: React.FC<{ 
-    value: string; 
-    icon: React.ReactNode;
-    tooltip: string; 
-    isCopyable?: boolean, 
-    handleClick?: () => void, 
-    textClassName?: string
-}> = ({ 
-    value, 
-    icon,
-    tooltip,
-    isCopyable = false, 
-    handleClick,
-    textClassName
-}) => {
-    const [isCopied, setIsCopied] = React.useState(false);
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(value);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
-
-    const onClick = () => {
-        isCopyable && handleCopy();
-        handleClick && handleClick();
-    }
-
-    return (
-        <TooltipProvider delayDuration={100}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <div className="grid grid-cols-[auto_1fr] items-center gap-2 cursor-pointer" onClick={onClick}>
-                        <div className="flex-shrink-0">
-                            {isCopyable && isCopied ? <Check className="h-4 w-4 text-green-500" /> : icon}
-                        </div>
-                        <span className={`truncate min-w-0 text-caption ${textClassName}`}>{value || '-'}</span>
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                    <p>{tooltip}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-};
-
-export function AssistantProfileInfoPanel({ assistant, userTimezone }: AssistantProfileInfoPanelProps) {
+export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit, canWrite = true }: AssistantProfileInfoPanelProps) {
     const [isVideoPopoverOpen, setIsVideoPopoverOpen] = React.useState(false);
     const [isVideoLoading, setIsVideoLoading] = React.useState(false);
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -99,25 +52,6 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
             setIsVideoLoading(false);
             cleanupVideoTimeout();
         }
-    };
-    
-    const handleStartMeet = () => {
-        if (!assistant.email) return;
-
-        const now = new Date();
-        const startTime = new Date(now.getTime());
-        const endTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
-
-        const formatDate = (date: Date) => date.toISOString().replace(/[-:.]/g, '').substring(0, 15) + 'Z';
-
-        const calendarUrl = new URL('https://calendar.google.com/calendar/render');
-        calendarUrl.searchParams.append('action', 'TEMPLATE');
-        calendarUrl.searchParams.append('text', `Meeting with ${assistant.first_name} ${assistant.surname}`);
-        calendarUrl.searchParams.append('dates', `${formatDate(startTime)}/${formatDate(endTime)}`);
-        calendarUrl.searchParams.append('add', assistant.email);
-        calendarUrl.searchParams.append('details', 'Generated from Assistant Console.');
-
-        window.open(calendarUrl.toString(), '_blank', 'noopener,noreferrer');
     };
 
     const handleVideoCanPlay = () => {
@@ -197,14 +131,18 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                         <span className="text-caption font-bold">Nationality</span>
                         <span className="text-caption">{assistant.nationality ?? 'N/A'}</span>
                     </div>
-                    
                 </div>
                 
                 {/* Timezone Section */}
                 <div className="pt-4 group/assistant-timezone">
                     <h3 className="text-title">Timezone</h3>
                     <div className="grid grid-cols-2 items-center max-w-sm">
-                        <span className="text-caption">{timezoneInfo.friendlyName}</span>
+                        <span 
+                            className={cn("text-caption", canWrite && "cursor-pointer hover:underline")} 
+                            onClick={canWrite ? onEdit : undefined}
+                        >
+                            {timezoneInfo.friendlyName}
+                        </span>
                         {timezoneInfo.relativeOffsetString && (
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
@@ -215,7 +153,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Time relative to local. Click to update your timezone.</p>
+                                        <p>Assistant&apos;s time relative to yours</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -226,7 +164,10 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone }: Assistant
                 {/* About Section */}
                 <div className="pt-4 group/assistant-about">
                     <h3 className="text-title">About Me</h3>
-                    <div className="text-caption prose max-w-none prose-p:my-1">
+                    <div 
+                        className={cn("text-caption prose max-w-none prose-p:my-1", canWrite && "cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1")} 
+                        onClick={canWrite ? onEdit : undefined}
+                    >
                         <Markdown>{assistant.about || "No description provided."}</Markdown>
                     </div>
                 </div>

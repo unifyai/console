@@ -1,39 +1,27 @@
 'use client';
 
 import * as React from 'react';
-import { UseFormReturn, useFieldArray, FormProvider, Controller, useFormContext, useWatch } from "react-hook-form";
+import { UseFormReturn, FormProvider, Controller, useWatch } from "react-hook-form";
 import { Input } from "@/components/UI/input";
 import { Textarea } from "@/components/UI/textarea";
 import { Label } from "@/components/UI/label";
 import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
-import { AssistantFormData, AssistantActions, VoiceOption, AvailableSocialPlatform, Assistant, AssistantPreset, Voice } from '@/types/assistants/assistant';
+import { AssistantFormData, AssistantActions, VoiceOption, Assistant, Voice } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
 import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Smartphone, Image as ImageIcon, Globe, Loader2 as LoaderIcon, PlusCircle, Check, RefreshCw, X, AlertCircle, Phone, CheckCircle2, Send, Mail, Settings, Laptop } from 'lucide-react';
+import { Volume2, User, Info, Image as ImageIcon, Settings, Laptop } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/UI/tooltip";
 import { ScrollArea } from "@/components/UI/scroll-area";
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/UI/select";
-import { AvailablePhoneCountry } from '@/types/assistants/assistant';
-import { getCountryFlag } from '@/utils/assistants/country-utils';
-import { EMAIL_DOMAIN_WITH_AT, PRIMARY_VOICE_PROVIDER, ASSISTANT_ONBOARDING_FEE, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/UI/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/UI/accordion";
-import { Button } from '@/components/UI/button';
-import { toast } from 'sonner';
-import { SocialAccountInput } from './SocialAccountInput';
 import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
-import { useAccountVerification } from '@/hooks/Assistants/useAccountVerification';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows, FaApple } from "react-icons/fa";
-import { TimezoneOption, generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
+import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
 
@@ -68,7 +56,7 @@ export function HireForm({
     assistants,
     mode = 'hire',
 }: HireFormProps) {
-    const { register, formState: { errors }, watch, setValue, getValues, trigger, control, clearErrors } = formMethods;
+    const { register, formState: { errors }, watch, setValue, getValues, trigger, control } = formMethods;
 
     const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
@@ -141,6 +129,8 @@ export function HireForm({
     const rhfVoiceName = watch("voice_name");
     const rhfVoiceDescription = watch("voice_description");
     const rhfIsPresetPristine = watch("isPresetPristine");
+    const rhfProfileVideoUrl = watch("profile_video_url");
+    const videoSourceVoiceId = watch("video_source_voice_id");
     
     // --- Start of Video Playability Logic ---
     const isVideoPlayable = React.useMemo(() => {
@@ -149,31 +139,27 @@ export function HireForm({
     
         // An existing video on an assistant being edited is always playable,
         // as it's not dependent on the currently selected form voice.
-        if (mode === 'edit' && !!getValues("profile_video_url") && !videoFile) {
+        if (mode === 'edit' && !!rhfProfileVideoUrl && !videoFile) {
             return true;
         }
 
         // A preset video is playable only if the form state is still pristine.
-        const rhfProfileVideoUrl = getValues("profile_video_url");
         const isPresetVideo = rhfProfileVideoUrl?.includes('preset_assistants');
-
-        const videoVoiceId = getValues("video_source_voice_id");
     
         // A preset video is playable if the form is pristine OR if the currently selected voice matches the video's original voice.
         if (isPresetVideo) {
-            return isPresetPristine || rhfVoiceId === videoVoiceId;
+            return isPresetPristine || rhfVoiceId === videoSourceVoiceId;
         }
 
         // A custom video (one the user animated themselves) is playable if the currently
         // selected voice matches the voice used to create the video.
         const hasCustomVideo = !!videoFile;
         if (hasCustomVideo) {
-            const videoVoiceId = getValues("video_source_voice_id");
-            return rhfVoiceId === videoVoiceId;
+            return rhfVoiceId === videoSourceVoiceId;
         }
     
         return false; // Not a preset video and not a custom video, so not playable.
-    }, [videoPreviewUrl, videoFile, getValues, isPresetPristine, rhfVoiceId]);
+    }, [videoPreviewUrl, videoFile, isPresetPristine, rhfVoiceId, rhfProfileVideoUrl, videoSourceVoiceId, mode]);
     
     // --- End of Video Playability Logic ---
 
@@ -232,6 +218,9 @@ export function HireForm({
         setValue("voice_gender", voiceDetails.gender as Gender);
         setValue("voice_provider", voiceDetails.provider);
 
+        const userHasVoice = allDisplayableVoices.some(v => v.voice_id === voiceDetails.voice_id && v.provider === voiceDetails.provider && v.isUserVoiceInOrchestra);
+        setValue("voice_exists", userHasVoice, { shouldValidate: true });
+
         // Update video
         setValue("videoPreviewUrl", null); // Clear old video to show loading
         assistantActions.photo.downloadPresetVideo(currentPreset.first_name, currentPreset.surname, finalProvider)
@@ -245,7 +234,7 @@ export function HireForm({
                 }
             });
 
-    }, [fastMode, getValues, setValue, assistantActions.photo]);
+    }, [fastMode, getValues, setValue, assistantActions.photo, allDisplayableVoices]);
 
     return (
     <FormProvider {...formMethods}>
@@ -255,7 +244,7 @@ export function HireForm({
                     <Accordion type="multiple" defaultValue={["profile", "photo", "voice", "advanced"]} className="w-full">
                         
                         {/* Profile Section */}
-                        <AccordionItem value="profile">
+                        <AccordionItem value="profile" aria-label='profile trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <User className="h-4 w-4"/>
@@ -379,7 +368,7 @@ export function HireForm({
                         </AccordionItem>
 
                         {/* Photo Section */}
-                        <AccordionItem value="photo">
+                        <AccordionItem value="photo" aria-label='photo trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <ImageIcon className="h-4 w-4"/>
@@ -390,7 +379,7 @@ export function HireForm({
                                 <div className="flex flex-col sm:flex-row items-start gap-4">
                                     <AssistantPhotoViewer
                                         photoUrl={photoPreviewUrl}
-                                        videoUrl={videoPreviewUrl}
+                                        videoUrl={isVideoPlayable ? videoPreviewUrl : null}
                                         photoFile={photoFile}
                                         videoFile={videoFile}
                                         className="flex-shrink-0"
@@ -420,7 +409,7 @@ export function HireForm({
                         </AccordionItem>
 
                         {/* Voice Section */}
-                        <AccordionItem value="voice">
+                        <AccordionItem value="voice" aria-label='voice trigger'>
                              <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Volume2 className="h-4 w-4"/>
@@ -453,7 +442,7 @@ export function HireForm({
                             </AccordionContent>
                         </AccordionItem>
                         
-                        <AccordionItem value="advanced" className="border-b-0">
+                        <AccordionItem value="advanced" className="border-b-0" aria-label='advanced trigger'>
                             <AccordionTrigger className="text-title">
                                 <div className='flex gap-2 items-center text-muted-foreground'>
                                     <Settings className="h-4 w-4"/>

@@ -1,20 +1,18 @@
 import { getCurrentUser } from "@/lib/user/user";
 import Main from "@/components/Pages/Assistants/Main";
 import { getTasks, updateTask } from "@/lib/assistants/task";
-import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus } from "@/lib/assistants/assistant";
+import { listAssistants, createAssistant, deleteAssistant, updateAssistant, getAssistantStatus, checkHiringFunds } from "@/lib/assistants/assistant";
 import { uploadPhoto, uploadVideo, downloadPhoto, downloadPresetVideo, generatePhoto, editPhoto, animatePhoto, getAnimationPrediction, cancelAnimationPrediction } from "@/lib/assistants/photo";
 import {
     listVoices, registerVoice, deleteVoice, cloneVoice, generateSpeech,
     designVoiceGeneratePreviews, designVoiceCreateFromPreview
 } from "@/lib/assistants/voice";
-import { getTranscripts, updateTranscripts, messageAssistant } from "@/lib/assistants/chat";
+import { getTranscripts, messageAssistant, getContactIdByEmail, getAssistantOwnerById } from "@/lib/assistants/chat";
 import { listAllAssistantEmails, listAvailablePhoneCountries, listAvailableSocialPlatforms, verifySocialAccount, deleteAssistantContact } from "@/lib/assistants/contact";
 import { TaskActions } from "@/types/assistants/task";
 import { AssistantActions } from "@/types/assistants/assistant";
-import { ActivityLogActions } from "@/types/assistants/activity";
 import { signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { getActivitySummary } from "@/lib/assistants/activity";
 import { fetchCurrentUserHiringProfile, claimAssistantHiringToken, requestAssistantHiringAccess } from "@/lib/assistants/approval";
 import { getSecrets, createSecret, deleteSecret } from "@/lib/assistants/secret";
 import { getCallConnectionDetails, dispatchAssistantToCall } from "@/lib/assistants/call";
@@ -28,10 +26,13 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     }
     const apiKey = user.apiKey;
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
+    const userName = `${user.name}${user.lastName}`;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: AssistantActions = {
         "assistant": {
-            list: await listAssistants(apiKey),
+            list: await listAssistants(apiKey, isOrgContext),
+            check: await checkHiringFunds(apiKey),
             create: await createAssistant(apiKey),
             update: await updateAssistant(apiKey),
             delete: await deleteAssistant(apiKey),
@@ -58,9 +59,10 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             design: await designVoiceCreateFromPreview(apiKey),
         },
         "chat": {
+            getContactId: await getContactIdByEmail(apiKey),
             getTranscripts: await getTranscripts(apiKey),
-            updateTranscripts: await updateTranscripts(apiKey),
             message: await messageAssistant(apiKey),
+            getAssistantOwnerById: await getAssistantOwnerById(),
         },
         "contact": {
             delete: await deleteAssistantContact(apiKey),
@@ -70,9 +72,9 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
             verifySocialAccount: await verifySocialAccount(adminKey),
         },
         "secret": {
-            get: await getSecrets(apiKey),
-            create: await createSecret(apiKey),
-            delete: await deleteSecret(apiKey),
+            get: await getSecrets(apiKey, userName),
+            create: await createSecret(apiKey, userName),
+            delete: await deleteSecret(apiKey, userName),
         },
         "approval": {
             getProfile: await fetchCurrentUserHiringProfile(),
@@ -91,22 +93,17 @@ const AssistantsPage = async ({ searchParams }: { searchParams: { token?: string
     }
 
     const taskActions: TaskActions = {
-        get: await getTasks(apiKey),
-        update: await updateTask(apiKey),
+        get: await getTasks(apiKey, userName),
+        update: await updateTask(apiKey, userName),
     }
 
-    const activityLogActions: ActivityLogActions = {
-        get: await getActivitySummary(apiKey),
-    }
-
-    const userMeta = { image: user.image, timezone: user.timezone };
+    const userMeta = { image: user.image, timezone: user.timezone, email: user.email };
 
     return (
         <div className="w-full h-full">
             <Main
                 assistantActions={assistantActions}
                 taskActions={taskActions}
-                activityLogActions={activityLogActions}
                 oneTimeToken={searchParams?.token}
                 userMeta={userMeta}
             />

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Filter, Loader2, AlertCircle } from "lucide-react"; // Removed unused icons like Search, Users, WifiOff
+import { Filter } from "lucide-react";
 import {
     Select,
     SelectContent,
@@ -7,7 +7,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/UI/select";
-import { Status as TaskStatusEnum } from '@/types/assistants/task';
 
 interface TaskStatusFilterProps {
     statusFilter: string;

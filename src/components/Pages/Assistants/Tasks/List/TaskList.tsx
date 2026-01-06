@@ -1,20 +1,12 @@
 import * as React from 'react';
 import { Input } from "@/components/UI/input";
-import { Filter, Search, Users, Loader2, AlertCircle, WifiOff } from "lucide-react"; 
+import { Search, Loader2, WifiOff } from "lucide-react"; 
 import type { Task, TaskActions } from "@/types/assistants/task"; 
 import { TaskListItem } from "./TaskListItem";
 import { TaskListItemSkeleton } from './TaskListItemSkeleton';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/UI/select";
 import { Accordion } from "@/components/UI/accordion";
 import { Virtuoso } from 'react-virtuoso';
 import { ScrollArea, ScrollBar } from '@/components/UI/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../../../UI/tooltip';
 import { TaskStatusFilter } from '../Filters/TaskFilterStatus';
 import { TaskPriorityFilter } from '../Filters/TaskFilterPriority';
 import { TaskDeadlineFilter } from '../Filters/TaskFilterDeadline';
@@ -42,6 +34,8 @@ interface TaskListProps {
     assistants: Assistant[];
     assistantFilter: string;
     setAssistantFilter: (value: string) => void;
+    /** Function to check if user can write to a specific assistant */
+    canWriteAssistant?: (assistant: Assistant) => boolean;
 }
 
 const ListFooter = React.memo(({ isLoadingMore }: { isLoadingMore: boolean }) => {
@@ -78,6 +72,7 @@ export function TaskList({
     assistants,
     assistantFilter,
     setAssistantFilter,
+    canWriteAssistant,
 }: TaskListProps) {
 
     const virtuosoRef = React.useRef(null);
@@ -91,6 +86,7 @@ export function TaskList({
     const renderTaskItem = React.useCallback((index: number, task: Task) => {
         const assistant = assistants.find(a => a.agent_id === task.assistant_id);
         if (!assistant) return null; // Don't render a task if its assistant isn't found
+        const canEditTask = canWriteAssistant ? canWriteAssistant(assistant) : true;
         return (
             <MemoizedTaskListItem
                 key={task.task_id} 
@@ -98,9 +94,10 @@ export function TaskList({
                 assistant={assistant}
                 updateTask={updateTask}
                 onTaskUpdate={onTaskUpdate}
+                canEditTask={canEditTask}
             />
         );
-    }, [updateTask, onTaskUpdate, assistants]); 
+    }, [updateTask, onTaskUpdate, assistants, canWriteAssistant]); 
 
     const sortedStatuses = React.useMemo(() => {
         return [...availableStatuses].sort((a, b) => {

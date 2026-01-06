@@ -27,6 +27,8 @@ export interface CoreLogFetchParams {
   dataTypes?: { [key: string]: string };
   fields?: LogFieldsResponseProps;
   signal?: AbortSignal;
+  // Optional headers for API calls (used in tests to pass API key)
+  headers?: Record<string, string>;
 }
 
 /**
@@ -80,7 +82,8 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     parentId,
     dataTypes,
     fields,
-    signal
+    signal,
+    headers,
   } = params;
 
   let effectiveFilterExpression = filterExpression;
@@ -133,6 +136,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
     method: 'GET',
     signal: signal as AbortSignal,
     cache: 'no-store',
+    headers: headers || {},
   });
 
   if (!logsRes.ok) {
