@@ -111,7 +111,7 @@ export async function fetchLogsCore(params: CoreLogFetchParams): Promise<CoreLog
 
   // Call API route directly instead of server action to avoid POST /interfaces spam
   const queryParams = new URLSearchParams();
-  queryParams.set('project', projectId);
+  queryParams.set('project_name', projectId);
   if (context) queryParams.set('context', context);
   if (columnContext) queryParams.set('column_context', columnContext);
   if (effectiveFilterExpression) queryParams.set('filter_expr', effectiveFilterExpression);

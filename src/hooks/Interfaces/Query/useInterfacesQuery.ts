@@ -21,7 +21,7 @@ export function useListInterfacesQuery(
       const headers: HeadersInit = {};
       const et = eTagByProject.get(projectId);
       if (et) (headers as any)['If-None-Match'] = et;
-      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project=${encodeURIComponent(projectId)}&checkpoint=false`, {
+      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project_name=${encodeURIComponent(projectId)}&checkpoint=false`, {
         method: 'GET',
         signal: signal as AbortSignal,
         cache: 'no-store',

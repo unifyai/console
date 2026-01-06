@@ -242,7 +242,7 @@ async function fetchBarChartMetrics(
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean } | null> {
   try {
     const params = new URLSearchParams();
-    params.set("project", projectName);
+    params.set("project_name", projectName);
     if (context) params.set("context", context);
     params.set("key", JSON.stringify([yAxis]));
     
@@ -433,7 +433,7 @@ export async function GET(
 
     // Required: project name
     if (projectConfig.project_name) {
-      logsParams.append("project", projectConfig.project_name as string);
+      logsParams.append("project_name", projectConfig.project_name as string);
     }
 
     // Optional parameters
@@ -497,7 +497,7 @@ export async function GET(
     // ========================================================================
     const fieldsParams = new URLSearchParams();
     if (projectConfig.project_name) {
-      fieldsParams.append("project", projectConfig.project_name as string);
+      fieldsParams.append("project_name", projectConfig.project_name as string);
     }
     if (projectConfig.context) {
       fieldsParams.append("context", projectConfig.context as string);

@@ -312,7 +312,7 @@ export const projectsApi = {
     const endpoint = `/api/projects/${encodeURIComponent(name)}?export_template=true`;
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ project: name }),
+      body: JSON.stringify({ project_name: name }),
     });
     return parseResponse(res, endpoint);
   },
@@ -324,7 +324,7 @@ export const projectsApi = {
 
 export const interfacesApi = {
   async list(project: string): Promise<InterfaceData[]> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}`;
+    const endpoint = `/api/interface?project_name=${encodeURIComponent(project)}`;
     const res = await apiFetch(endpoint);
     // Orchestra returns array directly
     return parseResponse(res, endpoint);
@@ -337,7 +337,7 @@ export const interfacesApi = {
   },
 
   async getByName(project: string, name: string): Promise<InterfaceData> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?project_name=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint);
     return parseResponse(res, endpoint);
   },
@@ -350,8 +350,8 @@ export const interfacesApi = {
     const endpoint = '/api/interface';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      // Orchestra expects 'project' not 'project_id'
-      body: JSON.stringify({ project, name, color }),
+      // Orchestra expects 'project_name' not 'project_id'
+      body: JSON.stringify({ project_name: project, name, color }),
     });
     return parseResponse(res, endpoint);
   },
@@ -373,7 +373,7 @@ export const interfacesApi = {
     name: string,
     data: Partial<InterfaceData>
   ): Promise<InterfaceData> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?project_name=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -388,7 +388,7 @@ export const interfacesApi = {
   },
 
   async deleteByName(project: string, name: string): Promise<DeleteResponse> {
-    const endpoint = `/api/interface?project=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
+    const endpoint = `/api/interface?project_name=${encodeURIComponent(project)}&name=${encodeURIComponent(name)}`;
     const res = await apiFetch(endpoint, { method: 'DELETE' });
     return parseOptionalResponse(res, endpoint);
   },
@@ -428,7 +428,7 @@ export const interfacesApi = {
     const endpoint = '/api/interface?import_template=true';
     const res = await apiFetch(endpoint, {
       method: 'POST',
-      body: JSON.stringify({ project, template, new_interface_name: newName }),
+      body: JSON.stringify({ project_name: project, template, new_interface_name: newName }),
     });
     return parseResponse(res, endpoint);
   },
@@ -737,7 +737,7 @@ export const logsApi = {
     const res = await apiFetch(endpoint, {
       method: 'POST',
       // Match the format expected by Orchestra
-      body: JSON.stringify({ project, params, entries }),
+      body: JSON.stringify({ project_name: project, params, entries }),
     });
     return parseResponse(res, endpoint);
   },
@@ -753,7 +753,7 @@ export const logsApi = {
     const endpoint = '/api/logs';
     const res = await apiFetch(endpoint, {
       method: 'PUT',
-      body: JSON.stringify({ project, context, logs, entries, params, overwrite }),
+      body: JSON.stringify({ project_name: project, context, logs, entries, params, overwrite }),
     });
     return parseResponse(res, endpoint);
   },
@@ -767,7 +767,7 @@ export const logsApi = {
     const res = await apiFetch(endpoint, {
       method: 'DELETE',
       // Orchestra expects ids_and_fields as a list of [id, field] tuples or just ids
-      body: JSON.stringify({ project, context, ids_and_fields: ids.map(id => [id, null]) }),
+      body: JSON.stringify({ project_name: project, context, ids_and_fields: ids.map(id => [id, null]) }),
     });
     return parseResponse(res, endpoint);
   },

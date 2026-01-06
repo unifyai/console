@@ -12,7 +12,7 @@ export const writeFiles = async (adminKey: string, userId: string) => {
                 {
                     method: "POST",
                     headers: { apiKey: adminKey },
-                    body: JSON.stringify({ user_id: userId, project, filename, content })
+                    body: JSON.stringify({ user_id: userId, project_name: project, filename, content })
                 }
             );
             const json = await res.json();
@@ -31,7 +31,7 @@ export const listFiles = async (adminKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project=${project}&isDirectory=true`,
+            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project_name=${project}&isDirectory=true`,
             {
                 method: "GET",
                 headers: { apiKey: adminKey },
@@ -51,7 +51,7 @@ export const readFile = async (adminKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project=${project}&filename=${encodeURIComponent(path)}&isDirectory=false`,
+            `${process.env.NEXTAUTH_URL}/api/code/file?user_id=${userId}&project_name=${project}&filename=${encodeURIComponent(path)}&isDirectory=false`,
             {
                 method: "GET",
                 headers: { apiKey: adminKey },
@@ -75,7 +75,7 @@ export const deleteFile = async (adminKey: string, userId: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: adminKey },
-                body: JSON.stringify({ user_id: userId, project, filename: path, isDirectory })
+                body: JSON.stringify({ user_id: userId, project_name: project, filename: path, isDirectory })
             }
         );
         const responseJson = await response.json();
@@ -96,7 +96,7 @@ export const renameFile = async (adminKey: string, userId: string) => {
             {
                 method: "PUT",
                 headers: { apiKey: adminKey },
-                body: JSON.stringify({ user_id: userId, project, old_filename: oldPath, new_filename: newPath })
+                body: JSON.stringify({ user_id: userId, project_name: project, old_filename: oldPath, new_filename: newPath })
             }
         );
         const responseJson = await response.json();

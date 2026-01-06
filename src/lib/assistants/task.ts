@@ -7,7 +7,7 @@ export const getTasks = async (apiKey: string, userContext: string) => {
 
         try {
 
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${userContext}/${assistantContext}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=Assistants&context=${userContext}/${assistantContext}/Tasks`;
             if (filterExpression) {
                 url += `&filter_expr=${encodeURIComponent(filterExpression)}`;
             }
@@ -58,7 +58,7 @@ export const getUniqueFieldValues = async (apiKey: string, userContext: string) 
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=Assistants&context=${userContext}/${assistantContext}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=Assistants&context=${userContext}/${assistantContext}/Tasks`;
             url += `&group_by=${encodeURIComponent(groupByField)}`;
             url += `&group_depth=0`;
 
@@ -125,7 +125,7 @@ export const updateTask = async (apiKey: string, userContext: string) => {
                     },
                     body: JSON.stringify({
                         logs: logs,
-                        project: "Assistants",
+                        project_name: "Assistants",
                         context: `${userContext}/${assistantContext}/Tasks`,
                         params: {},
                         entries: entries,

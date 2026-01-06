@@ -107,7 +107,7 @@ export const exportProjectAsTemplate = async (apiKey: string) => {
         "use server";
 
         const requestBody: ExportProjectTemplateRequest = {
-            project: params.project,
+            project_name: params.project_name,
             interface_names: params.interface_names,
             checkpoint: options?.checkpoint || false,
             include_metadata: options?.include_metadata !== false,
@@ -142,7 +142,7 @@ export const importProjectFromTemplate = async (apiKey: string) => {
         "use server";
 
         const requestBody: ImportProjectTemplateRequest = {
-            project: options.project,
+            project_name: options.project_name,
             template,
             interface_name_prefix: options.interface_name_prefix,
             validate_first: options.validate_first || true,

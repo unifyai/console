@@ -655,7 +655,7 @@ export const importTileFromTemplate = async (apiKey: string) => {
         const { tab_id, interface_id, tab_name } = params;
 
         const requestBody: ImportTileTemplateRequest = {
-            project: options.project,
+            project_name: options.project_name,
             template,
             tab_id,
             interface_id,

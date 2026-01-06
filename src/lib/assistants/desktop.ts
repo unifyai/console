@@ -29,7 +29,7 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
             const filter_expr = `user_id == '${userId}' and assistant_id == '${assistant_id}' and running == 'true'`;
             
             const url = new URL(`${nextAuthUrl}/api/logs`);
-            url.searchParams.append("project", "AssistantJobs");
+            url.searchParams.append("project_name", "AssistantJobs");
             url.searchParams.append("context", "startup_events");
             url.searchParams.append("filter_expr", filter_expr);
             

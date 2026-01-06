@@ -22,7 +22,7 @@ export const createLogs = async (apiKey: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, ...contextBody, params, entries })
+                body: JSON.stringify({ project_name: project, ...contextBody, params, entries })
             }
         );
         return await response.json();
@@ -36,7 +36,7 @@ export const getLogs = async (apiKey: string) => {
 
         try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/logs?project=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}`
                 + (context ? `&context=${context}` : "")
                 + (columnContext ? `&column_context=${columnContext}` : "")
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
@@ -113,7 +113,7 @@ export const updateLogs = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ logs, project, context, params, entries, overwrite })
+                    body: JSON.stringify({ logs, project_name: project, context, params, entries, overwrite })
                 }
             );
 
@@ -189,7 +189,7 @@ export const getLogFields = async (apiKey: string) => {
 
         try {
             const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/logs/fields?project=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs/fields?project_name=${project}`
                 + (context ? `&context=${context}` : ""),
                 { method: "GET", headers: { apiKey: apiKey }, signal }
             );
@@ -232,7 +232,7 @@ export const renameLogFields = async (apiKey: string) => {
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        project,
+                        project_name: project,
                         context,
                         old_field_name: oldFieldName,
                         new_field_name: newFieldName,
@@ -263,7 +263,7 @@ export const getLogMetrics = async (apiKey: string) => {
 
         const response = await fetch(
             (
-                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project=${project}`
+                `${process.env.NEXTAUTH_URL}/api/logs/${metricName}?project_name=${project}`
                 + (context ? `&context=${context}` : "")
                 + `&key=${JSON.stringify(sanitizedKeyNames)}`
                 + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
@@ -295,7 +295,7 @@ export const getLatestTimestamp = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project=${project}`
+            `${process.env.NEXTAUTH_URL}/api/logs/latest_timestamp?project_name=${project}`
             + (context ? `&context=${context}` : "")
             + (columnContext ? `&column_context=${columnContext}` : "")
             + (filterExpression ? `&filter_expr=${encodeURIComponent(filterExpression)}` : "")
@@ -343,7 +343,7 @@ export const deleteLogs = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ project, context, ids_and_fields, source_type: "all", delete_empty_logs: true, delete_empty_fields: true })
+                body: JSON.stringify({ project_name: project, context, ids_and_fields, source_type: "all", delete_empty_logs: true, delete_empty_fields: true })
             }
         );
         return await response.json();
@@ -362,7 +362,7 @@ export const createDerivedEntry = async (apiKey: string) => {
                 {
                     method: "POST",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project, ...context_body, key, equation, referenced_logs })
+                    body: JSON.stringify({ project_name: project, ...context_body, key, equation, referenced_logs })
                 }
             );
             return await response.json();
@@ -385,7 +385,7 @@ export const updateDerivedEntry = async (apiKey: string) => {
                 {
                     method: "PUT",
                     headers: { apiKey: apiKey },
-                    body: JSON.stringify({ project, ...context_body, key, equation, target_derived_logs })
+                    body: JSON.stringify({ project_name: project, ...context_body, key, equation, target_derived_logs })
                 }
             );
             return await response.json();

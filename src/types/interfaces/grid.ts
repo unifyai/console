@@ -474,7 +474,7 @@ export interface ExportTemplateRequest {
 }
 
 export interface ImportTemplateRequest {
-    project: string;
+    project_name: string;
     validate_first?: boolean;
     auto_sanitize?: boolean;
     overwrite_existing?: boolean;
@@ -482,14 +482,14 @@ export interface ImportTemplateRequest {
 
 // Specialized export request types
 export interface ExportProjectTemplateRequest extends ExportTemplateRequest {
-    project: string;
+    project_name: string;
     interface_names?: string[];
     checkpoint?: boolean;
 }
 
 export interface ExportInterfaceTemplateRequest extends ExportTemplateRequest {
     interface_id?: string;
-    project?: string;
+    project_name?: string;
     interface_name?: string;
     checkpoint?: boolean;
 }

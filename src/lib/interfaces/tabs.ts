@@ -451,7 +451,7 @@ export const importTabFromTemplate = async (apiKey: string) => {
         const { interface_id, interface_name } = params;
 
         const requestBody: ImportTabTemplateRequest = {
-            project: options.project,
+            project_name: options.project_name,
             template,
             interface_id,
             interface_name,

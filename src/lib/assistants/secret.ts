@@ -26,7 +26,7 @@ export const getSecrets = async (apiKey: string, userContext: string) => {
         "use server";
         try {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-            const url = `${process.env.NEXTAUTH_URL}/api/logs?project=${PROJECT}&context=${context}`;
+            const url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${PROJECT}&context=${context}`;
             
             const response = await fetch(url, { method: "GET", headers: { apiKey } });
 
@@ -53,7 +53,7 @@ export const createSecret = async (apiKey: string, userContext: string) => {
         "use server";
         try {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-            const body = { project: PROJECT, context, entries: [payload] };
+            const body = { project_name: PROJECT, context, entries: [payload] };
             
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
                 method: "POST",
@@ -81,7 +81,7 @@ export const deleteSecret = async (apiKey: string, userContext: string) => {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
             const url = `${process.env.NEXTAUTH_URL}/api/logs`;
             const body = {
-                project: PROJECT,
+                project_name: PROJECT,
                 context: context,
                 ids_and_fields: [[log_id, null]]
             };

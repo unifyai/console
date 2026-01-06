@@ -208,7 +208,7 @@ export function usePatchTileQueryOptimistic() {
             queryClient.prefetchQuery({
               queryKey: ["fields", projectId, context],
               queryFn: async () => {
-                const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
+                const url = `/api/logs/fields?project_name=${encodeURIComponent(projectId)}&context=${encodeURIComponent(context)}`;
                 const res = await fetch(url, { method: 'GET', cache: 'no-store' });
                 if (!res.ok) throw new Error(`Fields ${res.status}`);
                 return res.json();

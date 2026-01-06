@@ -213,7 +213,7 @@ export async function fetchAndBuildTableDataItem(
     // Call API route directly instead of server action to avoid POST /interfaces spam
     // Build query string with all parameters
     const params = new URLSearchParams();
-    params.set('project', projectId);
+    params.set('project_name', projectId);
     if (tile.context) params.set('context', tile.context);
     if (tile.column_context) params.set('column_context', tile.column_context);
     if (filterExpression) params.set('filter_expr', filterExpression);

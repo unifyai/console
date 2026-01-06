@@ -36,7 +36,7 @@ describe('dedupedJson - request coalescing', () => {
       });
     });
 
-    const url = '/api/logs/fields?project=test&context=ctx';
+    const url = '/api/logs/fields?project_name=test&context=ctx';
     
     // Fire 3 concurrent requests for same URL
     const [result1, result2, result3] = await Promise.all([
@@ -64,8 +64,8 @@ describe('dedupedJson - request coalescing', () => {
       return new Response(JSON.stringify(data), { status: 200 });
     });
 
-    const url1 = '/api/logs/fields?project=test&context=ctx1';
-    const url2 = '/api/logs/fields?project=test&context=ctx2';
+    const url1 = '/api/logs/fields?project_name=test&context=ctx1';
+    const url2 = '/api/logs/fields?project_name=test&context=ctx2';
 
     const [result1, result2] = await Promise.all([
       dedupedJson(url1),
@@ -84,7 +84,7 @@ describe('dedupedJson - request coalescing', () => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     });
 
-    const url = '/api/logs/fields?project=test';
+    const url = '/api/logs/fields?project_name=test';
 
     const [getResult, postResult] = await Promise.all([
       dedupedJson(url, { method: 'GET' }),
@@ -103,7 +103,7 @@ describe('dedupedJson - request coalescing', () => {
       new Response(JSON.stringify({ detail: 'Not found' }), { status: 404 })
     );
 
-    const result = await dedupedJson('/api/logs/fields?project=test&context=missing');
+    const result = await dedupedJson('/api/logs/fields?project_name=test&context=missing');
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe(404);
@@ -115,7 +115,7 @@ describe('dedupedJson - request coalescing', () => {
       new Response(JSON.stringify({ error: 'Server error' }), { status: 500 })
     );
 
-    const result = await dedupedJson('/api/logs/fields?project=test');
+    const result = await dedupedJson('/api/logs/fields?project_name=test');
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe(500);
@@ -133,7 +133,7 @@ describe('dedupedJson - request coalescing', () => {
       })
     );
 
-    const result = await dedupedJson('/api/logs/fields?project=test');
+    const result = await dedupedJson('/api/logs/fields?project_name=test');
 
     expect(result.headers['etag']).toBe('"abc123"');
     expect(result.headers['last-modified']).toBe('Wed, 21 Oct 2024 07:28:00 GMT');
@@ -146,7 +146,7 @@ describe('dedupedJson - request coalescing', () => {
       return new Response(JSON.stringify({ call: callCount }), { status: 200 });
     });
 
-    const url = '/api/logs/fields?project=test';
+    const url = '/api/logs/fields?project_name=test';
 
     // First request
     const result1 = await dedupedJson(url);
@@ -170,7 +170,7 @@ describe('dedupedJson - request coalescing', () => {
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     });
 
-    const url = '/api/logs/fields?project=test';
+    const url = '/api/logs/fields?project_name=test';
 
     // First request fails
     await expect(dedupedJson(url)).rejects.toThrow('Network error');
@@ -188,7 +188,7 @@ describe('dedupedJson - request coalescing', () => {
       new Response(null, { status: 304 })
     );
 
-    const result = await dedupedJson('/api/logs/fields?project=test');
+    const result = await dedupedJson('/api/logs/fields?project_name=test');
 
     expect(result.status).toBe(304);
     expect(result.json).toBeNull();
@@ -199,7 +199,7 @@ describe('dedupedJson - request coalescing', () => {
       new Response('not valid json', { status: 200 })
     );
 
-    const result = await dedupedJson('/api/logs/fields?project=test');
+    const result = await dedupedJson('/api/logs/fields?project_name=test');
 
     expect(result.status).toBe(200);
     expect(result.ok).toBe(true);
@@ -231,7 +231,7 @@ describe('dedupedJson - real-world scenarios', () => {
       return new Response(JSON.stringify(fieldsResponse), { status: 200 });
     });
 
-    const url = '/api/logs/fields?project=Assistants&context=User%2FConversations';
+    const url = '/api/logs/fields?project_name=Assistants&context=User%2FConversations';
 
     // Simulate 5 tiles all requesting the same context's fields at once
     const results = await Promise.all([
@@ -261,9 +261,9 @@ describe('dedupedJson - real-world scenarios', () => {
 
     // Different contexts = different requests
     const results = await Promise.all([
-      dedupedJson('/api/logs/fields?project=P&context=ctx1'),
-      dedupedJson('/api/logs/fields?project=P&context=ctx2'),
-      dedupedJson('/api/logs/fields?project=P&context=ctx3'),
+      dedupedJson('/api/logs/fields?project_name=P&context=ctx1'),
+      dedupedJson('/api/logs/fields?project_name=P&context=ctx2'),
+      dedupedJson('/api/logs/fields?project_name=P&context=ctx3'),
     ]);
 
     expect(results[0].json.context).toBe('ctx1');

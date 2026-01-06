@@ -81,7 +81,7 @@ export async function fetchBarChartAggregatedData(
   signal?: AbortSignal
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean }> {
   const params = new URLSearchParams();
-  params.set('project', projectId);
+  params.set('project_name', projectId);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify([sanitizeKey(yAxis)]));
   
@@ -367,7 +367,7 @@ async function fetchPlotDataByTable(
         const metricName = metric ? metric : "mean";
         const keyNames = subset ? subset.split("&").map(sanitizeKey) : [];
         const params = new URLSearchParams();
-        params.set('project', projectId);
+        params.set('project_name', projectId);
         if (context) params.set('context', context);
         params.set('key', JSON.stringify(keyNames));
         if (filterExpression) params.set('filter_expr', filterExpression);
@@ -396,7 +396,7 @@ async function fetchPlotDataByTable(
       else if (subset) {
         // Call API route directly instead of server action
         const params = new URLSearchParams();
-        params.set('project', projectId);
+        params.set('project_name', projectId);
         if (context) params.set('context', context);
         if (columnContext) params.set('column_context', columnContext);
         if (filterExpression) params.set('filter_expr', filterExpression);

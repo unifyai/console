@@ -130,7 +130,7 @@ export async function fetchOrBuildFields(
           queryFn: async () => {
             // Use dedupedJson for request coalescing - if multiple tiles/tabs request 
             // the same context's fields simultaneously, only one fetch is made
-            const url = `/api/logs/fields?project=${encodeURIComponent(projectId)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
+            const url = `/api/logs/fields?project_name=${encodeURIComponent(projectId)}${context ? `&context=${encodeURIComponent(context)}` : ''}`;
             const result = await dedupedJson(url, {
               method: 'GET',
               cache: 'no-store',

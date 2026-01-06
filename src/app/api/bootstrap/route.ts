@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }).then(async (res) => ({ ok: res.ok, status: res.status, body: await res.json().catch(() => null) }));
 
     const interfacesPromise = project
-      ? fetch(`${baseUrl}/interfaces/list?project=${encodeURIComponent(project)}`, {
+      ? fetch(`${baseUrl}/interfaces/list?project_name=${encodeURIComponent(project)}`, {
           method: "GET",
           headers,
           cache: "no-store",
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       : Promise.resolve({ ok: true, status: 204, body: [] });
 
     const fieldsPromise = project
-      ? fetch(`${baseUrl}/logs/fields?project=${encodeURIComponent(project)}`, {
+      ? fetch(`${baseUrl}/logs/fields?project_name=${encodeURIComponent(project)}`, {
           method: "GET",
           headers,
           signal: controller.signal,

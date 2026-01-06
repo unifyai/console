@@ -22,7 +22,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
             const project = "Assistants";
             const context = `${ownerContext}/${assistantContext}/Contacts`;
             const filter_expr = `email_address == "${userEmail}"`;
-            const url = `${process.env.NEXTAUTH_URL}/api/logs?project=${project}&context=${context}&filter_expr=${encodeURIComponent(filter_expr)}&limit=1`;
+            const url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}&context=${context}&filter_expr=${encodeURIComponent(filter_expr)}&limit=1`;
 
             const response = await fetch(url, {
                 method: "GET",
@@ -85,7 +85,7 @@ export const getTranscripts = async (apiKey: string) => {
             if (beforeMessageId !== undefined) {
                 filter_expr += ` and message_id < ${beforeMessageId}`;
             }
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project=${project}&context=${context}&limit=${limit}&filter_expr=${encodeURIComponent(filter_expr)}`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${project}&context=${context}&limit=${limit}&filter_expr=${encodeURIComponent(filter_expr)}`;
 
             const response = await fetch(url, {
                 method: "GET",

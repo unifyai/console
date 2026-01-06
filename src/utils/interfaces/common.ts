@@ -239,7 +239,7 @@ export const getColumnMetrics = async (
   const metricName = metric ? metric : "mean";
   const sanitizedColumns = fullColumns.map(sanitizeKey);
   const params = new URLSearchParams();
-  params.set('project', project!);
+  params.set('project_name', project!);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify(sanitizedColumns));
   if (filterExpression) params.set('filter_expr', filterExpression);
