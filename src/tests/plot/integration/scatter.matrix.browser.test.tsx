@@ -52,8 +52,11 @@ interface ScatterMatrixConfig {
 
 function generateScatterMatrix(): ScatterMatrixConfig[] {
   const allPlotConfigs = generateValidPlotConfigsForType('scatter');
+  // Production code (plot-scatter.ts line 479) accepts:
+  // float, int, timestamp, time, timedelta, date, bool, Any
+  // All are converted to numeric by getValue()
   const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => ['float', 'int'].includes(dt.x_axis_type)
+    (dt) => ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 

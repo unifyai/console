@@ -60,9 +60,11 @@ function generateBarChartMatrix(): BarMatrixConfig[] {
   // Get all valid plot configs for bar charts
   const allPlotConfigs = generateValidPlotConfigsForType('bar');
 
-  // Get all valid data type configs for bar charts (string x-axis, numeric y-axis)
+  // Bar charts accept ANY x-axis type (used as categorical labels via JSON.stringify)
+  // Production code (plot-bar.ts line 168) has no data_type filter
+  // y-axis must be numeric for meaningful aggregation
   const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => dt.x_axis_type === 'str' && ['float', 'int'].includes(dt.y_axis_type)
+    (dt) => ['float', 'int'].includes(dt.y_axis_type)
   );
 
   const activeScales = getActiveScales();

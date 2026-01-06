@@ -12,6 +12,79 @@
 import * as d3 from 'd3';
 
 // =============================================================================
+// Value Conversion (matches production getValue() behavior)
+// =============================================================================
+
+/**
+ * Convert a value to numeric like production's getValue() does.
+ * This simulates the conversion that happens in src/utils/interfaces/plots/data.ts
+ * 
+ * - timestamp/date strings → milliseconds since epoch
+ * - timedelta strings → duration in milliseconds  
+ * - time strings → timestamp for today with that time
+ * - booleans → 0 or 1
+ * - numbers → as-is
+ */
+export function toNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  
+  // Already a number
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  
+  // Boolean → 0 or 1
+  if (typeof value === 'boolean') {
+    return value ? 1 : 0;
+  }
+  
+  // String conversions
+  if (typeof value === 'string') {
+    // Try as number first
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+    
+    // Try as ISO date (timestamp/date)
+    const dateMs = new Date(value).getTime();
+    if (Number.isFinite(dateMs)) return dateMs;
+    
+    // Try as timedelta: "X days, HH:MM:SS" → milliseconds
+    const timeDeltaMatch = value.match(/^(\d+)\s+days?,\s*(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (timeDeltaMatch) {
+      const [, days, hours, minutes, seconds] = timeDeltaMatch;
+      return (
+        parseInt(days, 10) * 86400000 +
+        parseInt(hours, 10) * 3600000 +
+        parseInt(minutes, 10) * 60000 +
+        parseInt(seconds, 10) * 1000
+      );
+    }
+    
+    // Try as time: "HH:MM:SS" → milliseconds from midnight
+    const timeMatch = value.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (timeMatch) {
+      const [, hours, minutes, seconds] = timeMatch;
+      const now = new Date();
+      const timeDate = new Date(
+        now.getFullYear(), now.getMonth(), now.getDate(),
+        parseInt(hours, 10), parseInt(minutes, 10), parseInt(seconds, 10)
+      );
+      return timeDate.getTime();
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Check if a value can be converted to a valid numeric value
+ */
+export function isValidNumericValue(value: unknown): boolean {
+  const numeric = toNumericValue(value);
+  return numeric !== null && Number.isFinite(numeric);
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -403,6 +476,7 @@ export function calculateHistogramBinDimensions(
 
 /**
  * Calculate expected number of scatter points (excluding nulls)
+ * Uses toNumericValue() to match production getValue() behavior
  */
 export function calculateExpectedPointCount(
   logs: Array<{ [key: string]: unknown }>,
@@ -412,10 +486,8 @@ export function calculateExpectedPointCount(
   return logs.filter(log => {
     const xValue = log[xField];
     const yValue = log[yField];
-    return xValue !== null && xValue !== undefined &&
-           yValue !== null && yValue !== undefined &&
-           Number.isFinite(Number(xValue)) &&
-           Number.isFinite(Number(yValue));
+    // Use isValidNumericValue to match production getValue() conversion
+    return isValidNumericValue(xValue) && isValidNumericValue(yValue);
   }).length;
 }
 

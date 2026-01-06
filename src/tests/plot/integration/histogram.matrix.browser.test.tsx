@@ -55,8 +55,11 @@ interface HistogramMatrixConfig {
 
 function generateHistogramMatrix(): HistogramMatrixConfig[] {
   const allPlotConfigs = generateValidPlotConfigsForType('histogram');
+  // Production code (plot-histogram.ts line 150) accepts:
+  // float, int, timestamp, time, timedelta, date, bool, Any
+  // All are converted to numeric by getValue() before binning
   const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => ['float', 'int'].includes(dt.x_axis_type)
+    (dt) => ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 

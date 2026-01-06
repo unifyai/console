@@ -104,7 +104,9 @@ export const projectConfigOptions = {
 };
 
 export const dataTypeOptions = {
-  x_axis_type: ['float', 'int', 'datetime', 'str'] as const,
+  // Match production code data types (excluding 'Any'):
+  // All temporal types are converted to numeric by getValue()
+  x_axis_type: ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'str', 'bool'] as const,
   y_axis_type: ['float', 'int'] as const,
   group_by_type: ['str', 'bool'] as const,
 };

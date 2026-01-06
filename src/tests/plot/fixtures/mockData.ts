@@ -112,6 +112,16 @@ const deterministicValueGenerators: Record<string, (index: number, count: number
     const timeOffset = (i / Math.max(1, count - 1)) * 30 * 24 * 60 * 60 * 1000;
     return new Date(baseTime + timeOffset).toISOString().split('T')[0];
   },
+  timedelta: (i, count) => {
+    // Generate timedeltas evenly spaced from 0 to 30 days
+    // Format matches Python timedelta string: "X days, HH:MM:SS"
+    const totalSeconds = Math.floor((i / Math.max(1, count - 1)) * 30 * 24 * 60 * 60);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days} days, ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  },
 };
 
 /**

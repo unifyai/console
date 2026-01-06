@@ -14,24 +14,24 @@ src/tests/plot/
 │   ├── plotCanvasTestHarness.tsx       # Direct PlotCanvas testing harness
 │   └── handlers.ts                     # MSW handlers for API mocking
 ├── api/
-│   ├── plot.api.node.test.ts             # API edge case tests (Node.js)
-│   ├── plot.api.matrix.node.test.ts      # API matrix tests (Node.js, shardable)
-│   └── _api-helpers.ts                   # Shared API test utilities
+│   ├── plot.api.node.test.ts           # API edge case tests (Node.js)
+│   ├── plot.api.matrix.node.test.ts    # API matrix tests (Node.js, shardable)
+│   └── _api-helpers.ts                 # Shared API test utilities
 ├── integration/
-│   ├── bar.browser.test.tsx              # Bar chart edge cases & interactions
-│   ├── bar.matrix.browser.test.tsx       # Bar chart matrix tests
-│   ├── scatter.browser.test.tsx          # Scatter plot edge cases & interactions
-│   ├── scatter.matrix.browser.test.tsx   # Scatter plot matrix tests
-│   ├── histogram.browser.test.tsx        # Histogram edge cases & interactions
-│   ├── histogram.matrix.browser.test.tsx # Histogram matrix tests
-│   ├── line.browser.test.tsx             # Line chart edge cases & interactions
-│   ├── line.matrix.browser.test.tsx      # Line chart matrix tests
-│   ├── transitions.browser.test.tsx      # Plot type transition tests
-│   ├── _bar-test-helpers.ts              # Shared bar chart test utilities
-│   ├── _scatter-test-helpers.ts          # Shared scatter plot test utilities
-│   ├── _line-test-helpers.ts             # Shared line chart test utilities
-│   ├── _histogram-test-helpers.ts        # Shared histogram test utilities
-│   └── generated/                        # Auto-generated chunk files for parallelism
+│   ├── bar.browser.test.tsx            # Bar chart edge cases & interactions
+│   ├── bar.matrix.browser.test.tsx     # Bar chart matrix tests (11,648 configs)
+│   ├── scatter.browser.test.tsx        # Scatter plot edge cases & interactions
+│   ├── scatter.matrix.browser.test.tsx # Scatter plot matrix tests (1,568 configs)
+│   ├── histogram.browser.test.tsx      # Histogram edge cases & interactions
+│   ├── histogram.matrix.browser.test.tsx # Histogram matrix tests (784 configs)
+│   ├── line.browser.test.tsx           # Line chart edge cases & interactions
+│   ├── line.matrix.browser.test.tsx    # Line chart matrix tests (784 configs)
+│   ├── transitions.browser.test.tsx    # Plot type transition tests
+│   ├── _bar-test-helpers.ts            # Shared bar chart test utilities
+│   ├── _scatter-test-helpers.ts        # Shared scatter plot test utilities
+│   ├── _line-test-helpers.ts           # Shared line chart test utilities
+│   ├── _histogram-test-helpers.ts      # Shared histogram test utilities
+│   └── generated/                      # Auto-generated chunk files for parallelism
 ├── unit/
 │   ├── data.node.test.ts               # Data utility unit tests
 │   ├── axes.node.test.ts               # Axes utility unit tests
@@ -42,16 +42,56 @@ src/tests/plot/
     └── dataProcessing.perf.node.test.ts # Data processing benchmarks
 ```
 
-## Test Configuration
+## Quick Start
 
-### Environment Variables
+```bash
+# Run browser matrix tests (14,784 tests at 100%)
+npm run test:browser:matrix 4          # 4 parallel shards
+
+# Run with sampling for faster iteration
+PLOT_TEST_SAMPLE_RATE=10 npm run test:browser:matrix 4   # 10% = ~1,480 tests
+
+# Run Node.js API matrix tests
+npm run test:node:matrix 4             # 4 parallel shards
+
+# Run unit tests
+npm run test:node -- src/tests/plot/unit/
+```
+
+## Test Matrix Overview
+
+### Total Test Counts (100% sampling)
+
+| Plot Type | Configs | Coverage |
+|-----------|---------|----------|
+| Bar | 11,648 | All x-axis types × plot options × scales |
+| Scatter | 1,568 | Numeric/temporal x-axis × plot options × scales |
+| Line | 784 | Numeric/temporal x-axis × plot options × scales |
+| Histogram | 784 | Numeric/temporal x-axis × plot options × scales |
+| **Total** | **14,784** | |
+
+### Data Type Coverage
+
+Tests now cover **all production-supported data types**:
+
+| Data Type | Bar | Scatter | Line | Histogram | Notes |
+|-----------|-----|---------|------|-----------|-------|
+| float | ✅ | ✅ | ✅ | ✅ | Standard numeric |
+| int | ✅ | ✅ | ✅ | ✅ | Standard numeric |
+| datetime | ✅ | ✅ | ✅ | ✅ | ISO 8601 timestamps |
+| time | ✅ | ✅ | ✅ | ✅ | HH:MM:SS format |
+| timedelta | ✅ | ✅ | ✅ | ✅ | Python timedelta format |
+| date | ✅ | ✅ | ✅ | ✅ | YYYY-MM-DD format |
+| str | ✅ | - | - | - | Categorical (bar only) |
+| bool | ✅ | ✅ | ✅ | ✅ | Boolean → 0/1 |
+
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PLOT_TEST_SCALE` | Which scale(s) to run: `small`, `medium`, `large`, or `all` | `small` |
 | `PLOT_TEST_SAMPLE_RATE` | Percentage of configs to sample (1-100) | `100` |
-| `PLOT_TEST_MATRIX_DEBUG` | Log test matrix details | `false` |
-| `PLOT_TEST_API_REAL` | Use real API (set to `false` for mocked responses) | `true` |
+| `PLOT_TEST_API_REAL` | Use real API instead of mocked responses | `false` |
 | `VITE_TEST_API_URL` | Backend URL for real API tests | `http://localhost:3000` |
 | `VITE_TEST_API_KEY` | API key for authentication | `test-api-key-12345` |
 
@@ -64,163 +104,206 @@ src/tests/plot/
 | `large` | ~10,000 | 30s | Full CI, performance validation |
 | `all` | All scales | - | Complete test coverage |
 
+## Running Tests
+
+### Browser Matrix Tests (Recommended)
+
+The browser matrix tests use file splitting and sharding for true parallelism:
+
+```bash
+# Run with auto-detected shard count (capped at 8)
+npm run test:browser:matrix
+
+# Run with specific shard count
+npm run test:browser:matrix 4          # 4 parallel browser instances
+npm run test:browser:matrix 8          # 8 parallel browser instances
+
+# Run with sampling for faster iteration
+PLOT_TEST_SAMPLE_RATE=25 npm run test:browser:matrix 4   # 25% = ~3,696 tests
+PLOT_TEST_SAMPLE_RATE=10 npm run test:browser:matrix 4   # 10% = ~1,480 tests
+PLOT_TEST_SAMPLE_RATE=5 npm run test:browser:matrix 2    # 5% = ~740 tests
+```
+
+The command handles the entire workflow:
+1. **Generate** chunk files (splits matrix tests into parallel-runnable files)
+2. **Run** tests with Vitest sharding
+3. **Cleanup** generated files automatically
+
+### Node.js Matrix Tests
+
+For API tests running in Node.js:
+
+```bash
+# Run with specific shard count
+npm run test:node:matrix 4             # 4 parallel processes
+
+# Run with custom sample rate
+PLOT_TEST_SAMPLE_RATE=50 npm run test:node:matrix 4
+
+# Run specific test file
+npm run test:node:matrix 4 src/tests/plot/api/plot.api.matrix.node.test.ts
+```
+
+### Individual Test Files
+
+```bash
+# Browser tests (non-matrix)
+npm run test:browser -- --run src/tests/plot/integration/bar.browser.test.tsx
+
+# Node.js unit tests
+npm run test:node -- --run src/tests/plot/unit/
+
+# API edge case tests
+npm run test:node -- --run src/tests/plot/api/plot.api.node.test.ts
+```
+
 ### Examples
 
 ```bash
-# Default (small scale only)
-npm test
+# Quick local iteration (2% sampling, 2 shards)
+PLOT_TEST_SAMPLE_RATE=2 npm run test:browser:matrix 2
 
-# Medium scale tests
-PLOT_TEST_SCALE=medium npm test
+# CI full run (100% sampling, 8 shards)
+npm run test:browser:matrix 8
 
-# Large scale performance testing
-PLOT_TEST_SCALE=large npm test
+# Test with real API
+PLOT_TEST_API_REAL=true VITE_TEST_API_URL=http://localhost:3000 npm run test:node:matrix 4
 
-# All scales (comprehensive)
-PLOT_TEST_SCALE=all npm test
-
-# Quick iteration with config sampling
-PLOT_TEST_SCALE=small PLOT_TEST_SAMPLE_RATE=25 npm test
-
-# Use mocked API responses instead of real backend
-PLOT_TEST_API_REAL=false npm test
-
-# Test against a specific backend URL with custom API key
-VITE_TEST_API_URL=http://localhost:8000 VITE_TEST_API_KEY=my-api-key npm test
-
-# Debug matrix generation
-PLOT_TEST_MATRIX_DEBUG=true npm test
+# Debug specific plot type failures
+npm run test:browser -- --run -t "bar-bar-x-timedelta"
 ```
 
-## Parallelization
+## Test Architecture
 
-Matrix tests use `describe.concurrent` for parallel test execution, significantly reducing overall test time.
+### Matrix Test Runners
 
-For real API tests, each test combination gets a unique `context` value to prevent database contention:
+#### Browser (`matrixTestRunnerBrowser.ts`)
+
+Used for integration tests that require a real browser (SVG rendering, D3 interaction):
 
 ```typescript
-// Deterministic context format: test-{plotHash}-{projHash}-{dataHash}-{scale}
-const context = generateTestContext(plotConfig, projectConfig, dataTypeConfig, scale);
-// Example: "test-sllnu-fn0n-ffs-small"
+import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
+
+export const matrixTests = defineMatrixTests<MyConfig>({
+  name: 'Bar Chart - Matrix Tests',
+  getMatrix: generateBarChartMatrix,  // Returns all config combinations
+  defineTests: defineBarChartTests,    // Test function for each config
+  chunkSize: 25,                        // Configs per generated file
+  getConfigAlias: (config) => `bar-${config.plotConfig.type}-...`,
+});
 ```
 
-This ensures:
-- Concurrent tests query different data partitions
-- No shared mutable state between tests
-- Reproducible test isolation (deterministic names)
+#### Node.js (`matrixTestRunnerNode.ts`)
 
-## Test Structure Philosophy
+Used for API tests that run in Node.js with `describe.concurrent`:
+
+```typescript
+import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
+
+defineNodeMatrixTests<ApiContext>({
+  name: 'Plot API - Matrix Tests',
+  concurrent: true,
+  getMatrix: buildApiTestMatrix,
+  defineTests: (ctx, { it, expect }) => {
+    it('validates response', async () => { /* ... */ });
+  },
+  getConfigAlias: (ctx) => `${ctx.plotType}-${ctx.scale.name}`,
+});
+```
+
+### File Splitting (Browser Tests)
+
+Browser matrix tests are split into multiple files for true parallelism:
+
+```
+src/tests/plot/integration/
+├── bar.matrix.browser.test.tsx          # Source: exports matrixTests
+└── generated/
+    ├── bar.matrix.0.browser.test.tsx    # Chunk 0: configs 0-24
+    ├── bar.matrix.1.browser.test.tsx    # Chunk 1: configs 25-49
+    └── ...                               # Up to 466 chunks for bar
+```
+
+Each chunk file imports from the source and runs a subset of the matrix:
+
+```typescript
+import { matrixTests } from '../bar.matrix.browser.test';
+import { runMatrixChunk } from '../../utils/matrixTestRunnerBrowser';
+
+runMatrixChunk(matrixTests, 0);  // Run chunk 0
+```
+
+### Sharding (Vitest)
+
+Vitest's `--shard` flag distributes chunk files across processes:
+
+```bash
+# Shard 1/4 runs chunks: 0, 4, 8, 12, ...
+# Shard 2/4 runs chunks: 1, 5, 9, 13, ...
+# etc.
+```
+
+## Test Structure
 
 ### Matrix-Driven Testing
 
-Tests use a **matrix approach** where comprehensive coverage is achieved through the matrix tests block. Non-matrix tests are reserved for:
+Tests use a **matrix approach** for comprehensive coverage:
 
-1. **Edge Cases** - Invalid/boundary conditions not covered by valid matrix combinations
-2. **User Interactions** - Hover, zoom, click behaviors
-3. **Error Scenarios** - Authentication failures, validation errors, etc.
+```
+Plot Configs × Data Types × Scales = Full Matrix
+    364      ×    32     ×   1   = 11,648 (bar)
+     56      ×    28     ×   1   = 1,568  (scatter)
+     28      ×    28     ×   1   = 784    (line, histogram)
+```
 
-### API Tests Structure
+### Test File Organization
 
-API tests support **two modes**:
+Each plot type has two test files:
 
-1. **Real API** (default): Tests against actual running backend
-2. **Mocked API** (`PLOT_TEST_API_REAL=false`): Uses MSW handlers for fast, deterministic testing
+1. **`*.browser.test.tsx`** - Edge cases and interactions (sequential)
+2. **`*.matrix.browser.test.tsx`** - Matrix tests (parallel, chunked)
 
 ```typescript
-describe('Plot API', () => {
-  // Edge cases only (sequential)
-  describe('Authentication', () => { /* auth failures */ });
-  describe('Input Validation', () => { /* missing fields */ });
-  describe('Error Scenarios', () => { /* 404, 500, expired */ });
-  
-  // Matrix-driven comprehensive tests (parallel via describe.concurrent)
-  describe.concurrent('Matrix Tests', () => {
-    describe.each(plotTypes)('%s plot', (plotType) => {
-      describe.each(plotConfigs)('plot config: %o', (plotConfig) => {
-        describe.each(projectConfigs)('project config: %o', (projectConfig) => {
-          describe.each(dataTypes)('data types: %o', (dataType) => {
-            describe.each(scales)('scale: %s', (scale) => {
-              it('returns correct config structure');
-              it('returns correctly structured data');
-              it('applies correct data preprocessing');
-              it('returns correctly transformed fields');
-              it('includes complete metadata');
-            });
-          });
-        });
-      });
-    });
-  });
+// bar.browser.test.tsx - Edge cases
+describe('Bar Chart - Edge Cases', () => {
+  it('handles empty data gracefully');
+  it('handles single category');
+  it('handles zero values');
+});
+
+// bar.matrix.browser.test.tsx - Matrix tests
+export const matrixTests = defineMatrixTests<BarMatrixConfig>({
+  name: 'Bar Chart - Matrix Tests',
+  getMatrix: generateBarChartMatrix,
+  defineTests: defineBarChartTests,
 });
 ```
 
-### Integration Tests Structure
-
-Integration tests use **deterministic mock data** for precise SVG element assertions:
-
-```typescript
-describe('Scatter Plot', () => {
-  // Edge cases not in matrix (sequential)
-  describe('Edge Cases', () => {
-    it('handles empty data');
-    it('handles all-null values');
-    it('handles extreme outliers');
-  });
-  
-  // User interactions (sequential)
-  describe('Interactions', () => {
-    it('has tooltip element');
-    it('supports zoom when enabled');
-  });
-  
-  // Matrix-driven comprehensive tests (parallel via describe.concurrent)
-  describe.concurrent('Matrix Tests', () => {
-    describe.each(configs)('config: %o', (config) => {
-      describe.each(dataTypes)('data types: %o', (dataType) => {
-        describe.each(scales)('scale: %s', (scale) => {
-          it('renders exact number of points');
-          it('all points have valid positions within plot area');
-          it('point positions match expected data values');
-          it('points have consistent dimensions');
-          it('renders axes correctly');
-        });
-      });
-    });
-  });
-});
-```
-
-## Test Matrix
-
-### Config Dimensions
-
-1. **Plot Types**: scatter, bar, histogram, line
-2. **Plot Configs**: Combinations of scale, aggregate, group_by, sort options, etc.
-3. **Project Configs**: Combinations of filter_expr, sorting, project-level group_by
-4. **Data Types**:
-   - X-axis: float, int, str, datetime
-   - Y-axis: float, int
-   - Group-by: str, bool
-5. **Scales**:
-   - Small: ~100 data points (timeout: 5s)
-   - Medium: ~1,000 data points (timeout: 15s)
-   - Large: ~10,000 data points (timeout: 30s)
+## Config Dimensions
 
 ### Plot Config Options
 
-- `scale_x`: linear, log
-- `scale_y`: linear, log
-- `aggregate`: sum, mean, count, min, max
-- `group_by`: with/without grouping
-- `show_regression`: scatter only
-- `bin_count`: histogram only (1, 10, 50, 100)
-- `sort_by`/`sort_order`: bar only
+| Option | Values | Applicable To |
+|--------|--------|---------------|
+| `scale_x` | linear, log | All |
+| `scale_y` | linear, log | All |
+| `aggregate` | sum, mean, count, min, max | All (requires group_by) |
+| `group_by` | with/without | All |
+| `show_regression` | true/false | Scatter only |
+| `bin_count` | 1, 10, 50, 100 | Histogram only |
+| `sort_by` | x, y, value, name | Bar only |
+| `sort_order` | asc, desc | Bar only |
 
-### Project Config Options
+### Data Type Options
 
-- `filter_expr`: undefined, "status == 'success'", 'value > 0'
-- `group_by`: undefined, ['category'], ['category', 'model']
-- `sorting`: undefined, timestamp desc
+```typescript
+export const dataTypeOptions = {
+  // All types supported by production plotting code
+  x_axis_type: ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'str', 'bool'],
+  y_axis_type: ['float', 'int'],
+  group_by_type: ['str', 'bool'],
+};
+```
 
 ### Validity Filtering
 
@@ -229,32 +312,9 @@ The `filterValidPlotConfigs()` function prunes invalid combinations:
 - Non-default bin count: histogram only
 - Sort options: bar only
 - Aggregate: requires group_by
-
-### Sampling
-
-Use `PLOT_TEST_SAMPLE_RATE` to reduce test count for faster iteration:
-
-```bash
-# 25% of configs (evenly distributed)
-PLOT_TEST_SAMPLE_RATE=25 npm test
-
-# 10% of configs
-PLOT_TEST_SAMPLE_RATE=10 npm test
-```
-
-Sampling uses evenly distributed selection (not just first N) for representative coverage.
+- Log scales: not for histograms (always linear)
 
 ## Assertions
-
-### API Tests
-
-Matrix tests verify:
-- **Config Correctness**: All fields transformed correctly (snake_case → camelCase)
-- **Data Correctness**: Count, structure, data types, value ranges
-- **Data Preprocessing**: Field prefixing, entry merging, type preservation, null handling
-  - **Project Config Preprocessing**: Filter expression validation, sorting order, project-level grouping, limit enforcement
-- **Field Correctness**: Prefixed paths, correct type metadata, display types
-- **Metadata Completeness**: Project name, timestamps, tokens
 
 ### Integration Tests
 
@@ -262,211 +322,87 @@ Matrix tests verify **exact** values, not just validity:
 
 | Plot Type | Assertions |
 |-----------|------------|
+| **Bar** | Exact bar count (categories × groups), consistent widths, proportional heights |
 | **Scatter** | Exact point count, positions within tolerance, consistent radii |
-| **Bar** | Exact bar count (unique categories), consistent widths, proportional heights |
-| **Histogram** | Bin count in range, consistent widths, contiguous (no gaps), proportional heights |
-| **Line** | Valid path (no NaN/Infinity), within plot bounds, segment count matches data |
+| **Line** | Valid path (no NaN/Infinity), within plot bounds, segment count |
+| **Histogram** | Bin count in range, consistent widths, contiguous bins, proportional heights |
 
-## Running Tests
+### API Tests
 
-### All Tests
-
-```bash
-npm test
-```
-
-### Specific Test Files
-
-```bash
-# API tests
-npm test -- src/tests/plot/api/
-
-# Integration tests
-npm test -- src/tests/plot/integration/
-
-# Unit tests
-npm test -- src/tests/plot/unit/
-
-# Benchmarks
-npm test -- src/tests/plot/benchmarks/
-```
-
-## Test Harnesses
-
-### `plotCanvasTestHarness.tsx`
-
-For testing `PlotCanvas` component directly without Zustand store.
-
-**Use for:**
-- Rendering correctness tests
-- D3 SVG element verification
-- API-generated plot data rendering
-
-**Example:**
-```tsx
-const result = renderPlotCanvas({
-  plotType: 'Scatter Plot',
-  dataTypeConfig: { x_axis_type: 'float', y_axis_type: 'float', group_by_type: 'str' },
-  scale: scaleOptions[0],
-  deterministic: true, // Use deterministic data for precise assertions
-});
-
-await result.waitForPlot();
-
-const points = result.getScatterPoints();
-assertPointsHaveValidPositions(points);
-```
-
-### `plotTileTestHarness.tsx` (existing)
-
-For testing plot tiles with Zustand store interactions.
-
-**Use for:**
-- UI behavior tests (settings panel, focus mode)
-- Store state management tests
-- Plot type transition tests
+Matrix tests verify:
+- **Config Correctness**: All fields transformed correctly
+- **Data Correctness**: Count, structure, data types, value ranges
+- **Data Preprocessing**: Field prefixing, entry merging, type preservation
+- **Field Correctness**: Prefixed paths, correct type metadata
+- **Metadata Completeness**: Project name, timestamps, tokens
 
 ## Mock Data
 
-### Type-Aware Generation
-
-Mock data generators produce data based on `DataTypeConfig`:
-
-```typescript
-const logs = createMockLogs({
-  dataTypeConfig: {
-    x_axis_type: 'datetime',
-    y_axis_type: 'float',
-    group_by_type: 'str',
-  },
-  scale: { name: 'medium', count: 1000, skip: false, timeout: 15000 },
-  includeNulls: true,
-  includeEdgeCases: true,
-  deterministic: false, // Random-like data
-});
-```
-
 ### Deterministic Data
 
-For precise position assertions, use deterministic data:
+For precise position assertions:
 
 ```typescript
 const deterministicData = createDeterministicMockLogs(
-  dataTypeConfig,
+  { x_axis_type: 'datetime', y_axis_type: 'float', group_by_type: 'str' },
   100 // count
 );
 
 // Returns:
-// - logs: Array of logs with predictable values
+// - logs: Array with predictable values
 // - expectedXValues: Pre-computed X values
 // - expectedYValues: Pre-computed Y values
 // - xDomain: { min, max }
 // - yDomain: { min, max }
-// - count: Total log count
 ```
 
-### Supported Data Types
+### Value Conversion
 
-- **Numeric**: float, int
-- **String**: str
-- **Boolean**: bool
-- **Temporal**: datetime, time, date, timedelta
-- **Complex**: dict, list, set, tuple, Any
-- **Special**: image, embedding
+Mock data uses the same conversion logic as production's `getValue()`:
 
-### Edge Cases (Auto-included)
-
-- Null values
-- Zero values
-- Negative values
-- Very large values (1e15, MAX_SAFE_INTEGER)
-- Empty strings
-- Future dates
+| Type | Mock Value | Converted Value |
+|------|------------|-----------------|
+| datetime | `"2024-01-15T12:00:00Z"` | `1705320000000` (ms) |
+| time | `"12:30:45"` | Timestamp for today at 12:30:45 |
+| timedelta | `"3 days, 08:00:00"` | `288000000` (ms) |
+| date | `"2024-01-15"` | `1705276800000` (ms) |
+| bool | `true` / `false` | `1` / `0` |
 
 ## Calculation Utilities
 
-`calculations.ts` provides helpers for computing expected pixel positions:
+`calculations.ts` provides helpers for computing expected values:
 
 ```typescript
 import {
-  calculateScatterPointPosition,
-  calculateBarDimensions,
-  calculateHistogramBinDimensions,
-  calculateDomain,
   calculateExpectedPointCount,
+  calculateExpectedBarCount,
+  toNumericValue,           // Converts like production getValue()
+  isValidNumericValue,      // Checks if value can be plotted
   positionsAreClose,
   POSITION_TOLERANCE,
   DEFAULT_DIMENSIONS,
 } from '../fixtures/calculations';
-
-// Calculate expected point position
-const expectedPos = calculateScatterPointPosition(
-  xValue, yValue,
-  xDomain, yDomain,
-  'linear', 'linear'
-);
-
-// Compare with tolerance
-expect(positionsAreClose(actualCx, expectedPos.cx, POSITION_TOLERANCE)).toBe(true);
-```
-
-## Unit Tests
-
-### Available Unit Tests
-
-| File | Tests |
-|------|-------|
-| `data.node.test.ts` | `getValue`, `hasProperty`, `inferDisplayType` |
-| `axes.node.test.ts` | `generateTicks`, `reverseOrKeepDomain`, `checkLogScalability` |
-| `tooltip.node.test.ts` | `tooltipTemplate` |
-| `key.node.test.ts` | `keyTemplate` |
-
-## Benchmarks
-
-Benchmarks measure render time and DOM element counts across scales and configurations.
-
-### Running Benchmarks
-
-```bash
-npm test -- src/tests/plot/benchmarks/
-```
-
-### Output
-
-Results are logged to console with summaries grouped by plot type:
-
-```
-========================================
-      RENDERING BENCHMARK SUMMARY
-========================================
-
-SCATTER:
-  small: 45.23ms, 156 elements
-  small (regression): 52.18ms, 162 elements
-  medium: 312.45ms, 1056 elements
-  ...
 ```
 
 ## Adding New Tests
+
+### New Data Type
+
+1. Add to `dataTypeOptions.x_axis_type` in `configs.ts`
+2. Add value generator in `mockData.ts` (`deterministicValueGenerators`)
+3. Update `toNumericValue()` in `calculations.ts` if needed
 
 ### New Plot Type
 
 1. Add type to `plotConfigOptions.type` in `configs.ts`
 2. Update `filterValidPlotConfigs()` with type-specific rules
-3. Create `newtype.browser.test.tsx` in `integration/`
-4. Add harness helper methods in `plotCanvasTestHarness.tsx`
-5. Add calculation helpers in `calculations.ts`
-6. Add benchmark tests in `rendering.perf.browser.test.tsx`
-
-### New Data Type
-
-1. Add to `dataTypeOptions` in `configs.ts`
-2. Add value generator in `mockData.ts` (both regular and deterministic)
-3. Update `mapToDisplayType()` for field generation
+3. Create `newtype.browser.test.tsx` and `newtype.matrix.browser.test.tsx`
+4. Create `_newtype-test-helpers.ts` with assertions
+5. Add harness methods in `plotCanvasTestHarness.tsx`
 
 ### New Config Option
 
-1. Add to appropriate options object in `configs.ts`
+1. Add to `plotConfigOptions` in `configs.ts`
 2. Update `generateAllPlotConfigs()` loops
 3. Update `filterValidPlotConfigs()` validity rules
-4. Update `plotConfigName()` for test naming
+4. Update `generateTestAlias()` for test naming

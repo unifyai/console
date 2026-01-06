@@ -51,8 +51,11 @@ interface LineMatrixConfig {
 
 function generateLineMatrix(): LineMatrixConfig[] {
   const allPlotConfigs = generateValidPlotConfigsForType('line');
+  // Production code (plot-line.ts line 142) accepts:
+  // float, int, timestamp, time, timedelta, date, bool, Any
+  // All are converted to numeric by getValue()
   const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => ['float', 'int', 'datetime'].includes(dt.x_axis_type)
+    (dt) => ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 
