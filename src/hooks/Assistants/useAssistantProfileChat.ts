@@ -44,6 +44,9 @@ export function useAssistantProfileChat(
     
     // Owner context cache: maps assistant_id -> owner context string
     const ownerContextCacheRef = React.useRef<Map<string, string>>(new Map());
+    
+    // Track assistants that have already had contact sync triggered (to avoid re-syncing on chat close/open)
+    const contactSyncTriggeredRef = React.useRef<Set<string>>(new Set());
 
     // Get the current user's contact_id for the active assistant
     const currentContactId = React.useMemo(() => {
@@ -181,7 +184,12 @@ export function useAssistantProfileChat(
                 const lookedUpContactId = await assistantActions.chat.getContactId(ownerContext, assistantContext, userEmail);
                 
                 if (lookedUpContactId === null) {
-                    // User not in contacts - cannot chat with this assistant
+                    // User not in contacts - trigger contact sync (only once per assistant) and cannot chat
+                    if (!contactSyncTriggeredRef.current.has(currentAssistantId)) {
+                        contactSyncTriggeredRef.current.add(currentAssistantId);
+                        assistantActions.chat.triggerContactSync(currentAssistantId).catch(err => {/* no-op */});
+                    }
+                    
                     setCanChat(false);
                     setIsInitialLoading(false);
                     setChatHistories(prev => ({ ...prev, [currentAssistantId]: [] }));
@@ -255,6 +263,11 @@ export function useAssistantProfileChat(
                     const assistantContext = `${assistant.first_name}${assistant.surname}`;
                     const contactId = await assistantActions.chat.getContactId(ownerContext, assistantContext, userEmail);
                     if (contactId === null) {
+                        // User not in contacts - trigger contact sync (only once per assistant)
+                        if (!contactSyncTriggeredRef.current.has(assistantId)) {
+                            contactSyncTriggeredRef.current.add(assistantId);
+                            assistantActions.chat.triggerContactSync(assistantId).catch(err => {/* no-op */});
+                        }
                         setCanChat(false);
                     } else {
                         setContactIdCache(prev => new Map(prev).set(assistantId, contactId));

@@ -309,6 +309,7 @@ export interface AssistantActions {
         getTranscripts: (ownerContext: string, assistantContext: string, contactId: number, beforeMessageId?: number) => Promise<ChatMessage[] | ResponseProps>;
         message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
         getAssistantOwnerById: (userId: string) => Promise<{ first_name: string; last_name: string } | null>;
+        triggerContactSync: (assistantId: string) => Promise<ResponseProps>;
     },
     "contact": {
     delete: (assistantId: string, contactType: "phone" | "email" | "whatsapp") => Promise<ResponseProps & { assistant?: Assistant }>;

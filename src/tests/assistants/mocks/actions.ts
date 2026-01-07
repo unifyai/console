@@ -41,6 +41,7 @@ export const mockAssistantActions: AssistantActions = {
         getTranscripts: vi.fn(async (_ownerContext: string, _assistantContext: string, _contactId: number, _beforeMessageId?: number) => []),
         message: vi.fn(async () => ({ info: "Message sent" })),
         getAssistantOwnerById: vi.fn(async (_userId: string) => ({ first_name: 'Test', last_name: 'Owner' })),
+        triggerContactSync: vi.fn(async () => ({ info: "Contact sync triggered" })),
     },
     contact: { 
         delete: vi.fn(async () => ({ info: "Contact deleted", assistant: mockAssistants[0] })), 

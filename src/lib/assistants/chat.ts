@@ -193,3 +193,57 @@ export const getAssistantOwnerById = async () => {
         }
     };
 };
+
+/**
+ * Triggers a contact sync event for an assistant when a contact is not found.
+ * This notifies the adapters service to sync contacts for the assistant.
+ * 
+ * @param assistantId - The assistant's ID
+ * @returns ResponseProps indicating success or failure
+ */
+export const triggerContactSync = async () => {
+    return async (assistantId: string): Promise<ResponseProps> => {
+        "use server";
+        
+        const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+        if (!ADMIN_KEY) {
+            console.error("[triggerContactSync] Server configuration error: ORCHESTRA_ADMIN_KEY is not set.");
+            return { detail: "Server configuration error." };
+        }
+
+        const orchestraUrl = process.env.ORCHESTRA_URL || "";
+        const isStaging = orchestraUrl.includes("staging");
+
+        const webhookUrl = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unity/system-event`;
+
+        const payload = {
+            assistant_id: parseInt(assistantId),
+            event_type: "sync_contacts",
+            message: "Contacts sync triggered.",
+        };
+
+        try {
+            const webhookResponse = await fetch(webhookUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${ADMIN_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!webhookResponse.ok) {
+                const errorText = await webhookResponse.text();
+                console.error(`[triggerContactSync] Webhook error (${webhookResponse.status}): ${errorText}`);
+                return { detail: `Failed to trigger contact sync: ${errorText}` };
+            }
+
+            console.log(`[triggerContactSync] Successfully triggered contact sync for assistant ${assistantId}`);
+            return { info: "Contact sync triggered successfully." };
+
+        } catch (error: any) {
+            console.error("[triggerContactSync] Error calling webhook:", error.message);
+            return { detail: "Failed to connect to contact sync service." };
+        }
+    };
+};

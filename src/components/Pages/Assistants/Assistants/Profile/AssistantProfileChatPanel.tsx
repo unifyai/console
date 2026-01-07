@@ -231,7 +231,7 @@ export function AssistantProfileChatPanel({
                     <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3 text-muted-foreground animate-fade-in">
                         <div className="text-center space-y-1">
                             <p className="text-sm font-medium">Chat is not available</p>
-                            <p className="text-xs opacity-80">You may not have permission to chat with this assistant</p>
+                            <p className="text-xs opacity-80">Please try again in a few minutes</p>
                         </div>
                     </div>
                 ) : initialLoadError ? (
