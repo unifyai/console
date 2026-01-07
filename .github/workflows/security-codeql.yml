@@ -1,0 +1,49 @@
+name: Security
+
+# =============================================================================
+# CodeQL Security Scanning
+# =============================================================================
+# This workflow performs static code analysis to find security vulnerabilities.
+#
+# STATUS: DISABLED - Requires Code Security to be enabled in repo settings
+# TODO: Enable this workflow once Code Security is set up:
+#   1. Go to repo Settings → Security → Code security and analysis
+#   2. Enable "CodeQL analysis"
+#   3. Remove the `if: false` condition below
+# =============================================================================
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  schedule:
+    # Run weekly on Monday at 9am UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    # DISABLED: Remove this line when Code Security is enabled in repo settings
+    if: false
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

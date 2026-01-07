@@ -35,7 +35,6 @@ const TEST_ENV = {
 };
 
 export default defineConfig({
-
   // Shared Vite config for both test projects
   plugins: [react()],
   resolve: {
@@ -60,8 +59,23 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['./vitest.node.setup.ts'],
           include: ['src/**/*.node.test.ts?(x)'],
-          exclude: ['src/**/*.browser.test.ts?(x)'],
+          // Exclude browser tests and .real. tests (those need a running server)
+          exclude: ['src/**/*.browser.test.ts?(x)', 'src/**/*.real.node.test.ts?(x)'],
           maxConcurrency: 30,
+          env: TEST_ENV,
+        },
+      },
+
+      // Real integration tests - require Console + Orchestra running
+      {
+        extends: true,
+        test: {
+          name: 'real',
+          environment: 'jsdom',
+          setupFiles: ['./vitest.node.setup.ts'],
+          include: ['src/**/*.real.node.test.ts?(x)'],
+          exclude: ['src/**/*.browser.test.ts?(x)'],
+          maxConcurrency: 10,
           env: TEST_ENV,
         },
       },

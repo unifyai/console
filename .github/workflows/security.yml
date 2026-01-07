@@ -1,0 +1,64 @@
+name: Security
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  schedule:
+    # Run weekly on Monday at 9am UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run npm audit
+        run: |
+          echo "=== Running npm audit ==="
+          echo ""
+
+          # Run human-readable audit first (shows full details)
+          npm audit --audit-level=moderate 2>&1 || true
+
+          echo ""
+          echo "=========================================="
+          echo ""
+
+          # Get JSON for parsing counts
+          npm audit --json > audit-results.json 2>&1 || true
+
+          # Count vulnerabilities
+          CRITICAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
+          MODERATE=$(cat audit-results.json | jq '.metadata.vulnerabilities.moderate // 0')
+
+          echo "=== Summary ==="
+          echo "Critical: $CRITICAL"
+          echo "High: $HIGH"
+          echo "Moderate: $MODERATE"
+          echo ""
+
+          # Fail on critical vulnerabilities
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities - see audit output above for details"
+            exit 1
+          fi
+
+          # Warn on high
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::warning::Found $HIGH high vulnerabilities - see audit output above for details"
+          fi

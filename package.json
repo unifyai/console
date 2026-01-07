@@ -7,6 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run lint && npm run typecheck && npm run format:check && npm run build",
+    "prepare": "husky",
     "test:node": "vitest --project node",
     "test:node:matrix": "bash src/tests/scripts/test-node-matrix.sh",
     "test:browser": "vitest --project browser",
@@ -15,7 +21,16 @@
     "test:browser:screenshots": "VITE_TAKE_SCREENSHOTS=true vitest --project browser",
     "test:interfaces": "vitest --project node src/tests/interfaces",
     "test:interfaces:real": "npm run dev & DEV_PID=$!; sleep 10 && npm run test:interfaces; EXIT_CODE=$?; kill $DEV_PID 2>/dev/null; exit $EXIT_CODE",
-    "test:interfaces:browser": "vitest --project browser src/tests/interfaces"
+    "test:interfaces:browser": "vitest --project browser src/tests/interfaces",
+    "test:real": "vitest --project real"
+  },
+  "lint-staged": {
+    "package.json": "prettier --write",
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
+    ],
+    "*.{json,md,yml,yaml,css,scss}": "prettier --write"
   },
   "dependencies": {
     "@ai-sdk/provider-utils": "^2.0.0",
@@ -141,6 +156,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^9.2.0",
+    "@playwright/test": "^1.57.0",
     "@svgr/webpack": "^8.1.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.1",
@@ -159,18 +175,24 @@
     "@types/react-grid-layout": "^1.3.5",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/react-window-infinite-loader": "^1.0.9",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/browser-playwright": "^4.0.8",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "14.1.4",
+    "eslint-config-prettier": "^10.1.5",
+    "husky": "^9.1.7",
     "jsdom": "^27.2.0",
+    "lint-staged": "^15.4.3",
     "micro": "^10.0.1",
     "msw": "^2.12.1",
     "next-logger": "^5.0.1",
     "pino": "^9.5.0",
     "playwright": "^1.56.1",
     "postcss": "^8.4.47",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "react-colorful": "^5.6.1",
     "react-dropzone": "^14.3.8",
     "react-virtuoso": "^4.12.6",

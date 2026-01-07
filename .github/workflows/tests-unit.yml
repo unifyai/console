@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-unit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit
+    runs-on: ubuntu-latest-4-cores
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Unit Tests
+        run: npm run test:node -- --run
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=8192
+          # Run 10% of matrix tests in CI to keep runtime reasonable
+          PLOT_TEST_SAMPLE_RATE: '10'

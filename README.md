@@ -1,118 +1,340 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Unify Console
 
-## Getting Started
+A [Next.js](https://nextjs.org/) application built with React and TypeScript.
 
-First, run the development server:
+## Tech Stack
+
+| Technology   | Version | Purpose                         |
+| ------------ | ------- | ------------------------------- |
+| Next.js      | 14.2.x  | React framework with App Router |
+| React        | 18.x    | UI library                      |
+| TypeScript   | 5.x     | Type safety                     |
+| Tailwind CSS | 3.4.x   | Styling                         |
+| Zustand      | 5.x     | State management                |
+| React Query  | 5.x     | Server state & caching          |
+| Vitest       | 4.x     | Testing framework               |
+| Playwright   | 1.x     | Browser testing                 |
+
+---
+
+## Prerequisites
+
+- **Node.js** 20.x or higher (LTS recommended)
+- **npm** 10.x or higher
 
 ```bash
+# Check your versions
+node --version  # Should be v20.x.x or higher
+npm --version   # Should be 10.x.x or higher
+```
+
+---
+
+## Quick Start
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Get environment variables from a team member
+# Copy to .env.local
+
+# 3. Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# 4. Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+### Development
 
-## Test Production Build
+| Script          | Description                               |
+| --------------- | ----------------------------------------- |
+| `npm run dev`   | Start development server with hot reload  |
+| `npm run build` | Build production bundle                   |
+| `npm run start` | Start production server (run after build) |
 
-In order to test the production build locally, run
+### Code Quality
+
+| Script                 | Description                    |
+| ---------------------- | ------------------------------ |
+| `npm run lint`         | Run ESLint                     |
+| `npm run lint:fix`     | Run ESLint with auto-fix       |
+| `npm run format`       | Format all files with Prettier |
+| `npm run format:check` | Check formatting (CI)          |
+| `npm run typecheck`    | Run TypeScript type checking   |
+
+### Testing
+
+| Script                             | Description                               |
+| ---------------------------------- | ----------------------------------------- |
+| `npm run test:node`                | Run Node.js environment tests             |
+| `npm run test:browser`             | Run browser environment tests             |
+| `npm run test:browser:screenshots` | Run browser tests with screenshot capture |
+| `npm run test:interfaces`          | Run interface-specific tests              |
+| `npm run test:interfaces:browser`  | Run interface browser tests               |
+
+### CI/CD
+
+| Script       | Description                                                      |
+| ------------ | ---------------------------------------------------------------- |
+| `npm run ci` | Run full CI pipeline locally (typecheck + lint + format + build) |
+
+---
+
+## Code Quality & Formatting
+
+### Pre-Commit Hooks
+
+This project uses [Husky](https://typicode.github.io/husky/) and [lint-staged](https://github.com/lint-staged/lint-staged) to enforce code quality on every commit.
+
+**What happens on commit:**
+
+1. **Prettier** auto-formats staged JS/TS/JSON/MD/YAML/CSS files
+2. **ESLint** auto-fixes issues in staged JS/TS files
+3. If unfixable errors exist, the commit is **blocked**
+
+### Manual Formatting
 
 ```bash
+# Format entire codebase
+npm run format
+
+# Check if files are formatted (without changing them)
+npm run format:check
+```
+
+### Prettier Configuration
+
+Configuration is in `.prettierrc`:
+
+- Single quotes
+- 2-space tabs
+- 100 character line width
+- Trailing commas (ES5)
+- Tailwind CSS class sorting
+
+### ESLint Configuration
+
+Configuration is in `.eslintrc.json`:
+
+- Extends `next/core-web-vitals`
+- Integrated with Prettier to avoid conflicts
+
+---
+
+## CI/CD Pipeline
+
+GitHub Actions automatically runs on:
+
+- **Push** to `main` or `staging`
+- **Pull Requests** targeting `main` or `staging`
+
+### Pipeline Jobs
+
+```
+┌──────────────┐   ┌────────┐   ┌──────────┐
+│  typecheck   │   │  lint  │   │  format  │
+└──────┬───────┘   └───┬────┘   └──────────┘
+       │               │
+       └───────┬───────┘
+               ▼
+         ┌───────────┐
+         │   build   │
+         └───────────┘
+
+┌─────────────────┐   ┌────────────────────┐
+│   test-node     │   │   test-browser     │
+└─────────────────┘   └────────────────────┘
+```
+
+| Job              | What it checks                          |
+| ---------------- | --------------------------------------- |
+| **typecheck**    | TypeScript compilation (`tsc --noEmit`) |
+| **lint**         | ESLint rules                            |
+| **format**       | Prettier formatting                     |
+| **build**        | Production build succeeds               |
+| **test-node**    | Vitest Node.js tests pass               |
+| **test-browser** | Vitest browser tests pass (Playwright)  |
+
+---
+
+## Production Build
+
+### Test Production Locally
+
+```bash
+# Build the production bundle
 npm run build
+
+# Start the production server
+npm run start
+
+# Open http://localhost:3000
 ```
 
-followed by
+### Why Test Production Locally?
 
-```bash
-npm start
+- Some bugs only appear in production builds
+- Production is optimized and minified
+- Tests static generation (SSG/ISR)
+- Verifies environment variable handling
+
+---
+
+## Project Structure
+
 ```
+src/
+├── app/                    # Next.js App Router pages
+│   ├── (home)/            # Home route group
+│   ├── api/               # API routes
+│   └── layout.tsx         # Root layout
+├── components/            # Reusable UI components
+│   ├── Common/            # Shared components
+│   ├── Layout/            # Layout components
+│   ├── Pages/             # Page-specific components
+│   ├── Shared/            # Cross-feature components
+│   └── UI/                # Base UI components
+├── contexts/              # React contexts and state
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utilities and helpers
+├── tests/                 # Test files
+│   ├── assistants/        # Assistant feature tests
+│   ├── interfaces/        # Interface feature tests
+│   └── user/              # User feature tests
+├── types/                 # TypeScript type definitions
+└── constants/             # Application constants
+```
+
+### Directory Guidelines
+
+| Directory     | Purpose                            |
+| ------------- | ---------------------------------- |
+| `components/` | Reusable UI components             |
+| `app/`        | Next.js pages and API routes       |
+| `lib/`        | Utility functions and helpers      |
+| `hooks/`      | Custom React hooks                 |
+| `contexts/`   | State management (Zustand slices)  |
+| `types/`      | TypeScript interfaces and types    |
+| `tests/`      | Test files (mirrors src structure) |
+
+---
+
+## Key Dependencies
+
+### State Management
+
+| Library                                   | Purpose                                          |
+| ----------------------------------------- | ------------------------------------------------ |
+| [Zustand](https://zustand-demo.pmnd.rs/)  | Global client state (UI state, user preferences) |
+| [React Query](https://tanstack.com/query) | Server state, caching, and data fetching         |
+| [Immer](https://immerjs.github.io/immer/) | Immutable state updates                          |
+
+### UI Components
+
+| Library                                                     | Purpose                         |
+| ----------------------------------------------------------- | ------------------------------- |
+| [Radix UI](https://www.radix-ui.com/)                       | Accessible, unstyled primitives |
+| [Tailwind CSS](https://tailwindcss.com/)                    | Utility-first CSS               |
+| [Framer Motion](https://www.framer.com/motion/)             | Animations                      |
+| [Lucide React](https://lucide.dev/)                         | Icons                           |
+| [Monaco Editor](https://microsoft.github.io/monaco-editor/) | Code editor                     |
+
+### Data & Forms
+
+| Library                                         | Purpose           |
+| ----------------------------------------------- | ----------------- |
+| [React Hook Form](https://react-hook-form.com/) | Form handling     |
+| [Zod](https://zod.dev/)                         | Schema validation |
+| [date-fns](https://date-fns.org/)               | Date manipulation |
+
+### Real-Time & Communication
+
+| Library                                 | Purpose               |
+| --------------------------------------- | --------------------- |
+| [LiveKit](https://livekit.io/)          | Real-time audio/video |
+| [Vercel AI SDK](https://sdk.vercel.ai/) | AI/LLM integration    |
+
+### Authentication & Payments
+
+| Library                                  | Purpose             |
+| ---------------------------------------- | ------------------- |
+| [NextAuth.js](https://next-auth.js.org/) | Authentication (v4) |
+| [Stripe](https://stripe.com/docs)        | Payment processing  |
+
+---
+
+## Architecture Overview
+
+### State Management Pattern
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     React Components                     │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│   ┌─────────────┐              ┌──────────────────┐     │
+│   │   Zustand   │              │   React Query    │     │
+│   │   (Client)  │              │    (Server)      │     │
+│   ├─────────────┤              ├──────────────────┤     │
+│   │ • UI state  │              │ • API data       │     │
+│   │ • Modals    │              │ • Caching        │     │
+│   │ • Filters   │              │ • Mutations      │     │
+│   │ • Selection │              │ • Optimistic     │     │
+│   └─────────────┘              └──────────────────┘     │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### File Organization for Features
+
+When adding a new feature, follow this pattern:
+
+```
+src/
+├── app/(home)/feature/         # Route/page
+│   └── page.tsx
+├── components/Pages/Feature/   # Feature components
+│   ├── FeatureMain.tsx
+│   └── FeatureCard.tsx
+├── hooks/Feature/              # Feature hooks
+│   └── useFeatureData.ts
+├── contexts/slices/            # Zustand slices
+│   └── featureSlice.ts
+├── types/feature/              # TypeScript types
+│   └── index.ts
+└── tests/feature/              # Tests
+    └── feature.test.tsx
+```
+
+---
 
 ## Debug Environment Variables
 
-This application includes several debug environment variables that enable detailed logging and visual indicators for development and troubleshooting purposes. Set these variables to `true` to enable their respective debug features:
+Enable detailed logging for development by adding these to `.env.local`:
 
 ### UI and State Management
 
-- **`NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true`**
-  - Enables detailed console logging for initial state building on the server side
-  - Shows comprehensive logs for project loading, interface setup, tab initialization, and store state construction
-  - Useful for debugging server-side rendering and initial hydration issues
+| Variable                                    | Description                        |
+| ------------------------------------------- | ---------------------------------- |
+| `NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE`        | Server-side state building logs    |
+| `NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES`       | Tile dependency graph logs         |
+| `NEXT_PUBLIC_DEBUG_TAB_PREFETCHING`         | Tab prefetching and streaming logs |
+| `NEXT_PUBLIC_DEBUG_PERFORMANCE`             | Performance timing logs            |
+| `NEXT_PUBLIC_DEBUG_STATE_SYNCING`           | State sync operation logs          |
+| `NEXT_PUBLIC_DEBUG_COMMANDS`                | Command execution logs             |
+| `NEXT_PUBLIC_DEBUG_INFINITE_QUERIES`        | Infinite query logs                |
+| `NEXT_PUBLIC_DEBUG_QUERY_KEYS`              | Query key lifecycle logs           |
+| `NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES` | Advanced table UI features         |
 
-### Tile Dependencies
-
-- **`NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true`**
-  - Enables comprehensive logging for the tile dependency management system
-  - Shows dependency graph building, external dependency checking, and tile render states
-  - Displays visual indicators in the UI showing which dependencies tiles are waiting for
-  - Includes emoji-based logging (🔍 🚀 ⏳ ✅ ❌) for easy identification of dependency states
-
-### Tab Prefetching and Streaming
-
-- **`NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true`**
-  - Enables detailed logging for tab prefetching and streaming operations
-  - Shows tab data building progress, prefetch queue management, and cache hit/miss information
-  - Displays visual indicators in the UI showing prefetched tabs and streaming progress
-  - Includes prefetch progress indicators and tab switch timing information
-
-### Performance Monitoring
-
-- **`NEXT_PUBLIC_DEBUG_PERFORMANCE=true`**
-  - Enables detailed performance timing logs for critical data operations
-  - Shows execution times for table data building, plot data fetching, and argument processing
-  - Includes timing measurements for logs retrieval, field processing, and data transformation
-  - Useful for identifying performance bottlenecks and optimizing data processing workflows
-
-### State Synchronization
-
-- **`NEXT_PUBLIC_DEBUG_STATE_SYNCING=true`**
-  - Enables detailed logging for state synchronization between client and server
-  - Shows optimistic updates, server sync operations, and mutation state changes
-  - Includes logging for interface, tab, and tile synchronization operations
-  - Useful for debugging state consistency issues and sync conflicts
-
-### Command Operations
-
-- **`NEXT_PUBLIC_DEBUG_COMMANDS=true`**
-  - Enables detailed logging for command execution and management
-  - Shows project creation, deletion, selection, and interface operations
-  - Includes command palette state updates, modal state changes, and navigation operations
-  - Useful for debugging command system workflows and UI state management
-
-### Query Management
-
-- **`NEXT_PUBLIC_DEBUG_INFINITE_QUERIES=true`**
-  - Enables detailed logging for infinite query operations and data fetching
-  - Shows query execution, cache management, and pagination state changes
-  - Includes logging for load more operations, query invalidation, and data merging
-  - Useful for debugging data fetching workflows and infinite scroll behaviors
-
-- **`NEXT_PUBLIC_DEBUG_QUERY_KEYS=true`**
-  - Enables detailed logging for query key registration and cleanup operations
-  - Shows when infinite query keys are added to and removed from tiles
-  - Includes logging for both main table queries and group-specific queries
-  - Useful for debugging query lifecycle management and tile cleanup issues
-
-### Table Advanced Features
-
-- **`NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES=true`**
-  - Enables advanced table features in the UI for development and debugging
-  - Shows virtualization toggle, bidirectional loading toggle, and window size dropdown
-  - Displays detailed pagination information including pages in memory and window range
-  - Useful for testing table performance optimization features and debugging data loading behaviors
-  - Should be disabled in production to keep the UI clean for end users
-
-### Usage Example
-
-To enable all debug features during development, add these to your `.env.local` file:
+### Enable All Debug Features
 
 ```bash
+# .env.local
 NEXT_PUBLIC_DEBUG_UI_INITIAL_STATE=true
 NEXT_PUBLIC_DEBUG_TILE_DEPENDENCIES=true
 NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true
@@ -124,94 +346,265 @@ NEXT_PUBLIC_DEBUG_QUERY_KEYS=true
 NEXT_PUBLIC_DEBUG_TABLE_ADVANCED_FEATURES=true
 ```
 
-**Note:** These debug features should be disabled in production environments to avoid performance impact and console noise.
+> **Note:** Disable debug features in production to avoid performance impact.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-
-
-## Project Structure Guide
-
-This section outlines where different types of files, components, and scripts should reside within the project. Following these guidelines will help maintain a clean and organized codebase, making it easier for current and future contributors to navigate and collaborate effectively.
-
-### Directory Placement
-
-1. **Components**
-   - **Location**: Place all reusable UI components in the `components` directory.
-   - **Structure**: Each component should be housed in its own folder if it contains multiple files (e.g., styles, tests).
-   - **Examples**:
-     - `components/Header/Header.tsx`
-     - `components/UserProfile/UserProfile.tsx`
-
-2. **Pages & Routes**
-   - **Location**: For Next.js routing, place all page components inside the `app` or `pages` directory.
-   - **Examples**:
-     - `app/(console)/profile/page.tsx`
-     - `pages/api/user/[userId].ts`
-
-3. **Utilities & Helpers**
-   - **Location**: Put all standalone utility functions and helpers in the `lib` directory.
-   - **Purpose**: Centralize code that can be reused across multiple components or features.
-   - **Examples**:
-     - `lib/apiClient.ts`
-     - `lib/dateFormatter.ts`
-
-4. **Custom Hooks**
-   - **Location**: Store custom hooks in the `hooks` directory.
-   - **Examples**:
-     - `hooks/useFetchData.ts`
-
-5. **Styles**
-   - **Location**: Place global styles in the `styles` directory; component-specific styles should reside next to their respective components as `.module.css` files.
-   - **Examples**:
-     - Global: `styles/globals.css`
-     - Component-specific: `components/Header/header.module.css`
-
-6. **Public Assets**
-   - **Location**: Store all static assets in the `public` directory.
-   - **Purpose**: For images, icons, and other static files that need to be publicly accessible.
-   - **Examples**:
-     - `public/images/logo.png`
-     - `public/icons/favicon.ico`
-
-### Decision-Making System for Placement
-
-- **Reusability Consideration**: If a component or utility is designed to be reusable across multiple parts of the application, place it in a shared directory (like `components` or `lib`).
-
-- **Feature-Specific Placement**: If a file is exclusively related to one feature, keep it within that feature's directory for easier maintenance.
-
-- **Consistency Check**: Regularly review and refactor the placement of files to ensure they adhere to these guidelines and reflect the current needs of the project.
-
-By adhering to these guidelines, we ensure a modular, scalable, and easily navigable codebase. This approach allows developers to efficiently locate, enhance, and maintain code as the application evolves.
-
-
+---
 
 ## Naming Conventions
 
-To ensure a consistent and organized codebase, we follow these naming conventions for directories, files, components, and other parts of our project:
+### Files & Directories
 
-### Directories
-- **Usage**: Lowercase and kebab-case.
-- **Examples**:
-  - `components`
-  - `lib`
-  - `styles`
+| Type        | Convention                       | Example                            |
+| ----------- | -------------------------------- | ---------------------------------- |
+| Directories | lowercase/kebab-case             | `components/`, `user-profile/`     |
+| Components  | PascalCase                       | `Header.tsx`, `UserProfile.tsx`    |
+| Utilities   | camelCase                        | `apiClient.ts`, `dateFormatter.ts` |
+| Hooks       | camelCase with `use` prefix      | `useFetchData.ts`                  |
+| Types       | PascalCase                       | `UserTypes.ts`                     |
+| Tests       | `*.test.ts(x)` or `*.spec.ts(x)` | `Button.test.tsx`                  |
 
-### Components
-- **Usage**: PascalCase for React component files and their directories.
-- **Examples**:
-  - `Header.tsx`
-  - `UserProfile.tsx`
-  - Directory: `
+### Component Structure
+
+```
+components/
+└── Button/
+    ├── Button.tsx          # Component
+    ├── Button.test.tsx     # Tests
+    └── index.ts            # Export
+```
+
+---
+
+## Testing
+
+### Test Structure
+
+Tests are organized in `src/tests/` mirroring the feature structure:
+
+```
+src/tests/
+├── assistants/           # Assistant feature tests
+│   ├── chat.browser.test.tsx
+│   └── hire.browser.test.tsx
+├── interfaces/           # Interface feature tests
+│   ├── behavior/         # Behavior tests
+│   ├── e2e/             # End-to-end tests
+│   ├── integration/     # Integration tests
+│   ├── unit/            # Unit tests
+│   └── mocks/           # Test fixtures and mocks
+└── user/                # User feature tests
+```
+
+### Test Types
+
+| Suffix                 | Environment               | Purpose                       |
+| ---------------------- | ------------------------- | ----------------------------- |
+| `*.node.test.tsx`      | Node.js (jsdom)           | Fast unit/integration tests   |
+| `*.browser.test.tsx`   | Real browser (Playwright) | DOM interaction tests         |
+| `*.real.node.test.tsx` | Node.js with real API     | Integration with real backend |
+
+### Running Tests
+
+```bash
+# Run Node.js tests
+npm run test:node
+
+# Run in watch mode
+npm run test:node -- --watch
+
+# Run browser tests
+npm run test:browser
+
+# Run specific test file
+npm run test:node -- src/tests/interfaces/unit/hooks/useTabSync.node.test.tsx
+
+# Run with coverage
+npm run test:node -- --coverage
+```
+
+---
+
+## Troubleshooting
+
+### npm Install Errors
+
+If you encounter peer dependency conflicts:
+
+```bash
+# The project uses legacy-peer-deps by default via .npmrc
+npm install
+```
+
+### Pre-Commit Hook Issues
+
+If commits are being blocked:
+
+```bash
+# Check what lint-staged would run
+npx lint-staged --verbose
+
+# Skip hooks temporarily (not recommended)
+git commit --no-verify -m "message"
+```
+
+### TypeScript Errors
+
+```bash
+# Check all TypeScript errors
+npm run typecheck
+
+# Check specific file
+npx tsc --noEmit src/path/to/file.tsx
+```
+
+---
+
+## Contributing
+
+### Branch Strategy
+
+```
+main (production)
+  ↑
+staging (pre-production)
+  ↑
+feature/your-feature-name
+```
+
+### Workflow
+
+1. **Create branch** from `staging`:
+
+   ```bash
+   git checkout staging
+   git pull origin staging
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make changes** and commit often:
+
+   ```bash
+   git add .
+   git commit -m "feat: add new feature"
+   ```
+
+   > Pre-commit hooks auto-format your code
+
+3. **Run checks locally** before pushing:
+
+   ```bash
+   npm run ci
+   ```
+
+4. **Push and create PR** to `staging`:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+### Commit Message Convention
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Type        | Description                         |
+| ----------- | ----------------------------------- |
+| `feat:`     | New feature                         |
+| `fix:`      | Bug fix                             |
+| `docs:`     | Documentation changes               |
+| `style:`    | Code style (formatting, semicolons) |
+| `refactor:` | Code refactoring                    |
+| `test:`     | Adding/updating tests               |
+| `chore:`    | Maintenance tasks                   |
+
+Examples:
+
+```bash
+git commit -m "feat: add user profile page"
+git commit -m "fix: resolve login redirect issue"
+git commit -m "docs: update README with new scripts"
+```
+
+### Code Review Checklist
+
+- [ ] TypeScript compiles without errors
+- [ ] ESLint passes with no warnings
+- [ ] Tests pass
+- [ ] New features have tests
+- [ ] No console.logs left in code
+- [ ] Responsive design works on mobile
+
+---
+
+## Common Patterns
+
+### Creating a New API Route
+
+```typescript
+// src/app/api/example/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/options';
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Your logic here
+  return NextResponse.json({ data: 'example' });
+}
+```
+
+### Creating a Custom Hook with React Query
+
+```typescript
+// src/hooks/useExample.ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export function useExample(id: string) {
+  return useQuery({
+    queryKey: ['example', id],
+    queryFn: () => fetchExample(id),
+  });
+}
+
+export function useUpdateExample() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateExample,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['example'] });
+    },
+  });
+}
+```
+
+### Creating a Zustand Slice
+
+```typescript
+// src/contexts/slices/exampleSlice.ts
+import { StateCreator } from 'zustand';
+
+export interface ExampleSlice {
+  count: number;
+  increment: () => void;
+  reset: () => void;
+}
+
+export const createExampleSlice: StateCreator<ExampleSlice> = (set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  reset: () => set({ count: 0 }),
+});
+```
+
+---
+
+## Learn More
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [React Documentation](https://react.dev/)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [Vitest Documentation](https://vitest.dev/)

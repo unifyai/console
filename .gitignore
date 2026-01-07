@@ -47,3 +47,7 @@ next-env.d.ts
 # auth files
 application_default_credentials.json
 .idea/
+
+# Local plans and credentials
+plans/
+.credentials/
