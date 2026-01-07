@@ -59,7 +59,7 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['./vitest.node.setup.ts'],
           include: ['src/**/*.node.test.ts?(x)'],
-          // Exclude browser tests and .real. tests (those need a running server)
+          // Exclude browser tests (separate project) and .real. tests (need running Console + Orchestra)
           exclude: ['src/**/*.browser.test.ts?(x)', 'src/**/*.real.node.test.ts?(x)'],
           maxConcurrency: 30,
           env: TEST_ENV,

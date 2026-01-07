@@ -48,3 +48,7 @@ jobs:
           MATRIX_TEST_SPLIT: 'true'
           # Run 10% of matrix tests in CI to keep runtime reasonable
           PLOT_TEST_SAMPLE_RATE: '10'
+
+      - name: Cleanup generated files
+        if: always()
+        run: rm -rf src/tests/plot/integration/generated

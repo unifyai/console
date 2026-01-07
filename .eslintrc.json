@@ -25,7 +25,7 @@
         "format": ["camelCase", "PascalCase", "UPPER_CASE"],
         "leadingUnderscore": "allowDouble",
         "filter": {
-          "regex": "^(Content-Type|Authorization|Accept|Cache-Control|X-[A-Za-z-]+)$",
+          "regex": "^(Content-Type|Authorization|Accept|Cache-Control|X-[A-Za-z-]+|@|process\\.env)$",
           "match": false
         }
       },
