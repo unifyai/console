@@ -332,7 +332,7 @@ export default function InterfaceSelector({
     setIsExporting(true);
     try {
       const result = await interfaceActions.exportTemplate(
-        { interface_id: interfaceId, project: projectId, interface_name: interfaceName },
+        { interface_id: interfaceId, project_name: projectId, interface_name: interfaceName },
         { include_metadata: true, template_name: interfaceName }
       );
       

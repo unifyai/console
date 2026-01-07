@@ -225,7 +225,7 @@ const InterfaceButtons = ({
         if (!currentInterface) return;
         try {
             const result = await interfaceActions.exportTemplate(
-                { interface_id: currentInterface.id!, project: project!, interface_name: currentInterface.name },
+                { interface_id: currentInterface.id!, project_name: project!, interface_name: currentInterface.name },
                 { include_metadata: true, template_name: currentInterface.name }
             );
             if ('error' in result) throw new Error(result.error);
@@ -273,7 +273,7 @@ const InterfaceButtons = ({
         if (!selectedFile || !templateData || !validateImportName(importInterfaceName)) return;
         setIsImporting(true);
         try {
-            const result = await interfaceActions.importTemplate(templateData.template, { project: project!, new_interface_name: importInterfaceName.trim(), validate_first: true, auto_sanitize: true });
+            const result = await interfaceActions.importTemplate(templateData.template, { project_name: project!, new_interface_name: importInterfaceName.trim(), validate_first: true, auto_sanitize: true });
             if ('error' in result) { throw new Error(result.error); }
             setImportResult(result as TemplateImportResponse);
             setShowImportSuccess(true);
