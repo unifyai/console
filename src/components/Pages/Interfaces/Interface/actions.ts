@@ -245,7 +245,7 @@ export async function exportInterfaceTemplate(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const result = await actions.exportTemplate(
-      { interface_id: interfaceId, project, interface_name: interfaceName },
+      { interface_id: interfaceId, project_name: project, interface_name: interfaceName },
       { include_metadata: true, template_name: interfaceName }
     );
     
@@ -292,7 +292,7 @@ export async function importInterfaceTemplate(
     const result = await actions.importTemplate(
       templateData.template,
       {
-        project,
+        project_name: project,
         new_interface_name: newInterfaceName.trim(),
         validate_first: true,
         auto_sanitize: true
