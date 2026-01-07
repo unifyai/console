@@ -56,7 +56,7 @@ export const runCode = async (apiKey: string, userId: string) => {
                 body: JSON.stringify({
                     user_id: userId,
                     file_path: filePath,
-                    project,
+                    project_name: project,
                     env: Array.isArray(env)
                         ? Object.fromEntries((env as { key: string; value: string }[]).map(({ key, value }) => [key, value]))
                         : env

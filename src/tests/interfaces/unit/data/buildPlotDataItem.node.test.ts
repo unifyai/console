@@ -143,7 +143,7 @@ describe('buildPlotDataItem', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const fetchUrl = mockFetch.mock.calls[0][0] as string;
     expect(fetchUrl).toContain('/api/logs');
-    expect(fetchUrl).toContain('project=proj-1');
+    expect(fetchUrl).toContain('project_name=proj-1');
     expect(fetchUrl).toContain('from_fields=x%26y'); // URL encoded
 
     expect(result.plotLogs).toHaveLength(2);

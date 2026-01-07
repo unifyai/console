@@ -82,7 +82,7 @@ describe('Interfaces query hooks (integration-style)', () => {
     // Verify fetch was called instead of actions.list
     expect(mockFetch).toHaveBeenCalled();
     expect(mockFetch.mock.calls.some((call: unknown[]) => 
-      (call[0] as string).includes('/api/interface?project=project-1')
+      (call[0] as string).includes('/api/interface?project_name=project-1')
     )).toBe(true);
 
     // When projectId becomes null, the query should be disabled and not refetch;

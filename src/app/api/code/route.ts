@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
     const userId = body.user_id;
-    const project = body.project;
+    const project_name = body.project_name;
     const filePath = body.file_path;
 
     const sandboxList = await sdk.sandbox.list();
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const sandbox = await sdk.sandbox.open(sandboxId);
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: apiKey as string,
-        UNIFY_PROJECT: project,
+        UNIFY_PROJECT: project_name,
     };
     if (baseUrl.includes("staging")) {
         envVars = {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build full path inside project directory
-    const fullPath = `${project}/${filePath}`;
+    const fullPath = `${project_name}/${filePath}`;
 
     // create command to run code
     editorStore.set(fullPath, { output: "", done: false });

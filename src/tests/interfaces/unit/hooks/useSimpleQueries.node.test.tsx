@@ -63,7 +63,7 @@ describe('Simple Query Hooks', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchUrl = mockFetch.mock.calls[0][0] as string;
       expect(fetchUrl).toContain('/api/interface');
-      expect(fetchUrl).toContain('project=p1');
+      expect(fetchUrl).toContain('project_name=p1');
     });
 
     it('does not fetch if projectId is null', async () => {
