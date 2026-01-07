@@ -291,7 +291,7 @@ const Interface = ({
 
   // Fetch project tree with icons
   const { data: projectTree = [], isLoading: isLoadingProjectTree, isError: isProjectTreeError, error: projectTreeErrorObj, refetch: refetchProjectTree } = useQuery<
-    Array<{project:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
+    Array<{project_name:string; icon:string; interfaces:Array<{id: string; name: string; icon?: string; updated_at?: string}>; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {

@@ -493,7 +493,7 @@ export default function InterfaceSelector({
       const result = await interfaceActions.importTemplate(
         templateData.template, 
         { 
-          project: projectId, 
+          project_name: projectId, 
           new_interface_name: importInterfaceName.trim(),
           validate_first: true,
           auto_sanitize: true,
