@@ -26,7 +26,7 @@ import { Suspense } from "react";
 
 interface Favourite {
   id: number;
-  project: string;
+  project_name: string;
   icon: string;
   position: number;
 }
@@ -43,7 +43,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
   const uniqueInitialFavourites = useMemo(() => {
     return Array.isArray(initialFavourites)
       ? initialFavourites.filter((fav, index, self) =>
-          index === self.findIndex(f => f.project === fav.project))
+          index === self.findIndex(f => f.project_name === fav.project_name))
       : [];
   }, [initialFavourites]);
 
@@ -51,14 +51,14 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
   const [favourites, setFavourites] = useState<Favourite[]>(uniqueInitialFavourites);
   
   // Selected projects set for quick lookups
-  const initialSet = useMemo(() => new Set<string>(uniqueInitialFavourites.map(f => f.project)), [uniqueInitialFavourites]);
+  const initialSet = useMemo(() => new Set<string>(uniqueInitialFavourites.map(f => f.project_name)), [uniqueInitialFavourites]);
   const [selected, setSelected] = useState<Set<string>>(initialSet);
   
   // Icon map for quick access to icons
   const [iconMap, setIconMap] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
     uniqueInitialFavourites.forEach(f => {
-      m[f.project] = (typeof f.icon === "string" && f.icon.trim()) || "folder";
+      m[f.project_name] = (typeof f.icon === "string" && f.icon.trim()) || "folder";
     });
     return m;
   });
@@ -67,7 +67,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
   const [idMap, setIdMap] = useState<Record<string, number>>(() => {
     const m: Record<string, number> = {};
     uniqueInitialFavourites.forEach(f => {
-      m[f.project] = f.id;
+      m[f.project_name] = f.id;
     });
     return m;
   });
@@ -102,17 +102,17 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
 
     // Icon change
     for (const fav of uniqueInitialFavourites) {
-      if (iconMap[fav.project] !== (fav.icon || "folder")) {
+      if (iconMap[fav.project_name] !== (fav.icon || "folder")) {
         setIsChanged(true);
         return;
       }
     }
 
     // Position/order change
-    const currentOrder = favourites.map((f) => f.project).join("|");
+    const currentOrder = favourites.map((f) => f.project_name).join("|");
     const initialOrder = uniqueInitialFavourites
       .sort((a, b) => a.position - b.position)
-      .map((f) => f.project)
+      .map((f) => f.project_name)
       .join("|");
     if (currentOrder !== initialOrder) {
       setIsChanged(true);
@@ -135,17 +135,17 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
   // Sync favourites with selected set to prevent duplicates
   useEffect(() => {
     const newFavs: Favourite[] = Array.from(selected).map((project, index) => {
-      const existing = favourites.find(f => f.project === project) || uniqueInitialFavourites.find(f => f.project === project);
+      const existing = favourites.find(f => f.project_name === project) || uniqueInitialFavourites.find(f => f.project_name === project);
       return {
         id: existing ? existing.id : -1,
-        project,
+        project_name: project,
         icon: iconMap[project] || "folder",
         position: index,
       };
     });
 
     // Only update state if something actually changed (shallow compare length and order)
-    if (newFavs.length !== favourites.length || newFavs.some((f, i) => f.project !== favourites[i]?.project || f.icon !== favourites[i]?.icon)) {
+    if (newFavs.length !== favourites.length || newFavs.some((f, i) => f.project_name !== favourites[i]?.project_name || f.icon !== favourites[i]?.icon)) {
       setFavourites(newFavs);
     }
   }, [selected, iconMap]);
@@ -159,7 +159,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         next.delete(name);
         
         // Update favourites array
-        setFavourites(current => current.filter(f => f.project !== name));
+        setFavourites(current => current.filter(f => f.project_name !== name));
       } else {
         // Check limit
         if (next.size === 10) {
@@ -177,7 +177,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         // Check if project already exists in favourites to prevent duplicates
         setFavourites(current => {
           // If project already exists, don't add it again
-          if (current.some(f => f.project === name)) {
+          if (current.some(f => f.project_name === name)) {
             return current;
           }
           
@@ -186,7 +186,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
             ...current,
             {
               id: -1, // Temporary ID that will be replaced after API call
-              project: name,
+              project_name: name,
               icon: icon,
               position: current.length
             }
@@ -207,7 +207,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
     });
     
     // Remove from favourites array
-    setFavourites(current => current.filter(f => f.project !== name));
+    setFavourites(current => current.filter(f => f.project_name !== name));
   };
 
   const saveFavourites = async () => {
@@ -217,47 +217,47 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
 
     try {
       const currentFavourites = [...favourites];
-      const initialFavouritesSet = new Set(uniqueInitialFavourites.map(f => f.project));
-      const currentFavouritesSet = new Set(currentFavourites.map(f => f.project));
+      const initialFavouritesSet = new Set(uniqueInitialFavourites.map(f => f.project_name));
+      const currentFavouritesSet = new Set(currentFavourites.map(f => f.project_name));
 
       /* ---------- Handle creations & updates ---------- */
       for (let i = 0; i < currentFavourites.length; i++) {
         const fav = currentFavourites[i];
         const position = i;
-        const sanitizedIcon = (typeof (iconMap[fav.project]) === 'string' ? iconMap[fav.project].trim() : "folder") || "folder";
+        const sanitizedIcon = (typeof (iconMap[fav.project_name]) === 'string' ? iconMap[fav.project_name].trim() : "folder") || "folder";
 
         try {
-          if (!initialFavouritesSet.has(fav.project) || fav.id === -1) {
+          if (!initialFavouritesSet.has(fav.project_name) || fav.id === -1) {
             // create new
             const createFav = await createFavourite(apiKey);
-            const ret = await createFav(fav.project, sanitizedIcon, position)
-            console.log(`Created new favourite for ${fav.project}:`, ret);
+            const ret = await createFav(fav.project_name, sanitizedIcon, position)
+            console.log(`Created new favourite for ${fav.project_name}:`, ret);
           } else {
-            const initialFav = uniqueInitialFavourites.find(f => f.project === fav.project);
+            const initialFav = uniqueInitialFavourites.find(f => f.project_name === fav.project_name);
             if (initialFav && (initialFav.icon !== sanitizedIcon || initialFav.position !== position)) {
               const updateFav = await updateFavourite(apiKey)
               const ret = await updateFav(initialFav.id, { icon: sanitizedIcon, position });
-              console.log(`Updated favourite for ${fav.project}:`, ret);
+              console.log(`Updated favourite for ${fav.project_name}:`, ret);
             }
           }
         } catch (err) {
           errorsOccurred = true;
-          console.error(`Save failed for ${fav.project}`, err);
-                              showErrorToast(`Failed to save ${fav.project}`);
+          console.error(`Save failed for ${fav.project_name}`, err);
+                              showErrorToast(`Failed to save ${fav.project_name}`);
         }
       }
 
       /* ---------- Handle deletions ---------- */
-      for (const fav of uniqueInitialFavourites.filter(fav => !currentFavouritesSet.has(fav.project))) {
+      for (const fav of uniqueInitialFavourites.filter(fav => !currentFavouritesSet.has(fav.project_name))) {
         try {
           const deleteFav = await deleteFavourite(apiKey)
           const ret = await deleteFav(fav.id);
 
-          console.log(`Deleted favourite for ${fav.project}:`, ret);
+          console.log(`Deleted favourite for ${fav.project_name}:`, ret);
         } catch (err) {
           errorsOccurred = true;
-          console.error(`Delete failed for ${fav.project}`, err);
-                              showErrorToast(`Failed to remove ${fav.project}`);
+          console.error(`Delete failed for ${fav.project_name}`, err);
+                              showErrorToast(`Failed to remove ${fav.project_name}`);
         }
       }
 
@@ -294,8 +294,8 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
     if (!over || active.id === over.id) return;
 
     setFavourites((items) => {
-      const oldIndex = items.findIndex((f) => f.project === active.id);
-      const newIndex = items.findIndex((f) => f.project === over.id);
+      const oldIndex = items.findIndex((f) => f.project_name === active.id);
+      const newIndex = items.findIndex((f) => f.project_name === over.id);
       const newArr = arrayMove(items, oldIndex, newIndex).map((f, idx) => ({
         ...f,
         position: idx,
@@ -306,7 +306,7 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
 
   // Sortable row component for selected favourites
   const SortableFavRow = ({ fav }: { fav: Favourite }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: fav.project });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: fav.project_name });
 
     const style: React.CSSProperties = {
       transform: CSS.Transform.toString(transform),
@@ -324,30 +324,30 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
         </div>
         <div className="flex justify-center">
           <IconPicker
-            value={iconMap[fav.project] as any}
-            onValueChange={(val: any) => setIconMap((m) => ({ ...m, [fav.project]: val as string }))}
-            triggerPlaceholder={iconMap[fav.project] || "Select"}
+            value={iconMap[fav.project_name] as any}
+            onValueChange={(val: any) => setIconMap((m) => ({ ...m, [fav.project_name]: val as string }))}
+            triggerPlaceholder={iconMap[fav.project_name] || "Select"}
           >
             <Button
               variant="outline"
               size="sm"
               className="h-10 w-10 p-0 min-w-0 flex items-center justify-center shadow-sm"
             >
-              {iconMap[fav.project] ? (
-                <Icon name={iconMap[fav.project] as any} className="h-5 w-5" />
+              {iconMap[fav.project_name] ? (
+                <Icon name={iconMap[fav.project_name] as any} className="h-5 w-5" />
               ) : (
                 "+"
               )}
             </Button>
           </IconPicker>
         </div>
-        <span className="truncate text-sm font-medium text-center">{fav.project}</span>
+        <span className="truncate text-sm font-medium text-center">{fav.project_name}</span>
         <div className="flex justify-center">
           <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => removeFromSelected(fav.project)}
+            onClick={() => removeFromSelected(fav.project_name)}
             title="Remove from favourites"
           >
             <Trash2 className="h-4 w-4" />
@@ -362,17 +362,17 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
     setProjects(projData);
 
     const dedupFavs: Favourite[] = Array.isArray(favData)
-      ? favData.filter((fav, idx, self) => idx === self.findIndex((f) => f.project === fav.project))
+      ? favData.filter((fav, idx, self) => idx === self.findIndex((f) => f.project_name === fav.project_name))
       : [];
 
     setFavourites(dedupFavs);
-    setSelected(new Set(dedupFavs.map((f) => f.project)));
+    setSelected(new Set(dedupFavs.map((f) => f.project_name)));
 
     const newIconMap: Record<string, string> = {};
     const newIdMap: Record<string, number> = {};
     dedupFavs.forEach((f) => {
-      newIconMap[f.project] = (typeof f.icon === "string" && f.icon.trim()) || "folder";
-      newIdMap[f.project] = f.id;
+      newIconMap[f.project_name] = (typeof f.icon === "string" && f.icon.trim()) || "folder";
+      newIdMap[f.project_name] = f.id;
     });
     setIconMap(newIconMap);
     setIdMap(newIdMap);
@@ -579,10 +579,10 @@ export default function FavouritesClient({ initialProjects, initialFavourites, a
                   </div>
                   <Separator className="mb-4" />
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleFavDragEnd}>
-                    <SortableContext items={favourites.map(f=>f.project)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={favourites.map(f=>f.project_name)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-4">
                         {favourites.map((fav) => (
-                          <SortableFavRow key={fav.project} fav={fav} />
+                          <SortableFavRow key={fav.project_name} fav={fav} />
                         ))}
                       </div>
                     </SortableContext>

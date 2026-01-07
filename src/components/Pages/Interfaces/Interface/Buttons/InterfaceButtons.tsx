@@ -110,7 +110,7 @@ const InterfaceButtons = ({
 
     const currentFavourite = useMemo(() => {
         if (!currentInterface?.name || !favourites) return null;
-        return favourites.find(fav => fav.project === currentInterface.name) || null;
+        return favourites.find(fav => fav.project_name === currentInterface.name) || null;
     }, [currentInterface, favourites]);
 
     const handleToggleFavourite = async () => {

@@ -95,7 +95,7 @@ const ProjectButtons = ({
 
     const currentFavourite = useMemo(() => {
         if (!project || !favourites) return null;
-        return favourites.find(fav => fav.project === project) || null;
+        return favourites.find(fav => fav.project_name === project) || null;
     }, [project, favourites]);
 
     const handleToggleFavourite = async () => {

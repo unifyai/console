@@ -544,7 +544,7 @@ export default function InterfaceNav({
   
   // Fetch project tree using React Query for better caching
   const { data: projectTree = [], isLoading: projectTreeLoading, isFetching: projectTreeFetching, isError: projectTreeError, refetch: refetchProjectTree } = useQuery<
-    Array<{project:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
+    Array<{project_name:string; icon:string; interfaces:ProjectInterface[]; favorite:boolean; position:number|null}>
   >({
     queryKey: ['projects', 'tree'],
     queryFn: async () => {
@@ -609,7 +609,7 @@ export default function InterfaceNav({
   
   // Find current interface data
   const currentProjectData = useMemo(() => {
-    return projectTree.find(p => p.project === selectedProject)
+    return projectTree.find(p => p.project_name === selectedProject)
   }, [projectTree, selectedProject])
   
   const currentInterfaces = useMemo(() => {
@@ -780,7 +780,7 @@ export default function InterfaceNav({
       newParams.delete('selectProject') // Clear the project selection screen flag
       
       // Find interfaces for the new project
-      const projectData = projectTree.find(p => p.project === newProject)
+      const projectData = projectTree.find(p => p.project_name === newProject)
       const interfaces = projectData?.interfaces || []
       
       if (interfaces.length === 1) {
@@ -1013,7 +1013,7 @@ export default function InterfaceNav({
   }
   
   const handleCreateProject = useCallback(async (projectName: string, projectIcon?: string) => {
-    const result = await createProject(projectName, projectActions, projectTree.map(p => p.project), projectIcon)
+    const result = await createProject(projectName, projectActions, projectTree.map(p => p.project_name), projectIcon)
     
     if (result.success && result.projectName) {
       // Create default interface
@@ -1114,7 +1114,7 @@ export default function InterfaceNav({
   }
   
   const handleToggleFavourite = async () => {
-    const currentFavourite = favourites.find(f => f.project === selectedProject) || null
+    const currentFavourite = favourites.find(f => f.project_name === selectedProject) || null
     const result = await toggleFavourite(selectedProject, currentFavourite, favouritesActions, favourites)
     if (result.success && result.newFavourites) {
       setFavourites(result.newFavourites)
@@ -1158,7 +1158,7 @@ export default function InterfaceNav({
   const handleRenameProject = useCallback(async (newName: string) => {
     if (!activeProject) throw new Error('No active project')
     
-    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.project))
+    const result = await renameProject(activeProject, newName, projectActions, projectTree.map(p => p.project_name))
     
     if (result.success) {
       await refetchProjectTree()

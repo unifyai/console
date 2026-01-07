@@ -879,12 +879,12 @@ export interface FileActions {
 
 export interface Favourite {
     id: number;
-    project: string;
+    project_name: string;
     icon: string;
     position: number;
 }
 
 export interface FavouritesActions {
-    create: (project: string, icon: string, position: number) => Promise<Favourite>;
+    create: (project_name: string, icon: string, position: number) => Promise<Favourite>;
     delete: (id: number) => Promise<boolean>;
 }

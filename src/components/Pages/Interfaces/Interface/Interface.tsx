@@ -310,7 +310,7 @@ const Interface = ({
   
   // Get interfaces from projectTree for selection screen (faster than separate API call)
   const safeProjectTree = Array.isArray(projectTree) ? projectTree : [];
-  const currentProjectData = safeProjectTree.find(p => p.project === projectQueryParam);
+  const currentProjectData = safeProjectTree.find(p => p.project_name === projectQueryParam);
   const interfacesForSelection = currentProjectData?.interfaces || [];
   // Show loading if: projectTree is loading, OR no tree data yet, OR tree exists but current project has no interfaces yet (still fetching)
   const isLoadingInterfacesForSelection = showInterfaceSelection && (
@@ -1418,7 +1418,7 @@ const Interface = ({
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-1 pb-6 max-h-[250px]">
                   {projects?.map((project) => {
-                    const projectData = safeProjectTree.find(p => p.project === project);
+                    const projectData = safeProjectTree.find(p => p.project_name === project);
                     const icon = projectData?.icon;
                     const isLoading = loadingProjectName === project;
                     return (
