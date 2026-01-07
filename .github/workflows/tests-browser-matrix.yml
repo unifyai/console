@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: tests-browser-${{ github.ref }}
+  group: tests-browser-matrix-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  browser:
-    name: Browser
-    runs-on: ubuntu-latest-4-cores
+  browser-matrix:
+    name: Browser Matrix Tests
+    runs-on: ubuntu-latest-16-cores
 
     steps:
       - name: Checkout
@@ -32,13 +32,9 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Browser Tests
-        run: |
-          # Run non-matrix browser tests only
-          # Matrix tests are handled by tests-browser-matrix.yml
-          npm run test:browser -- --run \
-            --exclude='**/generated/**' \
-            --exclude='**/*.matrix.browser.test.*'
+      - name: Run Browser Matrix Tests (8 parallel processes)
+        run: SHARDS=8 npm run test:browser:matrix
         env:
           CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=16384
+          PLOT_TEST_SAMPLE_RATE: '100'

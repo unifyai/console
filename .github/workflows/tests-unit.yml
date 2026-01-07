@@ -30,9 +30,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Run Unit Tests
-        run: npm run test:node -- --run
+        run: |
+          # Run non-matrix unit tests only
+          # Matrix tests are handled by tests-unit-matrix.yml
+          npm run test:node -- --run --exclude='**/*.matrix.node.test.*'
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=8192
-          # Run 10% of matrix tests in CI to keep runtime reasonable
-          PLOT_TEST_SAMPLE_RATE: '10'
