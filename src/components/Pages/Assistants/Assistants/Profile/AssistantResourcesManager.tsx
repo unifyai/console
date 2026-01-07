@@ -73,7 +73,7 @@ const ContactItem: React.FC<{
 
 export function AssistantResourcesManager({ assistant, assistantActions, onOpenContactManager, canWrite = true }: AssistantResourcesManagerProps) {
     const [isSecretsManagerOpen, setIsSecretsManagerOpen] = React.useState(false);
-    const assistantContext = `${assistant.first_name}${assistant.surname}`;
+    const assistantContext = `${assistant.firstName}${assistant.surname}`;
 
     return (
         <>

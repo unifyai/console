@@ -42,7 +42,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
         return <div>Error loading assistant data. Please close this tab and try again.</div>;
     }
 
-    const assistant = (assistantsResult as Assistant[]).find((a) => a.agent_id === params.assistantId);
+    const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === params.assistantId);
 
     if (!assistant) {
         notFound();

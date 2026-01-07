@@ -50,7 +50,7 @@ export function AssistantList({
          if (!searchTerm) return assistants;
         const lowerSearchTerm = searchTerm.toLowerCase();
         return assistants.filter(a =>
-            (a.first_name && a.surname && `${a.first_name} ${a.surname}`.toLowerCase().includes(lowerSearchTerm)) ||
+            (a.firstName && a.surname && `${a.firstName} ${a.surname}`.toLowerCase().includes(lowerSearchTerm)) ||
             (a.email && a.email.toLowerCase().includes(lowerSearchTerm))
         );
     }, [assistants, searchTerm]);
@@ -153,14 +153,14 @@ export function AssistantList({
                     ) : filteredAssistants.length > 0 ? (
                         filteredAssistants.map((assistant) => (
                             <AssistantListItem
-                                key={assistant.agent_id}
+                                key={assistant.agentId}
                                 assistant={assistant}
-                                status={assistantStatuses.get(assistant.agent_id) || null}
-                                isSelected={profileAssistantId === assistant.agent_id}
+                                status={assistantStatuses.get(assistant.agentId) || null}
+                                isSelected={profileAssistantId === assistant.agentId}
                                 onShowProfile={onShowProfile}
                                 onOpenContactManager={onOpenContactManager}
                                 isFolded={isFolded}
-                                isCallActive={activeCallAssistantId === assistant.agent_id}
+                                isCallActive={activeCallAssistantId === assistant.agentId}
                             />
                         ))
                     ) : searchTerm && !isFolded ? (

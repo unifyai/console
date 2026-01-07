@@ -61,10 +61,10 @@ const MinimizedContent: React.FC<Omit<AssistantCommunicationMinimizedProps, 'roo
     const micToggle = useTrackToggle({ source: Track.Source.Microphone });
     const camToggle = useTrackToggle({ source: Track.Source.Camera });
 
-    const displayName = `${assistant.first_name} ${assistant.surname}`;
-    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const displayName = `${assistant.firstName} ${assistant.surname}`;
+    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
     const showLoadingState = isConnecting || isWaitingForAssistant;
-    const loadingMessage = isConnecting ? "Connecting..." : `Waiting for ${assistant.first_name}...`;
+    const loadingMessage = isConnecting ? "Connecting..." : `Waiting for ${assistant.firstName}...`;
 
     if (connectionError) {
         return (

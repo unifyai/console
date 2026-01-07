@@ -2,6 +2,7 @@ import { ResponseProps } from "@/types/common";
 import { PhotoCreationResponse, PhotoGenerateRequest, PhotoUploadResponse, ReplicatePredictionResponse } from "@/types/assistants/assistant";
 import { getObjectPathFromUrl, isGcsPhoto } from "@/utils/assistants/gcs-utils";
 import { Storage } from "@google-cloud/storage";
+import { snakeToCamelObject, camelToSnakeObject } from "@/utils/casing";
 
 let storage: Storage;
 try {
@@ -31,7 +32,7 @@ export const uploadPhoto = async (apiKey: string) => {
                 return { detail: errorMessage };
             }
             if (data.info && data.info.gcs_url) {
-                return data.info as PhotoUploadResponse;
+                return snakeToCamelObject<PhotoUploadResponse>(data.info);
             }
             return { detail: "Photo uploaded but GCS URL not received." };
         } catch (error) {
@@ -62,7 +63,7 @@ export const uploadVideo = async (apiKey: string) => {
                 return { detail: errorMessage };
             }
             if (data.info && data.info.gcs_url) {
-                return data.info as PhotoUploadResponse; // Same response shape as photo
+                return snakeToCamelObject<PhotoUploadResponse>(data.info); // Same response shape as photo
             }
             return { detail: "Video uploaded but GCS URL not received." };
         } catch (error) {
@@ -225,10 +226,13 @@ export const generatePhoto = async (apiKey: string) => {
     return async (payload: PhotoGenerateRequest): Promise<PhotoCreationResponse | ResponseProps> => {
         "use server";
         try {
+            // Convert camelCase payload to snake_case for API
+            const snakeCasePayload = camelToSnakeObject(payload);
+            
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/generate`, {
                 method: "POST",
                 headers: { apiKey, "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(snakeCasePayload)
             });
             const data = await response.json();
             if (!response.ok) {
@@ -287,7 +291,7 @@ export const animatePhoto = async (apiKey: string) => {
                 return { detail: data.detail || `Failed to start animation: ${response.statusText}`, status: response.status };
             }
             if (data.info && data.info.id) {
-                return data.info as ReplicatePredictionResponse;
+                return snakeToCamelObject<ReplicatePredictionResponse>(data.info);
             }
             return { detail: "Animation job started but response format was unexpected." };
         } catch (error) {
@@ -309,7 +313,7 @@ export const getAnimationPrediction = async (apiKey: string) => {
                 return { detail: data.detail || `Failed to get prediction status: ${response.statusText}` };
             }
             if (data.info && data.info.id) {
-                return data.info as ReplicatePredictionResponse;
+                return snakeToCamelObject<ReplicatePredictionResponse>(data.info);
             }
             return { detail: "Unexpected response structure for prediction status." };
         } catch (error) {
@@ -331,7 +335,7 @@ export const cancelAnimationPrediction = async (apiKey: string) => {
                 return { detail: data.detail || `Failed to cancel prediction: ${response.statusText}` };
             }
             if (data.info && data.info.id) {
-                return data.info as ReplicatePredictionResponse;
+                return snakeToCamelObject<ReplicatePredictionResponse>(data.info);
             }
             return { detail: "Unexpected response structure for prediction cancellation." };
         } catch (error) {

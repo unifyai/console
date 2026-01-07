@@ -84,12 +84,12 @@ export function TaskList({
     }, [isLoadingMore, hasMoreTasks, fetchMoreTasks]);
 
     const renderTaskItem = React.useCallback((index: number, task: Task) => {
-        const assistant = assistants.find(a => a.agent_id === task.assistant_id);
+        const assistant = assistants.find(a => a.agentId === task.assistantId);
         if (!assistant) return null; // Don't render a task if its assistant isn't found
         const canEditTask = canWriteAssistant ? canWriteAssistant(assistant) : true;
         return (
             <MemoizedTaskListItem
-                key={task.task_id} 
+                key={task.taskId} 
                 task={task}
                 assistant={assistant}
                 updateTask={updateTask}

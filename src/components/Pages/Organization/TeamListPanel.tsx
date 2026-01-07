@@ -94,14 +94,14 @@ const TeamListPanel = ({ teams, members, onCreateTeam, onUpdateTeam, onDeleteTea
       const team = teams.find(t => t.id === selectedTeamId);
       if (!team) return false;
       if (!team.members || team.members.length === 0) return true;
-      return !team.members.includes(m.user_id);
+      return !team.members.includes(m.userId);
   });
 
   const currentTeamMembers = members.filter(m => {
       if (!selectedTeamId) return false;
       const team = teams.find(t => t.id === selectedTeamId);
       if (!team || !team.members) return false;
-      return team.members.includes(m.user_id);
+      return team.members.includes(m.userId);
   });
 
   return (
@@ -215,7 +215,7 @@ const TeamListPanel = ({ teams, members, onCreateTeam, onUpdateTeam, onDeleteTea
                     <SelectContent>
                         {availableMembers.length > 0 ? (
                             availableMembers.map(m => (
-                                <SelectItem key={m.user_id} value={m.user_id}>
+                                <SelectItem key={m.userId} value={m.userId}>
                                     {m.name || m.email || "Unknown User"}
                                 </SelectItem>
                             ))
@@ -247,7 +247,7 @@ const TeamListPanel = ({ teams, members, onCreateTeam, onUpdateTeam, onDeleteTea
                     <SelectContent>
                         {currentTeamMembers.length > 0 ? (
                             currentTeamMembers.map(m => (
-                                <SelectItem key={m.user_id} value={m.user_id}>
+                                <SelectItem key={m.userId} value={m.userId}>
                                     {m.name || m.email || "Unknown User"}
                                 </SelectItem>
                             ))

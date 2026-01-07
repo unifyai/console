@@ -45,15 +45,15 @@ export function WorkspaceProvider({
 
   // 2. Determine Active Workspace
   // We can't rely solely on cookies client-side for initial render sync.
-  // However, we can infer it: If the user.api_key matches an org key, that org is active.
+  // However, we can infer it: If the user.apiKey matches an org key, that org is active.
   // OR simpler: we rely on a client-side cookie/localstorage or just track state.
   // Since `user` prop comes from server where key-swapping happened, 
   // checking keys is the most robust way to sync Server <-> Client state.
   
-  // 2a. Determine Active Organization (full object with role_name)
+  // 2a. Determine Active Organization (full object with roleName)
   const activeOrganization = useMemo(() => {
     if (!user) return null;
-    return user.organizations?.find(o => o.api_key === user.api_key) || null;
+    return user.organizations?.find(o => o.apiKey === user.apiKey) || null;
   }, [user]);
 
   // 2b. Determine Active Workspace

@@ -14,7 +14,7 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
         return null;
     }
     return {
-        log_id: numericId,
+        logId: numericId,
         name: entries.name,
         value: entries.value,
         description: typeof entries.description === 'string' ? entries.description : undefined,
@@ -26,7 +26,7 @@ export const getSecrets = async (apiKey: string, userContext: string) => {
         "use server";
         try {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-            const url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=${PROJECT}&context=${context}`;
+            const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}`;
             
             const response = await fetch(url, { method: "GET", headers: { apiKey } });
 
@@ -53,7 +53,7 @@ export const createSecret = async (apiKey: string, userContext: string) => {
         "use server";
         try {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
-            const body = { project_name: PROJECT, context, entries: [payload] };
+            const body = { projectName: PROJECT, context, entries: [payload] };
             
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
                 method: "POST",
@@ -75,15 +75,15 @@ export const createSecret = async (apiKey: string, userContext: string) => {
 };
 
 export const deleteSecret = async (apiKey: string, userContext: string) => {
-    return async (assistantContext: string, log_id: number): Promise<ResponseProps> => {
+    return async (assistantContext: string, logId: number): Promise<ResponseProps> => {
         "use server";
         try {
             const context = `${userContext}/${assistantContext}${CONTEXT_SUFFIX}`;
             const url = `${process.env.NEXTAUTH_URL}/api/logs`;
             const body = {
-                project_name: PROJECT,
+                projectName: PROJECT,
                 context: context,
-                ids_and_fields: [[log_id, null]]
+                idsAndFields: [[logId, null]]
             };
 
             const response = await fetch(url, { 

@@ -30,18 +30,18 @@ export function AssistantListItem({
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onShowProfile(assistant.agent_id);
+        onShowProfile(assistant.agentId);
     }
 
-    const displayName = `${assistant.first_name} ${assistant.surname}`;
-    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const displayName = `${assistant.firstName} ${assistant.surname}`;
+    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
     const isOnline = status?.running === true;
 
     const hoverCardContent = (
         <div className="flex justify-between space-x-4">
             <Avatar>
                 <AvatarImage src={photoSrc ?? undefined} />
-                <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                <AvatarFallback>{`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="space-y-1 flex-1">
                 <h4 className="text-title">{displayName}</h4>
@@ -86,7 +86,7 @@ export function AssistantListItem({
             >
                 <Avatar className="h-8 w-8">
                     <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                    <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                 </Avatar>
                 {status !== null && (
                     <span
@@ -120,7 +120,7 @@ export function AssistantListItem({
 
     return (
         <div
-            data-testid={`assistant-list-item-${assistant.agent_id}`}
+            data-testid={`assistant-list-item-${assistant.agentId}`}
             className={cn(
                 "flex items-center justify-between p-2 rounded-md group cursor-pointer",
                 !isSelected && "hover:bg-muted",
@@ -134,12 +134,12 @@ export function AssistantListItem({
                         <div className="relative">
                             <Avatar className="h-8 w-8 cursor-default flex-shrink-0">
                                 <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                                <AvatarFallback>{`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
+                                <AvatarFallback>{`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}</AvatarFallback>
                             </Avatar>
                             {status !== null && (
                                 <span
                                     role='status'
-                                    data-testid={`status-indicator-${assistant.agent_id}`}
+                                    data-testid={`status-indicator-${assistant.agentId}`}
                                     className={cn(
                                         "absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background",
                                         isOnline ? "bg-green-500" : "bg-gray-400"

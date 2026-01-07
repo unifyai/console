@@ -44,7 +44,7 @@ export function useAssistantContactManager({
                     setEmailLocalPart(currentEmail || '');
                 }
             } else {
-                const baseLocalPart = `${assistant.first_name}.${assistant.surname}`
+                const baseLocalPart = `${assistant.firstName}.${assistant.surname}`
                     .toLowerCase()
                     .replace(/\s+/g, '.')
                     .replace(/[^a-z0-9.]/g, '');
@@ -84,7 +84,7 @@ export function useAssistantContactManager({
         const toastId = toast.loading(`Deleting ${confirmDelete}...`);
 
         try {
-            const result = await assistantActions.contact.delete(assistant.agent_id, confirmDelete);
+            const result = await assistantActions.contact.delete(assistant.agentId, confirmDelete);
 
             if (result.detail) {
                 throw new Error(result.detail);
@@ -103,7 +103,7 @@ export function useAssistantContactManager({
     const rhfIsEmailAdded = watch("isEmailAdded");
     const rhfIsPhoneNumberAdded = watch("isPhoneNumberAdded");
     const rhfUserPhoneIsVerified = watch("user_phone_isVerified");
-    const socialAccounts = watch("social_accounts");
+    const socialAccounts = watch("socialAccounts");
     const whatsAppAccount = socialAccounts?.find(acc => acc.platform === 'whatsapp');
 
     const creationCost = React.useMemo(() => {

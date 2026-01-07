@@ -220,8 +220,8 @@ export function OneTimeLinkTable({
                                     {statusText}
                                 </Badge>
                             </TableCell>
-                            <TableCell className={cn("text-xs truncate", (isExpired && !isClaimed) && "opacity-60")} title={link.claimed_by_email || link.user_id || undefined}>
-                                {link.claimed_by_email || (link.user_id ? <span className="italic text-muted-foreground/70">{link.user_id} (ID)</span> : <span className="italic text-muted-foreground">N/A</span>)}
+                            <TableCell className={cn("text-xs truncate", (isExpired && !isClaimed) && "opacity-60")} title={link.claimedByEmail || link.userId || undefined}>
+                                {link.claimedByEmail || (link.userId ? <span className="italic text-muted-foreground/70">{link.userId} (ID)</span> : <span className="italic text-muted-foreground">N/A</span>)}
                             </TableCell>
                             <TableCell className={cn("text-right", (isExpired && !isClaimed) && "opacity-60")}>
                                 {isDeletingThis ? (

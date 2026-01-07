@@ -246,9 +246,9 @@ export default function Main({
     const [isCallMinimized, setIsCallMinimized] = React.useState(false);
 
     const handleStartCall = React.useCallback(async (assistant: Assistant, callType: 'video' | 'audio') => {
-        const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
+        const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
         if (activeCallId) {
-            if (activeCallId === assistant.agent_id) {
+            if (activeCallId === assistant.agentId) {
                 if (popOutCallAssistantId) {
                     toast.info("Call is active in a separate tab. Close that tab to start a new call here.");
                 } else {
@@ -343,7 +343,7 @@ export default function Main({
         fetchUserVoices();
         setIsHireDialogOpen(false);
         setNewlyHiredInfo({ assistant: newAssistant, preHireChat }); // Set the newly hired info
-        handleShowProfile(newAssistant.agent_id);
+        handleShowProfile(newAssistant.agentId);
         refreshHiringProfile();
         if (formData.setup === 'local' && formData.operating_system) {
             setSetupInstructions({ os: formData.operating_system, isOpen: true });
@@ -473,26 +473,26 @@ export default function Main({
     React.useEffect(() => {
         if (justDeletedVoiceId) {
             const { getValues, setValue } = hireFormMethods;
-            if (getValues("voice_id") === justDeletedVoiceId) {
-                setValue("voice_id", null as any); 
-                setValue("voice_name", "");
-                setValue("voice_description", "");
-                setValue("voice_gender", "female");
-                setValue("voice_language", "en"); 
+            if (getValues("voiceId") === justDeletedVoiceId) {
+                setValue("voiceId", null as any); 
+                setValue("voiceName", "");
+                setValue("voiceDescription", "");
+                setValue("voiceGender", "female");
+                setValue("voiceLanguage", "en"); 
                 setValue("voice_provider", PRIMARY_VOICE_PROVIDER);
-                setValue("voice_exists", false);
+                setValue("voiceExists", false);
             }
             setJustDeletedVoiceId(null); // Reset the trigger
         }
     }, [justDeletedVoiceId, hireFormMethods]);
 
     // --- Memoized values for props ---
-    const profileAssistant = React.useMemo(() => assistants.find(a => a.agent_id === profileAssistantId) || null, [assistants, profileAssistantId]);
+    const profileAssistant = React.useMemo(() => assistants.find(a => a.agentId === profileAssistantId) || null, [assistants, profileAssistantId]);
     const isCombinedLoadingInitial = initialTaskFetchTriggered && isLoadingInitialTasks;
-    const activeCallId = activeCallAssistant?.agent_id || popOutCallAssistantId;
+    const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
     
     // Determine active panel for width calculations
-    const isFirstViewAfterHire = newlyHiredInfo?.assistant.agent_id === profileAssistantId;
+    const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
     const activeSidePanelCount = (isProfileOpen ? 1 : 0);
     const assistantListWidth = isAssistantListFolded ? "w-12"
                              : activeSidePanelCount === 1 ? "w-1/3 lg:w-[300px] xl:w-[350px]" 

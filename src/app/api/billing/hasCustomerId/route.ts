@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const details = await getUserBillingDetails(user.id);
     
-    if (details[0].stripe_customer_id) {
+    if (details[0].stripeCustomerId) {
       return NextResponse.json({ hasCustomerId: true });
     } else {
       return NextResponse.json({ hasCustomerId: false });

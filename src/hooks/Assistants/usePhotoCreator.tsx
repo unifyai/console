@@ -13,11 +13,11 @@ const ANIMATION_POLLING_INTERVAL = 5000;
 
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
-    const binary_string = atob(base64);
-    const len = binary_string.length;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
+        bytes[i] = binaryString.charCodeAt(i);
     }
     return bytes;
 }
@@ -289,9 +289,9 @@ export function usePhotoCreator(
         try {
         
             const ttsPayload: GenerateSpeechPayload = {
-                text: ttsPrompt, provider: selectedVoice.provider, voice_id: selectedVoice.voice_id, output_format: "mp3",
-                ...(selectedVoice.provider === 'cartesia' && { model_id: 'sonic-2', cartesia_language: selectedVoice.language as SupportedLanguage }),
-                ...(selectedVoice.provider === 'elevenlabs' && { model_id: 'eleven_multilingual_v2' }),
+                text: ttsPrompt, provider: selectedVoice.provider, voiceId: selectedVoice.voiceId, outputFormat: "mp3",
+                ...(selectedVoice.provider === 'cartesia' && { modelId: 'sonic-2', cartesiaLanguage: selectedVoice.language as SupportedLanguage }),
+                ...(selectedVoice.provider === 'elevenlabs' && { modelId: 'eleven_multilingual_v2' }),
             };
     
             const ttsResult = await generateSpeechAction(ttsPayload);
@@ -428,7 +428,7 @@ export function usePhotoCreator(
                         const videoFilename = outputUrl.substring(outputUrl.lastIndexOf('/') + 1) || "ai-animated-video.mp4";
                         const newVideoFile = new File([videoBlob], videoFilename, { type: videoBlob.type || 'video/mp4' });
                         
-                        onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice!.voice_id });
+                        onNewMediaReady(newVideoFile, 'video', { voiceId: selectedVoice!.voiceId });
                         if(toastIdRef.current) toast.success("Animation complete! Your video is now available.", { id: toastIdRef.current, duration: 4000 });       
                         setIsProcessing(false);
                         toastIdRef.current = undefined;

@@ -9,8 +9,8 @@ import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
 interface ProfileData {
   name: string;
-  last_name: string;
-  job_title: string;
+  lastName: string;
+  jobTitle: string;
   bio: string;
   timezone: string;
 }
@@ -31,8 +31,8 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
   ({ onSubmit, onValidationChange, initialData, isLoading, error }, ref) => {
     const [formData, setFormData] = useState({
       name: '',
-      last_name: '',
-      job_title: '',
+      lastName: '',
+      jobTitle: '',
       bio: '',
       timezone: '',
       ...initialData
@@ -56,7 +56,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
   };
 
   const isFormValid = useCallback(() => {
-    return formData.name.trim() !== '' && formData.last_name.trim() !== '';
+    return formData.name.trim() !== '' && formData.lastName.trim() !== '';
   }, [formData]);
 
   // Effect to update form data when initialData changes and auto-detect timezone if missing
@@ -89,7 +89,7 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
         <div className="flex items-center space-x-3 mb-6">
         <User className="h-6 w-6 text-primary" />
         <p className="text-base text-muted-foreground">
-          {(initialData?.name || initialData?.last_name || initialData?.job_title || initialData?.bio) 
+          {(initialData?.name || initialData?.lastName || initialData?.jobTitle || initialData?.bio) 
             ? "Please review and update your profile information as needed."
             : "Let's start by getting to know you."
           }
@@ -110,11 +110,11 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
             />
           </div>
           <div className="space-y-3">
-            <Label htmlFor="last_name" className="text-base font-medium">Last Name *</Label>
+            <Label htmlFor="lastName" className="text-base font-medium">Last Name *</Label>
             <Input
-              id="last_name"
-              value={formData.last_name}
-              onChange={(e) => handleInputChange('last_name', e.target.value)}
+              id="lastName"
+              value={formData.lastName}
+              onChange={(e) => handleInputChange('lastName', e.target.value)}
               placeholder="Enter your last name"
               required
               className="h-12 text-base"
@@ -123,11 +123,11 @@ const ProfileSetupForm = forwardRef<ProfileSetupFormHandle, ProfileSetupFormProp
         </div>
 
         <div className="space-y-3">
-          <Label htmlFor="job_title" className="text-base font-medium">Job Title (Optional)</Label>
+          <Label htmlFor="jobTitle" className="text-base font-medium">Job Title (Optional)</Label>
           <Input
-            id="job_title"
-            value={formData.job_title}
-            onChange={(e) => handleInputChange('job_title', e.target.value)}
+            id="jobTitle"
+            value={formData.jobTitle}
+            onChange={(e) => handleInputChange('jobTitle', e.target.value)}
             placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
             className="h-12 text-base"
           />

@@ -30,43 +30,43 @@ export function useAssistantHireForm(
     const hireFormMethods = useForm<AssistantFormData>({
         mode: 'onSubmit',
         defaultValues: {
-            first_name: '', surname: '', age: null, nationality: 'United States', about: '',
+            firstName: '', surname: '', age: null, nationality: 'United States', about: '',
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             email: null,
             isEmailAdded: false,
             emailManuallyEdited: false,
-            user_phone: '',
-            user_phone_isVerified: false,
-            user_phone_isVerifying: false,
-            user_phone_verificationCodeSent: null,
-            user_phone_verificationSentAt: null,
-            user_phone_verificationAttempts: 0,
-            user_phone_verificationError: null,
-            user_whatsapp_number: null,
-            social_accounts: [],
-            phone_country: FALLBACK_DEFAULT_COUNTRY_CODE,
+            userPhone: '',
+            userPhoneIsVerified: false,
+            userPhoneIsVerifying: false,
+            userPhoneVerificationCodeSent: null,
+            userPhoneVerificationSentAt: null,
+            userPhoneVerificationAttempts: 0,
+            userPhoneVerificationError: null,
+            userWhatsappNumber: null,
+            socialAccounts: [],
+            phoneCountry: FALLBACK_DEFAULT_COUNTRY_CODE,
             photoFile: null,
             videoFile: null,
-            profile_photo_url: null,
-            profile_video_url: null,
+            profilePhotoUrl: null,
+            profileVideoUrl: null,
             photoPreviewUrl: null,
             videoPreviewUrl: null,
-            voice_id: defaultVoice.voice_id,
-            voice_name: defaultVoice.name,
-            voice_language: defaultVoice.language as SupportedLanguage,
-            voice_description: defaultVoice.description,
-            voice_gender: defaultVoice.gender as Gender,
-            voice_provider: defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
-            voice_exists: false,
+            voiceId: defaultVoice.voiceId,
+            voiceName: defaultVoice.name,
+            voiceLanguage: defaultVoice.language as SupportedLanguage,
+            voiceDescription: defaultVoice.description,
+            voiceGender: defaultVoice.gender as Gender,
+            voiceProvider: defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
+            voiceExists: false,
             isPresetPristine: false,
             presetOriginalValues: null,
             currentPreset: null,
             isPhoneNumberAdded: false,
             setup: 'remote',
-            operating_system: 'ubuntu',
-            video_source_voice_id: null,
-            design_include_bio: false,
-            fast_mode: false,
+            operatingSystem: 'ubuntu',
+            videoSourceVoiceId: null,
+            designIncludeBio: false,
+            fastMode: false,
         },
     });
 
@@ -84,10 +84,10 @@ export function useAssistantHireForm(
                 // Optionally set a default country from the fetched list if needed
                 // For example, if the FALLBACK_DEFAULT_COUNTRY_CODE is not in the list, pick the first one
                 if (countries.length > 0 && !countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
-                    setValue("phone_country", countries[0].code);
+                    setValue("phoneCountry", countries[0].code);
                 } else if (countries.length > 0 && countries.find(c => c.code === FALLBACK_DEFAULT_COUNTRY_CODE)) {
                     // Ensure the default value is set explicitly if it exists
-                    setValue("phone_country", FALLBACK_DEFAULT_COUNTRY_CODE);
+                    setValue("phoneCountry", FALLBACK_DEFAULT_COUNTRY_CODE);
                 } else if (countries.length === 0) {
                     throw new Error("No countries returned");
                 }
@@ -96,7 +96,7 @@ export function useAssistantHireForm(
                 const usName = getCountryName("US") || "United States";
                 const usFlag = getCountryFlag("US");
                 setAvailablePhoneCountries([{ code: "US", name: usName, flag: usFlag }]);
-                setValue("phone_country", "US");
+                setValue("phoneCountry", "US");
             } finally {
                 setIsLoadingCountries(false);
             }
@@ -133,15 +133,15 @@ export function useAssistantHireForm(
     }, [assistantActions.contact, isDialogOpen]);
 
     const watchedFields = watch([
-        "first_name", "surname", "age", "nationality", "about",
-        "voice_id", "photoFile", "profile_photo_url",
-        "presetOriginalValues", "phone_country"
+        "firstName", "surname", "age", "nationality", "about",
+        "voiceId", "photoFile", "profilePhotoUrl",
+        "presetOriginalValues", "phoneCountry"
     ]);
     React.useEffect(() => {
         const [
             firstName, surname, age, nationality, about,
             voiceId, photoFile, profilePhotoUrl,
-            originalValues, phone_country
+            originalValues, phoneCountry
         ] = watchedFields;
 
         if (photoFile) {
@@ -160,17 +160,17 @@ export function useAssistantHireForm(
 
         const currentPreset = getValues("currentPreset");
         const isVoicePristine = currentPreset
-            ? (voiceId === currentPreset.voice_ids.openai || voiceId === currentPreset.voice_ids[PRIMARY_VOICE_PROVIDER])
-            : (voiceId === originalValues.voice_id);
+            ? (voiceId === currentPreset.voiceIds.openai || voiceId === currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER])
+            : (voiceId === originalValues.voiceId);
 
         let isPristine =
-            firstName === originalValues.first_name &&
+            firstName === originalValues.firstName &&
             surname === originalValues.surname &&
             age === originalValues.age &&
             (nationality ?? '') === (originalValues.nationality ?? '') &&
-            phone_country === originalValues.phone_country &&
+            phoneCountry === originalValues.phoneCountry &&
             isVoicePristine &&
-            (profilePhotoUrl === originalValues.profile_photo_url || (!profilePhotoUrl && !originalValues.profile_photo_url));
+            (profilePhotoUrl === originalValues.profilePhotoUrl || (!profilePhotoUrl && !originalValues.profilePhotoUrl));
 
         if (getValues("isPresetPristine") && !isPristine) {
             setValue("isPresetPristine", false);
@@ -185,11 +185,11 @@ export function useAssistantHireForm(
 
         setValue("photoFile", null);
         setValue("videoFile", null);
-        setValue("video_source_voice_id", null);
+        setValue("videoSourceVoiceId", null);
         setValue("photoPreviewUrl", null);
         setValue("videoPreviewUrl", null);
-        setValue("profile_photo_url", null);
-        setValue("profile_video_url", null);
+        setValue("profilePhotoUrl", null);
+        setValue("profileVideoUrl", null);
         setValue("isPresetPristine", false);
     }, [getValues, setValue]);
 
@@ -203,14 +203,14 @@ export function useAssistantHireForm(
             setValue("photoFile", file);
             setValue("photoPreviewUrl", file ? URL.createObjectURL(file) : null);
             setValue("videoFile", null);
-            setValue("video_source_voice_id", null);
+            setValue("videoSourceVoiceId", null);
             setValue("videoPreviewUrl", null);
-            setValue("profile_video_url", null);
+            setValue("profileVideoUrl", null);
         } else { // video
             const currentVideoPreview = getValues("videoPreviewUrl");
             if (currentVideoPreview?.startsWith('blob:')) URL.revokeObjectURL(currentVideoPreview);
             setValue("videoFile", file);
-            setValue("video_source_voice_id", metadata?.voiceId || null);
+            setValue("videoSourceVoiceId", metadata?.voiceId || null);
             setValue("videoPreviewUrl", file ? URL.createObjectURL(file) : null);
         }
         setValue("isPresetPristine", false);
@@ -222,83 +222,83 @@ export function useAssistantHireForm(
 
         setValue("setup", "remote");
         setValue("currentPreset", preset);
-        setValue("first_name", preset.first_name, { shouldValidate: true });
+        setValue("firstName", preset.firstName, { shouldValidate: true });
         setValue("surname", preset.surname, { shouldValidate: true });
         setValue("age", preset.age, { shouldValidate: true });
         setValue("nationality", preset.nationality ?? 'United States', { shouldValidate: true });
         setValue("about", preset.about ?? '', { shouldValidate: true });
-        setValue("profile_photo_url", preset.profile_photo);
-        setValue("photoPreviewUrl", preset.profile_photo);
+        setValue("profilePhotoUrl", preset.profilePhoto);
+        setValue("photoPreviewUrl", preset.profilePhoto);
         setValue("photoFile", null);
         setValue("videoFile", null);
-        setValue("video_source_voice_id", null);
-        setValue("user_phone", '');
-        setValue("user_phone_isVerified", false);
-        setValue("user_phone_isVerifying", false);
-        setValue("user_phone_verificationCodeSent", null);
-        setValue("user_phone_verificationSentAt", null);
-        setValue("user_phone_verificationAttempts", 0);
-        setValue("user_phone_verificationError", null);
-        setValue("social_accounts", []);
+        setValue("videoSourceVoiceId", null);
+        setValue("userPhone", '');
+        setValue("userPhoneIsVerified", false);
+        setValue("userPhoneIsVerifying", false);
+        setValue("userPhoneVerificationCodeSent", null);
+        setValue("userPhoneVerificationSentAt", null);
+        setValue("userPhoneVerificationAttempts", 0);
+        setValue("userPhoneVerificationError", null);
+        setValue("socialAccounts", []);
         setValue("timezone", preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
 
         // Determine the voice_id based on fast_mode or PRIMARY_VOICE_PROVIDER
         const preferredProvider = isFastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
         const fallbackProvider = isFastMode ? PRIMARY_VOICE_PROVIDER : "openai";
 
-        const providerSpecificVoiceId = preset.voice_ids[preferredProvider] ?? preset.voice_ids[fallbackProvider] ?? null;
-        const finalProvider = providerSpecificVoiceId === preset.voice_ids[fallbackProvider] ? fallbackProvider : preferredProvider;
+        const providerSpecificVoiceId = preset.voiceIds[preferredProvider] ?? preset.voiceIds[fallbackProvider] ?? null;
+        const finalProvider = providerSpecificVoiceId === preset.voiceIds[fallbackProvider] ? fallbackProvider : preferredProvider;
         
         // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
         let selectedPresetVoiceDetails: VoiceOption | undefined = (voicePresetsConstant as VoiceOption[]).find(
-            vp => vp.voice_id === providerSpecificVoiceId && (vp.provider === finalProvider)
+            vp => vp.voiceId === providerSpecificVoiceId && (vp.provider === finalProvider)
         );
 
         if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
             selectedPresetVoiceDetails = {
-                voice_id: providerSpecificVoiceId, name: "Preset Voice", description: "Preset voice",
+                voiceId: providerSpecificVoiceId, name: "Preset Voice", description: "Preset voice",
                 gender: preset.gender === 'male' ? 'male' : 'female', language: 'en', provider: finalProvider,
-                is_preset: true, isUserVoiceInOrchestra: false,
+                isPreset: true, isUserVoiceInOrchestra: false,
             };
         } else if (!selectedPresetVoiceDetails) {
             selectedPresetVoiceDetails = defaultVoice as VoiceOption;
             if(selectedPresetVoiceDetails) {
                  selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
-                 selectedPresetVoiceDetails.is_preset = true;
+                 selectedPresetVoiceDetails.isPreset = true;
             }
         }
 
-        setValue("voice_id", selectedPresetVoiceDetails.voice_id);
-        setValue("voice_name", selectedPresetVoiceDetails.name);
-        setValue("voice_description", selectedPresetVoiceDetails.description);
-        setValue("voice_language", selectedPresetVoiceDetails.language as SupportedLanguage);
-        setValue("voice_gender", selectedPresetVoiceDetails.gender as Gender);
-        setValue("voice_provider", selectedPresetVoiceDetails.provider || PRIMARY_VOICE_PROVIDER);
+        setValue("voiceId", selectedPresetVoiceDetails.voiceId);
+        setValue("voiceName", selectedPresetVoiceDetails.name);
+        setValue("voiceDescription", selectedPresetVoiceDetails.description);
+        setValue("voiceLanguage", selectedPresetVoiceDetails.language as SupportedLanguage);
+        setValue("voiceGender", selectedPresetVoiceDetails.gender as Gender);
+        setValue("voiceProvider", selectedPresetVoiceDetails.provider || PRIMARY_VOICE_PROVIDER);
 
         const voiceAlreadyExists = registeredVoices.some(
-            v => v.voice_id === providerSpecificVoiceId && v.isUserVoiceInOrchestra
+            v => v.voiceId === providerSpecificVoiceId && v.isUserVoiceInOrchestra
         );
-        setValue("voice_exists", voiceAlreadyExists);
+        setValue("voiceExists", voiceAlreadyExists);
 
         setValue("isPresetPristine", true);
         const originalValues = {
-            first_name: preset.first_name,
+            firstName: preset.firstName,
             surname: preset.surname,
             age: preset.age,
             nationality: preset.nationality ?? '',
-            voice_id: selectedPresetVoiceDetails.voice_id,
-            video_source_voice_id: providerSpecificVoiceId,
-            profile_photo_url: preset.profile_photo,
-            phone_country: preset.phone_country || FALLBACK_DEFAULT_COUNTRY_CODE,
+            voiceId: selectedPresetVoiceDetails.voiceId,
+            videoSourceVoiceId: providerSpecificVoiceId,
+            profilePhotoUrl: preset.profilePhoto,
+            phoneCountry: preset.phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE,
         };
         setValue("presetOriginalValues", originalValues);
         setValue("videoPreviewUrl", null);
-        assistantActions.photo.downloadPresetVideo(preset.first_name, preset.surname, finalProvider)
+        assistantActions.photo.downloadPresetVideo(preset.firstName, preset.surname, finalProvider)
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoPreviewUrl", res.signedUrl);
-                    setValue("video_source_voice_id", providerSpecificVoiceId);
-                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.first_name}_${preset.surname}_${finalProvider.toLowerCase()}.mp4`);
+                    setValue("videoSourceVoiceId", providerSpecificVoiceId);
+                    setValue("profileVideoUrl", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${preset.firstName}_${preset.surname}_${finalProvider.toLowerCase()}.mp4`);
                 } else {
                     setValue("isPresetPristine", false);
                 }
@@ -314,7 +314,7 @@ export function useAssistantHireForm(
 
     const resetFormAndHints = React.useCallback((values?: AssistantFormData) => {
         reset({
-            first_name: values?.first_name || '',
+            firstName: values?.firstName || '',
             surname: values?.surname || '',
             age: values?.age || null,
             nationality: values?.nationality || 'United States',
@@ -323,35 +323,35 @@ export function useAssistantHireForm(
             email: null,
             isEmailAdded: false,
             emailManuallyEdited: false,
-            user_phone: '',
-            user_phone_isVerified: false,
-            user_phone_isVerifying: false,
-            user_phone_verificationCodeSent: null,
-            user_phone_verificationSentAt: null,
-            user_phone_verificationAttempts: 0,
-            user_phone_verificationError: null,
-            user_whatsapp_number: null,
-            social_accounts: [],
-            phone_country: FALLBACK_DEFAULT_COUNTRY_CODE,
+            userPhone: '',
+            userPhoneIsVerified: false,
+            userPhoneIsVerifying: false,
+            userPhoneVerificationCodeSent: null,
+            userPhoneVerificationSentAt: null,
+            userPhoneVerificationAttempts: 0,
+            userPhoneVerificationError: null,
+            userWhatsappNumber: null,
+            socialAccounts: [],
+            phoneCountry: FALLBACK_DEFAULT_COUNTRY_CODE,
             photoFile: null,
             videoFile: null,
-            profile_photo_url: null,
-            profile_video_url: null,
+            profilePhotoUrl: null,
+            profileVideoUrl: null,
             photoPreviewUrl: null,
             videoPreviewUrl: null,
-            video_source_voice_id: null,
-            voice_id: values?.voice_id || defaultVoice.voice_id,
-            voice_name: values?.voice_name || defaultVoice.name,
-            voice_language: values?.voice_language || defaultVoice.language as SupportedLanguage,
-            voice_description: values?.voice_description || defaultVoice.description,
-            voice_gender: values?.voice_gender || defaultVoice.gender as Gender,
-            voice_exists: values?.voice_exists || false,
-            voice_provider: values?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
+            videoSourceVoiceId: null,
+            voiceId: values?.voiceId || defaultVoice.voiceId,
+            voiceName: values?.voiceName || defaultVoice.name,
+            voiceLanguage: values?.voiceLanguage || defaultVoice.language as SupportedLanguage,
+            voiceDescription: values?.voiceDescription || defaultVoice.description,
+            voiceGender: values?.voiceGender || defaultVoice.gender as Gender,
+            voiceExists: values?.voiceExists || false,
+            voiceProvider: values?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER,
             isPresetPristine: false,
             presetOriginalValues: null,
             currentPreset: null,
-            operating_system: 'ubuntu',
-            design_include_bio: false,
+            operatingSystem: 'ubuntu',
+            designIncludeBio: false,
         });
         setShowInsufficientFundsHint(false);
     }, [reset, defaultVoice]);
@@ -362,15 +362,15 @@ export function useAssistantHireForm(
     const loadAssistantForEdit = React.useCallback((assistant: Assistant) => {
         setEditingAssistant(assistant);
         const socialAccounts: SocialAccount[] = [];
-        if (assistant.user_whatsapp_number) {
-            socialAccounts.push({ platform: 'whatsapp', identifier: assistant.user_whatsapp_number, isVerified: true, isInitial: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
+        if (assistant.userWhatsappNumber) {
+            socialAccounts.push({ platform: 'whatsapp', identifier: assistant.userWhatsappNumber, isVerified: true, isInitial: true, isVerifying: false, verificationCodeSent: null, verificationSentAt: null, verificationAttempts: 0, verificationError: null });
         }
-        const assistantVoiceDetails = registeredVoices.find(v => v.voice_id === assistant.voice_id && v.provider === assistant.voice_provider);
+        const assistantVoiceDetails = registeredVoices.find(v => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider);
         reset({
             ...getValues(),
 
             // Profile
-            first_name: assistant.first_name,
+            firstName: assistant.firstName,
             surname: assistant.surname,
             age: assistant.age,
             nationality: assistant.nationality,
@@ -378,35 +378,35 @@ export function useAssistantHireForm(
             timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
             // Media
-            photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profile_photo,
-            videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profile_video,
-            profile_photo_url: assistant.profile_photo,
-            profile_video_url: assistant.profile_video,
+            photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profilePhoto,
+            videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profileVideo,
+            profilePhotoUrl: assistant.profilePhoto,
+            profileVideoUrl: assistant.profileVideo,
             photoFile: null,
             videoFile: null,
 
             // Contact
-            phone_country: assistant.phone_country || FALLBACK_DEFAULT_COUNTRY_CODE,
-            user_phone: assistant.user_phone || '',
-            user_phone_isVerified: !!assistant.user_phone,
-            social_accounts: socialAccounts,
+            phoneCountry: assistant.phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE,
+            userPhone: assistant.userPhone || '',
+            userPhoneIsVerified: !!assistant.userPhone,
+            socialAccounts: socialAccounts,
             isPhoneNumberAdded: !!assistant.phone,
             email: assistant.email || null,
             isEmailAdded: !!assistant.email,
             emailManuallyEdited: true, // Assume existing email was set
 
             // Voice
-            voice_id: assistant.voice_id || undefined,
-            voice_name: assistantVoiceDetails?.name,
-            voice_description: assistantVoiceDetails?.description,
-            voice_gender: assistantVoiceDetails?.gender,
-            voice_language: assistantVoiceDetails?.language,
-            voice_provider: assistant.voice_provider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
-            voice_exists: !!assistantVoiceDetails, 
+            voiceId: assistant.voiceId || undefined,
+            voiceName: assistantVoiceDetails?.name,
+            voiceDescription: assistantVoiceDetails?.description,
+            voiceGender: assistantVoiceDetails?.gender,
+            voiceLanguage: assistantVoiceDetails?.language,
+            voiceProvider: assistant.voiceProvider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
+            voiceExists: !!assistantVoiceDetails, 
 
             // Advanced
             setup: assistant.user_local_desktop ? 'local' : 'remote',
-            operating_system: (assistant.user_local_desktop as UserLocalDesktop | null) || 'ubuntu',
+            operatingSystem: (assistant.user_local_desktop as UserLocalDesktop | null) || 'ubuntu',
         });
         setShowInsufficientFundsHint(false);
     }, [reset, getValues, registeredVoices]);
@@ -431,12 +431,12 @@ export function useAssistantHireForm(
                 }
             }
             if (data.isPhoneNumberAdded) {
-                if (data.user_phone && !data.user_phone_isVerified) {
-                    setError("user_phone", { type: "manual", message: "Your phone number must be verified." });
+                if (data.userPhone && !data.userPhoneIsVerified) {
+                    setError("userPhone", { type: "manual", message: "Your phone number must be verified." });
                     throw new Error("Your phone number must be verified.");
                 }
             }
-            if (data.social_accounts && data.social_accounts.some(acc => acc.identifier && !acc.isVerified)) {
+            if (data.socialAccounts && data.socialAccounts.some(acc => acc.identifier && !acc.isVerified)) {
                 toast.error("All added social accounts must be verified before saving.");
                 throw new Error("Unverified social accounts.");
             }
@@ -446,10 +446,10 @@ export function useAssistantHireForm(
 
             if (data.about !== editingAssistant.about) payload.about = data.about;
             if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
-            if (data.voice_id !== editingAssistant.voice_id) payload.voice_id = data.voice_id;
-            if (data.voice_provider !== editingAssistant.voice_provider) payload.voice_provider = data.voice_provider;
-            const new_voice_mode = data.fast_mode ? "sts" : "tts";
-            if (new_voice_mode !== editingAssistant.voice_mode) payload.voice_mode = new_voice_mode;
+            if (data.voiceId !== editingAssistant.voiceId) payload.voiceId = data.voiceId;
+            if (data.voiceProvider !== editingAssistant.voiceProvider) payload.voiceProvider = data.voiceProvider;
+            const newVoiceMode = data.fastMode ? "sts" : "tts";
+            if (newVoiceMode !== editingAssistant.voiceMode) payload.voiceMode = newVoiceMode;
 
             if (data.isEmailAdded) {
                 if (data.email !== editingAssistant.email) {
@@ -462,18 +462,18 @@ export function useAssistantHireForm(
             }
 
             if (data.isPhoneNumberAdded) {
-                if (data.user_phone !== editingAssistant.user_phone) payload.user_phone = data.user_phone || null;
+                if (data.userPhone !== editingAssistant.userPhone) payload.userPhone = data.userPhone || null;
             }
 
-            if (data.phone_country !== editingAssistant.phone_country) {
-                payload.phone_country = data.phone_country;
+            if (data.phoneCountry !== editingAssistant.phoneCountry) {
+                payload.phoneCountry = data.phoneCountry;
             }
 
-            const whatsappAccount = data.social_accounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
-            const user_whatsapp_number = whatsappAccount ? whatsappAccount.identifier : null;
-            if (user_whatsapp_number !== editingAssistant.user_whatsapp_number) payload.user_whatsapp_number = user_whatsapp_number;
+            const whatsappAccount = data.socialAccounts?.find(acc => acc.platform === 'whatsapp' && acc.isVerified);
+            const userWhatsappNumber = whatsappAccount ? whatsappAccount.identifier : null;
+            if (userWhatsappNumber !== editingAssistant.userWhatsappNumber) payload.userWhatsappNumber = userWhatsappNumber;
 
-            const setupValue = data.setup === 'local' ? data.operating_system : null;
+            const setupValue = data.setup === 'local' ? data.operatingSystem : null;
             if (setupValue !== (editingAssistant.user_local_desktop || null)) {
                 payload.user_local_desktop = setupValue;
             }
@@ -484,28 +484,28 @@ export function useAssistantHireForm(
                 formData.append('file', data.photoFile);
                 const photoUploadResult = await assistantActions.photo.upload(formData);
                 if ((photoUploadResult as ResponseProps).detail) throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
-                payload.profile_photo = (photoUploadResult as PhotoUploadResponse).gcs_url;
+                payload.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;
             }
             if (data.videoFile) {
                 const formData = new FormData();
                 formData.append('file', data.videoFile);
                 const videoUploadResult = await assistantActions.photo.uploadVideo(formData);
                 if ((videoUploadResult as ResponseProps).detail) throw new Error(`Video upload failed: ${(videoUploadResult as ResponseProps).detail}`);
-                payload.profile_video = (videoUploadResult as PhotoUploadResponse).gcs_url;
+                payload.profileVideo = (videoUploadResult as PhotoUploadResponse).gcsUrl;
             }
 
-            if (data.voice_id && !data.voice_exists) {
-                 const provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
-                 const voiceCreationResponse = await assistantActions.voice.register(data.voice_id, provider, data.voice_name!, data.voice_description!, data.voice_gender!, data.voice_language!, false);
+            if (data.voiceId && !data.voiceExists) {
+                 const provider = data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
+                 const voiceCreationResponse = await assistantActions.voice.register(data.voiceId, provider, data.voiceName!, data.voiceDescription!, data.voiceGender!, data.voiceLanguage!, false);
                  if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
             }
 
             if (Object.keys(payload).length > 0) {
-                const updateResult = await assistantActions.assistant.update(editingAssistant.agent_id, payload);
+                const updateResult = await assistantActions.assistant.update(editingAssistant.agentId, payload);
                 if ((updateResult as ResponseProps).detail) {
                     throw new Error((updateResult as ResponseProps).detail);
                 }
-                toast.success(`Assistant ${data.first_name} updated!`, { id: toastIdRef.current });
+                toast.success(`Assistant ${data.firstName} updated!`, { id: toastIdRef.current });
             } else {
                 toast.info("No changes to save.", { id: toastIdRef.current });
             }
@@ -514,7 +514,7 @@ export function useAssistantHireForm(
             if (onUpdateSuccess) onUpdateSuccess(payload);
 
         } catch (error: any) {
-             const isRHFError = !!(hireFormMethods.formState.errors.user_phone || hireFormMethods.formState.errors.social_accounts);
+             const isRHFError = !!(hireFormMethods.formState.errors.userPhone || hireFormMethods.formState.errors.socialAccounts);
              if (!isRHFError) toast.error(`An error occurred while updating. Please try again.`, { id: toastIdRef.current });
              else if(toastIdRef.current) toast.dismiss(toastIdRef.current);
 
@@ -535,8 +535,8 @@ export function useAssistantHireForm(
 
         try {
             // Input validity checks
-            if (!data.first_name) {
-                setError("first_name", { type: "manual", message: "Missing assistant first name." });
+            if (!data.firstName) {
+                setError("firstName", { type: "manual", message: "Missing assistant first name." });
                 throw new Error("Missing assistant first name.");
             }
             if (!data.surname) {
@@ -553,8 +553,8 @@ export function useAssistantHireForm(
                 throw new Error("Missing assistant nationality.");
             }
             
-            if (!data.voice_id || !data.voice_name || !data.voice_gender || !data.voice_language) {
-                setError("voice_id", { type: "manual", message: "Voice selection is required." });
+            if (!data.voiceId || !data.voiceName || !data.voiceGender || !data.voiceLanguage) {
+                setError("voiceId", { type: "manual", message: "Voice selection is required." });
                 throw new Error("No voice selected.");
             }
 
@@ -567,7 +567,7 @@ export function useAssistantHireForm(
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             type: 'post-hire-greeting',
-                            assistantName: `${data.first_name} ${data.surname}`,
+                            assistantName: `${data.firstName} ${data.surname}`,
                             assistantAge: data.age,
                             assistantBio: data.about,
                             assistantNationality: data.nationality,
@@ -582,15 +582,15 @@ export function useAssistantHireForm(
             }
 
             // Registering voices / uploading custom photos/videos
-            let finalImageUrlToSend: string | null = data.profile_photo_url || null;
-            let finalVideoUrlToSend: string | null = data.profile_video_url || null;
+            let finalImageUrlToSend: string | null = data.profilePhotoUrl || null;
+            let finalVideoUrlToSend: string | null = data.profileVideoUrl || null;
 
             if (data.photoFile) {
                 const photoFormData = new FormData();
                 photoFormData.append('file', data.photoFile);
                 const photoUploadResult = await assistantActions.photo.upload(photoFormData);
                 if ((photoUploadResult as ResponseProps).detail) throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
-                finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcs_url;
+                finalImageUrlToSend = (photoUploadResult as PhotoUploadResponse).gcsUrl;
             }
 
             if (data.videoFile) {
@@ -602,35 +602,35 @@ export function useAssistantHireForm(
             }
 
             if (data.isPresetPristine) {
-                 finalImageUrlToSend = data.profile_photo_url ?? null;
-                 finalVideoUrlToSend = data.profile_video_url ?? null;
+                 finalImageUrlToSend = data.profilePhotoUrl ?? null;
+                 finalVideoUrlToSend = data.profileVideoUrl ?? null;
             }
 
-            const voice_provider = data?.voice_provider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
-            if (!data.voice_exists && data.voice_id) {
+            const voiceProviderVal = data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
+            if (!data.voiceExists && data.voiceId) {
                 const voiceCreationResponse = await assistantActions.voice.register(
-                    data.voice_id, voice_provider, data.voice_name, data.voice_description || data.voice_name,
-                    data.voice_gender, data.voice_language, voicePresetsConstant.map(v => v.voice_id).includes(data.voice_id)
+                    data.voiceId, voiceProviderVal, data.voiceName, data.voiceDescription || data.voiceName,
+                    data.voiceGender, data.voiceLanguage, voicePresetsConstant.map(v => v.voiceId).includes(data.voiceId)
                 );
                 if ('detail' in voiceCreationResponse && !voiceCreationResponse.detail.includes("already exists")) {
                     throw new Error(`Error registering voice: ${(voiceCreationResponse as ResponseProps).detail}`);
                 }
             }
             
-            const user_local_desktop_payload = (data.setup === 'local' ? data.operating_system : null) as UserLocalDesktop | null;
+            const userLocalDesktopPayload = (data.setup === 'local' ? data.operatingSystem : null) as UserLocalDesktop | null;
             const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({ role, msg: content }));
-            const voice_mode = data.fast_mode ? "sts" : "tts";
+            const voiceMode = data.fastMode ? "sts" : "tts";
 
             // Loading message updated to finalizing hire
             const assistantCreationResult = await assistantActions.assistant.create(
-                data.first_name, data.surname, ageNumber, data.nationality, data.timezone,
+                data.firstName, data.surname, ageNumber, data.nationality, data.timezone,
                 finalImageUrlToSend, finalVideoUrlToSend,
-                data.about, data.voice_id, voice_provider, voice_mode,
-                null, null, null, null, user_local_desktop_payload,
+                data.about, data.voiceId, voiceProviderVal, voiceMode,
+                null, null, null, null, userLocalDesktopPayload,
                 formattedPreHireChat
             );
             if ("assistant" in assistantCreationResult && assistantCreationResult.assistant) {
-                toast.success(`Assistant ${data.first_name} ${data.surname} hired!`, { id: toastIdRef.current });
+                toast.success(`Assistant ${data.firstName} ${data.surname} hired!`, { id: toastIdRef.current });
                 toastIdRef.current = undefined;
                 resetFormAndHints();
                 if (onHireSuccess) onHireSuccess(assistantCreationResult.assistant, data, finalChatHistory);
@@ -643,12 +643,12 @@ export function useAssistantHireForm(
             const isRHFError = !!(
                 hireFormMethods.formState.errors.age ||
                 hireFormMethods.formState.errors.email ||
-                hireFormMethods.formState.errors.voice_id ||
-                hireFormMethods.formState.errors.first_name ||
+                hireFormMethods.formState.errors.voiceId ||
+                hireFormMethods.formState.errors.firstName ||
                 hireFormMethods.formState.errors.surname ||
                 hireFormMethods.formState.errors.about ||
-                hireFormMethods.formState.errors.user_phone ||
-                hireFormMethods.formState.errors.phone_country
+                hireFormMethods.formState.errors.userPhone ||
+                hireFormMethods.formState.errors.phoneCountry
             );
 
             if (!isRHFError) {

@@ -9,11 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from "../../UI/alert";
 import { AlertCircle } from "lucide-react";
 
 interface BillingEligibility {
-  user_id: string;
-  total_spending: number;
-  can_enable_monthly_billing: boolean;
-  minimum_spend_required: number;
-  remaining_spend_needed: number;
+  userId: string;
+  totalSpending: number;
+  canEnableMonthlyBilling: boolean;
+  minimumSpendRequired: number;
+  remainingSpendNeeded: number;
 }
 
 const AutomaticRefill = () => {

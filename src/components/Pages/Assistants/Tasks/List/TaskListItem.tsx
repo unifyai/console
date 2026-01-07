@@ -44,7 +44,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate, canEdi
             originalDescription.current = task.description ?? '';
         }
         if (saveError) setSaveError(null);
-    }, [task.task_id, task.description, description, isEditing, saveError]);
+    }, [task.taskId, task.description, description, isEditing, saveError]);
 
 
     const getStatusVariant = (status: TaskStatusEnum): "default" | "secondary" | "outline" | "destructive" => {
@@ -108,7 +108,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate, canEdi
         const toastId = toast.loading("Saving description...");
 
         try {
-            const context = `${assistant.first_name}${assistant.surname}`;
+            const context = `${assistant.firstName}${assistant.surname}`;
             const response = await updateTask(
                 context,
                 [task.log_id],
@@ -119,7 +119,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate, canEdi
                 throw new Error(response.message || response.detail || "Failed to update task description.");
             }
 
-            onTaskUpdate(task.task_id, { description: description });
+            onTaskUpdate(task.taskId, { description: description });
             originalDescription.current = description; 
             setIsEditing(false);
             toast.success("Description saved.", { id: toastId });
@@ -150,7 +150,7 @@ export function TaskListItem({ task, assistant, updateTask, onTaskUpdate, canEdi
 
 
     return (
-        <AccordionItem value={String(task.task_id)} className="border-b group px-2"> 
+        <AccordionItem value={String(task.taskId)} className="border-b group px-2"> 
             <AccordionTrigger
                 className={cn(
                     "hover:bg-muted/50 hover:no-underline text-left",
