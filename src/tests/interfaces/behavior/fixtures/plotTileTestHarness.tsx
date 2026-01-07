@@ -605,6 +605,7 @@ function PlotTileInner({
                 <option value="scatter">Scatter</option>
                 <option value="line">Line</option>
                 <option value="bar">Bar</option>
+                <option value="histogram">Histogram</option>
               </select>
             </div>
 
