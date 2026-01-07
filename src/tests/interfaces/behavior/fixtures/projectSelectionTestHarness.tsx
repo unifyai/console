@@ -169,7 +169,7 @@ function ProjectSelectionInner({ stateContainerRef }: ProjectSelectionInnerProps
   const activeProjectId = store.activeProjectId;
 
   const projectItems: ProjectItem[] = projects.map(name => ({
-    project: name,
+    project_name: name,
     icon: (projectsById[name] as any)?.icon,
     favorite: (projectsById[name] as any)?.favorite,
   }));
