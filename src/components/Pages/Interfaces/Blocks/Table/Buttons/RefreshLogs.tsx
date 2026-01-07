@@ -98,7 +98,7 @@ const RefreshLogs = ({
   const fetchLatestTimestamp = useCallback(async (): Promise<string> => {
     if (!tileDataState) return "";
     const params = new URLSearchParams();
-    params.set('project', projectId);
+    params.set('project_name', projectId);
     if (tileDataState.context) params.set('context', tileDataState.context);
     if (tileDataState.column_context) params.set('column_context', tileDataState.column_context);
     if (filterExpression) params.set('filter_expr', filterExpression);

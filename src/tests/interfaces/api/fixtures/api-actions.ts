@@ -686,7 +686,7 @@ export const logsApi = {
       offset?: number;
     } = {}
   ): Promise<LogsResponse> {
-    const params = new URLSearchParams({ project });
+    const params = new URLSearchParams({ project_name: project });
     if (options.context) params.set('context', options.context);
     if (options.filter) params.set('filter_expression', options.filter);
     if (options.limit) params.set('limit', String(options.limit));
@@ -701,7 +701,7 @@ export const logsApi = {
     project: string,
     context?: string
   ): Promise<{ timestamp?: string }> {
-    const params = new URLSearchParams({ project });
+    const params = new URLSearchParams({ project_name: project });
     if (context) params.set('context', context);
 
     const endpoint = `/api/logs/latest_timestamp?${params.toString()}`;
@@ -718,7 +718,7 @@ export const logsApi = {
       filter?: string;
     } = {}
   ): Promise<Record<string, unknown>> {
-    const params = new URLSearchParams({ project, key: keyName });
+    const params = new URLSearchParams({ project_name: project, key: keyName });
     if (options.context) params.set('context', options.context);
     if (options.filter) params.set('filter_expression', options.filter);
 

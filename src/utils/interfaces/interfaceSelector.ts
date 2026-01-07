@@ -140,7 +140,7 @@ export async function ensureInterfaceLoadable(
   name: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const qs = new URLSearchParams({ project, name, checkpoint: 'false' });
+  const qs = new URLSearchParams({ project_name: project, name, checkpoint: 'false' });
   const { ok, status, json } = await dedupedJson(`/api/interface?${qs.toString()}`, {
     method: 'GET',
     cache: 'no-store',
