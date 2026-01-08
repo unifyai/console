@@ -55,34 +55,34 @@ export default async function TableWrapper({
   // Build filter expression
   const filterExpression = buildFilterExpression(
     tile.filters,
-    tile.common_filter,
-    tile.column_context,
+    tile.commonFilter,
+    tile.columnContext,
     tile.freeze,
     fields
   );
 
   // Handle sorting
-  const sortingObject = tile.table_tile?.sorting ? getSortingObject(tile) : "";
+  const sortingObject = tile.tableTile?.sorting ? getSortingObject(tile) : "";
   const sortingExpression = sortingObject ? JSON.stringify(sortingObject) : null;
 
   // Handle grouping
   const groupingExpression = tile.grouping || null;
 
   // Handle group sorting
-  const groupSortingObject = tile.table_tile?.group_sorting && tile.grouping ? 
+  const groupSortingObject = tile.tableTile?.groupSorting && tile.grouping ? 
     getGroupSortingObject(tile) : "";
   const groupSortingExpression = groupSortingObject ? JSON.stringify(groupSortingObject) : null;
 
   // Prefetch logs data
   const limit = 20;
-  const offset = tile.table_tile?.page_number ? parseInt(tile.table_tile.page_number) * limit : 0;
+  const offset = tile.tableTile?.pageNumber ? parseInt(tile.tableTile.pageNumber) * limit : 0;
   
   await qc.prefetchQuery({
-    queryKey: ["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset],
+    queryKey: ["logs", projectId, tile.context, tile.columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset],
     queryFn: () => actions.logsActions.get(
       projectId,
       tile.context ?? null,
-      tile.column_context ?? null,
+      tile.columnContext ?? null,
       filterExpression,
       sortingExpression,
       groupingExpression,
@@ -102,7 +102,7 @@ export default async function TableWrapper({
   });
   
   // Get logs data from cache
-  const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.column_context, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
+  const logsData = qc.getQueryData<LogsResponseProps>(["logs", projectId, tile.context, tile.columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, offset]) || { params: {}, logs: [], count: 0, groups: [] };
 
   // Build table data item
   const tableDataItem = {}; // await buildTableDataItem(tile, fields, logsData);

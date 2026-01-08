@@ -139,7 +139,7 @@ export const getDefaultVoiceForProvider = () => {
     }
     if (!suitableDefault) { // Absolute fallback if voice_presets is empty
         return { 
-            voice_id: PRIMARY_VOICE_PROVIDER === "cartesia" ? '11af83e2-23eb-452f-956e-7fee218ccb5c' : "9BWtsMINqrJLrRacOk9x", 
+            voiceId: PRIMARY_VOICE_PROVIDER === "cartesia" ? '11af83e2-23eb-452f-956e-7fee218ccb5c' : "9BWtsMINqrJLrRacOk9x", 
             name: PRIMARY_VOICE_PROVIDER === "cartesia" ? 'English Female Calm 1' : "English Female Husky 1",
             language: 'en', 
             description: PRIMARY_VOICE_PROVIDER === "cartesia" ? 'A calm, conversational, feminine voice perfect for narration stories or on phone calls. Speaking in an American accent.' : "A middle-aged female with an African-American accent. Calm with a hint of rasp.", 

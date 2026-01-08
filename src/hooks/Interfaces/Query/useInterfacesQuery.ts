@@ -21,7 +21,7 @@ export function useListInterfacesQuery(
       const headers: HeadersInit = {};
       const et = eTagByProject.get(projectId);
       if (et) (headers as any)['If-None-Match'] = et;
-      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?project_name=${encodeURIComponent(projectId)}&checkpoint=false`, {
+      const { status, ok, headers: resHeaders, json } = await dedupedJson(`/api/interface?projectName=${encodeURIComponent(projectId)}&checkpoint=false`, {
         method: 'GET',
         signal: signal as AbortSignal,
         cache: 'no-store',
@@ -162,7 +162,7 @@ export function useCreateInterfaceQuery() {
       projectId: string; 
       name: string;
       color?: string;
-      active_tab_id?: string;
+      activeTabId?: string;
       actions: GranularInterfaceActions;
     }) => {
       const { actions, ...restData } = interfaceData;
@@ -192,7 +192,7 @@ export function useUpdateInterfaceQuery() {
     }: { 
       projectId: string; 
       interfaceName: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>; 
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>; 
       actions: GranularInterfaceActions;
     }) => {
       return actions.updateByName(projectId, interfaceName, data);
@@ -226,7 +226,7 @@ export function useUpdateInterfaceByIdQuery() {
       actions 
     }: { 
       interfaceId: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>; 
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>; 
       actions: GranularInterfaceActions;
     }) => {
       return actions.updateById(interfaceId, data);
@@ -238,10 +238,10 @@ export function useUpdateInterfaceByIdQuery() {
           queryKey: ['interface-by-id', result.id] 
         });
         
-        // If we know the project_id, we can invalidate related queries
-        if ('project_id' in result && result.project_id) {
+        // If we know the projectId, we can invalidate related queries
+        if ('projectId' in result && result.projectId) {
           queryClient.invalidateQueries({ 
-            queryKey: ['interfaces', result.project_id] 
+            queryKey: ['interfaces', result.projectId] 
           });
         }
       }
@@ -267,7 +267,7 @@ export function useUpdateInterfaceUnifiedQuery() {
       interfaceId?: string;
       projectId?: string;
       name?: string;
-      data: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'created_at' | 'updated_at'>>;
+      data: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>>;
       checkpoint?: boolean;
       actions: GranularInterfaceActions;
     }) => {
@@ -311,9 +311,9 @@ export function useUpdateInterfaceUnifiedQuery() {
           queryKey: ['interface-by-id', result.id] 
         });
         
-        if ('project_id' in result && result.project_id) {
+        if ('projectId' in result && result.projectId) {
           queryClient.invalidateQueries({ 
-            queryKey: ['interfaces', result.project_id] 
+            queryKey: ['interfaces', result.projectId] 
           });
         }
       }
@@ -541,7 +541,7 @@ export function useGetInterfaceCheckpointUnifiedQuery(
       : ['interface-checkpoint-by-name', projectId, name],
     queryFn: async () => {
       return actions.getCheckpoint({
-        interface_id: interfaceId as string,
+        interfaceId: interfaceId as string,
         projectId: projectId as string,
         name: name as string
       });

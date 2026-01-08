@@ -165,12 +165,12 @@ export default function NavMenu() {
           console.warn("Failed to fetch favourites", res.status, res.statusText);
           return;
         }
-        const favourites = (await res.json()) as { id: number; project_name: string; icon: string; position: number }[];
+        const favourites = (await res.json()) as { id: number; projectName: string; icon: string; position: number }[];
         const mapped = favourites
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
           .map((fav) => ({
-            id: fav.project_name, 
-            title: fav.project_name,
+            id: fav.projectName, 
+            title: fav.projectName,
             iconName: fav.icon || "folder",
             favId: fav.id,
             position: fav.position ?? 0,

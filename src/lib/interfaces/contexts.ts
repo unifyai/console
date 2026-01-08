@@ -53,16 +53,16 @@ export const deleteContext = async (apiKey: string) => {
 
 // rename context (supports nested names)
 export const renameContext = async (apiKey: string) => {
-    return async (project: string,  current_name: string, new_name: string) => {
+    return async (project: string,  currentName: string, newName: string) => {
         "use server";
 
-        const encoded = encodeURIComponent(current_name);
+        const encoded = encodeURIComponent(currentName);
         const response = await fetch(
             `${process.env.NEXTAUTH_URL}/api/context/${project}/${encoded}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ name: new_name })
+                body: JSON.stringify({ name: newName })
             }
         );
         return await response.json();

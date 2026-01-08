@@ -7,9 +7,9 @@ export const getTasks = async (apiKey: string, userContext: string) => {
 
         try {
 
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=Assistants&context=${userContext}/${assistantContext}/Tasks`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${userContext}/${assistantContext}/Tasks`;
             if (filterExpression) {
-                url += `&filter_expr=${encodeURIComponent(filterExpression)}`;
+                url += `&filterExpr=${encodeURIComponent(filterExpression)}`;
             }
             if (limit !== null) {
                 url += `&limit=${limit}`;
@@ -58,9 +58,9 @@ export const getUniqueFieldValues = async (apiKey: string, userContext: string) 
         "use server";
 
         try {
-            let url = `${process.env.NEXTAUTH_URL}/api/logs?project_name=Assistants&context=${userContext}/${assistantContext}/Tasks`;
-            url += `&group_by=${encodeURIComponent(groupByField)}`;
-            url += `&group_depth=0`;
+            let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${userContext}/${assistantContext}/Tasks`;
+            url += `&groupBy=${encodeURIComponent(groupByField)}`;
+            url += `&groupDepth=0`;
 
             const response = await fetch(
                 url,
@@ -89,7 +89,7 @@ export const getUniqueFieldValues = async (apiKey: string, userContext: string) 
             const groupData = ((
                 (data as LogsResponseProps)
                     .logs as GroupedLogPropsRaw
-                        )?.[groupByField] as {group: {key: string, value: number}[], group_count: number, count: number}
+                        )?.[groupByField] as {group: {key: string, value: number}[], groupCount: number, count: number}
                             )?.group;
 
             if (groupData && Array.isArray(groupData)) {
@@ -125,7 +125,7 @@ export const updateTask = async (apiKey: string, userContext: string) => {
                     },
                     body: JSON.stringify({
                         logs: logs,
-                        project_name: "Assistants",
+                        projectName: "Assistants",
                         context: `${userContext}/${assistantContext}/Tasks`,
                         params: {},
                         entries: entries,

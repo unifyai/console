@@ -74,7 +74,7 @@ export const generateOneTimeApprovalLink = async () => {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/admin/one-time-approval-link`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ expires_in_days: expiresInDays }),
+                body: JSON.stringify({ expiresInDays: expiresInDays }),
             });
             const data = await response.json();
             if (!response.ok) {

@@ -7,7 +7,7 @@ export interface ModelArguments {
             content: string;
         }[];
         temperature?: number;
-        max_tokens?: number;
+        maxTokens?: number;
         stream?: boolean;
     };
 }

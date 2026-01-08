@@ -171,7 +171,7 @@ describe('useEnsureTableTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -281,7 +281,7 @@ describe('useEnsureTableTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -400,7 +400,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -408,7 +408,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -471,7 +471,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -479,7 +479,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -537,7 +537,7 @@ describe('useEnsurePlotTileData', () => {
       id: tableTileId,
       name: 'BaseTable',
       type: 'Table' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 
@@ -545,7 +545,7 @@ describe('useEnsurePlotTileData', () => {
       id: plotTileId,
       name: 'Plot1',
       type: 'Plot' as any,
-      tab_id: tabId,
+      tabId: tabId,
       position: { x: 0, y: 0, width: 4, height: 4 } as any,
     } as any;
 

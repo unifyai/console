@@ -29,7 +29,7 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
 `,
     // Granular interface structure
     interface: {
-        project_id: "hidden-columns-demo",
+        projectId: "hidden-columns-demo",
         name: "interface1"
     },
     // Tab structure
@@ -50,11 +50,11 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
                 width: 7.0,
                 height: 8.0
             },
-            hidden_columns: "Entries/question,Entries/student_answer,Entries/rationale",
-            default_hidden_columns: true,
+            hiddenColumns: "Entries/question,Entries/student_answer,Entries/rationale",
+            defaultHiddenColumns: true,
             selected: "320966_Entries/question,320966_Entries/student_answer,320966_Entries/available_marks,320966_Entries/awarded_marks,320966_Entries/rationale,320966_Entries/correct_marks_to_award,320966_Entries/diff,320966_Entries/error",
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -67,8 +67,8 @@ for question in ["what is 1 + 1?", "what is 2 + 2?", "what is 3 + 3?"]:
                 height: 8.0
             },
             table: "Table",
-            view_tile: {}
+            viewTile: {}
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

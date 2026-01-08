@@ -6,26 +6,26 @@ export interface UserApprovalEntry {
   id: string;
   email: string;
   name?: string | null;
-  assistant_hiring_approval?: string | null;
-  created_at: string; // ISO date string
-  has_claimed_approval_link?: boolean;
+  assistantHiringApproval?: string | null;
+  createdAt: string; // ISO date string
+  hasClaimedApprovalLink?: boolean;
 }
 
 export interface OneTimeLinkResponse { // Used for generation response
   id: string;
   token: string;
-  expires_at: string; // ISO date string
-  claimed_at?: string | null; // ISO date string
-  user_id?: string | null;
+  expiresAt: string; // ISO date string
+  claimedAt?: string | null; // ISO date string
+  userId?: string | null;
 }
 
 export interface OneTimeLinkEntry { // Used for listing links
   id: string;
   token: string;
-  expires_at: string; // ISO date string
-  claimed_at?: string | null;
-  user_id?: string | null;
-  claimed_by_email?: string | null; // Added for displaying email
+  expiresAt: string; // ISO date string
+  claimedAt?: string | null;
+  userId?: string | null;
+  claimedByEmail?: string | null; // Added for displaying email
 }
 
 

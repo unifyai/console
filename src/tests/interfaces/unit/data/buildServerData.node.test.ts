@@ -1,6 +1,6 @@
 /**
  * Tests for buildServerData utility functions
- * 
+ *
  * Covers:
  * - Context deduplication in fetchOrBuildFields
  * - Cache usage with ensureQueryData
@@ -47,16 +47,16 @@ describe('buildServerData', () => {
   describe('fetchOrBuildFields - Context Deduplication', () => {
     it('should deduplicate contexts - only fetch unique contexts', async () => {
       const { fetchOrBuildFields } = await import('@/utils/data/buildServerData');
-      
+
       // Track which contexts are requested
       const requestedContexts: (string | null)[] = [];
-      
+
       server.use(
         http.get('/api/logs/fields', ({ request }) => {
           const url = new URL(request.url);
           const context = url.searchParams.get('context');
           requestedContexts.push(context);
-          return HttpResponse.json({ field1: { data_type: 'str' } });
+          return HttpResponse.json({ field1: { dataType: 'str' } });
         })
       );
 
@@ -82,15 +82,15 @@ describe('buildServerData', () => {
 
     it('should handle null context correctly', async () => {
       const { fetchOrBuildFields } = await import('@/utils/data/buildServerData');
-      
+
       const requestedContexts: (string | null)[] = [];
-      
+
       server.use(
         http.get('/api/logs/fields', ({ request }) => {
           const url = new URL(request.url);
           const context = url.searchParams.get('context');
           requestedContexts.push(context);
-          return HttpResponse.json({ field1: { data_type: 'str' } });
+          return HttpResponse.json({ field1: { dataType: 'str' } });
         })
       );
 
@@ -100,12 +100,7 @@ describe('buildServerData', () => {
         { id: '3', name: 'Table3', context: 'context-A', type: 'Table' },
       ];
 
-      await fetchOrBuildFields(
-        queryClient,
-        tiles as any,
-        'project-1',
-        true
-      );
+      await fetchOrBuildFields(queryClient, tiles as any, 'project-1', true);
 
       // Should have fetched (null context doesn't add &context param)
       expect(requestedContexts.length).toBeGreaterThanOrEqual(2);
@@ -113,12 +108,12 @@ describe('buildServerData', () => {
 
     it('should not fetch when refetchFields is false', async () => {
       const { fetchOrBuildFields } = await import('@/utils/data/buildServerData');
-      
+
       let fetchCount = 0;
       server.use(
         http.get('/api/logs/fields', () => {
           fetchCount++;
-          return HttpResponse.json({ field1: { data_type: 'str' } });
+          return HttpResponse.json({ field1: { dataType: 'str' } });
         })
       );
 
@@ -142,12 +137,12 @@ describe('buildServerData', () => {
 
     it('should use cached data when available (ensureQueryData behavior)', async () => {
       const { fetchOrBuildFields } = await import('@/utils/data/buildServerData');
-      
+
       let fetchCount = 0;
       server.use(
         http.get('/api/logs/fields', () => {
           fetchCount++;
-          return HttpResponse.json({ field1: { data_type: 'str' } });
+          return HttpResponse.json({ field1: { dataType: 'str' } });
         })
       );
 
@@ -157,10 +152,10 @@ describe('buildServerData', () => {
 
       // Pre-populate cache with staleTime not expired
       queryClient.setQueryData(['fields', 'project-1', 'context-A'], { cached: true });
-      
+
       // Set the query as fresh
       const existingQuery = queryClient.getQueryCache().find({
-        queryKey: ['fields', 'project-1', 'context-A']
+        queryKey: ['fields', 'project-1', 'context-A'],
       });
       if (existingQuery) {
         existingQuery.setState({
@@ -169,12 +164,7 @@ describe('buildServerData', () => {
         });
       }
 
-      await fetchOrBuildFields(
-        queryClient,
-        tiles as any,
-        'project-1',
-        true
-      );
+      await fetchOrBuildFields(queryClient, tiles as any, 'project-1', true);
 
       // fetchQuery will refetch even with cache, but staleTime controls if it uses cache first
       // The actual behavior depends on staleTime configuration
@@ -182,10 +172,10 @@ describe('buildServerData', () => {
 
     it('should return fields array matching tile order', async () => {
       const { fetchOrBuildFields } = await import('@/utils/data/buildServerData');
-      
-      const fieldsA = { fieldA: { data_type: 'str' } };
-      const fieldsB = { fieldB: { data_type: 'int' } };
-      
+
+      const fieldsA = { fieldA: { dataType: 'str' } };
+      const fieldsB = { fieldB: { dataType: 'int' } };
+
       server.use(
         http.get('/api/logs/fields', ({ request }) => {
           const url = new URL(request.url);
@@ -205,12 +195,7 @@ describe('buildServerData', () => {
         { id: '3', name: 'Table3', context: 'context-A', type: 'Table' }, // Same as first
       ];
 
-      const result = await fetchOrBuildFields(
-        queryClient,
-        tiles as any,
-        'project-1',
-        true
-      );
+      const result = await fetchOrBuildFields(queryClient, tiles as any, 'project-1', true);
 
       // Result should match tile order, with same context getting same fields
       expect(result[0]).toEqual(fieldsA); // context-A
@@ -222,7 +207,7 @@ describe('buildServerData', () => {
   describe('fetchOrBuildProjectsAndContexts - ensureQueryData', () => {
     it('should use ensureQueryData for projects (only fetch if missing)', async () => {
       const { fetchOrBuildProjectsAndContexts } = await import('@/utils/data/buildServerData');
-      
+
       const mockProjectsActions = {
         get: vi.fn().mockResolvedValue(['project1', 'project2']),
       };
@@ -237,9 +222,7 @@ describe('buildServerData', () => {
         queryClient,
         'project-1',
         true, // refetchProjects
-        false, // refetchContexts
-        mockProjectsActions as any,
-        mockContextActions as any
+        false // refetchContexts
       );
 
       // ensureQueryData should check cache first

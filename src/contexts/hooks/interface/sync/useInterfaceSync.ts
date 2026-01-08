@@ -139,29 +139,29 @@ export function useInterfaceSync(
       };
 
       debugLog("Creating tab:", {
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: newTabName,
         data: initialState,
-        tab_id: tabId,
+        tabId: tabId,
         actions: tabActions
       });
 
       // Create the tab on the server with the generated UUID
       const result = await createTabMutation.mutateAsync({
-        interface_id: interfaceId,
+        interfaceId: interfaceId,
         name: newTabName,
         data: initialState,
-        tab_id: tabId,
+        tabId: tabId,
         actions: tabActions
       });
 
       debugLog(`Tab ${newTabName} created with ID ${tabId}`);
 
-      // Also update the interface's active_tab_id on the server
+      // Also update the interface's activeTabId on the server
       const result2 = await updateInterfaceMutation.mutateAsync({
         interfaceId: interfaceId,
         data: {
-          active_tab_id: tabId
+          activeTabId: tabId
         },
         actions: interfaceActions as GranularInterfaceActions
       });
@@ -195,7 +195,7 @@ export function useInterfaceSync(
 
     // 2) Update the tab name on the server
     updateTabMutation.mutate({
-      interface_id: interfaceId as string,
+      interfaceId: interfaceId as string,
       name: tabName,
       data: {
         name: newTabName
@@ -216,7 +216,7 @@ export function useInterfaceSync(
     // 2) Optimistic server update
     deleteTabMutation.mutate({
       name: tabName,
-      interface_id: interfaceId as string,
+      interfaceId: interfaceId as string,
       actions: tabActions
     });
   };
@@ -260,7 +260,7 @@ export function useInterfaceSync(
           try {
             await updateInterfaceMutation.mutateAsync({
               interfaceId: interfaceId,
-              data: { active_tab_id: tabId },
+              data: { activeTabId: tabId },
               actions: interfaceActions as GranularInterfaceActions
             });
             lastPersistedRef.current = tabId;

@@ -7,14 +7,14 @@ type ChatRequestType = 'hire' | 'post-hire-greeting';
 export async function POST(request: NextRequest) {
     try {
         const user = await getCurrentUser();
-        if (!user || !user.api_key) {
+        if (!user || !user.apiKey) {
             return new NextResponse(JSON.stringify({ detail: "Unauthorized" }), { 
                 status: 401,
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const apiKey = user.api_key;
-        const userName = `${user.name}${user.last_name}` || "the user";
+        const apiKey = user.apiKey;
+        const userName = `${user.name}${user.lastName}` || "the user";
 
         // `messages` here is the full client-side session history
         const { messages, assistantName, assistantAge, assistantBio, assistantNationality, assistantId, type, preHireChat } = await request.json();

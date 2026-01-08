@@ -37,7 +37,7 @@ import TableResizeAll from "./Buttons/TableResizeAll";
 interface DataTableProps<TData extends LogProps | GroupedLogProps> {
     className?: string;
     interactive?: boolean;
-    auto_update?: boolean;
+    autoUpdate?: boolean;
     data: TData[];
     columns: ColumnDef<TData, unknown>[];
     state: StateProps;
@@ -111,7 +111,7 @@ interface DataTableProps<TData extends LogProps | GroupedLogProps> {
 export default function DataTable<TData extends LogProps | GroupedLogProps>({
     className,
     interactive,
-    auto_update,
+    autoUpdate,
     data,
     columns,
     state,
@@ -613,7 +613,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                             <DataTableHeader
                                                 key={header.id}
                                                 interactive={interactive}
-                                                auto_update={auto_update}
+                                                autoUpdate={autoUpdate}
                                                 data={data}
                                                 header={header}
                                                 headerGroupIndex={headerGroupIndex}
@@ -706,7 +706,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 position="relative"
                                                                 buttonText="Load Previous"
                                                                 loadingText="Loading previous..."
-                                                                disabled={auto_update}
+                                                                disabled={autoUpdate}
                                                                 table={table}
                                                             />
                                                         )}
@@ -731,7 +731,7 @@ export default function DataTable<TData extends LogProps | GroupedLogProps>({
                                                                 position="sticky"
                                                                 buttonText="Load More"
                                                                 loadingText="Loading more..."
-                                                                disabled={auto_update}
+                                                                disabled={autoUpdate}
                                                                 table={table}
                                                             />
                                                         )}

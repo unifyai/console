@@ -13,7 +13,7 @@ declare module "postman-code-generators" {
     export interface Language {
         key: string;
         label: string;
-        syntax_mode: string;
+        syntaxMode: string;
         variants: {
             key: string;
         }[];

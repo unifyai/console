@@ -19,18 +19,18 @@ import { AbsoluteDateString, RelativeDateString } from '@/types/interfaces/filte
 describe('filters', () => {
   const mockFields: LogFieldsResponseProps = {
     'entries/val': {
-      data_type: 'float',
-      field_type: 'entry',
+      dataType: 'float',
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: '',
+      createdAt: '',
     },
     'entries/str': {
-      data_type: 'string',
-      field_type: 'entry',
+      dataType: 'string',
+      fieldType: 'entry',
       artifacts: '',
       mutable: 'false',
-      created_at: '',
+      createdAt: '',
     },
   };
 
@@ -130,7 +130,7 @@ describe('filters', () => {
         
         expect(result).toContain('entries/val > 5');
         expect(result).toContain('"term" in str(entries/val)');
-        expect(result).toContain(`created_at < "${freeze}"`);
+        expect(result).toContain(`createdAt < "${freeze}"`);
     });
 
     it('returns null/empty string if no inputs', () => {

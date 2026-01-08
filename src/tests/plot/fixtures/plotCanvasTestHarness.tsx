@@ -202,16 +202,16 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
 
       switch (options.forceRenderMode) {
         case 'svg':
-          // Set SVG_MAX above the data count
-          updateConfig({ SVG_MAX: dataCount + 1000 });
+          // Set svgMax above the data count
+          updateConfig({ svgMax: dataCount + 1000 });
           break;
         case 'webgl':
-          // Set SVG_MAX below data count, WEBGL_MAX above
-          updateConfig({ SVG_MAX: Math.max(1, dataCount - 1), WEBGL_MAX: dataCount + 1000000 });
+          // Set svgMax below data count, webglMax above
+          updateConfig({ svgMax: Math.max(1, dataCount - 1), webglMax: dataCount + 1000000 });
           break;
         case 'webgl-sampled':
           // Set both thresholds below data count
-          updateConfig({ SVG_MAX: 1, WEBGL_MAX: Math.max(1, dataCount - 1) });
+          updateConfig({ svgMax: 1, webglMax: Math.max(1, dataCount - 1) });
           break;
       }
     }
@@ -232,9 +232,9 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
 
   // Generate mock data if not provided
   const dataTypeConfigToUse = options.dataTypeConfig ?? {
-    x_axis_type: 'float',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'float',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
   const scaleToUse = options.scale ?? { name: 'small', count: 100, skip: false, timeout: 5000 };
 
@@ -259,18 +259,16 @@ function PlotCanvasWrapper({ initialOptions, onPropsRef }: PlotCanvasWrapperProp
         logs={logs}
         fields={fields}
         plotType={options.plotType ?? mapPlotType(options.plotConfig?.type ?? 'scatter')}
-        xAxis={options.xAxis ?? options.plotConfig?.x_axis ?? 'table1.x_value'}
-        yAxis={options.yAxis ?? options.plotConfig?.y_axis ?? 'table1.y_value'}
-        groupBy={options.groupBy ?? options.plotConfig?.group_by}
+        xAxis={options.xAxis ?? options.plotConfig?.xAxis ?? 'table1.x_value'}
+        yAxis={options.yAxis ?? options.plotConfig?.yAxis ?? 'table1.y_value'}
+        groupBy={options.groupBy ?? options.plotConfig?.groupBy}
         aggregate={options.aggregate ?? options.plotConfig?.aggregate}
-        scaleX={options.scaleX ?? options.plotConfig?.scale_x ?? 'linear'}
-        scaleY={options.scaleY ?? options.plotConfig?.scale_y ?? 'linear'}
+        scaleX={options.scaleX ?? options.plotConfig?.scaleX ?? 'linear'}
+        scaleY={options.scaleY ?? options.plotConfig?.scaleY ?? 'linear'}
         metric={options.metric ?? 'sum'}
-        binCount={options.binCount ?? options.plotConfig?.bin_count ?? 10}
+        binCount={options.binCount ?? options.plotConfig?.binCount ?? 10}
         showRegression={
-          (options.showRegression ?? options.plotConfig?.show_regression ?? false)
-            ? 'true'
-            : 'false'
+          (options.showRegression ?? options.plotConfig?.showRegression ?? false) ? 'true' : 'false'
         }
         colors={options.colors ?? null}
         interactive={options.interactive ?? true}
@@ -411,7 +409,7 @@ export function renderPlotCanvas(options: PlotCanvasTestOptions = {}): PlotCanva
     if (isWebGLMode()) {
       const config = getConfig();
       const dataCount = currentProps.logs?.length ?? currentProps.scale?.count ?? 100;
-      return dataCount > config.WEBGL_MAX ? 'webgl-sampled' : 'webgl';
+      return dataCount > config.webglMax ? 'webgl-sampled' : 'webgl';
     }
     return 'svg';
   };
@@ -529,15 +527,15 @@ export function createPlotTestSetup(
     dataTypeConfig,
     scale,
     plotType: mapPlotType(plotConfig.type),
-    xAxis: plotConfig.x_axis,
-    yAxis: plotConfig.y_axis,
-    groupBy: plotConfig.group_by,
+    xAxis: plotConfig.xAxis,
+    yAxis: plotConfig.yAxis,
+    groupBy: plotConfig.groupBy,
     aggregate: plotConfig.aggregate,
-    scaleX: plotConfig.scale_x as ScaleType,
-    scaleY: plotConfig.scale_y as ScaleType,
-    binCount: plotConfig.bin_count,
-    showRegression: plotConfig.show_regression,
-    sortBars: plotConfig.sort_order ?? 'asc',
+    scaleX: plotConfig.scaleX as ScaleType,
+    scaleY: plotConfig.scaleY as ScaleType,
+    binCount: plotConfig.binCount,
+    showRegression: plotConfig.showRegression,
+    sortBars: plotConfig.sortOrder ?? 'asc',
     deterministic: options.deterministic ?? false,
   };
 }

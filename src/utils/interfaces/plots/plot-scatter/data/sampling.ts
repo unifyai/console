@@ -39,7 +39,7 @@ export function stratifiedSample(
   }
 
   const config = getConfig();
-  const gridSize = config.SAMPLING_GRID_SIZE;
+  const gridSize = config.samplingGridSize;
 
   // Get value extents
   const xValues = data.map((d) => getValue(fields, xAxisProperty, d, xTable) as number);

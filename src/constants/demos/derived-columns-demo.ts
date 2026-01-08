@@ -4,7 +4,7 @@ export default {
     description: "Derived columns make it possible to create new columns based on existing ones. Again, all general Python syntax is supported.",
     // Granular interface structure
     interface: {
-        project_id: "derived-columns-demo",
+        projectId: "derived-columns-demo",
         name: "interface1",
     },
     // Tab structure
@@ -26,9 +26,9 @@ export default {
                 height: 8.0
             },
             filters: "length~>~ && 0.5",
-            table_tile: {
-                table_type: "Data Table",
-                column_order: "RowNumbering,Entries/x,Entries/y,Entries/length,Entries/length",
+            tableTile: {
+                tableType: "Data Table",
+                columnOrder: "RowNumbering,Entries/x,Entries/y,Entries/length,Entries/length",
             }
         },
         {
@@ -41,17 +41,17 @@ export default {
                 height: 8.0
             },
             table: "Table",
-            view_tile: {},
+            viewTile: {},
         }
     ],
-    new_counter: 2,
-    derived_columns: {
+    newCounter: 2,
+    derivedColumns: {
         project: "derived-columns-demo",
         key: "length",
         equation: "({Table:x} ** 2 + {Table:y} ** 2) ** 0.5",
-        referenced_logs: {
+        referencedLogs: {
             Table: {
-                filter_expr: ""
+                filterExpr: ""
             }
         }
     },

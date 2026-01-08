@@ -37,9 +37,9 @@ interface PlotDataResponse {
   fields: LogFieldsResponseProps;
   metadata: {
     title?: string;
-    project_name: string;
-    created_at: string;
-    created_by?: string;
+    projectName: string;
+    createdAt: string;
+    createdBy?: string;
   };
   /** Pre-aggregated bar chart data from backend (optional) */
   preAggregatedBarData?: DataLabel[] | GroupedDataLabel[];
@@ -101,7 +101,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: result.data.metadata?.title || "Plot View",
-    description: `Interactive visualization of ${result.data.metadata?.project_name || "project"} data`,
+    description: `Interactive visualization of ${result.data.metadata?.projectName || "project"} data`,
   };
 }
 

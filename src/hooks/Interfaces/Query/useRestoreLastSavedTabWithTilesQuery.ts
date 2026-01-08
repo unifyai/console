@@ -12,34 +12,34 @@ export function useRestoreLastSavedTabWithTilesQuery() {
 
   return useMutation({
     mutationFn: async ({ 
-      interface_id,
-      project_id,
-      interface_name,
-      tab_name,
-      interface_actions,
-      tab_actions,
-      tile_actions
+      interfaceId,
+      projectId,
+      interfaceName,
+      tabName,
+      interfaceActions,
+      tabActions,
+      tileActions
     }: { 
-      interface_id?: string;
-      project_id?: string;
-      interface_name?: string;
-      tab_name?: string;
-      interface_actions: GranularInterfaceActions;
-      tab_actions: GranularTabActions;
-      tile_actions: GranularTileActions;
+      interfaceId?: string;
+      projectId?: string;
+      interfaceName?: string;
+      tabName?: string;
+      interfaceActions: GranularInterfaceActions;
+      tabActions: GranularTabActions;
+      tileActions: GranularTileActions;
     }) => {
       // Validate input
-      if ((!interface_id && (!project_id || !interface_name)) || !interface_actions || !tab_actions || !tile_actions) {
+      if ((!interfaceId && (!projectId || !interfaceName)) || !interfaceActions || !tabActions || !tileActions) {
         throw new Error('Missing required parameters for restoration');
       }
 
       // Step 1: Get the current (non-checkpointed) interface data first
       let currentInterfaceData: InterfaceData | null = null;
       try {
-        if (interface_id) {
-          currentInterfaceData = await interface_actions.getById(interface_id);
-        } else if (project_id && interface_name) {
-          currentInterfaceData = await interface_actions.getByName(project_id, interface_name);
+        if (interfaceId) {
+          currentInterfaceData = await interfaceActions.getById(interfaceId);
+        } else if (projectId && interfaceName) {
+          currentInterfaceData = await interfaceActions.getByName(projectId, interfaceName);
         }
         
         if (!currentInterfaceData || !currentInterfaceData.id) {
@@ -54,10 +54,10 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // Step 2: Get the checkpointed interface data using the same ID/name
       let checkpointedInterfaceData: InterfaceData | null = null;
       try {
-        if (interface_id) {
-          checkpointedInterfaceData = await interface_actions.getCheckpointById(interface_id);
-        } else if (project_id && interface_name) {
-          checkpointedInterfaceData = await interface_actions.getCheckpointByName(project_id, interface_name);
+        if (interfaceId) {
+          checkpointedInterfaceData = await interfaceActions.getCheckpointById(interfaceId);
+        } else if (projectId && interfaceName) {
+          checkpointedInterfaceData = await interfaceActions.getCheckpointByName(projectId, interfaceName);
         }
         
         if (!checkpointedInterfaceData) {
@@ -72,14 +72,14 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // Step 3: Get current tab data using the CURRENT interface ID
       let currentTabData: TabData | null = null;
       try {
-        // If tab_name is provided, use it, otherwise use active tab
-        if (tab_name) {
-          currentTabData = await tab_actions.getByName(currentInterfaceData.id, tab_name);
-        } else if (currentInterfaceData.active_tab_id) {
-          currentTabData = await tab_actions.getById(currentInterfaceData.active_tab_id);
+        // If tabName is provided, use it, otherwise use active tab
+        if (tabName) {
+          currentTabData = await tabActions.getByName(currentInterfaceData.id, tabName);
+        } else if (currentInterfaceData.activeTabId) {
+          currentTabData = await tabActions.getById(currentInterfaceData.activeTabId);
         } else {
           // Fetch all tabs and get the first one
-          const tabs = await tab_actions.list(currentInterfaceData.id);
+          const tabs = await tabActions.list(currentInterfaceData.id);
           if (tabs && tabs.length > 0) {
             currentTabData = tabs[0];
           }
@@ -98,9 +98,9 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       let checkpointedTabData: TabData | null = null;
       try {
         if (currentTabData.name) {
-          checkpointedTabData = await tab_actions.getCheckpointByName(currentInterfaceData.id, currentTabData.name);
+          checkpointedTabData = await tabActions.getCheckpointByName(currentInterfaceData.id, currentTabData.name);
         } else if (currentTabData.id) {
-          checkpointedTabData = await tab_actions.getCheckpointById(currentTabData.id);
+          checkpointedTabData = await tabActions.getCheckpointById(currentTabData.id);
         }
         
         if (!checkpointedTabData) {
@@ -115,7 +115,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // Step 5: Get the checkpointed tiles using the CURRENT tab ID
       let checkpointedTileList: TileData[] = [];
       try {
-        checkpointedTileList = await tile_actions.list(currentTabData.id, undefined, true);
+        checkpointedTileList = await tileActions.list(currentTabData.id, undefined, true);
       } catch (error) {
         console.error('Error retrieving tile checkpoints:', error);
         // Continue even if there are no tiles
@@ -124,17 +124,17 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // Step 6: Now that we have all the checkpoint data, start restoring
       // First, update the interface
       try {
-        if (interface_id) {
-          await interface_actions.updateById(interface_id, {
+        if (interfaceId) {
+          await interfaceActions.updateById(interfaceId, {
             name: checkpointedInterfaceData.name,
             color: checkpointedInterfaceData.color,
-            active_tab_id: currentInterfaceData.active_tab_id // Keep the current active tab ID
+            activeTabId: currentInterfaceData.activeTabId // Keep the current active tab ID
           });
-        } else if (project_id && interface_name) {
-          await interface_actions.updateByName(project_id, interface_name, {
+        } else if (projectId && interfaceName) {
+          await interfaceActions.updateByName(projectId, interfaceName, {
             name: checkpointedInterfaceData.name,
             color: checkpointedInterfaceData.color,
-            active_tab_id: currentInterfaceData.active_tab_id // Keep the current active tab ID
+            activeTabId: currentInterfaceData.activeTabId // Keep the current active tab ID
           });
         }
       } catch (error) {
@@ -145,7 +145,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // Next, update the tab
       try {
         if (currentTabData.id) {
-          await tab_actions.updateById(currentTabData.id, {
+          await tabActions.updateById(currentTabData.id, {
             name: checkpointedTabData.name,
             context: checkpointedTabData.context || "",
             color: checkpointedTabData.color,
@@ -167,7 +167,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
       // First get the current tiles to match with checkpointed tiles
       let currentTiles: TileData[] = [];
       try {
-        currentTiles = await tile_actions.list(currentTabData.id);
+        currentTiles = await tileActions.list(currentTabData.id);
       } catch (error) {
         console.error('Error retrieving current tiles:', error);
       }
@@ -180,7 +180,7 @@ export function useRestoreLastSavedTabWithTilesQuery() {
             
             if (matchingTile && matchingTile.id) {
               // Update the existing tile with checkpoint data
-              await tile_actions.updateById(matchingTile.id, {
+              await tileActions.updateById(matchingTile.id, {
                 name: checkpointedTile.name,
                 position: checkpointedTile.position,
                 visible: checkpointedTile.visible,
@@ -188,23 +188,23 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 color: checkpointedTile.color,
                 context: checkpointedTile.context,
                 table: checkpointedTile.table,
-                auto_update: checkpointedTile.auto_update,
+                autoUpdate: checkpointedTile.autoUpdate,
                 freeze: checkpointedTile.freeze,
                 filters: checkpointedTile.filters,
-                common_filter: checkpointedTile.common_filter,
+                commonFilter: checkpointedTile.commonFilter,
                 metric: checkpointedTile.metric,
-                column_context: checkpointedTile.column_context,
+                columnContext: checkpointedTile.columnContext,
                 grouping: checkpointedTile.grouping,
-                table_tile: checkpointedTile.table_tile,
-                plot_tile: checkpointedTile.plot_tile,
-                view_tile: checkpointedTile.view_tile,
-                editor_tile: checkpointedTile.editor_tile,
-                terminal_tile: checkpointedTile.terminal_tile
+                tableTile: checkpointedTile.tableTile,
+                plotTile: checkpointedTile.plotTile,
+                viewTile: checkpointedTile.viewTile,
+                editorTile: checkpointedTile.editorTile,
+                terminalTile: checkpointedTile.terminalTile
               });
               restoredTiles++;
             } else {
               // Tile doesn't exist in current tab, create it
-              await tile_actions.create(currentTabData.id, checkpointedTile.name, checkpointedTile.position, {
+              await tileActions.create(currentTabData.id, checkpointedTile.name, checkpointedTile.position, {
                 minW: checkpointedTile.minW,
                 minH: checkpointedTile.minH,
                 visible: checkpointedTile.visible,
@@ -212,18 +212,18 @@ export function useRestoreLastSavedTabWithTilesQuery() {
                 color: checkpointedTile.color,
                 context: checkpointedTile.context,
                 table: checkpointedTile.table,
-                auto_update: checkpointedTile.auto_update,
+                autoUpdate: checkpointedTile.autoUpdate,
                 freeze: checkpointedTile.freeze,
                 filters: checkpointedTile.filters,
-                common_filter: checkpointedTile.common_filter,
+                commonFilter: checkpointedTile.commonFilter,
                 metric: checkpointedTile.metric,
-                column_context: checkpointedTile.column_context,
+                columnContext: checkpointedTile.columnContext,
                 grouping: checkpointedTile.grouping,
-                table_tile: checkpointedTile.table_tile,
-                plot_tile: checkpointedTile.plot_tile,
-                view_tile: checkpointedTile.view_tile,
-                editor_tile: checkpointedTile.editor_tile,
-                terminal_tile: checkpointedTile.terminal_tile
+                tableTile: checkpointedTile.tableTile,
+                plotTile: checkpointedTile.plotTile,
+                viewTile: checkpointedTile.viewTile,
+                editorTile: checkpointedTile.editorTile,
+                terminalTile: checkpointedTile.terminalTile
               }, undefined, checkpointedTile.type);
               restoredTiles++;
             }
@@ -247,16 +247,16 @@ export function useRestoreLastSavedTabWithTilesQuery() {
     },
     onSuccess: (data, variables) => {
       // Invalidate relevant queries to ensure UI reflects the latest data
-      if (variables.interface_id) {
-        queryClient.invalidateQueries({ queryKey: ['interface-by-id', variables.interface_id] });
+      if (variables.interfaceId) {
+        queryClient.invalidateQueries({ queryKey: ['interface-by-id', variables.interfaceId] });
       }
       
-      if (variables.project_id && variables.interface_name) {
+      if (variables.projectId && variables.interfaceName) {
         queryClient.invalidateQueries({ 
-          queryKey: ['interface', variables.project_id, variables.interface_name] 
+          queryKey: ['interface', variables.projectId, variables.interfaceName] 
         });
         queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', variables.project_id] 
+          queryKey: ['interfaces', variables.projectId] 
         });
       }
       

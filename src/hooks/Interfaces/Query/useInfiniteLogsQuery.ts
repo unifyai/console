@@ -57,7 +57,7 @@ interface InfiniteLogsParams {
   groupingExpression: string | null;
   groupSortingExpression: string | null;
   limit: number;
-  group_limit: number;
+  groupLimit: number;
   logsActions: LogsActions;
   updateLogs?: (
     logsData: LogsResponseProps,
@@ -105,7 +105,7 @@ export function useInfiniteLogsQuery({
   groupingExpression,
   groupSortingExpression,
   limit,
-  group_limit,
+  groupLimit,
   logsActions,
   updateLogs,
   enabled = true,
@@ -134,8 +134,8 @@ export function useInfiniteLogsQuery({
     groupingExpression,
     groupSortingExpression,
     limit,
-    group_limit
-  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, group_limit]);
+    groupLimit
+  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, groupLimit]);
 
   // Register this query key with the table tile for cleanup
   const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey]);
@@ -215,11 +215,11 @@ export function useInfiniteLogsQuery({
         // pageParam for backward will be negative
         const absolutePageParam = Math.abs(pageParam);
         offset = Math.max(0, absolutePageParam * limit);
-        groupOffset = Math.max(0, absolutePageParam * group_limit);
+        groupOffset = Math.max(0, absolutePageParam * groupLimit);
       } else {
         // Forward loading (existing logic)
         offset = pageParam * limit;
-        groupOffset = pageParam * group_limit;
+        groupOffset = pageParam * groupLimit;
       }
 
       // Use the consolidated core function
@@ -234,8 +234,8 @@ export function useInfiniteLogsQuery({
         groupSortingExpression,
         limit,
         offset,
-        group_limit,
-        group_offset: groupOffset,
+        groupLimit,
+        groupOffset: groupOffset,
         logsActions
       };
 
@@ -422,7 +422,7 @@ export function useInfiniteGroupSpecificLogsQuery({
   groupingExpression,
   groupSortingExpression,
   limit,
-  group_limit,
+  groupLimit,
   logsActions,
   updateLogs,
   onGroupOffsetChange,
@@ -447,7 +447,7 @@ export function useInfiniteGroupSpecificLogsQuery({
   groupingExpression: string | null;
   groupSortingExpression: string | null;
   limit: number;
-  group_limit: number;
+  groupLimit: number;
   logsActions: LogsActions;
   updateLogs?: (
     logsData: LogsResponseProps,
@@ -489,12 +489,12 @@ export function useInfiniteGroupSpecificLogsQuery({
     groupingExpression,
     groupSortingExpression,
     limit,
-    group_limit
+    groupLimit
   }, {
     groupId,
     dataTypes,
     fields
-  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, group_limit, groupId, dataTypes, fields]);
+  }), [tileId, tabId, projectId, context, columnContext, filterExpression, sortingExpression, groupingExpression, groupSortingExpression, limit, groupLimit, groupId, dataTypes, fields]);
 
   // Register this query key with the table tile for cleanup
   const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey]);
@@ -601,11 +601,11 @@ export function useInfiniteGroupSpecificLogsQuery({
         // pageParam for backward will be negative
         const absolutePageParam = Math.abs(pageParam);
         offset = Math.max(0, absolutePageParam * limit);
-        groupOffset = Math.max(0, absolutePageParam * group_limit);
+        groupOffset = Math.max(0, absolutePageParam * groupLimit);
       } else {
         // Forward loading (existing logic)
         offset = pageParam * limit;
-        groupOffset = pageParam * group_limit;
+        groupOffset = pageParam * groupLimit;
       }
 
       // Use the consolidated core function
@@ -620,8 +620,8 @@ export function useInfiniteGroupSpecificLogsQuery({
         groupSortingExpression,
         limit,
         offset,
-        group_limit,
-        group_offset: groupOffset,
+        groupLimit,
+        groupOffset: groupOffset,
         logsActions,
         groupId,
         groupingColumnId,

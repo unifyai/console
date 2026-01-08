@@ -113,8 +113,8 @@ const RoleListPanel = ({
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <Badge variant={role.is_system_role ? "secondary" : "outline"} className="text-[10px] h-5 font-normal">
-                                    {role.is_system_role ? "System" : "Custom"}
+                                <Badge variant={role.isSystemRole ? "secondary" : "outline"} className="text-[10px] h-5 font-normal">
+                                    {role.isSystemRole ? "System" : "Custom"}
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
@@ -152,10 +152,10 @@ const RoleListPanel = ({
                                     </TooltipProvider>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem onClick={() => handlePermissionsClick(role.id)}>
-                                            <Shield className="mr-2 h-4 w-4" /> {role.is_system_role ? "View Permissions" : "Manage Permissions"}
+                                            <Shield className="mr-2 h-4 w-4" /> {role.isSystemRole ? "View Permissions" : "Manage Permissions"}
                                         </DropdownMenuItem>
 
-                                        {!role.is_system_role && (
+                                        {!role.isSystemRole && (
                                             <>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => handleUpdateRoleClick(role.id)}>

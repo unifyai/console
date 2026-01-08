@@ -88,7 +88,7 @@ function createInitialStoreState(options: InterfaceSelectionTestOptions): Partia
 
   // Build interfacesById
   const interfacesById: Record<string, any> = {};
-  interfaces.forEach(iface => {
+  interfaces.forEach((iface) => {
     interfacesById[iface.id] = {
       id: iface.id,
       name: iface.name,
@@ -102,8 +102,8 @@ function createInitialStoreState(options: InterfaceSelectionTestOptions): Partia
 
   // Build tabsById for interfaces that have tabs
   const tabsById: Record<string, any> = {};
-  interfaces.forEach(iface => {
-    (iface.tabIds || []).forEach(tabId => {
+  interfaces.forEach((iface) => {
+    (iface.tabIds || []).forEach((tabId) => {
       tabsById[tabId] = {
         id: tabId,
         name: `Tab for ${iface.name}`,
@@ -122,7 +122,7 @@ function createInitialStoreState(options: InterfaceSelectionTestOptions): Partia
         name: projectId,
         description: '',
         contexts: [],
-        interfaceIds: interfaces.map(i => i.id),
+        interfaceIds: interfaces.map((i) => i.id),
         activeInterfaceId: options.activeInterfaceId ?? interfaces[0]?.id ?? null,
       },
     },
@@ -167,7 +167,7 @@ interface InterfaceSelectionInnerProps {
 function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSelectionInnerProps) {
   const storeApi = useStoreApiContext();
   const store = useStore(storeApi);
-  
+
   // Local state for UI
   const [isLoading, setIsLoading] = useState(false);
   const [isChangingInterface, setIsChangingInterface] = useState(false);
@@ -179,16 +179,16 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
 
   // Get interfaces for current project
   const projectData = store.projectsById?.[projectId];
-  const interfaceIds = projectData?.interfaceIds || [];
-  const interfacesById = store.interfacesById || {};
+  const interfaceIds = useMemo(() => projectData?.interfaceIds || [], [projectData?.interfaceIds]);
+  const interfacesById = useMemo(() => store.interfacesById || {}, [store.interfacesById]);
   const activeInterfaceId = store.activeInterfaceId;
 
   // Convert to InterfaceItem format for the picker
   const interfaceItems: InterfaceItem[] = useMemo(() => {
     return interfaceIds
-      .map(id => interfacesById[id])
+      .map((id) => interfacesById[id])
       .filter(Boolean)
-      .map(iface => ({
+      .map((iface) => ({
         name: iface.name,
         icon: (iface as any).icon,
       }));
@@ -208,14 +208,20 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
       getInterfaces: () => {
         const project = store.projectsById?.[projectId];
         return (project?.interfaceIds || [])
-          .map(id => store.interfacesById?.[id]?.name)
+          .map((id) => store.interfacesById?.[id]?.name)
           .filter(Boolean);
       },
       getActiveInterface: () => store.activeInterfaceId,
       getInterfaceById: (id) => {
         const iface = store.interfacesById?.[id];
         if (!iface) return null;
-        return { id: iface.id, name: iface.name, icon: (iface as any).icon, projectId: iface.projectId || '', tabIds: iface.tabIds };
+        return {
+          id: iface.id,
+          name: iface.name,
+          icon: (iface as any).icon,
+          projectId: iface.projectId || '',
+          tabIds: iface.tabIds,
+        };
       },
       selectInterface: (interfaceId) => {
         store.setActiveInterface(interfaceId);
@@ -232,17 +238,19 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
         store.updateInterface(interfaceId, { name: newName });
       },
     };
+    // stateContainerRef is stable and doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, projectId]);
 
   const handleSelectInterface = async (interfaceName: string) => {
     // Find interface ID by name
-    const ifaceId = interfaceIds.find(id => interfacesById[id]?.name === interfaceName);
+    const ifaceId = interfaceIds.find((id) => interfacesById[id]?.name === interfaceName);
     if (!ifaceId) return;
 
     setIsChangingInterface(true);
     setTransitioningToInterface(interfaceName);
     // Simulate async operation
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 50));
     store.setActiveInterface(ifaceId);
     setIsChangingInterface(false);
     setTransitioningToInterface(null);
@@ -261,7 +269,7 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
   const handleDeleteInterface = () => {
     if (interfaceToDelete) {
       // Find interface ID by name
-      const ifaceId = interfaceIds.find(id => interfacesById[id]?.name === interfaceToDelete);
+      const ifaceId = interfaceIds.find((id) => interfacesById[id]?.name === interfaceToDelete);
       if (ifaceId) {
         store.removeInterface(projectId, ifaceId);
       }
@@ -293,15 +301,12 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
 
       {/* Action buttons (outside the picker) */}
       <div data-testid="interface-actions">
-        <button
-          data-testid="create-interface-button"
-          onClick={() => setCreateDialogOpen(true)}
-        >
+        <button data-testid="create-interface-button" onClick={() => setCreateDialogOpen(true)}>
           Create Interface
         </button>
-        
+
         {/* Delete buttons for each interface */}
-        {interfaceItems.map(iface => (
+        {interfaceItems.map((iface) => (
           <button
             key={iface.name}
             data-testid={`interface-delete-${iface.name}`}
@@ -329,10 +334,13 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
           <button data-testid="create-interface-submit" onClick={handleCreateInterface}>
             Create
           </button>
-          <button data-testid="create-interface-cancel" onClick={() => {
-            setCreateDialogOpen(false);
-            setNewInterfaceName('');
-          }}>
+          <button
+            data-testid="create-interface-cancel"
+            onClick={() => {
+              setCreateDialogOpen(false);
+              setNewInterfaceName('');
+            }}
+          >
             Cancel
           </button>
         </div>
@@ -346,10 +354,13 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
           <button data-testid="delete-interface-confirm" onClick={handleDeleteInterface}>
             Delete
           </button>
-          <button data-testid="delete-interface-cancel" onClick={() => {
-            setDeleteDialogOpen(false);
-            setInterfaceToDelete(null);
-          }}>
+          <button
+            data-testid="delete-interface-cancel"
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setInterfaceToDelete(null);
+            }}
+          >
             Cancel
           </button>
         </div>
@@ -357,15 +368,17 @@ function InterfaceSelectionInner({ stateContainerRef, projectId }: InterfaceSele
 
       {/* Active Interface Display */}
       {selectedInterface && (
-        <div data-testid="active-interface-display">
-          Active: {selectedInterface.name}
-        </div>
+        <div data-testid="active-interface-display">Active: {selectedInterface.name}</div>
       )}
 
       {/* Test controls */}
       <div data-testid="test-controls" style={{ display: 'none' }}>
-        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>Set Loading</button>
-        <button data-testid="clear-loading" onClick={() => setIsLoading(false)}>Clear Loading</button>
+        <button data-testid="set-loading" onClick={() => setIsLoading(true)}>
+          Set Loading
+        </button>
+        <button data-testid="clear-loading" onClick={() => setIsLoading(false)}>
+          Clear Loading
+        </button>
       </div>
     </div>
   );
@@ -451,7 +464,7 @@ export function renderInterfaceSelection(
           }
         });
       }
-      
+
       const input = screen.getByTestId('interface-search-input');
       await user.clear(input);
       if (query) {
@@ -462,10 +475,10 @@ export function renderInterfaceSelection(
     getVisibleInterfaces: () => {
       const content = screen.queryByTestId('interface-picker-content');
       if (!content) return [];
-      
+
       // Find all interface options
       const options = within(content).queryAllByTestId(/^interface-option-/);
-      return options.map(opt => {
+      return options.map((opt) => {
         const testId = opt.getAttribute('data-testid') || '';
         return testId.replace('interface-option-', '');
       });
@@ -482,7 +495,7 @@ export function renderInterfaceSelection(
           }
         });
       }
-      
+
       const option = screen.getByTestId(`interface-option-${interfaceName}`);
       await user.click(option);
     },

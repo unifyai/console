@@ -65,7 +65,7 @@ const PlotGroupBy = ({
             {/* Button for "None" option */}
             <Button
                 key="none-group-by"
-                variant={!groupBy ? "primary" : "list_item"}
+                variant={!groupBy ? "primary" : "listItem"}
                 size="lg"
                 className="w-full justify-start h-auto py-1 text-md"
                 onClick={() => onSelect(undefined)} // Select undefined for "None"
@@ -92,7 +92,7 @@ const PlotGroupBy = ({
                         return (
                             <Button
                                 key={selection}
-                                variant={selection === groupBy ? "primary" : "list_item"}
+                                variant={selection === groupBy ? "primary" : "listItem"}
                                 size="lg"
                                 className="w-full justify-start h-auto py-1 text-md"
                                 onClick={() => onSelect(selection)}

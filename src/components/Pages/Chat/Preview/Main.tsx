@@ -26,7 +26,7 @@ const ApiPreview = ({ apiKey, endpoints }: { apiKey: string, endpoints: Endpoint
                 content: "Explain the benefits of dynamically routing prompts to different LLMs"
             }],
             temperature: 0.5,
-            max_tokens: 1000
+            maxTokens: 1000
         }
     } as ModelArguments
 

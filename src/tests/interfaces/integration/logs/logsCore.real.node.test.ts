@@ -39,12 +39,13 @@ describe('@real logsCore + getLogs (Real API)', () => {
     const result = await createLogsFn(
       testProjectName,
       null, // context
+      [], // params
       [
-        { entries: { message: 'Test log 1', level: 'info' } },
-        { entries: { message: 'Test log 2', level: 'warn' } },
-        { entries: { message: 'Test log 3', level: 'error' } },
-        { entries: { message: 'Test log 4', level: 'info' } },
-        { entries: { message: 'Test log 5', level: 'debug' } },
+        { message: 'Test log 1', level: 'info' },
+        { message: 'Test log 2', level: 'warn' },
+        { message: 'Test log 3', level: 'error' },
+        { message: 'Test log 4', level: 'info' },
+        { message: 'Test log 5', level: 'debug' },
       ]
     );
 
@@ -61,7 +62,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
         await deleteLogsFn(
           testProjectName,
           null,
-          createdLogIds.map((id) => ({ id }))
+          createdLogIds.map((id) => [id, ''] as [number, string])
         );
       } catch {
         // Ignore cleanup errors
@@ -69,10 +70,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
     }
 
     // Cleanup project
-    await safeDelete(
-      () => projectsApi.delete(testProjectName),
-      `project: ${testProjectName}`
-    );
+    await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
   }, 30000);
 
   it(
@@ -100,8 +98,8 @@ describe('@real logsCore + getLogs (Real API)', () => {
         groupSortingExpression: null,
         limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
         logsActions,
         headers: { apiKey: TEST_API_KEY },
       };
@@ -126,10 +124,53 @@ describe('@real logsCore + getLogs (Real API)', () => {
     }
   );
 
-  it(
-    '@real fetchLogsCore handles pagination correctly',
-    realTestOptionsExtended,
-    async () => {
+  it('@real fetchLogsCore handles pagination correctly', realTestOptionsExtended, async () => {
+    const getLogsFn = await getLogs(TEST_API_KEY);
+
+    const logsActions = {
+      create: async () => ({ detail: 'not-used' }),
+      get: getLogsFn,
+      getLatest: async () => '',
+      getMetrics: async () => ({}),
+      delete: async () => ({ detail: 'not-used' }),
+      update: async () => ({ detail: 'not-used' }),
+    } as unknown as LogsActions;
+
+    // First page with small limit
+    const params: CoreLogFetchParams = {
+      projectId: testProjectName,
+      context: null,
+      columnContext: null,
+      filterExpression: null,
+      sortingExpression: null,
+      groupingExpression: null,
+      groupSortingExpression: null,
+      limit: 2,
+      offset: 0,
+      groupLimit: 20,
+      groupOffset: 0,
+      logsActions,
+      headers: { apiKey: TEST_API_KEY },
+    };
+
+    const result = await fetchLogsCore(params);
+
+    expect(result.effectiveLimit).toBe(2);
+    expect(result.effectiveOffset).toBe(0);
+    expect(result.currentCount).toBeLessThanOrEqual(2);
+
+    // Check hasMore flag
+    if (result.totalCount > 2) {
+      expect(result.hasMore).toBe(true);
+    }
+  });
+
+  it('@real fetchLogsCore handles empty project gracefully', realTestOptions, async () => {
+    // Create an empty project
+    const emptyProjectName = uniqueName('test-logscore-empty');
+    await projectsApi.create(emptyProjectName);
+
+    try {
       const getLogsFn = await getLogs(TEST_API_KEY);
 
       const logsActions = {
@@ -141,86 +182,31 @@ describe('@real logsCore + getLogs (Real API)', () => {
         update: async () => ({ detail: 'not-used' }),
       } as unknown as LogsActions;
 
-      // First page with small limit
       const params: CoreLogFetchParams = {
-        projectId: testProjectName,
+        projectId: emptyProjectName,
         context: null,
         columnContext: null,
         filterExpression: null,
         sortingExpression: null,
         groupingExpression: null,
         groupSortingExpression: null,
-        limit: 2,
+        limit: 20,
         offset: 0,
-        group_limit: 20,
-        group_offset: 0,
+        groupLimit: 20,
+        groupOffset: 0,
         logsActions,
         headers: { apiKey: TEST_API_KEY },
       };
 
       const result = await fetchLogsCore(params);
 
-      expect(result.effectiveLimit).toBe(2);
-      expect(result.effectiveOffset).toBe(0);
-      expect(result.currentCount).toBeLessThanOrEqual(2);
-
-      // Check hasMore flag
-      if (result.totalCount > 2) {
-        expect(result.hasMore).toBe(true);
-      }
+      // Empty project should return no logs
+      expect(result.response.count).toBe(0);
+      expect(result.totalCount).toBe(0);
+      expect(result.convertedLogs.length).toBe(0);
+      expect(result.hasMore).toBe(false);
+    } finally {
+      await safeDelete(() => projectsApi.delete(emptyProjectName), `project: ${emptyProjectName}`);
     }
-  );
-
-  it(
-    '@real fetchLogsCore handles empty project gracefully',
-    realTestOptions,
-    async () => {
-      // Create an empty project
-      const emptyProjectName = uniqueName('test-logscore-empty');
-      await projectsApi.create(emptyProjectName);
-
-      try {
-        const getLogsFn = await getLogs(TEST_API_KEY);
-
-        const logsActions = {
-          create: async () => ({ detail: 'not-used' }),
-          get: getLogsFn,
-          getLatest: async () => '',
-          getMetrics: async () => ({}),
-          delete: async () => ({ detail: 'not-used' }),
-          update: async () => ({ detail: 'not-used' }),
-        } as unknown as LogsActions;
-
-        const params: CoreLogFetchParams = {
-          projectId: emptyProjectName,
-          context: null,
-          columnContext: null,
-          filterExpression: null,
-          sortingExpression: null,
-          groupingExpression: null,
-          groupSortingExpression: null,
-          limit: 20,
-          offset: 0,
-          group_limit: 20,
-          group_offset: 0,
-          logsActions,
-          headers: { apiKey: TEST_API_KEY },
-        };
-
-        const result = await fetchLogsCore(params);
-
-        // Empty project should return no logs
-        expect(result.response.count).toBe(0);
-        expect(result.totalCount).toBe(0);
-        expect(result.convertedLogs.length).toBe(0);
-        expect(result.hasMore).toBe(false);
-      } finally {
-        await safeDelete(
-          () => projectsApi.delete(emptyProjectName),
-          `project: ${emptyProjectName}`
-        );
-      }
-    }
-  );
+  });
 });
-

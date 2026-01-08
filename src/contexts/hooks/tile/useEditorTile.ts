@@ -99,15 +99,15 @@ export function useEditorTile(
     if (!isEditorTile || !tileId || !editorTile) return null;
     
     return {
-      file_name: editorTile.file_name,
-      file_type: editorTile.file_type,
+      fileName: editorTile.fileName,
+      fileType: editorTile.fileType,
       content: editorTile.content
     } as EditorTileData;
   }, [
     isEditorTile,
     tileId,
-    editorTile?.file_name,
-    editorTile?.file_type,
+    editorTile?.fileName,
+    editorTile?.fileType,
     editorTile?.content,
   ]);
 
@@ -139,13 +139,13 @@ export function useEditorTile(
     return {
       setFileName: (fileName) => {
         const update: Partial<EditorTile> = { 
-          file_name: fileName,
+          fileName: fileName,
         };
         storeUpdateEditorTile(tileId, update);
       },
       setFileType: (fileType) => {
         const update: Partial<EditorTile> = { 
-          file_type: fileType,
+          fileType: fileType,
         };
         storeUpdateEditorTile(tileId, update);
       },

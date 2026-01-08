@@ -413,8 +413,8 @@ export function formatCellValue(
 	rawValue: unknown,
 	dataType: string,
 	columnWidth?: number,
-	exclude_undefined: boolean = false,
-	exclude_nulls: boolean = false,
+	excludeUndefined: boolean = false,
+	excludeNulls: boolean = false,
 ): React.ReactNode {
 
 	// Calculate truncation dynamically based on column width
@@ -435,13 +435,13 @@ export function formatCellValue(
 
 	// If cellValue is undefined or null, handle that up front
 	if (rawValue === undefined) {
-		if (exclude_undefined) {
+		if (excludeUndefined) {
 			return null;
 		}
 	  return " ";
 	}
 	if (rawValue === null) {
-		if (exclude_nulls) {
+		if (excludeNulls) {
 			return null;
 		}
 	  return "-";
@@ -477,7 +477,7 @@ export function formatCellValue(
 		// Safely parse to float, if invalid or NaN display fallback
 		const numericValue = parseFloat(String(rawValue));
 		if (isNaN(numericValue)) {
-			if (exclude_nulls) {
+			if (excludeNulls) {
 				return null;
 			}
 		  return "–";

@@ -1,30 +1,31 @@
 "use server";
 
 import {OrchestraAdminClient} from "@/lib/orchestra/orchestra-client";
+import { snakeToCamelObject } from "@/utils/casing";
 
 export interface BillingDetails {
   id: string;
   credits: number;
-  stripe_customer_id: string;
+  stripeCustomerId: string;
   autorecharge: boolean;
-  autorecharge_threshold: number;
-  autorecharge_qty: number;
-  store_prompts: boolean;
+  autorechargeThreshold: number;
+  autorechargeQty: number;
+  storePrompts: boolean;
 }
 
 export interface RechargeModelRequest {
-  user_id : string,
+  userId : string,
   quantity: number,
   type: string,
-  transaction_id: string
+  transactionId: string
 }
 
 export interface BillingEligibility {
-  user_id: string;
-  total_spending: number;
-  can_enable_monthly_billing: boolean;
-  minimum_spend_required: number;
-  remaining_spend_needed: number;
+  userId: string;
+  totalSpending: number;
+  canEnableMonthlyBilling: boolean;
+  minimumSpendRequired: number;
+  remainingSpendNeeded: number;
 }
 
 /**
@@ -37,7 +38,7 @@ export async function getUserBillingDetails(userID: string) {
     params: { id: userID },
   });
 
-  const billingDetails: BillingDetails[] = response.data;
+  const billingDetails = snakeToCamelObject<BillingDetails[]>(response.data);
   return billingDetails;
 }
 
@@ -101,11 +102,12 @@ export async function createRecharge(userID: string, credits: number, type: stri
     throw new Error("Invalid recharge amount");
   }
 
-  const rechargeData: RechargeModelRequest = {
-      user_id: userID,
+  // API expects snake_case
+  const rechargeData = {
+      userId: userID,
       quantity: credits,
       type: type,
-      transaction_id: transactionID
+      transactionId: transactionID
   }
 
   const response = await OrchestraAdminClient.post("/create_recharge", rechargeData);
@@ -119,7 +121,7 @@ export async function createRecharge(userID: string, credits: number, type: stri
  */
 export const getUserCards = async (userID: string) => {
   const response = await OrchestraAdminClient.get("credit_card_fingerprint", {
-    params: { user_id: userID },
+    params: { userId: userID },
   });
   return response.data;
 };
@@ -133,7 +135,7 @@ export const getUserCards = async (userID: string) => {
  */
 export const storeUserCard = async (userID: string, fingerprint: string) => {
   const response = await OrchestraAdminClient.post("credit_card_fingerprint", null, {
-    params: { user_id: userID, fingerprint },
+    params: { userId: userID, fingerprint },
   });
   return response.data;
 };
@@ -146,7 +148,7 @@ export const storeUserCard = async (userID: string, fingerprint: string) => {
  */
 export const isDuplicateCard = async (userID: string, fingerprint: string) => {
   const response = await OrchestraAdminClient.get("duplicated_credit_card_fingerprint", {
-    params: { user_id: userID, fingerprint },
+    params: { userId: userID, fingerprint },
   });
   return response.data;
 }
@@ -169,7 +171,7 @@ export async function getRecharges(
   quantity?: number,
   type?: string
 ) {
-  const params = new URLSearchParams({ user_id: userID });
+  const params = new URLSearchParams({ userId: userID });
 
   if (id !== undefined) params.append('id', id.toString());
   if (at !== undefined) params.append('at', at);
@@ -177,7 +179,7 @@ export async function getRecharges(
   if (type !== undefined) params.append('type', type);
 
   const response = await OrchestraAdminClient.get("/get_recharge", { params });
-  return response.data;
+  return response.data as any[];
 }
 
 /**
@@ -187,7 +189,7 @@ export async function getRecharges(
  */
 export async function getUserBillingEligibility(userID: string): Promise<BillingEligibility> {
   const response = await OrchestraAdminClient.get("/user_billing_eligibility", {
-    params: { user_id: userID },
+    params: { userId: userID },
   });
-  return response.data;
+  return snakeToCamelObject<BillingEligibility>(response.data);
 }

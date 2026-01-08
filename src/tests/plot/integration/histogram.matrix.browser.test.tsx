@@ -97,11 +97,11 @@ function defineHistogramTests(
 
     // Bin count
     const bins = result.getHistogramBins();
-    const isGrouped = !!plotConfig.group_by;
-    assertBinCountInRange(bins, plotConfig.bin_count, deterministicData.count, isGrouped, expectedGroupCount);
+    const isGrouped = !!plotConfig.groupBy;
+    assertBinCountInRange(bins, plotConfig.binCount, deterministicData.count, isGrouped, expectedGroupCount);
 
     // Bin dimensions
-    if (plotConfig.group_by) {
+    if (plotConfig.groupBy) {
       assertGroupedBinsValid(bins, expectedGroupCount);
     } else {
       assertBinsHaveValidDimensions(bins);
@@ -109,7 +109,7 @@ function defineHistogramTests(
     assertBinsWithinPlotArea(bins);
 
     // Non-grouped specific assertions
-    if (!plotConfig.group_by) {
+    if (!plotConfig.groupBy) {
       assertConsistentBinWidths(bins);
       assertBinsContiguous(bins);
       assertBinsCoverDataRange(bins);

@@ -2,7 +2,7 @@
  * Base FastAPI response format for endpoints that don't
  * explicitly return data. Can be:
  * { info : success_message } for successful responses, or
- * { detail: error_message } for unsuccessful responses
+ * { detail: errorMessage } for unsuccessful responses
 */
 export interface ResponseProps {
     [key: string]: string | any

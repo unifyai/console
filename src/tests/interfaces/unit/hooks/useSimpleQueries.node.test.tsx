@@ -37,7 +37,7 @@ describe('Simple Query Hooks', () => {
 
   describe('useListInterfacesQuery', () => {
     it('fetches interfaces successfully via direct fetch', async () => {
-      const mockInterfaces = [{ id: 'i1', name: 'Interface 1', project_id: 'p1' }];
+      const mockInterfaces = [{ id: 'i1', name: 'Interface 1', projectId: 'p1' }];
       
       // Mock the fetch response that useListInterfacesQuery uses
       mockFetch.mockResolvedValueOnce({
@@ -63,7 +63,7 @@ describe('Simple Query Hooks', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
       const fetchUrl = mockFetch.mock.calls[0][0] as string;
       expect(fetchUrl).toContain('/api/interface');
-      expect(fetchUrl).toContain('project_name=p1');
+      expect(fetchUrl).toContain('projectName=p1');
     });
 
     it('does not fetch if projectId is null', async () => {

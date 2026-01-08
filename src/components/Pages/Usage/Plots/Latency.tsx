@@ -12,8 +12,8 @@ import {
 
 function convertDataToNumericTimestamps(data: LatencyDataProps[]): {
   ts: number;
-  generation_time_p50: number;
-  generation_time_p95: number;
+  generationTimeP50: number;
+  generationTimeP95: number;
 }[] {
   return data.map((d) => ({
     ...d,
@@ -36,8 +36,8 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
         <ul className="list">
           {payload.map((entry: any, index: any) => {
             let quantile = "";
-            if (entry.dataKey === "generation_time_p50") quantile = "50th";
-            else if (entry.dataKey === "generation_time_p95") quantile = "95th";
+            if (entry.dataKey === "generationTimeP50") quantile = "50th";
+            else if (entry.dataKey === "generationTimeP95") quantile = "95th";
             return (
               <li key={`item-${index}`} style={{ color: entry.color }}>
                 {`${quantile} percentile: ${Math.round(entry.value)} ms`}
@@ -94,7 +94,7 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
         <Legend verticalAlign="top" height={36} />
         <Line
           type="monotone"
-          dataKey="generation_time_p50"
+          dataKey="generationTimeP50"
           stroke="var(--primary)"
           dot={false}
           name="50th Percentile"
@@ -102,7 +102,7 @@ export function LatencyPlot({ data }: { data: LatencyDataProps[] }) {
         />
         <Line
           type="monotone"
-          dataKey="generation_time_p95"
+          dataKey="generationTimeP95"
           stroke="var(--secondary)"
           dot={false}
           name="95th Percentile"

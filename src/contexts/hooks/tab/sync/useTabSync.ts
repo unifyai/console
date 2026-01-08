@@ -94,8 +94,8 @@ export function useTabSync(
 
   // Helper to perform bulk tile patches with graceful fallback
   const bulkPatchTiles = async (
-    updates: Array<{ id?: string; tab_id?: string; name?: string; updateData: Record<string, any> }>
-  ): Promise<{ results: any[]; errors: Array<{ id?: string; tab_id?: string; name?: string; error: string }> }> => {
+    updates: Array<{ id?: string; tabId?: string; name?: string; updateData: Record<string, any> }>
+  ): Promise<{ results: any[]; errors: Array<{ id?: string; tabId?: string; name?: string; error: string }> }> => {
     if (!updates.length) return { results: [], errors: [] };
 
     // Fallback to per-item path if bulk disabled or tileActions missing
@@ -104,8 +104,8 @@ export function useTabSync(
         try {
           if (u.id) {
             await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
-          } else if (u.tab_id && u.name) {
-            await patchTileMutation.mutateAsync({ tab_id: u.tab_id, name: u.name, updateData: u.updateData, actions: tileActions! });
+          } else if (u.tabId && u.name) {
+            await patchTileMutation.mutateAsync({ tabId: u.tabId, name: u.name, updateData: u.updateData, actions: tileActions! });
           }
         } catch {}
       }
@@ -122,7 +122,7 @@ export function useTabSync(
       const data = await res.json().catch(() => ({ results: [], errors: [{ error: 'Invalid response' }] }));
       if (!res.ok) throw new Error(data?.detail || `Bulk ${res.status}`);
       perfEnd(p, { results: data?.results?.length ?? 0, errors: data?.errors?.length ?? 0 });
-      return data as { results: any[]; errors: Array<{ id?: string; tab_id?: string; name?: string; error: string }> };
+      return data as { results: any[]; errors: Array<{ id?: string; tabId?: string; name?: string; error: string }> };
     } catch (e: any) {
       perfEnd(perfStart('bulkPatchTiles:error'), { error: true });
       // On bulk failure, fallback per-item
@@ -130,8 +130,8 @@ export function useTabSync(
         try {
           if (u.id) {
             await patchTileMutation.mutateAsync({ id: u.id, updateData: u.updateData, actions: tileActions! });
-          } else if (u.tab_id && u.name) {
-            await patchTileMutation.mutateAsync({ tab_id: u.tab_id, name: u.name, updateData: u.updateData, actions: tileActions! });
+          } else if (u.tabId && u.name) {
+            await patchTileMutation.mutateAsync({ tabId: u.tabId, name: u.name, updateData: u.updateData, actions: tileActions! });
           }
         } catch {}
       }
@@ -160,20 +160,20 @@ export function useTabSync(
 
     const touchesTableData =
       ('context' in updateData) ||
-      ('column_context' in updateData) ||
+      ('columnContext' in updateData) ||
       ('filters' in updateData) ||
-      ('common_filter' in updateData) ||
+      ('commonFilter' in updateData) ||
       ('grouping' in updateData) ||
       ('metric' in updateData) ||
-      ('table_tile' in updateData) ||
-      ('auto_update' in updateData);
+      ('tableTile' in updateData) ||
+      ('autoUpdate' in updateData);
 
     const touchesPlotData =
       ('context' in updateData) ||
-      ('column_context' in updateData) ||
+      ('columnContext' in updateData) ||
       ('metric' in updateData) ||
       ('grouping' in updateData) ||
-      ('plot_tile' in updateData);
+      ('plotTile' in updateData);
 
     const nextType = (updateData as any)?.type as string | undefined;
     const effectiveType = nextType || priorType || undefined;
@@ -249,11 +249,11 @@ export function useTabSync(
         createRetryAttemptsRef.current[tileId] = attempts + 1;
         createRetryTimersRef.current[tileId] = setTimeout(() => {
           createTileMutation.mutate({
-            tab_id: tabId,
+            tabId: tabId,
             name: tileName,
             position: position || { x: 0, y: 0, width: 4, height: 4 },
             data: safeInitialState,
-            tile_id: tileId,
+            tileId: tileId,
             actions: tileActions
           }, {
             onSuccess: () => {
@@ -273,11 +273,11 @@ export function useTabSync(
 
       // Kick off create with retry handlers
       createTileMutation.mutate({
-        tab_id: tabId,
+        tabId: tabId,
         name: tileName,
         position: position || { x: 0, y: 0, width: 4, height: 4 },
         data: safeInitialState,
-        tile_id: tileId,
+        tileId: tileId,
         actions: tileActions
       }, {
         onSuccess: () => {
@@ -332,17 +332,17 @@ export function useTabSync(
       updatesMap.set(id, { ...prev, table: newTileName });
     });
 
-    // Plot axes and group_by
-    const mergePlotUpdate = (id: string, key: 'x_axis' | 'y_axis' | 'plot_group_by') => {
+    // Plot axes and groupBy
+    const mergePlotUpdate = (id: string, key: 'xAxis' | 'yAxis' | 'plotGroupBy') => {
       const tile = tabDataActions.getPartialTile(id);
       if (!tile?.plotTile) return;
       const prev = updatesMap.get(id) || {};
-      const prevPlot = (prev as any).plot_tile || {};
-      updatesMap.set(id, { ...prev, plot_tile: { ...prevPlot, [key]: (tile.plotTile as any)[key] } });
+      const prevPlot = (prev as any).plotTile || {};
+      updatesMap.set(id, { ...prev, plotTile: { ...prevPlot, [key]: (tile.plotTile as any)[key] } });
     };
-    referencedPlotTileIds.xAxis.forEach((id) => mergePlotUpdate(id, 'x_axis'));
-    referencedPlotTileIds.yAxis.forEach((id) => mergePlotUpdate(id, 'y_axis'));
-    referencedPlotTileIds.plotGroupBy.forEach((id) => mergePlotUpdate(id, 'plot_group_by'));
+    referencedPlotTileIds.xAxis.forEach((id) => mergePlotUpdate(id, 'xAxis'));
+    referencedPlotTileIds.yAxis.forEach((id) => mergePlotUpdate(id, 'yAxis'));
+    referencedPlotTileIds.plotGroupBy.forEach((id) => mergePlotUpdate(id, 'plotGroupBy'));
 
     const updates = Array.from(updatesMap.entries()).map(([id, updateData]) => ({ id, updateData }));
 
@@ -400,8 +400,8 @@ export function useTabSync(
       });
     });
 
-    // 4) Update x_axis, y_axis, and plot_group_by references for Plot tiles
-    // Update x_axis references
+    // 4) Update xAxis, yAxis, and plotGroupBy references for Plot tiles
+    // Update xAxis references
     referencedPlotTileIds.xAxis.forEach(id => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
@@ -409,8 +409,8 @@ export function useTabSync(
         patchTileMutation.mutate({
           id: id,
         updateData: {
-          plot_tile: {
-            x_axis: null
+          plotTile: {
+            xAxis: null
           }
         },
           actions: tileActions
@@ -418,7 +418,7 @@ export function useTabSync(
       }
     });
 
-    // Update y_axis references
+    // Update yAxis references
     referencedPlotTileIds.yAxis.forEach(id => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
@@ -426,8 +426,8 @@ export function useTabSync(
         patchTileMutation.mutate({
           id: id,
         updateData: {
-          plot_tile: {
-            y_axis: null
+          plotTile: {
+            yAxis: null
           }
         },
           actions: tileActions
@@ -435,7 +435,7 @@ export function useTabSync(
       }
     });
 
-    // Update plot_group_by references
+    // Update plotGroupBy references
     referencedPlotTileIds.plotGroupBy.forEach(id => {
       // Get the tile
       const tile = tabDataActions.getPartialTile(id);
@@ -443,8 +443,8 @@ export function useTabSync(
         patchTileMutation.mutate({
           id: id,
         updateData: {
-          plot_tile: {
-            plot_group_by: null
+          plotTile: {
+            plotGroupBy: null
           }
           },
           actions: tileActions
@@ -507,11 +507,11 @@ export function useTabSync(
       });
       
       // Convert source tile data to a clean object without excluded properties
-      const { id, tab_id, name, position, type, ...cleanSourceData } = sourceTileData;
+      const { id, tabId: _sourceTabId, name, position, type, ...cleanSourceData } = sourceTileData;
       
-      // Create the tile on the server with the generated UUID
+      // Create the tile on the server with the generated UUID (use outer tabId which is guaranteed non-null)
       const result = await createTileMutation.mutateAsync({
-        tab_id: tabId,
+        tabId: tabId!,
         name: newTileName,
         position: position || {
           x: 0,
@@ -520,7 +520,7 @@ export function useTabSync(
           height: 4
         },
         data: cleanSourceData,
-        tile_id: newTileId,
+        tileId: newTileId,
         type: type,
         actions: tileActions
       });
@@ -614,17 +614,17 @@ export function useTabSync(
     });
 
     // Build bulk updates for tiles that use this context
-    const updates: Array<{ id?: string; tab_id?: string; name?: string; updateData: Record<string, any> }> = [];
+    const updates: Array<{ id?: string; tabId?: string; name?: string; updateData: Record<string, any> }> = [];
     tileIds.forEach((id: string, idx: number) => {
       const name = tileNames[idx];
       if (!name) return;
       const tile = tabDataActions.getPartialTile(name);
       if (!tile) return;
 
-      const updateData: { context?: string; column_context?: string } = {};
+      const updateData: { context?: string; columnContext?: string } = {};
       let needsUpdate = false;
       if (tile.context === context) { updateData.context = ""; needsUpdate = true; }
-      if (tile.column_context === context) { updateData.column_context = ""; needsUpdate = true; }
+      if (tile.columnContext === context) { updateData.columnContext = ""; needsUpdate = true; }
       if (needsUpdate) {
         updates.push({ id, updateData });
       }
@@ -732,14 +732,14 @@ export function useTabSync(
       setPending = true;
       setLoading = true;
     }
-    else if (("table_type" in updateData) || ("context" in updateData) || ("column_context" in updateData)) {
+    else if (("tableType" in updateData) || ("context" in updateData) || ("columnContext" in updateData)) {
       // Check if the tile is a table tile or a plot tile
       if (tile?.type === "Table" || tile?.type === "Plot") {
         reload = true;
         setLoading = true;
       }
     }
-    else if ("auto_update" in updateData) {
+    else if ("autoUpdate" in updateData) {
       // Check if the tile is a table tile or a plot tile
       const tile = tabDataActions.getPartialTile(tileId);
       if (tile?.type === "Table" || tile?.type === "Plot") {
@@ -876,7 +876,7 @@ export function useTabSync(
     updateTileMutation.mutate({
       id: tileId,
       data: {
-        table_tile: updateData
+        tableTile: updateData
       },
       actions: tileActions
     });

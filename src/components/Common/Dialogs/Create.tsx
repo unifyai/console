@@ -53,9 +53,9 @@ export default function CreateDialog ({ type, creationFunction, CreateSchema, fo
     };
 
     // Dialog state and content 
-    const [open_, setOpen_] = useState(false);
-    const open = customOpen == undefined ? open_ : customOpen;
-    const setOpen = setCustomOpen == undefined ? setOpen_ : setCustomOpen;
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = customOpen == undefined ? internalOpen : customOpen;
+    const setOpen = setCustomOpen == undefined ? setInternalOpen : setCustomOpen;
     const onOpen = () => {
         setOpen(!open);
     }

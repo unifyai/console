@@ -16,8 +16,8 @@ interface PresetListItemProps {
 export function PresetListItem({ preset, onSelect, isFastMode }: PresetListItemProps) {
   const [loadingStatus, setLoadingStatus] = React.useState<ImageLoadingStatus>("loading");
 
-  const displayName = `${preset.first_name} ${preset.surname}`;
-  const fallback = `${preset.first_name?.[0] ?? ''}${preset.surname?.[0] ?? ''}`.toUpperCase();
+  const displayName = `${preset.firstName} ${preset.surname}`;
+  const fallback = `${preset.firstName?.[0] ?? ''}${preset.surname?.[0] ?? ''}`.toUpperCase();
 
   const handleLoadingStatusChange = (status: ImageLoadingStatus) => {
     setLoadingStatus(status);
@@ -35,7 +35,7 @@ export function PresetListItem({ preset, onSelect, isFastMode }: PresetListItemP
           <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
         )}
         <AvatarImage
-          src={preset.profile_photo ?? undefined}
+          src={preset.profilePhoto ?? undefined}
           alt={displayName}
           onLoadingStatusChange={handleLoadingStatusChange}
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded
@@ -43,7 +43,7 @@ export function PresetListItem({ preset, onSelect, isFastMode }: PresetListItemP
         <AvatarFallback
           className={cn(
             // Ensure fallback is visible only when needed (loading, error, or idle without src)
-             (loadingStatus === 'loading' || loadingStatus === 'error' || !preset.profile_photo) ? 'opacity-100' : 'opacity-0'
+             (loadingStatus === 'loading' || loadingStatus === 'error' || !preset.profilePhoto) ? 'opacity-100' : 'opacity-0'
           )}
         >
           {fallback}

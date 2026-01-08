@@ -106,7 +106,7 @@ const InterfaceTabs = ({
 
     // Get tileIds from tab data properly
     const tileIds = useMemo(() => tabDataState?.tileIds || [], [tabDataState?.tileIds]);
-    const tiles = useTiles(tileIds, ["name", "type", "tableTile", "visible", "id", "context", "column_context"]);
+    const tiles = useTiles(tileIds, ["name", "type", "tableTile", "visible", "id", "context", "columnContext"]);
 
     // Calculate derived state
     const items = useMemo(() => {
@@ -146,7 +146,7 @@ const InterfaceTabs = ({
                     // Update the tile's context
                     syncedTabDataActions?.updateTile(tile.id || "", {
                         context: newContext,
-                        column_context: validItemContext ? item.column_context : undefined
+                        columnContext: validItemContext ? item.columnContext : undefined
                     });
                 }
             });

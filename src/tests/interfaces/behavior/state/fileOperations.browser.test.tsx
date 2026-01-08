@@ -239,8 +239,8 @@ describe('P3-K: File Operations (Real Component)', () => {
   // ==========================================================================
   describe('K4: Column type mapping', () => {
     const sampleData: ParsedRow[] = [
-      { user_id: 'u1', prompt: 'Hello', response: 'Hi' },
-      { user_id: 'u2', prompt: 'Bye', response: 'Goodbye' },
+      { userId: 'u1', prompt: 'Hello', response: 'Hi' },
+      { userId: 'u2', prompt: 'Bye', response: 'Goodbye' },
     ];
 
     it('defaults all columns to entry type (switch on)', async () => {
@@ -255,7 +255,7 @@ describe('P3-K: File Operations (Real Component)', () => {
       }, { timeout: 2000 });
 
       // All columns should default to entry (switch checked)
-      expect(result.getColumnType('user_id')).toBe('entry');
+      expect(result.getColumnType('userId')).toBe('entry');
       expect(result.getColumnType('prompt')).toBe('entry');
       expect(result.getColumnType('response')).toBe('entry');
     });
@@ -271,11 +271,11 @@ describe('P3-K: File Operations (Real Component)', () => {
         expect(result.getDisplayedHeaders().length).toBeGreaterThan(0);
       }, { timeout: 2000 });
 
-      // Toggle user_id to param
-      await result.toggleColumnType('user_id');
+      // Toggle userId to param
+      await result.toggleColumnType('userId');
 
       await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('param');
+        expect(result.getColumnType('userId')).toBe('param');
       });
     });
 
@@ -291,15 +291,15 @@ describe('P3-K: File Operations (Real Component)', () => {
       }, { timeout: 2000 });
 
       // Toggle to param
-      await result.toggleColumnType('user_id');
+      await result.toggleColumnType('userId');
       await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('param');
+        expect(result.getColumnType('userId')).toBe('param');
       });
 
       // Toggle back to entry
-      await result.toggleColumnType('user_id');
+      await result.toggleColumnType('userId');
       await waitFor(() => {
-        expect(result.getColumnType('user_id')).toBe('entry');
+        expect(result.getColumnType('userId')).toBe('entry');
       });
     });
 
@@ -317,7 +317,7 @@ describe('P3-K: File Operations (Real Component)', () => {
 
       // Check that switches exist for each column
       const switches = screen.getAllByRole('switch');
-      expect(switches.length).toBe(3); // user_id, prompt, response
+      expect(switches.length).toBe(3); // userId, prompt, response
     });
   });
 

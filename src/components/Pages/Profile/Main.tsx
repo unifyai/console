@@ -18,7 +18,7 @@ const Main = async ({user, onPrem}: {
               <div className="flex flex-col gap-2 mt-4">
                 <p className="text-title">Grab or update your API key</p>
                 <UnifyKey 
-                    initialApiKey={user.api_key} 
+                    initialApiKey={user.apiKey} 
                     userId={user.id}
                     onPrem={onPrem} 
                 />

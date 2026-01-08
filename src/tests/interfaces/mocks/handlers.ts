@@ -25,7 +25,7 @@ export const interfaceHandlers = [
         {
           id: mockInterface.id,
           name: mockInterface.name,
-          project_id: mockInterface.projectId,
+          projectId: mockInterface.projectId,
         },
       ],
     });
@@ -38,7 +38,7 @@ export const interfaceHandlers = [
         {
           id: mockTab.id,
           name: mockTab.name,
-          interface_id: mockTab.interfaceId,
+          interfaceId: mockTab.interfaceId,
         },
       ],
     });

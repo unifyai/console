@@ -25,7 +25,7 @@ const PlotScale = ({interactive = true, plotType, scaleX, scaleY, setScaleX, set
     // Check available options depending on data type and values
     let [optionsY, optionsX] = [["linear"], ["linear"]]
     if (logScaleYEnabled) optionsY.push("log")
-    if (selectedXAxisProperty && fields[selectedXAxisProperty] && !["float", "int"].includes(fields[selectedXAxisProperty].data_type))
+    if (selectedXAxisProperty && fields[selectedXAxisProperty] && !["float", "int"].includes(fields[selectedXAxisProperty].dataType))
         console.log("X axis non numeric. Cannot set logarithmic scale.")
     else
         if (logScaleXEnabled) optionsX.push("log")
@@ -89,7 +89,7 @@ const PlotScale = ({interactive = true, plotType, scaleX, scaleY, setScaleX, set
                             {!disabled && options.map((option) => (
                                 <Button
                                     key={option}
-                                    variant={scale === option ? "primary" : "list_item"}
+                                    variant={scale === option ? "primary" : "listItem"}
                                     size="lg"
                                     className="w-full justify-start h-auto py-1 text-md"
                                     onClick={() => onSelect(option, setScale)}

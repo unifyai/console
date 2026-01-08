@@ -73,7 +73,7 @@ const MemberRow = ({
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
 
-  const isSelf = member.user_id === currentUserId;
+  const isSelf = member.userId === currentUserId;
   const currentRoleName = member.role || "Member";
   const badgeColor = getRoleBadgeColor(currentRoleName);
   
@@ -202,8 +202,8 @@ const MemberRow = ({
                                                         value={member.roleId ? String(member.roleId) : undefined} 
                                                         onValueChange={(val) => {
                                                             const selectedRole = roles.find(r => String(r.id) === val);
-                                                            if (selectedRole && member.user_id) {
-                                                                onUpdateRole(member.user_id, selectedRole.id, selectedRole.name);
+                                                            if (selectedRole && member.userId) {
+                                                                onUpdateRole(member.userId, selectedRole.id, selectedRole.name);
                                                             }
                                                         }}
                                                     >
@@ -231,8 +231,8 @@ const MemberRow = ({
                                     
                                     {(canManageMembers || isOrgOwner) && <DropdownMenuSeparator />}
                                     
-                                    {canManageMembers && member.user_id && (
-                                        <DropdownMenuItem onClick={() => onRemove(member.user_id!)}>
+                                    {canManageMembers && member.userId && (
+                                        <DropdownMenuItem onClick={() => onRemove(member.userId!)}>
                                             <LogOut className="mr-2 h-4 w-4" />
                                             <span>Remove Member</span>
                                         </DropdownMenuItem>
@@ -259,7 +259,7 @@ const MemberRow = ({
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={() => {
-                    if (member.user_id) onTransferOwnership(member.user_id); 
+                    if (member.userId) onTransferOwnership(member.userId); 
                     setIsTransferDialogOpen(false);
                 }} className="bg-destructive hover:bg-destructive/90">
                     Proceed
@@ -279,7 +279,7 @@ const MemberRow = ({
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={() => {
-                    if (member.user_id) onRemove(member.user_id); 
+                    if (member.userId) onRemove(member.userId); 
                     setIsLeaveDialogOpen(false);
                 }} className="bg-destructive hover:bg-destructive/90">
                     Leave

@@ -97,12 +97,12 @@ function defineLineTests(
     assertLineSegmentCount(linePath, deterministicData);
 
     // Non-grouped: line passes through data points
-    if (!plotConfig.group_by) {
+    if (!plotConfig.groupBy) {
       assertLinePassesThroughPoints(
         linePath,
         deterministicData,
-        plotConfig.scale_x as 'linear' | 'log',
-        plotConfig.scale_y as 'linear' | 'log'
+        plotConfig.scaleX as 'linear' | 'log',
+        plotConfig.scaleY as 'linear' | 'log'
       );
     }
 
@@ -116,7 +116,7 @@ function defineLineTests(
     }
 
     // Grouped: multiple lines with different colors
-    if (plotConfig.group_by) {
+    if (plotConfig.groupBy) {
       const plotData = result.getPlotDataGroup();
       const paths = plotData?.querySelectorAll('path.line-item') ?? [];
       expect(paths.length).toBeGreaterThan(1);

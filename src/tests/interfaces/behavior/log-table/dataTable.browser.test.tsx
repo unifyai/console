@@ -1448,7 +1448,7 @@ describe('P1-B: Log Table - Advanced', () => {
 
       // Our mock data includes: message (string), status (string), 
       // user (string), score (number), latency_ms (number), 
-      // is_active (boolean), created_at (timestamp)
+      // is_active (boolean), createdAt (timestamp)
       const cells = screen.getAllByRole('cell');
       
       // Should have cells with different data types

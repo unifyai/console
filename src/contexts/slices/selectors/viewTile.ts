@@ -9,7 +9,7 @@ export interface ViewTileMeta {
 
 // View tile data - business data 
 export interface ViewTileData {
-  base_index?: string | null;     // Base index for the table
+  baseIndex?: string | null;     // Base index for the table
 }
 
 // View tile UI - UI-related state
@@ -22,7 +22,7 @@ export type ViewTile = ViewTileMeta & ViewTileData & ViewTileUI;
 
 // viewKeys: all keys that are used in `asTileItem` in `useTile` hook to convert
 // a ViewTile into a TileProps
-export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["base_index"];
+export const VIEW_TILE_PROPS_KEYS_AS_VIEW_TILE_KEYS: (keyof ViewTile)[] = ["baseIndex"];
 
 // viewTileKeys: all fields for ViewTile
 export const VIEW_TILE_KEYS: (keyof ViewTile)[] = [
@@ -38,7 +38,7 @@ export function initViewTile(
 ): ViewTile {
   return {
     // Data
-    base_index: initialState.base_index !== undefined ? initialState.base_index : null,
+    baseIndex: initialState.baseIndex !== undefined ? initialState.baseIndex : null,
 
     ...initialState,
   } as ViewTile;

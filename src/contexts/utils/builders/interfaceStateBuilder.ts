@@ -31,8 +31,8 @@ export function buildInterfaceState(
   
   // Create interface UI
   const interfaceUI: InterfaceUI = {
-    projectId: interfaceData.project_id || null,
-    activeTabId: activeTabId || interfaceData.active_tab_id || null,
+    projectId: interfaceData.projectId || null,
+    activeTabId: activeTabId || interfaceData.activeTabId || null,
   };
   
   return {

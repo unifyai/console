@@ -21,8 +21,8 @@ export type UnifyUserMessageContent =
   | UnifyUserMessageImageContent;
 
 export interface UnifyUserMessageImageContent {
-  type: 'image_url';
-  image_url: string;
+  type: 'imageUrl';
+  imageUrl: string;
 }
 
 export interface UnifyUserMessageTextContent {
@@ -34,7 +34,7 @@ export interface UnifyAssistantMessage {
   role: 'assistant';
   content: string;
   prefix?: boolean;
-  tool_calls?: Array<{
+  toolCalls?: Array<{
     id: string;
     type: 'function';
     function: { name: string; arguments: string };
@@ -45,5 +45,5 @@ export interface UnifyToolMessage {
   role: 'tool';
   name: string;
   content: string;
-  tool_call_id: string;
+  toolCallId: string;
 }

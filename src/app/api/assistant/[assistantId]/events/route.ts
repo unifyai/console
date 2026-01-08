@@ -26,10 +26,10 @@ async function getAuthClient() {
     const auth = new GoogleAuth({
         credentials,
         scopes: ['https://www.googleapis.com/auth/pubsub'],
-        projectId: credentials.project_id
+        projectId: credentials.projectId
     });
 
-    return { client: await auth.getClient(), projectId: credentials.project_id };
+    return { client: await auth.getClient(), projectId: credentials.projectId };
 }
 
 export async function GET(
@@ -124,7 +124,7 @@ export async function GET(
                         try {
                             const rawData = Buffer.from(message.data, 'base64').toString('utf-8');
                             let payload: any = {};
-                            try { payload = JSON.parse(rawData); } catch (e) { payload = { raw_content: rawData }; }
+                            try { payload = JSON.parse(rawData); } catch (e) { payload = { rawContent: rawData }; }
 
                             // Inject ID/Time and ackId so client can ACK after render
                             const serverId = message.messageId;

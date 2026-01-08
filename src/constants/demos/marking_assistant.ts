@@ -25,7 +25,7 @@ unify.create_logs(entries=usage_data)
 `,
     // Granular interface structure
     interface: {
-        project_id: "MarkingAssistant",
+        projectId: "MarkingAssistant",
         name: "interface1"
     },
     // Tab structure
@@ -47,8 +47,8 @@ unify.create_logs(entries=usage_data)
                 height: 8.0
             },
             context: "Usage",
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -61,8 +61,8 @@ unify.create_logs(entries=usage_data)
                 height: 8.0
             },
             table: "Table",
-            view_tile: {}
+            viewTile: {}
         }
     ],
-    new_counter: 1
+    newCounter: 1
 }

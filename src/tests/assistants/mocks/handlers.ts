@@ -38,7 +38,7 @@ export const listAssistantEmailsHandler = http.get('/api/contact/email', () => {
 
 export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
     const url = new URL(request.url);
-    const filterExpr = url.searchParams.get('filter_expr') || '';
+    const filterExpr = url.searchParams.get('filterExpr') || '';
     const context = url.searchParams.get('context');
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);
     if (context?.includes('FailPagination') && filterExpr.includes('message_id <')) {
@@ -53,16 +53,16 @@ export const getTranscriptsHandler = http.get('/api/logs', ({ request }) => {
             id: id,
             timestamp: new Date(Date.now() - (TOTAL_MESSAGES - id) * 1000 * 60).toISOString(),
             entries: { 
-                sender_id: id % 2 === 0 ? 0 : 1,
+                senderId: id % 2 === 0 ? 0 : 1,
                 content: `Message ${id}`, 
                 medium: 'unify_message',
-                message_id: id 
+                messageId: id 
             }
         };
     }).reverse();
     let filteredLogs = allLogs;
     if (beforeId !== null) {
-        filteredLogs = filteredLogs.filter(log => log.entries.message_id < beforeId);
+        filteredLogs = filteredLogs.filter(log => log.entries.messageId < beforeId);
     }
     const page = filteredLogs.slice(0, limit);
     return HttpResponse.json({ logs: page });

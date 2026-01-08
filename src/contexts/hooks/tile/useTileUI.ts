@@ -13,7 +13,7 @@ export interface TileUIActions {
   setLoading: (loading?: boolean) => void;
   setError: (error?: string | null) => void;
   setMoved: (moved?: boolean) => void;
-  setStatic: (static_?: boolean) => void;
+  setStatic: (staticValue?: boolean) => void;
   setColor: (color?: string) => void;
 }
 
@@ -66,7 +66,7 @@ export function useTileUI(
     return !!state.tilesById[tileId].moved;
   });
   
-  const static_ = useStoreContext(state => {
+  const isStatic = useStoreContext(state => {
     if (!tileExists || !tileId) return false;
     return !!state.tilesById[tileId].static;
   });
@@ -91,7 +91,7 @@ export function useTileUI(
       loading,
       error,
       moved,
-      static: static_,
+      static: isStatic,
       color
     };
   }, [
@@ -103,7 +103,7 @@ export function useTileUI(
     loading,
     error,
     moved,
-    static_,
+    isStatic,
     color
   ]);
 
@@ -145,9 +145,9 @@ export function useTileUI(
       }
     },
     
-    setStatic: (static_) => {
+    setStatic: (staticValue) => {
       if (tileId) {
-        storeUpdateTile(tileId, { static: static_ });
+        storeUpdateTile(tileId, { static: staticValue });
       }
     },
     

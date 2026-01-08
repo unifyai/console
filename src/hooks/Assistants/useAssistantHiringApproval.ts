@@ -33,8 +33,8 @@ export function useAssistantHiringApproval({
             setHasClaimedLink(false); 
         } else {
             const profile = response as HiringProfileData;
-            setApprovalStatus(profile.assistant_hiring_approval as ApprovalStatus);
-            setHasClaimedLink(profile.has_claimed_approval_link);
+            setApprovalStatus(profile.assistantHiringApproval as ApprovalStatus);
+            setHasClaimedLink(profile.hasClaimedApprovalLink);
         }
     }, []);
 
@@ -44,8 +44,8 @@ export function useAssistantHiringApproval({
     
 
     const processApiResponse = (response: AssistantHiringApprovalResponse, successMessage: string, operation: "request" | "claim") => {
-        if (response.assistant_hiring_approval !== undefined) {
-            setApprovalStatus(response.assistant_hiring_approval as ApprovalStatus);
+        if (response.assistantHiringApproval !== undefined) {
+            setApprovalStatus(response.assistantHiringApproval as ApprovalStatus);
             toast.success(response.message || successMessage);
             if (operation === "claim") {
                 setHasClaimedLink(true); 
@@ -66,7 +66,7 @@ export function useAssistantHiringApproval({
         const response = await approvalActions.requestAccess();
         setIsProcessingAction(false);
         const success = processApiResponse(response, "Access request submitted.", "request");
-        if (success && response.assistant_hiring_approval === "pending"){
+        if (success && response.assistantHiringApproval === "pending"){
         } else if (success) {
             await loadHiringProfile(); // Re-fetch if status change isn't just to pending
         }

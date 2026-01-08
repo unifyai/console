@@ -61,8 +61,8 @@ describe('Plot API - Authentication', () => {
 
     const response = await createPlotRequest(
       {
-        project_config: { project_name: TEST_PROJECT },
-        plot_config: { x_axis: 'x', y_axis: 'y' },
+        projectConfig: { projectName: TEST_PROJECT },
+        plotConfig: { xAxis: 'x', yAxis: 'y' },
       },
       { apiKey: null }
     );
@@ -78,8 +78,8 @@ describe('Plot API - Authentication', () => {
 
     const response = await createPlotRequest(
       {
-        project_config: { project_name: TEST_PROJECT },
-        plot_config: { x_axis: 'x', y_axis: 'y' },
+        projectConfig: { projectName: TEST_PROJECT },
+        plotConfig: { xAxis: 'x', yAxis: 'y' },
       },
       { apiKey: '' }
     );
@@ -93,8 +93,8 @@ describe('Plot API - Authentication', () => {
     }
 
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      projectConfig: { projectName: TEST_PROJECT },
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(201);
@@ -108,38 +108,38 @@ describe('Plot API - Authentication', () => {
 // =============================================================================
 
 describe('Plot API - Input Validation', () => {
-  it('rejects requests without project_config', async () => {
+  it('rejects requests without projectConfig', async () => {
     const response = await createPlotRequest({
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('project_config');
+    expect(response.data.error).toContain('projectConfig');
   });
 
-  it('rejects requests without project_name', async () => {
+  it('rejects requests without projectName', async () => {
     const response = await createPlotRequest({
-      project_config: {},
-      plot_config: { x_axis: 'x', y_axis: 'y' },
+      projectConfig: {},
+      plotConfig: { xAxis: 'x', yAxis: 'y' },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('project_name');
+    expect(response.data.error).toContain('projectName');
   });
 
-  it('rejects requests without plot_config or description', async () => {
+  it('rejects requests without plotConfig or description', async () => {
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
+      projectConfig: { projectName: TEST_PROJECT },
     });
 
     expect(response.status).toBe(400);
-    expect(response.data.error).toContain('plot_config');
+    expect(response.data.error).toContain('plotConfig');
   });
 
   it.skipIf(PLOT_TEST_API_REAL)('accepts requests with description (LLM mode)', async () => {
     // Skip for real API - requires LLM credits
     const response = await createPlotRequest({
-      project_config: { project_name: TEST_PROJECT },
+      projectConfig: { projectName: TEST_PROJECT },
       description: 'Show me a scatter plot of accuracy vs loss',
     });
 

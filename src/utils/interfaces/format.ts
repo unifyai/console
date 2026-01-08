@@ -71,8 +71,8 @@ export function timeValueToTime (value: string) {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes), parseInt(seconds));
 }
 
-export function formatTimeTypeValue(value: number, data_type: string) {
-    switch (data_type) {
+export function formatTimeTypeValue(value: number, dataType: string) {
+    switch (dataType) {
         case "timestamp":
             return new Date(value).toISOString().replace("Z", "").replace("T", " ")
         case "time":

@@ -144,8 +144,8 @@ const chatWithEndpoint = async function* (key: string, endpoint: Endpoint, chatH
             provider: lastChunk.provider,
             latency: timeToFirstToken,
             throughput: timeToCompletion !== undefined
-                && lastChunk.usage?.total_tokens !== undefined
-                ? lastChunk.usage?.total_tokens / (timeToCompletion / 1000)
+                && lastChunk.usage?.totalTokens !== undefined
+                ? lastChunk.usage?.totalTokens / (timeToCompletion / 1000)
                 : undefined,
             cost: lastChunk.usage?.cost,
         } : undefined,
@@ -198,12 +198,12 @@ export const chat = streamResponse(async function* ({ key, message, endpoints, p
             stream: streamParam,
             messages: parameters.modelInputs!.messages
         };
-        // if (maxTokensParam) modelInputsParams["max_tokens"] = parameters.modelInputs!.max_tokens;
-        // if (maxCompletionTokensParam) modelInputsParams["max_completion_tokens"] = parameters.modelInputs!.max_tokens;
+        // if (maxTokensParam) modelInputsParams["maxTokens"] = parameters.modelInputs!.maxTokens;
+        // if (maxCompletionTokensParam) modelInputsParams["max_completion_tokens"] = parameters.modelInputs!.maxTokens;
 
         // Remove max tokens from model args for openai models
-        const { max_tokens: _, temperature: __, ...otherModelArguments } = parameters.modelArguments;
-        // const modelArgumentsParams = maxTokensParam ? {...otherModelArguments, max_tokens: parameters.modelArguments.max_tokens} : {...otherModelArguments};
+        const { maxTokens: _maxTokens, temperature: _temp, ...otherModelArguments } = parameters.modelArguments;
+        // const modelArgumentsParams = maxTokensParam ? {...otherModelArguments, maxTokens: parameters.modelArguments.maxTokens} : {...otherModelArguments};
         const modelArgumentsParams = { ...otherModelArguments };
 
         const params = {

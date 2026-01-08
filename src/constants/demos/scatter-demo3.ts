@@ -4,7 +4,7 @@ export default {
     description: "If we want to group across multiple independent variables, we can just create a new derived column to express the desired group.",
     // Granular interface structure
     interface: {
-        project_id: "scatter-demo3",
+        projectId: "scatter-demo3",
         name: "interface1"
     },
     // Tab structure
@@ -25,8 +25,8 @@ export default {
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -38,23 +38,23 @@ export default {
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                plot_type: "Scatter",
-                x_axis: "Table.age",
-                y_axis: "Table.salary",
-                plot_group_by: "Table.identity",
-                regression_line: "true"
+            plotTile: {
+                plotType: "Scatter",
+                xAxis: "Table.age",
+                yAxis: "Table.salary",
+                plotGroupBy: "Table.identity",
+                regressionLine: "true"
             }
         }
     ],
-    new_counter: 2,
-    derived_columns: {
+    newCounter: 2,
+    derivedColumns: {
         project: "scatter-demo3",
         key: "identity",
         equation: "{Table:gender} + {Table:nationality}",
-        referenced_logs: {
+        referencedLogs: {
             Table: {
-                filter_expr: ""
+                filterExpr: ""
             }
         }
     },

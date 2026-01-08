@@ -99,7 +99,7 @@ export function useTabStreamingQuery(
         const headers: HeadersInit = {};
         const et = tabsEtagMap.get(interfaceId);
         if (et) (headers as any)['If-None-Match'] = et;
-        const res = await fetch(`/api/tab?interface_id=${encodeURIComponent(interfaceId)}&checkpoint=false`, {
+        const res = await fetch(`/api/tab?interfaceId=${encodeURIComponent(interfaceId)}&checkpoint=false`, {
           method: "GET",
           signal: signal as AbortSignal,
           cache: "no-store",

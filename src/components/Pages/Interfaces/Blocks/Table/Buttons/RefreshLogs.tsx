@@ -37,7 +37,7 @@ const RefreshLogs = ({
   projectsActions: ProjectsActions,
   contextActions: ContextActions,
   fieldsActions: FieldsActions,
-  /** Callback to trigger data refetch - used when auto_update is OFF */
+  /** Callback to trigger data refetch - used when autoUpdate is OFF */
   onRefresh?: () => Promise<unknown>,
 }) => {
   const { data: tileDataState } = useTileData(tileId, tabId);
@@ -98,15 +98,15 @@ const RefreshLogs = ({
   const fetchLatestTimestamp = useCallback(async (): Promise<string> => {
     if (!tileDataState) return "";
     const params = new URLSearchParams();
-    params.set('project_name', projectId);
+    params.set('projectName', projectId);
     if (tileDataState.context) params.set('context', tileDataState.context);
-    if (tileDataState.column_context) params.set('column_context', tileDataState.column_context);
-    if (filterExpression) params.set('filter_expr', filterExpression);
+    if (tileDataState.columnContext) params.set('columnContext', tileDataState.columnContext);
+    if (filterExpression) params.set('filterExpr', filterExpression);
     if (sortingExpression) params.set('sorting', sortingExpression);
     if (groupingExpression) {
-      groupingExpression.split(',').forEach(expr => params.append('group_by', expr.trim()));
+      groupingExpression.split(',').forEach(expr => params.append('groupBy', expr.trim()));
     }
-    if (groupSortingExpression) params.set('group_sorting', groupSortingExpression);
+    if (groupSortingExpression) params.set('groupSorting', groupSortingExpression);
 
     const res = await fetch(`/api/logs/latest_timestamp?${params.toString()}`, { method: 'GET', cache: 'no-store' });
     if (!res.ok) {
@@ -120,7 +120,7 @@ const RefreshLogs = ({
   const didInitLatestRef = useRef(false);
   useEffect(() => {
     if (!tileDataState) return;
-    if (tileDataState.auto_update !== "true") return; // gate behind live mode
+    if (tileDataState.autoUpdate !== "true") return; // gate behind live mode
     if (didInitLatestRef.current) return; // avoid Strict Mode double-run
     didInitLatestRef.current = true;
     fetchLatestTimestamp()
@@ -138,7 +138,7 @@ const RefreshLogs = ({
 
   // Auto-update toggle
   const onAutoClick = () => {
-    const nextValue = tileDataState?.auto_update === "true" ? "false" : "true";
+    const nextValue = tileDataState?.autoUpdate === "true" ? "false" : "true";
     if (nextValue === "false") {
         stop();
     }
@@ -183,9 +183,9 @@ const RefreshLogs = ({
 
           if (latestTs >= lastCheckTs) {
             // Do the actual refresh
-            // Use onRefresh callback when provided (for when auto_update is OFF)
-            // Fall back to manualRefresh (for when auto_update is ON)
-            const isAutoUpdating = tileDataState?.auto_update === "true";
+            // Use onRefresh callback when provided (for when autoUpdate is OFF)
+            // Fall back to manualRefresh (for when autoUpdate is ON)
+            const isAutoUpdating = tileDataState?.autoUpdate === "true";
             const result = isAutoUpdating 
               ? await manualRefresh()
               : onRefresh 
@@ -220,7 +220,7 @@ const RefreshLogs = ({
     }
   };
 
-  const isAutoUpdating = tileDataState?.auto_update === "true";
+  const isAutoUpdating = tileDataState?.autoUpdate === "true";
   const isManualSpinning = isFetching || isManualFetching;
 
   const getIcon = () => {

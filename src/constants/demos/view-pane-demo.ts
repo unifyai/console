@@ -58,7 +58,7 @@ for age, catchphrase, last_login, otp in zip(
 `,
     // Granular interface structure
     interface: {
-        project_id: "view-pane-demo",
+        projectId: "view-pane-demo",
         name: "interface1"
     },
     // Tab structure
@@ -79,8 +79,8 @@ for age, catchphrase, last_login, otp in zip(
                 width: 7.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table",
+            tableTile: {
+                tableType: "Data Table",
                 selected: "320925_Entries/age,320924_Entries/how_10x,320925_Entries/catchphrase,320924_Entries/catchphrase,320923_Entries/catchphrase,320921_Entries/catchphrase,320918_Entries/age,320920_Entries/catchphrase,320921_Entries/age",
             }
         },
@@ -94,8 +94,8 @@ for age, catchphrase, last_login, otp in zip(
                 height: 8.0
             },
             table: "Table",
-            view_tile: {}
+            viewTile: {}
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

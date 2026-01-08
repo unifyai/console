@@ -7,7 +7,7 @@ import { UpdateBusinessInfoRequest } from '@/types/user';
 export async function PATCH(request: NextRequest) {
   const user = await getCurrentUser();
 
-  if (!user || !user.api_key) {
+  if (!user || !user.apiKey) {
     return NextResponse.json({ error: "User not found or missing API key" }, { status: 404 });
   }
 
@@ -15,17 +15,25 @@ export async function PATCH(request: NextRequest) {
     const requestBody: UpdateBusinessInfoRequest = await request.json();
     
     // 1. Update business info in Orchestra
-    const data = await updateBusinessInfo(user.api_key, requestBody);
+    const data = await updateBusinessInfo(user.apiKey, requestBody);
     
-    // 2. Sync Stripe
+    // 2. Sync Stripe (convert camelCase to snake_case for Stripe's internal API types)
+    const addr = requestBody.businessAddress;
     syncStripeCustomer({
       user,
       accountType: 'business',
       businessInfo: {
-        business_name: requestBody.business_name || user.name,
-        tax_id: requestBody.tax_id,
-        business_address: requestBody.business_address ?? undefined,
-        tax_exempt: requestBody.tax_exempt,
+        business_name: requestBody.businessName || user.name,
+        tax_id: requestBody.taxId ?? undefined,
+        business_address: addr ? {
+          address_line1: addr.addressLine1,
+          address_line2: addr.addressLine2 ?? undefined,
+          city: addr.city,
+          state: addr.state ?? undefined,
+          postal_code: addr.postalCode ?? undefined,
+          country: addr.country,
+        } : undefined,
+        tax_exempt: requestBody.taxExempt,
       },
     }).catch((e) => console.error('Failed to update Stripe customer with business details:', e));
     

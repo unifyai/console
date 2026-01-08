@@ -59,7 +59,7 @@ const CellPopover = ({cell, flatLogs, paramsValues, isCellExpanded, setExpandedC
         if (fieldType === "param") {
             content = paramsValues[field];
         } else if (log) {
-            content = log.entries?.[field] ?? log.derived_entries?.[field] ?? "";
+            content = log.entries?.[field] ?? log.derivedEntries?.[field] ?? "";
         } else {
             content = "";
         }

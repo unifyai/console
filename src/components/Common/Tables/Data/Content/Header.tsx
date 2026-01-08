@@ -42,7 +42,7 @@ import SubmitButton from "@/components/Common/Buttons/Submit";
 
 const DataTableHeader = ({
   interactive,
-  auto_update,
+  autoUpdate,
   data,
   table,
   header,
@@ -75,7 +75,7 @@ const DataTableHeader = ({
   isRightmost
 }: {
   interactive?: boolean,
-  auto_update?: boolean,
+  autoUpdate?: boolean,
   data: any[],
   table: Table<any>,
   headerGroupIndex: number,

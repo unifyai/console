@@ -43,7 +43,7 @@ T extends TileType
   
   return useMutation({
     mutationFn: async ({ 
-      tab_id, 
+      tabId, 
       name, 
       tileType,
       updateData,
@@ -59,7 +59,7 @@ T extends TileType
       fieldsActions,
       projectId
     }: { 
-      tab_id: string; 
+      tabId: string; 
       name: string;
       tileType: T;
       updateData: Record<string, any>; 
@@ -75,12 +75,12 @@ T extends TileType
       fieldsActions: FieldsActions;
       projectId: string;
     }) => {
-      return actions.patchSpecializedByName(tab_id, name, tileType, updateData);
+      return actions.patchSpecializedByName(tabId, name, tileType, updateData);
     },
     
     onMutate: async (variables) => {
       const { 
-        tab_id, 
+        tabId, 
         name, 
         tileType,
         updateData, 
@@ -97,25 +97,25 @@ T extends TileType
         projectId
       } = variables;
       
-      if (!tab_id) {
-        throw new Error("tab_id is required for optimistic updates");
+      if (!tabId) {
+        throw new Error("tabId is required for optimistic updates");
       }
       
       // Get actual query keys
-      const tileKey = ['tile', tab_id, name];
-      const specializedTileKey = ['specialized-tile-data', tab_id, name, tileType];
+      const tileKey = ['tile', tabId, name];
+      const specializedTileKey = ['specialized-tile-data', tabId, name, tileType];
       
       // Cancel any outgoing refetches to avoid overwriting optimistic update
       await queryClient.cancelQueries({ queryKey: tileKey });
       await queryClient.cancelQueries({ queryKey: specializedTileKey });
       
       // Get the previous tiles for potential rollback
-      const previousTiles = queryClient.getQueryData<TileData[]>(['tiles', tab_id]);
+      const previousTiles = queryClient.getQueryData<TileData[]>(['tiles', tabId]);
       
       // Get fresh data from Zustand using the pure selectors
       const state = storeApi.getState();
       const projectData = selectProjectById(state, projectId);
-      const tilesInTab = selectTilesForTab(state, tab_id);
+      const tilesInTab = selectTilesForTab(state, tabId);
       const tilesInTabData = tilesInTab.map(tile => convertTileToTileData(tile));
       const tableTilesData = tilesInTabData.filter(tile => tile.type === "Table");
       const plotTilesData = tilesInTabData.filter(tile => tile.type === "Plot");
@@ -125,28 +125,28 @@ T extends TileType
       let optimisticTileData: TileData | null = null;
       
       optimisticTile = tilesInTab.find(tile => 
-        tile.tabId === tab_id && tile.name === name
+        tile.tabId === tabId && tile.name === name
       ) as Tile;
       optimisticTileData = tilesInTabData.find(tileData => 
-        tileData.tab_id === tab_id && tileData.name === name
+        tileData.tabId === tabId && tileData.name === name
       ) as TileData;
 
       if (!optimisticTileData) {
-        throw new Error(`Tile ${name} not found in tab ${tab_id}`);
+        throw new Error(`Tile ${name} not found in tab ${tabId}`);
       }
       
       // Update the tiles list in the cache
-      queryClient.setQueryData(['tiles', tab_id], tilesInTabData);
+      queryClient.setQueryData(['tiles', tabId], tilesInTabData);
       queryClient.setQueryData(tileKey, optimisticTileData);
       
       // Update specialized data too
       const specializedData = (() => {
         switch(tileType) {
-          case 'Table': return optimisticTileData.table_tile;
-          case 'Plot': return optimisticTileData.plot_tile;
-          case 'View': return optimisticTileData.view_tile;
-          case 'Editor': return optimisticTileData.editor_tile;
-          case 'Terminal': return optimisticTileData.terminal_tile;
+          case 'Table': return optimisticTileData.tableTile;
+          case 'Plot': return optimisticTileData.plotTile;
+          case 'View': return optimisticTileData.viewTile;
+          case 'Editor': return optimisticTileData.editorTile;
+          case 'Terminal': return optimisticTileData.terminalTile;
           default: return null;
         }
       })();
@@ -193,8 +193,8 @@ T extends TileType
       );
       
       // Get existing table and plot arguments from cache
-      const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tab_id]) || {} as TableArguments;
-      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
+      const existingTableArgs = queryClient.getQueryData<TableArguments>(['tableArguments', tabId]) || {} as TableArguments;
+      const existingPlotArgs = queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) || {} as PlotArguments;
 
       // Build arguments for all tiles
       if (tableTilesData.length > 0 || plotTilesData.length > 0) {
@@ -203,16 +203,16 @@ T extends TileType
           buildTabArguments(tilesInTabData as TileData[], fieldsArray, existingTableArgs, existingPlotArgs);
 
           // Store the built arguments in the cache
-          queryClient.setQueryData(["tableArguments", tab_id], newTableArguments);
-          queryClient.setQueryData(["plotArguments", tab_id], newPlotArguments);
+          queryClient.setQueryData(["tableArguments", tabId], newTableArguments);
+          queryClient.setQueryData(["plotArguments", tabId], newPlotArguments);
         } catch (error) {
           showErrorToast(error, "Error building tab arguments");
           throw error;
         }
       } else {
         // Initialize empty arguments if no tiles
-        queryClient.setQueryData(["tableArguments", tab_id], {});
-        queryClient.setQueryData(["plotArguments", tab_id], {});
+        queryClient.setQueryData(["tableArguments", tabId], {});
+        queryClient.setQueryData(["plotArguments", tabId], {});
       }
         
       // Step 1: If it's a Table tile, rebuild its TableDataItem and update the cache
@@ -237,17 +237,17 @@ T extends TileType
           );
 
           // Update available fields in the tableArguments (if we have tableArguments for this tile)
-          const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tab_id]) || {} as TableArguments;
+          const tableArguments = queryClient.getQueryData<TableArguments>(["tableArguments", tabId]) || {} as TableArguments;
           if (tableArguments[optimisticTileData.name]) {
-            tableArguments[optimisticTileData.name].available_fields = buildAvailableFieldsForTile(
-              optimisticTileData.column_context ?? "",
+            tableArguments[optimisticTileData.name].availableFields = buildAvailableFieldsForTile(
+              optimisticTileData.columnContext ?? "",
               fields,
               tableDataItem.entriesProperties,
               tableDataItem.paramsProperties
             );
     
             // Update the cache with available fields
-            queryClient.setQueryData(["tableArguments", tab_id], tableArguments);
+            queryClient.setQueryData(["tableArguments", tabId], tableArguments);
           }
         
           // Update the TableDataItem in the cache
@@ -279,7 +279,7 @@ T extends TileType
           }
           
           // Update each plot that needs updating
-          const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tab_id]) || {} as PlotArguments;
+          const plotArguments = queryClient.getQueryData<PlotArguments>(['plotArguments', tabId]) || {} as PlotArguments;
           for (const plotTile of plotTilesToUpdate) {
             try {
               // Build the updated PlotDataItem
@@ -324,44 +324,44 @@ T extends TileType
     },
     
     onSuccess: (result, variables) => {
-      const { tab_id, name, tileType, projectId } = variables;
+      const { tabId, name, tileType, projectId } = variables;
       
       // Invalidate tiles list
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tiles', tab_id],
+          queryKey: ['tiles', tabId],
           refetchType: 'none'
         });
       }
       
       // Invalidate specialized tile data
       queryClient.invalidateQueries({ 
-        queryKey: ['tile', tab_id, name],
+        queryKey: ['tile', tabId, name],
         refetchType: 'none'
       });
       
       queryClient.invalidateQueries({ 
-        queryKey: ['specialized-tile-data', tab_id, name, tileType],
+        queryKey: ['specialized-tile-data', tabId, name, tileType],
         refetchType: 'none'
       });
       
       // Invalidate tab with tiles
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tab-with-tiles-by-id', tab_id],
+          queryKey: ['tab-with-tiles-by-id', tabId],
           refetchType: 'none'
         });
       }
       
       // Invalidate arguments
-      if (tab_id) {
+      if (tabId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tableArguments', tab_id],
+          queryKey: ['tableArguments', tabId],
           refetchType: 'none'
         });
         
         queryClient.invalidateQueries({ 
-          queryKey: ['plotArguments', tab_id],
+          queryKey: ['plotArguments', tabId],
           refetchType: 'none'
         });
       }

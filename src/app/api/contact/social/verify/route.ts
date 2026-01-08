@@ -6,7 +6,7 @@ const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 export async function POST(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
@@ -19,9 +19,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
 
-    const { platform, account_identifier } = requestBody;
-    if (!platform || !account_identifier) {
-        return NextResponse.json({ detail: "Missing required fields: platform, account_identifier" }, { status: 400 });
+    const { platform, accountIdentifier } = requestBody;
+    if (!platform || !accountIdentifier) {
+        return NextResponse.json({ detail: "Missing required fields: platform, accountIdentifier" }, { status: 400 });
     }
 
     try {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${apiKey}`,
                 },
-                body: JSON.stringify({ platform, account_identifier })
+                body: JSON.stringify({ platform, accountIdentifier })
             }
         );
         

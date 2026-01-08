@@ -57,7 +57,7 @@ const ColumnMetrics = ({
         logsActions,
         projectId,
         tileDataState?.context,
-        tileDataState?.column_context,
+        tileDataState?.columnContext,
         columns,
         filterExpression,
         tileDataState?.metric || "mean",
@@ -69,7 +69,7 @@ const ColumnMetrics = ({
         tabId || null,
         projectId,
         tileDataState?.context,
-        tileDataState?.column_context,
+        tileDataState?.columnContext,
         columns,
         filterExpression,
         tileDataState?.metric || "mean"
@@ -103,7 +103,7 @@ const ColumnMetrics = ({
         setLoading(false);
     }, [logs])
     
-    const onClick = (metric_: string) => {
+    const onClick = (metricValue: string) => {
         const loadingId = showLoadingToast("Updating metric...");
         try {
             // Reset current metrics to trigger loading state
@@ -111,10 +111,10 @@ const ColumnMetrics = ({
             setLoading(true);
             
             // Set the new metric (this will trigger background refetch)
-            setMetric(metric_);
+            setMetric(metricValue);
 
             // Store the success function to call later when metrics are loaded
-            showSuccessRef.current = () => showSuccessToast(`Metric changed to ${metric_}.`, undefined, loadingId);
+            showSuccessRef.current = () => showSuccessToast(`Metric changed to ${metricValue}.`, undefined, loadingId);
             
         } catch (error) {
             setLoading(false);
@@ -125,9 +125,9 @@ const ColumnMetrics = ({
 
     return (
         <BaseDropdown context="tile" button={<ActionButton tooltip="Select metric" text={metric} icon={(loading || isMetricsLoading || isFetching) ? <LoaderCircle className="animate-spin text-primary"/> : <ChevronDown />} disabled={!interactive || loading || isMetricsLoading || isFetching} variant="ghost" size="sm" className="px-1.5 h-7" />} open={interactive ? undefined : false}>
-            {metrics.map((metric_, index) =>
-                <DropdownMenuCheckboxItem checked={metric === metric_} key={index} onClick={() => onClick(metric_)} className="text-body-sm">
-                    {metric_}
+            {metrics.map((metricItem, index) =>
+                <DropdownMenuCheckboxItem checked={metric === metricItem} key={index} onClick={() => onClick(metricItem)} className="text-body-sm">
+                    {metricItem}
                 </DropdownMenuCheckboxItem>
             )}
         </BaseDropdown>

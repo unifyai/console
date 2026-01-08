@@ -36,10 +36,10 @@ export function isTrace(val: any): boolean {
 
     const hasTraceId = Boolean(obj.id && typeof obj.id === "string");
     const hasType = Boolean(obj.type && typeof obj.type === "string");
-    const hasSpanName = Boolean(obj.span_name && typeof obj.span_name === "string");
-    const hasExecTime = Boolean(obj.exec_time !== undefined);
+    const hasSpanName = Boolean(obj.spanName && typeof obj.spanName === "string");
+    const hasExecTime = Boolean(obj.execTime !== undefined);
     const hasTimestamp = Boolean(obj.timestamp && typeof obj.timestamp === "string");
-    const hasChildSpans = Boolean(obj.child_spans && Array.isArray(obj.child_spans));
+    const hasChildSpans = Boolean(obj.childSpans && Array.isArray(obj.childSpans));
 
     const isMainTrace = hasTraceId && hasType && hasSpanName && hasTimestamp;
     const hasTraceIndicators = hasExecTime || hasChildSpans;
@@ -347,7 +347,7 @@ export function castToPythonType(value: string, pyType: PythonType): any {
       }
 
       default:
-        // For unknown pyTypes, or if data_type is more complex like 'list<str>',
+        // For unknown pyTypes, or if dataType is more complex like 'list<str>',
         // we might just return the string or try a JSON.parse as a general fallback.
         try {
             return JSON.parse(value);

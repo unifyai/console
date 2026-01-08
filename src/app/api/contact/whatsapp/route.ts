@@ -6,7 +6,7 @@ const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
 export async function POST(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid request body" }, { status: 400 });
     }
 
-    const { phone_number, first_name, last_name } = requestBody;
-    if (!phone_number || !first_name || !last_name) {
-        return NextResponse.json({ detail: "Missing required fields: phone_number, first_name, last_name" }, { status: 400 });
+    const { phoneNumber, firstName, lastName } = requestBody;
+    if (!phoneNumber || !firstName || !lastName) {
+        return NextResponse.json({ detail: "Missing required fields: phoneNumber, firstName, lastName" }, { status: 400 });
     }
 
     try {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ phone_number, first_name, last_name })
+                body: JSON.stringify({ phoneNumber, firstName, lastName })
             }
         );
 

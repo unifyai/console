@@ -4,7 +4,7 @@ import { KeyboardEventHandler, useState, useEffect, useRef } from "react";
 import { Input } from "@/components/UI/input";
 import SubmitButton from "@/components/Common/Buttons/Submit";
 import Tooltip from "@/components/Common/Misc/Tooltip";
-import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/interfaces/logs"
+import { GetLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/interfaces/logs"
 import { DropdownMenuItem, DropdownMenuLabel } from "@/components/UI/dropdown-menu";
 import { LoaderCircle, Info, Plus } from "lucide-react";
 import { ResponseProps } from "@/types/common";
@@ -64,7 +64,7 @@ const ColumnCreate = ({
     logs: LogProps[] | GroupedLogProps[],
     columnOrder: string[],
     previousColumn: string,
-    create: (project: string, context: string | undefined, key: string, equation: string, referenced_logs: {[table_name: string]: getLogsParameters}) => Promise<ResponseProps>,
+    create: (project: string, context: string | undefined, key: string, equation: string, referencedLogs: {[table_name: string]: GetLogsParameters}) => Promise<ResponseProps>,
     setPending: (pending: boolean) => void,
     setColumnOrder: (order: string[]) => void,
     setOpen: (open: boolean) => void,
@@ -76,8 +76,8 @@ const ColumnCreate = ({
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
-            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields ?? {})}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields ?? {})                   // Add all columns of current table
+            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.availableFields ?? {})}))  // Add all displayed tables
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].availableFields ?? {})                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -164,7 +164,7 @@ const ColumnCreate = ({
         const referencedArguments = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => referencedTables.includes(key))
-                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogsParameters])
         );
 
         /* Implicitly prepend selected column context to the name, if applicable */

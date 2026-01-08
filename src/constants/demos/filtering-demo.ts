@@ -58,7 +58,7 @@ for age, catchphrase, last_login, otp in zip(
 `,
     // Granular interface structure
     interface: {
-        project_id: "filtering-demo",
+        projectId: "filtering-demo",
         name: "interface1",
     },
     // Tab structure
@@ -80,8 +80,8 @@ for age, catchphrase, last_login, otp in zip(
                 height: 8.0
             },
             filters: "catchphrase~in~ && \"ask\"§catchphrase~not in~ && \"intern\"",
-            table_tile: {
-                table_type: "Data Table",
+            tableTile: {
+                tableType: "Data Table",
             }
         },
         {
@@ -94,8 +94,8 @@ for age, catchphrase, last_login, otp in zip(
                 height: 8.0
             },
             table: "Table",
-            view_tile: {},
+            viewTile: {},
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

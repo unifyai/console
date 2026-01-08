@@ -311,7 +311,7 @@ export async function ensureStripeCustomer(params: {
 
   // 1. Check Orchestra for existing stripe_customer_id
   const billingDetails = await (await import("@/lib/user/billing/billing")).getUserBillingDetails(userId);
-  let customerId = billingDetails[0]?.stripe_customer_id;
+  let customerId = billingDetails[0]?.stripeCustomerId;
 
   // 2. Create if missing
   if (!customerId) {

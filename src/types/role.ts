@@ -4,18 +4,18 @@ export interface Permission {
   id: number;
   name: string;
   description?: string;
-  resource_type: string;
+  resourceType: string;
   action: string;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Role {
   id: number;
   name: string;
   description?: string;
-  organization_id?: number;
-  is_system_role: boolean;
-  created_at: string;
+  organizationId?: number;
+  isSystemRole: boolean;
+  createdAt: string;
   permissions: Permission[];
 }
 

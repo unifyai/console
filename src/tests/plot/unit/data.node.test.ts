@@ -28,8 +28,8 @@ function createMockFields(
 ): LogFieldsResponseProps {
   return {
     [fieldName]: {
-      data_type: dataType,
-      field_type: fieldType,
+      dataType: dataType,
+      fieldType: fieldType,
     },
   } as LogFieldsResponseProps;
 }
@@ -44,7 +44,7 @@ function createMockLog(
   fieldType: 'entry' | 'param' | 'derived_entry' = 'entry'
 ): LogProps {
   const key = fieldType === 'derived_entry'
-    ? `${table}.derived_entries`
+    ? `${table}.derivedEntries`
     : fieldType === 'param'
       ? `${table}.params`
       : `${table}.entries`;
@@ -155,7 +155,7 @@ describe('getValue', () => {
   });
 
   describe('field type handling', () => {
-    it('retrieves value from derived_entries', () => {
+    it('retrieves value from derivedEntries', () => {
       const fields = createMockFields(fieldName, 'float', 'derived_entry');
       const log = createMockLog(table, fieldName, 100, 'derived_entry');
       expect(getValue(fields, fieldName, log, table)).toBe(100);

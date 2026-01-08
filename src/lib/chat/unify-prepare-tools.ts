@@ -15,7 +15,7 @@ export function prepareTools(
           };
         }>
       | undefined;
-    tool_choice:
+    toolChoice:
       | { type: 'function'; function: { name: string } }
       | 'auto'
       | 'none'
@@ -28,7 +28,7 @@ export function prepareTools(
     const toolWarnings: LanguageModelV1CallWarning[] = [];
   
     if (tools == null) {
-      return { tools: undefined, tool_choice: undefined, toolWarnings };
+      return { tools: undefined, toolChoice: undefined, toolWarnings };
     }
   
     const unifyTools: Array<{
@@ -58,7 +58,7 @@ export function prepareTools(
     const toolChoice = mode.toolChoice;
   
     if (toolChoice == null) {
-      return { tools: unifyTools, tool_choice: undefined, toolWarnings };
+      return { tools: unifyTools, toolChoice: undefined, toolWarnings };
     }
   
     const type = toolChoice.type;
@@ -66,9 +66,9 @@ export function prepareTools(
     switch (type) {
       case 'auto':
       case 'none':
-        return { tools: unifyTools, tool_choice: type, toolWarnings };
+        return { tools: unifyTools, toolChoice: type, toolWarnings };
       case 'required':
-        return { tools: unifyTools, tool_choice: 'any', toolWarnings };
+        return { tools: unifyTools, toolChoice: 'any', toolWarnings };
   
       // unify does not support tool mode directly,
       // so we filter the tools and force the tool choice through 'any'
@@ -77,7 +77,7 @@ export function prepareTools(
           tools: unifyTools.filter(
             tool => tool.function.name === toolChoice.toolName,
           ),
-          tool_choice: 'any',
+          toolChoice: 'any',
           toolWarnings,
         };
       default: {

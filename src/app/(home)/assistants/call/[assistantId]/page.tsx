@@ -13,8 +13,8 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     if (!user) {
         redirect('/login');
     }
-    const apiKey = user.api_key;
-    const isOrgContext = user.organizations?.some(org => org.api_key === apiKey) ?? false;
+    const apiKey = user.apiKey;
+    const isOrgContext = user.organizations?.some(org => org.apiKey === apiKey) ?? false;
 
     const assistantActions: Pick<AssistantActions, "chat" | "call" | "desktop"> = {
         "chat": {
@@ -29,7 +29,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
             dispatchToCall: await dispatchAssistantToCall(apiKey),
         },
         "desktop": {
-            getLiveviewUrl: await getLiveviewUrl(user.id, user.api_key),
+            getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
             sendSystemEvent: await sendSystemEvent(),
         }
     };
@@ -42,7 +42,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
         return <div>Error loading assistant data. Please close this tab and try again.</div>;
     }
 
-    const assistant = (assistantsResult as Assistant[]).find((a) => a.agent_id === params.assistantId);
+    const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === params.assistantId);
 
     if (!assistant) {
         notFound();

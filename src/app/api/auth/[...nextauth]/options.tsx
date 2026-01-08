@@ -37,8 +37,8 @@ const authOptions: AuthOptions = {
             authorization: {
               params: {
                 prompt: "consent",
-                access_type: "offline",
-                response_type: "code",
+                accessType: "offline",
+                responseType: "code",
                 scope: "openid email profile https://www.googleapis.com/auth/userinfo.profile"
               }
             },
@@ -92,7 +92,7 @@ const authOptions: AuthOptions = {
             if (account?.provider === 'google' && !token.picture) {
               try {
                 const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
-                  headers: { Authorization: `Bearer ${account.access_token}` },
+                  headers: { Authorization: `Bearer ${account.accessToken}` },
                 });
                 const data = await response.json();
                 if (data.picture) {

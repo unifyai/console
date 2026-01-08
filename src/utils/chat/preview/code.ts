@@ -42,7 +42,7 @@ export const generateSnippet = (selectedLanguage: string, selectedVariant: strin
         const jsonBody = JSON.parse(request.body);
         const message = jsonBody.messages[0].content;
         const endpoint = jsonBody.model + ("provider" in jsonBody ? "@".concat(jsonBody.provider) : "");
-        codeExampleWithKey = `import unify\n\nclient = unify.Unify("${endpoint}", api_key="YOUR_API_KEY")\n\nresponse = client.generate(\n  "${message}"\n  )\n\nprint(response)`;
+        codeExampleWithKey = `import unify\n\nclient = unify.Unify("${endpoint}", apiKey="YOUR_API_KEY")\n\nresponse = client.generate(\n  "${message}"\n  )\n\nprint(response)`;
         return {code: codeExampleWithKey, secureCode: codeExampleWithKey}
     }
 

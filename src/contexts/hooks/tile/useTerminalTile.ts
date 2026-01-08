@@ -67,12 +67,12 @@ export function useTerminalTile(
     if (!isTerminalTile || !tileId || !terminalTile) return null;
     
     return {
-      shell_type: terminalTile.shell_type
+      shellType: terminalTile.shellType
     } as TerminalTileData;
   }, [
     isTerminalTile,
     tileId,
-    terminalTile?.shell_type,
+    terminalTile?.shellType,
   ]);
 
   // Access store for terminal-specific UI state
@@ -103,7 +103,7 @@ export function useTerminalTile(
     return {
       setShellType: (shellType) => {
         const update: Partial<TerminalTile> = { 
-            shell_type: shellType,
+            shellType: shellType,
           };
           storeUpdateTerminalTile(tileId, update);
       }

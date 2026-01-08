@@ -54,23 +54,23 @@ const FocusDialog = ({
     
     // Initialize focusedTiles based on focusedTileNames
     const initialFocusedTiles = useMemo(() => {
-        const tiles_: Array<Tile | undefined> = [];
+        const tilesList: Array<Tile | undefined> = [];
         for (const tileName of focusedTileNames) {
             if (tileName) {
                 const tile = tiles.find(t => t.name === tileName);
                 if (tile) {
-                    tiles_.push(tile);
+                    tilesList.push(tile);
                 }
             }
         }
         // Only set one tile if that's what was requested
-        if (tiles_.length === 0 && focusedTileNames[0]) {
+        if (tilesList.length === 0 && focusedTileNames[0]) {
             const firstTile = tiles.find(t => t.name === focusedTileNames[0]);
             if (firstTile) {
                 return [firstTile];
             }
         }
-        return tiles_.length > 0 ? tiles_ : [];
+        return tilesList.length > 0 ? tilesList : [];
     }, [focusedTileNames.join(','), tiles]);
     
     const [focusedTiles, setFocusedTiles] = useState<Array<Tile | undefined>>(initialFocusedTiles);

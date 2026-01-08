@@ -113,9 +113,9 @@ export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedL
           id: log.id, 
           ts: log.ts, 
           params: log.params, 
-          derived_entries: {}, 
-          entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
-          clipped_fields: log.clipped_fields,
+          derivedEntries: {}, 
+          entries: {...log.entries, ...log.derivedEntries},  // Bundle derived entries with entries
+          clippedFields: log.clippedFields,
         } as LogProps))
       : maybeConvertRawToGroupedLogs(params, rawLogs, null);
   
@@ -128,7 +128,7 @@ export function extractLogs(params: LogItemProps, rawLogs: LogProps[] | GroupedL
 export function extractLogsData(
   logsResponse: LogsResponseProps,
   fields: LogFieldsResponseProps,
-  column_context: string | null,
+  columnContext: string | null,
   sorting: string | null,
   hiddenColumns: string | undefined
 ) {
@@ -160,31 +160,31 @@ export function extractLogsData(
       const rawParamsKeys = first?.params ? collectKeys(first.params) : [];
       const rawEntriesKeys = first?.entries ? collectKeys(first.entries) : [];
       // Build absolute keys with context
-      let absParams = rawParamsKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
-      let absEntries = rawEntriesKeys.map(k => (column_context ? processContext("merge", column_context, k) : k));
+      let absParams = rawParamsKeys.map(k => (columnContext ? processContext("merge", columnContext, k) : k));
+      let absEntries = rawEntriesKeys.map(k => (columnContext ? processContext("merge", columnContext, k) : k));
       // Apply hidden filtering on relative keys
       if (hiddenColumns) {
         const hidden = new Set(hiddenColumns.split(","));
         // Convert to relative for comparison with hidden list
-        const relParams = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
-        const relEntries = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+        const relParams = absParams.map(k => (columnContext ? processContext("split", columnContext, k) : k));
+        const relEntries = absEntries.map(k => (columnContext ? processContext("split", columnContext, k) : k));
         paramsProperties = relParams.filter(p => !hidden.has(p));
         entriesProperties = relEntries.filter(p => !hidden.has(p));
       } else {
         // Return relative keys
-        paramsProperties = absParams.map(k => (column_context ? processContext("split", column_context, k) : k));
-        entriesProperties = absEntries.map(k => (column_context ? processContext("split", column_context, k) : k));
+        paramsProperties = absParams.map(k => (columnContext ? processContext("split", columnContext, k) : k));
+        entriesProperties = absEntries.map(k => (columnContext ? processContext("split", columnContext, k) : k));
       }
     } else {
       // Normal path using fields metadata
       [paramsProperties, entriesProperties] = [
-        Object.entries(fields).filter(entry => entry[1].field_type === "param").map(entry => entry[0]),
-        Object.entries(fields).filter(entry => entry[1].field_type != "param").map(entry => entry[0])
+        Object.entries(fields).filter(entry => entry[1].fieldType === "param").map(entry => entry[0]),
+        Object.entries(fields).filter(entry => entry[1].fieldType != "param").map(entry => entry[0])
       ];
-      if (column_context){
+      if (columnContext){
         [paramsProperties, entriesProperties] = [
-          paramsProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property)),
-          entriesProperties.filter(property => property.includes(column_context)).map(property => processContext("split", column_context, property))
+          paramsProperties.filter(property => property.includes(columnContext)).map(property => processContext("split", columnContext, property)),
+          entriesProperties.filter(property => property.includes(columnContext)).map(property => processContext("split", columnContext, property))
         ];
       }
       if (hiddenColumns) {
@@ -202,7 +202,7 @@ export function extractLogsData(
 export const getColumnMetrics = async (
   project: string | null,
   context: string | null,
-  column_context: string | null,
+  columnContext: string | null,
   columns: string[],
   filterExpression: string | null,
   groupingExpression: string | null,
@@ -219,7 +219,7 @@ export const getColumnMetrics = async (
   }
   const metricsCache = globalThis.__metricsCache!;
   const metricsPending = globalThis.__metricsPending!;
-  const keyObj = { project, context, column_context, columns, filterExpression, groupingExpression, metric };
+  const keyObj = { project, context, columnContext, columns, filterExpression, groupingExpression, metric };
   const key = JSON.stringify(keyObj);
   const now = Date.now();
   const cached = metricsCache.get(key);
@@ -232,18 +232,18 @@ export const getColumnMetrics = async (
   }
   
   let fullColumns = columns
-  if (column_context)
-    fullColumns = fullColumns.map(column => processContext("merge", column_context, column))
+  if (columnContext)
+    fullColumns = fullColumns.map(column => processContext("merge", columnContext, column))
   
   // Call API route directly instead of server action
   const metricName = metric ? metric : "mean";
   const sanitizedColumns = fullColumns.map(sanitizeKey);
   const params = new URLSearchParams();
-  params.set('project_name', project!);
+  params.set('projectName', project!);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify(sanitizedColumns));
-  if (filterExpression) params.set('filter_expr', filterExpression);
-  if (groupingExpression) params.set('group_by', JSON.stringify(groupingExpression.split(",")));
+  if (filterExpression) params.set('filterExpr', filterExpression);
+  if (groupingExpression) params.set('groupBy', JSON.stringify(groupingExpression.split(",")));
   const fetchPromise = fetch(`/api/logs/${metricName}?${params.toString()}`, {
     method: 'GET',
     cache: 'no-store',
@@ -266,7 +266,7 @@ export const getLogsDetails = async (
   logsData: LogsResponseProps,
   fields: LogFieldsResponseProps,
   context: string | null,
-  column_context: string | null,
+  columnContext: string | null,
   project: string | null,
   filterExpression: string | null,
   metric: string | undefined,
@@ -276,7 +276,7 @@ export const getLogsDetails = async (
 ) => {
   // Unpack log data
   const { entriesProperties, paramsProperties, logs, params } = extractLogsData(
-    logsData, fields, column_context, sorting, hiddenColumns
+    logsData, fields, columnContext, sorting, hiddenColumns
   );
 
   const columns = logs.length ? [...entriesProperties, ...paramsProperties] : [];
@@ -291,7 +291,7 @@ export const getLogsDetails = async (
       (async () => {
         const start = performance.now();
         const result = await getColumnMetrics(
-          project, context, column_context, columns, filterExpression, null, metric, logsActions
+          project, context, columnContext, columns, filterExpression, null, metric, logsActions
         ) as { [key: string]: number };
         const end = performance.now();
         perfLog(`[perf] getColumnMetrics (filtered metrics) took ${(end - start).toFixed(2)}ms`);
@@ -300,7 +300,7 @@ export const getLogsDetails = async (
       (async () => {
         const start = performance.now();
         const result = await getColumnMetrics(
-          project, context, column_context, columns, null, null, "min", logsActions
+          project, context, columnContext, columns, null, null, "min", logsActions
         ) as { [key: string]: number };
         const end = performance.now();
         perfLog(`[perf] getColumnMetrics (minimums) took ${(end - start).toFixed(2)}ms`);
@@ -309,7 +309,7 @@ export const getLogsDetails = async (
       (async () => {
         const start = performance.now();
         const result = await getColumnMetrics(
-          project, context, column_context, columns, null, null, "max", logsActions
+          project, context, columnContext, columns, null, null, "max", logsActions
         ) as { [key: string]: number };
         const end = performance.now();
         perfLog(`[perf] getColumnMetrics (maximums) took ${(end - start).toFixed(2)}ms`);
@@ -348,7 +348,7 @@ export const getLogsDetails = async (
 export const getGroupedMetrics = async (
   project: string | null,
   context: string | null,
-  column_context: string | null,
+  columnContext: string | null,
   columns: string[],
   filterExpression: string | null,
   groupingExpression: string | null,
@@ -359,27 +359,27 @@ export const getGroupedMetrics = async (
   let groupedMetrics: TableGroupedMetrics = {};
   if (groupingExpression) {
     try {
-      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+      const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.dataType));
       const groupingColumnId = (groupingExpression as string).split(",")[0];
-      const metric_ = metric ?? "mean";
+      const metricValue = metric ?? "mean";
       const metricsData = await getColumnMetrics(
-        project, context, column_context, numericColumns, filterExpression, groupingColumnId, metric_, logsActions
+        project, context, columnContext, numericColumns, filterExpression, groupingColumnId, metricValue, logsActions
       ) as { [key: string]: { [key: string]: { [key: string]: number | string }}};
       const metrics = Object.fromEntries(
-        Object.entries(metricsData).filter(([col, _]) => numericColumns.includes(col)).map(
+        Object.entries(metricsData).filter(([col]) => numericColumns.includes(col)).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results[metric_]]
+            ([groupingValue, results]) => [groupingValue, results[metricValue]]
           ))]
       ));
       const sharedValues = Object.fromEntries(
         Object.entries(metricsData).map(
           ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-            ([groupingValue, results]) => [groupingValue, results["shared_value"]]
+            ([groupingValue, results]) => [groupingValue, results["sharedValue"]]
           ))]
         ));
       groupedMetrics[groupingColumnId] = {
-        [metric_]: metrics,
-        shared_value: sharedValues
+        [metricValue]: metrics,
+        sharedValue: sharedValues
       };
     } catch (error) {
       showErrorToast(error, "Failed to get grouped metrics.");
@@ -493,11 +493,11 @@ const getGroupedMetricNode = (
         currentLevel = (currentLevel as GroupedMetricNode)[value];
     }
     // After iterating through all group keys, currentLevel should be the GroupedMetricLeaf object
-    // Add a check to ensure it looks like metric data (e.g., has [metric], or 'shared_value')
+    // Add a check to ensure it looks like metric data (e.g., has [metric], or 'sharedValue')
     if (typeof currentLevel === 'object' && currentLevel !== null && !Array.isArray(currentLevel)) {
         // A simple check - could be more robust based on expected metric names
          const keys = Object.keys(currentLevel);
-         if (keys.length > 0 && (keys.includes('shared_value') || keys.includes(metric))) {
+         if (keys.length > 0 && (keys.includes('sharedValue') || keys.includes(metric))) {
             return currentLevel as GroupedMetricLeaf;
          }
     }
@@ -534,7 +534,7 @@ const findGroupCombinations = (
         const nextLevelData = levelData[groupValue];
         if (typeof nextLevelData === 'object' && nextLevelData !== null) {
              // Check if it looks like the next level of grouping or the final metric values
-             const looksLikeGroupedMetricLeaf = remainingGroupKeys.length === 0 && (typeof nextLevelData['shared_value'] !== 'undefined' || typeof nextLevelData[metric] !== 'undefined'); // Add other common metrics
+             const looksLikeGroupedMetricLeaf = remainingGroupKeys.length === 0 && (typeof nextLevelData['sharedValue'] !== 'undefined' || typeof nextLevelData[metric] !== 'undefined'); // Add other common metrics
 
              if (!looksLikeGroupedMetricLeaf || remainingGroupKeys.length > 0) {
                 const nextCombination = { ...currentCombination, [currentGroupKey]: groupValue };
@@ -565,14 +565,14 @@ const findGroupCombinations = (
  * in a nested structure, and transforms them into LogProps items. Each resulting
  * "log" represents one unique combination of group values across all nesting levels
  * and contains the specified metric values for various columns. The placement of
- * these values within the log structure (params, derived_entries, entries) is
- * determined by the field_type provided in the `fields` object.
+ * these values within the log structure (params, derivedEntries, entries) is
+ * determined by the fieldType provided in the `fields` object.
  *
  * @param groupKeys - An array of field names representing the nesting order used to group the metrics.
  * @param metric - The specific metric to extract from the aggregated data (e.g., 'mean', 'count', 'median').
  * @param fields - An object containing the metadata for all the project's fields. Dictates where each field's value should be placed.
  * @param columnMetrics - A potentially nested object containing the aggregated metric values.
- *                        Structure: { columnName -> { group1Value -> { group2Value -> ... -> { metricName -> value, shared_value? -> value } } } }
+ *                        Structure: { columnName -> { group1Value -> { group2Value -> ... -> { metricName -> value, sharedValue? -> value } } } }
  * @returns An array of `LogProps` objects, where each object simulates a log entry
  *          representing one unique group combination and its associated metric data.
  */
@@ -599,15 +599,15 @@ export const convertMetricsToLogs = (
         const combinationValuesString = groupKeys.map(key => combination[key] || 'null').join('-');
         const logId = `${groupKeys.join('@')}-${metric}-${combinationValuesString}`;
 
-        const metricLog: LogProps = { id: logId, ts: Date.now().toString(), type: "ungrouped", params: {}, derived_entries: {}, clipped_fields: {}, entries: {} };
+        const metricLog: LogProps = { id: logId, ts: Date.now().toString(), type: "ungrouped", params: {}, derivedEntries: {}, clippedFields: {}, entries: {} };
 
         // 1. Add the group fields and their values from the current combination
         groupKeys.forEach(groupKey => {
             const groupValue = combination[groupKey];
             if (fields[groupKey]) {
                  const fieldMeta = fields[groupKey];
-                 if (fieldMeta.field_type === "param") metricLog.params[groupKey] = groupValue;
-                 else if (fieldMeta.field_type === "derived_entry") metricLog.derived_entries[groupKey] = groupValue;
+                 if (fieldMeta.fieldType === "param") metricLog.params[groupKey] = groupValue;
+                 else if (fieldMeta.fieldType === "derived_entry") metricLog.derivedEntries[groupKey] = groupValue;
                  else metricLog.entries[groupKey] = groupValue;
             } else {
                 metricLog.entries[groupKey] = groupValue;
@@ -620,15 +620,15 @@ export const convertMetricsToLogs = (
             const metricData = getGroupedMetricNode(columnMetrics[column], groupKeys, metric, combination);
 
             if (metricData) {
-                // Use shared_value if present, otherwise use the specified metric
-                const fieldValue = metricData.shared_value !== null ? metricData.shared_value : metricData[metric];
+                // Use sharedValue if present, otherwise use the specified metric
+                const fieldValue = metricData.sharedValue !== null ? metricData.sharedValue : metricData[metric];
 
                 // Add the field value if it's defined (or null)
                 if (fieldValue !== undefined) {
                     if (fields[column]) {
                         const fieldMeta = fields[column];
-                        if (fieldMeta.field_type === "param") metricLog.params[column] = fieldValue;
-                        else if (fieldMeta.field_type === "derived_entry") metricLog.derived_entries[column] = fieldValue;
+                        if (fieldMeta.fieldType === "param") metricLog.params[column] = fieldValue;
+                        else if (fieldMeta.fieldType === "derived_entry") metricLog.derivedEntries[column] = fieldValue;
                         else metricLog.entries[column] = fieldValue;
                     } else {
                         metricLog.entries[column] = fieldValue;

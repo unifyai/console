@@ -19,8 +19,8 @@ const VisibilityFilter = ({ fields, columnVisibility, setColumnVisibility, conte
 
     const [paramColumns, entryColumns] = fields 
         ? [
-            Object.entries(fields).filter(([key, value]) => value.field_type === "param").map(([key, value]) => `Parameters/${key}`),
-            Object.entries(fields).filter(([key, value]) => value.field_type !== "param").map(([key, value]) => `Entries/${key}`)
+            Object.entries(fields).filter(([key, value]) => value.fieldType === "param").map(([key, value]) => `Parameters/${key}`),
+            Object.entries(fields).filter(([key, value]) => value.fieldType !== "param").map(([key, value]) => `Entries/${key}`)
         ] 
         : [[], []];
     

@@ -61,7 +61,7 @@ export function HireForm({
     const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<'upload' | 'create' | 'animate'>('upload');
     const [showAnimatePing, setShowAnimatePing] = React.useState(false);
     const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
-    const fastMode = useWatch({ control, name: 'fast_mode' });
+    const fastMode = useWatch({ control, name: 'fastMode' });
     const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
 
     const photoPreviewUrl = watch("photoPreviewUrl");
@@ -69,7 +69,7 @@ export function HireForm({
     const photoFile = watch("photoFile");
     const videoFile = watch("videoFile");
     const isPresetPristine = watch("isPresetPristine");
-    const firstName = watch("first_name");
+    const firstName = watch("firstName");
     const surname = watch("surname");
     const age = watch("age");
     const rhfNationality = watch("nationality");
@@ -83,8 +83,8 @@ export function HireForm({
         }, [firstName, trigger, getValues]);
         
         React.useEffect(() => {
-            if (getValues("first_name")?.length > 0) {
-            trigger("first_name");
+            if (getValues("firstName")?.length > 0) {
+            trigger("firstName");
             }
         }, [surname, trigger, getValues]);
 
@@ -102,35 +102,35 @@ export function HireForm({
         const preferredLanguage = getLangCodeForNationality(rhfNationality);
         if (!preferredLanguage) return;
         
-        const currentVoiceId = getValues("voice_id");
-        const currentVoice = allDisplayableVoices.find(v => v.voice_id === currentVoiceId);
+        const currentVoiceId = getValues("voiceId");
+        const currentVoice = allDisplayableVoices.find(v => v.voiceId === currentVoiceId);
         
         // If current voice already matches the new nationality's language, do nothing
         if (currentVoice && currentVoice.language === preferredLanguage) return;
         
         // Find the best new voice: a non-preset one is preferred
-        const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.is_preset)
+        const bestNewVoice = allDisplayableVoices.find(v => v.language === preferredLanguage && !v.isPreset)
         || allDisplayableVoices.find(v => v.language === preferredLanguage);
         
         if (bestNewVoice) {
-            setValue("voice_id", bestNewVoice.voice_id, { shouldValidate: true });
-            setValue("voice_name", bestNewVoice.name, { shouldValidate: true });
-            setValue("voice_description", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
-            setValue("voice_gender", bestNewVoice.gender, { shouldValidate: true });
-            setValue("voice_language", bestNewVoice.language, { shouldValidate: true });
-            setValue("voice_provider", bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
-            setValue("voice_exists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
+            setValue("voiceId", bestNewVoice.voiceId, { shouldValidate: true });
+            setValue("voiceName", bestNewVoice.name, { shouldValidate: true });
+            setValue("voiceDescription", bestNewVoice.description ?? bestNewVoice.name, { shouldValidate: true });
+            setValue("voiceGender", bestNewVoice.gender, { shouldValidate: true });
+            setValue("voiceLanguage", bestNewVoice.language, { shouldValidate: true });
+            setValue("voiceProvider", bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
+            setValue("voiceExists", bestNewVoice.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
         }
     }, [rhfNationality, allDisplayableVoices, getValues, setValue]);
 
-    const rhfVoiceId = watch("voice_id");
-    const rhfVoiceLanguage = watch("voice_language");
-    const rhfVoiceGender = watch("voice_gender");
-    const rhfVoiceName = watch("voice_name");
-    const rhfVoiceDescription = watch("voice_description");
+    const rhfVoiceId = watch("voiceId");
+    const rhfVoiceLanguage = watch("voiceLanguage");
+    const rhfVoiceGender = watch("voiceGender");
+    const rhfVoiceName = watch("voiceName");
+    const rhfVoiceDescription = watch("voiceDescription");
     const rhfIsPresetPristine = watch("isPresetPristine");
-    const rhfProfileVideoUrl = watch("profile_video_url");
-    const videoSourceVoiceId = watch("video_source_voice_id");
+    const rhfProfileVideoUrl = watch("profileVideoUrl");
+    const videoSourceVoiceId = watch("videoSourceVoiceId");
     
     // --- Start of Video Playability Logic ---
     const isVideoPlayable = React.useMemo(() => {
@@ -166,14 +166,14 @@ export function HireForm({
     const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
         if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
             return {
-                voice_id: rhfVoiceId,
+                voiceId: rhfVoiceId,
                 language: rhfVoiceLanguage as SupportedLanguage,
                 gender: rhfVoiceGender as Gender,
                 name: rhfVoiceName,
                 description: rhfVoiceDescription || '',
-                provider: getValues("voice_provider") || PRIMARY_VOICE_PROVIDER,
-                is_preset: rhfIsPresetPristine,
-                isUserVoiceInOrchestra: getValues("voice_exists")
+                provider: getValues("voiceProvider") || PRIMARY_VOICE_PROVIDER,
+                isPreset: rhfIsPresetPristine,
+                isUserVoiceInOrchestra: getValues("voiceExists")
             };
         }
         return null;
@@ -202,33 +202,33 @@ export function HireForm({
         const targetProvider = fastMode ? "openai" : PRIMARY_VOICE_PROVIDER;
         const fallbackProvider = fastMode ? PRIMARY_VOICE_PROVIDER : "openai";
 
-        const voiceId = currentPreset.voice_ids[targetProvider] ?? currentPreset.voice_ids[fallbackProvider];
-        const finalProvider = voiceId === currentPreset.voice_ids[fallbackProvider] ? fallbackProvider : targetProvider;
+        const voiceId = currentPreset.voiceIds[targetProvider] ?? currentPreset.voiceIds[fallbackProvider];
+        const finalProvider = voiceId === currentPreset.voiceIds[fallbackProvider] ? fallbackProvider : targetProvider;
 
         if (!voiceId) return;
 
-        const voiceDetails = (voicePresetsConstant as Voice[]).find(v => v.voice_id === voiceId && v.provider === finalProvider);
+        const voiceDetails = (voicePresetsConstant as Voice[]).find(v => v.voiceId === voiceId && v.provider === finalProvider);
         if (!voiceDetails) return;
 
         // Update voice fields
-        setValue("voice_id", voiceDetails.voice_id);
-        setValue("voice_name", voiceDetails.name);
-        setValue("voice_description", voiceDetails.description);
-        setValue("voice_language", voiceDetails.language as SupportedLanguage);
-        setValue("voice_gender", voiceDetails.gender as Gender);
-        setValue("voice_provider", voiceDetails.provider);
+        setValue("voiceId", voiceDetails.voiceId);
+        setValue("voiceName", voiceDetails.name);
+        setValue("voiceDescription", voiceDetails.description);
+        setValue("voiceLanguage", voiceDetails.language as SupportedLanguage);
+        setValue("voiceGender", voiceDetails.gender as Gender);
+        setValue("voiceProvider", voiceDetails.provider);
 
-        const userHasVoice = allDisplayableVoices.some(v => v.voice_id === voiceDetails.voice_id && v.provider === voiceDetails.provider && v.isUserVoiceInOrchestra);
-        setValue("voice_exists", userHasVoice, { shouldValidate: true });
+        const userHasVoice = allDisplayableVoices.some(v => v.voiceId === voiceDetails.voiceId && v.provider === voiceDetails.provider && v.isUserVoiceInOrchestra);
+        setValue("voiceExists", userHasVoice, { shouldValidate: true });
 
         // Update video
         setValue("videoPreviewUrl", null); // Clear old video to show loading
-        assistantActions.photo.downloadPresetVideo(currentPreset.first_name, currentPreset.surname, finalProvider)
+        assistantActions.photo.downloadPresetVideo(currentPreset.firstName, currentPreset.surname, finalProvider)
             .then(res => {
                 if (res.signedUrl) {
                     setValue("videoPreviewUrl", res.signedUrl);
-                    setValue("video_source_voice_id", voiceId);
-                    setValue("profile_video_url", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.first_name}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`);
+                    setValue("videoSourceVoiceId", voiceId);
+                    setValue("profileVideoUrl", `gs://${process.env.NEXT_PUBLIC_ORCHESTRA_GCP_ASSISTANT_IMAGES_BUCKET_NAME}/preset_assistants/${currentPreset.firstName}_${currentPreset.surname}_${finalProvider.toLowerCase()}.mp4`);
                     // Prevent autoplay by adding the new URL to the played list
                     setPlayedVideoUrls(prev => new Set(prev).add(res.signedUrl!));
                 }
@@ -255,21 +255,21 @@ export function HireForm({
                                 <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1">
                                         <div className="col-span-2 sm:col-span-1">
-                                        <Label htmlFor="first_name">First Name</Label>
-                                        <Input id="first_name" {...register("first_name", {
+                                        <Label htmlFor="firstName">First Name</Label>
+                                        <Input id="firstName" {...register("firstName", {
                                             required: "First name is required",
                                             validate: (value) => {
                                                 if (isEditMode) return true;
                                                 const currentSurname = getValues("surname") || '';
                                                 const isDuplicate = assistants.some(
                                                     (a) =>
-                                                        a.first_name?.trim().toLowerCase() === value.trim().toLowerCase() &&
+                                                        a.firstName?.trim().toLowerCase() === value.trim().toLowerCase() &&
                                                         a.surname?.trim().toLowerCase() === currentSurname.trim().toLowerCase()
                                                 );
                                                 return isDuplicate ? "An assistant with this full name already exists." : true;
                                             }
                                         })} disabled={isEditMode} />
-                                        {errors.first_name && <p className="text-body text-strong text-destructive mt-1">{errors.first_name.message}</p>}
+                                        {errors.firstName && <p className="text-body text-strong text-destructive mt-1">{errors.firstName.message}</p>}
                                         </div>
                                         <div className="col-span-2 sm:col-span-1">
                                         <Label htmlFor="surname">Last Name</Label>
@@ -277,11 +277,11 @@ export function HireForm({
                                             required: "Last name is required",
                                             validate: (value) => {
                                                 if (isEditMode) return true;
-                                                const currentFirstName = getValues("first_name") || '';
+                                                const currentFirstName = getValues("firstName") || '';
                                                 const isDuplicate = assistants.some(
                                                     (a) =>
                                                         a.surname?.trim().toLowerCase() === value.trim().toLowerCase() &&
-                                                        a.first_name?.trim().toLowerCase() === currentFirstName.trim().toLowerCase()
+                                                        a.firstName?.trim().toLowerCase() === currentFirstName.trim().toLowerCase()
                                                 );
                                                 return isDuplicate ? "An assistant with this full name already exists." : true;
                                             }
@@ -420,15 +420,15 @@ export function HireForm({
                                 <VoiceCustomization
                                     assistantActions={assistantActions}
                                     onVoiceSelected={(selectedVoice) => {
-                                        setValue("voice_id", selectedVoice?.voice_id, { shouldValidate: !!selectedVoice?.voice_id });
-                                        setValue("voice_name", selectedVoice?.name, { shouldValidate: !!selectedVoice?.name });
-                                        setValue("voice_description", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
-                                        setValue("voice_gender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
-                                        setValue("voice_language", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
-                                        setValue("voice_provider", selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
-                                        setValue("voice_exists", selectedVoice?.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
+                                        setValue("voiceId", selectedVoice?.voiceId, { shouldValidate: !!selectedVoice?.voiceId });
+                                        setValue("voiceName", selectedVoice?.name, { shouldValidate: !!selectedVoice?.name });
+                                        setValue("voiceDescription", selectedVoice?.description ?? selectedVoice?.name, { shouldValidate: !!selectedVoice?.description });
+                                        setValue("voiceGender", selectedVoice?.gender, { shouldValidate: !!selectedVoice?.gender });
+                                        setValue("voiceLanguage", selectedVoice?.language, { shouldValidate: !!selectedVoice?.language });
+                                        setValue("voiceProvider", selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, { shouldValidate: true });
+                                        setValue("voiceExists", selectedVoice?.isUserVoiceInOrchestra ?? false, { shouldValidate: true });
                                     }}
-                                    initialVoiceId={getValues("voice_id")}
+                                    initialVoiceId={getValues("voiceId")}
                                     disabled={isSubmitting}
                                     onProcessingStateChange={onVoiceProcessingStateChange}
                                     allDisplayableVoices={allDisplayableVoices}
@@ -436,9 +436,9 @@ export function HireForm({
                                     fetchUserVoices={fetchUserVoices}
                                     handleDeleteVoice={handleDeleteVoice}
                                 />
-                                {errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_id.message}</p>}
-                                {errors.voice_language && !errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_language.message}</p>}
-                                {errors.voice_provider && !errors.voice_id && <p className="text-body text-strong text-destructive mt-1">{errors.voice_provider.message}</p>}
+                                {errors.voiceId && <p className="text-body text-strong text-destructive mt-1">{errors.voiceId.message}</p>}
+                                {errors.voiceLanguage && !errors.voiceId && <p className="text-body text-strong text-destructive mt-1">{errors.voiceLanguage.message}</p>}
+                                {errors.voiceProvider && !errors.voiceId && <p className="text-body text-strong text-destructive mt-1">{errors.voiceProvider.message}</p>}
                             </AccordionContent>
                         </AccordionItem>
                         
@@ -454,7 +454,7 @@ export function HireForm({
                                     <div className="space-y-2">
                                        <div className="flex items-center gap-2">
                                            <Laptop className="h-4 w-4 text-muted-foreground mb-1" />
-                                           <Label htmlFor="operating_system">Assistant&apos;s Setup</Label>
+                                           <Label htmlFor="operatingSystem">Assistant&apos;s Setup</Label>
                                            <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop."}</p></TooltipContent></Tooltip></TooltipProvider>
                                        </div>
                                        <Controller
@@ -477,7 +477,7 @@ export function HireForm({
                                                        </div>
                                                        {field.value === 'local' && (
                                                            <Controller
-                                                               name="operating_system"
+                                                               name="operatingSystem"
                                                                control={control}
                                                                render={({ field: osField }) => (
                                                                    <div className="pl-6 space-y-2">

@@ -102,28 +102,28 @@ export function usePlotTile(
     if (!isPlotTile || !tileId || !plotTile) return null;
     
     return {
-      plot_type: plotTile.plot_type,
-      plot_scale_x: plotTile.plot_scale_x,
-      plot_scale_y: plotTile.plot_scale_y,
-      plot_aggregate: plotTile.plot_aggregate,
-      x_axis: plotTile.x_axis,
-      y_axis: plotTile.y_axis,
-      plot_group_by: plotTile.plot_group_by,
-      bin_count: plotTile.bin_count,
-      regression_line: plotTile.regression_line,
+      plotType: plotTile.plotType,
+      plotScaleX: plotTile.plotScaleX,
+      plotScaleY: plotTile.plotScaleY,
+      plotAggregate: plotTile.plotAggregate,
+      xAxis: plotTile.xAxis,
+      yAxis: plotTile.yAxis,
+      plotGroupBy: plotTile.plotGroupBy,
+      binCount: plotTile.binCount,
+      regressionLine: plotTile.regressionLine,
     } as PlotTileData;
   }, [
     isPlotTile,
     tileId,
-    plotTile?.plot_type,
-    plotTile?.plot_scale_x,
-    plotTile?.plot_scale_y,
-    plotTile?.plot_aggregate,
-    plotTile?.x_axis,
-    plotTile?.y_axis,
-    plotTile?.plot_group_by,
-    plotTile?.bin_count,
-    plotTile?.regression_line,
+    plotTile?.plotType,
+    plotTile?.plotScaleX,
+    plotTile?.plotScaleY,
+    plotTile?.plotAggregate,
+    plotTile?.xAxis,
+    plotTile?.yAxis,
+    plotTile?.plotGroupBy,
+    plotTile?.binCount,
+    plotTile?.regressionLine,
   ]);
 
   // Access store for plot-specific UI state
@@ -131,12 +131,12 @@ export function usePlotTile(
     if (!isPlotTile || !tileId || !plotTile) return null;
     // Return empty object as per PlotTileUI interface
     return {
-      plot_group_by_colors: plotTile.plot_group_by_colors,
+      plotGroupByColors: plotTile.plotGroupByColors,
     } as PlotTileUI;
   }, [
     isPlotTile, 
     tileId,
-    plotTile?.plot_group_by_colors,
+    plotTile?.plotGroupByColors,
   ]);
 
   // Get store update functions
@@ -157,63 +157,63 @@ export function usePlotTile(
     return {
       setPlotType: (plotType) => {
         const update: Partial<PlotTile> = { 
-          plot_type: plotType 
+          plotType: plotType 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setPlotScaleX: (plotScaleX) => {
         const update: Partial<PlotTile> = { 
-          plot_scale_x: plotScaleX 
+          plotScaleX: plotScaleX 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setPlotScaleY: (plotScaleY) => {
         const update: Partial<PlotTile> = { 
-          plot_scale_y: plotScaleY 
+          plotScaleY: plotScaleY 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setAggregateProperty: (aggregateProperty) => {
         const update: Partial<PlotTile> = { 
-          plot_aggregate: aggregateProperty 
+          plotAggregate: aggregateProperty 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setXAxis: (xAxis) => {
         const update: Partial<PlotTile> = { 
-          x_axis: xAxis 
+          xAxis: xAxis 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setYAxis: (yAxis) => {
         const update: Partial<PlotTile> = { 
-          y_axis: yAxis 
+          yAxis: yAxis 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setPlotGroupBy: (plotGroupBy) => {
         const update: Partial<PlotTile> = { 
-          plot_group_by: plotGroupBy 
+          plotGroupBy: plotGroupBy 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setBinCount: (binCount) => {
         const update: Partial<PlotTile> = { 
-          bin_count: binCount 
+          binCount: binCount 
         };
         storeUpdatePlotTile(tileId, update);
       },
       
       setRegressionLine: (regressionLine) => {
         const update: Partial<PlotTile> = { 
-          regression_line: regressionLine 
+          regressionLine: regressionLine 
         };
         storeUpdatePlotTile(tileId, update);
       },
@@ -229,7 +229,7 @@ export function usePlotTile(
     return {
       setPlotGroupByColors: (plotGroupByColors) => {
         const update: Partial<PlotTile> = { 
-          plot_group_by_colors: plotGroupByColors
+          plotGroupByColors: plotGroupByColors
         };
         storeUpdatePlotTile(tileId, update);
       },

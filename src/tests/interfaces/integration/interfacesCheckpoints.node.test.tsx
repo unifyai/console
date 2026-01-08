@@ -31,9 +31,9 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
         ({
           id: 'interface-1',
           name: 'Main Interface',
-          project_id: 'project-1',
-          is_checkpoint: !!checkpoint,
-        } as InterfaceData & { is_checkpoint: boolean }),
+          projectId: 'project-1',
+          isCheckpoint: !!checkpoint,
+        } as InterfaceData & { isCheckpoint: boolean }),
     );
 
     const actions = {
@@ -58,7 +58,7 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
-      expect(result.current.data?.is_checkpoint).toBe(true);
+      expect(result.current.data?.isCheckpoint).toBe(true);
     });
 
     expect(getByName).toHaveBeenCalledWith(
@@ -82,10 +82,10 @@ describe('Interfaces checkpoint-style flows (unified hooks)', () => {
         ({
           id: 'interface-1',
           name,
-          project_id: projectId,
+          projectId: projectId,
           ...data,
-          is_checkpoint: !!checkpoint,
-        } as InterfaceData & { is_checkpoint: boolean }),
+          isCheckpoint: !!checkpoint,
+        } as InterfaceData & { isCheckpoint: boolean }),
     );
 
     const actions = {

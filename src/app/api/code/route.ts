@@ -21,7 +21,7 @@ declare global {
 }
 
 export async function GET(request: NextRequest) {
-    const filePath = new URL(request.url).searchParams.get("file_path");
+    const filePath = new URL(request.url).searchParams.get("filePath");
     if (filePath) {
         const entry = editorStore.get(filePath);
         if (!entry) return Response.json({ output: "", done: false });
@@ -37,13 +37,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
     const sdk = new CodeSandbox(process.env.CODESANDBOX_API_TOKEN);
     const body = await request.json();
-    const userId = body.user_id;
-    const project_name = body.project_name;
-    const filePath = body.file_path;
+    const userId = body.userId;
+    const projectName = body.projectName;
+    const filePath = body.filePath;
 
     const sandboxList = await sdk.sandbox.list();
     let sandboxId = sandboxList.sandboxes.find(sandbox => sandbox.title === userId)?.id;
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const sandbox = await sdk.sandbox.open(sandboxId);
     let envVars: { [key: string]: string } = {
         UNIFY_KEY: apiKey as string,
-        UNIFY_PROJECT: project_name,
+        UNIFY_PROJECT: projectName,
     };
     if (baseUrl.includes("staging")) {
         envVars = {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build full path inside project directory
-    const fullPath = `${project_name}/${filePath}`;
+    const fullPath = `${projectName}/${filePath}`;
 
     // create command to run code
     editorStore.set(fullPath, { output: "", done: false });

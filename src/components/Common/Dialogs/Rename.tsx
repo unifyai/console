@@ -22,7 +22,7 @@ export default function RenameDialog ({ path, paths, fileDir, fileName, type, re
     fileDir: string;
     fileName: string;
     type: string;
-    renamingFunction: (name: string, new_name: string) => Promise<ResponseProps>
+    renamingFunction: (name: string, newName: string) => Promise<ResponseProps>
 }) {
     // Define messages
     const messages = {

@@ -1,6 +1,6 @@
 import { Filters, FiltersByColumn } from "@/types/interfaces/columns";
 import { processContext } from "./columnOperations";
-import { LogFieldsResponseProps, getLogsParameters } from "@/types/interfaces/logs";
+import { LogFieldsResponseProps, GetLogsParameters } from "@/types/interfaces/logs";
 import { AbsoluteDateString, RelativeDateString } from "@/types/interfaces/filters";
 import { differenceInYears, differenceInMonths, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, differenceInMilliseconds, subMonths, subDays, subHours, subMinutes, subSeconds, subMilliseconds, subYears } from 'date-fns';
 import { TileProps } from "@/types/interfaces/grid";
@@ -163,7 +163,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 
 	/* Single filters: Filters with a single value per function */
 	// Handle images
-	if (fields[cKey] && fields[cKey].data_type === "image") {
+	if (fields[cKey] && fields[cKey].dataType === "image") {
 		joined = filter === "false" ? `isNone(${cKey})` : `not isNone(${cKey})` 
 		return " and " + joined
 	}
@@ -183,7 +183,7 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 			let value = item;
 
 			// Handle relative timestamps
-			if (fields[cKey] && ["timestamp", "time", "date"].includes(fields[cKey].data_type) && value.includes(";")) {
+			if (fields[cKey] && ["timestamp", "time", "date"].includes(fields[cKey].dataType) && value.includes(";")) {
 				const date = toAbsoluteDate(value as RelativeDateString)
 				value = `${date.replace("T", " ").replace("Z", "")}`
 				value = value.startsWith('"') ? value : `"${value}`
@@ -191,21 +191,21 @@ function joinFunctionFilters (filter: string, fn: string, cKey: string, fields: 
 			}
 
 			// Handle datetime
-			if (fields[cKey] && fields[cKey].data_type === "date") {
+			if (fields[cKey] && fields[cKey].dataType === "date") {
 				value = value.split(" ")[0]
 				value = value.startsWith('"') ? value : `"${value}`
 				value = value.endsWith('"') ? value : `${value}"`
 			}
 
 			// Handle time
-			if (fields[cKey] && fields[cKey].data_type === "time") {
+			if (fields[cKey] && fields[cKey].dataType === "time") {
 				value = value.split(" ")[1]
 				value = value.startsWith('"') ? value : `"${value}`
 				value = value.endsWith('"') ? value : `${value}"`
 			}
 
 			// Handle timedelta (relative by default)
-			if (fields[cKey] && fields[cKey].data_type === "timedelta") {
+			if (fields[cKey] && fields[cKey].dataType === "timedelta") {
 				value = relativeToTimeDelta(value as RelativeDateString)
 				value = value.startsWith('"') ? value : `"${value}`
 				value = value.endsWith('"') ? value : `${value}"`
@@ -369,35 +369,35 @@ export const maybeWrapFilterInQuotes = (value: string) => (value.startsWith('"')
     * Joining common filters with the "in" filter function and common filter value using "or", or pass the expression if filtering by expression
     * Joining common and column filters into a single filter expression
 */
-export const buildFilterExpression = (filters: string | undefined, common_filter: string | undefined, column_context: string | undefined, freeze: string | undefined, fields: LogFieldsResponseProps ) => {
+export const buildFilterExpression = (filters: string | undefined, commonFilter: string | undefined, columnContext: string | undefined, freeze: string | undefined, fields: LogFieldsResponseProps ) => {
 
-    const filter: { [column: string]: { [fn: string]: string } } = searchParamToFilters(filters, column_context);
+    const filter: { [column: string]: { [fn: string]: string } } = searchParamToFilters(filters, columnContext);
     
 	const columnFiltersExpression = filtersToExpression(filter, fields);
     
 	let commonFiltersExpression = "" 
-	if (common_filter && fields) {
-		const commonFilterMode = common_filter.split("§")[0]
-		const commonFilterValue = common_filter.split("§")[1]
+	if (commonFilter && fields) {
+		const commonFilterMode = commonFilter.split("§")[0]
+		const commonFilterValue = commonFilter.split("§")[1]
 		if (!commonFilterValue) return columnFiltersExpression || null
 		if (commonFilterMode === "expression") {
 			let filter = commonFilterValue;
-			const processFilter = (value: string, column: string, column_context: string | undefined) => value.replace(new RegExp(column, "g"), column_context ? processContext("merge", column_context, column) : column) 
-			Object.keys(fields).forEach(column => processFilter(filter, column, column_context)) 
+			const processFilter = (value: string, column: string, columnContext: string | undefined) => value.replace(new RegExp(column, "g"), columnContext ? processContext("merge", columnContext, column) : column) 
+			Object.keys(fields).forEach(column => processFilter(filter, column, columnContext)) 
 			commonFiltersExpression = filter
 		}
 		else {
-			const validFields = Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.data_type != "image")) // Exclude images
+			const validFields = Object.fromEntries(Object.entries(fields).filter(([_, attributes]) => attributes.dataType != "image")) // Exclude images
 			const filterValue = maybeWrapFilterInQuotes(commonFilterValue)
-			const processFilter = (value: string, column: string, column_context: string | undefined) => `${value} in str(${column_context ? processContext("merge", column_context, column) : column})`
-			commonFiltersExpression = Object.keys(validFields).map(column => processFilter(filterValue, column, column_context)).join(" or ")
+			const processFilter = (value: string, column: string, columnContext: string | undefined) => `${value} in str(${columnContext ? processContext("merge", columnContext, column) : column})`
+			commonFiltersExpression = Object.keys(validFields).map(column => processFilter(filterValue, column, columnContext)).join(" or ")
 		}
 	}
 
     let filterExpression: (string | null) = null
 	if (columnFiltersExpression) filterExpression = columnFiltersExpression;
 	if (commonFiltersExpression) filterExpression = filterExpression ? `${commonFiltersExpression} and ${filterExpression}` : commonFiltersExpression;
-	if (freeze) filterExpression = filterExpression ? filterExpression + ` and created_at < "${freeze}"` : `created_at < "${freeze}"`;
+	if (freeze) filterExpression = filterExpression ? filterExpression + ` and createdAt < "${freeze}"` : `createdAt < "${freeze}"`;
 
 	return filterExpression
 }
@@ -406,20 +406,20 @@ export const buildFilterExpression = (filters: string | undefined, common_filter
 	Construct filter expression from table argument's filters, common filters and freeze.
 	Filter expression neededs to be dynamically evaluated to process relative timestamp filters
 */
-export function buildFilterExpressionArgument (args: {getLogs_parameters: getLogsParameters, available_fields?: LogFieldsResponseProps }) {
-	const fields = args.available_fields ?? {}
-	const params = args.getLogs_parameters
+export function buildFilterExpressionArgument (args: {getLogsParameters: GetLogsParameters, availableFields?: LogFieldsResponseProps }) {
+	const fields = args.availableFields ?? {}
+	const params = args.getLogsParameters
 	if ("filters" in params) {
-		params["filter_expr"] = buildFilterExpression(
+		params["filterExpr"] = buildFilterExpression(
 			params["column_filters"],
-			params["common_filter"],
-			params["column_context"],
+			params["commonFilter"],
+			params["columnContext"],
 			params["freeze"],
 			fields
 		) ?? ""
 		delete params["filters"]
-		delete params["common_filter"]
+		delete params["commonFilter"]
 		delete params["freeze"]
 	}
-    return {available_fields: fields, getLogs_parameters: params};
+    return {availableFields: fields, getLogsParameters: params};
 }

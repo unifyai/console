@@ -29,9 +29,9 @@ describe('useCreateProjectQuery', () => {
 
   it('creates project resources in order: Interface -> Tab -> Tiles', async () => {
     // Mocks
-    (mockInterfaceActions.create as any).mockResolvedValue({ id: 'i1', project_id: 'p1', name: 'I1' });
-    (mockTabActions.create as any).mockResolvedValue({ id: 't1', interface_id: 'i1', name: 'Tab 1' });
-    (mockTileActions.create as any).mockResolvedValue({ id: 'tile1', tab_id: 't1', name: 'Tile 1' });
+    (mockInterfaceActions.create as any).mockResolvedValue({ id: 'i1', projectId: 'p1', name: 'I1' });
+    (mockTabActions.create as any).mockResolvedValue({ id: 't1', interfaceId: 'i1', name: 'Tab 1' });
+    (mockTileActions.create as any).mockResolvedValue({ id: 'tile1', tabId: 't1', name: 'Tile 1' });
 
     const { result } = renderHook(() => useCreateProjectQuery(), {
       wrapper: createQueryWrapper(),
@@ -39,7 +39,7 @@ describe('useCreateProjectQuery', () => {
 
     // Invoke mutation
     const input = {
-      interface: { project_id: 'p1', name: 'I1', tabIds: [], tabNames: [] },
+      interface: { projectId: 'p1', name: 'I1', tabIds: [], tabNames: [] },
       tab: { name: 'Tab 1', visible: true, active: true, order: 0, context: 'default', tileIds: [], tileNames: [] },
       tiles: [
         { 
@@ -47,7 +47,7 @@ describe('useCreateProjectQuery', () => {
           name: 'Tile 1', 
           type: 'Table', 
           position: { x: 0, y: 0, w: 1, h: 1 }, 
-          tab_id: 't1' 
+          tabId: 't1' 
         } as any
       ],
       actions: mockActions
@@ -84,7 +84,7 @@ describe('useCreateProjectQuery', () => {
     });
 
     const input = {
-        interface: { project_id: 'p1', name: 'I1', tabIds: [], tabNames: [] },
+        interface: { projectId: 'p1', name: 'I1', tabIds: [], tabNames: [] },
         tab: { name: 'Tab 1', visible: true, active: true, order: 0, context: 'default', tileIds: [], tileNames: [] },
         actions: mockActions
     };

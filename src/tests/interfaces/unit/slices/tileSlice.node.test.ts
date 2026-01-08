@@ -143,7 +143,7 @@ describe('tileSlice', () => {
       name: 'TableTile',
       type: 'Table',
       tabId: 'tab-1',
-      tableTile: { table_type: 'logs' },
+      tableTile: { tableType: 'logs' },
     } as any);
 
     // Seed a view tile that references the table tile via its table name
@@ -162,9 +162,9 @@ describe('tileSlice', () => {
     } as any);
     state.updateTile('tile-plot', {
       plotTile: {
-        x_axis: 'TableTile.value',
-        y_axis: 'TableTile.other',
-        plot_group_by: 'TableTile.group',
+        xAxis: 'TableTile.value',
+        yAxis: 'TableTile.other',
+        plotGroupBy: 'TableTile.group',
       },
     } as any);
 
@@ -179,9 +179,9 @@ describe('tileSlice', () => {
         expect.arrayContaining(['TableTile', 'ViewTile', 'PlotTile']),
       );
       expect(seeded.tilesById['tile-view'].table).toBe('TableTile');
-      expect(seeded.tilesById['tile-plot'].plotTile?.x_axis).toBe('TableTile.value');
-      expect(seeded.tilesById['tile-plot'].plotTile?.y_axis).toBe('TableTile.other');
-      expect(seeded.tilesById['tile-plot'].plotTile?.plot_group_by).toBe('TableTile.group');
+      expect(seeded.tilesById['tile-plot'].plotTile?.xAxis).toBe('TableTile.value');
+      expect(seeded.tilesById['tile-plot'].plotTile?.yAxis).toBe('TableTile.other');
+      expect(seeded.tilesById['tile-plot'].plotTile?.plotGroupBy).toBe('TableTile.group');
     }
 
     // Act: remove the table tile from the tab
@@ -198,9 +198,9 @@ describe('tileSlice', () => {
 
     // Tiles that referenced the removed tile by name should have their references cleared
     expect(next.tilesById['tile-view'].table).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.x_axis).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.y_axis).toBeNull();
-    expect(next.tilesById['tile-plot'].plotTile?.plot_group_by).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.xAxis).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.yAxis).toBeNull();
+    expect(next.tilesById['tile-plot'].plotTile?.plotGroupBy).toBeNull();
 
     // Active project/interface/tab identifiers should remain valid
     expect(next.activeProjectId).toBe('project-1');
@@ -268,7 +268,7 @@ describe('tileSlice', () => {
     });
     state.updateTile('tile-plot', {
       plotTile: {
-        x_axis: 'OldName.value'
+        xAxis: 'OldName.value'
       }
     } as any);
 
@@ -287,7 +287,7 @@ describe('tileSlice', () => {
 
     // Check reference update in plot tile
     const plotTile = next.tilesById['tile-plot'];
-    expect(plotTile.plotTile?.x_axis).toBe('NewName.value');
+    expect(plotTile.plotTile?.xAxis).toBe('NewName.value');
   });
 
   it('registerTileRefs tracks ref counts', () => {

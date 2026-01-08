@@ -86,7 +86,7 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
     const existingGranteeIds = useMemo(() => {
         const ids = new Set<string>()
         accessEntries.forEach(entry => {
-            ids.add(`${entry.grantee_type}:${entry.grantee_id}`)
+            ids.add(`${entry.granteeType}:${entry.granteeId}`)
         })
         return ids
     }, [accessEntries])
@@ -103,13 +103,13 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
             }))
 
         const members: GranteeOption[] = availableMembers
-            .filter(member => !existingGranteeIds.has(`user:${member.user_id}`))
+            .filter(member => !existingGranteeIds.has(`user:${member.userId}`))
             .map(member => ({
-                value: `user:${member.user_id}`,
-                label: member.name || member.email || member.user_id,
+                value: `user:${member.userId}`,
+                label: member.name || member.email || member.userId,
                 sublabel: member.name && member.email ? member.email : undefined,
                 type: 'user' as const,
-                id: member.user_id,
+                id: member.userId,
             }))
 
         return { teams, members }
@@ -134,9 +134,9 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
 
         try {
             const grantData: ResourceAccessGrant = {
-                role_id: parseInt(selectedRoleId, 10),
-                grantee_type: selectedGranteeOption.type,
-                grantee_id: selectedGranteeOption.id,
+                roleId: parseInt(selectedRoleId, 10),
+                granteeType: selectedGranteeOption.type,
+                granteeId: selectedGranteeOption.id,
             }
             
             const result = await resourcesActions.grantAccess('project', projectId, grantData)
@@ -163,16 +163,16 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
         
         try {
             const result = await resourcesActions.revokeAccess('project', projectId, {
-                grantee_type: entry.grantee_type as 'user' | 'team',
-                grantee_id: entry.grantee_id,
-                role_id: entry.role_id,
+                granteeType: entry.granteeType as 'user' | 'team',
+                granteeId: entry.granteeId,
+                roleId: entry.roleId,
             })
             
             if (result && 'status' in result && result.status !== 204) {
                 throw new Error((result as any).detail || 'Failed to revoke access')
             }
 
-            showSuccessToast('Access revoked', `Access for ${entry.grantee_name || entry.grantee_id} has been removed`)
+            showSuccessToast('Access revoked', `Access for ${entry.granteeName || entry.granteeId} has been removed`)
             onAccessUpdated()
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Failed to revoke access'
@@ -187,14 +187,14 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
         
         try {
             const result = await resourcesActions.updateAccess('project', projectId, entry.id, {
-                role_id: newRoleId,
+                roleId: newRoleId,
             })
             
             if ('status' in result && result.status !== 200) {
                 throw new Error((result as any).detail || 'Failed to update role')
             }
 
-            showSuccessToast('Role updated', `Role for ${entry.grantee_name || entry.grantee_id} has been updated`)
+            showSuccessToast('Role updated', `Role for ${entry.granteeName || entry.granteeId} has been updated`)
             onAccessUpdated()
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Failed to update role'
@@ -324,28 +324,28 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
                                             className="flex items-center justify-between p-3 rounded-md bg-muted/50"
                                         >
                                             <div className="flex items-center gap-3">
-                                                {entry.grantee_type === 'user' ? (
+                                                {entry.granteeType === 'user' ? (
                                                     <User className="h-4 w-4 text-muted-foreground" />
                                                 ) : (
                                                     <Users className="h-4 w-4 text-muted-foreground" />
                                                 )}
                                                 <div>
                                                     <p className="text-body-sm font-medium">
-                                                        {entry.grantee_name || entry.grantee_id}
+                                                        {entry.granteeName || entry.granteeId}
                                                     </p>
                                                     <p className="text-caption text-muted-foreground">
-                                                        {entry.grantee_type === 'user' ? 'User' : 'Team'}
+                                                        {entry.granteeType === 'user' ? 'User' : 'Team'}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {entry.role_name === 'Owner' ? (
+                                                {entry.roleName === 'Owner' ? (
                                                     <span className="w-28 h-8 flex items-center justify-center text-body-sm font-medium">
                                                         Owner
                                                     </span>
                                                 ) : (
                                                     <Select
-                                                        value={entry.role_id.toString()}
+                                                        value={entry.roleId.toString()}
                                                         onValueChange={(v) => handleUpdateRole(entry, parseInt(v, 10))}
                                                         disabled={isUpdating === entry.id}
                                                     >
@@ -361,12 +361,12 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
                                                         </SelectContent>
                                                     </Select>
                                                 )}
-                                                {entry.role_name !== 'Owner' && (
+                                                {entry.roleName !== 'Owner' && (
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => handleRevoke(entry)}
-                                                        disabled={isRevoking === entry.id || entry.role_name === 'Owner'}
+                                                        disabled={isRevoking === entry.id || entry.roleName === 'Owner'}
                                                         className="h-8 w-8 text-destructive hover:text-destructive"
                                                     >
                                                         <Trash2 className="h-4 w-4" />

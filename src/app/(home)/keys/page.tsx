@@ -14,7 +14,7 @@ const CustomKeysPage = async () => {
         signOut();
         redirect('/login');
     }
-    const apiKey = user.api_key;
+    const apiKey = user.apiKey;
     const onPrem = process.env.ON_PREM;
 
     // get custom keys

@@ -153,7 +153,7 @@ const Tab = ({
           height: Math.round(l.h / heightFactor),
         }
       }));
-      updateTilesPositionsMutation.mutate({ tab_id: tabId, tiles, actions: tileActions as any });
+      updateTilesPositionsMutation.mutate({ tabId: tabId, tiles, actions: tileActions as any });
     } catch {}
   };
 

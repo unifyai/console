@@ -149,11 +149,11 @@ export function createInterfaceSelectorColumns({
     //   },
     // },
     {
-      accessorKey: "created_at",
+      accessorKey: "createdAt",
       header: "Created At",
       size: 120,
       cell: ({ row }) => {
-        const date = row.getValue("created_at") as string;
+        const date = row.getValue("createdAt") as string;
         return date ? (
           <div 
             className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"
@@ -165,11 +165,11 @@ export function createInterfaceSelectorColumns({
       },
     },
     {
-      accessorKey: "updated_at",
+      accessorKey: "updatedAt",
       header: "Updated At",
       size: 120,
       cell: ({ row }) => {
-        const date = row.getValue("updated_at") as string;
+        const date = row.getValue("updatedAt") as string;
         return date ? (
           <div 
             className="text-caption text-muted-foreground cursor-pointer p-2 rounded transition-colors"

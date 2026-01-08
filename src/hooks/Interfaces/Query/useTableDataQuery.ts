@@ -528,11 +528,11 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
   const { data: tileDataState } = useTileData(tileIdOrName, tabIdOrName || null);
 
   const availableFields = useMemo(() => buildAvailableFieldsForTile(
-    tileDataState?.column_context ?? "",
+    tileDataState?.columnContext ?? "",
     fields,
     entriesProperties,
     paramsProperties
-  ), [tileDataState?.column_context, fields, entriesProperties, paramsProperties]);
+  ), [tileDataState?.columnContext, fields, entriesProperties, paramsProperties]);
 
   const tileName = tileMetaState?.name;
   
@@ -545,7 +545,7 @@ export function useUpdateAvailableFieldsForTableArgumentsQuery(
         ...prev,
         [tileName]: {
           ...prev[tileName],
-          available_fields: availableFields,
+          availableFields: availableFields,
         },
       }),
     );

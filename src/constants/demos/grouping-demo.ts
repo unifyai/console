@@ -34,7 +34,7 @@ for with_tool in [True, False]:
 `,
     // Granular interface structure
     interface: {
-        project_id: "grouping-demo",
+        projectId: "grouping-demo",
         name: "interface1",
     },
     // Tab structure
@@ -56,8 +56,8 @@ for with_tool in [True, False]:
                 height: 8.0
             },
             grouping: "Parameters/experiment",
-            table_tile: {
-                table_type: "Data Table",
+            tableTile: {
+                tableType: "Data Table",
                 sorting: "score@true"
             }
         },
@@ -71,8 +71,8 @@ for with_tool in [True, False]:
                 height: 8.0
             },
             table: "Table",
-            view_tile: {},
+            viewTile: {},
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

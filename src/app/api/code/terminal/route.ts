@@ -72,7 +72,7 @@ async function createTerminal(
 
   terminal.onOutput((output) => {
     const entry = terminalStore.get(sessionId);
-    if (!entry) throw new Error("Invalid session_id");
+    if (!entry) throw new Error("Invalid sessionId");
     entry.outputBuffer += output;
   });
 
@@ -82,7 +82,7 @@ async function createTerminal(
 
 async function setupGDriveMount(sessionId: string, assistantEmails: string[], mountBases: string[]) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid session_id");
+  if (!entry) throw new Error("Invalid sessionId");
 
   const command = buildGDriveMountCommand(assistantEmails, mountBases);
   await runCommand(sessionId, command);
@@ -113,7 +113,7 @@ async function cleanupMounts(sessionId: string) {
 
 async function runCommand(sessionId: string, command: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid session_id");
+  if (!entry) throw new Error("Invalid sessionId");
 
   // Run the command and wait until it exits or times out (5 min cap)
   const { terminal } = entry;
@@ -136,7 +136,7 @@ async function runCommand(sessionId: string, command: string) {
 
 async function getOutput(sessionId: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid session_id");
+  if (!entry) throw new Error("Invalid sessionId");
   const { terminal } = entry;
   const outputReturn = entry.outputBuffer;
   entry.outputBuffer = "";
@@ -145,7 +145,7 @@ async function getOutput(sessionId: string) {
 
 async function killSession(sessionId: string) {
   const entry = terminalStore.get(sessionId);
-  if (!entry) throw new Error("Invalid session_id");
+  if (!entry) throw new Error("Invalid sessionId");
   await entry.terminal.kill();
   terminalStore.delete(sessionId);
 }
@@ -155,9 +155,9 @@ async function killSession(sessionId: string) {
 // ---------------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
-  const sessionId = new URL(req.url).searchParams.get("session_id");
+  const sessionId = new URL(req.url).searchParams.get("sessionId");
   if (!sessionId) {
-    return Response.json({ detail: "Missing session_id" }, { status: 400 });
+    return Response.json({ detail: "Missing sessionId" }, { status: 400 });
   }
 
   try {
@@ -175,12 +175,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const userId = body.user_id as string | undefined;
+    const userId = body.userId as string | undefined;
     const shell = (body.shell as string | undefined) ?? "bash";
     const cwd  = (body.cwd  as string | undefined) ?? "/project/sandbox";
-    const mountGdrive = (body.mount_gdrive as boolean | undefined) ?? cwd.includes("Assistants");
+    const mountGdrive = (body.mountGdrive as boolean | undefined) ?? cwd.includes("Assistants");
 
-    if (!userId) return Response.json({ detail: "Missing user_id" }, { status: 400 });
+    if (!userId) return Response.json({ detail: "Missing userId" }, { status: 400 });
 
     try {
       const { sessionId } = await createTerminal(userId, shell, cwd);
@@ -215,11 +215,11 @@ export async function POST(req: NextRequest) {
           } catch (e) {
             console.error("[terminal] gdrive mount setup error", e);
           }
-          return Response.json({ session_id: sessionId, shell, cwd, mount_bases: mountBases });
+          return Response.json({ sessionId: sessionId, shell, cwd, mountBases: mountBases });
         }
       }
 
-      return Response.json({ session_id: sessionId, shell, cwd });
+      return Response.json({ sessionId: sessionId, shell, cwd });
     } catch (err: any) {
       console.error("[terminal] create error", err);
       return Response.json({ detail: "Failed to create terminal" }, { status: 500 });
@@ -233,10 +233,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { session_id: sessionId, command } = body as { session_id?: string; command?: string };
+    const { sessionId: sessionId, command } = body as { sessionId?: string; command?: string };
 
     if (!sessionId || typeof command !== "string")
-      return Response.json({ detail: "Missing session_id or command" }, { status: 400 });
+      return Response.json({ detail: "Missing sessionId or command" }, { status: 400 });
 
     const outputBefore = await getOutput(sessionId);
     const res = await runCommand(sessionId, command);
@@ -251,8 +251,8 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
-    const sessionId = body.session_id as string | undefined;
-    if (!sessionId) return Response.json({ detail: "Missing session_id" }, { status: 400 });
+    const sessionId = body.sessionId as string | undefined;
+    if (!sessionId) return Response.json({ detail: "Missing sessionId" }, { status: 400 });
 
     try {
       await cleanupMounts(sessionId);

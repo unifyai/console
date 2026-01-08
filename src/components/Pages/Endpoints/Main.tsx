@@ -14,7 +14,7 @@ const Main = ({ customEndpoints, customKeys, customEndpointActions }: {
     customEndpointActions: {
         delete: (name: string) => Promise<ResponseProps>,
         rename: (name: string, newName: string) => Promise<ResponseProps>,
-        create: (name: string, url: string, key_name: string, model_arg?: string) => Promise<ResponseProps>,
+        create: (name: string, url: string, keyName: string, modelArg?: string) => Promise<ResponseProps>,
     },
  }) => {
 

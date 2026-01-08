@@ -166,9 +166,9 @@ export interface ResponseChunk {
     model: string;
     provider: string;
     usage: Partial<{
-        "prompt_tokens": number;
-        "completion_tokens": number;
-        "total_tokens": number;
+        "promptTokens": number;
+        "completionTokens": number;
+        "totalTokens": number;
         "cost": number
     }>;
     choices?: {

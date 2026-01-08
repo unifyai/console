@@ -56,7 +56,7 @@ export const renameCustomKey = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/customKeys/rename?name=${name}new_name=${newName}`,
+            `${process.env.NEXTAUTH_URL}/api/customKeys/rename?name=${name}newName=${newName}`,
             { method: "POST", headers: { apiKey: apiKey } }
         );
         return await response.json();

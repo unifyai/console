@@ -60,8 +60,8 @@ export default function InterfaceSelector({
           // If interfaces exist, find the most recently updated one and redirect.
           const sortedInterfaces = [...interfaces].sort((a, b) => {
             // FIX: Handle potentially undefined dates by providing a fallback (epoch time)
-            const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-            const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+            const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
             return dateB - dateA; // Sort descending (newest first)
           });
           const latestInterface = sortedInterfaces[0];

@@ -30,14 +30,14 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
     moved: tile.moved,
     static: tile.static,
     context: tile.context || undefined,
-    column_context: tile.column_context || undefined,
+    columnContext: tile.columnContext || undefined,
     grouping: tile.grouping || undefined,
     color: tile.color || undefined,
     table: tile.table || undefined,
-    auto_update: tile.auto_update || undefined,
+    autoUpdate: tile.autoUpdate || undefined,
     freeze: tile.freeze || undefined,
     filters: tile.filters || undefined,
-    common_filter: tile.common_filter || undefined,
+    commonFilter: tile.commonFilter || undefined,
     metric: tile.metric || undefined,
   };
   
@@ -45,48 +45,48 @@ export function convertTileToTileItem(tile: Partial<Tile>): TileProps {
   if (tile.type === 'Table' && tile.tableTile) {
     // Add table-specific properties
     Object.assign(tileProps, {
-      table_type: tile.tableTile.table_type,
-      page_number: tile.tableTile.page_number,
-      column_order: tile.tableTile.column_order,
-      hidden_columns: tile.tableTile.hidden_columns,
-      default_hidden_columns: tile.tableTile.default_hidden_columns,
+      tableType: tile.tableTile.tableType,
+      pageNumber: tile.tableTile.pageNumber,
+      columnOrder: tile.tableTile.columnOrder,
+      hiddenColumns: tile.tableTile.hiddenColumns,
+      defaultHiddenColumns: tile.tableTile.defaultHiddenColumns,
       sorting: tile.tableTile.sorting,
-      group_sorting: tile.tableTile.group_sorting,
-      columns_pin_left: tile.tableTile.columns_pin_left,
-      columns_pin_right: tile.tableTile.columns_pin_right,
+      groupSorting: tile.tableTile.groupSorting,
+      columnsPinLeft: tile.tableTile.columnsPinLeft,
+      columnsPinRight: tile.tableTile.columnsPinRight,
       selected: tile.tableTile.selected,
     });
   } else if (tile.type === 'Plot' && tile.plotTile) {
     // Add plot-specific properties
     Object.assign(tileProps, {
-      plot_type: tile.plotTile.plot_type,
-      plot_scale_x: tile.plotTile.plot_scale_x,
-      plot_scale_y: tile.plotTile.plot_scale_y,
-      plot_aggregate: tile.plotTile.plot_aggregate,
-      x_axis: tile.plotTile.x_axis,
-      y_axis: tile.plotTile.y_axis,
-      plot_group_by: tile.plotTile.plot_group_by,
-      plot_group_by_colors: tile.plotTile.plot_group_by_colors,
-      bin_count: tile.plotTile.bin_count,
-      regression_line: tile.plotTile.regression_line
+      plotType: tile.plotTile.plotType,
+      plotScaleX: tile.plotTile.plotScaleX,
+      plotScaleY: tile.plotTile.plotScaleY,
+      plotAggregate: tile.plotTile.plotAggregate,
+      xAxis: tile.plotTile.xAxis,
+      yAxis: tile.plotTile.yAxis,
+      plotGroupBy: tile.plotTile.plotGroupBy,
+      plotGroupByColors: tile.plotTile.plotGroupByColors,
+      binCount: tile.plotTile.binCount,
+      regressionLine: tile.plotTile.regressionLine
     });
   } else if (tile.type === 'View' && tile.viewTile) {
     // Add view-specific properties
     // (Add view-specific fields here if needed)
     Object.assign(tileProps, {
-      base_index: tile.viewTile.base_index
+      baseIndex: tile.viewTile.baseIndex
     });
   } else if (tile.type === 'Editor' && tile.editorTile) {
     // Add editor-specific properties
     Object.assign(tileProps, {
-      file_name: tile.editorTile.file_name,
-      file_type: tile.editorTile.file_type,
+      fileName: tile.editorTile.fileName,
+      fileType: tile.editorTile.fileType,
       content: tile.editorTile.content
     });
   } else if (tile.type === 'Terminal' && tile.terminalTile) {
     // Add terminal-specific properties
     Object.assign(tileProps, {
-      shell_type: tile.terminalTile.shell_type
+      shellType: tile.terminalTile.shellType
     });
   }
   
@@ -125,13 +125,13 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
     static: tileItem.static,
     color: tileItem.color,
     context: tileItem.context,
-    column_context: tileItem.column_context,
+    columnContext: tileItem.columnContext,
     grouping: tileItem.grouping,
     table: tileItem.table,
-    auto_update: tileItem.auto_update,
+    autoUpdate: tileItem.autoUpdate,
     freeze: tileItem.freeze,
     filters: tileItem.filters,
-    common_filter: tileItem.common_filter,
+    commonFilter: tileItem.commonFilter,
     metric: tileItem.metric,
   };
   
@@ -144,49 +144,49 @@ export function convertTileItemToTile(tileItem: TileProps, tileId: string) {
 
   if (tileItem.tab === 'Table') {
     tableTileUpdates = {
-      table_type: tileItem.table_type,
-      page_number: tileItem.page_number,
-      column_order: tileItem.column_order,
-      hidden_columns: tileItem.hidden_columns,
-      default_hidden_columns: tileItem.default_hidden_columns,
+      tableType: tileItem.tableType,
+      pageNumber: tileItem.pageNumber,
+      columnOrder: tileItem.columnOrder,
+      hiddenColumns: tileItem.hiddenColumns,
+      defaultHiddenColumns: tileItem.defaultHiddenColumns,
       sorting: tileItem.sorting,
-      group_sorting: tileItem.group_sorting,
-      columns_pin_left: tileItem.columns_pin_left,
-      columns_pin_right: tileItem.columns_pin_right,
+      groupSorting: tileItem.groupSorting,
+      columnsPinLeft: tileItem.columnsPinLeft,
+      columnsPinRight: tileItem.columnsPinRight,
       selected: tileItem.selected,
     };
     tileUpdates.tableTile = tableTileUpdates as TableTile;
   } else if (tileItem.tab === 'Plot') {
     plotTileUpdates = {
-      plot_type: tileItem.plot_type,
-      plot_scale_x: tileItem.plot_scale_x,
-      plot_scale_y: tileItem.plot_scale_y,
-      plot_aggregate: tileItem.plot_aggregate,
-      x_axis: tileItem.x_axis,
-      y_axis: tileItem.y_axis,
-      plot_group_by: tileItem.plot_group_by,
-      plot_group_by_colors: tileItem.plot_group_by_colors,
-      bin_count: tileItem.bin_count,
-      regression_line: tileItem.regression_line
+      plotType: tileItem.plotType,
+      plotScaleX: tileItem.plotScaleX,
+      plotScaleY: tileItem.plotScaleY,
+      plotAggregate: tileItem.plotAggregate,
+      xAxis: tileItem.xAxis,
+      yAxis: tileItem.yAxis,
+      plotGroupBy: tileItem.plotGroupBy,
+      plotGroupByColors: tileItem.plotGroupByColors,
+      binCount: tileItem.binCount,
+      regressionLine: tileItem.regressionLine
     };
     tileUpdates.plotTile = plotTileUpdates as PlotTile;
   } else if (tileItem.tab === 'View') {
     // Apply view-specific updates
     // (Add view-specific updates here if needed)
     viewTileUpdates = {
-      base_index: tileItem.base_index
+      baseIndex: tileItem.baseIndex
     } as Partial<ViewTile>;
     tileUpdates.viewTile = viewTileUpdates as ViewTile;
   } else if (tileItem.tab === 'Editor') {
     editorTileUpdates = {
-      file_name: tileItem.file_name,
-      file_type: tileItem.file_type,
+      fileName: tileItem.fileName,
+      fileType: tileItem.fileType,
       content: tileItem.content
     } as Partial<EditorTile>;
     tileUpdates.editorTile = editorTileUpdates as EditorTile;
   } else if (tileItem.tab === 'Terminal') {
     terminalTileUpdates = {
-      shell_type: tileItem.shell_type
+      shellType: tileItem.shellType
     } as Partial<TerminalTile>;
     tileUpdates.terminalTile = terminalTileUpdates as TerminalTile;
   }

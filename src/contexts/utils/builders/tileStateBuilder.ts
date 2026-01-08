@@ -28,18 +28,18 @@ export function buildTileState(tileData: TileData): Tile {
   const tileSliceData: TileSliceData = {
     context: tileData.context,
     table: tileData.table,
-    auto_update: tileData.auto_update,
+    autoUpdate: tileData.autoUpdate,
     freeze: tileData.freeze,
     filters: tileData.filters,
-    common_filter: tileData.common_filter,
+    commonFilter: tileData.commonFilter,
     metric: tileData.metric,
-    column_context: tileData.column_context,
+    columnContext: tileData.columnContext,
     grouping: tileData.grouping,
   };
 
   // Build tile UI state
   const tileUI: TileUI = {
-    tabId: tileData.tab_id || null,
+    tabId: tileData.tabId || null,
     visible: tileData.visible,
     locked: tileData.locked || false,
     pending: false,
@@ -76,30 +76,30 @@ function addSpecializedTileData(
 ): Tile {
   switch(tileData.type) {
     case 'Table':
-      if (tileData.table_tile) {
-        const tableTileData = buildTableTileData(tileData.table_tile);
+      if (tileData.tableTile) {
+        const tableTileData = buildTableTileData(tileData.tableTile);
         tile.tableTile = tableTileData;
       }
       break;
     case 'Plot':
-      if (tileData.plot_tile) {
-        const plotTileData = buildPlotTileData(tileData.plot_tile);
+      if (tileData.plotTile) {
+        const plotTileData = buildPlotTileData(tileData.plotTile);
         tile.plotTile = plotTileData;
       }
       break;
     case 'View':
-      if (tileData.view_tile) {
-        tile.viewTile = buildViewTileData(tileData.view_tile);
+      if (tileData.viewTile) {
+        tile.viewTile = buildViewTileData(tileData.viewTile);
       }
       break;
     case 'Editor':
-      if (tileData.editor_tile) {
-        tile.editorTile = buildEditorTileData(tileData.editor_tile);
+      if (tileData.editorTile) {
+        tile.editorTile = buildEditorTileData(tileData.editorTile);
       }
       break;
     case 'Terminal':
-      if (tileData.terminal_tile) {
-        tile.terminalTile = buildTerminalTileData(tileData.terminal_tile);
+      if (tileData.terminalTile) {
+        tile.terminalTile = buildTerminalTileData(tileData.terminalTile);
       }
       break;
   }
@@ -112,19 +112,19 @@ function addSpecializedTileData(
  */
 function buildTableTileData(tableTileData: TableTileData): TableTile {
   return {
-    table_type: tableTileData.table_type,
-    page_number: tableTileData.page_number,
+    tableType: tableTileData.tableType,
+    pageNumber: tableTileData.pageNumber,
     limit: 20, // Hardcoded for now
-    offset: tableTileData.page_number ? parseInt(tableTileData.page_number) * 20 : 0,  // Hardcoded for now
-    group_limit: tableTileData.group_limit ?? 20,
-    group_offset: tableTileData.group_offset ?? 0,
-    column_order: tableTileData.column_order,
-    hidden_columns: tableTileData.hidden_columns,
-    default_hidden_columns: tableTileData.default_hidden_columns,
+    offset: tableTileData.pageNumber ? parseInt(tableTileData.pageNumber) * 20 : 0,  // Hardcoded for now
+    groupLimit: tableTileData.groupLimit ?? 20,
+    groupOffset: tableTileData.groupOffset ?? 0,
+    columnOrder: tableTileData.columnOrder,
+    hiddenColumns: tableTileData.hiddenColumns,
+    defaultHiddenColumns: tableTileData.defaultHiddenColumns,
     sorting: tableTileData.sorting,
-    group_sorting: tableTileData.group_sorting,
-    columns_pin_left: tableTileData.columns_pin_left,
-    columns_pin_right: tableTileData.columns_pin_right,
+    groupSorting: tableTileData.groupSorting,
+    columnsPinLeft: tableTileData.columnsPinLeft,
+    columnsPinRight: tableTileData.columnsPinRight,
     selected: tableTileData.selected,
   };
 }
@@ -134,16 +134,16 @@ function buildTableTileData(tableTileData: TableTileData): TableTile {
  */
 function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
   return {
-    plot_type: plotTileData.plot_type,
-    plot_scale_x: plotTileData.plot_scale_x,
-    plot_scale_y: plotTileData.plot_scale_y,
-    plot_aggregate: plotTileData.plot_aggregate,
-    x_axis: plotTileData.x_axis,
-    y_axis: plotTileData.y_axis,
-    plot_group_by: plotTileData.plot_group_by,
-    plot_group_by_colors: plotTileData.plot_group_by_colors,
-    bin_count: plotTileData.bin_count,
-    regression_line: plotTileData.regression_line,
+    plotType: plotTileData.plotType,
+    plotScaleX: plotTileData.plotScaleX,
+    plotScaleY: plotTileData.plotScaleY,
+    plotAggregate: plotTileData.plotAggregate,
+    xAxis: plotTileData.xAxis,
+    yAxis: plotTileData.yAxis,
+    plotGroupBy: plotTileData.plotGroupBy,
+    plotGroupByColors: plotTileData.plotGroupByColors,
+    binCount: plotTileData.binCount,
+    regressionLine: plotTileData.regressionLine,
   };
 }
 
@@ -152,7 +152,7 @@ function buildPlotTileData(plotTileData: PlotTileData): PlotTile {
  */
 function buildViewTileData(viewTileData: ViewTileData): ViewTile {
   return {
-    base_index: viewTileData.base_index,
+    baseIndex: viewTileData.baseIndex,
   };
 }
 
@@ -161,8 +161,8 @@ function buildViewTileData(viewTileData: ViewTileData): ViewTile {
  */
 function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
   return {
-    file_name: editorTileData.file_name,
-    file_type: editorTileData.file_type,
+    fileName: editorTileData.fileName,
+    fileType: editorTileData.fileType,
     content: editorTileData.content,
   };
 }
@@ -172,7 +172,7 @@ function buildEditorTileData(editorTileData: EditorTileData): EditorTile {
  */
 function buildTerminalTileData(terminalTileData: TerminalTileData): TerminalTile {
   return {
-    shell_type: terminalTileData.shell_type,
+    shellType: terminalTileData.shellType,
   };
 }
 

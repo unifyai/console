@@ -133,16 +133,16 @@ export default function Selection({
 
   const params = useMemo(() => tableDataItem?.params || {}, [tableDataItem]);
   const logs = useMemo(() => maybeFlattenGroupedLogs(tableDataItem?.logs || []), [tableDataItem]);
-  const selection_ = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
-  const columnOrdering_ = useMemo(() => relevantItem?.column_order || undefined, [relevantItem?.column_order]);
-  const baseIndex_ = useMemo(() => relevantItem?.base_index || undefined, [relevantItem?.base_index]);
+  const selectionValue = useMemo(() => relevantItem?.selected || undefined, [relevantItem?.selected]);
+  const columnOrderingValue = useMemo(() => relevantItem?.columnOrder || undefined, [relevantItem?.columnOrder]);
+  const baseIndexValue = useMemo(() => relevantItem?.baseIndex || undefined, [relevantItem?.baseIndex]);
 
   const sortedLogs = useMemo(() => [...logs], [logs]);
 
   const { tabUIState, tabUIActions, setFocusPaneOpen } = useFocusHelpers(tabId);
 
   const selectedCells = useMemo(() => {
-    const arr = selection_ ? selection_.split(",") : [];
+    const arr = selectionValue ? selectionValue.split(",") : [];
     return arr.map(token => {
       // token might look like "277932_Entries/trace" or "277932_Entries/context1/fieldA"
       // so let's rewrite the part after "_" with prefixes removed but internal slashes preserved.
@@ -161,7 +161,7 @@ export default function Selection({
       
       return rowPart + "_" + sanitizedCol; // => "277932_trace" or "277932_context1/fieldA"
     });
-  }, [selection_]);
+  }, [selectionValue]);
   
   const indexToColumns = useMemo(() => {
     const map = buildIndexToColumnsMapFromId(selectedCells, sortedLogs);
@@ -173,17 +173,17 @@ export default function Selection({
   }, [selectedCells, sortedLogs]);
 
   const columnOrdering = useMemo(() => {
-    return columnOrdering_ ? columnOrdering_.split(",") : [];
-  }, [columnOrdering_]);
+    return columnOrderingValue ? columnOrderingValue.split(",") : [];
+  }, [columnOrderingValue]);
 
   // Get all possible column names from all logs
   const allPossibleColumns = useMemo(() => {
-    // Parse the columnOrdering_ string which contains all column names
-    if (columnOrdering_ && columnOrdering_.length > 0) {
+    // Parse the columnOrderingValue string which contains all column names
+    if (columnOrderingValue && columnOrderingValue.length > 0) {
       const entryColumns = new Set<string>();
       const paramColumns = new Set<string>();
       
-      columnOrdering_.split(',').forEach(col => {
+      columnOrderingValue.split(',').forEach(col => {
         // Some columns might look like "Parameters/experiment" or "Entries/trace" or "Entries/context1/fieldA"
         if (col.startsWith('Parameters/')) {
           // Extract the parameter name without the "Parameters/" prefix but preserve internal slashes
@@ -204,7 +204,7 @@ export default function Selection({
       };
     }
     
-    // Fallback: if no columnOrdering_, gather from logs (less reliable)
+    // Fallback: if no columnOrderingValue, gather from logs (less reliable)
     // This already preserves slashes since it's just accessing object keys directly
     const entryColumns = new Set<string>();
     const paramColumns = new Set<string>();
@@ -222,7 +222,7 @@ export default function Selection({
       entries: Array.from(entryColumns),
       params: Array.from(paramColumns)
     };
-  }, [logs, columnOrdering_]);
+  }, [logs, columnOrderingValue]);
 
   /*******************************************************************************
    * Panel Count State
@@ -298,8 +298,8 @@ export default function Selection({
             const topLevelFieldName = String(desc.path[0]);
             // Use the corresponding field to get the type
             const fieldInfo = fields[topLevelFieldName]; 
-            if (fieldInfo && fieldInfo.data_type) {
-              const pyType = fieldInfo.data_type as PythonType; // e.g., "int", "str", "list"
+            if (fieldInfo && fieldInfo.dataType) {
+              const pyType = fieldInfo.dataType as PythonType; // e.g., "int", "str", "list"
               const castedResult = castToPythonType(desc.newValue, pyType);
               if (castedResult && typeof castedResult === 'object' && 'error' in castedResult) {
                 // If casting fails, show a warning. desc.newValue remains the user-provided string.
@@ -309,7 +309,7 @@ export default function Selection({
                 desc.newValue = castedResult;
               }
             } else {
-              console.warn(`Field info or data_type for '${topLevelFieldName}' not found. Saving as string.`);
+              console.warn(`Field info or dataType for '${topLevelFieldName}' not found. Saving as string.`);
             }
           }
         }
@@ -460,7 +460,7 @@ export default function Selection({
                 tableItem={tableItem}
                 item={item as TileProps}
                 updateItem={updateItem}
-                initialBaseIndex={baseIndex_ ? parseInt(baseIndex_, 10) : 0}
+                initialBaseIndex={baseIndexValue ? parseInt(baseIndexValue, 10) : 0}
                 allPossibleColumns={allPossibleColumns}
                 selectedRowCount={selectedRowIndices.length}
                 currentPanelCount={panelCount}

@@ -14,7 +14,7 @@ type ActionButtonProps = {
       | "secondary"
       | "destructive"
       | "warning"
-      | "warning_outline"
+      | "warningOutline"
       | "outline"
       | "ghost"
       | "link";

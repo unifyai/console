@@ -33,8 +33,8 @@ const debugLog = (...args: any[]) => {
 /**
  * Properties of the base Tile that will be synced with the server
  */
-export type SyncedTileProperties = 'name' | 'type' | 'table' | 'filters' | 'context' | 'column_context' | 
-  'common_filter' | 'grouping' | 'metric' | 'freeze' | 'color' | 'auto_update';
+export type SyncedTileProperties = 'name' | 'type' | 'table' | 'filters' | 'context' | 'columnContext' | 
+  'commonFilter' | 'grouping' | 'metric' | 'freeze' | 'color' | 'autoUpdate';
 
 /**
  * Loading states for each property
@@ -158,13 +158,13 @@ export function useTileSync(
     table: tableMutation,
     filters: filtersMutation,
     context: contextMutation,
-    column_context: columnContextMutation,
-    context_and_column_context: contextAndColumnContextMutation,
-    common_filter: commonFilterMutation,
+    columnContext: columnContextMutation,
+    contextAndColumnContext: contextAndColumnContextMutation,
+    commonFilter: commonFilterMutation,
     grouping: groupingMutation,
     metric: metricMutation,
     freeze: freezeMutation,
-    auto_update: autoUpdateMutation,
+    autoUpdate: autoUpdateMutation,
     visible: visibleMutation,
     locked: lockedMutation,
     pending: pendingMutation,
@@ -197,7 +197,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await nameMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: oldName, // for lookup by name if id is not primary
       projectId: state.activeProjectId || "",
       updateData: { name: name } as Partial<TileData>,
@@ -238,7 +238,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await typeMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { type: type ?? null } as Partial<TileData>,
@@ -273,7 +273,7 @@ export function useTileSync(
     // 2) Optimistic server update
     tableMutation.mutate({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { table: table ?? null } as Partial<TileData>,
@@ -308,7 +308,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await filtersMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { filters: filters ?? null } as Partial<TileData>,
@@ -351,7 +351,7 @@ export function useTileSync(
     // 2) Optimistic server update - DON'T rebuild table data synchronously
     await contextMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { context: context ?? null } as Partial<TileData>,
@@ -412,10 +412,10 @@ export function useTileSync(
     // 2) Optimistic server update - DON'T rebuild table data synchronously
     await columnContextMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
-      updateData: { column_context: columnContext ?? null } as Partial<TileData>,
+      updateData: { columnContext: columnContext ?? null } as Partial<TileData>,
       refetchProjects: false,  // Not needed
       refetchContexts: false,  // Not needed
       refetchFields: false,    // Column context doesn't change available fields
@@ -452,7 +452,7 @@ export function useTileSync(
   };
 
   /**
-   * Efficiently updates both context and column_context together in a single operation
+   * Efficiently updates both context and columnContext together in a single operation
    * to minimize UI flickering and reduce the number of router refreshes.
    * 
    * OPTIMIZED: Does NOT rebuild TableDataItem synchronously to avoid UI flash.
@@ -478,14 +478,14 @@ export function useTileSync(
     // Create update object with both properties
     const updateData: Partial<TileData> = {
       context: context ?? null,
-      column_context: columnContext ?? null
+      columnContext: columnContext ?? null
     } as Partial<TileData>;
     
     // 2) Optimistic server update - DON'T rebuild table data synchronously
     // This prevents the UI flash that happens when we await fetch inside onMutate
     await contextAndColumnContextMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData,
@@ -545,10 +545,10 @@ export function useTileSync(
     // 2) Optimistic server update
     await commonFilterMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
-      updateData: { common_filter: commonFilter ?? null } as Partial<TileData>,
+      updateData: { commonFilter: commonFilter ?? null } as Partial<TileData>,
       refetchProjects: true,
       refetchContexts: true,
       refetchFields: true,
@@ -584,7 +584,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await groupingMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { grouping: grouping ?? null } as Partial<TileData>,
@@ -623,7 +623,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await metricMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { metric: metric ?? null } as Partial<TileData>,
@@ -662,7 +662,7 @@ export function useTileSync(
     // 2) Optimistic server update
     await freezeMutation.mutateAsync({
       id: tile?.id || "",
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       projectId: state.activeProjectId || "",
       updateData: { freeze: freeze ?? null } as Partial<TileData>,
@@ -691,9 +691,9 @@ export function useTileSync(
     
     // 2) Optimistic server update
     autoUpdateMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
-      updateData: { auto_update: autoUpdate ?? null } as Partial<TileData>,
+      updateData: { autoUpdate: autoUpdate ?? null } as Partial<TileData>,
       actions: granularTileActions,
     });
   };
@@ -706,7 +706,7 @@ export function useTileSync(
     
     // 2) Optimistic server update
     visibleMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       updateData: { visible: visible ?? true } as Partial<TileData>,
       actions: granularTileActions
@@ -721,7 +721,7 @@ export function useTileSync(
     
     // 2) Optimistic server update
     colorMutation.mutate({
-      tab_id: tabId,
+      tabId: tabId,
       name: tileName,
       updateData: { color: color ?? null } as Partial<TileData>,
       actions: granularTileActions
@@ -831,13 +831,13 @@ export function useTileSync(
         table: false,
         filters: false,
         context: false,
-        column_context: false,
-        common_filter: false,
+        columnContext: false,
+        commonFilter: false,
         grouping: false,
         metric: false,
         freeze: false,
         color: false,
-        auto_update: false,
+        autoUpdate: false,
         any: false
       },
       error: {
@@ -846,13 +846,13 @@ export function useTileSync(
         table: null,
         filters: null,
         context: null,
-        column_context: null,
-        common_filter: null,
+        columnContext: null,
+        commonFilter: null,
         grouping: null,
         metric: null,
         freeze: null,
         color: null,
-        auto_update: null,
+        autoUpdate: null,
         any: false
       },
       plotTile: null,
@@ -867,13 +867,13 @@ export function useTileSync(
     table: mutations.table.isPending,
     filters: mutations.filters.isPending,
     context: mutations.context.isPending,
-    column_context: mutations.column_context.isPending,
-    common_filter: mutations.common_filter.isPending,
+    columnContext: mutations.columnContext.isPending,
+    commonFilter: mutations.commonFilter.isPending,
     grouping: mutations.grouping.isPending,
     metric: mutations.metric.isPending,
     freeze: mutations.freeze.isPending,
     color: mutations.color.isPending,
-    auto_update: mutations.auto_update.isPending,
+    autoUpdate: mutations.autoUpdate.isPending,
     any: false
   };
   
@@ -889,13 +889,13 @@ export function useTileSync(
     table: mutations.table.error,
     filters: mutations.filters.error,
     context: mutations.context.error,
-    column_context: mutations.column_context.error,
-    common_filter: mutations.common_filter.error,
+    columnContext: mutations.columnContext.error,
+    commonFilter: mutations.commonFilter.error,
     grouping: mutations.grouping.error,
     metric: mutations.metric.error,
     freeze: mutations.freeze.error,
     color: mutations.color.error,
-    auto_update: mutations.auto_update.error,
+    autoUpdate: mutations.autoUpdate.error,
     any: false
   };
   

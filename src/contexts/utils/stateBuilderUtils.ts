@@ -126,10 +126,10 @@ export function buildInterfaceStateForStore(
       const tNames = Array.isArray(tabNames![0]) ? tabNames![i] as string[] : tabNames as string[];
       
       // Build interface object
-      const interface_ = buildInterfaceObject(data, aTabId, tIds, tNames);
+      const builtInterface = buildInterfaceObject(data, aTabId, tIds, tNames);
       
       // Add to result
-      result.interfacesById![String(interface_.id)] = interface_;
+      result.interfacesById![String(builtInterface.id)] = builtInterface;
     }
     
     // Set active interface to first one if available
@@ -146,13 +146,13 @@ export function buildInterfaceStateForStore(
   }
 
   // Build interface object
-  const interface_ = buildInterfaceObject(interfaceData, activeTabId as string, tabIds as string[], tabNames as string[]);
+  const builtInterface = buildInterfaceObject(interfaceData, activeTabId as string, tabIds as string[], tabNames as string[]);
   
   // Create initial store state
   return {
-    activeInterfaceId: interface_.id,
+    activeInterfaceId: builtInterface.id,
     interfacesById: {
-      [String(interface_.id)]: interface_
+      [String(builtInterface.id)]: builtInterface
     }
   };
 }

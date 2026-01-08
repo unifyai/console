@@ -2,7 +2,7 @@
 
 import { KeyboardEventHandler, useState, useEffect, Dispatch, SetStateAction, useRef } from "react";
 import SubmitButton from "@/components/Common/Buttons/Submit";
-import { getLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/interfaces/logs"
+import { GetLogsParameters, TableArguments, LogProps, GroupedLogProps } from "@/types/interfaces/logs"
 import ActionButton from "@/components/Common/Buttons/Action";
 import { ResponseProps } from "@/types/common";
 import FormulaInput from "@/components/Common/Input/Formula";
@@ -66,8 +66,8 @@ const ColumnUpdate = ({
     /* Construct autocomplete options list from table arguments and extract tables and columns from the options for regex parsing */
     const options = Object
         .entries(tableArguments)
-            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.available_fields ?? {})}))  // Add all displayed tables
-        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].available_fields ?? {})                   // Add all columns of current table
+            .map(([table, args]) => ({name: table, type: "Table Name", children: Object.keys(args.availableFields ?? {})}))  // Add all displayed tables
+        .concat(Object.entries(tableArguments[currentTable as keyof TableArguments].availableFields ?? {})                   // Add all columns of current table
             .map(([column, _]) => ({name: column, type: "Column Name", children: []}))
         )
     const tables = options.filter(option => option.type === "Table Name").map(option => option.name)
@@ -109,16 +109,16 @@ const ColumnUpdate = ({
     const onSubmit = async () => {
         let previousReferencedTables : (keyof TableArguments)[] = tables.filter(table => previousEquation.includes(table))
         if (!previousReferencedTables.length) previousReferencedTables = [currentTable]
-        const target_derived_logs = Object.fromEntries(
+        const targetDerivedLogs = Object.fromEntries(
             Object.entries(tableArguments)
                   .filter(([key, _]) => previousReferencedTables.includes(key))
-                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogs_parameters])
+                  .map(([key, args]) => [key, buildFilterExpressionArgument(args).getLogsParameters])
         );
 
         setUpdateLoading(true);
         
         try {
-            const response = await update(project, context, sanitizeId(colId), equation, target_derived_logs);
+            const response = await update(project, context, sanitizeId(colId), equation, targetDerivedLogs);
             
             if ("info" in response) {
                 // Update states

@@ -10,10 +10,10 @@ import {
   Legend,
 } from "recharts";
 
-function convertDataToNumericTimestamps(data: CallsDataProps[]): { ts: number; request_count: number }[] {
+function convertDataToNumericTimestamps(data: CallsDataProps[]): { ts: number; requestCount: number }[] {
   return data.map((d) => ({
     ts: new Date(d.ts).getTime(),
-    request_count: d.request_count,
+    requestCount: d.requestCount,
   }));
 }
 
@@ -86,7 +86,7 @@ export function CallsPlot({ data }: { data: CallsDataProps[] }) {
         <Legend verticalAlign="top" height={36} />
         <Line
           type="monotone"
-          dataKey="request_count"
+          dataKey="requestCount"
           stroke="var(--primary)"
           activeDot={{ r: 8 }}
           name="Request Count"

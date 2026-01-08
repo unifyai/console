@@ -171,8 +171,8 @@ export function OneTimeLinkTable({
                     }
 
                     const isDeletingThis = deletingLinkId === link.id;
-                    const isExpired = new Date(link.expires_at) < new Date();
-                    const isClaimed = !!link.claimed_at;
+                    const isExpired = new Date(link.expiresAt) < new Date();
+                    const isClaimed = !!link.claimedAt;
                     
                     let statusText = "Active";
                     let StatusIcon = HelpCircle;
@@ -212,7 +212,7 @@ export function OneTimeLinkTable({
                                 </div>
                             </TableCell>
                             <TableCell className={cn("text-center text-xs", (isExpired && !isClaimed) && "opacity-60")}>
-                                {formatDistanceToNowStrict(new Date(link.expires_at), { addSuffix: true })}
+                                {formatDistanceToNowStrict(new Date(link.expiresAt), { addSuffix: true })}
                             </TableCell>
                             <TableCell className={cn("text-center", (isExpired && !isClaimed) && "opacity-60")}>
                                 <Badge variant="outline" className={cn("capitalize text-xs px-2 py-0.5 whitespace-nowrap", statusColor)}>
@@ -220,8 +220,8 @@ export function OneTimeLinkTable({
                                     {statusText}
                                 </Badge>
                             </TableCell>
-                            <TableCell className={cn("text-xs truncate", (isExpired && !isClaimed) && "opacity-60")} title={link.claimed_by_email || link.user_id || undefined}>
-                                {link.claimed_by_email || (link.user_id ? <span className="italic text-muted-foreground/70">{link.user_id} (ID)</span> : <span className="italic text-muted-foreground">N/A</span>)}
+                            <TableCell className={cn("text-xs truncate", (isExpired && !isClaimed) && "opacity-60")} title={link.claimedByEmail || link.userId || undefined}>
+                                {link.claimedByEmail || (link.userId ? <span className="italic text-muted-foreground/70">{link.userId} (ID)</span> : <span className="italic text-muted-foreground">N/A</span>)}
                             </TableCell>
                             <TableCell className={cn("text-right", (isExpired && !isClaimed) && "opacity-60")}>
                                 {isDeletingThis ? (

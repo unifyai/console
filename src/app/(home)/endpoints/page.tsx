@@ -15,7 +15,7 @@ const CustomEndpointsPage = async () => {
         signOut();
         redirect('/login');
     }
-    const apiKey = user.api_key;
+    const apiKey = user.apiKey;
 
     // get custom endpoints
     const getEndpoints = await listCustomEndpoints(apiKey);

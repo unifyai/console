@@ -3,7 +3,7 @@ import { Span } from "@/types/interfaces/traces";
 export const colorPalette = ["#9333ea", "#3b82f6", "#22c55e", "#f43f5e", "#eab308"];
 
 /** 
- * unifyByName => merges multiple arrays by "span_name", for multi-diff.
+ * unifyByName => merges multiple arrays by "spanName", for multi-diff.
  * Produces an array of MergedSpan objects (spanName, baseSpan, comparableSpans, children).
  */
 export function unifyByName(traces: Span[][]): any[] {
@@ -11,9 +11,9 @@ export function unifyByName(traces: Span[][]): any[] {
   const mapList = traces.map((arr) => {
     const m = new Map<string, Span[]>();
     arr.forEach((s) => {
-      const bucket = m.get(s.span_name) || [];
+      const bucket = m.get(s.spanName) || [];
       bucket.push(s);
-      m.set(s.span_name, bucket);
+      m.set(s.spanName, bucket);
     });
     return m;
   });
@@ -33,7 +33,7 @@ export function unifyByName(traces: Span[][]): any[] {
     for (let i = 0; i < maxLen; i++) {
       const baseSpan = baseArray[i];
       const comps = comparableArrays.map((c) => c[i]);
-      const childArrays = [baseSpan, ...comps].map((s) => s?.child_spans ?? []);
+      const childArrays = [baseSpan, ...comps].map((s) => s?.childSpans ?? []);
       merged.push({
         spanName: name,
         baseSpan,
@@ -114,25 +114,25 @@ function groupFlattenedCalls(spans: Span[], nowSecs: number = 0): Map<string, Fl
   return map;
 }
 
-/** flattenSpans => collect (label=span_name, start=offset, end=offset+exec_time). */
+/** flattenSpans => collect (label=spanName, start=offset, end=offset+exec_time). */
 function flattenSpans(spans: Span[], nowSecs: number = 0): FlattenedCall[] {
   const results: FlattenedCall[] = [];
 
   function traverse(span: Span) {
     const start = span.offset ?? 0;
     const running = isRunning(span);
-    const duration = running ? Math.max(0.001, nowSecs - start) : (span.exec_time ?? 0);
+    const duration = running ? Math.max(0.001, nowSecs - start) : (span.execTime ?? 0);
     const end = start + duration;
 
     results.push({
       id: span.id,
-      label: span.span_name,
+      label: span.spanName,
       start,
       end,
       running,
     });
 
-    span.child_spans?.forEach(traverse);
+    span.childSpans?.forEach(traverse);
   }
 
   spans.forEach(traverse);
@@ -144,5 +144,5 @@ function isRunning(span: Span): boolean {
   // Consider the span running until it is explicitly completed OR it already has a stable exec_time.
   // Many providers leave `completed = false` while streaming, but once `exec_time` is populated we
   // can treat it as finished even if `completed` hasn't flipped yet.
-  return span.completed === false || span.exec_time === undefined || span.exec_time === null;
+  return span.completed === false || span.execTime === undefined || span.execTime === null;
 }

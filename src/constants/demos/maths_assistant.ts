@@ -55,7 +55,7 @@ with unify.Experiment():
 `,
     // Granular interface structure
     interface: {
-        project_id: "Maths Assistant",
+        projectId: "Maths Assistant",
         name: "interface1"
     },
     // Tab structure
@@ -76,8 +76,8 @@ with unify.Experiment():
                 width: 7.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -90,8 +90,8 @@ with unify.Experiment():
                 height: 8.0
             },
             table: "Table",
-            view_tile: {}
+            viewTile: {}
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

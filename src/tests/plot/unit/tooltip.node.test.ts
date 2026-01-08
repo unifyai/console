@@ -22,7 +22,7 @@ describe('tooltipTemplate', () => {
     it('generates HTML with x and y values', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
       };
 
       const html = tooltipTemplate(data);
@@ -36,7 +36,7 @@ describe('tooltipTemplate', () => {
     it('wraps values in bold tags', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -48,7 +48,7 @@ describe('tooltipTemplate', () => {
     it('includes separator divider', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -59,7 +59,7 @@ describe('tooltipTemplate', () => {
     it('includes pin instruction', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '100' },
-        y: { name: 'Y', value: '200' },
+        y: { name: 'Y', value: 200 },
       };
 
       const html = tooltipTemplate(data);
@@ -72,7 +72,7 @@ describe('tooltipTemplate', () => {
     it('includes group information when present', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
       };
 
@@ -85,7 +85,7 @@ describe('tooltipTemplate', () => {
     it('places group before x and y', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
       };
 
@@ -102,8 +102,8 @@ describe('tooltipTemplate', () => {
     it('includes aggregate information when present', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
-        aggregate: { name: 'Mean', value: '' },
+        y: { name: 'Y Axis', value: 20 },
+        aggregate: { name: 'Mean' },
       };
 
       const html = tooltipTemplate(data);
@@ -114,8 +114,8 @@ describe('tooltipTemplate', () => {
     it('places aggregate at the top', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
-        aggregate: { name: 'Sum', value: '' },
+        y: { name: 'Y Axis', value: 20 },
+        aggregate: { name: 'Sum' },
       };
 
       const html = tooltipTemplate(data);
@@ -131,9 +131,9 @@ describe('tooltipTemplate', () => {
     it('includes all fields in correct order', () => {
       const data: InfoCardData = {
         x: { name: 'X Axis', value: '10' },
-        y: { name: 'Y Axis', value: '20' },
+        y: { name: 'Y Axis', value: 20 },
         group: { name: 'Category', value: 'Group A' },
-        aggregate: { name: 'Mean', value: '' },
+        aggregate: { name: 'Mean' },
       };
 
       const html = tooltipTemplate(data);
@@ -154,7 +154,7 @@ describe('tooltipTemplate', () => {
     it('handles numeric values as strings', () => {
       const data: InfoCardData = {
         x: { name: 'Score', value: '99.5' },
-        y: { name: 'Count', value: '1000' },
+        y: { name: 'Count', value: 1000 },
       };
 
       const html = tooltipTemplate(data);
@@ -166,7 +166,7 @@ describe('tooltipTemplate', () => {
     it('handles special characters in values', () => {
       const data: InfoCardData = {
         x: { name: 'Label', value: 'Test <script>alert(1)</script>' },
-        y: { name: 'Value', value: '100' },
+        y: { name: 'Value', value: 100 },
       };
 
       const html = tooltipTemplate(data);
@@ -178,7 +178,7 @@ describe('tooltipTemplate', () => {
     it('handles empty string values', () => {
       const data: InfoCardData = {
         x: { name: 'X', value: '' },
-        y: { name: 'Y', value: '' },
+        y: { name: 'Y', value: 0 },
       };
 
       const html = tooltipTemplate(data);
@@ -191,7 +191,7 @@ describe('tooltipTemplate', () => {
       const longValue = 'A'.repeat(1000);
       const data: InfoCardData = {
         x: { name: 'X', value: longValue },
-        y: { name: 'Y', value: '100' },
+        y: { name: 'Y', value: 100 },
       };
 
       const html = tooltipTemplate(data);
@@ -200,5 +200,3 @@ describe('tooltipTemplate', () => {
     });
   });
 });
-
-

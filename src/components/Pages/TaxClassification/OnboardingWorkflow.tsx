@@ -16,8 +16,8 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 
 interface ProfileData {
   name: string;
-  last_name: string;
-  job_title: string;
+  lastName: string;
+  jobTitle: string;
   bio: string;
   timezone: string;
 }
@@ -60,8 +60,8 @@ export default function OnboardingWorkflow() {
   const [currentStep, setCurrentStep] = useState(0);
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
-    last_name: '',
-    job_title: '',
+    lastName: '',
+    jobTitle: '',
     bio: '',
     timezone: ''
   });
@@ -146,39 +146,39 @@ export default function OnboardingWorkflow() {
       if (userData) {
         setProfileData({
           name: userData.name || '',
-          last_name: userData.last_name || '',
-          job_title: userData.job_title || '',
+          lastName: userData.lastName || '',
+          jobTitle: userData.jobTitle || '',
           bio: userData.bio || '',
           timezone: userData.timezone || ''
         });
-        setIsProfileValid(userData.name && userData.last_name);
+        setIsProfileValid(userData.name && userData.lastName);
         console.log('✅ Pre-populated profile data');
       }
 
       // Pre-populate tax classification data if available
-      if (businessData && businessData.account_type) {
+      if (businessData && businessData.accountType) {
         setTaxData({
-          account_type: businessData.account_type,
-          business_name: businessData.business_name || '',
-          tax_id: businessData.tax_id || '',
-          business_type: businessData.business_type || '',
-          business_address: businessData.business_address || {
-            address_line1: '',
-            address_line2: '',
+          accountType: businessData.accountType,
+          businessName: businessData.businessName || '',
+          taxId: businessData.taxId || '',
+          businessType: businessData.businessType || '',
+          businessAddress: businessData.businessAddress || {
+            addressLine1: '',
+            addressLine2: '',
             city: '',
             state: '',
             country: '',
-            postal_code: ''
+            postalCode: ''
           },
-          tax_exempt: businessData.tax_exempt || false,
-          tax_country: businessData.tax_jurisdiction || ''
+          taxExempt: businessData.taxExempt || false,
+          taxCountry: businessData.taxJurisdiction || ''
         });
         setIsTaxValid(true);
         console.log('✅ Pre-populated tax classification data');
       }
 
       // Determine starting step based on available data
-      const hasCompleteProfile = userData && userData.name && userData.last_name;
+      const hasCompleteProfile = userData && userData.name && userData.lastName;
 
       if (hasCompleteProfile) {
         setCurrentStep(1); // Skip to tax classification step
@@ -205,8 +205,8 @@ export default function OnboardingWorkflow() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data.name,
-          last_name: data.last_name,
-          job_title: data.job_title,
+          lastName: data.lastName,
+          jobTitle: data.jobTitle,
           bio: data.bio,
           timezone: data.timezone
         })
@@ -236,12 +236,12 @@ export default function OnboardingWorkflow() {
     setIsSubmitting(true);
 
     try {
-      if (data.account_type === 'individual') {
+      if (data.accountType === 'individual') {
         // simple update for personal accounts
         const res = await fetch('/api/user/account-type', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ account_type: 'individual' })
+          body: JSON.stringify({ accountType: 'individual' })
         });
 
         if (!res.ok) {
@@ -255,12 +255,12 @@ export default function OnboardingWorkflow() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            business_name: data.business_name,
-            business_type: data.business_type,
-            tax_id: data.tax_id,
-            tax_country: data.tax_country,
-            business_address: data.business_address,
-            tax_exempt: data.tax_exempt
+            businessName: data.businessName,
+            businessType: data.businessType,
+            taxId: data.taxId,
+            taxCountry: data.taxCountry,
+            businessAddress: data.businessAddress,
+            taxExempt: data.taxExempt
           })
         });
 

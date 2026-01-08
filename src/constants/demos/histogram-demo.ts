@@ -24,7 +24,7 @@ for month in range(1, 13):
 `,
     // Granular interface structure
     interface: {
-        project_id: "histogram-demo",
+        projectId: "histogram-demo",
         name: "interface1"
     },
     // Tab structure
@@ -45,8 +45,8 @@ for month in range(1, 13):
                 width: 6.0,
                 height: 8.0
             },
-            table_tile: {
-                table_type: "Data Table"
+            tableTile: {
+                tableType: "Data Table"
             }
         },
         {
@@ -58,12 +58,12 @@ for month in range(1, 13):
                 width: 6.0,
                 height: 8.0
             },
-            plot_tile: {
-                plot_type: "Histogram",
-                x_axis: "Table.date",
-                bin_count: "84",
+            plotTile: {
+                plotType: "Histogram",
+                xAxis: "Table.date",
+                binCount: "84",
             }
         }
     ],
-    new_counter: 2
+    newCounter: 2
 }

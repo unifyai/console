@@ -70,7 +70,7 @@ export interface PlotCanvasProps {
   sortBars?: string;
 
   // Optional plot tile state for color mapping
-  plotTileState?: { plot_group_by_colors?: string | null } | null;
+  plotTileState?: { plotGroupByColors?: string | null } | null;
 
   // Optional external refs - allows parent to share refs with other components (e.g., PlotSettings)
   // If not provided, PlotCanvas creates its own internal refs
@@ -198,7 +198,7 @@ export function PlotCanvas({
   const effectivePlotTileState = useMemo(
     () =>
       plotTileState ?? {
-        plot_group_by_colors: colors ?? null,
+        plotGroupByColors: colors ?? null,
       },
     [plotTileState, colors]
   );

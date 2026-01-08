@@ -21,13 +21,13 @@ export const getFavourites = async (apiKey: string): Promise<Favourite[]> => {
  * Create a new favourite for the current user
  */
 export const createFavourite = async (apiKey: string) => {
-  return async (project_name: string, icon: string, position: number) => {
+  return async (projectName: string, icon: string, position: number) => {
     "use server";
 
     try {
       // Validate inputs
-      if (!project_name || typeof project_name !== 'string') {
-        throw new Error(`Invalid project name: ${project_name}`);
+      if (!projectName || typeof projectName !== 'string') {
+        throw new Error(`Invalid project name: ${projectName}`);
       }
       
       if (!icon || typeof icon !== 'string') {
@@ -39,7 +39,7 @@ export const createFavourite = async (apiKey: string) => {
       }
       
       const payload = {
-        project_name,
+        projectName,
         icon,
         position
       };

@@ -24,15 +24,15 @@ import React from 'react';
 vi.mock('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff', () => ({
   wrapAsRootSpan: (spans: unknown[], syntheticId: string) => ({ 
     id: syntheticId, 
-    span_name: 'ROOT',
-    child_spans: spans || [],
+    spanName: 'ROOT',
+    childSpans: spans || [],
   }),
   computeSpanDiffByName: (baseSpan?: unknown, targetSpan?: unknown) => {
     // Simplified mock that returns realistic diff structure
     if (!baseSpan && !targetSpan) return { name: '', marker: ' ', children: [] };
-    if (baseSpan && !targetSpan) return { name: (baseSpan as {span_name: string}).span_name || '', marker: '-', children: [] };
-    if (!baseSpan && targetSpan) return { name: (targetSpan as {span_name: string}).span_name || '', marker: '+', children: [] };
-    return { name: (baseSpan as {span_name: string}).span_name || '', marker: ' ', children: [] };
+    if (baseSpan && !targetSpan) return { name: (baseSpan as {spanName: string}).spanName || '', marker: '-', children: [] };
+    if (!baseSpan && targetSpan) return { name: (targetSpan as {spanName: string}).spanName || '', marker: '+', children: [] };
+    return { name: (baseSpan as {spanName: string}).spanName || '', marker: ' ', children: [] };
   },
 }));
 
@@ -52,11 +52,11 @@ import { TileProps, LogsActions } from '@/types/interfaces/grid';
 
 function createMockFields(): LogFieldsResponseProps {
   return {
-    'input': { field_type: 'entry', data_type: 'str', mutable: 'true', artifacts: '', created_at: '' },
-    'output': { field_type: 'entry', data_type: 'str', mutable: 'true', artifacts: '', created_at: '' },
-    'trace': { field_type: 'entry', data_type: 'list', mutable: 'false', artifacts: '', created_at: '' },
-    'score': { field_type: 'param', data_type: 'float', mutable: 'false', artifacts: '', created_at: '' },
-    'model': { field_type: 'param', data_type: 'str', mutable: 'false', artifacts: '', created_at: '' },
+    'input': { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
+    'output': { fieldType: 'entry', dataType: 'str', mutable: 'true', artifacts: '', createdAt: '' },
+    'trace': { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' },
+    'score': { fieldType: 'param', dataType: 'float', mutable: 'false', artifacts: '', createdAt: '' },
+    'model': { fieldType: 'param', dataType: 'str', mutable: 'false', artifacts: '', createdAt: '' },
   };
 }
 
@@ -69,16 +69,16 @@ function createMockLogs(count: number = 3): LogProps[] {
       input: `Input text ${i + 1}`,
       output: `Output text ${i + 1}`,
       trace: i === 0 ? [
-        { name: 'Request', start_time: '2024-01-01T00:00:00', end_time: '2024-01-01T00:00:01' },
-        { name: 'Processing', start_time: '2024-01-01T00:00:01', end_time: '2024-01-01T00:00:03' },
+        { name: 'Request', startTime: '2024-01-01T00:00:00', endTime: '2024-01-01T00:00:01' },
+        { name: 'Processing', startTime: '2024-01-01T00:00:01', endTime: '2024-01-01T00:00:03' },
       ] : undefined,
     },
     params: {
       score: { paramValue: 0.85 + i * 0.05 },
       model: { paramValue: 'gpt-4' },
     },
-    derived_entries: {},
-    clipped_fields: {},
+    derivedEntries: {},
+    clippedFields: {},
   } as LogProps));
 }
 
@@ -580,8 +580,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       
       const span = {
         id: 'span-1',
-        span_name: 'Request',
-        child_spans: [],
+        spanName: 'Request',
+        childSpans: [],
       };
 
       const result = computeSpanDiffByName(span, span);
@@ -595,8 +595,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       
       const targetSpan = {
         id: 'span-1',
-        span_name: 'NewSpan',
-        child_spans: [],
+        spanName: 'NewSpan',
+        childSpans: [],
       };
 
       const result = computeSpanDiffByName(undefined, targetSpan);
@@ -610,8 +610,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       
       const baseSpan = {
         id: 'span-1',
-        span_name: 'OldSpan',
-        child_spans: [],
+        spanName: 'OldSpan',
+        childSpans: [],
       };
 
       const result = computeSpanDiffByName(baseSpan, undefined);
@@ -624,15 +624,15 @@ describe('P2-H: Selection Panel Integration Tests', () => {
       const { wrapAsRootSpan } = await import('@/components/Pages/Interfaces/Blocks/Selection/Views/TraceView/computeDiff');
       
       const spans = [
-        { id: 'span-1', span_name: 'Span1', child_spans: [] },
-        { id: 'span-2', span_name: 'Span2', child_spans: [] },
+        { id: 'span-1', spanName: 'Span1', childSpans: [] },
+        { id: 'span-2', spanName: 'Span2', childSpans: [] },
       ];
 
       const result = wrapAsRootSpan(spans, 'synthetic-root');
 
       expect(result.id).toBe('synthetic-root');
-      expect(result.span_name).toBe('ROOT');
-      expect(result.child_spans).toHaveLength(2);
+      expect(result.spanName).toBe('ROOT');
+      expect(result.childSpans).toHaveLength(2);
     });
   });
 
@@ -648,13 +648,13 @@ describe('P2-H: Selection Panel Integration Tests', () => {
         entries: {
           input: 'Test input',
           trace: [
-            { id: 'span-1', span_name: 'Request', start_time: '2024-01-01T00:00:00', end_time: '2024-01-01T00:00:01' },
-            { id: 'span-2', span_name: 'Processing', start_time: '2024-01-01T00:00:01', end_time: '2024-01-01T00:00:02' },
+            { id: 'span-1', spanName: 'Request', startTime: '2024-01-01T00:00:00', endTime: '2024-01-01T00:00:01' },
+            { id: 'span-2', spanName: 'Processing', startTime: '2024-01-01T00:00:01', endTime: '2024-01-01T00:00:02' },
           ],
         },
         params: {},
-        derived_entries: {},
-        clipped_fields: {},
+        derivedEntries: {},
+        clippedFields: {},
       }] as LogProps[];
 
       render(
@@ -683,23 +683,23 @@ describe('P2-H: Selection Panel Integration Tests', () => {
           trace: [
             {
               id: 'root',
-              span_name: 'RootSpan',
-              child_spans: [
+              spanName: 'RootSpan',
+              childSpans: [
                 {
                   id: 'child-1',
-                  span_name: 'ChildSpan1',
-                  child_spans: [
-                    { id: 'grandchild-1', span_name: 'GrandchildSpan', child_spans: [] },
+                  spanName: 'ChildSpan1',
+                  childSpans: [
+                    { id: 'grandchild-1', spanName: 'GrandchildSpan', childSpans: [] },
                   ],
                 },
-                { id: 'child-2', span_name: 'ChildSpan2', child_spans: [] },
+                { id: 'child-2', spanName: 'ChildSpan2', childSpans: [] },
               ],
             },
           ],
         },
         params: {},
-        derived_entries: {},
-        clipped_fields: {},
+        derivedEntries: {},
+        clippedFields: {},
       }] as LogProps[];
 
       render(
@@ -708,7 +708,7 @@ describe('P2-H: Selection Panel Integration Tests', () => {
             {...defaultProps} 
             logs={complexTrace}
             sortedLogs={complexTrace}
-            fields={{ trace: { field_type: 'entry', data_type: 'list', mutable: 'false', artifacts: '', created_at: '' } }}
+            fields={{ trace: { fieldType: 'entry', dataType: 'list', mutable: 'false', artifacts: '', createdAt: '' } }}
           />
         </TestWrapper>
       );
@@ -733,8 +733,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
           output: '```python\nprint("Hello World")\n```',
         },
         params: {},
-        derived_entries: {},
-        clipped_fields: {},
+        derivedEntries: {},
+        clippedFields: {},
       }] as LogProps[];
 
       const panelState = {
@@ -767,8 +767,8 @@ describe('P2-H: Selection Panel Integration Tests', () => {
           input: 'Text with <html> tags and & ampersands and "quotes"',
         },
         params: {},
-        derived_entries: {},
-        clipped_fields: {},
+        derivedEntries: {},
+        clippedFields: {},
       }] as LogProps[];
 
       render(

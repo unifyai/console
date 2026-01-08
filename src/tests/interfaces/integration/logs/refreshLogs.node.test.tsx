@@ -47,9 +47,9 @@ vi.mock('@/contexts/providers/StoreProvider', () => ({
 vi.mock('@/contexts/hooks/tile/useTileData', () => ({
   useTileData: (tileId: string) => ({
     data: {
-      auto_update: 'false', // Default to auto-update OFF
+      autoUpdate: 'false', // Default to auto-update OFF
       context: null,
-      column_context: null,
+      columnContext: null,
       filters: null,
       sorting: null,
       grouping: null,
@@ -79,7 +79,7 @@ vi.mock('@/contexts/selectors/project', () => ({
 vi.mock('@/contexts/utils/sliceUtils', () => ({
   convertTileToTileData: () => ({
     context: null,
-    column_context: null,
+    columnContext: null,
     filters: null,
     sorting: null,
     grouping: null,
@@ -178,7 +178,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -210,7 +210,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -248,7 +248,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -279,11 +279,11 @@ describe('Refresh Logs Pathways', () => {
   });
 
   describe('useTableAutoUpdateQuery', () => {
-    it('is DISABLED when auto_update is false', async () => {
-      // Override mock to have auto_update = false
+    it('is DISABLED when autoUpdate is false', async () => {
+      // Override mock to have autoUpdate = false
       vi.doMock('@/contexts/hooks/tile/useTileData', () => ({
         useTileData: () => ({
-          data: { auto_update: 'false' },
+          data: { autoUpdate: 'false' },
         }),
       }));
 
@@ -313,20 +313,20 @@ describe('Refresh Logs Pathways', () => {
     it('manualRefresh() behavior when query is disabled', async () => {
       /**
        * THIS TEST DOCUMENTS THE BEHAVIOR:
-       * When auto_update is OFF, useTableAutoUpdateQuery is disabled.
+       * When autoUpdate is OFF, useTableAutoUpdateQuery is disabled.
        * The query's refetch() still executes but with the hook's logic.
        * 
        * THE FIX: RefreshLogs component now uses onRefresh callback
-       * (which calls infiniteLogsQuery.refetch()) when auto_update is OFF.
+       * (which calls infiniteLogsQuery.refetch()) when autoUpdate is OFF.
        * This bypasses the disabled useTableAutoUpdateQuery entirely.
        * 
-       * See: RefreshLogs.tsx - onManualClick uses onRefresh when auto_update is OFF
+       * See: RefreshLogs.tsx - onManualClick uses onRefresh when autoUpdate is OFF
        */
       
-      // Override mock to have auto_update = false
+      // Override mock to have autoUpdate = false
       vi.doMock('@/contexts/hooks/tile/useTileData', () => ({
         useTileData: () => ({
-          data: { auto_update: 'false' },
+          data: { autoUpdate: 'false' },
         }),
       }));
 
@@ -355,7 +355,7 @@ describe('Refresh Logs Pathways', () => {
       });
 
       // The important fix is that RefreshLogs uses infiniteLogsQuery.refetch() 
-      // when auto_update is OFF, which DOES work
+      // when autoUpdate is OFF, which DOES work
     });
 
     it('isLoading state transitions correctly after context change', async () => {
@@ -383,7 +383,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -416,10 +416,10 @@ describe('Refresh Logs Pathways', () => {
       }, { timeout: 5000 });
     });
 
-    it('WORKAROUND: using infiniteLogsQuery.refetch() works when auto_update is OFF', async () => {
+    it('WORKAROUND: using infiniteLogsQuery.refetch() works when autoUpdate is OFF', async () => {
       /**
        * This test verifies the fix works:
-       * When auto_update is OFF, RefreshLogs uses onRefresh callback
+       * When autoUpdate is OFF, RefreshLogs uses onRefresh callback
        * which calls infiniteLogsQuery.refetch() - and that DOES work.
        */
       const wrapper = createWrapper();
@@ -436,9 +436,9 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
-          enabled: true, // This is enabled when auto_update is OFF
+          enabled: true, // This is enabled when autoUpdate is OFF
         }),
         { wrapper }
       );
@@ -459,8 +459,8 @@ describe('Refresh Logs Pathways', () => {
       expect(fetchCallCount).toBeGreaterThan(callsBefore);
     });
 
-    // Note: Testing auto_update=true behavior requires more complex mock setup
-    // The key finding is that when auto_update=false, manualRefresh doesn't work
+    // Note: Testing autoUpdate=true behavior requires more complex mock setup
+    // The key finding is that when autoUpdate=false, manualRefresh doesn't work
     // which is the bug we're documenting
   });
 
@@ -469,15 +469,15 @@ describe('Refresh Logs Pathways', () => {
      * These tests verify the complete flow of the refresh button.
      * The refresh button should:
      * 1. Trigger a data fetch when clicked
-     * 2. Work regardless of auto_update state
+     * 2. Work regardless of autoUpdate state
      * 3. Show feedback to the user
      */
 
-    it('clicking refresh should fetch data when auto_update is OFF', async () => {
+    it('clicking refresh should fetch data when autoUpdate is OFF', async () => {
       /**
        * This simulates the RefreshLogs component behavior.
        * The component uses useTableAutoUpdateQuery's manualRefresh(),
-       * but that's broken when auto_update is OFF.
+       * but that's broken when autoUpdate is OFF.
        * 
        * The fix should ensure data is fetched either way.
        */
@@ -496,9 +496,9 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
-          enabled: true, // Enabled when auto_update is OFF
+          enabled: true, // Enabled when autoUpdate is OFF
         }),
         { wrapper }
       );
@@ -520,9 +520,9 @@ describe('Refresh Logs Pathways', () => {
       expect(fetchCallCount).toBeGreaterThan(callsBefore);
     });
 
-    // Note: Testing auto_update=true scenarios requires running the component
+    // Note: Testing autoUpdate=true scenarios requires running the component
     // in a real browser environment or more sophisticated mocking.
-    // The critical path (auto_update=false with infiniteLogsQuery.refetch) is covered above.
+    // The critical path (autoUpdate=false with infiniteLogsQuery.refetch) is covered above.
   });
 
   describe('Context Switch', () => {
@@ -541,7 +541,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -596,7 +596,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -648,7 +648,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -711,7 +711,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),
@@ -753,7 +753,7 @@ describe('Refresh Logs Pathways', () => {
           groupingExpression: null,
           groupSortingExpression: null,
           limit: 20,
-          group_limit: 20,
+          groupLimit: 20,
           logsActions,
           enabled: true,
         }),

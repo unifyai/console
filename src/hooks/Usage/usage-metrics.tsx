@@ -29,7 +29,7 @@ export const useUsageMetricsQuery = ({
       const providersParam = providers?.join(',') || '';
       
       const response = await fetch(
-        `/api/logging/getMetrics?start_time=${start}&end_time=${end}&models=${modelsParam}&providers=${providersParam}`
+        `/api/logging/getMetrics?startTime=${start}&endTime=${end}&models=${modelsParam}&providers=${providersParam}`
       );
       
       if (!response.ok) {

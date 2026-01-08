@@ -159,7 +159,7 @@ export function useTabDataOptimistic() {
         } else {
           debugLog('[buildCompleteTabData] Fetching tiles from API for tab:', tabName);
           try {
-            const res = await fetch(`/api/tile?tab_id=${encodeURIComponent(finalTabId)}&checkpoint=false`, {
+            const res = await fetch(`/api/tile?tabId=${encodeURIComponent(finalTabId)}&checkpoint=false`, {
               method: "GET",
               signal: signal as AbortSignal,
               cache: "no-store",

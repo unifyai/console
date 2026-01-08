@@ -96,13 +96,13 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         if (!connectionDetails || !assistant || !callType) return;
     
         const { serverUrl, token } = connectionDetails;
-        const assistantId = assistant.agent_id;
-        const assistantName = `${assistant.first_name} ${assistant.surname}`;
+        const assistantId = assistant.agentId;
+        const assistantName = `${assistant.firstName} ${assistant.surname}`;
         
         const tempKey = `call-data-${Date.now()}`;
         const callData = {
             serverUrl, token, callType, assistantName,
-            assistantPhoto: assistant.signedProfilePhotoUrl || assistant.profile_photo || '',
+            assistantPhoto: assistant.signedProfilePhotoUrl || assistant.profilePhoto || '',
             userImage: userImage || '',
         };
     
@@ -168,8 +168,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     }, [localParticipant, camToggle.track]);
     
     const userTrackRef = screenShareTrack || localVideoTrackRef;
-    const displayName = `${assistant.first_name} ${assistant.surname}`;
-    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profile_photo;
+    const displayName = `${assistant.firstName} ${assistant.surname}`;
+    const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
     const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
         setActiveSidePanel(current => current === panel ? null : panel);
@@ -178,7 +178,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     const showLoadingState = isConnecting || isWaitingForAssistant;
     const loadingMessage = isConnecting
         ? "Setting up a connection..."
-        : `Waiting for ${assistant.first_name} to join...`;
+        : `Waiting for ${assistant.firstName} to join...`;
 
     return (
         <>

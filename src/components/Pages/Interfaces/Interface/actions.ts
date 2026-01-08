@@ -90,7 +90,7 @@ export async function renameProject(
   }
 }
 
-export type DeleteProjectOption = 'project' | 'logs' | 'logs_and_contexts';
+export type DeleteProjectOption = 'project' | 'logs' | 'logsAndContexts';
 
 export async function deleteProject(
   projectName: string,
@@ -121,7 +121,7 @@ export async function deleteProject(
           throw new Error("Delete logs function not available");
         }
         break;
-      case 'logs_and_contexts':
+      case 'logsAndContexts':
         if (deleteFunctions.logsAndContexts) {
           await deleteFunctions.logsAndContexts(projectName);
           message = "Project logs and contexts deleted successfully";
@@ -209,7 +209,7 @@ export async function renameInterface(
 
   try {
     await actions.update({ 
-      interface_id: interfaceId, 
+      interfaceId: interfaceId, 
       data: { name: newName.trim() }
     });
     showSuccessToast("Interface renamed successfully");
@@ -227,7 +227,7 @@ export async function deleteInterface(
   actions: GranularInterfaceActions
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await actions.delete({ interface_id: interfaceId });
+    await actions.delete({ interfaceId: interfaceId });
     showSuccessToast(`Interface "${interfaceName}" deleted successfully`);
     return { success: true };
   } catch (error) {
@@ -245,8 +245,8 @@ export async function exportInterfaceTemplate(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const result = await actions.exportTemplate(
-      { interface_id: interfaceId, project_name: project, interface_name: interfaceName },
-      { include_metadata: true, template_name: interfaceName }
+      { interfaceId: interfaceId, projectName: project, interfaceName: interfaceName },
+      { includeMetadata: true, templateName: interfaceName }
     );
     
     if ('error' in result) {
@@ -292,10 +292,10 @@ export async function importInterfaceTemplate(
     const result = await actions.importTemplate(
       templateData.template,
       {
-        project_name: project,
-        new_interface_name: newInterfaceName.trim(),
-        validate_first: true,
-        auto_sanitize: true
+        projectName: project,
+        newInterfaceName: newInterfaceName.trim(),
+        validateFirst: true,
+        autoSanitize: true
       }
     );
     

@@ -12,7 +12,7 @@ import {
   DerivedEntryActions,
   FileActions
 } from '@/types/interfaces/grid';
-import { getLogsParameters } from '@/types/interfaces/logs';
+import { GetLogsParameters } from '@/types/interfaces/logs';
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -28,7 +28,7 @@ export interface DemoCreationInput {
     context?: string | undefined;
     key: string;
     equation: string;
-    referenced_logs: { [table_name: string]: getLogsParameters };
+    referencedLogs: { [table_name: string]: GetLogsParameters };
   };
   code?: string;
   actions: {
@@ -82,23 +82,23 @@ export function useCreateDemoQuery() {
       
       try {
         // Step 1: Create interface
-        // Handle case where project_id might be undefined
-        if (!demoInterface.project_id) {
-          throw new Error("Interface must have project_id defined");
+        // Handle case where projectId might be undefined
+        if (!demoInterface.projectId) {
+          throw new Error("Interface must have projectId defined");
         }
         
         if (!demoInterface.name) {
           throw new Error("Interface must have name defined");
         }
         
-        const { project_id, name, ...interfaceProps } = demoInterface;
+        const { projectId, name, ...interfaceProps } = demoInterface;
         
         // Ensure we're only passing valid interface properties
-        const safeInterfaceProps: Partial<Omit<InterfaceData, 'id' | 'project_id' | 'name' | 'created_at' | 'updated_at'>> = 
+        const safeInterfaceProps: Partial<Omit<InterfaceData, 'id' | 'projectId' | 'name' | 'createdAt' | 'updatedAt'>> = 
           interfaceProps;
         
         const createdInterface = await actions.interfaceActions.create(
-          project_id, 
+          projectId, 
           name, 
           safeInterfaceProps.color
         );
@@ -113,7 +113,7 @@ export function useCreateDemoQuery() {
         const { name: tabName, ...tabProps } = demoTab;
         
         // Make sure we're using all available tab properties
-        const safeTabProps: Partial<Omit<TabData, 'id' | 'interface_id' | 'name' | 'created_at' | 'updated_at'>> = 
+        const safeTabProps: Partial<Omit<TabData, 'id' | 'interfaceId' | 'name' | 'createdAt' | 'updatedAt'>> = 
           tabProps;
         
         const createdTab = await actions.tabActions.create(
@@ -135,27 +135,27 @@ export function useCreateDemoQuery() {
             
             // Handle specialized tile data
             const specializedData: {
-              table_tile?: typeof tile.table_tile;
-              plot_tile?: typeof tile.plot_tile;
-              view_tile?: typeof tile.view_tile;
-              editor_tile?: typeof tile.editor_tile;
-              terminal_tile?: typeof tile.terminal_tile;
+              tableTile?: typeof tile.tableTile;
+              plotTile?: typeof tile.plotTile;
+              viewTile?: typeof tile.viewTile;
+              editorTile?: typeof tile.editorTile;
+              terminalTile?: typeof tile.terminalTile;
             } = {};
             
-            if (tile.table_tile) specializedData.table_tile = tile.table_tile;
-            if (tile.plot_tile) specializedData.plot_tile = tile.plot_tile;
-            if (tile.view_tile) specializedData.view_tile = tile.view_tile;
-            if (tile.editor_tile) specializedData.editor_tile = tile.editor_tile;
-            if (tile.terminal_tile) specializedData.terminal_tile = tile.terminal_tile;
+            if (tile.tableTile) specializedData.tableTile = tile.tableTile;
+            if (tile.plotTile) specializedData.plotTile = tile.plotTile;
+            if (tile.viewTile) specializedData.viewTile = tile.viewTile;
+            if (tile.editorTile) specializedData.editorTile = tile.editorTile;
+            if (tile.terminalTile) specializedData.terminalTile = tile.terminalTile;
             
             // Remove specialized data from tileProps to avoid duplication
             const { 
-              table_tile, plot_tile, view_tile, editor_tile, terminal_tile,
-              id, tab_id, created_at, updated_at, ...restTileProps 
+              tableTile, plotTile, viewTile, editorTile, terminalTile,
+              id, tabId, createdAt, updatedAt, ...restTileProps 
             } = tileProps;
             
             // Prepare tile data with all available properties
-            const tileData: Omit<Partial<TileData>, 'id' | 'tab_id' | 'name' | 'type' | 'position' | 'created_at' | 'updated_at'> = {
+            const tileData: Omit<Partial<TileData>, 'id' | 'tabId' | 'name' | 'type' | 'position' | 'createdAt' | 'updatedAt'> = {
               ...restTileProps,
               ...specializedData
             };
@@ -180,7 +180,7 @@ export function useCreateDemoQuery() {
             derivedColumns.context,
             derivedColumns.key,
             derivedColumns.equation,
-            derivedColumns.referenced_logs
+            derivedColumns.referencedLogs
           );
         }
         
@@ -194,7 +194,7 @@ export function useCreateDemoQuery() {
         // If anything fails, try to clean up by deleting the interface
         // This will cascade delete tabs and tiles
         try {
-          if (demoInterface.project_id) {
+          if (demoInterface.projectId) {
             // This is a simplification - ideally you'd use proper deletion
             // through the interface actions
             console.error("Error creating demo, attempting cleanup:", error);
@@ -209,9 +209,9 @@ export function useCreateDemoQuery() {
     
     onSuccess: (result) => {
       // Invalidate queries related to the created resources
-      if (result.interface.project_id) {
+      if (result.interface.projectId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['interfaces', result.interface.project_id] 
+          queryKey: ['interfaces', result.interface.projectId] 
         });
       }
       
@@ -221,13 +221,13 @@ export function useCreateDemoQuery() {
         });
       }
       
-      if (result.tab.interface_id) {
+      if (result.tab.interfaceId) {
         queryClient.invalidateQueries({ 
-          queryKey: ['tabs', result.tab.interface_id] 
+          queryKey: ['tabs', result.tab.interfaceId] 
         });
         
         queryClient.invalidateQueries({ 
-          queryKey: ['interface-with-tabs', result.tab.interface_id] 
+          queryKey: ['interface-with-tabs', result.tab.interfaceId] 
         });
       }
       

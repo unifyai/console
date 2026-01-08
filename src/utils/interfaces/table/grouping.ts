@@ -45,13 +45,13 @@ export function maybeConvertRawToGroupedLogs(
         return rawGroupedLogs.map(log => ({
             ...log,
             type: "ungrouped",
-            entries: {...log.entries, ...log.derived_entries},  // Bundle derived entries with entries
+            entries: {...log.entries, ...log.derivedEntries},  // Bundle derived entries with entries
         }));
     }
 
     // Find the first grouping column in the raw data
     const groupingColumnId = Object.keys(rawGroupedLogs).find(key => 
-        key !== 'group_count' && key !== 'count'
+        key !== 'groupCount' && key !== 'count'
     );
 
     if (!groupingColumnId) {
@@ -157,12 +157,12 @@ export function updateGroupedSubRows(
       // Ungrouped children - use count from response
       return newLogsData.count;
     } else {
-      // Grouped children - extract group_count from GroupedLogPropsRaw
+      // Grouped children - extract groupCount from GroupedLogPropsRaw
       const groupedRawLogs = newLogsData.logs as GroupedLogPropsRaw;
       const firstGroupKey = Object.keys(groupedRawLogs).find(key => 
-        typeof groupedRawLogs[key] === 'object' && groupedRawLogs[key]?.group_count
+        typeof groupedRawLogs[key] === 'object' && groupedRawLogs[key]?.groupCount
       );
-      return firstGroupKey ? (groupedRawLogs[firstGroupKey] as any).group_count : 0;
+      return firstGroupKey ? (groupedRawLogs[firstGroupKey] as any).groupCount : 0;
     }
   };
 
@@ -459,8 +459,8 @@ export async function onGroupExpand(
   groupSortingExpression: string | null,
   limit: number,
   offset: number,
-  group_limit: number,
-  group_offset: number,
+  groupLimit: number,
+  groupOffset: number,
   logsActions: LogsActions,
   setExpandingRowId: (id: string | null) => void,
   updateTableDataItem: (updater?: (prev: TableDataItem) => TableDataItem, partialUpdates?: Partial<TableDataItem>, merge?: boolean) => void,
@@ -493,8 +493,8 @@ export async function onGroupExpand(
       groupSortingExpression,
       limit,
       offset,
-      group_limit,
-      group_offset,
+      groupLimit,
+      groupOffset,
       logsActions,
       groupId: currentId,
       groupingColumnId,
@@ -510,7 +510,7 @@ export async function onGroupExpand(
     // Fetch sub-group metrics if there's remaining grouping
     if (coreResult.updatedGroupingExpression && queryClient && tileId && tabId && columns?.length) {
       try {
-        const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.data_type));
+        const numericColumns = columns.filter(col => ["int", "float", "timestamp", "time", "date", "timedelta", "bool"].includes(fields?.[col]?.dataType));
         const effectiveMetric = metric || "mean";
         const subGroupingColumnId = coreResult.updatedGroupingExpression!.split(",")[0];
         
@@ -535,7 +535,7 @@ export async function onGroupExpand(
         const sharedValues = Object.fromEntries(
           Object.entries(metricsData).map(
             ([col, groups]) => [col, Object.fromEntries(Object.entries(groups).map(
-              ([groupingVal, results]) => [groupingVal, results["shared_value"]]
+              ([groupingVal, results]) => [groupingVal, results["sharedValue"]]
             ))]
         ));
 
@@ -559,7 +559,7 @@ export async function onGroupExpand(
         const subGroupMetrics = {
           [rowId]: {
             [effectiveMetric]: metrics,
-            shared_value: sharedValues,
+            sharedValue: sharedValues,
           }
         };
         

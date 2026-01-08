@@ -135,7 +135,7 @@ describe('Assistant Call', () => {
     };
 
     const openProfileAndGetCallButton = async (user = defaultUser) => {
-        const assistantCard = await screen.findByText(`${targetAssistant.first_name} ${targetAssistant.surname}`);
+        const assistantCard = await screen.findByText(`${targetAssistant.firstName} ${targetAssistant.surname}`);
         await user.click(assistantCard);
         const profilePanel = await screen.findByText('Profile');
         expect(profilePanel).toBeVisible();
@@ -227,23 +227,23 @@ describe('Assistant Call', () => {
                 expect(mockAssistantActions.call.getConnectionDetails).toHaveBeenCalled();
             });
 
-            expect(await screen.findByText(`Waiting for ${targetAssistant.first_name} to join...`)).toBeVisible();
+            expect(await screen.findByText(`Waiting for ${targetAssistant.firstName} to join...`)).toBeVisible();
 
             const mockRoomInstance = await getMockRoomInstance();
             mockRoomInstance.numParticipants = 2;
             mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant-agent' });
 
             await waitFor(() => {
-                expect(screen.queryByText(`Waiting for ${targetAssistant.first_name} to join...`)).toBeNull();
+                expect(screen.queryByText(`Waiting for ${targetAssistant.firstName} to join...`)).toBeNull();
             });
-            expect(screen.getByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeVisible();
+            expect(screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeVisible();
 
             const hangUpButton = screen.getByRole('button', { name: /hang up/i });
             await defaultUser.click(hangUpButton!);
 
             await waitFor(() => {
                 expect(mockRoomInstance.disconnect).toHaveBeenCalled();
-                expect(screen.queryByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeNull();
+                expect(screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeNull();
             });
         });
 
@@ -340,13 +340,13 @@ describe('Assistant Call', () => {
             mockRoomInstance.numParticipants = 2;
             mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
             
-            await screen.findByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`);
+            await screen.findByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`);
 
             mockRoomInstance.state = ConnectionState.Disconnected;
             mockRoomInstance.emit(RoomEvent.Disconnected);
 
             await waitFor(() => {
-                expect(screen.queryByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeNull();
+                expect(screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeNull();
             });
         });
 
@@ -401,7 +401,7 @@ describe('Assistant Call', () => {
             
             expect(await screen.findByText(/Waiting for/)).toBeVisible();
             
-            expect(await screen.findByText(`${targetAssistant.first_name} is taking too long to join.`, {}, { timeout: 5000 })).toBeVisible();
+            expect(await screen.findByText(`${targetAssistant.firstName} is taking too long to join.`, {}, { timeout: 5000 })).toBeVisible();
 
             // 2. Click Retry
             const retryBtn = await screen.findByRole('button', { name: /retry/i });
@@ -488,7 +488,7 @@ describe('Assistant Call', () => {
             mockRoomInstance.state = ConnectionState.Connected; // Explicitly set state to ensure cleanup logic runs
             mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
             
-            await screen.findByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`);
+            await screen.findByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`);
 
             // 2. Simulate Navigation (Unmount)
             unmount();
@@ -511,7 +511,7 @@ describe('Assistant Call', () => {
             renderPage();
             
             const assistantA = mockAssistants[0];
-            const cardA = await screen.findByText(`${assistantA.first_name} ${assistantA.surname}`);
+            const cardA = await screen.findByText(`${assistantA.firstName} ${assistantA.surname}`);
             await defaultUser.click(cardA);
             
             const callButtonA = await screen.findByTestId('call-menu-trigger');
@@ -526,7 +526,7 @@ describe('Assistant Call', () => {
             await defaultUser.click(minimizeBtn);
 
             const assistantB = mockAssistants[1];
-            const cardB = await screen.findByText(`${assistantB.first_name} ${assistantB.surname}`);
+            const cardB = await screen.findByText(`${assistantB.firstName} ${assistantB.surname}`);
             await defaultUser.click(cardB);
 
             const callButtonB = await screen.findByTestId('call-menu-trigger');
@@ -561,12 +561,12 @@ describe('Assistant Call', () => {
             mockRoomInstance1.numParticipants = 2;
             mockRoomInstance1.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
             
-            await screen.findByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`);
+            await screen.findByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`);
             
             const hangUpButton = screen.getByRole('button', { name: /hang up/i });
             await defaultUser.click(hangUpButton!);
 
-            await waitFor(() => expect(screen.queryByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeNull());
+            await waitFor(() => expect(screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeNull());
 
             // --- SESSION 2 ---
             // Refresh call button ref
@@ -598,17 +598,17 @@ describe('Assistant Call', () => {
             mockRoomInstance.numParticipants = 2;
             mockRoomInstance.emit(RoomEvent.ParticipantConnected, { identity: 'assistant' });
             
-            await screen.findByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`);
+            await screen.findByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`);
 
             mockRoomInstance.state = ConnectionState.Reconnecting;
             mockRoomInstance.emit(RoomEvent.Reconnecting);
 
-            expect(screen.getByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeVisible();
+            expect(screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeVisible();
 
             mockRoomInstance.state = ConnectionState.Connected;
             mockRoomInstance.emit(RoomEvent.Reconnected);
             
-            expect(screen.getByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeVisible();
+            expect(screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeVisible();
         });
 
         it('toggles microphone mute state',
@@ -664,7 +664,7 @@ describe('Assistant Call', () => {
 
             // Verify API call
             await waitFor(() => {
-                expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalledWith(targetAssistant.agent_id);
+                expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalledWith(targetAssistant.agentId);
             });
 
             // Verify iframe is rendered with correct URL
@@ -686,8 +686,8 @@ describe('Assistant Call', () => {
         },
         async () => {
             // Ensure deterministic Avatar fallback by removing photo for this test
-            const originalPhoto = targetAssistant.profile_photo;
-            targetAssistant.profile_photo = null;
+            const originalPhoto = targetAssistant.profilePhoto;
+            targetAssistant.profilePhoto = null;
 
             try {
                 renderPage();
@@ -715,7 +715,7 @@ describe('Assistant Call', () => {
 
             } finally {
                 // Restore photo to avoid side effects
-                targetAssistant.profile_photo = originalPhoto;
+                targetAssistant.profilePhoto = originalPhoto;
             }
         });
 
@@ -743,7 +743,7 @@ describe('Assistant Call', () => {
             // Verify API call for enabling (Pausing AI actor)
             await waitFor(() => {
                 expect(mockAssistantActions.desktop.sendSystemEvent).toHaveBeenLastCalledWith(
-                    targetAssistant.agent_id, 
+                    targetAssistant.agentId, 
                     'pause_actor', 
                     expect.stringContaining('taking over')
                 );
@@ -758,7 +758,7 @@ describe('Assistant Call', () => {
             // Verify API call for disabling (Resuming AI actor)
             await waitFor(() => {
                 expect(mockAssistantActions.desktop.sendSystemEvent).toHaveBeenLastCalledWith(
-                    targetAssistant.agent_id, 
+                    targetAssistant.agentId, 
                     'resume_actor', 
                     expect.stringContaining('handing back')
                 );
@@ -913,7 +913,7 @@ describe('Assistant Call', () => {
             await establishCall('video');
 
             // Verify Header exists
-            expect(screen.getByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeVisible();
+            expect(screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeVisible();
 
             // Click Minimize
             const minimizeBtn = await screen.findByLabelText('Minimize');
@@ -921,7 +921,7 @@ describe('Assistant Call', () => {
 
             // Header should be gone
             await waitFor(() => {
-                expect(screen.queryByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeNull();
+                expect(screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeNull();
             });
 
             // Widget should be present (can check by Expand button which is unique to widget)
@@ -946,7 +946,7 @@ describe('Assistant Call', () => {
             // 1. Minimize
             const minimizeBtn = await screen.findByLabelText('Minimize');
             await defaultUser.click(minimizeBtn);
-            await waitFor(() => expect(screen.queryByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeNull());
+            await waitFor(() => expect(screen.queryByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeNull());
 
             // 2. Expand
             const expandBtn = await screen.findByLabelText('Expand View');
@@ -954,7 +954,7 @@ describe('Assistant Call', () => {
 
             // 3. Verify Dialog is back
             await waitFor(() => {
-                expect(screen.getByText(`Talk to ${targetAssistant.first_name} ${targetAssistant.surname}`)).toBeVisible();
+                expect(screen.getByText(`Talk to ${targetAssistant.firstName} ${targetAssistant.surname}`)).toBeVisible();
             });
             // Expand button should be gone
             expect(screen.queryByLabelText('Expand View')).toBeNull();

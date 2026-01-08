@@ -185,7 +185,7 @@ describe('checkLogScalability', () => {
 
   // Helper to create proper fields structure
   const createFields = () => ({
-    'table1.value': { data_type: 'float', field_type: 'entry' },
+    'table1.value': { dataType: 'float', fieldType: 'entry' },
   });
 
   it('returns linear for data with zeros', () => {

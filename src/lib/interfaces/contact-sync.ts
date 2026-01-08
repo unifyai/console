@@ -54,7 +54,7 @@ async function syncAssistantContact(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assistant_id: assistantId, ...payload }),
+        body: JSON.stringify({ assistantId: assistantId, ...payload }),
       }
     );
 
@@ -117,8 +117,8 @@ export async function maybeSyncContactFields(
   }
 
   // Collect sync targets with batching:
-  // - assistantSyncs: Map<assistant_id, payload>
-  // - userSyncs: Map<"assistant_id:email", payload>
+  // - assistantSyncs: Map<assistantId, payload>
+  // - userSyncs: Map<"assistantId:email", payload>
   const assistantSyncs = new Map<number, ContactSyncAssistantPayload>();
   const userSyncs = new Map<string, ContactSyncUserPayload>();
 
@@ -130,9 +130,9 @@ export async function maybeSyncContactFields(
       continue;
     }
 
-    // Get assistant_id - support both "_assistant_id" and "assistant_id" field names
+    // Get assistantId - support both "_assistantId" and "assistantId" field names
     // Also support both number and string types
-    const rawAssistantId = entries._assistant_id ?? entries.assistant_id;
+    const rawAssistantId = entries._assistantId ?? entries.assistantId;
     const assistantId = typeof rawAssistantId === "number" 
       ? rawAssistantId 
       : typeof rawAssistantId === "string" 
@@ -140,12 +140,12 @@ export async function maybeSyncContactFields(
         : NaN;
     
     if (isNaN(assistantId)) {
-      console.warn("[ContactSync] Missing or invalid _assistant_id/assistant_id in log", log.id);
+      console.warn("[ContactSync] Missing or invalid _assistantId/assistantId in log", log.id);
       continue;
     }
 
     // Support both "id" and "contact_id" field names
-    const contactId = entries.contact_id ?? entries.id;
+    const contactId = entries.contactId ?? entries.id;
 
     if (contactId === 0) {
       // Sync to assistant
@@ -163,7 +163,7 @@ export async function maybeSyncContactFields(
       assistantSyncs.set(assistantId, existing);
     } else {
       // Sync to user - need email from entries
-      const email = (entries.email ?? entries.email_address) as string | undefined;
+      const email = (entries.email ?? entries.emailAddress) as string | undefined;
       if (!email) {
         console.warn("[ContactSync] Missing email for user sync in log", log.id);
         continue;
@@ -171,8 +171,8 @@ export async function maybeSyncContactFields(
 
       const key = `${assistantId}:${email}`;
       const existing = userSyncs.get(key) || {
-        assistant_id: assistantId,
-        target_user_email: email,
+        assistantId: assistantId,
+        targetUserEmail: email,
       };
 
       for (const field of fieldsToSync) {
@@ -203,7 +203,7 @@ export async function maybeSyncContactFields(
   userSyncs.forEach((payload) => {
     syncPromises.push(
       syncUserContact(payload).catch((err) => {
-        console.error(`[ContactSync] Failed to sync user ${payload.target_user_email}:`, err);
+        console.error(`[ContactSync] Failed to sync user ${payload.targetUserEmail}:`, err);
         return { detail: String(err) };
       })
     );

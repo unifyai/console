@@ -13,10 +13,10 @@ import {
 
 // List tiles in tab
 export const listTiles = async (apiKey: string) => {
-    return async (tab_id: string, type?: string, checkpoint: boolean = false, signal?: AbortSignal) => {
+    return async (tabId: string, type?: string, checkpoint: boolean = false, signal?: AbortSignal) => {
         "use server";
 
-        let url = `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&checkpoint=${checkpoint}`;
+        let url = `${process.env.NEXTAUTH_URL}/api/tile?tabId=${tabId}&checkpoint=${checkpoint}`;
         if (type) {
             url += `&type=${type}`;
         }
@@ -38,11 +38,11 @@ export const listTiles = async (apiKey: string) => {
 
 // Get tile by name
 export const getTileByName = async (apiKey: string) => {
-    return async (tab_id: string, name: string, checkpoint: boolean = false) => {
+    return async (tabId: string, name: string, checkpoint: boolean = false) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tabId=${tabId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -65,7 +65,7 @@ export const getTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tileId=${id}&checkpoint=${checkpoint}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -84,13 +84,13 @@ export const getTileById = async (apiKey: string) => {
 export const getTileUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string; 
         checkpoint?: boolean 
     }) => {
         "use server";
         
-        const { id, tab_id, name, checkpoint = false } = params;
+        const { id, tabId, name, checkpoint = false } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -98,10 +98,10 @@ export const getTileUnified = async (apiKey: string) => {
             return getById(id, checkpoint);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const getByName = await getTileByName(apiKey);
-            return getByName(tab_id, name, checkpoint);
+            return getByName(tabId, name, checkpoint);
         }
         
         return null;
@@ -111,11 +111,11 @@ export const getTileUnified = async (apiKey: string) => {
 // Create tile
 export const createTile = async (apiKey: string) => {
     return async (
-        tab_id: string, 
+        tabId: string, 
         name: string, 
         position: TilePosition,
-        data: Omit<CreateTileRequest, 'tile_id' | 'tab_id' | 'name' | 'position'>,
-        tile_id?: string,
+        data: Omit<CreateTileRequest, 'tileId' | 'tabId' | 'name' | 'position'>,
+        tileId?: string,
         type?: string
     ) => {
         "use server";
@@ -126,11 +126,11 @@ export const createTile = async (apiKey: string) => {
                 method: "POST",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    tab_id,
+                    tabId,
                     name,
                     position,
                     type,
-                    tile_id,
+                    tileId,
                     ...data
                 }),
             }
@@ -147,7 +147,7 @@ export const createTile = async (apiKey: string) => {
 // Update tile by name
 export const updateTileByName = async (apiKey: string) => {
     return async (
-        tab_id: string,
+        tabId: string,
         name: string,
         data: UpdateTileRequest,
         checkpoint: boolean = false
@@ -155,7 +155,7 @@ export const updateTileByName = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tabId=${tabId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -181,7 +181,7 @@ export const updateTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tileId=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PUT",
                 headers: { apiKey: apiKey },
@@ -201,14 +201,14 @@ export const updateTileById = async (apiKey: string) => {
 export const updateTileUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string; 
         data: UpdateTileRequest; 
         checkpoint?: boolean;
     }) => {
         "use server";
         
-        const { id, tab_id, name, data, checkpoint = false } = params;
+        const { id, tabId, name, data, checkpoint = false } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -216,10 +216,10 @@ export const updateTileUnified = async (apiKey: string) => {
             return updateById(id, data, checkpoint);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const updateByName = await updateTileByName(apiKey);
-            return updateByName(tab_id, name, data, checkpoint);
+            return updateByName(tabId, name, data, checkpoint);
         }
         
         return { error: "Missing required parameters to identify the tile" };
@@ -229,7 +229,7 @@ export const updateTileUnified = async (apiKey: string) => {
 // Patch tile by name
 export const patchTileByName = async (apiKey: string) => {
     return async (
-        tab_id: string,
+        tabId: string,
         name: string,
         updateData: Partial<UpdateTileRequest>,
         checkpoint: boolean = false
@@ -237,7 +237,7 @@ export const patchTileByName = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tabId=${tabId}&name=${encodeURIComponent(name)}&checkpoint=${checkpoint}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
@@ -263,7 +263,7 @@ export const patchTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}&checkpoint=${checkpoint}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tileId=${id}&checkpoint=${checkpoint}`,
             {
                 method: "PATCH",
                 headers: { apiKey: apiKey },
@@ -283,14 +283,14 @@ export const patchTileById = async (apiKey: string) => {
 export const patchTileUnified = async (apiKey: string) => {
     return async (params: {
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string;
         updateData: Partial<UpdateTileRequest>;
         checkpoint?: boolean;
     }) => {
         "use server";
         
-        const { id, tab_id, name, updateData, checkpoint = false } = params;
+        const { id, tabId, name, updateData, checkpoint = false } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -298,10 +298,10 @@ export const patchTileUnified = async (apiKey: string) => {
             return patchById(id, updateData, checkpoint);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const patchByName = await patchTileByName(apiKey);
-            return patchByName(tab_id, name, updateData, checkpoint);
+            return patchByName(tabId, name, updateData, checkpoint);
         }
         
         return { error: "Missing required parameters to identify the tile" };
@@ -311,7 +311,7 @@ export const patchTileUnified = async (apiKey: string) => {
 // Patch specialized tile by name
 export const patchSpecializedTileByName = async (apiKey: string) => {
     return async (
-        tab_id: string,
+        tabId: string,
         name: string,
         tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal",
         updateData: Record<string, any>,
@@ -324,7 +324,7 @@ export const patchSpecializedTileByName = async (apiKey: string) => {
         
         // Required parameters
         queryParams.append("tile_type", tileType);
-        queryParams.append("tab_id", tab_id);
+        queryParams.append("tabId", tabId);
         queryParams.append("name", name);
         queryParams.append("checkpoint", checkpoint.toString());
 
@@ -359,7 +359,7 @@ export const patchSpecializedTileById = async (apiKey: string) => {
         const queryParams = new URLSearchParams();
         
         // Required parameters
-        queryParams.append("tile_id", id);
+        queryParams.append("tileId", id);
         queryParams.append("tile_type", tileType);
         queryParams.append("checkpoint", checkpoint.toString());
 
@@ -384,7 +384,7 @@ export const patchSpecializedTileById = async (apiKey: string) => {
 export const patchSpecializedTileUnified = async (apiKey: string) => {
     return async (params: {
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string;
         tileType: "Table" | "Plot" | "View" | "Editor" | "Terminal";
         updateData: Record<string, any>;
@@ -392,7 +392,7 @@ export const patchSpecializedTileUnified = async (apiKey: string) => {
     }) => {
         "use server";
         
-        const { id, tab_id, name, tileType, updateData, checkpoint = false } = params;
+        const { id, tabId, name, tileType, updateData, checkpoint = false } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -400,10 +400,10 @@ export const patchSpecializedTileUnified = async (apiKey: string) => {
             return patchSpecializedById(id, tileType, updateData, checkpoint);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const patchSpecializedByName = await patchSpecializedTileByName(apiKey);
-            return patchSpecializedByName(tab_id, name, tileType, updateData, checkpoint);
+            return patchSpecializedByName(tabId, name, tileType, updateData, checkpoint);
         }
         
         return { error: "Missing required parameters to identify the tile" };
@@ -412,11 +412,11 @@ export const patchSpecializedTileUnified = async (apiKey: string) => {
 
 // Delete tile by name
 export const deleteTileByName = async (apiKey: string) => {
-    return async (tab_id: string, name: string) => {
+    return async (tabId: string, name: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tab_id=${tab_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tabId=${tabId}&name=${encodeURIComponent(name)}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -437,7 +437,7 @@ export const deleteTileById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile?tile_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tile?tileId=${id}`,
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
@@ -456,12 +456,12 @@ export const deleteTileById = async (apiKey: string) => {
 export const deleteTileUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string; 
     }) => {
         "use server";
         
-        const { id, tab_id, name } = params;
+        const { id, tabId, name } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -469,10 +469,10 @@ export const deleteTileUnified = async (apiKey: string) => {
             return deleteById(id);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const deleteByName = await deleteTileByName(apiKey);
-            return deleteByName(tab_id, name);
+            return deleteByName(tabId, name);
         }
         
         return { error: "Missing required parameters to identify the tile" };
@@ -481,11 +481,11 @@ export const deleteTileUnified = async (apiKey: string) => {
 
 // Create checkpoint for tile by name
 export const createTileCheckpointByName = async (apiKey: string) => {
-    return async (tab_id: string, name: string, description: string) => {
+    return async (tabId: string, name: string, description: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tab_id=${tab_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tabId=${tabId}&name=${encodeURIComponent(name)}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -507,7 +507,7 @@ export const createTileCheckpointById = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tile_id=${id}`,
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tileId=${id}`,
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
@@ -527,13 +527,13 @@ export const createTileCheckpointById = async (apiKey: string) => {
 export const createTileCheckpointUnified = async (apiKey: string) => {
     return async (params: { 
         id?: string; 
-        tab_id?: string; 
+        tabId?: string; 
         name?: string;
         description: string; 
     }) => {
         "use server";
         
-        const { id, tab_id, name, description } = params;
+        const { id, tabId, name, description } = params;
         
         // If tile ID is provided, use it directly
         if (id) {
@@ -541,10 +541,10 @@ export const createTileCheckpointUnified = async (apiKey: string) => {
             return checkpointById(id, description);
         }
         
-        // Otherwise use tab_id+name
-        if (tab_id && name) {
+        // Otherwise use tabId+name
+        if (tabId && name) {
             const checkpointByName = await createTileCheckpointByName(apiKey);
-            return checkpointByName(tab_id, name, description);
+            return checkpointByName(tabId, name, description);
         }
         
         return { error: "Missing required parameters to identify the tile" };
@@ -552,11 +552,11 @@ export const createTileCheckpointUnified = async (apiKey: string) => {
 };
 
 export const getTileCheckpointByName = async (apiKey: string) => {
-    return async (tab_id: string, name: string) => {
+    return async (tabId: string, name: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tab_id=${tab_id}&name=${encodeURIComponent(name)}`,
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tabId=${tabId}&name=${encodeURIComponent(name)}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -571,11 +571,11 @@ export const getTileCheckpointByName = async (apiKey: string) => {
 };
 
 export const getTileCheckpointById = async (apiKey: string) => {
-    return async (tile_id: string) => {
+    return async (tileId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tile_id=${tile_id}`,
+            `${process.env.NEXTAUTH_URL}/api/tile/checkpoint?tileId=${tileId}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -590,16 +590,16 @@ export const getTileCheckpointById = async (apiKey: string) => {
 };
 
 export const getTileCheckpointUnified = async (apiKey: string) => {
-    return async (params: { id?: string; tab_id?: string; name?: string }) => {
+    return async (params: { id?: string; tabId?: string; name?: string }) => {
         "use server";
-        const { id, tab_id, name } = params;
+        const { id, tabId, name } = params;
         if (id) {
             const fn = await getTileCheckpointById(apiKey);
             return fn(id);
         }
-        if (tab_id && name) {
+        if (tabId && name) {
             const fn = await getTileCheckpointByName(apiKey);
-            return fn(tab_id, name);
+            return fn(tabId, name);
         }
         return { error: "Missing parameters to identify the tile checkpoint" };
     };
@@ -608,22 +608,22 @@ export const getTileCheckpointUnified = async (apiKey: string) => {
 // Export tile template
 export const exportTileAsTemplate = async (apiKey: string) => {
     return async (
-        params: Omit<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
-        options?: Pick<ExportTileTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        params: Omit<ExportTileTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
+        options?: Pick<ExportTileTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
     ): Promise<TemplateExportResponse<TileTemplateSchema> | { error: string }> => {
         "use server";
 
-        const { tile_id, tab_id, tile_name } = params;
+        const { tileId, tabId, tileName } = params;
 
         const requestBody: ExportTileTemplateRequest = {
-            tile_id,
-            tab_id,
-            tile_name,
+            tileId,
+            tabId,
+            tileName,
             checkpoint: options?.checkpoint || false,
-            include_metadata: options?.include_metadata !== false,
+            includeMetadata: options?.includeMetadata !== false,
             description: options?.description,
             tags: options?.tags || [],
-            template_name: options?.template_name,
+            templateName: options?.templateName,
         };
 
         const response = await fetch(
@@ -647,23 +647,23 @@ export const exportTileAsTemplate = async (apiKey: string) => {
 export const importTileFromTemplate = async (apiKey: string) => {
     return async (
         template: TileTemplateSchema,
-        params: Pick<ImportTileTemplateRequest, 'tab_id' | 'interface_id' | 'tab_name'>,
-        options: Omit<ImportTileTemplateRequest, 'template' | 'tab_id' | 'interface_id' | 'tab_name'>
+        params: Pick<ImportTileTemplateRequest, 'tabId' | 'interfaceId' | 'tabName'>,
+        options: Omit<ImportTileTemplateRequest, 'template' | 'tabId' | 'interfaceId' | 'tabName'>
     ): Promise<TemplateImportResponse | { error: string }> => {
         "use server";
 
-        const { tab_id, interface_id, tab_name } = params;
+        const { tabId, interfaceId, tabName } = params;
 
         const requestBody: ImportTileTemplateRequest = {
-            project_name: options.project_name,
+            projectName: options.projectName,
             template,
-            tab_id,
-            interface_id,
-            tab_name,
-            new_tile_name: options.new_tile_name,
-            validate_first: options.validate_first || true,
-            auto_sanitize: options.auto_sanitize || true,
-            overwrite_existing: options.overwrite_existing || false,
+            tabId,
+            interfaceId,
+            tabName,
+            newTileName: options.newTileName,
+            validateFirst: options.validateFirst || true,
+            autoSanitize: options.autoSanitize || true,
+            overwriteExisting: options.overwriteExisting || false,
         };
 
         const response = await fetch(

@@ -6,11 +6,11 @@ import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
-    const binary_string = atob(base64);
-    const len = binary_string.length;
+    const binaryString = atob(base64);
+    const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
+        bytes[i] = binaryString.charCodeAt(i);
     }
     return bytes;
 }
@@ -51,7 +51,7 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
     const playPreview = async (voice: VoiceOption) => {
         if (!audioRef.current) return;
 
-        if (isPlayingPreviewForVoiceId === voice.voice_id) {
+        if (isPlayingPreviewForVoiceId === voice.voiceId) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             setIsPlayingPreviewForVoiceId(null);
@@ -68,29 +68,29 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
             }
         }
 
-        if (!voice.voice_id || !voice.provider || !voice.language) {
+        if (!voice.voiceId || !voice.provider || !voice.language) {
             toast.error("Voice information is incomplete for preview.");
             setIsPlayingPreviewForVoiceId(null);
             return;
         }
         
         const randomLine = getRandomSampleLine(voice.language);
-        setIsPlayingPreviewForVoiceId(voice.voice_id);
+        setIsPlayingPreviewForVoiceId(voice.voiceId);
 
         const payload: GenerateSpeechPayload = {
             text: randomLine,
             provider: voice.provider, 
-            voice_id: voice.voice_id,
-            output_format: "mp3", 
+            voiceId: voice.voiceId,
+            outputFormat: "mp3", 
         };
         
         if (voice.provider === 'cartesia') {
-            payload.model_id = 'sonic-2'; 
-            payload.cartesia_language = voice.language as SupportedLanguage;
+            payload.modelId = 'sonic-2'; 
+            payload.cartesiaLanguage = voice.language as SupportedLanguage;
         } else if (voice.provider === 'elevenlabs') {
-            payload.model_id = 'eleven_multilingual_v2'; 
+            payload.modelId = 'eleven_multilingual_v2'; 
         } else if (voice.provider === 'openai') {
-            payload.model_id = 'gpt-4o-mini-tts'
+            payload.modelId = 'gpt-4o-mini-tts'
         } else {
             toast.error(`Unsupported voice provider: ${voice.provider}`);
             setIsPlayingPreviewForVoiceId(null);

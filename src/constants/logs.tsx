@@ -1,6 +1,6 @@
 import { ChartLine, Code, Eye, Focus, Folder, FolderTree, ListRestart, Plus, Save, Table, Trash, Upload, X, Terminal as TerminalIcon } from "lucide-react";
 import { InterfaceData, TabData, TileData } from "@/types/interfaces/grid";
-import { getLogsParameters } from "@/types/interfaces/logs";
+import { GetLogsParameters } from "@/types/interfaces/logs";
 import mathsAssistant from "./demos/maths_assistant";
 import contextDemo from "./demos/context-demo";
 import derivedColumnsDemo from "./demos/derived-columns-demo";
@@ -31,7 +31,7 @@ export const metrics = ["mean", "count", "sum", "var", "std", "min", "max", "med
 //         "minW": undefined,
 //         "minH": undefined,
 //         "tab": "Table",
-//         "table_type": "Data Table"
+//         "tableType": "Data Table"
 //     },
 //     {
 //         "i": "View",
@@ -71,8 +71,8 @@ export const defaultTiles: TileData[] = [
             width: 7.0,
             height: 8.0
         },
-        table_tile: {
-            table_type: "Data Table",
+        tableTile: {
+            tableType: "Data Table",
         }
     },
     {
@@ -85,7 +85,7 @@ export const defaultTiles: TileData[] = [
             height: 8.0
         },
         table: "Table",
-        view_tile: {}
+        viewTile: {}
     }
 ];
 
@@ -123,17 +123,17 @@ export const fileTypes: { [key: string]: string } = {
 
 export const demos: {
     [key: string]: {
-        new_counter: number,
+        newCounter: number,
         code: string,
         gif: string,
         link: string,
         description: string,
-        derived_columns?: {
+        derivedColumns?: {
             project: string,
             context?: string | undefined,
             key: string,
             equation: string,
-            referenced_logs: { [table_name: string]: getLogsParameters },
+            referencedLogs: { [table_name: string]: GetLogsParameters },
         },
         // New granular interface structure
         interface?: InterfaceData;

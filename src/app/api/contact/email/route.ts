@@ -8,7 +8,7 @@ const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY
 export async function POST(request: NextRequest) {
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.api_key || request.headers.get("apiKey");
+    const apiKey = user?.apiKey || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ email_address: email })
+                body: JSON.stringify({ emailAddress: email })
             }
         );
 
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ primary_email: primaryEmail })
+                body: JSON.stringify({ primaryEmail: primaryEmail })
             }
         );
 

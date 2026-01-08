@@ -38,7 +38,7 @@ export function convertMetricsToDataLabels(
 ): DataLabel[] {
   const fieldMetrics = metricsResponse[yAxisField] || {};
   return Object.entries(fieldMetrics).map(([category, values]) => {
-    const value = values.shared_value ?? values[metric] ?? 0;
+    const value = values.sharedValue ?? values[metric] ?? 0;
     return [category, typeof value === 'number' ? value : 0] as DataLabel;
   });
 }
@@ -58,7 +58,7 @@ export function convertMetricsToGroupedDataLabels(
   
   for (const [groupKey, categories] of Object.entries(fieldMetrics)) {
     for (const [category, values] of Object.entries(categories as Record<string, MetricsValue>)) {
-      const value = values.shared_value ?? values[metric] ?? 0;
+      const value = values.sharedValue ?? values[metric] ?? 0;
       result.push([groupKey, [category, typeof value === 'number' ? value : 0]]);
     }
   }
@@ -81,16 +81,16 @@ export async function fetchBarChartAggregatedData(
   signal?: AbortSignal
 ): Promise<{ data: DataLabel[] | GroupedDataLabel[]; isGrouped: boolean }> {
   const params = new URLSearchParams();
-  params.set('project_name', projectId);
+  params.set('projectName', projectId);
   if (context) params.set('context', context);
   params.set('key', JSON.stringify([sanitizeKey(yAxis)]));
   
-  // Build group_by: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
+  // Build groupBy: if we have a secondary groupBy, use [groupBy, xAxis] for nested grouping
   // Otherwise just [xAxis] for simple category grouping
   const groupByFields = groupBy ? [sanitizeKey(groupBy), sanitizeKey(xAxis)] : [sanitizeKey(xAxis)];
-  params.set('group_by', JSON.stringify(groupByFields));
+  params.set('groupBy', JSON.stringify(groupByFields));
   
-  if (filterExpr) params.set('filter_expr', filterExpr);
+  if (filterExpr) params.set('filterExpr', filterExpr);
 
   const response = await fetch(`/api/logs/${metric}?${params.toString()}`, {
     method: 'GET',
@@ -176,7 +176,7 @@ export async function buildPlotDataItem(
             const prefixedLog = Object.fromEntries(
               Object.entries(data.plotLogs[i] || {}).map(([key, value]) => [
                 `${tableId}.${key}`,
-                (["params", "entries", "derived_entries"].includes(key) && value) 
+                (["params", "entries", "derivedEntries"].includes(key) && value) 
                   ? Object.fromEntries(Object.entries(value).map(([k,v]) => [`${tableId}.${k}`, v])) 
                   : value
               ])
@@ -206,24 +206,24 @@ export function getUsedTableNames(plotTile: TileData): string[] {
   const usedTableNames: string[] = [];
   
   // Check x-axis
-  if (plotTile.plot_tile?.x_axis && plotTile.plot_tile?.x_axis?.includes(".")) {
-    const tableName = plotTile.plot_tile?.x_axis?.split(".")[0];
+  if (plotTile.plotTile?.xAxis && plotTile.plotTile?.xAxis?.includes(".")) {
+    const tableName = plotTile.plotTile?.xAxis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
   
   // Check y-axis
-  if (plotTile.plot_tile?.y_axis && plotTile.plot_tile?.y_axis?.includes(".")) {
-    const tableName = plotTile.plot_tile?.y_axis?.split(".")[0];
+  if (plotTile.plotTile?.yAxis && plotTile.plotTile?.yAxis?.includes(".")) {
+    const tableName = plotTile.plotTile?.yAxis?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
   }
   
   // Check plot-group-by
-  if (plotTile.plot_tile?.plot_group_by && plotTile.plot_tile?.plot_group_by?.includes(".")) {
-    const tableName = plotTile.plot_tile?.plot_group_by?.split(".")[0];
+  if (plotTile.plotTile?.plotGroupBy && plotTile.plotTile?.plotGroupBy?.includes(".")) {
+    const tableName = plotTile.plotTile?.plotGroupBy?.split(".")[0];
     if (!usedTableNames.includes(tableName)) {
       usedTableNames.push(tableName);
     }
@@ -237,14 +237,14 @@ export function getUsedTableNames(plotTile: TileData): string[] {
  */
 function createPlotFields(tableTiles: TileData[], fields: LogFieldsResponseProps[]): LogFieldsResponseProps {
   return tableTiles.map((tile, idx) => {
-    const columnContext = tile.column_context;
+    const columnContext = tile.columnContext;
     return Object.fromEntries(
       Object
         .entries(fields[idx] || {})
-        .filter(([name, { data_type, field_type, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
-        .map(([name, { data_type, field_type, artifacts, mutable, created_at }]) => {
+        .filter(([name, { dataType, fieldType, artifacts }]) => columnContext ? name.startsWith(columnContext) : name)
+        .map(([name, { dataType, fieldType, artifacts, mutable, createdAt }]) => {
           const newName = columnContext ? processContext("split", columnContext, name) : name;
-          return [`${tile.name}.${newName}`, { data_type, field_type, artifacts, mutable, created_at }];
+          return [`${tile.name}.${newName}`, { dataType, fieldType, artifacts, mutable, createdAt }];
         })
     );
   }).reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -288,8 +288,8 @@ async function fetchPlotDataByTable(
     
     // Get params from pre-built plotArguments
     const context = plotArguments[tableName].context;
-    const columnContext = plotArguments[tableName].column_context;
-    const filterExpression = plotArguments[tableName].filter_expr;
+    const columnContext = plotArguments[tableName].columnContext;
+    const filterExpression = plotArguments[tableName].filterExpr;
     const metric = plotArguments[tableName].metric;
     const grouping = plotArguments[tableName].grouping;
     const limit = plotArguments[tableName].limit;
@@ -301,8 +301,8 @@ async function fetchPlotDataByTable(
     // Get plot data
     let data: LogsResponseProps = { params: {}, logs: [], count: 0, groups: [] };
 
-    let [xAxis, yAxis, group] = [plotTile.plot_tile?.x_axis, plotTile.plot_tile?.y_axis, plotTile.plot_tile?.plot_group_by];
-    const plotType = plotTile.plot_tile?.plot_type;
+    let [xAxis, yAxis, group] = [plotTile.plotTile?.xAxis, plotTile.plotTile?.yAxis, plotTile.plotTile?.plotGroupBy];
+    const plotType = plotTile.plotTile?.plotType;
     
     let subset = null;
     if (xAxis && xAxis.split(".").length > 1) {
@@ -357,21 +357,21 @@ async function fetchPlotDataByTable(
       
       // Get raw logs values or grouped metrics as logs
       if (
-        (plotTile.plot_tile?.plot_aggregate && plotTile.plot_tile?.plot_aggregate.split(".").length > 1)
-        && plotTile.plot_tile?.plot_aggregate.split(".")[0] === tableName
+        (plotTile.plotTile?.plotAggregate && plotTile.plotTile?.plotAggregate.split(".").length > 1)
+        && plotTile.plotTile?.plotAggregate.split(".")[0] === tableName
         && grouping
       ) {
-        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(plotTile.plot_tile?.plot_aggregate.split(".")[1]) + 1);
+        const groupFields = grouping.split(",").slice(0, grouping.split(",").indexOf(plotTile.plotTile?.plotAggregate.split(".")[1]) + 1);
         
         // Call API route directly instead of server action
         const metricName = metric ? metric : "mean";
         const keyNames = subset ? subset.split("&").map(sanitizeKey) : [];
         const params = new URLSearchParams();
-        params.set('project_name', projectId);
+        params.set('projectName', projectId);
         if (context) params.set('context', context);
         params.set('key', JSON.stringify(keyNames));
-        if (filterExpression) params.set('filter_expr', filterExpression);
-        params.set('group_by', JSON.stringify(groupFields));
+        if (filterExpression) params.set('filterExpr', filterExpression);
+        params.set('groupBy', JSON.stringify(groupFields));
         
         const metricsRes = await fetch(`/api/logs/${metricName}?${params.toString()}`, {
           method: 'GET',
@@ -396,11 +396,11 @@ async function fetchPlotDataByTable(
       else if (subset) {
         // Call API route directly instead of server action
         const params = new URLSearchParams();
-        params.set('project_name', projectId);
+        params.set('projectName', projectId);
         if (context) params.set('context', context);
-        if (columnContext) params.set('column_context', columnContext);
-        if (filterExpression) params.set('filter_expr', filterExpression);
-        if (subset) params.set('from_fields', subset);
+        if (columnContext) params.set('columnContext', columnContext);
+        if (filterExpression) params.set('filterExpr', filterExpression);
+        if (subset) params.set('fromFields', subset);
         if (limit) params.set('limit', limit);
         if (randomize) params.set('randomize', randomize);
 

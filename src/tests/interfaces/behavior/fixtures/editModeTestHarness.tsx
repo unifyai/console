@@ -87,40 +87,40 @@ function createMockActions(
 } {
   // Cast to the action types - we only implement the methods used by the hooks
   const interfaceActions = {
-    list: async () => [{ id: interfaceId, name: 'Test Interface', project_id: projectId }],
+    list: async () => [{ id: interfaceId, name: 'Test Interface', projectId: projectId }],
     getById: async (id: string) => ({
       id,
       name: 'Test Interface',
-      project_id: projectId,
-      active_tab_id: tabId,
+      projectId: projectId,
+      activeTabId: tabId,
     }),
     getByName: async (projId: string, name: string) => ({
       id: interfaceId,
       name,
-      project_id: projId,
-      active_tab_id: tabId,
+      projectId: projId,
+      activeTabId: tabId,
     }),
     getCheckpointById: async (id: string) => {
       if (checkpointStore.current?.interface) {
         return checkpointStore.current.interface;
       }
-      return { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId };
+      return { id, name: 'Test Interface', projectId: projectId, activeTabId: tabId };
     },
     getCheckpointByName: async (projId: string, name: string) => {
       if (checkpointStore.current?.interface) {
         return checkpointStore.current.interface;
       }
-      return { id: interfaceId, name, project_id: projId, active_tab_id: tabId };
+      return { id: interfaceId, name, projectId: projId, activeTabId: tabId };
     },
-    create: async () => ({ id: interfaceId, name: 'Test Interface', project_id: projectId }),
+    create: async () => ({ id: interfaceId, name: 'Test Interface', projectId: projectId }),
     updateById: async (id: string, data: any) => ({ id, ...data }),
-    updateByName: async (projId: string, name: string, data: any) => ({ id: interfaceId, name, project_id: projId, ...data }),
+    updateByName: async (projId: string, name: string, data: any) => ({ id: interfaceId, name, projectId: projId, ...data }),
     deleteById: async () => ({ success: true }),
     deleteByName: async () => ({ success: true }),
     checkpointById: async (id: string, description?: string) => {
       if (!saveSucceeds) throw new Error('Save failed');
       checkpointStore.current = {
-        interface: { id, name: 'Test Interface', project_id: projectId, active_tab_id: tabId },
+        interface: { id, name: 'Test Interface', projectId: projectId, activeTabId: tabId },
         tab: checkpointStore.current?.tab || null,
         tiles: checkpointStore.current?.tiles || [],
       };
@@ -129,7 +129,7 @@ function createMockActions(
     checkpointByName: async (projId: string, name: string, description?: string) => {
       if (!saveSucceeds) throw new Error('Save failed');
       checkpointStore.current = {
-        interface: { id: interfaceId, name, project_id: projId, active_tab_id: tabId },
+        interface: { id: interfaceId, name, projectId: projId, activeTabId: tabId },
         tab: checkpointStore.current?.tab || null,
         tiles: checkpointStore.current?.tiles || [],
       };
@@ -138,39 +138,39 @@ function createMockActions(
   } as unknown as GranularInterfaceActions;
 
   const tabActions = {
-    list: async () => [{ id: tabId, name: 'Test Tab', interface_id: interfaceId }],
+    list: async () => [{ id: tabId, name: 'Test Tab', interfaceId: interfaceId }],
     getById: async (id: string) => ({
       id,
       name: 'Test Tab',
-      interface_id: interfaceId,
+      interfaceId: interfaceId,
     }),
     getByName: async (intId: string, name: string) => ({
       id: tabId,
       name,
-      interface_id: intId,
+      interfaceId: intId,
     }),
     getCheckpointById: async (id: string) => {
       if (checkpointStore.current?.tab) {
         return checkpointStore.current.tab;
       }
-      return { id, name: 'Test Tab', interface_id: interfaceId };
+      return { id, name: 'Test Tab', interfaceId: interfaceId };
     },
     getCheckpointByName: async (intId: string, name: string) => {
       if (checkpointStore.current?.tab) {
         return checkpointStore.current.tab;
       }
-      return { id: tabId, name, interface_id: intId };
+      return { id: tabId, name, interfaceId: intId };
     },
-    create: async () => ({ id: tabId, name: 'New Tab', interface_id: interfaceId }),
+    create: async () => ({ id: tabId, name: 'New Tab', interfaceId: interfaceId }),
     updateById: async (id: string, data: any) => ({ id, ...data }),
-    updateByName: async (intId: string, name: string, data: any) => ({ id: tabId, name, interface_id: intId, ...data }),
+    updateByName: async (intId: string, name: string, data: any) => ({ id: tabId, name, interfaceId: intId, ...data }),
     deleteById: async () => ({ success: true }),
     deleteByName: async () => ({ success: true }),
     checkpointById: async (id: string, description?: string) => {
       if (!saveSucceeds) throw new Error('Save failed');
       checkpointStore.current = {
         interface: checkpointStore.current?.interface || null,
-        tab: { id, name: 'Test Tab', interface_id: interfaceId },
+        tab: { id, name: 'Test Tab', interfaceId: interfaceId },
         tiles: checkpointStore.current?.tiles || [],
       };
       return { id, description };
@@ -179,7 +179,7 @@ function createMockActions(
       if (!saveSucceeds) throw new Error('Save failed');
       checkpointStore.current = {
         interface: checkpointStore.current?.interface || null,
-        tab: { id: tabId, name, interface_id: intId },
+        tab: { id: tabId, name, interfaceId: intId },
         tiles: checkpointStore.current?.tiles || [],
       };
       return { id: tabId, description };
@@ -191,20 +191,20 @@ function createMockActions(
       if (checkpoint && checkpointStore.current?.tiles) {
         return checkpointStore.current.tiles.map(tile => ({
           ...tile,
-          tab_id: tabId,
+          tabId: tabId,
           visible: true,
         }));
       }
       return [];
     },
-    getById: async (id: string) => ({ id, name: 'Tile', tab_id: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
-    getByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tab_id: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
-    getCheckpointById: async (id: string) => ({ id, name: 'Tile', tab_id: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
-    getCheckpointByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tab_id: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getById: async (id: string) => ({ id, name: 'Tile', tabId: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tabId: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getCheckpointById: async (id: string) => ({ id, name: 'Tile', tabId: tabId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
+    getCheckpointByName: async (tId: string, name: string) => ({ id: `tile-${name}`, name, tabId: tId, position: { x: 0, y: 0, width: 2, height: 2 }, type: 'Table', visible: true }),
     create: async (tId: string, name: string, position: any, extra?: any, type?: string) => ({
       id: `tile-${Date.now()}`,
       name,
-      tab_id: tId,
+      tabId: tId,
       position,
       type: type || 'Table',
       visible: true,
@@ -350,10 +350,10 @@ function EditModeInner({
       if (!callbacks.onSave) {
         if (tileIds.length > 0) {
           await saveTabMutation.mutateAsync({
-            tab_id: tabId,
-            interface_id: interfaceId,
-            tab_name: 'Test Tab',
-            tile_ids: tileIds,
+            tabId: tabId,
+            interfaceId: interfaceId,
+            tabName: 'Test Tab',
+            tileIds: tileIds,
           });
         } else {
           // For empty tabs, just checkpoint the tab via mock actions
@@ -387,11 +387,11 @@ function EditModeInner({
     try {
       // Use the REAL mutation hook for reset
       await restoreTabMutation.mutateAsync({
-        interface_id: interfaceId,
-        project_id: projectId,
-        interface_actions: interfaceActions,
-        tab_actions: tabActions,
-        tile_actions: tileActions,
+        interfaceId: interfaceId,
+        projectId: projectId,
+        interfaceActions: interfaceActions,
+        tabActions: tabActions,
+        tileActions: tileActions,
       });
       
       // Clear changes state

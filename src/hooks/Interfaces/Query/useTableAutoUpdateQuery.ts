@@ -29,7 +29,7 @@ const perfLog = (...args: any[]) => {
 
 /**
  * Auto-updating table data query hook that:
- * • Automatically polls every 5s when auto_update === "true"
+ * • Automatically polls every 5s when autoUpdate === "true"
  * • Uses a separate query key to avoid conflicts with manual cache updates
  * • Syncs data with the main tableDataItem cache
  * • Exposes a manualRefresh() helper for manual refresh buttons
@@ -50,9 +50,9 @@ export function useTableAutoUpdateQuery(
   const queryClient = useQueryClient();
   const [isManualRefresh, setIsManualRefresh] = useState(false);
   
-  // Get reactive access to tile item for auto_update flag
+  // Get reactive access to tile item for autoUpdate flag
   const { data: tileDataState } = useTileData(tileId, tabId);
-  const autoUpdate = tileDataState?.auto_update === "true";
+  const autoUpdate = tileDataState?.autoUpdate === "true";
   
   // Use a separate query key to avoid conflicts with manual cache updates
   const autoUpdateQueryKey = ["tableDataItem", "autoUpdate", tileId];

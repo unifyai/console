@@ -46,7 +46,7 @@ const ProjectButtons = ({
     projectQueryParam: string | null;
     defaultProject: boolean,
     setProjectQueryParam: (project: string | null) => void;
-    setInterfaceQueryParam: (interface_: string | null) => void;
+    setInterfaceQueryParam: (builtInterface: string | null) => void;
     setTabQueryParam: (tab: string | null) => void;
     projectActions: ProjectsActions;
     interfaceActions: GranularInterfaceActions;
@@ -95,7 +95,7 @@ const ProjectButtons = ({
 
     const currentFavourite = useMemo(() => {
         if (!project || !favourites) return null;
-        return favourites.find(fav => fav.project_name === project) || null;
+        return favourites.find(fav => fav.projectName === project) || null;
     }, [project, favourites]);
 
     const handleToggleFavourite = async () => {
@@ -329,7 +329,7 @@ const ProjectButtons = ({
                                     showDialog={deleteProjectOpen}
                                     setShowDialog={setDeleteProjectOpen}
                                     onDelete={(option) => {
-                                        if (option === 'logs' || option === 'logs_and_contexts') {
+                                        if (option === 'logs' || option === 'logsAndContexts') {
                                             window.location.reload();
                                         }
                                     }}

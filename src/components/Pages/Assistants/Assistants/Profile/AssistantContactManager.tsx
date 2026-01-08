@@ -23,13 +23,13 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     const { control, getValues, setValue, formState: { errors }, register, clearErrors } = useFormContext<AssistantFormData>();
 
     const phoneFieldNames = React.useMemo(() => ({
-        identifier: 'user_phone' as 'user_phone',
-        isVerified: 'user_phone_isVerified' as 'user_phone_isVerified',
-        isVerifying: 'user_phone_isVerifying' as 'user_phone_isVerifying',
-        verificationCodeSent: 'user_phone_verificationCodeSent' as 'user_phone_verificationCodeSent',
-        verificationSentAt: 'user_phone_verificationSentAt' as 'user_phone_verificationSentAt',
-        verificationAttempts: 'user_phone_verificationAttempts' as 'user_phone_verificationAttempts',
-        verificationError: 'user_phone_verificationError' as 'user_phone_verificationError',
+        identifier: 'userPhone' as 'userPhone',
+        isVerified: 'userPhoneIsVerified' as 'userPhoneIsVerified',
+        isVerifying: 'userPhoneIsVerifying' as 'userPhoneIsVerifying',
+        verificationCodeSent: 'userPhoneVerificationCodeSent' as 'userPhoneVerificationCodeSent',
+        verificationSentAt: 'userPhoneVerificationSentAt' as 'userPhoneVerificationSentAt',
+        verificationAttempts: 'userPhoneVerificationAttempts' as 'userPhoneVerificationAttempts',
+        verificationError: 'userPhoneVerificationError' as 'userPhoneVerificationError',
     }), []);
 
     const {
@@ -49,7 +49,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     });
 
     const handleVerifyClick = (isRetry: boolean) => {
-        const phoneNumber = getValues('user_phone');
+        const phoneNumber = getValues('userPhone');
         if (!phoneNumber || phoneNumber.trim() === '') {
             toast.error("Please enter a phone number to verify.");
             return;
@@ -57,23 +57,23 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
         handleVerify(isRetry);
     };
 
-    const isPhoneVerified = useWatch({ control, name: 'user_phone_isVerified' });
-    const phoneValue = useWatch({ control, name: 'user_phone' });
+    const isPhoneVerified = useWatch({ control, name: 'userPhoneIsVerified' });
+    const phoneValue = useWatch({ control, name: 'userPhone' });
     const isSubmitting = useFormContext<AssistantFormData>().formState.isSubmitting;
 
     return (
         <div className="space-y-2">
              <div className="flex items-center gap-2">
-                <Input id="user_phone" type="tel" placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} {...register('user_phone', {
+                <Input id="userPhone" type="tel" placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} {...register('userPhone', {
                     pattern: {
                         value: /^\+[1-9]\d{7,14}$/,
                         message: "Please enter a valid number (e.g., +15551234567). Make sure there are no extra whitespace."
                     },
                     onChange: () => {
-                        if (getValues('user_phone_isVerified')) {
-                            setValue('user_phone_isVerified', false, { shouldDirty: true });
+                        if (getValues('userPhoneIsVerified')) {
+                            setValue('userPhoneIsVerified', false, { shouldDirty: true });
                         }
-                        if (errors.user_phone) clearErrors('user_phone');
+                        if (errors.userPhone) clearErrors('userPhone');
                         setValue('isPhoneNumberAdded', true, { shouldDirty: true });
                     }
                 })} />
@@ -116,7 +116,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                     </div>
                 </div>
             )}
-            {errors.user_phone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.user_phone.message}</p>}
+            {errors.userPhone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.userPhone.message}</p>}
         </div>
     );
 };
@@ -125,7 +125,7 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
     const { control, getValues, setValue, formState: { errors }, clearErrors } = useFormContext<AssistantFormData>();
     const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
     
-    const { fields, append } = useFieldArray({ control, name: "social_accounts" });
+    const { fields, append } = useFieldArray({ control, name: "socialAccounts" });
     const whatsAppAccountIndex = fields.findIndex(field => field.platform === 'whatsapp');
 
     React.useEffect(() => {
@@ -134,16 +134,16 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
         }
     }, [whatsAppAccountIndex, append]);
     
-    const account = useWatch({ control, name: `social_accounts.${whatsAppAccountIndex}` });
+    const account = useWatch({ control, name: `socialAccounts.${whatsAppAccountIndex}` });
 
     const fieldNames = React.useMemo(() => ({
-        identifier: `social_accounts.${whatsAppAccountIndex}.identifier` as const,
-        isVerified: `social_accounts.${whatsAppAccountIndex}.isVerified` as const,
-        isVerifying: `social_accounts.${whatsAppAccountIndex}.isVerifying` as const,
-        verificationCodeSent: `social_accounts.${whatsAppAccountIndex}.verificationCodeSent` as const,
-        verificationSentAt: `social_accounts.${whatsAppAccountIndex}.verificationSentAt` as const,
-        verificationAttempts: `social_accounts.${whatsAppAccountIndex}.verificationAttempts` as const,
-        verificationError: `social_accounts.${whatsAppAccountIndex}.verificationError` as const,
+        identifier: `socialAccounts.${whatsAppAccountIndex}.identifier` as const,
+        isVerified: `socialAccounts.${whatsAppAccountIndex}.isVerified` as const,
+        isVerifying: `socialAccounts.${whatsAppAccountIndex}.isVerifying` as const,
+        verificationCodeSent: `socialAccounts.${whatsAppAccountIndex}.verificationCodeSent` as const,
+        verificationSentAt: `socialAccounts.${whatsAppAccountIndex}.verificationSentAt` as const,
+        verificationAttempts: `socialAccounts.${whatsAppAccountIndex}.verificationAttempts` as const,
+        verificationError: `socialAccounts.${whatsAppAccountIndex}.verificationError` as const,
     }), [whatsAppAccountIndex]);
 
     const {
@@ -177,7 +177,7 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
         if (getValues(fieldNames.isVerified)) {
             setValue(fieldNames.isVerified, false, { shouldDirty: true });
         }
-        if (errors.social_accounts?.[whatsAppAccountIndex]?.identifier) {
+        if (errors.socialAccounts?.[whatsAppAccountIndex]?.identifier) {
             clearErrors(fieldNames.identifier);
         }
     };
@@ -190,7 +190,7 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
         <div className="space-y-2">
             <div className="flex items-center gap-2">
                 <Input
-                    id={`social_accounts_${whatsAppAccountIndex}_identifier`}
+                    id={`socialAccounts_${whatsAppAccountIndex}_identifier`}
                     placeholder={`Your WhatsApp phone number...`}
                     className="h-9 flex-1"
                     value={account?.identifier || ''}
@@ -222,7 +222,7 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
                 <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
                         <Input
-                            id={`social_accounts_${whatsAppAccountIndex}_verification_code`}
+                            id={`socialAccounts_${whatsAppAccountIndex}_verification_code`}
                             placeholder="Enter verification code..."
                             value={verificationInput}
                             onChange={(e) => setVerificationInput(e.target.value)}
@@ -343,7 +343,7 @@ export function AssistantContactManager({
         initialTab,
     });
 
-    const rhfPhoneCountry = useWatch({ control, name: 'phone_country' });
+    const rhfPhoneCountry = useWatch({ control, name: 'phoneCountry' });
 
     const handleDialogClose = (open: boolean) => {
         if (!isSubmitting && !isDeleting) {
@@ -365,7 +365,7 @@ export function AssistantContactManager({
                 <DialogHeader>
                     <DialogTitle className="text-title">Update Contact</DialogTitle>
                     <DialogDescription className="text-subtitle">
-                        Manage contact details for {assistant.first_name}.
+                        Manage contact details for {assistant.firstName}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -421,20 +421,20 @@ export function AssistantContactManager({
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">
-                                            <Label htmlFor="phone_country">Assistant Phone Country</Label>
+                                            <Label htmlFor="phoneCountry">Assistant Phone Country</Label>
                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"The country where your assistant's phone number will be based."}</p></TooltipContent></Tooltip></TooltipProvider>
                                         </div>
-                                        <Select value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("phone_country", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
-                                            <SelectTrigger id="phone_country" {...register("phone_country", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
+                                        <Select value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE} onValueChange={(value) => {setValue("phoneCountry", value, { shouldDirty: true, shouldValidate: true }); setValue("isPhoneNumberAdded", true, { shouldDirty: true });}} disabled={isSubmitting || isLoadingCountries} >
+                                            <SelectTrigger id="phoneCountry" {...register("phoneCountry", { required: getValues("isPhoneNumberAdded") ? "Country is required." : false })}>
                                                 <SelectValue placeholder={isLoadingCountries ? "Loading countries..." : "Select country..."} />
                                             </SelectTrigger>
                                             <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                                         </Select>
-                                        {errors.phone_country && <p className="text-body text-strong text-destructive mt-1">{errors.phone_country.message}</p>}
+                                        {errors.phoneCountry && <p className="text-body text-strong text-destructive mt-1">{errors.phoneCountry.message}</p>}
                                     </div>
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">
-                                            <Label htmlFor="user_phone">Your Phone</Label>
+                                            <Label htmlFor="userPhone">Your Phone</Label>
                                             <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><Info className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger><TooltipContent side="right" align="end" className="max-w-xs text-caption"><p>{"This is the phone number you will contact the assistant with."}</p></TooltipContent></Tooltip></TooltipProvider>
                                         </div>
                                         <PhoneVerificationSection assistantActions={assistantActions} />
@@ -445,8 +445,8 @@ export function AssistantContactManager({
                             )}
                         </TabsContent>
                         <TabsContent value="whatsapp" className="py-4">
-                            {assistant.assistant_whatsapp_number ? (
-                                <DisplayContactField label="WhatsApp Number" value={assistant.assistant_whatsapp_number} />
+                            {assistant.assistantWhatsappNumber ? (
+                                <DisplayContactField label="WhatsApp Number" value={assistant.assistantWhatsappNumber} />
                             ) : canWrite ? (
                                 <div>
                                     <div className="flex flex-row gap-2 items-center pb-1">

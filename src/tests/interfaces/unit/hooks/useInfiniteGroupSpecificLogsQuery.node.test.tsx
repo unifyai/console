@@ -27,12 +27,18 @@ function makeLog(id: string, message: string): LogProps {
     ts: '2025-01-01T00:00:00Z',
     params: { level: 'info' },
     entries: { message },
-    derived_entries: {},
-    clipped_fields: {},
+    derivedEntries: {},
+    clippedFields: {},
   };
 }
 
-function TestComponent({ params, onResult }: { params: HookParams; onResult: (result: HookResult) => void }) {
+function TestComponent({
+  params,
+  onResult,
+}: {
+  params: HookParams;
+  onResult: (result: HookResult) => void;
+}) {
   const result = useInfiniteGroupSpecificLogsQuery(params);
   onResult(result);
   return null;
@@ -44,28 +50,29 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
   });
 
   it('fetches group-specific page via fetchLogsCore and calls updateLogs with group context', async () => {
-    const logs: LogProps[] = [makeLog('log-1', 'Grouped First'), makeLog('log-2', 'Grouped Second')];
+    const logs: LogProps[] = [
+      makeLog('log-1', 'Grouped First'),
+      makeLog('log-2', 'Grouped Second'),
+    ];
 
-    const fetchLogsCoreSpy = vi
-      .spyOn(logsCore, 'fetchLogsCore')
-      .mockResolvedValue({
-        response: {
-          params: {},
-          logs,
-          count: logs.length,
-          groups: {},
-        },
-        convertedLogs: logs,
-        totalCount: logs.length,
-        currentCount: logs.length,
-        hasMore: false,
-        useGroupPagination: true,
-        updatedFilterExpression: 'group-filter',
-        updatedGroupingExpression: 'grouping',
-        targetGroupFilters: [['entries/group', 'group-value']],
-        effectiveLimit: 20,
-        effectiveOffset: 0,
-      });
+    const fetchLogsCoreSpy = vi.spyOn(logsCore, 'fetchLogsCore').mockResolvedValue({
+      response: {
+        params: {},
+        logs,
+        count: logs.length,
+        groups: {},
+      },
+      convertedLogs: logs,
+      totalCount: logs.length,
+      currentCount: logs.length,
+      hasMore: false,
+      useGroupPagination: true,
+      updatedFilterExpression: 'group-filter',
+      updatedGroupingExpression: 'grouping',
+      targetGroupFilters: [['entries/group', 'group-value']],
+      effectiveLimit: 20,
+      effectiveOffset: 0,
+    });
 
     const updateLogs = vi.fn(() => ({ globalOffset: 0, groupOffset: 0 }));
     const onGroupOffsetChange = vi.fn();
@@ -90,7 +97,7 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
       groupingExpression: 'entries/group',
       groupSortingExpression: null,
       limit: 20,
-      group_limit: 20,
+      groupLimit: 20,
       logsActions,
       updateLogs,
       onGroupOffsetChange,
@@ -98,11 +105,11 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
       dataTypes: { 'entries/group': 'string' },
       fields: {
         'entries/group': {
-          data_type: 'string',
-          field_type: 'entry',
+          dataType: 'string',
+          fieldType: 'entry',
           artifacts: '',
           mutable: 'false',
-          created_at: '2025-01-01T00:00:00Z',
+          createdAt: '2025-01-01T00:00:00Z',
         },
       },
       enabled: true,
@@ -130,11 +137,11 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
     const coreParams = fetchLogsCoreSpy.mock.calls[0][0];
     expect(coreParams.projectId).toBe('project-1');
     expect(coreParams.groupId).toBe('entries/group:group-value');
-    expect(coreParams.group_limit).toBe(20);
+    expect(coreParams.groupLimit).toBe(20);
 
     // updateLogs was called with the group id and targetGroupFilters from the core result
     expect(updateLogs).toHaveBeenCalled();
-    const updateCall = updateLogs.mock.calls[0];
+    const updateCall = updateLogs.mock.calls[0] as any;
     expect(updateCall[2]).toBe('entries/group:group-value'); // targetGroupId
     expect(updateCall[3]).toEqual([['entries/group', 'group-value']]); // targetGroupFilters
 
@@ -142,5 +149,3 @@ describe('useInfiniteGroupSpecificLogsQuery', () => {
     expect(addInfiniteQueryKey).toHaveBeenCalled();
   });
 });
-
-

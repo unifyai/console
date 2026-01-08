@@ -40,8 +40,8 @@ const ProfileForm = ({user, onPrem}: {
   // Form state
   const [formState, setFormState] = useState({
     name: user.name || "",
-    last_name: user.last_name || "",
-    job_title: user.job_title || "",
+    lastName: user.lastName || "",
+    jobTitle: user.jobTitle || "",
     bio: user.bio || "",
     timezone: user.timezone || "",
   });
@@ -50,8 +50,8 @@ const ProfileForm = ({user, onPrem}: {
 
   // Phone verification state
   const [phoneState, setPhoneState] = useState<PhoneVerificationState>({
-    phoneNumber: user.phone_number || "",
-    isPhoneVerified: !!user.phone_number, // Already verified if user has a phone number
+    phoneNumber: user.phoneNumber || "",
+    isPhoneVerified: !!user.phoneNumber, // Already verified if user has a phone number
     isVerifying: false,
     verificationCodeSent: null,
     verificationSentAt: null,
@@ -60,7 +60,7 @@ const ProfileForm = ({user, onPrem}: {
     verificationInput: "",
     cooldown: 0,
   });
-  const [initialPhoneNumber] = useState(user.phone_number || "");
+  const [initialPhoneNumber] = useState(user.phoneNumber || "");
 
   // State for newsletter subscriptions
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
@@ -102,8 +102,8 @@ const ProfileForm = ({user, onPrem}: {
         const formData = new FormData();
         // Append all current user data to avoid blanking it out on update
         formData.append('name', user.name || '');
-        formData.append('last_name', user.last_name || '');
-        formData.append('job_title', user.job_title || '');
+        formData.append('lastName', user.lastName || '');
+        formData.append('jobTitle', user.jobTitle || '');
         formData.append('bio', user.bio || '');
         formData.append('email', user.email || '');
         formData.append('timezone', tz);
@@ -133,7 +133,7 @@ const ProfileForm = ({user, onPrem}: {
             autoUpdateTimezone(browserTimezone);
         }
     }
-  }, [user.id, user.timezone, user.name, user.last_name, user.job_title, user.bio, user.email]);
+  }, [user.id, user.timezone, user.name, user.lastName, user.jobTitle, user.bio, user.email]);
 
   const preferencesChanged = useMemo(() => {
     if (subscriptions.length !== initialSubscriptions.length) return true;
@@ -221,8 +221,8 @@ const ProfileForm = ({user, onPrem}: {
       toast.success(`Verification code sent to ${phoneState.phoneNumber}`);
       setPhoneState(prev => ({
         ...prev,
-        verificationCodeSent: result.verification_code,
-        verificationSentAt: new Date(result.sent_at),
+        verificationCodeSent: result.verificationCode,
+        verificationSentAt: new Date(result.sentAt),
       }));
     }
   }, [phoneState.phoneNumber, phoneState.cooldown]);
@@ -323,7 +323,7 @@ const ProfileForm = ({user, onPrem}: {
     
     // Include phone number (empty string if cleared, or verified phone number)
     const phoneToSave = phoneState.phoneNumber.trim() === "" ? "" : phoneState.phoneNumber;
-    formData.append('phone_number', phoneToSave);
+    formData.append('phoneNumber', phoneToSave);
 
     // Update profile info
     const profilePromise = fetch(`/api/profile/updateUser?userID=${user.id}`, {

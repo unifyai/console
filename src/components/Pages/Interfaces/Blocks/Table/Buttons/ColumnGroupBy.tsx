@@ -7,7 +7,7 @@ import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 type ColumnGroupByProps = {
     interactive?: boolean,
-    auto_update?: boolean,
+    autoUpdate?: boolean,
     column: Column<any, unknown>,
     data: any[],
     grouping: string[],
@@ -22,7 +22,7 @@ type ColumnGroupByProps = {
 
 const ColumnGroupBy = (({
     interactive,
-    auto_update,
+    autoUpdate,
     column,
     data,
     grouping,
@@ -65,7 +65,7 @@ const ColumnGroupBy = (({
     ];
 
     const state = states.find(state => state.key === isGrouped)!;
-    const tooltip = auto_update ? "Auto refresh doesn't work with grouping" : state.tooltip;
+    const tooltip = autoUpdate ? "Auto refresh doesn't work with grouping" : state.tooltip;
     const variant = isGrouped ? "primary" : undefined;
     const icon = groupLoading ? <LoaderCircle className={`animate-spin text-${spinnerColor}`}/> : state.icon;
     const onClick = () => {
@@ -113,7 +113,7 @@ const ColumnGroupBy = (({
             </DropdownMenuItem>
         ) : (
             <div className="relative inline-flex group">
-              <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || auto_update}/>
+              <ActionButton tooltip={tooltip} icon={icon} variant={variant} onClick={onClick} disabled={interactive == false || autoUpdate}/>
               {isGrouped && (
                 <button
                   onClick={onClick}

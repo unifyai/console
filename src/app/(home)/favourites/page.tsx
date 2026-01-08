@@ -17,7 +17,7 @@ export default async function FavouritesPage() {
     redirect("/login");
   }
 
-  const apiKey = user!.api_key;
+  const apiKey = user!.apiKey;
 
   try {
     const fetchProjects = await getProjects(apiKey);

@@ -33,7 +33,7 @@ export function TokensBreakdownPlot({ data }: { data: TokensDataProps[] }) {
           {payload.map((entry: any, index: any) => (
             <li key={`item-${index}`} style={{ color: entry.color }}>
               {`${entry.value} ${
-                entry.dataKey === "total_completion_tokens" ? "output tokens" : "input tokens"
+                entry.dataKey === "totalCompletionTokens" ? "output tokens" : "input tokens"
               }`}
             </li>
           ))}
@@ -86,13 +86,13 @@ export function TokensBreakdownPlot({ data }: { data: TokensDataProps[] }) {
         <Tooltip content={renderTooltipContent} />
         <Legend verticalAlign="top" height={36} />
         <Bar
-          dataKey="total_prompt_tokens"
+          dataKey="totalPromptTokens"
           stackId="a"
           fill="var(--secondary)"
           name="Input Tokens"
         />
         <Bar
-          dataKey="total_completion_tokens"
+          dataKey="totalCompletionTokens"
           stackId="a"
           fill="var(--primary)"
           name="Output Tokens"

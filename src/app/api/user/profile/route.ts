@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       id: user.id,
       name: user.name || null,
-      last_name: user.last_name || null,
-      job_title: user.job_title || null,
+      lastName: user.lastName || null,
+      jobTitle: user.jobTitle || null,
       bio: user.bio || null,
       timezone: user.timezone || null,
       email: user.email

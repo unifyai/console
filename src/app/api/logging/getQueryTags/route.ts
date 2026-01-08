@@ -16,6 +16,6 @@ export async function GET() {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const tags = await getQueryTags(user.api_key);
+    const tags = await getQueryTags(user.apiKey);
     return NextResponse.json(tags);
 }

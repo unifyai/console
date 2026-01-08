@@ -15,20 +15,20 @@ export interface LogProps {
     ts: string,
     params: LogItemProps,
     entries: LogItemProps,
-    derived_entries: LogItemProps,
-    clipped_fields: LogItemProps,
+    derivedEntries: LogItemProps,
+    clippedFields: LogItemProps,
 }
 
 /*
  Represents a single "level" of the raw grouping `logs` object from the backend.
  The keys can be:
   - A **grouping column** (e.g. "entries/i") whose value is an object containing group values and their counts
-  - Metadata like "group_count", "count" which are numbers
+  - Metadata like "groupCount", "count" which are numbers
 */
 export interface GroupedLogPropsRaw {
     [key: string]: {
         group: {key: string, value: number}[]  // Count for each group value
-        group_count: number,  // Total number of unique groups
+        groupCount: number,  // Total number of unique groups
         count: number  // Total number of logs in all groups
     } | number | undefined;  // For metadata fields
 }
@@ -71,11 +71,11 @@ export type LogFieldsProps = [number, string][]
 
 export interface LogFieldsResponseProps {
     [name: string]: {
-      data_type: string,
-      field_type: "entry" | "param" | "derived_entry",
+      dataType: string,
+      fieldType: "entry" | "param" | "derived_entry",
       artifacts: string,
       mutable: "true" | "false",
-      created_at: string,
+      createdAt: string,
       description?: string
     }
 }
@@ -86,7 +86,7 @@ export interface GroupedMetricNode {
 
 export interface GroupedMetricLeaf {
     [metricName: string]: number | null;
-    shared_value: any | null;
+    sharedValue: any | null;
 };
 
 export interface GroupedMetrics {
@@ -101,19 +101,19 @@ export interface HeaderNode {
     isLeaf?: boolean; // Indicates if the node corresponds to a path in the input array
   }
 
-export interface getLogsParameters {
+export interface GetLogsParameters {
     [parameter: string]: string
 }
 
 export interface TableArguments {
-    [table_name: string]: {
-        getLogs_parameters: getLogsParameters,
-        available_fields?: LogFieldsResponseProps 
+    [tableName: string]: {
+        getLogsParameters: GetLogsParameters,
+        availableFields?: LogFieldsResponseProps 
     }
 }
 
 export interface PlotArguments {
-    [table_name: string]: getLogsParameters
+    [tableName: string]: GetLogsParameters
 }
 
 declare module "@tanstack/react-table" {

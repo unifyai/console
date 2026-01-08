@@ -499,7 +499,7 @@ function DataTableWrapper({
         data={data}
         columns={columns}
         interactive={interactive}
-        auto_update={false}
+        autoUpdate={false}
         scrollContainerRef={scrollContainerRef}
         state={state}
         setState={setState}

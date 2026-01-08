@@ -6,7 +6,7 @@ export const getDevbox = async (apiKey: string, userId: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/devbox?user_id=${userId}`,
+            `${process.env.NEXTAUTH_URL}/api/devbox?userId=${userId}`,
             {
                 method: "GET",
                 headers: { apiKey: apiKey },
@@ -31,7 +31,7 @@ export const createDevbox = async (apiKey: string, userId: string) => {
             {
                 method: "POST",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ user_id: userId })
+                body: JSON.stringify({ userId: userId })
             }
         );
         const responseJson = await response.json();
@@ -54,9 +54,9 @@ export const runCode = async (apiKey: string, userId: string) => {
                 method: "POST",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    user_id: userId,
-                    file_path: filePath,
-                    project_name: project,
+                    userId: userId,
+                    filePath: filePath,
+                    projectName: project,
                     env: Array.isArray(env)
                         ? Object.fromEntries((env as { key: string; value: string }[]).map(({ key, value }) => [key, value]))
                         : env
@@ -77,7 +77,7 @@ export const getCodeOutput = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/code?file_path=${filePath}`,
+            `${process.env.NEXTAUTH_URL}/api/code?filePath=${filePath}`,
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -98,7 +98,7 @@ export const createTerminalSession = async (apiKey: string, userId: string) => {
                 method: "POST",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    user_id: userId,
+                    userId: userId,
                     shell,
                     cwd
                 })
@@ -108,7 +108,7 @@ export const createTerminalSession = async (apiKey: string, userId: string) => {
         if (!response.ok) {
             throw new Error(responseJson.detail || "Network error");
         }
-        return responseJson; // { session_id, shell, cwd }
+        return responseJson; // { sessionId, shell, cwd }
     };
 };
 
@@ -125,7 +125,7 @@ export const runTerminalCommand = async (apiKey: string) => {
                 method: "PUT",
                 headers: { apiKey: apiKey },
                 body: JSON.stringify({
-                    session_id: sessionId,
+                    sessionId: sessionId,
                     command
                 })
             }
@@ -143,7 +143,7 @@ export const getTerminalOutput = async (apiKey: string) => {
         "use server";
 
         const response = await fetch(
-            `${process.env.NEXTAUTH_URL}/api/code/terminal?session_id=${sessionId}`,
+            `${process.env.NEXTAUTH_URL}/api/code/terminal?sessionId=${sessionId}`,
             { method: "GET", headers: { apiKey: apiKey } }
         );
         return await response.json();
@@ -159,7 +159,7 @@ export const stopTerminalSession = async (apiKey: string) => {
             {
                 method: "DELETE",
                 headers: { apiKey: apiKey },
-                body: JSON.stringify({ session_id: sessionId })
+                body: JSON.stringify({ sessionId: sessionId })
             }
         );
         const responseJson = await response.json();

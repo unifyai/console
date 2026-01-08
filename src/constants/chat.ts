@@ -11,10 +11,10 @@ export const defaultModelArgs = {
             "step": 0.1
         }
     },
-    "max_tokens": {
+    "maxTokens": {
         "type": "int",
         "displayName": "Max Tokens",
-        "tooltip": "The maximum number of completion tokens returned by the API. The total number of tokens requested in max_tokens plus the number of prompt tokens sent in messages must not exceed the context window token limit of model requested. If left unspecified, then the model will generate tokens until either it reaches its stop token or the end of its context window.",
+        "tooltip": "The maximum number of completion tokens returned by the API. The total number of tokens requested in maxTokens plus the number of prompt tokens sent in messages must not exceed the context window token limit of model requested. If left unspecified, then the model will generate tokens until either it reaches its stop token or the end of its context window.",
         "default": 2048,
         "display": true,
         "range": {

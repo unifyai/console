@@ -1,12 +1,12 @@
 /**
  * Selection Panel Test Harness
- * 
+ *
  * A reusable wrapper for testing selection panel behaviors including
  * cell data display, view modes, and entry management.
- * 
+ *
  * Usage:
  *   import { renderSelectionPanel } from '../fixtures/selectionPanelTestHarness';
- *   
+ *
  *   it('shows selection', async () => {
  *     const { getSelectedCells } = renderSelectionPanel({
  *       initialSelectedCells: [mockCell]
@@ -23,22 +23,61 @@ import { IStoreState } from '@/contexts/store';
 
 // Shared test utilities
 import { useStateContainer } from '../utils';
-import { DndContext, closestCenter, DragEndEvent, useSensor, useSensors, MouseSensor } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  useSensor,
+  useSensors,
+  MouseSensor,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, ChevronRight, GripVertical, Maximize2, Minimize2, Play, FileType } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  Play,
+  FileType,
+} from 'lucide-react';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type ViewMode = 'raw' | 'markdown' | 'trace' | 'chat' | 'image' | 'diff' | 'audio' | 'pdf' | 'matrix';
+export type ViewMode =
+  | 'raw'
+  | 'markdown'
+  | 'trace'
+  | 'chat'
+  | 'image'
+  | 'diff'
+  | 'audio'
+  | 'pdf'
+  | 'matrix';
 
 export interface CellData {
   id: string;
   column: string;
   value: unknown;
-  type: 'string' | 'number' | 'object' | 'array' | 'image' | 'audio' | 'pdf' | 'matrix' | 'trace' | 'chat';
+  type:
+    | 'string'
+    | 'number'
+    | 'object'
+    | 'array'
+    | 'image'
+    | 'audio'
+    | 'pdf'
+    | 'matrix'
+    | 'trace'
+    | 'chat';
   nested?: Record<string, unknown>;
 }
 
@@ -105,7 +144,8 @@ export function createMockImageCell(): CellData {
   return {
     id: 'image-cell',
     column: 'Image',
-    value: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    value:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     type: 'image',
   };
 }
@@ -149,7 +189,11 @@ export function createMockMatrixCell(): CellData {
   return {
     id: 'matrix-cell',
     column: 'Matrix',
-    value: [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+    value: [
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ],
     type: 'matrix',
   };
 }
@@ -184,14 +228,10 @@ interface SortableEntryProps {
 }
 
 function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: SortableEntryProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: cell.id, disabled: !allowReorder });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: cell.id,
+    disabled: !allowReorder,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -203,8 +243,13 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     // Raw view mode always takes precedence
     if (viewMode === 'raw') {
       return (
-        <pre className="text-sm bg-gray-50 p-2 rounded overflow-auto max-h-40" data-testid={`raw-content-${cell.id}`}>
-          {typeof cell.value === 'object' ? JSON.stringify(cell.value, null, 2) : String(cell.value)}
+        <pre
+          className="max-h-40 overflow-auto rounded bg-gray-50 p-2 text-sm"
+          data-testid={`raw-content-${cell.id}`}
+        >
+          {typeof cell.value === 'object'
+            ? JSON.stringify(cell.value, null, 2)
+            : String(cell.value)}
         </pre>
       );
     }
@@ -224,8 +269,8 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     if (viewMode === 'diff') {
       return (
         <div data-testid={`diff-content-${cell.id}`}>
-          <div className="bg-red-50 text-red-700 p-1 text-sm">- removed line</div>
-          <div className="bg-green-50 text-green-700 p-1 text-sm">+ added line</div>
+          <div className="bg-red-50 p-1 text-sm text-red-700">- removed line</div>
+          <div className="bg-green-50 p-1 text-sm text-green-700">+ added line</div>
         </div>
       );
     }
@@ -234,7 +279,8 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     if (cell.type === 'image' || viewMode === 'image') {
       return (
         <div data-testid={`image-content-${cell.id}`}>
-          <img src={String(cell.value)} alt="Cell content" className="max-w-full h-auto" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={String(cell.value)} alt="Cell content" className="h-auto max-w-full" />
         </div>
       );
     }
@@ -242,23 +288,25 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     if (cell.type === 'audio' || viewMode === 'audio') {
       return (
         <div className="flex items-center gap-2" data-testid={`audio-content-${cell.id}`}>
-          <button className="p-2 bg-gray-100 rounded-full" data-testid={`audio-play-${cell.id}`}>
+          <button className="rounded-full bg-gray-100 p-2" data-testid={`audio-play-${cell.id}`}>
             <Play className="h-4 w-4" />
           </button>
-          <div className="flex-1 h-2 bg-gray-200 rounded" />
+          <div className="h-2 flex-1 rounded bg-gray-200" />
         </div>
       );
     }
 
     if (cell.type === 'trace' || viewMode === 'trace') {
-      const spans = Array.isArray(cell.value) ? cell.value as Array<{ name: string; start: number; end: number }> : [];
+      const spans = Array.isArray(cell.value)
+        ? (cell.value as Array<{ name: string; start: number; end: number }>)
+        : [];
       return (
         <div className="space-y-1" data-testid={`trace-content-${cell.id}`}>
           {spans.map((span, i) => (
             <div key={i} className="flex items-center gap-2" data-testid={`trace-span-${i}`}>
-              <span className="text-xs w-20">{span.name}</span>
+              <span className="w-20 text-xs">{span.name}</span>
               <div
-                className="h-4 bg-blue-500 rounded"
+                className="h-4 rounded bg-blue-500"
                 style={{ width: `${span.end - span.start}px`, marginLeft: `${span.start / 3}px` }}
               />
             </div>
@@ -268,13 +316,15 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     }
 
     if (cell.type === 'chat' || viewMode === 'chat') {
-      const messages = Array.isArray(cell.value) ? cell.value as Array<{ role: string; content: string }> : [];
+      const messages = Array.isArray(cell.value)
+        ? (cell.value as Array<{ role: string; content: string }>)
+        : [];
       return (
         <div className="space-y-2" data-testid={`chat-content-${cell.id}`}>
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`p-2 rounded ${msg.role === 'user' ? 'bg-blue-100 ml-4' : 'bg-gray-100 mr-4'}`}
+              className={`rounded p-2 ${msg.role === 'user' ? 'ml-4 bg-blue-100' : 'mr-4 bg-gray-100'}`}
               data-testid={`chat-message-${i}`}
               data-role={msg.role}
             >
@@ -286,14 +336,17 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     }
 
     if (cell.type === 'matrix' || viewMode === 'matrix') {
-      const matrix = Array.isArray(cell.value) ? cell.value as number[][] : [];
+      const matrix = Array.isArray(cell.value) ? (cell.value as number[][]) : [];
       return (
         <div className="inline-block" data-testid={`matrix-content-${cell.id}`}>
-          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${matrix[0]?.length ?? 0}, 1fr)` }}>
+          <div
+            className="grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${matrix[0]?.length ?? 0}, 1fr)` }}
+          >
             {matrix.flat().map((val, i) => (
               <div
                 key={i}
-                className="w-8 h-8 flex items-center justify-center text-xs border"
+                className="flex h-8 w-8 items-center justify-center border text-xs"
                 style={{ backgroundColor: `rgba(59, 130, 246, ${val / 10})` }}
                 data-testid={`matrix-cell-${i}`}
               >
@@ -307,8 +360,11 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
 
     if (cell.type === 'pdf' || viewMode === 'pdf') {
       return (
-        <div className="border p-4 text-center text-gray-500" data-testid={`pdf-content-${cell.id}`}>
-          <FileType className="h-12 w-12 mx-auto mb-2" />
+        <div
+          className="border p-4 text-center text-gray-500"
+          data-testid={`pdf-content-${cell.id}`}
+        >
+          <FileType className="mx-auto mb-2 h-12 w-12" />
           PDF Document
         </div>
       );
@@ -316,7 +372,10 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
 
     // Fallback for basic types or unmatched view modes
     return (
-      <pre className="text-sm bg-gray-50 p-2 rounded overflow-auto max-h-40" data-testid={`raw-content-${cell.id}`}>
+      <pre
+        className="max-h-40 overflow-auto rounded bg-gray-50 p-2 text-sm"
+        data-testid={`raw-content-${cell.id}`}
+      >
         {typeof cell.value === 'object' ? JSON.stringify(cell.value, null, 2) : String(cell.value)}
       </pre>
     );
@@ -326,28 +385,33 @@ function SortableEntry({ cell, isExpanded, onToggle, viewMode, allowReorder }: S
     <div
       ref={setNodeRef}
       style={style}
-      className="border rounded mb-2"
+      className="mb-2 rounded border"
       data-testid={`entry-${cell.id}`}
     >
-      <div className="flex items-center gap-2 p-2 bg-gray-50 cursor-pointer" onClick={onToggle}>
+      <div className="flex cursor-pointer items-center gap-2 bg-gray-50 p-2" onClick={onToggle}>
         {allowReorder && (
-          <button {...attributes} {...listeners} className="cursor-grab" data-testid={`drag-handle-${cell.id}`}>
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab"
+            data-testid={`drag-handle-${cell.id}`}
+          >
             <GripVertical className="h-4 w-4 text-gray-400" />
           </button>
         )}
         <button data-testid={`toggle-${cell.id}`}>
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
-        <span className="font-medium text-sm">{cell.column}</span>
+        <span className="text-sm font-medium">{cell.column}</span>
         <span className="text-xs text-gray-500">({cell.type})</span>
       </div>
       {isExpanded && (
         <div className="p-2" data-testid={`content-${cell.id}`}>
           {renderValue()}
           {cell.nested && (
-            <div className="mt-2 ml-4 border-l-2 pl-2" data-testid={`nested-${cell.id}`}>
-              <div className="text-xs text-gray-500 mb-1">Nested data:</div>
-              <pre className="text-xs bg-gray-50 p-1 rounded">
+            <div className="ml-4 mt-2 border-l-2 pl-2" data-testid={`nested-${cell.id}`}>
+              <div className="mb-1 text-xs text-gray-500">Nested data:</div>
+              <pre className="rounded bg-gray-50 p-1 text-xs">
                 {JSON.stringify(cell.nested, null, 2)}
               </pre>
             </div>
@@ -378,10 +442,8 @@ function SelectionPanelWrapper({
   const [expandedEntries, setExpandedEntries] = useState<string[]>(initialExpandedEntries);
   const [viewMode, setViewModeInternal] = useState<ViewMode>(initialViewMode);
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
-  );
-  
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 8 } }));
+
   // Track mounted state to prevent state updates after unmount
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -395,15 +457,21 @@ function SelectionPanelWrapper({
   // Handlers
   // ==========================================================================
 
-  const handleExpandEntry = useCallback((id: string) => {
-    setExpandedEntries((prev) => [...prev, id]);
-    callbacks.onExpandEntry?.(id);
-  }, [callbacks]);
+  const handleExpandEntry = useCallback(
+    (id: string) => {
+      setExpandedEntries((prev) => [...prev, id]);
+      callbacks.onExpandEntry?.(id);
+    },
+    [callbacks]
+  );
 
-  const handleCollapseEntry = useCallback((id: string) => {
-    setExpandedEntries((prev) => prev.filter((e) => e !== id));
-    callbacks.onCollapseEntry?.(id);
-  }, [callbacks]);
+  const handleCollapseEntry = useCallback(
+    (id: string) => {
+      setExpandedEntries((prev) => prev.filter((e) => e !== id));
+      callbacks.onCollapseEntry?.(id);
+    },
+    [callbacks]
+  );
 
   const handleExpandAll = useCallback(() => {
     setExpandedEntries(selectedCells.map((c) => c.id));
@@ -415,28 +483,34 @@ function SelectionPanelWrapper({
     callbacks.onCollapseAll?.();
   }, [callbacks]);
 
-  const handleSetViewMode = useCallback((mode: ViewMode) => {
-    setViewModeInternal(mode);
-    callbacks.onViewModeChange?.(mode);
-  }, [callbacks]);
+  const handleSetViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeInternal(mode);
+      callbacks.onViewModeChange?.(mode);
+    },
+    [callbacks]
+  );
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setSelectedCells((prev) => {
-        const oldIndex = prev.findIndex((c) => c.id === active.id);
-        const newIndex = prev.findIndex((c) => c.id === over.id);
-        const newCells = arrayMove(prev, oldIndex, newIndex);
-        callbacks.onReorderEntries?.(newCells);
-        return newCells;
-      });
-    }
-  }, [callbacks]);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+        setSelectedCells((prev) => {
+          const oldIndex = prev.findIndex((c) => c.id === active.id);
+          const newIndex = prev.findIndex((c) => c.id === over.id);
+          const newCells = arrayMove(prev, oldIndex, newIndex);
+          callbacks.onReorderEntries?.(newCells);
+          return newCells;
+        });
+      }
+    },
+    [callbacks]
+  );
 
   // ==========================================================================
   // Safe state updater for external calls
   // ==========================================================================
-  
+
   const handleSelectCells = useCallback((cells: CellData[]) => {
     if (!isMountedRef.current) return;
     setSelectedCells(cells);
@@ -446,18 +520,32 @@ function SelectionPanelWrapper({
   // Expose state to test via ref (using shared hook)
   // ==========================================================================
 
-  useStateContainer(stateContainerRef, () => ({
-    getSelectedCells: () => selectedCells,
-    getExpandedEntries: () => expandedEntries,
-    getViewMode: () => viewMode,
-    getEntryOrder: () => selectedCells.map((c) => c.id),
-    expandEntry: handleExpandEntry,
-    collapseEntry: handleCollapseEntry,
-    expandAll: handleExpandAll,
-    collapseAll: handleCollapseAll,
-    setViewMode: handleSetViewMode,
-    selectCells: handleSelectCells,
-  }), [selectedCells, expandedEntries, viewMode, handleExpandEntry, handleCollapseEntry, handleExpandAll, handleCollapseAll, handleSetViewMode, handleSelectCells]);
+  useStateContainer(
+    stateContainerRef,
+    () => ({
+      getSelectedCells: () => selectedCells,
+      getExpandedEntries: () => expandedEntries,
+      getViewMode: () => viewMode,
+      getEntryOrder: () => selectedCells.map((c) => c.id),
+      expandEntry: handleExpandEntry,
+      collapseEntry: handleCollapseEntry,
+      expandAll: handleExpandAll,
+      collapseAll: handleCollapseAll,
+      setViewMode: handleSetViewMode,
+      selectCells: handleSelectCells,
+    }),
+    [
+      selectedCells,
+      expandedEntries,
+      viewMode,
+      handleExpandEntry,
+      handleCollapseEntry,
+      handleExpandAll,
+      handleCollapseAll,
+      handleSetViewMode,
+      handleSelectCells,
+    ]
+  );
 
   // ==========================================================================
   // Render
@@ -466,7 +554,7 @@ function SelectionPanelWrapper({
   if (selectedCells.length === 0) {
     return (
       <div data-testid="selection-panel-container" className="w-80 border-l p-4">
-        <div className="text-gray-500 text-center" data-testid="empty-selection">
+        <div className="text-center text-gray-500" data-testid="empty-selection">
           No cells selected
         </div>
       </div>
@@ -476,12 +564,12 @@ function SelectionPanelWrapper({
   return (
     <div data-testid="selection-panel-container" className="w-80 border-l">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b">
-        <h3 className="font-semibold text-sm">Selection ({selectedCells.length})</h3>
+      <div className="flex items-center justify-between border-b p-3">
+        <h3 className="text-sm font-semibold">Selection ({selectedCells.length})</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExpandAll}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="rounded p-1 hover:bg-gray-100"
             data-testid="expand-all-button"
             title="Expand all"
           >
@@ -489,7 +577,7 @@ function SelectionPanelWrapper({
           </button>
           <button
             onClick={handleCollapseAll}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="rounded p-1 hover:bg-gray-100"
             data-testid="collapse-all-button"
             title="Collapse all"
           >
@@ -499,11 +587,11 @@ function SelectionPanelWrapper({
       </div>
 
       {/* View mode selector */}
-      <div className="p-2 border-b">
+      <div className="border-b p-2">
         <select
           value={viewMode}
           onChange={(e) => handleSetViewMode(e.target.value as ViewMode)}
-          className="w-full px-2 py-1 text-sm border rounded"
+          className="w-full rounded border px-2 py-1 text-sm"
           data-testid="view-mode-select"
         >
           <option value="raw">Raw JSON</option>
@@ -519,12 +607,12 @@ function SelectionPanelWrapper({
       </div>
 
       {/* Entries */}
-      <div className="p-2 overflow-auto" style={{ maxHeight: '400px' }} data-testid="entries-container">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
+      <div
+        className="overflow-auto p-2"
+        style={{ maxHeight: '400px' }}
+        data-testid="entries-container"
+      >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext
             items={selectedCells.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
@@ -573,7 +661,9 @@ function createInitialStoreState(): Partial<IStoreState> {
 // Main Export: renderSelectionPanel
 // =============================================================================
 
-export function renderSelectionPanel(options: SelectionPanelTestOptions = {}): SelectionPanelTestResult {
+export function renderSelectionPanel(
+  options: SelectionPanelTestOptions = {}
+): SelectionPanelTestResult {
   const stateContainerRef: React.MutableRefObject<StateContainer | null> = { current: null };
   const initialState = createInitialStoreState();
 
@@ -623,4 +713,3 @@ export function renderSelectionPanel(options: SelectionPanelTestOptions = {}): S
 }
 
 // Mock data creators are exported at their declaration above
-

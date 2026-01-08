@@ -2,7 +2,7 @@ export interface CustomEndpoint {
     name: string;
     url: string;
     key: string;
-    model_arg?: string;
+    modelArg?: string;
 }
 
 export interface CustomKey {

@@ -101,19 +101,19 @@ export const patchProject = (apiKey: string) => {
 // Export project template
 export const exportProjectAsTemplate = async (apiKey: string) => {
     return async (
-        params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
-        options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'include_metadata' | 'description' | 'tags' | 'template_name'>,
+        params: Omit<ExportProjectTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
+        options?: Pick<ExportProjectTemplateRequest, 'checkpoint' | 'includeMetadata' | 'description' | 'tags' | 'templateName'>,
     ): Promise<TemplateExportResponse<ProjectTemplateSchema> | { error: string }> => {
         "use server";
 
         const requestBody: ExportProjectTemplateRequest = {
-            project_name: params.project_name,
-            interface_names: params.interface_names,
+            projectName: params.projectName,
+            interfaceNames: params.interfaceNames,
             checkpoint: options?.checkpoint || false,
-            include_metadata: options?.include_metadata !== false,
+            includeMetadata: options?.includeMetadata !== false,
             description: options?.description,
             tags: options?.tags || [],
-            template_name: options?.template_name,
+            templateName: options?.templateName,
         };
 
         const response = await fetch(
@@ -142,12 +142,12 @@ export const importProjectFromTemplate = async (apiKey: string) => {
         "use server";
 
         const requestBody: ImportProjectTemplateRequest = {
-            project_name: options.project_name,
+            projectName: options.projectName,
             template,
-            interface_name_prefix: options.interface_name_prefix,
-            validate_first: options.validate_first || true,
-            auto_sanitize: options.auto_sanitize || true,
-            overwrite_existing: options.overwrite_existing || false,
+            interfaceNamePrefix: options.interfaceNamePrefix,
+            validateFirst: options.validateFirst || true,
+            autoSanitize: options.autoSanitize || true,
+            overwriteExisting: options.overwriteExisting || false,
         };
 
         const response = await fetch(
@@ -179,7 +179,7 @@ export const transferProjectToOrg = (apiKey: string) => {
                     "Content-Type": "application/json",
                     "apiKey": apiKey
                 },
-                body: JSON.stringify({ organization_id: organizationId })
+                body: JSON.stringify({ organizationId: organizationId })
             }
         );
         if (!response.ok) {

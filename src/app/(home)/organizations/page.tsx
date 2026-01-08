@@ -15,13 +15,13 @@ const OrganizationPage = async () => {
     redirect('/login');
   }
 
-  const apiKey = user.api_key;
+  const apiKey = user.apiKey;
   const organizations: Organization[] = user.organizations?.map((org: any) => ({
     id: org.id,
     name: org.name,
-    role_id: org.role_id,
-    role_name: org.role_name,
-    api_key: org.api_key,
+    roleId: org.roleId,
+    roleName: org.roleName,
+    apiKey: org.apiKey,
   })) || [];
 
   const orgActions = {

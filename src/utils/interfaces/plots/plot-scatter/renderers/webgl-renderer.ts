@@ -195,19 +195,18 @@ export class WebGLScatterRenderer implements ScatterRenderer {
 
       // Size and alpha
       if (i === highlightIndex) {
-        sizes[i] = config.WEBGL_HIGHLIGHT_SIZE;
+        sizes[i] = config.webglHighlightSize;
         alphas[i] = 1.0;
       } else if (highlightedDatum) {
-        sizes[i] = config.WEBGL_POINT_SIZE;
+        sizes[i] = config.webglPointSize;
         if (groupBy && highlightedGroup) {
           const thisGroup = JSON.stringify(getValue(fields, groupBy, d, xTable));
-          alphas[i] =
-            thisGroup === highlightedGroup ? config.SAME_GROUP_OPACITY : config.DIM_OPACITY;
+          alphas[i] = thisGroup === highlightedGroup ? config.sameGroupOpacity : config.dimOpacity;
         } else {
-          alphas[i] = config.DIM_OPACITY;
+          alphas[i] = config.dimOpacity;
         }
       } else {
-        sizes[i] = config.WEBGL_POINT_SIZE;
+        sizes[i] = config.webglPointSize;
         alphas[i] = 1.0;
       }
     }
@@ -265,7 +264,7 @@ export class WebGLScatterRenderer implements ScatterRenderer {
     const mouseY = clientY - rect.top;
 
     let closestIndex = -1;
-    let closestDist = config.HIT_THRESHOLD;
+    let closestDist = config.hitThreshold;
 
     for (let i = 0; i < this.data.length; i++) {
       const d = this.data[i];

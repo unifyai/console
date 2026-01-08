@@ -10,9 +10,9 @@ import { NextRequest } from "next/server";
  * 
  * - `email`: The new email address of the user.
  * - `name`: The new first name of the user.
- * - `last_name`: The new last name of the user.
+ * - `lastName`: The new last name of the user.
  * - `image`: The new profile image as a base64 encoded string.
- * - `job_title`: The new job title of the user.
+ * - `jobTitle`: The new job title of the user.
  * - `bio`: The new user bio. 
  * 
  * @param request The request object.
@@ -30,20 +30,20 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
 
   // Update user properties in db
-  const phoneNumber = formData.get("phone_number") as string | null;
-  const UserUpdateRequest: UserUpdateRequest = {
+  const phoneNumber = formData.get("phoneNumber") as string | null;
+  const userUpdateReq: UserUpdateRequest = {
     email: formData.get("email") as string,
-    user_id: id,
+    userId: id,
     image: formData.get("image") as string,
     name: formData.get("name") as string,
-    last_name: formData.get("last_name") as string,
-    job_title: formData.get("job_title") as string,
+    lastName: formData.get("lastName") as string,
+    jobTitle: formData.get("jobTitle") as string,
     bio: formData.get("bio") as string,
     timezone: formData.get("timezone") as string | null,
-    phone_number: phoneNumber === "" ? null : phoneNumber,
+    phoneNumber: phoneNumber === "" ? null : phoneNumber,
   };
   
-  const response = await updateUser(UserUpdateRequest);
+  const response = await updateUser(userUpdateReq);
 
   return new Response(JSON.stringify(response));
 };

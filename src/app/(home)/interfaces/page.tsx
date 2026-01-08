@@ -53,7 +53,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
         redirect('/login');
     }
     const userId = user.id;
-    const apiKey = user.api_key;
+    const apiKey = user.apiKey;
 
     // get server actions - Legacy actions for backward compatibility
     const projectsActions = {
@@ -223,7 +223,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
     return (
         <Main
             project={searchParams?.project as string | null}
-            interface_={searchParams?.interface as string | null}
+            interfaceName={searchParams?.interface as string | null}
             searchParams={searchParams}
             actions={
                 {

@@ -83,7 +83,7 @@ const NumericColumnFilter = ({
         logsActions,
         projectId,
         tileDataState?.context,
-        tileDataState?.column_context,
+        tileDataState?.columnContext,
         columns,
         "Numbers" // caller identifier
     );
