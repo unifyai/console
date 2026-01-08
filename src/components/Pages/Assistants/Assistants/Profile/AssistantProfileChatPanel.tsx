@@ -93,8 +93,8 @@ export function AssistantProfileChatPanel({
     onFirstViewCompleted,
 }: AssistantProfileChatPanelProps) {
 
-    const displayName = `${assistant.firstName} ${assistant.surname}`;
-    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
+    const displayName = `${assistant.first_name} ${assistant.surname}`;
+    const photoSrc = assistant.signedProfilePhotoUrl || assistant.profile_photo || undefined;
 
     const {
         messages,

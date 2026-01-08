@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { Organization, OrganizationMember, OrganizationRole, OrganizationListResponse, OrganizationInviteListResponse, UserOrganizationCheckResult } from "@/types/organization";
 import { ResponseProps } from "@/types/common";
-import { snakeToCamelObject } from "@/utils/casing";
 
 const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
@@ -40,8 +39,7 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
             return { detail: errorMessage, status: response.status };
         }
 
-        // Transform snake_case response to camelCase
-        return snakeToCamelObject(data);
+        return data;
 
     } catch (error) {
         console.error(`[actions.ts ${context}] Network/System Error:`, error);
@@ -107,7 +105,7 @@ export const inviteMemberAction = async (apiKey: string) => {
       headers: getHeaders(apiKey),
       body: JSON.stringify({ 
           email: email,
-          roleId: roleId // API expects snake_case
+          role_id: roleId
       }),
     }, "inviteMember");
   };
@@ -121,8 +119,8 @@ export const acceptInviteAction = async (apiKey: string) => {
             headers: getHeaders(apiKey),
         }, "acceptInvite");
 
-        if (response && !("detail" in response) && response.organizationId) {
-            cookies().set("unify_workspace_id", String(response.organizationId), {
+        if (response && !("detail" in response) && response.organization_id) {
+            cookies().set("unify_workspace_id", String(response.organization_id), {
                 path: "/",
                 maxAge: 60 * 60 * 24 * 30, // 30 days
                 sameSite: "lax",
@@ -178,7 +176,7 @@ export const updateRoleAction = async (apiKey: string) => {
     return safeFetch(`${backendUrl}/organizations/${orgId}/members/${userId}/role`, {
         method: "PATCH",
         headers: getHeaders(apiKey),
-        body: JSON.stringify({ roleId: roleId }), // API expects snake_case
+        body: JSON.stringify({ role_id: roleId }),
     }, "updateRole");
   };
 };
@@ -189,7 +187,7 @@ export const transferOwnershipAction = async (apiKey: string) => {
     return safeFetch(`${backendUrl}/organizations/${orgId}/transfer-ownership`, {
         method: "POST",
         headers: getHeaders(apiKey),
-        body: JSON.stringify({ newOwnerId: newOwnerId }), // API expects snake_case
+        body: JSON.stringify({ new_owner_id: newOwnerId }),
     }, "transferOwnership");
   };
 };

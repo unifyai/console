@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { PhoneVerificationState } from "./Form";
 
 interface UserInfoProps {
-  formState: { name: any; lastName: any; jobTitle: any; bio: any; timezone: any; };
+  formState: { name: any; last_name: any; job_title: any; bio: any; timezone: any; };
   user: User;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleTimezoneChange: (value: string) => void;
@@ -62,8 +62,8 @@ const UserInfo = ({
           <Label>Last Name</Label>
           <Input 
             type="text" 
-            name="lastName" 
-            value={formState.lastName} 
+            name="last_name" 
+            value={formState.last_name} 
             className="w-full" 
             onChange={handleInputChange} 
             readOnly={Boolean(onPrem)}
@@ -83,8 +83,8 @@ const UserInfo = ({
           <Label>Job Title</Label>
           <Input 
             type="text" 
-            name="jobTitle" 
-            value={formState.jobTitle} 
+            name="job_title" 
+            value={formState.job_title} 
             className="w-full" 
             onChange={handleInputChange} 
             readOnly={Boolean(onPrem)}

@@ -10,15 +10,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const apiKey = user.apiKey;
+    const apiKey = user.api_key;
 
     const url = new URL(request.url);
 
     let tags: string | string[] | undefined = url.searchParams.get("tags") || undefined;
     let endpoints: string | string[] | undefined = url.searchParams.get("endpoints") || undefined;
-    const startTime = url.searchParams.get("start_time") || undefined;
-    const endTime = url.searchParams.get("end_time") || undefined;
-    const pageNumber = parseInt(url.searchParams.get("page_number") || "1", 10);
+    let start_time = url.searchParams.get("start_time") || undefined;
+    let end_time = url.searchParams.get("end_time") || undefined;
+    let page_number = parseInt(url.searchParams.get("page_number") || "1", 10);
     let failures = url.searchParams.get("failures");
 
     // Convert tags and endpoints to arrays if they're comma-separated strings
@@ -34,9 +34,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         apiKey,
         tags,
         endpoints,
-        startTime,
-        endTime,
-        pageNumber,
+        start_time,
+        end_time,
+        page_number,
         failuresParam
     );
 
@@ -54,5 +54,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         };
     });
 
-    return NextResponse.json({ queries: queries, totalPages: response.total_pages });
+    return NextResponse.json({ queries: queries, total_pages: response.total_pages });
 }

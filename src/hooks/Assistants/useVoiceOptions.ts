@@ -17,11 +17,11 @@ export function useVoiceOptions(
         );
         return filteredPresets.map(vp => ({
             ...vp,
-            voiceId: vp.voiceId,
+            voice_id: vp.voice_id,
             language: vp.language as SupportedLanguage,
             gender: vp.gender as CartesiaGender,
             provider: vp.provider,
-            isPreset: true, 
+            is_preset: true, 
             isUserVoiceInOrchestra: false, 
         }));
     });
@@ -45,7 +45,7 @@ export function useVoiceOptions(
                     ...v,
                     provider: v.provider || PRIMARY_VOICE_PROVIDER,
                     isUserVoiceInOrchestra: true, 
-                    isPreset: v.isPreset ?? false,
+                    is_preset: v.is_preset ?? false,
                 })));
             } else {
                 const errorResult = result as ResponseProps;
@@ -63,24 +63,24 @@ export function useVoiceOptions(
     }, [fetchUserVoicesFromOrchestra]);
 
     const allDisplayableVoices = React.useMemo(() => {
-        const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map(uv => uv.voiceId));
+        const orchestraVoiceIds = new Set(userVoicesFromOrchestra.map(uv => uv.voice_id));
         
         const combined = [...userVoicesFromOrchestra];
 
         presetVoices.forEach(pv => {
-            if (!orchestraVoiceIds.has(pv.voiceId)) {
+            if (!orchestraVoiceIds.has(pv.voice_id)) {
                 combined.push(pv);
             }
         });
         
         const finalMap = new Map<string, VoiceOption>();
         combined.forEach(voice => {
-            if (!finalMap.has(voice.voiceId)) {
-                finalMap.set(voice.voiceId, voice);
+            if (!finalMap.has(voice.voice_id)) {
+                finalMap.set(voice.voice_id, voice);
             } else {
-                const existing = finalMap.get(voice.voiceId)!;
+                const existing = finalMap.get(voice.voice_id)!;
                 if (voice.isUserVoiceInOrchestra && !existing.isUserVoiceInOrchestra) {
-                    finalMap.set(voice.voiceId, voice);
+                    finalMap.set(voice.voice_id, voice);
                 }
             }
         });
@@ -91,14 +91,14 @@ export function useVoiceOptions(
     }, [presetVoices, userVoicesFromOrchestra]);
 
     const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<string | null> => {
-        if (voiceToDelete.isPreset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voiceId) {
+        if (voiceToDelete.is_preset || !voiceToDelete.isUserVoiceInOrchestra || !voiceToDelete.voice_id) {
             toast.error("This voice cannot be deleted.");
             return null;
         }
 
         const toastId = toast.loading(`Deleting voice "${voiceToDelete.name}"...`);
         try {
-            const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voiceId, voiceToDelete.provider);
+            const deleteResult = await assistantVoiceActions.delete(voiceToDelete.voice_id, voiceToDelete.provider);
             if (deleteResult.detail) { 
                 toast.error(`Error deleting voice}`, { id: toastId });
                 return null;
@@ -106,7 +106,7 @@ export function useVoiceOptions(
 
             toast.success(`Voice "${voiceToDelete.name}" deleted.`, { id: toastId });
             fetchUserVoicesFromOrchestra(); 
-            return voiceToDelete.voiceId;
+            return voiceToDelete.voice_id;
         } catch (error: any) {
             toast.error(`Error deleting voice`, { id: toastId });
             return null;

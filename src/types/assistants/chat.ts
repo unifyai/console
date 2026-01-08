@@ -3,7 +3,7 @@ export interface ChatMessage {
     role: 'assistant' | 'user';
     content: string;
     timestamp: Date;
-    messageId?: number;
+    message_id?: number;
     __ackId?: string;
 }
 
@@ -30,13 +30,13 @@ export interface ChatCompletionRequest {
   model: string;
   messages: ChatCompletionMessage[];
   stream?: boolean;
-  maxTokens?: number | null;
+  max_tokens?: number | null;
   temperature?: number | null;
   stop?: string | string[] | null;
 }
 
 export interface UnifyMessage {
-    assistantId: number;
-    contactId: number;
+    assistant_id: number;
+    contact_id: number;
     message: string;
 }

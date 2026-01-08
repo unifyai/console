@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from "next/server";
-import { camelToSnakeObject } from "@/utils/casing";
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
@@ -28,12 +27,11 @@ export async function POST(request: NextRequest) {
         }
         
         // The request to the orchestrator needs to tell the assistant which room to join.
-        // Transform camelCase to snake_case for external API
-        const dispatchPayload = camelToSnakeObject({
-            assistantId,
-            agentName,
-            roomName,
-        });
+        const dispatchPayload = {
+            assistant_id: assistantId,
+            agent_name: agentName,
+            room_name: roomName,
+        };
 
         const resp = await fetch(DISPATCH_URL, {
             method: "POST",

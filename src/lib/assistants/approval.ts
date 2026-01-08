@@ -13,8 +13,8 @@ export const fetchCurrentUserHiringProfile = async () => {
                 return { detail: "User not authenticated or not found." };
             }
             return {
-                assistantHiringApproval: user.assistantHiringApproval || null,
-                hasClaimedApprovalLink: user.hasClaimedApprovalLink || false,
+                assistant_hiring_approval: user.assistant_hiring_approval || null,
+                has_claimed_approval_link: user.has_claimed_approval_link || false,
             };
         } catch (error) {
             console.error("[Server Action fetchCurrentUserHiringProfile] Error:", error);

@@ -7,8 +7,8 @@
  * Used with POST /v0/admin/assistant/update-user
  */
 export interface ContactSyncUserPayload {
-  assistantId: number;
-  targetUserEmail: string;
+  assistant_id: number;
+  target_user_email: string;
   timezone?: string;
   bio?: string;
 }
@@ -32,12 +32,13 @@ export interface SyncableLogEntry {
   id: number;  // Log row ID (database ID)
   entries: {
     id?: number;                       // Contact ID: 0 = assistant, non-zero = user
-    contactId?: number;                // Alternative contact ID field name
-    isSystem?: boolean;                // Only sync if true
-    _assistantId?: number | string;    // Assistant ID for sync routing
-    assistantId?: number | string;     // Alternative assistant ID field name
+    contact_id?: number;               // Alternative contact ID field name
+    is_system?: boolean;               // Only sync if true
+    _assistant_id?: number | string;   // Assistant ID for sync routing
+    assistant_id?: number | string;    // Alternative assistant ID field name
     email?: string;                    // User email (for user sync)
-    emailAddress?: string;             // Alternative email field
+    email_address?: string;            // Alternative email field
     [key: string]: any;                // Other entry fields
   };
 }
+

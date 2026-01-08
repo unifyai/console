@@ -21,32 +21,18 @@
         "leadingUnderscore": "allow"
       },
       {
-        "selector": "property",
-        "format": ["camelCase", "PascalCase", "UPPER_CASE"],
-        "leadingUnderscore": "allowDouble",
-        "filter": {
-          "regex": "^(Content-Type|Authorization|Accept|Cache-Control|X-[A-Za-z-]+|@|process\\.env)$",
-          "match": false
-        }
-      },
-      {
         "selector": "typeLike",
         "format": ["PascalCase"]
       },
       {
-        "selector": "typeProperty",
-        "format": ["camelCase"],
-        "leadingUnderscore": "allowSingleOrDouble"
-      },
-      {
         "selector": "enumMember",
-        "format": ["PascalCase", "UPPER_CASE", "camelCase"]
+        "format": ["PascalCase", "UPPER_CASE"]
       }
     ]
   },
   "overrides": [
     {
-      "files": ["src/tests/**/*.ts", "src/tests/**/*.tsx"],
+      "files": ["src/types/**/*.ts"],
       "rules": {
         "@typescript-eslint/naming-convention": "off"
       }

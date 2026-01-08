@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useWorkspace } from "@/components/Pages/Providers/WorkspaceProvider";
 
 export interface UnifiedMember {
-    id: string; // userId or invite_id
-    userId?: string; // only for active members
+    id: string; // user_id or invite_id
+    user_id?: string; // only for active members
     name: string; // name or email
     email: string;
     role: string;
     roleId: number | null;
     status: 'active' | 'pending';
-    jobTitle?: string;
+    job_title?: string;
     bio?: string;
     isInvite?: boolean;
 }
@@ -96,13 +96,13 @@ export const useOrganization = (
   // Merge Members and Invites for the UI
   const unifiedMembers: UnifiedMember[] = useMemo(() => {
       const activeMembers: UnifiedMember[] = members.map(m => ({
-          id: m.userId,
-          userId: m.userId,
+          id: m.user_id,
+          user_id: m.user_id,
           name: m.name || m.email || "Unknown",
           email: m.email || "",
-          role: m.roleName || "Member",
-          roleId: m.roleId,
-          jobTitle: m.jobTitle,
+          role: m.role_name || "Member",
+          roleId: m.role_id,
+          job_title: m.job_title,
           bio: m.bio,
           status: 'active',
           isInvite: false
@@ -110,10 +110,10 @@ export const useOrganization = (
 
       const pendingInvites: UnifiedMember[] = invites.map(i => ({
           id: i.id,
-          name: i.inviteeEmail,
-          email: i.inviteeEmail,
-          role: i.roleName || "Member",
-          roleId: i.roleId,
+          name: i.invitee_email,
+          email: i.invitee_email,
+          role: i.role_name || "Member",
+          roleId: i.role_id,
           status: 'pending',
           isInvite: true
       }));
@@ -237,7 +237,7 @@ export const useOrganization = (
         if (result && "detail" in result) {
             toast.error(result.detail);
         } else {
-            setMembers((prev) => prev.filter((m) => m.userId !== userId));
+            setMembers((prev) => prev.filter((m) => m.user_id !== userId));
             toast.success("Member removed");
         }
     } catch (error) {
@@ -252,7 +252,7 @@ export const useOrganization = (
       if (result && "detail" in result) {
           toast.error(result.detail);
       } else {
-          setMembers((prev) => prev.map((m) => m.userId === userId ? { ...m, roleName: roleName, roleId: roleId } : m));
+          setMembers((prev) => prev.map((m) => m.user_id === userId ? { ...m, role_name: roleName, role_id: roleId } : m));
           toast.success(`Role updated to ${roleName}`);
       }
     } catch (error) {
@@ -267,7 +267,7 @@ export const useOrganization = (
         if (result && "detail" in result) {
             toast.error(result.detail);
         } else {
-            setOrganizations((prev) => prev.map(o => o.id === currentOrg.id ? { ...o, ownerId: userId } : o));
+            setOrganizations((prev) => prev.map(o => o.id === currentOrg.id ? { ...o, owner_id: userId } : o));
             toast.success("Ownership transferred");
             fetchData(); 
             router.refresh();

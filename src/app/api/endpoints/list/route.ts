@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const provider = request.nextUrl.searchParams.get("provider") ?? "";
     const model = request.nextUrl.searchParams.get("model") ?? "";
 
-    const endpoints = await listEndpoints(user.apiKey, provider, model);
+    const endpoints = await listEndpoints(user.api_key, provider, model);
 
     return NextResponse.json(endpoints);
 }

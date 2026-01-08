@@ -61,24 +61,24 @@ const TaxClassification = () => {
     setAlert(null);
 
     try {
-      const accountTypePayload: any = { accountType: data.accountType };
-      if (data.accountType === 'business') {
-        accountTypePayload.businessInfo = {
-          businessName: data.businessName,
-          taxId: data.taxId || null,
-          businessType: data.businessType,
-          businessAddress: {
-            addressLine1: data.businessAddress.addressLine1,
-            addressLine2: data.businessAddress.addressLine2 || null,
-            city: data.businessAddress.city,
-            state: data.businessAddress.state || null,
+      const accountTypePayload: any = { account_type: data.account_type };
+      if (data.account_type === 'business') {
+        accountTypePayload.business_info = {
+          business_name: data.business_name,
+          tax_id: data.tax_id || null,
+          business_type: data.business_type,
+          business_address: {
+            address_line1: data.business_address.address_line1,
+            address_line2: data.business_address.address_line2 || null,
+            city: data.business_address.city,
+            state: data.business_address.state || null,
             country:
-              data.businessAddress.country.length === 2
-                ? data.businessAddress.country
-                : data.taxCountry,
-            postalCode: data.businessAddress.postalCode || ''
+              data.business_address.country.length === 2
+                ? data.business_address.country
+                : data.tax_country,
+            postal_code: data.business_address.postal_code || ''
           },
-          taxExempt: data.taxExempt,
+          tax_exempt: data.tax_exempt,
         };
       }
 
@@ -92,17 +92,17 @@ const TaxClassification = () => {
         throw new Error('Failed to update account type.');
       }
 
-      if (data.accountType === 'business') {
+      if (data.account_type === 'business') {
         const businessInfoResponse = await fetch('/api/user/business-info', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            businessName: data.businessName,
-            taxId: data.taxId,
-            businessType: data.businessType,
-            businessAddress: data.businessAddress,
-            taxExempt: data.taxExempt,
-            taxJurisdiction: data.taxCountry
+            business_name: data.business_name,
+            tax_id: data.tax_id,
+            business_type: data.business_type,
+            business_address: data.business_address,
+            tax_exempt: data.tax_exempt,
+            tax_jurisdiction: data.tax_country
           }),
         });
         if (!businessInfoResponse.ok) {
@@ -124,20 +124,20 @@ const TaxClassification = () => {
   const initialData = useMemo(() => {
     if (!businessStatus) return undefined;
     return {
-      accountType: businessStatus.accountType,
-      businessName: businessStatus.businessName || '',
-      businessType: businessStatus.businessType || '',
-      taxId: businessStatus.taxId || '',
-      taxCountry: businessStatus.taxJurisdiction || '',
-      businessAddress: businessStatus.businessAddress || {
-        addressLine1: '',
-        addressLine2: '',
+      account_type: businessStatus.account_type,
+      business_name: businessStatus.business_name || '',
+      business_type: businessStatus.business_type || '',
+      tax_id: businessStatus.tax_id || '',
+      tax_country: businessStatus.tax_jurisdiction || '',
+      business_address: businessStatus.business_address || {
+        address_line1: '',
+        address_line2: '',
         city: '',
         state: '',
         country: '',
-        postalCode: ''
+        postal_code: ''
       },
-      taxExempt: businessStatus.taxExempt || false
+      tax_exempt: businessStatus.tax_exempt || false
     };
   }, [businessStatus]);
 
@@ -225,7 +225,7 @@ const TaxClassification = () => {
         <div className="space-y-4">
           {/* Account Type */}
           <div className="flex items-center space-x-3">
-            {businessStatus?.accountType === 'business' ? (
+            {businessStatus?.account_type === 'business' ? (
               <Building className="w-5 h-5 text-primary" />
             ) : (
               <User className="w-5 h-5 text-primary" />
@@ -233,10 +233,10 @@ const TaxClassification = () => {
             <div>
               <p className="text-label">Account Type</p>
               <div className="flex items-center space-x-2">
-                <Badge variant={businessStatus?.accountType === 'business' ? 'default' : 'secondary'}>
-                  {businessStatus?.accountType === 'business' ? 'Business' : 'Individual'}
+                <Badge variant={businessStatus?.account_type === 'business' ? 'default' : 'secondary'}>
+                  {businessStatus?.account_type === 'business' ? 'Business' : 'Individual'}
                 </Badge>
-                {businessStatus?.taxExempt && (
+                {businessStatus?.tax_exempt && (
                   <Badge variant="outline">Tax Exempt</Badge>
                 )}
               </div>
@@ -244,58 +244,58 @@ const TaxClassification = () => {
           </div>
 
           {/* Business Information */}
-          {businessStatus?.accountType === 'business' && (
+          {businessStatus?.account_type === 'business' && (
             <>
               <Separator />
               <div className="space-y-3">
                 <h4 className="text-title">Business Information</h4>
                 
-                {businessStatus.businessName && (
+                {businessStatus.business_name && (
                   <div className="flex items-start space-x-3">
                     <Building className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Name</p>
-                      <p className="text-body text-strong">{businessStatus.businessName}</p>
+                      <p className="text-body text-strong">{businessStatus.business_name}</p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.businessType && (
+                {businessStatus.business_type && (
                   <div className="flex items-start space-x-3">
                     <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Type</p>
-                      <p className="text-body text-strong capitalize">{businessStatus.businessType.replace('_', ' ')}</p>
+                      <p className="text-body text-strong capitalize">{businessStatus.business_type.replace('_', ' ')}</p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.taxId && businessStatus.taxJurisdiction && (
+                {businessStatus.tax_id && businessStatus.tax_jurisdiction && (
                   <div className="flex items-start space-x-3">
                     <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
-                      <p className="text-caption">Tax ID ({businessStatus.taxJurisdiction})</p>
-                      <p className="text-body text-strong">{businessStatus.taxId}</p>
+                      <p className="text-caption">Tax ID ({businessStatus.tax_jurisdiction})</p>
+                      <p className="text-body text-strong">{businessStatus.tax_id}</p>
                     </div>
                   </div>
                 )}
 
-                {businessStatus.businessAddress && (
+                {businessStatus.business_address && (
                   <div className="flex items-start space-x-3">
                     <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
                     <div>
                       <p className="text-caption">Business Address</p>
                       <div className="text-body text-strong">
-                        <p>{businessStatus.businessAddress.addressLine1}</p>
-                        {businessStatus.businessAddress.addressLine2 && (
-                          <p>{businessStatus.businessAddress.addressLine2}</p>
+                        <p>{businessStatus.business_address.address_line1}</p>
+                        {businessStatus.business_address.address_line2 && (
+                          <p>{businessStatus.business_address.address_line2}</p>
                         )}
                         <p>
-                          {businessStatus.businessAddress.city}
-                          {businessStatus.businessAddress.state && `, ${businessStatus.businessAddress.state}`}
-                          {businessStatus.businessAddress.postalCode && ` ${businessStatus.businessAddress.postalCode}`}
+                          {businessStatus.business_address.city}
+                          {businessStatus.business_address.state && `, ${businessStatus.business_address.state}`}
+                          {businessStatus.business_address.postal_code && ` ${businessStatus.business_address.postal_code}`}
                         </p>
-                        <p>{businessStatus.businessAddress.country}</p>
+                        <p>{businessStatus.business_address.country}</p>
                       </div>
                     </div>
                   </div>
@@ -304,7 +304,7 @@ const TaxClassification = () => {
             </>
           )}
 
-          {!businessStatus?.accountType && (
+          {!businessStatus?.account_type && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>

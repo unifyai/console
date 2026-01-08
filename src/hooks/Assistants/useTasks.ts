@@ -7,23 +7,23 @@ import { Assistant } from '@/types/assistants/assistant';
 const TASK_PAGE_LIMIT = 20;
 
 // Helper function to map backend log entry to frontend Task type
-// assistantId is optional - if not provided, it will be extracted from entries._assistantId (used for "All" context)
-const mapLogToTask = (log: LogProps, assistantId?: string): Task | null => {
-    const logId = log?.id;
+// assistant_id is optional - if not provided, it will be extracted from entries._assistant_id (used for "All" context)
+const mapLogToTask = (log: LogProps, assistant_id?: string): Task | null => {
+    const log_id = log?.id;
     const entries = log?.entries || {};
     
-    // Extract assistantId from entries if not provided (used for "All" context)
-    const resolvedAssistantId = assistantId ?? (entries?._assistantId as string | undefined);
+    // Extract assistant_id from entries if not provided (used for "All" context)
+    const resolvedAssistantId = assistant_id ?? (entries?._assistant_id as string | undefined);
     
-    const taskId = entries?.taskId as string | undefined;
+    const task_id = entries?.task_id as string | undefined;
     const name = entries?.name as string | undefined;
     const description = entries?.description as string | undefined;
     const status = entries?.status as Status | undefined;
     const priority = entries?.priority as Priority | undefined;
     const deadline = entries?.deadline as string | undefined;
     
-    // Basic validation for core fields (including resolved assistantId)
-    if (!entries || typeof logId !== 'number' || typeof taskId !== 'number' || typeof name !== 'string' || !resolvedAssistantId) {
+    // Basic validation for core fields (including resolved assistant_id)
+    if (!entries || typeof log_id !== 'number' || typeof task_id !== 'number' || typeof name !== 'string' || !resolvedAssistantId) {
         return null;
     }
 
@@ -31,9 +31,9 @@ const mapLogToTask = (log: LogProps, assistantId?: string): Task | null => {
     // It's crucial that the backend sends these as structured objects if they exist
     const scheduleData = entries?.schedule;
     const schedule: Schedule = {
-        nextTask: typeof scheduleData?.nextTask === 'number' ? scheduleData.nextTask : undefined,
-        prevTask: typeof scheduleData?.prevTask === 'number' ? scheduleData.prevTask : undefined,
-        startTime: typeof scheduleData?.startTime === 'string' ? scheduleData.startTime : undefined,
+        next_task: typeof scheduleData?.next_task === 'number' ? scheduleData.next_task : undefined,
+        prev_task: typeof scheduleData?.prev_task === 'number' ? scheduleData.prev_task : undefined,
+        start_time: typeof scheduleData?.start_time === 'string' ? scheduleData.start_time : undefined,
     };
 
     const repeatData = entries?.repeat;
@@ -49,8 +49,8 @@ const mapLogToTask = (log: LogProps, assistantId?: string): Task | null => {
     }
     
     return {
-        logId,
-        taskId,
+        log_id,
+        task_id,
         name,
         description: description || "",
         status: status || Status.queued,
@@ -58,7 +58,7 @@ const mapLogToTask = (log: LogProps, assistantId?: string): Task | null => {
         deadline,
         repeat,
         priority: priority || Priority.normal,
-        assistantId: resolvedAssistantId,
+        assistant_id: resolvedAssistantId,
     };
 };
 
@@ -137,7 +137,7 @@ export function useTasks(
                 } else {
                     const logsResponse = response as LogsResponseProps;
                     const fetchedLogs = Array.isArray(logsResponse.logs) ? logsResponse.logs : [];
-                    // Pass undefined for assistantId - will be extracted from entries._assistantId
+                    // Pass undefined for assistant_id - will be extracted from entries._assistant_id
                     const mappedTasks = fetchedLogs.map(log => mapLogToTask(log)).filter(Boolean) as Task[];
                     
                     const newTotalCount = logsResponse.count ?? 0;
@@ -164,10 +164,10 @@ export function useTasks(
                 }
 
                 const promises = assistantsToFetch.map(assistant => {
-                    const context = `${assistant.firstName}${assistant.surname}`;
-                    const offset = isInitialLoad ? 0 : (perAssistantData.get(assistant.agentId)?.offset || 0);
+                    const context = `${assistant.first_name}${assistant.surname}`;
+                    const offset = isInitialLoad ? 0 : (perAssistantData.get(assistant.agent_id)?.offset || 0);
                     // Don't fetch more for an assistant that already has no more tasks
-                    if (!isInitialLoad && !perAssistantData.get(assistant.agentId)?.hasMore) {
+                    if (!isInitialLoad && !perAssistantData.get(assistant.agent_id)?.hasMore) {
                         return Promise.resolve(null);
                     }
                     return taskActions.get(context, expr, TASK_PAGE_LIMIT, offset);
@@ -182,7 +182,7 @@ export function useTasks(
                     if (response === null) return;
 
                     const assistant = assistantsToFetch[index];
-                    const assistantId = assistant.agentId;
+                    const assistantId = assistant.agent_id;
 
                     if ('detail' in response && response.detail) {
                         hadError = true;
@@ -240,7 +240,7 @@ export function useTasks(
                 const useAllContext = assistantFilter === 'all';
                 const assistantsToQuery = useAllContext 
                     ? []  // Not needed when using "All" context
-                    : assistants.filter(a => a.agentId === assistantFilter);
+                    : assistants.filter(a => a.agent_id === assistantFilter);
 
                 // Fetch if using "All" context OR if we have specific assistants to query
                 if (useAllContext || assistantsToQuery.length > 0) { 
@@ -274,9 +274,9 @@ export function useTasks(
             }
         } else {
             // Per-assistant: check individual assistant pagination
-            const assistantsToQuery = assistants.filter(a => a.agentId === assistantFilter);
+            const assistantsToQuery = assistants.filter(a => a.agent_id === assistantFilter);
             const assistantsWithMore = assistantsToQuery.filter(
-                a => perAssistantData.get(a.agentId)?.hasMore
+                a => perAssistantData.get(a.agent_id)?.hasMore
             );
             if (assistantsWithMore.length > 0) {
                 fetchTasksInternal(assistantsWithMore, filterExpression, false, false);
@@ -291,15 +291,15 @@ export function useTasks(
         }
         
         // Per-assistant: check individual assistant pagination
-        const assistantsToCheck = assistants.filter(a => a.agentId === assistantFilter);
-        return assistantsToCheck.some(a => perAssistantData.get(a.agentId)?.hasMore);
+        const assistantsToCheck = assistants.filter(a => a.agent_id === assistantFilter);
+        return assistantsToCheck.some(a => perAssistantData.get(a.agent_id)?.hasMore);
     }, [perAssistantData, allContextPagination, assistantFilter, assistants]);
 
 
     const updateLocalTask = React.useCallback((taskId: number, updatedFields: Partial<Task>) => {
         setTasks(prevTasks =>
             prevTasks.map(task =>
-                task.taskId === taskId
+                task.task_id === taskId
                     ? { ...task, ...updatedFields }
                     : task
             )

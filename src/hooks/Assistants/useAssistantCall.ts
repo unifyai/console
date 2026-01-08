@@ -75,7 +75,7 @@ export function useAssistantCall(
         setError(null);
         setConnectionError(null);
         try {
-            const assistantName = `${assistant.firstName}${assistant.surname}`;
+            const assistantName = `${assistant.first_name}${assistant.surname}`;
             let connDetails: ConnectionDetails | null = null;
 
             // Retry loop for connection setup
@@ -84,7 +84,7 @@ export function useAssistantCall(
 
                 try {
                     // Step 1: Get connection details for the user
-                    const details = await assistantActions.call.getConnectionDetails(assistant.agentId, assistantName);
+                    const details = await assistantActions.call.getConnectionDetails(assistant.agent_id, assistantName);
                     if (isCancelledRef.current) return;
                     if ('detail' in details) {
                         throw new Error(details.detail || 'Could not get call details.');
@@ -93,7 +93,7 @@ export function useAssistantCall(
                     setConnectionDetails(connDetails);
 
                     // Step 2: Dispatch the assistant to join the room
-                    const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agentId, assistantName, connDetails.roomName);
+                    const dispatchResult = await assistantActions.call.dispatchToCall(assistant.agent_id, assistantName, connDetails.roomName);
                     if (isCancelledRef.current) return;
                     if (dispatchResult.detail) {
                         throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
@@ -131,7 +131,7 @@ export function useAssistantCall(
                 const timeoutDuration = (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) || ASSISTANT_JOIN_TIMEOUT;
                 assistantJoinTimeoutRef.current = setTimeout(() => {
                     if (isCancelledRef.current) return;
-                    setConnectionError(`${assistant.firstName} is taking too long to join.`);
+                    setConnectionError(`${assistant.first_name} is taking too long to join.`);
                     setIsWaitingForAssistant(false);
                 }, timeoutDuration);
             } else {
@@ -207,7 +207,7 @@ export function useAssistantCall(
         const toastId = toast.loading("Starting assistant screen sharing...");
         
         try {
-            const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
+            const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agent_id);
             if (result.liveviewUrl) {
                 setLiveviewUrl(result.liveviewUrl);
                 setIsRemoteControlActive(true);
@@ -232,7 +232,7 @@ export function useAssistantCall(
         const message = nextState ? 'user is taking over' : 'user is handing back control';
 
         try {
-            const result = await assistantActions.desktop.sendSystemEvent(activeCallAssistant.agentId, eventType, message);
+            const result = await assistantActions.desktop.sendSystemEvent(activeCallAssistant.agent_id, eventType, message);
             if (result.detail) {
                 throw new Error(result.detail);
             }

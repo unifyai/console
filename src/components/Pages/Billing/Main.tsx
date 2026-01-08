@@ -12,11 +12,11 @@ import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 interface BillingEligibility {
-  userId: string;
-  totalSpending: number;
-  canEnableMonthlyBilling: boolean;
-  minimumSpendRequired: number;
-  remainingSpendNeeded: number;
+  user_id: string;
+  total_spending: number;
+  can_enable_monthly_billing: boolean;
+  minimum_spend_required: number;
+  remaining_spend_needed: number;
 }
 
 interface CheckoutStatus {
@@ -44,7 +44,7 @@ const Main = () => {
           const data = await res.json();
 
           if (res.ok) {
-            if (data.paymentStatus === 'paid') {
+            if (data.payment_status === 'paid') {
               status = { message: 'Payment successful! Your new balance will be reflected shortly.', type: 'success' };
             } else {
               status = { message: 'Your payment was not successful. Please try again.', type: 'error' };
@@ -82,7 +82,7 @@ const Main = () => {
           await fetch("/api/user/account-type", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accountType: "individual" }),
+            body: JSON.stringify({ account_type: "individual" }),
           });
           setIsNewUser(true);
         }

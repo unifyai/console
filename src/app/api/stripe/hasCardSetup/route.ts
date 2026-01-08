@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   }
 
 
-  const customerID = billingDetails[0].stripeCustomerId;
+  const customerID = billingDetails[0].stripe_customer_id;
 
   if (!customerID) {
     return NextResponse.json({ error: "No customer ID found" }, { status: 404 });

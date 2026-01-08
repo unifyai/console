@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user/user";
-import { camelToSnakeObject } from "@/utils/casing";
 
 export async function POST(request: NextRequest) {
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -11,7 +10,7 @@ export async function POST(request: NextRequest) {
 
     // Get API key from session (fallback to header for backwards compatibility)
     const user = await getCurrentUser();
-    const apiKey = user?.apiKey || request.headers.get("apiKey");
+    const apiKey = user?.api_key || request.headers.get("apiKey");
     
     if (!apiKey) {
         return NextResponse.json({ detail: "Unauthorized - no API key" }, { status: 401 });
@@ -24,23 +23,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { assistantId, contactId, message } = requestBody;
+    const { assistant_id, contact_id, message } = requestBody;
 
-    if (!assistantId || !message) {
-        return NextResponse.json({ detail: "Missing 'assistantId' or 'message'" }, { status: 400 });
+    if (!assistant_id || !message) {
+        return NextResponse.json({ detail: "Missing 'assistant_id' or 'message'" }, { status: 400 });
     }
 
     const orchestraUrl = process.env.ORCHESTRA_URL || "";
-    const isStaging = orchestraUrl.includes("staging");
+    const is_staging = orchestraUrl.includes("staging");
 
-    const webhookUrl = `https://unity-adapters-${isStaging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/message`;
+    const webhook_url = `https://unity-adapters-${is_staging ? "staging-" : ""}ky4ja5fxna-uc.a.run.app/unify/message`;
 
-    // Transform to snake_case for external API
-    const payload = camelToSnakeObject({ assistantId, contactId, body: message });
+    const payload = { "assistant_id": assistant_id, "contact_id": contact_id, "body": message };
 
     try {
         const webhookResponse = await fetch(
-            webhookUrl,
+            webhook_url,
             {
                 method: "POST",
                 headers: {

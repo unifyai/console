@@ -6,11 +6,11 @@ import { SupportedLanguage } from '@cartesia/cartesia-js/api';
 
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
+    const binary_string = atob(base64);
+    const len = binary_string.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+        bytes[i] = binary_string.charCodeAt(i);
     }
     return bytes;
 }
@@ -51,7 +51,7 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
     const playPreview = async (voice: VoiceOption) => {
         if (!audioRef.current) return;
 
-        if (isPlayingPreviewForVoiceId === voice.voiceId) {
+        if (isPlayingPreviewForVoiceId === voice.voice_id) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             setIsPlayingPreviewForVoiceId(null);
@@ -68,20 +68,20 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
             }
         }
 
-        if (!voice.voiceId || !voice.provider || !voice.language) {
+        if (!voice.voice_id || !voice.provider || !voice.language) {
             toast.error("Voice information is incomplete for preview.");
             setIsPlayingPreviewForVoiceId(null);
             return;
         }
         
         const randomLine = getRandomSampleLine(voice.language);
-        setIsPlayingPreviewForVoiceId(voice.voiceId);
+        setIsPlayingPreviewForVoiceId(voice.voice_id);
 
         const payload: GenerateSpeechPayload = {
             text: randomLine,
             provider: voice.provider, 
-            voiceId: voice.voiceId,
-            outputFormat: "mp3", 
+            voice_id: voice.voice_id,
+            output_format: "mp3", 
         };
         
         if (voice.provider === 'cartesia') {

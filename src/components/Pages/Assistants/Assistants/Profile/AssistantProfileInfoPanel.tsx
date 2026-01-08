@@ -26,8 +26,8 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit, can
     const videoLoadTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
     const scrollAreaRef = React.useRef<HTMLDivElement>(null);
     
-    const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profilePhoto ?? undefined);
-    const videoSrc = assistant.signedProfileVideoUrl || (assistant.profileVideo ?? undefined);
+    const photoSrc = assistant.signedProfilePhotoUrl || (assistant.profile_photo ?? undefined);
+    const videoSrc = assistant.signedProfileVideoUrl || (assistant.profile_video ?? undefined);
 
     const cleanupVideoTimeout = React.useCallback(() => {
         if (videoLoadTimeoutRef.current) {
@@ -97,7 +97,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit, can
                                     photoUrl={photoSrc}
                                     className="flex-shrink-0"
                                     avatarClassName="h-20 w-20 sm:h-20 sm:w-20 group-data-[state=open]:grayscale"
-                                    fallbackText={`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+                                    fallbackText={`${assistant.first_name?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
                                 />
                                 {isVideoPopoverOpen && isVideoLoading && (
                                     <Skeleton className="absolute inset-0 z-10 h-20 w-20 sm:h-20 sm:w-20 rounded-lg" />
@@ -123,7 +123,7 @@ export function AssistantProfileInfoPanel({ assistant, userTimezone, onEdit, can
 
                     <div className="grid grid-cols-2 gap-y-0.5 py-0.5 flex-1 max-w-xs">
                         <span className="text-caption font-bold">First Name</span>
-                        <span className="text-caption">{assistant.firstName}</span>
+                        <span className="text-caption">{assistant.first_name}</span>
                         <span className="text-caption font-bold">Last Name</span>
                         <span className="text-caption">{assistant.surname}</span>
                         <span className="text-caption font-bold">Age</span>

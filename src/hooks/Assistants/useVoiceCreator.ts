@@ -45,7 +45,7 @@ export function useVoiceCreator(
             return;
         }
         
-        const includeBio = getValues("designIncludeBio");
+        const includeBio = getValues("design_include_bio");
         const bioText = getValues("about");
         const trimmedVoiceDesc = designVoiceDescription.trim();
         const trimmedSampleText = designSampleText.trim();
@@ -73,10 +73,10 @@ export function useVoiceCreator(
             if (includeBio) {
                 payload.bio = bioText;
                 if (trimmedVoiceDesc) {
-                    payload.voiceDescription = trimmedVoiceDesc;
+                    payload.voice_description = trimmedVoiceDesc;
                 }
             } else {
-                payload.voiceDescription = trimmedVoiceDesc;
+                payload.voice_description = trimmedVoiceDesc;
             }
             if (trimmedSampleText.length > 0) {
                 payload.text = trimmedSampleText;
@@ -104,7 +104,7 @@ export function useVoiceCreator(
     
     const handleCreateAndSelect = async () => {
         setIsProcessingCreate(true);
-        let backendResponse: (Voice & { info?: string; isPreset?: boolean }) | ResponseProps | null = null;
+        let backendResponse: (Voice & { info?: string; is_preset?: boolean }) | ResponseProps | null = null;
         const toastId = toast.loading(`Creating voice via ${createMode} mode...`);
         
         try {
@@ -131,13 +131,13 @@ export function useVoiceCreator(
                     setIsProcessingCreate(false); return;
                 }
                 
-                const selectedPreview = designPreviews.find(p => p.generatedVoiceId === selectedPreviewId);
+                const selectedPreview = designPreviews.find(p => p.generated_voice_id === selectedPreviewId);
                 backendResponse = await assistantVoiceActions.design({
-                    generatedVoiceId: selectedPreviewId,
-                    voiceName: designFinalVoiceName,
-                    voiceDescription: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
-                    audioBase64: selectedPreview?.audioBase64 || null,
-                    mediaType: selectedPreview?.mediaType || null
+                    generated_voice_id: selectedPreviewId,
+                    voice_name: designFinalVoiceName,
+                    voice_description: cloneDescription || `Designed voice: ${designFinalVoiceName}`, // Reuse cloneDescription or make a new one
+                    audio_base_64: selectedPreview?.audio_base_64 || null,
+                    media_type: selectedPreview?.media_type || null
                     // labels: {} // Optional labels
                 });
             } 
@@ -152,13 +152,13 @@ export function useVoiceCreator(
                 toast.error(`Error creating voice. Please try again.`, { id: toastId, duration: 7000 });
             }
 
-            else if (backendResponse && (backendResponse as Voice).voiceId && (backendResponse as Voice).name) {
+            else if (backendResponse && (backendResponse as Voice).voice_id && (backendResponse as Voice).name) {
                 const voiceDataFromBackend = backendResponse as VoiceOption;
                 const fullNewVoice: VoiceOption = {
                     ...voiceDataFromBackend,
                     provider: voiceDataFromBackend.provider || PRIMARY_VOICE_PROVIDER, 
                     isUserVoiceInOrchestra: true, 
-                    isPreset: voiceDataFromBackend.isPreset ?? false,
+                    is_preset: voiceDataFromBackend.is_preset ?? false,
                 };
                 toast.success(`Voice "${fullNewVoice.name}" created & selected!`, { id: toastId });
                 if (onVoiceCreatedAndSelected) onVoiceCreatedAndSelected(fullNewVoice);

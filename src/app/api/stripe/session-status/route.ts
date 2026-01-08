@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const billingDetails = await getUserBillingDetails(user.id);
-    const customerID = billingDetails[0]?.stripeCustomerId;
+    const customerID = billingDetails[0]?.stripe_customer_id;
 
     if (!customerID) {
       return NextResponse.json({ error: 'User has no Stripe customer ID' }, { status: 404 });
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       status: session.status,
-      paymentStatus: session.payment_status,
+      payment_status: session.payment_status,
     });
 
   } catch (error: any) {

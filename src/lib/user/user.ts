@@ -8,7 +8,6 @@ import { Storage } from "@google-cloud/storage";
 import { Session, User, UserUpdateRequest } from "@/types/user";
 import { ConstructionOutlined } from "@mui/icons-material";
 import { cookies, headers } from "next/headers";
-import { snakeToCamelObject, camelToSnakeObject } from "@/utils/casing";
 
 /**
  * Retrieves the current user's session information.
@@ -26,7 +25,7 @@ export async function getSession() {
     const sessionResponse = await fetch(
       `${process.env.NEXTAUTH_URL}/sessionInfo.json`
     );
-    const sessionInfo = snakeToCamelObject<Session>(await sessionResponse.json());
+    const sessionInfo = (await sessionResponse.json()) as Session;
     return sessionInfo;
   } else {
     // Avoid caching here to ensure per-request cookies (e.g., console_auth) are respected
@@ -40,11 +39,11 @@ export async function getSession() {
  * @param id The ID of the user.
  * @returns The user with the given ID.
  */
-export async function getUserByID(userId: string) {
+export async function getUserByID(user_id: string) {
   const response = await OrchestraAdminClient.get("/auth-user/by-user-id", {
-    params: { userId: userId },
-  }) as { data: any };
-  return snakeToCamelObject<User>(response.data);
+    params: { user_id },
+  }) as { data: User };
+  return response.data;
 }
 
 
@@ -57,8 +56,8 @@ export async function getUserByID(userId: string) {
 export async function getUserByEmail(email: string) {
   const response = await OrchestraAdminClient.get("/auth-user/by-email", {
     params: { email },
-  }) as { data: any };
-  return snakeToCamelObject<User>(response.data);
+  }) as { data: User };
+  return response.data;
 }
 
 /**
@@ -79,7 +78,7 @@ export async function getCurrentUserEmail() {
  */
 export async function getOnPremUser(): Promise<User | null> {
   const userResponse = await fetch(`${process.env.NEXTAUTH_URL}/userInfo.json`);
-  const userInfo = snakeToCamelObject<User>(await userResponse.json());
+  const userInfo = (await userResponse.json()) as User;
   return userInfo;
 }
 
@@ -128,14 +127,14 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (headerApiKey) {
     // Check if the header key matches the default personal key
-    if (user.apiKey === headerApiKey) {
+    if (user.api_key === headerApiKey) {
       contextResolved = true;
     } 
     // Check if the header key matches any of the user's organizations
     else if (user.organizations) {
-      const targetOrg = user.organizations.find(org => org.apiKey === headerApiKey);
+      const targetOrg = user.organizations.find(org => org.api_key === headerApiKey);
       if (targetOrg) {
-        user.apiKey = targetOrg.apiKey;
+        user.api_key = targetOrg.api_key;
         contextResolved = true;
       }
     }
@@ -144,7 +143,7 @@ export async function getCurrentUser(): Promise<User | null> {
   // Priority 2: Cookie (if not resolved by header)
   if (!contextResolved && workspaceId) {
     if (workspaceId === 'personal') {
-      // Explicitly personal. user.apiKey is already personal default.
+      // Explicitly personal. user.api_key is already personal default.
       contextResolved = true;
     } else {
       // Check if user still belongs to this org
@@ -153,7 +152,7 @@ export async function getCurrentUser(): Promise<User | null> {
       );
 
       if (targetOrg) {
-        user.apiKey = targetOrg.apiKey;
+        user.api_key = targetOrg.api_key;
         contextResolved = true;
       }
       // If targetOrg not found (e.g. user removed from org), contextResolved remains false
@@ -165,9 +164,9 @@ export async function getCurrentUser(): Promise<User | null> {
   // if (!contextResolved) {
   //   // Default to the first Organization if available
   //   if (user.organizations && user.organizations.length > 0) {
-  //     user.apiKey = user.organizations[0].apiKey;
+  //     user.api_key = user.organizations[0].api_key;
   //   }
-  //   // Else: User has no organizations, default to personal (user.apiKey is unmodified)
+  //   // Else: User has no organizations, default to personal (user.api_key is unmodified)
   // }
 
   return user;
@@ -182,13 +181,11 @@ export async function getCurrentUser(): Promise<User | null> {
  * @returns {Promise<User>} The updated user information.
  */
 export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> {
-  // Transform camelCase to snake_case for API
-  const apiPayload = camelToSnakeObject(updatedUser);
   const response = await OrchestraAdminClient.put(
     "/auth-user",
-    apiPayload
-  ) as { data: any };
-  return snakeToCamelObject<User>(response.data);
+    updatedUser // Send updatedUser as the request body
+  ) as { data: User };
+  return response.data;
 }
 
 /**
@@ -198,7 +195,7 @@ export async function updateUser(updatedUser: UserUpdateRequest): Promise<User> 
  */
 export async function deleteUser(userID: string) {
   const response = await OrchestraAdminClient.delete("/auth-user", {
-    params: { userId: userID },
+    params: { user_id: userID },
   }) as { data: string };
   return response.data;
 }
@@ -212,7 +209,7 @@ export async function deleteUser(userID: string) {
  * @returns {Promise<void>} The promise resolves when the image has been uploaded.
  */
 export async function updateUserImage(userID: string, image: File) {
-  const fileName = `${process.env.BUCKET_FOLDER}/${userID}.${
+  const file_name = `${process.env.BUCKET_FOLDER}/${userID}.${
     image.name.split(".").at(-1)
   }`;
 
@@ -220,7 +217,7 @@ export async function updateUserImage(userID: string, image: File) {
   const storage = new Storage();
   await storage
     .bucket("console-app-profile-images")
-    .file(fileName)
+    .file(file_name)
     .save(Buffer.from(buffer));
 }
 
@@ -233,7 +230,7 @@ export async function updateUserImage(userID: string, image: File) {
  */
 export async function verifyUserPhone(
   phoneNumber: string
-): Promise<{ verificationCode: string; sentAt: string } | { detail: string }> {
+): Promise<{ verification_code: string; sent_at: string } | { detail: string }> {
   const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
@@ -251,7 +248,7 @@ export async function verifyUserPhone(
       },
       body: JSON.stringify({ 
         platform: "phone", 
-        accountIdentifier: phoneNumber 
+        account_identifier: phoneNumber 
       })
     });
 
@@ -263,7 +260,7 @@ export async function verifyUserPhone(
     }
 
     if (data?.verification_code && data?.sent_at) {
-      return { verificationCode: data.verification_code, sentAt: data.sent_at };
+      return data as { verification_code: string; sent_at: string };
     }
 
     return { detail: "Verification succeeded but response format was unexpected." };

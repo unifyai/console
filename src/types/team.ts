@@ -4,9 +4,9 @@ export interface Team {
   id: number;
   name: string;
   description?: string;
-  organizationId: number;
-  createdAt: string;
-  memberCount?: number;
+  organization_id: number;
+  created_at: string;
+  member_count?: number;
   members?: string[];
 }
 

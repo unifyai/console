@@ -3,31 +3,31 @@ import { ResponseProps } from "./common";
 export interface Organization {
   id: number;
   name: string;
-  ownerId?: string;
-  billingUserId?: string;
-  createdAt?: string;
-  roleId?: number;
-  roleName?: string;
-  apiKey?: string;
+  owner_id?: string;
+  billing_user_id?: string;
+  created_at?: string;
+  role_id?: number;
+  role_name?: string;
+  api_key?: string;
 }
 
 export interface OrganizationMember {
   id: number;
-  userId: string;
-  organizationId: number;
-  roleId: number | null;
-  roleName: string | null;
-  createdAt: string;
+  user_id: string;
+  organization_id: number;
+  role_id: number | null;
+  role_name: string | null;
+  created_at: string;
   name?: string;
   email?: string;
-  jobTitle?: string;
+  job_title?: string;
   bio?: string;
 }
 
 export interface OrganizationPermission {
   id: number;
   name: string;
-  resourceType: string; // e.g., 'org'
+  resource_type: string; // e.g., 'org'
   action: string;        // e.g., 'read', 'write', 'delete'
 }
 
@@ -35,18 +35,18 @@ export interface OrganizationRole {
   id: number;
   name: string;
   description?: string;
-  isSystemRole: boolean;
-  organizationId?: number;
+  is_system_role: boolean;
+  organization_id?: number;
   permissions: OrganizationPermission[];
 }
 
 export interface OrganizationListItem {
   id: number;
   name: string;
-  ownerId: string;
-  billingUserId?: string;
-  createdAt?: string;
-  memberCount: number;
+  owner_id: string;
+  billing_user_id?: string;
+  created_at?: string;
+  member_count: number;
 }
 
 export interface OrganizationListResponse {
@@ -58,15 +58,15 @@ export interface OrganizationListResponse {
 export interface OrganizationInvite {
   id: string;
   token: string;
-  organizationId: number;
-  organizationName: string;
-  inviteeEmail: string;
-  invitedByUserId: string;
-  invitedByName?: string;
-  roleId: number;
-  roleName?: string;
-  expiresAt: string;
-  createdAt: string;
+  organization_id: number;
+  organization_name: string;
+  invitee_email: string;
+  invited_by_user_id: string;
+  invited_by_name?: string;
+  role_id: number;
+  role_name?: string;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface OrganizationInviteListResponse {

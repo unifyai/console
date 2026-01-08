@@ -1,7 +1,6 @@
 import { ResponseProps } from "@/types/common";
 import { Assistant, AssistantUpdatePayload, AssistantStatus, PreHireChatMessage, UserLocalDesktop, VoiceProvider, VoiceMode, AssistantHiringSufficientFunds } from "@/types/assistants/assistant";
 import { ASSISTANT_ONBOARDING_FEE } from "@/constants/assistants/settings";
-import { snakeToCamelObject, camelToSnakeObject } from "@/utils/casing";
 
 export const listAssistants = async (apiKey: string, listAllOrg: boolean = false) => {
     return async (): Promise<Assistant[] | (ResponseProps & { status?: number })> => {
@@ -41,9 +40,9 @@ export const listAssistants = async (apiKey: string, listAllOrg: boolean = false
             }
 
             if ("info" in data) {   // In case data is nested inside an info property
-                return snakeToCamelObject<Assistant[]>(data.info);
+                return data.info as Assistant[]
             }
-            return snakeToCamelObject<Assistant[]>(data);
+            return data as Assistant[]
 
         } catch (error) {
             console.error(`[actions.ts listAssistants] Error fetching assistants:`, error);
@@ -71,11 +70,11 @@ export const getAssistantStatus = async (apiKey: string) => {
             }
 
             if (data.info) {
-                return snakeToCamelObject<AssistantStatus>(data.info);
+                return data.info as AssistantStatus;
             }
 
             if ('running' in data) {
-                return snakeToCamelObject<AssistantStatus>(data);
+                return data as AssistantStatus;
             }
 
             return { detail: "Unexpected response format from status endpoint." };
@@ -128,9 +127,6 @@ export const updateAssistant = async (apiKey: string) => {
         "use server";
 
         try {
-            // Convert camelCase payload to snake_case for API
-            const snakeCasePayload = camelToSnakeObject(payload);
-            
             const response = await fetch(
                 `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`,
                 {
@@ -140,8 +136,8 @@ export const updateAssistant = async (apiKey: string) => {
                          "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        ...snakeCasePayload,
-                        createInfra: true
+                        ...payload,
+                        create_infra: true
                     })
                 }
             );
@@ -178,12 +174,12 @@ export const updateAssistant = async (apiKey: string) => {
 
 export const createAssistant = async (apiKey: string) => {
     return async (
-        firstName: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
-        profilePhoto: string | null, profileVideo: string | null, about: string | null, 
-        voiceId: string | null, voiceProvider: VoiceProvider | null, voiceMode: VoiceMode | null,
-        email: string | null, userPhone: string | null, phoneCountry: string | null,
-        userWhatsappNumber: string | null, userLocalDesktop: UserLocalDesktop | null,
-        preHireChat?: PreHireChatMessage[]
+        first_name: string, surname: string, age: number | null, nationality: string | null, timezone: string | null,
+        profile_photo: string | null, profile_video: string | null, about: string | null, 
+        voice_id: string | null, voice_provider: VoiceProvider | null, voice_mode: VoiceMode | null,
+        email: string | null, user_phone: string | null, phone_country: string | null,
+        user_whatsapp_number: string | null, user_local_desktop: UserLocalDesktop | null,
+        pre_hire_chat?: PreHireChatMessage[]
     ): Promise<ResponseProps & { assistant?: Assistant }> => {
         "use server";
 
@@ -196,28 +192,27 @@ export const createAssistant = async (apiKey: string) => {
                         apiKey: apiKey,
                         "Content-Type": "application/json"
                     },
-                    // API expects snake_case
                     body: JSON.stringify({
-                        firstName: firstName,
+                        first_name,
                         surname,
                         age,
                         nationality,
-                        profilePhoto: profilePhoto,
-                        profileVideo: profileVideo,
+                        profile_photo,
+                        profile_video,
                         about,
-                        voiceId: voiceId,
-                        voiceProvider: voiceProvider,
-                        voiceMode: voiceMode,
+                        voice_id,
+                        voice_provider,
+                        voice_mode,
                         email,
-                        userPhone: userPhone,
-                        phoneCountry: phoneCountry,
+                        user_phone,
+                        phone_country,
                         timezone,
-                        userWhatsappNumber: userWhatsappNumber,
-                        userLocalDesktop: userLocalDesktop,
-                        maxParallel: 10,
-                        weeklyLimit: 40,
-                        createInfra: true,
-                        preHireChat: preHireChat
+                        user_whatsapp_number,
+                        user_local_desktop,
+                        max_parallel: 10,
+                        weekly_limit: 40,
+                        create_infra: true,
+                        pre_hire_chat
                     })
                 }
             );
@@ -242,7 +237,7 @@ export const createAssistant = async (apiKey: string) => {
             }
 
             const successMessage = `Assistant created successfully.`;
-            const createdAssistant = snakeToCamelObject<Assistant>(data.info);
+            const createdAssistant = data.info as Assistant;
             return { info: successMessage, assistant: createdAssistant }
 
         } catch (error) {

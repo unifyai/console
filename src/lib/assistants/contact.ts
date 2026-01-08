@@ -1,7 +1,6 @@
 import { ResponseProps } from "@/types/common";
 import { AvailablePhoneCountry, AvailableSocialPlatform, Assistant } from "../../types/assistants/assistant";
 import { getCountryFlag, getCountryName } from "../../utils/assistants/country-utils";
-import { snakeToCamelObject } from "@/utils/casing";
 
 export const listAllAssistantEmails = async (apiKey: string) => {
     return async (): Promise<string[] | ResponseProps> => {
@@ -82,21 +81,20 @@ export const listAvailableSocialPlatforms = async (apiKey: string) => {
 };
 
 export const verifySocialAccount = async (apiKey: string) => {
-    return async (platform: string, accountIdentifier: string): Promise<{ verificationCode: string; sentAt: string; } | ResponseProps> => {
+    return async (platform: string, account_identifier: string): Promise<{ verification_code: string; sent_at: string; } | ResponseProps> => {
         "use server";
         try {
             const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/social/verify`, {
                 method: "POST",
                 headers: { apiKey: apiKey, "Content-Type": "application/json" },
-                // API expects snake_case
-                body: JSON.stringify({ platform, accountIdentifier: accountIdentifier })
+                body: JSON.stringify({ platform, account_identifier })
             });
             const data = await response.json();
             if (!response.ok) {
                 return { detail: data.detail || `Failed to send verification for ${platform}: ${response.statusText}` };
             }
             if (data.verification_code && data.sent_at) {
-                return snakeToCamelObject<{ verificationCode: string; sentAt: string; }>(data);
+                return data as { verification_code: string; sent_at: string; };
             }
             return { detail: "Verification succeeded but response format was unexpected." };
         } catch (error) {
@@ -118,7 +116,7 @@ export const deleteAssistantContact = async (apiKey: string) => {
                          apiKey: apiKey,
                          "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ contactType: contactType })
+                    body: JSON.stringify({ contact_type: contactType })
                 }
             );
 
@@ -131,7 +129,7 @@ export const deleteAssistantContact = async (apiKey: string) => {
 
             const successMessage = data.info || `Contact deleted successfully.`;
             // The backend is expected to return the updated assistant object in the 'info' field.
-            const updatedAssistant = snakeToCamelObject<Assistant>(data.info);
+            const updatedAssistant = data.info as Assistant;
             return { info: successMessage, assistant: updatedAssistant };
 
         } catch (error) {

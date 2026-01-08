@@ -23,7 +23,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     const { control, getValues, setValue, formState: { errors }, register, clearErrors } = useFormContext<AssistantFormData>();
 
     const phoneFieldNames = React.useMemo(() => ({
-        identifier: 'userPhone' as 'userPhone',
+        identifier: 'user_phone' as 'user_phone',
         isVerified: 'user_phone_isVerified' as 'user_phone_isVerified',
         isVerifying: 'user_phone_isVerifying' as 'user_phone_isVerifying',
         verificationCodeSent: 'user_phone_verificationCodeSent' as 'user_phone_verificationCodeSent',
@@ -49,7 +49,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     });
 
     const handleVerifyClick = (isRetry: boolean) => {
-        const phoneNumber = getValues('userPhone');
+        const phoneNumber = getValues('user_phone');
         if (!phoneNumber || phoneNumber.trim() === '') {
             toast.error("Please enter a phone number to verify.");
             return;
@@ -58,13 +58,13 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
     };
 
     const isPhoneVerified = useWatch({ control, name: 'user_phone_isVerified' });
-    const phoneValue = useWatch({ control, name: 'userPhone' });
+    const phoneValue = useWatch({ control, name: 'user_phone' });
     const isSubmitting = useFormContext<AssistantFormData>().formState.isSubmitting;
 
     return (
         <div className="space-y-2">
              <div className="flex items-center gap-2">
-                <Input id="user_phone" type="tel" placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} {...register('userPhone', {
+                <Input id="user_phone" type="tel" placeholder="e.g., +15551234567" className="h-9 flex-1" disabled={isVerifying || isSubmitting || isPhoneVerified} {...register('user_phone', {
                     pattern: {
                         value: /^\+[1-9]\d{7,14}$/,
                         message: "Please enter a valid number (e.g., +15551234567). Make sure there are no extra whitespace."
@@ -73,7 +73,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                         if (getValues('user_phone_isVerified')) {
                             setValue('user_phone_isVerified', false, { shouldDirty: true });
                         }
-                        if (errors.userPhone) clearErrors('userPhone');
+                        if (errors.user_phone) clearErrors('user_phone');
                         setValue('isPhoneNumberAdded', true, { shouldDirty: true });
                     }
                 })} />
@@ -116,7 +116,7 @@ const PhoneVerificationSection: React.FC<{ assistantActions: AssistantActions }>
                     </div>
                 </div>
             )}
-            {errors.userPhone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.userPhone.message}</p>}
+            {errors.user_phone && !isVerificationFlowActive && <p className="text-body text-strong text-destructive mt-1">{errors.user_phone.message}</p>}
         </div>
     );
 };
@@ -125,7 +125,7 @@ const WhatsAppVerificationSection: React.FC<{ assistantActions: AssistantActions
     const { control, getValues, setValue, formState: { errors }, clearErrors } = useFormContext<AssistantFormData>();
     const [isTooltipOpen, setIsTooltipOpen] = React.useState(false);
     
-    const { fields, append } = useFieldArray({ control, name: "socialAccounts" });
+    const { fields, append } = useFieldArray({ control, name: "social_accounts" });
     const whatsAppAccountIndex = fields.findIndex(field => field.platform === 'whatsapp');
 
     React.useEffect(() => {
@@ -365,7 +365,7 @@ export function AssistantContactManager({
                 <DialogHeader>
                     <DialogTitle className="text-title">Update Contact</DialogTitle>
                     <DialogDescription className="text-subtitle">
-                        Manage contact details for {assistant.firstName}.
+                        Manage contact details for {assistant.first_name}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -430,7 +430,7 @@ export function AssistantContactManager({
                                             </SelectTrigger>
                                             <SelectContent>{isLoadingCountries ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (availablePhoneCountries.map(country => (<SelectItem key={country.code} value={country.code}><span className="mr-2">{getCountryFlag(country.code)}</span> {country.name} ({country.code})</SelectItem>)))}</SelectContent>
                                         </Select>
-                                        {errors.phoneCountry && <p className="text-body text-strong text-destructive mt-1">{errors.phoneCountry.message}</p>}
+                                        {errors.phone_country && <p className="text-body text-strong text-destructive mt-1">{errors.phone_country.message}</p>}
                                     </div>
                                     <div>
                                         <div className="flex flex-row gap-2 items-center pb-1">

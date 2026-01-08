@@ -22,9 +22,9 @@ export enum Status {
 
 // Corresponds to unity.task_list_manager.types.schedule.Schedule
 export interface Schedule {
-    nextTask?: number;
-    prevTask?: number;
-    startTime?: string; // ISO-8601 format
+    next_task?: number;
+    prev_task?: number;
+    start_time?: string; // ISO-8601 format
 }
 
 // Corresponds to unity.task_list_manager.types.repetition.Frequency
@@ -57,8 +57,8 @@ export interface RepeatPattern {
 
 // Corresponds to unity.task_list_manager.types.task.Task
 export interface Task {
-  logId: number;
-  taskId: number;
+  log_id: number;
+  task_id: number;
   name: string;
   description: string;
   status: Status;
@@ -66,7 +66,7 @@ export interface Task {
   deadline?: string; // ISO-8601 format
   repeat?: RepeatPattern;
   priority: Priority;
-  assistantId: string;
+  assistant_id: string;
 }
 
 export interface TaskActions {

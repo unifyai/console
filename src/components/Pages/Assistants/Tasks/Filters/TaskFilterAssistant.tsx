@@ -33,8 +33,8 @@ export function TaskAssistantFilter({
             <SelectContent>
                 <SelectItem value="all">All Assistants</SelectItem>
                 {assistants.map(assistant => (
-                    <SelectItem key={assistant.agentId} value={assistant.agentId}>
-                        {`${assistant.firstName} ${assistant.surname}`}
+                    <SelectItem key={assistant.agent_id} value={assistant.agent_id}>
+                        {`${assistant.first_name} ${assistant.surname}`}
                     </SelectItem>
                 ))}
             </SelectContent>

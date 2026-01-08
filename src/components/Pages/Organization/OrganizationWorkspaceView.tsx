@@ -111,14 +111,14 @@ const OrganizationWorkspaceView = ({
 
   // Permission Logic
   const currentUserPermissions = useMemo(() => {
-      const currentUserMember = unifiedMembers.find(m => m.userId === currentUserId);
+      const currentUserMember = unifiedMembers.find(m => m.user_id === currentUserId);
       if (!currentUserMember || !currentUserMember.roleId) return [];
       const userRole = roles.find(r => r.id === currentUserMember.roleId);
       return userRole?.permissions || [];
   }, [unifiedMembers, roles, currentUserId]);
 
   const hasPermission = (resource: string, action: string) => {
-      return currentUserPermissions.some(p => p.resourceType === resource && p.action === action);
+      return currentUserPermissions.some(p => p.resource_type === resource && p.action === action);
   };
 
   const canUpdateOrg = hasPermission('organization', 'write');
@@ -143,7 +143,7 @@ const OrganizationWorkspaceView = ({
             matchesTeam = false; 
         } else {
             const team = teams.find(t => t.name === teamFilter);
-            matchesTeam = !!(team && team.members && member.userId && team.members.includes(member.userId));
+            matchesTeam = !!(team && team.members && member.user_id && team.members.includes(member.user_id));
         }
     }
 
@@ -157,14 +157,14 @@ const OrganizationWorkspaceView = ({
 
   // Convert unifiedMembers to OrganizationMember[] for legacy props compatibility where needed
   const activeMembersForProps = unifiedMembers
-    .filter(m => m.status === 'active' && m.userId)
+    .filter(m => m.status === 'active' && m.user_id)
     .map(m => ({
         id: -1, // Mock ID, not used in InviteMemberDialog
-        userId: m.userId!,
-        organizationId: organization.id,
-        roleId: m.roleId,
-        roleName: m.role,
-        createdAt: '',
+        user_id: m.user_id!,
+        organization_id: organization.id,
+        role_id: m.roleId,
+        role_name: m.role,
+        created_at: '',
         email: m.email,
         name: m.name
     }));
@@ -181,7 +181,7 @@ const OrganizationWorkspaceView = ({
                     <h2 className="text-xl font-semibold flex items-center gap-2">
                         {organization.name}
                         <span className="text-xs font-normal text-muted-foreground border px-2 py-0.5 rounded-full capitalize">
-                            {organization.roleName || 'Member'}
+                            {organization.role_name || 'Member'}
                         </span>
                     </h2>
                 </div>
@@ -319,7 +319,7 @@ const OrganizationWorkspaceView = ({
                                 </TableHeader>
                                 <TableBody>
                                     {filteredMembers.map((member) => {
-                                        const userTeams = getUserTeams(member.userId).map(t => t.name);
+                                        const userTeams = getUserTeams(member.user_id).map(t => t.name);
                                         return (
                                             <MemberRow 
                                                 key={member.id}
@@ -328,7 +328,7 @@ const OrganizationWorkspaceView = ({
                                                 roles={roles}
                                                 currentUserId={currentUserId}
                                                 canManageMembers={canManageMembers} 
-                                                isOrgOwner={organization.ownerId === member.userId}
+                                                isOrgOwner={organization.owner_id === member.user_id}
                                                 onRemove={onRemoveMember}
                                                 onUpdateRole={onUpdateRole}
                                                 onTransferOwnership={onTransferOwnership}

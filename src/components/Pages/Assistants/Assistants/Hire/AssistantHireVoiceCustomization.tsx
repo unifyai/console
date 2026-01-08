@@ -49,7 +49,7 @@ export function VoiceCustomization({
     const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
     const { control, watch } = useFormContext<AssistantFormData>();
-    const designIncludeBio = watch("designIncludeBio");
+    const designIncludeBio = watch("design_include_bio");
     const bioText = watch("about");
     const videoSourceVoiceId = watch("video_source_voice_id");
     const isFastMode = watch("fast_mode");
@@ -63,18 +63,18 @@ export function VoiceCustomization({
     const audioStreamRef = React.useRef<MediaStream | null>(null);
 
     const selectedVoice = React.useMemo(
-        () => allDisplayableVoices.find(v => v.voiceId === selectedVoiceId),
+        () => allDisplayableVoices.find(v => v.voice_id === selectedVoiceId),
         [allDisplayableVoices, selectedVoiceId]
     );
 
     const otherVoices = React.useMemo(
-        () => allDisplayableVoices.filter(v => v.voiceId !== selectedVoiceId),
+        () => allDisplayableVoices.filter(v => v.voice_id !== selectedVoiceId),
         [allDisplayableVoices, selectedVoiceId]
     );
 
     const handleVoiceCreatedAndSelectedByHook = React.useCallback((newVoice: VoiceOption) => {
         onVoiceSelected(newVoice);
-        setSelectedVoiceId(newVoice.voiceId);
+        setSelectedVoiceId(newVoice.voice_id);
         setActiveMainTab('select'); 
     }, [onVoiceSelected]);
 
@@ -106,14 +106,14 @@ export function VoiceCustomization({
     } = useTTSPreview({ generateSpeechAction: assistantActions.voice.generate }); 
 
     const handleSelectVoiceDisplay = React.useCallback((voice: VoiceOption | null) => {
-        setSelectedVoiceId(voice?.voiceId ?? null);
+        setSelectedVoiceId(voice?.voice_id ?? null);
         onVoiceSelected(voice);
     }, [onVoiceSelected]);
 
     React.useEffect(() => {
         setSelectedVoiceId(initialVoiceId);
         if (initialVoiceId && activeMainTab !== 'select') { 
-             const voice = allDisplayableVoices.find(v => v.voiceId === initialVoiceId);
+             const voice = allDisplayableVoices.find(v => v.voice_id === initialVoiceId);
              if (voice) {
                 setActiveMainTab('select');
              }
@@ -143,7 +143,7 @@ export function VoiceCustomization({
             const defaultOpenAIVoice = allDisplayableVoices.find(v => v.provider === 'openai');
             handleSelectVoiceDisplay(defaultOpenAIVoice || null);
         } else if (!isFastMode && currentVoice.provider === 'openai') {
-            const defaultPrimaryVoice = allDisplayableVoices.find(v => v.provider === PRIMARY_VOICE_PROVIDER && v.isPreset);
+            const defaultPrimaryVoice = allDisplayableVoices.find(v => v.provider === PRIMARY_VOICE_PROVIDER && v.is_preset);
             handleSelectVoiceDisplay(defaultPrimaryVoice || null);
         }
     }, [isFastMode, selectedVoice, allDisplayableVoices, handleSelectVoiceDisplay]);
@@ -230,7 +230,7 @@ export function VoiceCustomization({
     }, [cleanupRecording]);
 
 const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
-        const isSelected = selectedVoiceId === voice.voiceId;
+        const isSelected = selectedVoiceId === voice.voice_id;
         const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
         return (
             <div
@@ -246,7 +246,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                 <div className={cn("flex items-center p-0 m-0 gap-1 sm:gap-2 justify-between", isSelected ? "text-primary-foreground" : "text-muted-foreground")}>
 
                     <TooltipProvider delayDuration={100}>
-                        {videoSourceVoiceId === voice.voiceId && (
+                        {videoSourceVoiceId === voice.voice_id && (
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button type="button" variant="ghost" size="icon" aria-label="Current video source" className={cn("h-7 w-7 cursor-default", isSelected ? "hover:bg-primary/80" : "hover:bg-muted-foreground/10")} disabled={itemIsDisabled}>
@@ -281,8 +281,8 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
 
                     <TooltipProvider delayDuration={100}>
                         <Tooltip><TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" aria-label={`Preview "${voice.name}"`} className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voiceId && isPlayingPreviewForVoiceId !== null) }>
-                                {isPlayingPreviewForVoiceId === voice.voiceId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            <Button type="button" variant="ghost" size="icon" aria-label={`Preview "${voice.name}"`} className={cn("h-7 w-7", isSelected ? "text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-green-600 hover:bg-green-600/10")} onClick={(e) => { e.stopPropagation(); playPreview(voice); }} disabled={itemIsDisabled || (isPlayingPreviewForVoiceId === voice.voice_id && isPlayingPreviewForVoiceId !== null) }>
+                                {isPlayingPreviewForVoiceId === voice.voice_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger><TooltipContent side="top" className="max-w-xs text-caption"><p>{`Preview "${voice.name}"`}</p></TooltipContent></Tooltip>
                     </TooltipProvider>
@@ -528,7 +528,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                             <p className="text-body text-muted-foreground text-center">No voices. Try creating or designing one.</p>
                                         </div>
                                     ) : (
-                                        otherVoices.map(v => <VoiceListItem key={(v.isPreset ? 'p-' : 'u-') + v.voiceId} voice={v} />)
+                                        otherVoices.map(v => <VoiceListItem key={(v.is_preset ? 'p-' : 'u-') + v.voice_id} voice={v} />)
                                     )}
                                 </div>
                             </div>
@@ -656,7 +656,7 @@ const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
                                         <div className="flex justify-between items-center gap-5">
                                             <div className="flex items-center space-x-2 pt-1">
                                                 <Controller
-                                                    name="designIncludeBio"
+                                                    name="design_include_bio"
                                                     control={control}
                                                     render={({ field }) => (
                                                         <Checkbox

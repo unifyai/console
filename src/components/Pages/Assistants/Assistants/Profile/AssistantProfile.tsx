@@ -108,7 +108,7 @@ export function AssistantProfilePanel({
     const [isDeleting, setIsDeleting] = React.useState(false);
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
 
-    const isInThisCall = activeCallAssistantId === assistant.agentId;
+    const isInThisCall = activeCallAssistantId === assistant.agent_id;
     const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
     const isCallButtonDisabled = isAnotherCallActive;
 
@@ -118,7 +118,7 @@ export function AssistantProfilePanel({
         isAnotherCallActive ? "Another call is in progress" :
         "Start a call";
     
-    const displayName = `${assistant.firstName} ${assistant.surname}`;
+    const displayName = `${assistant.first_name} ${assistant.surname}`;
 
     const handleDeleteConfirm = async () => {
         if (!assistant || isDeleting) return;
