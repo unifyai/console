@@ -88,7 +88,7 @@ function onMouseOver (
         const group = (d as GroupedDataLabel)[0];
         g.selectAll("rect.bar-item")
           .transition("opacity").duration(200)
-          .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0);
+          .style("opacity", barData => (barData as GroupedDataLabel)[0] === group ? 1 : 0.3);
     }
     else {
         const xValue = (d as DataLabel)[0];

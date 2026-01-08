@@ -424,10 +424,14 @@ export const drawAxes = (
     yAxis.select("path").style("opacity", 0);
     xAxis.style("opacity", 1)
     
-    // Hide tick labels and lines for bar charts, but keep axis label visible
+    // Hide tick labels and lines for bar charts with many categories, but keep axis label visible
+    // Show x-axis labels if there are 20 or fewer categories
     if (plotType === "Bar Chart") {
-        xAxis.selectAll(".tick text").style("opacity", 0);  // Hide tick labels
-        xAxis.selectAll(".tick line").style("opacity", 0);  // Hide tick lines
+        const categoryCount = (x as d3.ScaleBand<string>).domain().length;
+        if (categoryCount > 20) {
+            xAxis.selectAll(".tick text").style("opacity", 0);  // Hide tick labels
+            xAxis.selectAll(".tick line").style("opacity", 0);  // Hide tick lines
+        }
         xAxis.selectAll(".domain").style("opacity", 0);     // Hide axis line
     }
 
