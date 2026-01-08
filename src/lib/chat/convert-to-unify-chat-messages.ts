@@ -73,8 +73,8 @@ export function convertToUnifyChatMessages(
                 break;
               }
               default: {
-                const _exhaustiveCheck: never = part;
-                throw new Error(`Unsupported part: ${_exhaustiveCheck}`);
+                // Skip unsupported part types (file, reasoning, etc.)
+                break;
               }
             }
           }
