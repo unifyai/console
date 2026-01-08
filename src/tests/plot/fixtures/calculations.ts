@@ -18,36 +18,36 @@ import * as d3 from 'd3';
 /**
  * Convert a value to numeric like production's getValue() does.
  * This simulates the conversion that happens in src/utils/interfaces/plots/data.ts
- * 
+ *
  * - timestamp/date strings → milliseconds since epoch
- * - timedelta strings → duration in milliseconds  
+ * - timedelta strings → duration in milliseconds
  * - time strings → timestamp for today with that time
  * - booleans → 0 or 1
  * - numbers → as-is
  */
 export function toNumericValue(value: unknown): number | null {
   if (value === null || value === undefined) return null;
-  
+
   // Already a number
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
   }
-  
+
   // Boolean → 0 or 1
   if (typeof value === 'boolean') {
     return value ? 1 : 0;
   }
-  
+
   // String conversions
   if (typeof value === 'string') {
     // Try as number first
     const num = Number(value);
     if (Number.isFinite(num)) return num;
-    
+
     // Try as ISO date (timestamp/date)
     const dateMs = new Date(value).getTime();
     if (Number.isFinite(dateMs)) return dateMs;
-    
+
     // Try as timedelta: "X days, HH:MM:SS" → milliseconds
     const timeDeltaMatch = value.match(/^(\d+)\s+days?,\s*(\d{1,2}):(\d{2}):(\d{2})$/);
     if (timeDeltaMatch) {
@@ -59,20 +59,24 @@ export function toNumericValue(value: unknown): number | null {
         parseInt(seconds, 10) * 1000
       );
     }
-    
+
     // Try as time: "HH:MM:SS" → milliseconds from midnight
     const timeMatch = value.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
     if (timeMatch) {
       const [, hours, minutes, seconds] = timeMatch;
       const now = new Date();
       const timeDate = new Date(
-        now.getFullYear(), now.getMonth(), now.getDate(),
-        parseInt(hours, 10), parseInt(minutes, 10), parseInt(seconds, 10)
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        parseInt(hours, 10),
+        parseInt(minutes, 10),
+        parseInt(seconds, 10)
       );
       return timeDate.getTime();
     }
   }
-  
+
   return null;
 }
 
@@ -164,17 +168,17 @@ export function createD3Scales(
   const yScaleFn = scaleY === 'log' ? d3.scaleLog : d3.scaleLinear;
 
   // Check if we need to reverse for negative log values
-  const reverseX = scaleX === 'log' && xValues.every(v => v < 0);
-  const reverseY = scaleY === 'log' && yValues.every(v => v < 0);
+  const reverseX = scaleX === 'log' && xValues.every((v) => v < 0);
+  const reverseY = scaleY === 'log' && yValues.every((v) => v < 0);
 
   // Calculate domains (matching reverseOrKeepDomain in axes.ts)
   const xDomain = reverseX
-    ? [Math.max(...xValues.map(Math.abs)), Math.min(...xValues.map(Math.abs))] as [number, number]
-    : [minX, maxX] as [number, number];
+    ? ([Math.max(...xValues.map(Math.abs)), Math.min(...xValues.map(Math.abs))] as [number, number])
+    : ([minX, maxX] as [number, number]);
 
   const yDomain = reverseY
-    ? [Math.max(...yValues.map(Math.abs)), Math.min(...yValues.map(Math.abs))] as [number, number]
-    : [minY, maxY] as [number, number];
+    ? ([Math.max(...yValues.map(Math.abs)), Math.min(...yValues.map(Math.abs))] as [number, number])
+    : ([minY, maxY] as [number, number]);
 
   // Calculate ranges (matching plot code with axisPadding)
   const xRange: [number, number] = [
@@ -220,11 +224,8 @@ export function calculatePositionWithD3Scales(
  * Calculate the domain (min/max) from an array of values
  * D3 typically uses "nice" domains, so we apply a similar extension
  */
-export function calculateDomain(
-  values: number[],
-  nice = true
-): Domain {
-  const validValues = values.filter(v => v !== null && v !== undefined && Number.isFinite(v));
+export function calculateDomain(values: number[], nice = true): Domain {
+  const validValues = values.filter((v) => v !== null && v !== undefined && Number.isFinite(v));
   if (validValues.length === 0) {
     return { min: 0, max: 1 };
   }
@@ -253,7 +254,7 @@ export function calculateDomain(
  * Calculate domain for log scale (must be positive)
  */
 export function calculateLogDomain(values: number[]): Domain {
-  const positiveValues = values.filter(v => v > 0 && Number.isFinite(v));
+  const positiveValues = values.filter((v) => v > 0 && Number.isFinite(v));
   if (positiveValues.length === 0) {
     return { min: 1, max: 10 };
   }
@@ -356,13 +357,15 @@ export function calculateScatterPointPosition(
   scaleY: 'linear' | 'log' = 'linear',
   dimensions: PlotDimensions = DEFAULT_DIMENSIONS
 ): PointPosition {
-  const cx = scaleX === 'log'
-    ? calculateLogX(xValue, xDomain, dimensions)
-    : calculateLinearX(xValue, xDomain, dimensions);
+  const cx =
+    scaleX === 'log'
+      ? calculateLogX(xValue, xDomain, dimensions)
+      : calculateLinearX(xValue, xDomain, dimensions);
 
-  const cy = scaleY === 'log'
-    ? calculateLogY(yValue, yDomain, dimensions)
-    : calculateLinearY(yValue, yDomain, dimensions);
+  const cy =
+    scaleY === 'log'
+      ? calculateLogY(yValue, yDomain, dimensions)
+      : calculateLinearY(yValue, yDomain, dimensions);
 
   return { cx, cy };
 }
@@ -483,7 +486,7 @@ export function calculateExpectedPointCount(
   xField: string,
   yField: string
 ): number {
-  return logs.filter(log => {
+  return logs.filter((log) => {
     const xValue = log[xField];
     const yValue = log[yField];
     // Use isValidNumericValue to match production getValue() conversion
@@ -501,18 +504,21 @@ export function calculateExpectedAggregatedPointCount(
   xField: string,
   yField: string
 ): number {
-  const validLogs = logs.filter(log => {
+  const validLogs = logs.filter((log) => {
     const xValue = log[xField];
     const yValue = log[yField];
     const groupValue = log[groupByField];
-    return groupValue !== null && groupValue !== undefined &&
-           xValue !== null && xValue !== undefined &&
-           yValue !== null && yValue !== undefined;
+    return (
+      groupValue !== null &&
+      groupValue !== undefined &&
+      xValue !== null &&
+      xValue !== undefined &&
+      yValue !== null &&
+      yValue !== undefined
+    );
   });
 
-  const uniqueGroups = new Set(
-    validLogs.map(log => String(log[groupByField]))
-  );
+  const uniqueGroups = new Set(validLogs.map((log) => String(log[groupByField])));
 
   return uniqueGroups.size;
 }
@@ -525,9 +531,7 @@ export function calculateExpectedBarCount(
   categoryField: string
 ): number {
   const categories = new Set(
-    logs
-      .map(log => log[categoryField])
-      .filter(v => v !== null && v !== undefined)
+    logs.map((log) => log[categoryField]).filter((v) => v !== null && v !== undefined)
   );
   return categories.size;
 }
@@ -573,10 +577,7 @@ export type AggregateType = 'sum' | 'mean' | 'count' | 'min' | 'max';
  * Calculate aggregate value from an array of numbers.
  * Matches the computeStatistic function used in actual plot code.
  */
-export function calculateAggregate(
-  values: number[],
-  aggregateType: AggregateType
-): number {
+export function calculateAggregate(values: number[], aggregateType: AggregateType): number {
   if (values.length === 0) return 0;
 
   switch (aggregateType) {
@@ -659,10 +660,7 @@ function getNestedValue(log: Record<string, unknown>, field: string): unknown {
 /**
  * Extract numeric value from attribute, handling percentages
  */
-export function parseAttributeValue(
-  attr: string | null,
-  containerSize?: number
-): number | null {
+export function parseAttributeValue(attr: string | null, containerSize?: number): number | null {
   if (attr === null) return null;
 
   if (attr.endsWith('%') && containerSize !== undefined) {
@@ -689,5 +687,3 @@ export function isWithinPlotArea(
     cy <= height - margins.bottom
   );
 }
-
-

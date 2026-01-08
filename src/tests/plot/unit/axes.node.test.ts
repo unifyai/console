@@ -259,4 +259,3 @@ describe('checkLogScalability', () => {
     expect(result).toBe('linear');
   });
 });
-

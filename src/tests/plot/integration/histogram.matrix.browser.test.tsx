@@ -58,8 +58,8 @@ function generateHistogramMatrix(): HistogramMatrixConfig[] {
   // Production code (plot-histogram.ts line 150) accepts:
   // float, int, timestamp, time, timedelta, date, bool, Any
   // All are converted to numeric by getValue() before binning
-  const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
+  const allDataTypes = generateDataTypeConfigs().filter((dt) =>
+    ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.xAxisType)
   );
   const activeScales = getActiveScales();
 
@@ -75,54 +75,61 @@ function generateHistogramMatrix(): HistogramMatrixConfig[] {
   return sampleConfigs(fullMatrix);
 }
 
-function defineHistogramTests(
-  config: HistogramMatrixConfig,
-  { it, expect }: TestUtils
-): void {
+function defineHistogramTests(config: HistogramMatrixConfig, { it, expect }: TestUtils): void {
   const { plotConfig, dataTypeConfig, scale } = config;
   const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
-  const expectedGroupCount = dataTypeConfig.group_by_type === 'bool' ? 2 : 5;
+  const expectedGroupCount = dataTypeConfig.groupByType === 'bool' ? 2 : 5;
 
-  it('renders histogram correctly', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+  it(
+    'renders histogram correctly',
+    async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
 
-    // Core assertions - SVG and structure
-    const svg = result.getSvg();
-    expect(svg).not.toBeNull();
-    assertAxesRendered(result);
+      // Core assertions - SVG and structure
+      const svg = result.getSvg();
+      expect(svg).not.toBeNull();
+      assertAxesRendered(result);
 
-    // Bin count
-    const bins = result.getHistogramBins();
-    const isGrouped = !!plotConfig.groupBy;
-    assertBinCountInRange(bins, plotConfig.binCount, deterministicData.count, isGrouped, expectedGroupCount);
+      // Bin count
+      const bins = result.getHistogramBins();
+      const isGrouped = !!plotConfig.groupBy;
+      assertBinCountInRange(
+        bins,
+        plotConfig.binCount,
+        deterministicData.count,
+        isGrouped,
+        expectedGroupCount
+      );
 
-    // Bin dimensions
-    if (plotConfig.groupBy) {
-      assertGroupedBinsValid(bins, expectedGroupCount);
-    } else {
-      assertBinsHaveValidDimensions(bins);
-    }
-    assertBinsWithinPlotArea(bins);
+      // Bin dimensions
+      if (plotConfig.groupBy) {
+        assertGroupedBinsValid(bins, expectedGroupCount);
+      } else {
+        assertBinsHaveValidDimensions(bins);
+      }
+      assertBinsWithinPlotArea(bins);
 
-    // Non-grouped specific assertions
-    if (!plotConfig.groupBy) {
-      assertConsistentBinWidths(bins);
-      assertBinsContiguous(bins);
-      assertBinsCoverDataRange(bins);
-    }
+      // Non-grouped specific assertions
+      if (!plotConfig.groupBy) {
+        assertConsistentBinWidths(bins);
+        assertBinsContiguous(bins);
+        assertBinsCoverDataRange(bins);
+      }
 
-    // Bin heights proportional to frequency
-    assertBinHeightsProportional(bins);
+      // Bin heights proportional to frequency
+      assertBinHeightsProportional(bins);
 
-    // Axis ticks
-    const xTicks = result.getAxisTicks('x');
-    const yTicks = result.getAxisTicks('y');
-    expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
-  }, scale.timeout);
+      // Axis ticks
+      const xTicks = result.getAxisTicks('x');
+      const yTicks = result.getAxisTicks('y');
+      expect(xTicks.length + yTicks.length).toBeGreaterThan(0);
+    },
+    scale.timeout
+  );
 }
 
 export const matrixTests = defineMatrixTests<HistogramMatrixConfig>({

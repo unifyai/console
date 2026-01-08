@@ -44,9 +44,9 @@ function logBenchmarkResult(result: BenchmarkResult) {
 describe('Mock Data Generation Benchmarks', () => {
   const activeScales = getActiveScales();
   const dataTypeConfig: DataTypeConfig = {
-    x_axis_type: 'float',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'float',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -86,9 +86,9 @@ describe('Mock Data Generation Benchmarks', () => {
 describe('Aggregation Benchmarks', () => {
   const activeScales = getActiveScales();
   const dataTypeConfig: DataTypeConfig = {
-    x_axis_type: 'float',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'float',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
   const aggregateTypes = ['sum', 'mean', 'count', 'min', 'max'] as const;
 
@@ -137,10 +137,10 @@ describe('Aggregation Benchmarks', () => {
 
 describe('Field Generation Benchmarks', () => {
   const dataTypeConfigs: DataTypeConfig[] = [
-    { x_axis_type: 'float', y_axis_type: 'float', group_by_type: 'str' },
-    { x_axis_type: 'int', y_axis_type: 'int', group_by_type: 'bool' },
-    { x_axis_type: 'datetime', y_axis_type: 'float', group_by_type: 'str' },
-    { x_axis_type: 'str', y_axis_type: 'int', group_by_type: 'str' },
+    { xAxisType: 'float', yAxisType: 'float', groupByType: 'str' },
+    { xAxisType: 'int', yAxisType: 'int', groupByType: 'bool' },
+    { xAxisType: 'datetime', yAxisType: 'float', groupByType: 'str' },
+    { xAxisType: 'str', yAxisType: 'int', groupByType: 'str' },
   ];
 
   describe.each(dataTypeConfigs)('Data types: %o', (dataTypeConfig) => {
@@ -153,7 +153,7 @@ describe('Field Generation Benchmarks', () => {
 
       logBenchmarkResult({
         operation: 'createMockFields',
-        scale: `${dataTypeConfig.x_axis_type}-${dataTypeConfig.y_axis_type}`,
+        scale: `${dataTypeConfig.xAxisType}-${dataTypeConfig.yAxisType}`,
         dataCount: Object.keys(fields).length,
         duration,
       });
@@ -172,16 +172,16 @@ describe('Data Type Specific Generation Benchmarks', () => {
   const activeScales = getActiveScales();
 
   const dataTypeConfigs: DataTypeConfig[] = [
-    { x_axis_type: 'float', y_axis_type: 'float', group_by_type: 'str' },
-    { x_axis_type: 'int', y_axis_type: 'int', group_by_type: 'bool' },
-    { x_axis_type: 'datetime', y_axis_type: 'float', group_by_type: 'str' },
-    { x_axis_type: 'str', y_axis_type: 'float', group_by_type: 'str' },
+    { xAxisType: 'float', yAxisType: 'float', groupByType: 'str' },
+    { xAxisType: 'int', yAxisType: 'int', groupByType: 'bool' },
+    { xAxisType: 'datetime', yAxisType: 'float', groupByType: 'str' },
+    { xAxisType: 'str', yAxisType: 'float', groupByType: 'str' },
   ];
 
   describe.each(dataTypeConfigs)('Data types: %o', (dataTypeConfig) => {
     describe.each(activeScales)('Scale: %s', (scale) => {
       it(
-        `generates ${scale.count} logs with ${dataTypeConfig.x_axis_type} x-axis`,
+        `generates ${scale.count} logs with ${dataTypeConfig.xAxisType} x-axis`,
         () => {
           const start = performance.now();
 
@@ -195,7 +195,7 @@ describe('Data Type Specific Generation Benchmarks', () => {
           const duration = performance.now() - start;
 
           logBenchmarkResult({
-            operation: `createMockLogs-${dataTypeConfig.x_axis_type}`,
+            operation: `createMockLogs-${dataTypeConfig.xAxisType}`,
             scale: scale.name,
             dataCount: logs.length,
             duration,

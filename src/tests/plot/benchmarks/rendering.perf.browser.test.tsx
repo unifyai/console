@@ -14,12 +14,7 @@
 import { describe, it, expect, afterEach, afterAll } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { renderPlotCanvas, createPlotTestSetup } from '../fixtures/plotCanvasTestHarness';
-import {
-  getActiveScales,
-  ScaleOption,
-  PlotConfig,
-  DataTypeConfig,
-} from '../fixtures/configs';
+import { getActiveScales, ScaleOption, PlotConfig, DataTypeConfig } from '../fixtures/configs';
 
 // =============================================================================
 // Setup
@@ -62,9 +57,9 @@ function countDomElements(container: HTMLElement): number {
 
 // Default data type config for benchmarks
 const defaultDataTypeConfig: DataTypeConfig = {
-  x_axis_type: 'float',
-  y_axis_type: 'float',
-  group_by_type: 'str',
+  xAxisType: 'float',
+  yAxisType: 'float',
+  groupByType: 'str',
 };
 
 // =============================================================================
@@ -209,9 +204,9 @@ describe('Bar Chart Rendering Performance', () => {
     binCount: 10,
   };
   const barDataTypeConfig: DataTypeConfig = {
-    x_axis_type: 'str',
-    y_axis_type: 'float',
-    group_by_type: 'str',
+    xAxisType: 'str',
+    yAxisType: 'float',
+    groupByType: 'str',
   };
 
   describe.each(activeScales)('Scale: %s', (scale) => {
@@ -422,12 +417,15 @@ afterAll(() => {
     console.log('========================================');
 
     // Group by plot type
-    const byPlotType = benchmarkResults.reduce((acc, r) => {
-      const key = r.plotType;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(r);
-      return acc;
-    }, {} as Record<string, BenchmarkResult[]>);
+    const byPlotType = benchmarkResults.reduce(
+      (acc, r) => {
+        const key = r.plotType;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(r);
+        return acc;
+      },
+      {} as Record<string, BenchmarkResult[]>
+    );
 
     for (const [plotType, results] of Object.entries(byPlotType)) {
       console.log(`\n${plotType.toUpperCase()}:`);
