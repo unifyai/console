@@ -59,13 +59,10 @@ const valueGenerators: Record<string, (index: number, seed?: number) => unknown>
     return `category_${(i + groupOffset) % 5}`;
   },
   // For bool, alternate by index and use seed to shift the pattern
-  bool: (i, seed = 0) => (seed > 0 ? (i + 1) : i) % 2 === 0,
-  datetime: (i) =>
-    new Date(Date.now() - i * 86400000).toISOString(),
-  time: (i) =>
-    `${String(i % 24).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}:00`,
-  date: (i) =>
-    new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+  bool: (i, seed = 0) => (seed > 0 ? i + 1 : i) % 2 === 0,
+  datetime: (i) => new Date(Date.now() - i * 86400000).toISOString(),
+  time: (i) => `${String(i % 24).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}:00`,
+  date: (i) => new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
   timedelta: (i) => `${i} days, ${i % 24}:00:00`,
   dict: (i) => ({ nested_value: i * 10, nested_label: `item_${i}` }),
   list: (i) => [i, i * 2, i * 3],
@@ -73,8 +70,7 @@ const valueGenerators: Record<string, (index: number, seed?: number) => unknown>
   tuple: (i) => [i, `tuple_${i}`], // JSON doesn't support tuples, use array
   Any: (i) => (i % 3 === 0 ? i : i % 3 === 1 ? `any_${i}` : { val: i }),
   image: (i) => `https://example.com/image_${i}.png`,
-  embedding: (i) =>
-    Array.from({ length: 128 }, (_, j) => Math.sin(i + j) * 0.5),
+  embedding: (i) => Array.from({ length: 128 }, (_, j) => Math.sin(i + j) * 0.5),
 };
 
 /**
@@ -113,9 +109,14 @@ const deterministicValueGenerators: Record<string, (index: number, count: number
     return new Date(baseTime + timeOffset).toISOString().split('T')[0];
   },
   timedelta: (i, count) => {
-    // Generate timedeltas evenly spaced from 0 to 30 days
+    // Generate timedeltas evenly spaced from 1 hour to 30 days
+    // Start from 1 hour (not 0) to avoid log(0) issues with log scales
     // Format matches Python timedelta string: "X days, HH:MM:SS"
-    const totalSeconds = Math.floor((i / Math.max(1, count - 1)) * 30 * 24 * 60 * 60);
+    const minSeconds = 3600; // 1 hour minimum
+    const maxSeconds = 30 * 24 * 60 * 60; // 30 days
+    const totalSeconds = Math.floor(
+      minSeconds + (i / Math.max(1, count - 1)) * (maxSeconds - minSeconds)
+    );
     const days = Math.floor(totalSeconds / 86400);
     const hours = Math.floor((totalSeconds % 86400) / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -127,11 +128,7 @@ const deterministicValueGenerators: Record<string, (index: number, count: number
 /**
  * Generate a value for a given data type
  */
-export function generateValue(
-  type: string,
-  index: number,
-  seed = 0
-): unknown {
+export function generateValue(type: string, index: number, seed = 0): unknown {
   const generator = valueGenerators[type];
   if (generator) {
     return generator(index, seed);
@@ -175,11 +172,9 @@ export function createMockLogs(options: MockLogOptions): LogEntry[] {
 
   for (let i = 0; i < count; i++) {
     // In deterministic mode, we use fixed null positions instead of random
-    const isNullEntry = includeNulls && (
-      deterministic
-        ? (i % Math.ceil(1 / nullPercentage) === 0)
-        : Math.random() < nullPercentage
-    );
+    const isNullEntry =
+      includeNulls &&
+      (deterministic ? i % Math.ceil(1 / nullPercentage) === 0 : Math.random() < nullPercentage);
 
     const log: LogEntry = {
       id: `log_${i}`,
@@ -204,9 +199,7 @@ export function createMockLogs(options: MockLogOptions): LogEntry[] {
         'table1.value': deterministic
           ? (i / Math.max(1, count - 1)) * 1000
           : generateValue('float', i, 300),
-        'table1.count': deterministic
-          ? i
-          : generateValue('int', i, 400),
+        'table1.count': deterministic ? i : generateValue('int', i, 400),
         'table1.label': `Item ${i}`,
       },
     };
@@ -216,9 +209,7 @@ export function createMockLogs(options: MockLogOptions): LogEntry[] {
 
   // Add edge cases at the end (skip in deterministic mode for precise counts)
   if (includeEdgeCases && !deterministic) {
-    logs.push(
-      ...createEdgeCaseLogs(dataTypeConfig, logs.length)
-    );
+    logs.push(...createEdgeCaseLogs(dataTypeConfig, logs.length));
   }
 
   return logs;
@@ -263,11 +254,11 @@ export function createDeterministicMockLogs(
   });
 
   // Pre-compute expected values for assertions
-  const xValues = logs.map(l => l['table1.entries']['table1.x_value'] as number);
-  const yValues = logs.map(l => l['table1.entries']['table1.y_value'] as number);
+  const xValues = logs.map((l) => l['table1.entries']['table1.x_value'] as number);
+  const yValues = logs.map((l) => l['table1.entries']['table1.y_value'] as number);
 
-  const numericXValues = xValues.filter(v => typeof v === 'number' && Number.isFinite(v));
-  const numericYValues = yValues.filter(v => typeof v === 'number' && Number.isFinite(v));
+  const numericXValues = xValues.filter((v) => typeof v === 'number' && Number.isFinite(v));
+  const numericYValues = yValues.filter((v) => typeof v === 'number' && Number.isFinite(v));
 
   return {
     logs,
@@ -300,10 +291,7 @@ export interface DeterministicLogSet {
 /**
  * Create edge case logs for testing robustness
  */
-function createEdgeCaseLogs(
-  dataTypeConfig: DataTypeConfig,
-  startIndex: number
-): LogEntry[] {
+function createEdgeCaseLogs(dataTypeConfig: DataTypeConfig, startIndex: number): LogEntry[] {
   const edgeCases: LogEntry[] = [];
 
   // Null values
@@ -365,10 +353,8 @@ function createEdgeCaseLogs(
       timestamp: new Date().toISOString(),
       'table1.id': `log_edge_large_${startIndex + 3}`,
       'table1.entries': {
-        'table1.x_value':
-          dataTypeConfig.x_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
-        'table1.y_value':
-          dataTypeConfig.y_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
+        'table1.x_value': dataTypeConfig.x_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
+        'table1.y_value': dataTypeConfig.y_axis_type === 'float' ? 1e15 : Number.MAX_SAFE_INTEGER,
         'table1.category': 'large_category',
         'table1.status': 'success',
         'table1.value': 1e10,
@@ -425,16 +411,19 @@ function createEdgeCaseLogs(
  * Create mock field definitions in LogFieldsResponseProps format
  * This returns an object with field paths as keys, matching the API response format
  */
-export function createMockFields(dataTypeConfig: DataTypeConfig): Record<string, {
-  data_type: string;
-  field_type: 'entry' | 'param' | 'derived_entry';
-  artifacts: string;
-  mutable: 'true' | 'false';
-  created_at: string;
-  description?: string;
-}> {
+export function createMockFields(dataTypeConfig: DataTypeConfig): Record<
+  string,
+  {
+    data_type: string;
+    field_type: 'entry' | 'param' | 'derived_entry';
+    artifacts: string;
+    mutable: 'true' | 'false';
+    created_at: string;
+    description?: string;
+  }
+> {
   const now = new Date().toISOString();
-  
+
   const fieldDefs = [
     { path: 'table1.x_value', type: dataTypeConfig.x_axis_type },
     { path: 'table1.y_value', type: dataTypeConfig.y_axis_type },
@@ -446,15 +435,18 @@ export function createMockFields(dataTypeConfig: DataTypeConfig): Record<string,
     { path: 'timestamp', type: 'datetime' },
     { path: 'id', type: 'str' },
   ];
-  
-  const result: Record<string, {
-    data_type: string;
-    field_type: 'entry' | 'param' | 'derived_entry';
-    artifacts: string;
-    mutable: 'true' | 'false';
-    created_at: string;
-  }> = {};
-  
+
+  const result: Record<
+    string,
+    {
+      data_type: string;
+      field_type: 'entry' | 'param' | 'derived_entry';
+      artifacts: string;
+      mutable: 'true' | 'false';
+      created_at: string;
+    }
+  > = {};
+
   for (const field of fieldDefs) {
     result[field.path] = {
       data_type: field.type,
@@ -464,7 +456,7 @@ export function createMockFields(dataTypeConfig: DataTypeConfig): Record<string,
       created_at: now,
     };
   }
-  
+
   return result;
 }
 
@@ -653,4 +645,3 @@ export function createTestMeta(
     scale,
   };
 }
-

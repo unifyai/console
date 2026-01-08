@@ -3,6 +3,10 @@
  *
  * Comprehensive matrix tests covering all valid config combinations.
  * For edge cases and interactions, see scatter.browser.test.tsx
+ *
+ * Render mode is determined automatically by data size:
+ * - small/medium scales (≤2000 points) → SVG rendering
+ * - large scale (10000 points) → WebGL rendering
  */
 
 import { afterEach } from 'vitest';
@@ -11,6 +15,8 @@ import {
   renderPlotCanvas,
   createPlotTestSetup,
   assertAxesRendered,
+  assertScatterPlotRendered,
+  resetConfig,
 } from '../fixtures/plotCanvasTestHarness';
 import {
   generateValidPlotConfigsForType,
@@ -38,6 +44,8 @@ import {
 
 afterEach(() => {
   cleanup();
+  // Reset scatter config to defaults after each test
+  resetConfig();
 });
 
 // =============================================================================
@@ -55,8 +63,8 @@ function generateScatterMatrix(): ScatterMatrixConfig[] {
   // Production code (plot-scatter.ts line 479) accepts:
   // float, int, timestamp, time, timedelta, date, bool, Any
   // All are converted to numeric by getValue()
-  const allDataTypes = generateDataTypeConfigs().filter(
-    (dt) => ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
+  const allDataTypes = generateDataTypeConfigs().filter((dt) =>
+    ['float', 'int', 'datetime', 'time', 'timedelta', 'date', 'bool'].includes(dt.x_axis_type)
   );
   const activeScales = getActiveScales();
 
@@ -72,68 +80,95 @@ function generateScatterMatrix(): ScatterMatrixConfig[] {
   return sampleConfigs(fullMatrix);
 }
 
-function defineScatterTests(
-  config: ScatterMatrixConfig,
-  { it, expect }: TestUtils
-): void {
+function defineScatterTests(config: ScatterMatrixConfig, { it, expect }: TestUtils): void {
   const { plotConfig, dataTypeConfig, scale } = config;
   const deterministicData = createDeterministicMockLogs(dataTypeConfig, scale.count);
 
-  it('renders scatter plot correctly', async () => {
-    const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
-      deterministic: true,
-    });
-    const result = renderPlotCanvas(testSetup);
-    await result.waitForPlot();
+  // Render mode is automatically determined by data size:
+  // - small (100) / medium (1000) → SVG (below SVG_MAX of 2000)
+  // - large (10000) → WebGL (above SVG_MAX)
+  const expectWebGL = scale.count > 2000;
 
-    // Point count
-    const logsForCounting = deterministicData.logs.map(l => ({
-      'table1.x_value': l['table1.entries']['table1.x_value'],
-      'table1.y_value': l['table1.entries']['table1.y_value'],
-    }));
-    const expectedCount = calculateExpectedPointCount(
-      logsForCounting,
-      'table1.x_value',
-      'table1.y_value'
-    );
-    assertExactPointCount(result, expectedCount);
+  it(
+    'renders scatter plot correctly',
+    async () => {
+      const testSetup = createPlotTestSetup(plotConfig, dataTypeConfig, scale, {
+        deterministic: true,
+      });
 
-    // Point positions
-    const points = result.getScatterPoints();
-    assertPointsHaveValidPositions(points);
-    assertPointPositionsMatchData(
-      result,
-      deterministicData,
-      plotConfig.scale_x,
-      plotConfig.scale_y
-    );
+      const result = renderPlotCanvas(testSetup);
+      await result.waitForPlot();
 
-    // Point dimensions
-    assertPointDimensions(result);
+      // Verify the plot rendered (works for both SVG and WebGL)
+      assertScatterPlotRendered(result);
 
-    // Axes
-    assertAxesRendered(result);
-    const xTicks = result.getAxisTicks('x');
-    const yTicks = result.getAxisTicks('y');
-    expect(xTicks.length).toBeGreaterThan(0);
-    expect(yTicks.length).toBeGreaterThan(0);
+      // Check that the correct render mode was automatically selected
+      const points = result.getScatterPoints();
+      const webglCanvas = result.getWebGLCanvas();
+      const isSVGMode = points.length > 0;
+      const isWebGLMode = webglCanvas !== null && webglCanvas.style.display !== 'none';
 
-    // Regression line (if enabled)
-    if (plotConfig.show_regression) {
-      const plotData = result.getPlotDataGroup();
-      expect(plotData).not.toBeNull();
-      const lines = plotData?.querySelectorAll('line, path.regression-line');
-      expect(lines?.length).toBeGreaterThanOrEqual(0);
-    }
+      if (expectWebGL) {
+        // Large scale should use WebGL
+        expect(isWebGLMode).toBe(true);
+      } else {
+        // Small/medium scale should use SVG
+        expect(isSVGMode).toBe(true);
+      }
 
-    // Grouped: different colors for groups
-    if (plotConfig.group_by) {
-      const fillColors = new Set(
-        points.map((p) => p.getAttribute('fill')).filter(Boolean)
-      );
-      expect(fillColors.size).toBeGreaterThanOrEqual(1);
-    }
-  }, scale.timeout);
+      if (isSVGMode) {
+        // SVG-specific assertions
+        const logsForCounting = deterministicData.logs.map((l) => ({
+          'table1.x_value': l['table1.entries']['table1.x_value'],
+          'table1.y_value': l['table1.entries']['table1.y_value'],
+        }));
+        const expectedCount = calculateExpectedPointCount(
+          logsForCounting,
+          'table1.x_value',
+          'table1.y_value'
+        );
+        assertExactPointCount(result, expectedCount);
+
+        // Point positions
+        assertPointsHaveValidPositions(points);
+        assertPointPositionsMatchData(
+          result,
+          deterministicData,
+          plotConfig.scale_x,
+          plotConfig.scale_y
+        );
+
+        // Point dimensions
+        assertPointDimensions(result);
+
+        // Grouped: different colors for groups
+        if (plotConfig.group_by) {
+          const fillColors = new Set(points.map((p) => p.getAttribute('fill')).filter(Boolean));
+          expect(fillColors.size).toBeGreaterThanOrEqual(1);
+        }
+      } else {
+        // WebGL mode - verify canvas is present and visible
+        expect(webglCanvas).not.toBeNull();
+        expect(webglCanvas?.style.display).not.toBe('none');
+      }
+
+      // Axes (works for both modes - axes are always SVG)
+      assertAxesRendered(result);
+      const xTicks = result.getAxisTicks('x');
+      const yTicks = result.getAxisTicks('y');
+      expect(xTicks.length).toBeGreaterThan(0);
+      expect(yTicks.length).toBeGreaterThan(0);
+
+      // Regression line (if enabled - always SVG overlay)
+      if (plotConfig.show_regression) {
+        const plotData = result.getPlotDataGroup();
+        expect(plotData).not.toBeNull();
+        const lines = plotData?.querySelectorAll('path.best-fit');
+        expect(lines?.length).toBeGreaterThanOrEqual(0);
+      }
+    },
+    scale.timeout
+  );
 }
 
 export const matrixTests = defineMatrixTests<ScatterMatrixConfig>({
